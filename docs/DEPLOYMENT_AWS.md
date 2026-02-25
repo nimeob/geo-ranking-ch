@@ -29,6 +29,10 @@
 
 Das Zielbild für VPC-/Ingress-Design ist in [`docs/NETWORK_INGRESS_DECISIONS.md`](NETWORK_INGRESS_DECISIONS.md) dokumentiert (BL-05).
 
+### Datenhaltung & API-Sicherheit
+
+Die verbindlichen Entscheidungen zu Persistenzbedarf (BL-06) und API-Sicherheitskontrollen für `/analyze` (BL-07) sind in [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md) festgehalten.
+
 ### Aktuelle Ressourcen (dev)
 
 | Ressource | Name / ARN | Status |

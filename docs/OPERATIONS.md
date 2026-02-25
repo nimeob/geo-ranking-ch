@@ -8,6 +8,8 @@ Arbeitsmodus, Branching-Strategie, Commit-Regeln und Release-Checkliste.
 
 > **Offene Umsetzungs-/Operations-Themen:** zentral in [`docs/BACKLOG.md`](BACKLOG.md) pflegen (hier keine separaten TODO-Listen).
 
+> **Sicherheits-/Datenhaltungsentscheidungen für API-Betrieb:** siehe [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md).
+
 ---
 
 ## Branching-Strategie

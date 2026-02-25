@@ -130,6 +130,7 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 - **Service-Form:** Lightweight MVP-Webservice mit klaren Basisendpoints (`/health`, `/version`, `/analyze`).
 - **IaC-Fundament (dev):** Terraform-Startpaket unter `infra/terraform/` für ECS/ECR/CloudWatch/S3 mit Import-first-Ansatz (`manage_*` standardmässig `false`).
 - **Netzwerk/Ingress-Zielbild:** Dokumentiert in `docs/NETWORK_INGRESS_DECISIONS.md` (ALB-direkt als Ziel, API Gateway aktuell nicht erforderlich, Route53-Pflichten für `staging`/`prod`).
+- **Datenhaltung + API-Sicherheit:** Entscheidungen dokumentiert in `docs/DATA_AND_API_SECURITY.md` (stateless in `dev`, DynamoDB-first bei Persistenzbedarf, AuthN/Rate-Limit/Secret-Standards für `/analyze`).
 
 ---
 

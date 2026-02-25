@@ -78,19 +78,23 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-05
+- **Status:** ✅ abgeschlossen (2026-02-25)
 - **Akzeptanzkriterien:**
   - Entscheidung dokumentiert, ob persistente Datenbankkomponenten benötigt werden.
   - Falls ja: gewählter Dienst (RDS oder DynamoDB) mit Minimaldesign und Betriebsfolgen beschrieben.
   - Falls nein: Begründung und Konsequenzen (z. B. Stateless-Betrieb) dokumentiert.
+- **Nachweis:** [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md)
 
 ### BL-07 — API-Sicherheitskonzept konkretisieren
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-05
+- **Status:** ✅ abgeschlossen (2026-02-25)
 - **Akzeptanzkriterien:**
   - AuthN/AuthZ-Ansatz für `/analyze` dokumentiert.
   - Rate-Limit-Strategie inklusive Durchsetzungspunkt festgelegt.
   - Mindestanforderungen für Secret-/Token-Handling dokumentiert.
+- **Nachweis:** [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md)
 
 ### BL-08 — Monitoring & Alerting-Baseline in `dev`
 - **Priorität:** P1

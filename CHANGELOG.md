@@ -14,6 +14,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-06/BL-07 Datenhaltung & API-Sicherheit abgeschlossen)
+- **`docs/DATA_AND_API_SECURITY.md`:** Neu angelegt mit verbindlicher Entscheidung „stateless in dev“, definiertem DynamoDB-first-Pfad bei Persistenztriggern sowie AuthN/AuthZ-, Rate-Limit- und Secret-Handling-Standards für `/analyze`.
+- **`docs/BACKLOG.md`:** BL-06 und BL-07 auf abgeschlossen gesetzt, Nachweis auf das neue Entscheidungsdokument verlinkt.
+- **`docs/ARCHITECTURE.md` / `docs/DEPLOYMENT_AWS.md` / `README.md`:** Referenzen auf das neue Sicherheits-/Datenhaltungsdokument ergänzt.
+
 ### Changed (2026-02-25 — BL-05 Netzwerk-/Ingress-Zielbild abgeschlossen)
 - **`docs/NETWORK_INGRESS_DECISIONS.md`:** Neu angelegt mit verifiziertem Ist-Stand (Default VPC/public subnets, SG-Ingress) und beschlossenem Zielbild (ALB vor ECS, private Tasks, Route53/ACM-Pflicht in `staging`/`prod`).
 - **`docs/BACKLOG.md`:** BL-05 auf abgeschlossen gesetzt und Nachweisdokument verlinkt.
