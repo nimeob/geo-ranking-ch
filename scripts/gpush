@@ -14,9 +14,23 @@ fi
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
-# forward all args to git push, default to origin current branch
 if [[ "$#" -eq 0 ]]; then
   exec git push "$AUTH_URL" "$BRANCH"
+fi
+
+# Remove a single literal "origin" argument for compatibility
+args=()
+removed=0
+for a in "$@"; do
+  if [[ $removed -eq 0 && "$a" == "origin" ]]; then
+    removed=1
+    continue
+  fi
+  args+=("$a")
+done
+
+if [[ "${#args[@]}" -eq 0 ]]; then
+  exec git push "$AUTH_URL" "$BRANCH"
 else
-  exec git push "$AUTH_URL" "$@"
+  exec git push "$AUTH_URL" "${args[@]}"
 fi
