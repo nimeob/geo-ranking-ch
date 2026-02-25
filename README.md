@@ -33,11 +33,36 @@
 git clone https://github.com/nimeob/geo-ranking-ch.git
 cd geo-ranking-ch
 
-# Abhängigkeiten installieren (wird ergänzt)
-# pip install -r requirements.txt   # TODO
+# Dev-Abhängigkeiten installieren (nur pytest, keine Runtime-Deps nötig)
+pip install -r requirements-dev.txt
 
-# Tests ausführen (wird ergänzt)
-# pytest                              # TODO
+# Tests ausführen
+pytest tests/ -v
+```
+
+### Kernmodule (src/)
+
+| Modul | Beschreibung |
+|---|---|
+| `src/address_intel.py` | Adress-Intelligence: Geocoding, GWR-Lookup, Gebäuderegister, City-Ranking |
+| `src/gwr_codes.py` | GWR-Code-Tabellen (Gebäudestatus, Heizung, Energie) |
+| `src/geo_utils.py` | Geodaten-Utilities: Elevation, Koordinaten-Umrechnung, Haversine |
+
+Alle Module sind **reine Python-Standardbibliothek** — kein externer API-Key nötig.
+Optionales Kartenrendering (PNG) benötigt `pycairo`.
+
+#### CLI-Schnellstart
+
+```bash
+# Adress-Report
+python3 src/address_intel.py "Bahnhofstrasse 1, 8001 Zürich"
+
+# City-Ranking (indikativ, OSM + GeoAdmin)
+python3 src/address_intel.py --area-mode city-ranking --city "St. Gallen"
+
+# Geodaten-Utilities
+python3 src/geo_utils.py geocode "Hauptbahnhof Zürich"
+python3 src/geo_utils.py elevation 47.3769 8.5417
 ```
 
 ### Deployment
@@ -61,7 +86,12 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 
 ```
 geo-ranking-ch/
-├── src/                    # Quellcode (TODO)
+├── src/                    # Quellcode (Python, stdlib only)
+│   ├── address_intel.py    # Adress-Intelligence + City-Ranking
+│   ├── gwr_codes.py        # GWR-Code-Tabellen
+│   └── geo_utils.py        # Geodaten-Utilities (Elevation, Geocoding, …)
+├── tests/                  # Unit-Tests
+│   └── test_core.py
 ├── scripts/                # Deployment- und Utility-Skripte
 ├── docs/                   # Projektdokumentation
 │   ├── ARCHITECTURE.md
@@ -70,6 +100,8 @@ geo-ranking-ch/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml      # CI/CD Pipeline (aktiv, nur workflow_dispatch)
+├── requirements.txt        # Runtime-Abhängigkeiten (keine)
+├── requirements-dev.txt    # Dev-Abhängigkeiten (pytest)
 ├── CHANGELOG.md
 └── README.md
 ```

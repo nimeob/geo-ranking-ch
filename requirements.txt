@@ -1,0 +1,6 @@
+# Runtime-Abhängigkeiten
+# Alle Kernmodule nutzen ausschliesslich die Python-Standardbibliothek.
+# Kein pip-Install nötig für den Basisbetrieb.
+
+# Optional (für Karten-PNG-Rendering in address_intel.py):
+# pycairo>=1.24

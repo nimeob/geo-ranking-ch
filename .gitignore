@@ -48,5 +48,11 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Generierte Cache- und Output-Verzeichnisse (swisstopo / address_intel)
+src/.cache/
+src/output/
+*.cache/
+output/
+
 # Node (falls JS/CDK verwendet wird)
 node_modules/
