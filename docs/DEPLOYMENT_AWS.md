@@ -445,15 +445,14 @@ AWS_ACCOUNT_ID=523234426229 ./scripts/setup_health_probe_dev.sh
 
 ## 8. Offene Punkte / TODOs
 
-Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (insb. **BL-01** bis **BL-11**), um doppelte Pflege zu vermeiden.
+Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (aktuell **BL-01** bis **BL-15**), um doppelte Pflege zu vermeiden.
 
 > **AWS-Ressourcen-Inventar:** Eine vollständige, verifizierte Übersicht aller AWS-Ressourcen (Name/ARN, Region, Zweck, Tags, Konfig-Parameter, IaC-Status, Rebuild-Hinweise) findet sich in [`docs/AWS_INVENTORY.md`](AWS_INVENTORY.md).
 
 Status-Updates zu umgesetzten Teilaspekten bitte in der jeweiligen BL-ID in `docs/BACKLOG.md` nachführen.
 
-- ✅ IaC-Fundament (Terraform, dev) umgesetzt: `infra/terraform/` mit Import-first-Runbook.
-- ✅ Monitoring-Baseline in AWS angelegt (SNS Topic + Metric Filters + Alarme) via `scripts/setup_monitoring_baseline_dev.sh`.
-- ✅ Ops-Helper-Skripte vorhanden: `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`.
-- ✅ IaC + Code für Telegram-Alerting vorbereitet: `infra/lambda/sns_to_telegram/`, `infra/terraform/lambda_telegram.tf`, `scripts/setup_telegram_alerting_dev.sh`.
-- ✅ Telegram-Alerting deployed und end-to-end getestet (CloudWatch Alarm → SNS → Lambda → Telegram).
-- ⏳ Noch offen: HTTP-Uptime-Probe auf `/health` produktiv aktivieren.
+Aktueller Stand (Deployment-relevant):
+- ✅ IaC-Fundament (`infra/terraform/`) für dev-Kernressourcen umgesetzt.
+- ✅ Monitoring/Alerting-Baseline inkl. SNS → Telegram produktiv aktiv.
+- ✅ HTTP-Uptime-Probe auf `/health` produktiv aktiv (BL-12 abgeschlossen).
+- ⏳ Nächster offener Deployment-Block: **BL-14** (Health-Probe in Terraform überführen, IaC-Parität).

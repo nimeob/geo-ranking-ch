@@ -174,9 +174,43 @@
   - ✅ Scripts: `scripts/setup_health_probe_dev.sh` (idempotent), `scripts/check_health_probe_dev.sh` (read-only).
   - ✅ Quellcode: `infra/lambda/health_probe/lambda_function.py`.
 
+### BL-13 — Deployment-Doku konsolidieren (Backlog- und Statuskonsistenz)
+- **Priorität:** P1
+- **Aufwand:** S
+- **Abhängigkeiten:** keine
+- **Status:** ✅ abgeschlossen (2026-02-26)
+- **Akzeptanzkriterien:**
+  - `docs/DEPLOYMENT_AWS.md` enthält keine widersprüchlichen „offen“-Aussagen zu bereits abgeschlossenen BL-Items.
+  - Backlog-Referenzen sind auf aktuelle BL-Range aktualisiert.
+  - Änderung ist im Changelog dokumentiert.
+- **Nachweis:**
+  - ✅ Abschnitt „Offene Punkte / TODOs“ in `docs/DEPLOYMENT_AWS.md` bereinigt und auf konsolidierte Backlog-Pflege umgestellt.
+  - ✅ Veralteter Hinweis „HTTP-Uptime-Probe noch offen“ entfernt (BL-12 bereits abgeschlossen).
+  - ✅ Referenz auf aktuelle Backlog-Spanne (`BL-01` bis `BL-15`) aktualisiert.
+
+### BL-14 — Health-Probe in Terraform überführen (IaC-Parität)
+- **Priorität:** P1
+- **Aufwand:** M
+- **Abhängigkeiten:** BL-12
+- **Status:** ⏳ offen
+- **Akzeptanzkriterien:**
+  - Health-Probe-Ressourcen (Lambda, IAM, EventBridge, Alarm) als optionale Terraform-Ressourcen modelliert.
+  - Existing Setup-Script bleibt als Fallback dokumentiert.
+  - `terraform plan` ist drift-arm und ohne destruktive Default-Änderungen.
+
+### BL-15 — Legacy-IAM-User Decommission-Readiness (read-only)
+- **Priorität:** P2
+- **Aufwand:** S
+- **Abhängigkeiten:** BL-03
+- **Status:** ⏳ offen
+- **Akzeptanzkriterien:**
+  - Read-only Evidenz zu aktueller Nutzung des Legacy-Users `swisstopo-api-deploy` dokumentiert.
+  - Risikoarme Decommission-Checkliste (ohne direkte Abschaltung) liegt vor.
+  - Entscheidungsvorlage in `docs/AWS_INVENTORY.md` oder dediziertem Runbook verlinkt.
+
 ---
 
-## Nacht-Plan
+## Nacht-Plan (abgeschlossen)
 
 ### Parallel machbar (mehrere Personen/Tracks)
 - **Track A:** BL-02 (Workflow-Verifikation)
@@ -190,3 +224,9 @@
 3. **BL-06 + BL-07** (Datenhaltung + API-Sicherheit)
 4. **BL-08** (Monitoring/Alerting auf stabiler Basis)
 5. **BL-09** (staging/prod + Promotion)
+
+## Folge-Sequenz (ab 2026-02-26)
+
+1. **BL-13** (Doku-Konsistenz)
+2. **BL-14** (Health-Probe IaC-Parität)
+3. **BL-15** (Legacy-IAM-Readiness)

@@ -29,6 +29,10 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/DEPLOYMENT_AWS.md`:** Verweis auf `docs/AWS_INVENTORY.md` als zentrales Ressourcen-Inventar ergänzt.
 - **`docs/BACKLOG.md`:** BL-11 auf abgeschlossen gesetzt inkl. Nachweis.
 
+### Changed (2026-02-26 — BL-13 gestartet und abgeschlossen: Doku-Konsistenz nach Nacht-Plan)
+- **`docs/BACKLOG.md`:** Neue Folge-Sequenz nach abgeschlossenem Nacht-Plan angelegt (`BL-13` bis `BL-15`), `BL-13` als abgeschlossen dokumentiert und Nachweise ergänzt.
+- **`docs/DEPLOYMENT_AWS.md`:** Abschnitt „Offene Punkte / TODOs“ konsolidiert; veralteter Restpunkt zur bereits aktiven HTTP-Uptime-Probe entfernt; Backlog-Referenz auf aktuelle BL-Range (`BL-01` bis `BL-15`) aktualisiert.
+
 ### Changed (2026-02-26 — BL-03 final abgeschlossen, Least-Privilege OIDC-Doku finalisiert)
 - **`infra/iam/trust-policy.json`:** Neu — Trust-Policy der OIDC-Deploy-Role versioniert (`repo:nimeob/geo-ranking-ch:ref:refs/heads/main`, verifiziert identisch mit live AWS-Konfiguration).
 - **`infra/iam/README.md`:** Status auf `✅ Final abgeschlossen` aktualisiert; bisheriger „Vorbereitung"-Hinweis (misleading) entfernt; neuen Nachweis-Abschnitt ergänzt (Role ARN, Policy-Version, Trust-Bedingung, E2E-Run-Links, Policy-Drift-Verifikation — kein Drift); Hinweise für Staging/Prod-OIDC-Rollen ergänzt.
