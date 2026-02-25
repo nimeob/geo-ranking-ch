@@ -216,8 +216,8 @@ Die folgenden Standards sind absichtlich minimal gehalten und passen zum aktuell
 ### 1) CloudWatch Logs Standard (Log Group + Retention)
 
 **Log-Group-Namensschema (Standard):**
-- `/aws/ecs/<service-name>`
-- Für den aktuellen Service: `/aws/ecs/swisstopo-dev-api`
+- projektspezifisch: `/swisstopo/<env>/ecs/<service>`
+- Für den aktuellen Service: `/swisstopo/dev/ecs/api`
 
 **Retention-Standard:**
 - `dev`: **30 Tage**
@@ -229,7 +229,7 @@ Die folgenden Standards sind absichtlich minimal gehalten und passen zum aktuell
 export AWS_REGION=eu-central-1
 export ECS_CLUSTER=swisstopo-dev
 export ECS_SERVICE=swisstopo-dev-api
-export LOG_GROUP=/aws/ecs/swisstopo-dev-api
+export LOG_GROUP=/swisstopo/dev/ecs/api
 
 # Log Group prüfen
 aws logs describe-log-groups   --region "$AWS_REGION"   --log-group-name-prefix "$LOG_GROUP"   --query 'logGroups[].{name:logGroupName,retention:retentionInDays,storedBytes:storedBytes}'
@@ -289,7 +289,7 @@ curl -fsS "$SERVICE_HEALTH_URL"
 export AWS_REGION=eu-central-1
 export ECS_CLUSTER=swisstopo-dev
 export ECS_SERVICE=swisstopo-dev-api
-export LOG_GROUP=/aws/ecs/swisstopo-dev-api
+export LOG_GROUP=/swisstopo/dev/ecs/api
 ```
 
 ### 1) Service-Schnellcheck

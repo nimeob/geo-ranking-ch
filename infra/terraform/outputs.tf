@@ -47,6 +47,19 @@ output "cloudwatch_log_group_arn" {
   )
 }
 
+output "s3_bucket_name" {
+  description = "Effektiver S3-Bucket-Name (managed oder read-only erkannt)."
+  value       = local.s3_bucket_name_effective
+}
+
+output "s3_bucket_arn" {
+  description = "S3 Bucket ARN (falls managed oder erfolgreich read-only aufgelöst)."
+  value = coalesce(
+    try(aws_s3_bucket.dev[0].arn, null),
+    try(data.aws_s3_bucket.existing[0].arn, null)
+  )
+}
+
 output "resource_management_flags" {
   description = "Transparenz: welche Ressourcen aktuell von Terraform gemanagt werden."
   value = {
@@ -54,5 +67,6 @@ output "resource_management_flags" {
     manage_ecs_cluster          = var.manage_ecs_cluster
     manage_ecr_repository       = var.manage_ecr_repository
     manage_cloudwatch_log_group = var.manage_cloudwatch_log_group
+    manage_s3_bucket             = var.manage_s3_bucket
   }
 }

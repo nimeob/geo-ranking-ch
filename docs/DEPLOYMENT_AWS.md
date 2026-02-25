@@ -213,13 +213,14 @@ Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health
 | 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416418587 | `push` auf `main` | ✅ Success | `Wait for service stability` = ✅, `Smoke-Test /health` = ✅ |
 | 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416878804 | `push` auf `main` | ❌ Failure | `Build and push image` fehlgeschlagen (`AWS_ACCOUNT_ID` leer), nachgelagerte Schritte inkl. `services-stable`/Smoke-Test wurden übersprungen |
 | 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416930879 | `push` auf `main` | ❌ Failure | `Register new task definition revision` fehlgeschlagen (`AccessDeniedException` auf `ecs:DescribeTaskDefinition`), `services-stable`/Smoke-Test übersprungen |
-| 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22417749775 | `workflow_dispatch` | 🔄 In Progress (Validierung) | Nach IAM-Policy-Fix läuft `Register new task definition revision` wieder erfolgreich; aktueller Wartepunkt: `Wait for service stability` |
+| 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22417749775 | `workflow_dispatch` | ✅ Success | IAM-Policy-Fix validiert (`Register new task definition revision` wieder grün), `services-stable` + Smoke-Test erfolgreich |
+| 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22417939827 | `push` auf `main` | ✅ Success | End-to-End OIDC-Deploy mit `services-stable` + Smoke-Test erfolgreich |
 
 Kurzfazit BL-02:
 - Trigger per `push` auf `main`: ✅ nachgewiesen.
-- `services-stable` erfolgreich: ✅ in Run `22416418587`.
-- Smoke-Test `/health` erfolgreich: ✅ in Run `22416418587`.
-- Regression `ecs:DescribeTaskDefinition` wurde in IAM-Policy adressiert (OIDC-Role, Policy-Version `v2`); Validierungsrun `22417749775` bestätigt den ehemals fehlerhaften Schritt als grün.
+- `services-stable` erfolgreich: ✅ mehrfach bestätigt (`22416418587`, `22417939827`).
+- Smoke-Test `/health` erfolgreich: ✅ mehrfach bestätigt (`22416418587`, `22417939827`).
+- Regression `ecs:DescribeTaskDefinition` wurde in IAM-Policy adressiert (OIDC-Role, Policy-Version `v2`) und per Validierungsrun `22417749775` sowie folgendem Push-Run `22417939827` bestätigt.
 
 > ⚠️ Niemals Secrets direkt in Code oder Dokumente schreiben.
 
@@ -230,9 +231,10 @@ Ein minimales, bewusst nicht-destruktives Terraform-Startpaket liegt unter:
 - `infra/terraform/`
 
 Inhalt:
-- Skelett für ECS Cluster, ECR Repository, CloudWatch Log Group
+- Skelett für ECS Cluster, ECR Repository, CloudWatch Log Group und dev-S3-Bucket
 - sichere Flags (`manage_* = false` als Default)
 - Import-first-Dokumentation in `infra/terraform/README.md`
+- read-only Vorprüf-Script `scripts/check_import_first_dev.sh`
 
 Empfohlene Reihenfolge: **`init` → `plan` → `import` → `apply`**.
 

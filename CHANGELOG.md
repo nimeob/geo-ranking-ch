@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-01 IaC dev Source-of-Truth abgeschlossen)
+- **`infra/terraform/main.tf` / `variables.tf` / `outputs.tf` / `terraform.tfvars.example`:** Import-first-IaC auf dev-Kernressourcen erweitert (zusätzlich `aws_s3_bucket.dev`), Drift-arme Defaults an verifizierten Ist-Stand angepasst (`managed_by=openclaw`, Log Group `/swisstopo/dev/ecs/api`, Retention 30d, `ecs_container_insights_enabled=false`).
+- **`infra/terraform/README.md`:** Runbook auf ECS+ECR+CloudWatch+S3 aktualisiert, inkl. verifiziertem Ist-Stand und Import-IDs.
+- **`scripts/check_import_first_dev.sh`:** Read-only-Precheck um S3-Bucket erweitert; zusätzliche tfvars-Empfehlungen + Import-Kommando ergänzt.
+- **`docs/BACKLOG.md`:** BL-01 auf abgeschlossen gesetzt, Nachweise (IaC-Artefakte + Deploy-Run) ergänzt.
+- **`docs/DEPLOYMENT_AWS.md`:** BL-02/BL-01 Nachweisteile aktualisiert (Run `22417749775` und `22417939827` als erfolgreich, Terraform-Scope inkl. S3 + Precheck-Script).
+- **`docs/ARCHITECTURE.md`:** IaC-Fundament von ECS/ECR/CloudWatch auf ECS/ECR/CloudWatch/S3 präzisiert.
+
 ### Added (2026-02-25 — GitHub App Auth Wrapper + Agent-Autopilot)
 - **`scripts/gh_app_token.sh`:** Erzeugt on-demand GitHub App Installation Tokens aus `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`.
 - **`scripts/gha`:** Wrapper für `gh` mit frischem App-Token (`GH_TOKEN`), damit CLI-Operationen ohne User-Login laufen.

@@ -1,16 +1,40 @@
-# Terraform (dev) — IaC-Startpaket
+# Terraform (dev) — Import-first Runbook
 
-Dieses Verzeichnis ist ein **minimaler, sicherer Terraform-Startpunkt** für die dev-Umgebung.
-Fokus: Grundlagen für **ECS / ECR / CloudWatch Logs** als künftige Source of Truth.
+Dieses Verzeichnis ist ein **sicherer Terraform-Einstieg** für die bestehenden dev-Kernressourcen:
 
-## Sicherheitsprinzip (wichtig)
+- ECS Cluster `swisstopo-dev`
+- ECR Repository `swisstopo-dev-api`
+- CloudWatch Log Group `/swisstopo/dev/ecs/api`
+- S3 Bucket `swisstopo-dev-523234426229`
 
-- Standardmässig sind alle `manage_*` Flags auf `false`.
-- Damit führt ein erster `terraform plan` **keine unbeabsichtigten Create/Destroy-Aktionen** aus.
-- Bestehende dev-Ressourcen sollen **zuerst importiert** werden, bevor Terraform sie aktiv verwaltet.
-- Zusätzlich setzen die vorhandenen Ressourcenblöcke `lifecycle.prevent_destroy = true`.
+Ziel: erst **read-only prüfen**, dann **importieren**, erst danach (bei sauberem Plan) aktiv verwalten.
+
+## Sicherheitsprinzip
+
+- Alle `manage_*` Flags stehen standardmässig auf `false`.
+- Damit ist ein erster `terraform plan` neutral (kein unbeabsichtigtes Create/Destroy).
+- Bestehende Ressourcen werden zuerst importiert.
+- Ressourcenblöcke setzen `lifecycle.prevent_destroy = true`.
 
 > **Kein blindes `terraform apply` auf bestehender Infrastruktur.**
+
+---
+
+## Verifizierter Ist-Stand (read-only AWS-Checks, 2026-02-25)
+
+Read-only geprüft via AWS CLI (`describe*` / `list*`):
+
+| Ressource | Ist-Wert |
+|---|---|
+| ECS Cluster | `swisstopo-dev` (ACTIVE) |
+| ECS `containerInsights` | `disabled` |
+| ECR Repository | `swisstopo-dev-api` |
+| CloudWatch Log Group | `/swisstopo/dev/ecs/api` |
+| Log Retention | `30` Tage |
+| S3 Bucket | `swisstopo-dev-523234426229` |
+| Standard-Tags | `Environment=dev`, `ManagedBy=openclaw`, `Owner=nico`, `Project=swisstopo` |
+
+Die Terraform-Defaults sind darauf abgestimmt, um Drift direkt nach Import zu minimieren.
 
 ---
 
@@ -19,13 +43,14 @@ Fokus: Grundlagen für **ECS / ECR / CloudWatch Logs** als künftige Source of T
 - `aws_ecs_cluster.dev` (optional managed)
 - `aws_ecr_repository.api` (optional managed)
 - `aws_cloudwatch_log_group.api` (optional managed)
-- optionale Read-only-Data-Sources für bestehende Ressourcen (`lookup_existing_resources=true`)
+- `aws_s3_bucket.dev` (optional managed)
+- optionale Read-only-Data-Sources (`lookup_existing_resources=true`)
 
 ---
 
-## Empfohlene Reihenfolge (init → plan → import → apply)
+## Reproduzierbarer Ablauf (init → read-only plan → import → plan)
 
-### 1) Initialisieren
+### 1) Vorbereiten
 
 ```bash
 cd infra/terraform
@@ -33,34 +58,31 @@ cp terraform.tfvars.example terraform.tfvars
 terraform init
 ```
 
-### 2) Sicherer Erst-Plan (ohne Management)
+### 2) Read-only Validierung (ohne Management)
 
-Prüfen, dass keine Ressourcen gemanagt werden:
+In `terraform.tfvars` sicherstellen:
 
-```bash
-terraform plan
-```
+- `lookup_existing_resources = true`
+- `manage_ecs_cluster = false`
+- `manage_ecr_repository = false`
+- `manage_cloudwatch_log_group = false`
+- `manage_s3_bucket = false`
 
-Optional: bestehende Ressourcen nur lesen (Read-only), noch ohne Management:
-
-1. In `terraform.tfvars` setzen:
-   - `lookup_existing_resources = true`
-   - alle `manage_* = false` belassen
-2. Dann:
+Dann:
 
 ```bash
 terraform plan
 ```
 
-### 3) Import vorbereiten (pro Ressource)
+### 3) Import pro Ressource
 
-Für jede Ressource, die künftig Terraform verwalten soll:
+Pro Ressource einzeln vorgehen:
 
-1. entsprechendes `manage_*` in `terraform.tfvars` auf `true` setzen
-2. Import durchführen
-3. danach `terraform plan` prüfen (sollte möglichst geringe/keine Änderungen zeigen)
+1. passendes `manage_*` Flag auf `true`
+2. Import ausführen
+3. `terraform plan` prüfen
 
-Beispiele für dev:
+Import-IDs:
 
 ```bash
 # ECS Cluster
@@ -70,35 +92,44 @@ terraform import 'aws_ecs_cluster.dev[0]' swisstopo-dev
 terraform import 'aws_ecr_repository.api[0]' swisstopo-dev-api
 
 # CloudWatch Log Group
-terraform import 'aws_cloudwatch_log_group.api[0]' /ecs/swisstopo-dev-api
+terraform import 'aws_cloudwatch_log_group.api[0]' /swisstopo/dev/ecs/api
+
+# S3 Bucket
+terraform import 'aws_s3_bucket.dev[0]' swisstopo-dev-523234426229
 ```
 
-### 4) Erstes Apply (nur nach sauberem Plan)
+### 4) Erster Management-Plan
 
 ```bash
 terraform plan
+```
+
+Nur wenn fachlich geprüft und explizit freigegeben:
+
+```bash
 terraform apply
 ```
 
-Nur ausführen, wenn der Plan fachlich geprüft ist.
-
 ---
 
-## Hinweise zu bestehender dev-Infrastruktur
+## Helper-Script (read-only + Import-Hilfe)
 
-Gemäss Projektdokumentation existieren bereits dev-Ressourcen (`swisstopo-dev`, `swisstopo-dev-api`, `/ecs/swisstopo-dev-api`).
+Für reproduzierbare Vorprüfung und Import-Kommandos:
 
-Daher gilt:
+```bash
+./scripts/check_import_first_dev.sh
+```
 
-1. **Import-first** statt Neu-Erstellung
-2. Änderungen schrittweise aktivieren (Ressource für Ressource)
-3. Nach jedem Import `terraform plan` kontrollieren
-4. Keine destruktiven Änderungen ohne explizite Review
+Das Script macht nur Read-only AWS-Aufrufe und gibt:
+
+- verifizierten Ist-Stand
+- erkannte Drift-Risiken
+- vorbereitete `terraform import` Befehle
 
 ---
 
 ## Nächster Ausbau (später)
 
 - ECS Service / Task Definition als Terraform-Ressourcen ergänzen
-- Alarme/Dashboards in CloudWatch ergänzen
-- Remote State + Locking (z. B. S3 + DynamoDB) definieren
+- CloudWatch Alarme/Dashboards ergänzen
+- Remote State + Locking (S3 + DynamoDB) definieren

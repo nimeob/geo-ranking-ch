@@ -2,7 +2,7 @@
 set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-eu-central-1}"
-LOG_GROUP="${LOG_GROUP:-/aws/ecs/swisstopo-dev-api}"
+LOG_GROUP="${LOG_GROUP:-/swisstopo/dev/ecs/api}"
 SINCE="${SINCE:-30m}"
 FOLLOW=1
 
@@ -12,7 +12,7 @@ Usage: tail_logs.sh [--since <duration>] [--no-follow] [--log-group <name>] [--r
 
 Defaults:
   --since      30m
-  --log-group  /aws/ecs/swisstopo-dev-api
+  --log-group  /swisstopo/dev/ecs/api
   --region     eu-central-1
   follow       enabled
 

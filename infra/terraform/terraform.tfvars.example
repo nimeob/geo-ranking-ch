@@ -3,7 +3,7 @@ project_name = "swisstopo"
 environment  = "dev"
 aws_region   = "eu-central-1"
 owner        = "nico"
-managed_by   = "terraform"
+managed_by   = "openclaw"
 
 # --- Sicherheitsmodus (Default): keine Ressourcen verwalten ---
 # Dadurch ist ein "terraform plan" zunächst read-only/neutral.
@@ -11,13 +11,17 @@ lookup_existing_resources   = false
 manage_ecs_cluster          = false
 manage_ecr_repository       = false
 manage_cloudwatch_log_group = false
+manage_s3_bucket            = false
 
 # --- Ziel-/Bestandsnamen (dev) ---
-ecs_cluster_name              = "swisstopo-dev"
-ecr_repository_name           = "swisstopo-dev-api"
-cloudwatch_log_group_name     = "/ecs/swisstopo-dev-api"
-cloudwatch_log_retention_days = 14
+ecs_cluster_name               = "swisstopo-dev"
+ecs_container_insights_enabled = false
+ecr_repository_name            = "swisstopo-dev-api"
+cloudwatch_log_group_name      = "/swisstopo/dev/ecs/api"
+cloudwatch_log_retention_days  = 30
+s3_bucket_name                 = "swisstopo-dev-523234426229"
 
 existing_ecs_cluster_name          = "swisstopo-dev"
 existing_ecr_repository_name       = "swisstopo-dev-api"
-existing_cloudwatch_log_group_name = "/ecs/swisstopo-dev-api"
+existing_cloudwatch_log_group_name = "/swisstopo/dev/ecs/api"
+existing_s3_bucket_name            = "swisstopo-dev-523234426229"

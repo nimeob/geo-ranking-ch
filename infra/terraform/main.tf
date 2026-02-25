@@ -9,6 +9,7 @@ locals {
   ecs_cluster_name_effective     = var.manage_ecs_cluster ? var.ecs_cluster_name : (var.lookup_existing_resources ? var.existing_ecs_cluster_name : null)
   ecr_repository_name_effective  = var.manage_ecr_repository ? var.ecr_repository_name : (var.lookup_existing_resources ? var.existing_ecr_repository_name : null)
   cloudwatch_log_group_effective = var.manage_cloudwatch_log_group ? var.cloudwatch_log_group_name : (var.lookup_existing_resources ? var.existing_cloudwatch_log_group_name : null)
+  s3_bucket_name_effective       = var.manage_s3_bucket ? var.s3_bucket_name : (var.lookup_existing_resources ? var.existing_s3_bucket_name : null)
 }
 
 # --- Read-only Lookups (optional) -------------------------------------------
@@ -33,6 +34,12 @@ data "aws_cloudwatch_log_group" "existing" {
   name = var.existing_cloudwatch_log_group_name
 }
 
+data "aws_s3_bucket" "existing" {
+  count = var.lookup_existing_resources && !var.manage_s3_bucket ? 1 : 0
+
+  bucket = var.existing_s3_bucket_name
+}
+
 # --- Managed Resources (Import-first empfohlen) -----------------------------
 # Standardmässig sind alle manage_* Flags auf false, damit kein blindes Apply
 # bestehende Ressourcen verändert oder neu erstellt.
@@ -44,7 +51,7 @@ resource "aws_ecs_cluster" "dev" {
 
   setting {
     name  = "containerInsights"
-    value = "enabled"
+    value = var.ecs_container_insights_enabled ? "enabled" : "disabled"
   }
 
   tags = local.common_tags
@@ -87,3 +94,15 @@ resource "aws_cloudwatch_log_group" "api" {
     prevent_destroy = true
   }
 }
+resource "aws_s3_bucket" "dev" {
+  count = var.manage_s3_bucket ? 1 : 0
+
+  bucket        = var.s3_bucket_name
+  force_destroy = false
+  tags          = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+

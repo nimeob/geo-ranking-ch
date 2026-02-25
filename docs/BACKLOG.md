@@ -16,10 +16,17 @@
 - **Priorität:** P0
 - **Aufwand:** L
 - **Abhängigkeiten:** keine
+- **Status (2026-02-25, Nacht-Plan Slice 1):** 🟡 in Arbeit (Import-first konkretisiert)
 - **Akzeptanzkriterien:**
   - Infrastruktur für `dev` ist in IaC abgebildet (CDK, Terraform oder CloudFormation).
   - IaC-Definitionen versioniert im Repository und reproduzierbar ausführbar.
   - Mindestens ein dokumentierter Apply/Deploy-Lauf für `dev` ist nachvollziehbar.
+- **Teilfortschritt (dieser Slice):**
+  - ✅ Read-only AWS-Checks für dev-Kernressourcen durchgeführt (ECS, ECR, CloudWatch Log Group).
+  - ✅ Terraform-Ist-Stand für import-first nachgeschärft (`managed_by=openclaw`, `containerInsights` steuerbar, Log Group/Retention auf Ist-Werte).
+  - ✅ Reproduzierbarer Import-/Plan-Ablauf in `infra/terraform/README.md` dokumentiert.
+  - ✅ Read-only Import-Helper ergänzt: `scripts/check_import_first_dev.sh`.
+  - ⏳ Offen für BL-01 Done: dokumentierter Import-Lauf + finaler Plan/Apply-Nachweis auf Umgebung mit installiertem Terraform.
 
 ### BL-02 — CI/CD-Deploy in `dev` faktisch verifizieren
 - **Priorität:** P0

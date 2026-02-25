@@ -25,7 +25,7 @@ variable "owner" {
 variable "managed_by" {
   description = "ManagedBy-Tag für Ressourcen."
   type        = string
-  default     = "terraform"
+  default     = "openclaw"
 }
 
 variable "lookup_existing_resources" {
@@ -52,10 +52,22 @@ variable "manage_cloudwatch_log_group" {
   default     = false
 }
 
+variable "manage_s3_bucket" {
+  description = "Wenn true, verwaltet Terraform den dev-S3-Bucket (Import vor Apply empfohlen)."
+  type        = bool
+  default     = false
+}
+
 variable "ecs_cluster_name" {
   description = "Zielname des ECS Clusters im dev-Setup."
   type        = string
   default     = "swisstopo-dev"
+}
+
+variable "ecs_container_insights_enabled" {
+  description = "Container Insights Setting für den ECS Cluster (nur relevant bei manage_ecs_cluster=true)."
+  type        = bool
+  default     = false
 }
 
 variable "ecr_repository_name" {
@@ -67,13 +79,19 @@ variable "ecr_repository_name" {
 variable "cloudwatch_log_group_name" {
   description = "Zielname der CloudWatch Log Group für den API-Service."
   type        = string
-  default     = "/ecs/swisstopo-dev-api"
+  default     = "/swisstopo/dev/ecs/api"
 }
 
 variable "cloudwatch_log_retention_days" {
   description = "Retention für neue CloudWatch Log Group (nur relevant bei manage_cloudwatch_log_group=true)."
   type        = number
-  default     = 14
+  default     = 30
+}
+
+variable "s3_bucket_name" {
+  description = "Name des dev-S3-Buckets."
+  type        = string
+  default     = "swisstopo-dev-523234426229"
 }
 
 variable "existing_ecs_cluster_name" {
@@ -91,5 +109,11 @@ variable "existing_ecr_repository_name" {
 variable "existing_cloudwatch_log_group_name" {
   description = "Name einer bereits existierenden CloudWatch Log Group (Read-Only Lookup)."
   type        = string
-  default     = "/ecs/swisstopo-dev-api"
+  default     = "/swisstopo/dev/ecs/api"
+}
+
+variable "existing_s3_bucket_name" {
+  description = "Name eines bereits existierenden dev-S3-Buckets (Read-Only Lookup)."
+  type        = string
+  default     = "swisstopo-dev-523234426229"
 }
