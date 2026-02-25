@@ -204,6 +204,20 @@ Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health
 
 > `SERVICE_HEALTH_URL` ist optional: fehlt die Variable, wird der Smoke-Test im Workflow sauber übersprungen.
 
+### BL-02 Verifikationsnachweise (CI/CD Deploy via Push auf `main`)
+
+| Datum (UTC) | Run | Trigger | Ergebnis | Relevante Schritte |
+|---|---|---|---|---|
+| 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416418587 | `push` auf `main` | ✅ Success | `Wait for service stability` = ✅, `Smoke-Test /health` = ✅ |
+| 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416878804 | `push` auf `main` | ❌ Failure | `Build and push image` fehlgeschlagen (`AWS_ACCOUNT_ID` leer), nachgelagerte Schritte inkl. `services-stable`/Smoke-Test wurden übersprungen |
+| 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416930879 | `push` auf `main` | ❌ Failure | `Register new task definition revision` fehlgeschlagen (`AccessDeniedException` auf `ecs:DescribeTaskDefinition`), `services-stable`/Smoke-Test übersprungen |
+
+Kurzfazit BL-02:
+- Trigger per `push` auf `main`: ✅ nachgewiesen.
+- `services-stable` erfolgreich: ✅ in Run `22416418587`.
+- Smoke-Test `/health` erfolgreich: ✅ in Run `22416418587`.
+- Aktueller Regression-Hinweis: OIDC-Deploy-Role benötigt zusätzliche ECS-Rechte (`ecs:DescribeTaskDefinition`), damit neuere Push-Runs wieder bis zum Stabilitäts-/Smoke-Schritt durchlaufen.
+
 > ⚠️ Niemals Secrets direkt in Code oder Dokumente schreiben.
 
 ### Terraform IaC-Startpaket (dev)

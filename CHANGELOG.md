@@ -14,6 +14,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-02 CI/CD-Deploy-Verifikation)
+- **`.github/workflows/deploy.yml`:** Push-Trigger auf `main` wieder aktiviert (zusätzlich zu `workflow_dispatch`), damit BL-02 per Commit/Push verifiziert werden kann.
+- **`.github/workflows/deploy.yml`:** ECR-Image-URI auf feste AWS Account ID (`523234426229`) umgestellt, um leere `AWS_ACCOUNT_ID`-Repo-Variable im Build-Schritt zu umgehen.
+- **`docs/DEPLOYMENT_AWS.md`:** Verifikationsnachweis mit Run-URLs ergänzt (`22416418587`, `22416878804`, `22416930879`) inkl. Ergebnis und Schrittstatus (`services-stable`, Smoke-Test `/health`).
+
 ### Added (2026-02-25 — Terraform IaC-Fundament für dev)
 - **`infra/terraform/`:** Minimales Terraform-Startpaket ergänzt (`versions.tf`, `providers.tf`, `variables.tf`, `main.tf`, `outputs.tf`, `terraform.tfvars.example`).
 - **`infra/terraform/README.md`:** Sicheres Import-first-Runbook ergänzt (`init` → `plan` → `import` → `apply`) inkl. Hinweise zu bestehenden dev-Ressourcen.
