@@ -100,10 +100,23 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-02
+- **Status:** 🟡 in Umsetzung (2026-02-25)
 - **Akzeptanzkriterien:**
   - CloudWatch Logs und Kernmetriken sind aktiv und geprüft.
   - Mindestens Alarme für Service-Ausfall und Fehlerquote existieren.
   - Alarm-Empfänger/Kanal ist definiert und getestet.
+- **Umgesetzt:**
+  - ✅ Baseline-Script `scripts/setup_monitoring_baseline_dev.sh` angelegt und ausgeführt.
+  - ✅ SNS Topic `arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts` erstellt.
+  - ✅ CloudWatch Metric Filters aktiv: `HttpRequestCount`, `Http5xxCount` (Namespace `swisstopo/dev-api`).
+  - ✅ CloudWatch Alarme aktiv: `swisstopo-dev-api-running-taskcount-low`, `swisstopo-dev-api-http-5xx-rate-high`.
+  - ✅ Kanaltest durchgeführt via `sns publish` (MessageId `7ebdaccb-bba3-5a62-b442-ced2c32900b7`).
+- **Blocker:**
+  - ⛔ Kein bestätigter externer Subscriber auf dem SNS Topic (kein E-Mail/ChatOps Endpoint). Damit ist die End-to-End Zustellung an Menschen noch nicht verifiziert.
+- **Next Actions (konkret):**
+  1. `ALERT_EMAIL` oder ChatOps-Endpoint festlegen.
+  2. Subscription anlegen/bestätigen (Script unterstützt `ALERT_EMAIL`).
+  3. Kontrollierter Alarm-Test (`set-alarm-state`) und Empfangsnachweis in Doku ergänzen.
 
 ### BL-09 — `staging`/`prod` und Promotion-Strategie vorbereiten
 - **Priorität:** P2

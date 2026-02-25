@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-08 Monitoring-Baseline umgesetzt, externer Receiver offen)
+- **`scripts/setup_monitoring_baseline_dev.sh`:** Neues idempotentes Setup-Script für dev-Monitoring (SNS Topic, Log Metric Filters, Alarme für Service-Ausfall + 5xx-Fehlerquote, SNS-Testpublishing).
+- **AWS (live, non-destructive):** Topic `swisstopo-dev-alerts`, Metric Filters (`HttpRequestCount`, `Http5xxCount`) und Alarme (`swisstopo-dev-api-running-taskcount-low`, `swisstopo-dev-api-http-5xx-rate-high`) angelegt; Kanaltest via SNS Publish durchgeführt.
+- **`docs/BACKLOG.md`:** BL-08 auf „in Umsetzung“ gesetzt inkl. Blocker (kein bestätigter externer Subscriber) und konkreten Next Actions.
+- **`docs/DEPLOYMENT_AWS.md` / `docs/OPERATIONS.md`:** Monitoring-Status auf tatsächlich angelegte Ressourcen aktualisiert; Setup-/Runbook-Kommandos ergänzt.
+
 ### Changed (2026-02-25 — BL-06/BL-07 Datenhaltung & API-Sicherheit abgeschlossen)
 - **`docs/DATA_AND_API_SECURITY.md`:** Neu angelegt mit verbindlicher Entscheidung „stateless in dev“, definiertem DynamoDB-first-Pfad bei Persistenztriggern sowie AuthN/AuthZ-, Rate-Limit- und Secret-Handling-Standards für `/analyze`.
 - **`docs/BACKLOG.md`:** BL-06 und BL-07 auf abgeschlossen gesetzt, Nachweis auf das neue Entscheidungsdokument verlinkt.

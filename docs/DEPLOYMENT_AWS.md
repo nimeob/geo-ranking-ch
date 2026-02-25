@@ -297,11 +297,12 @@ git checkout v<stabile-version>
 
 | Komponente | Tool | Status |
 |---|---|---|
-| Logs | CloudWatch Logs | ⚠️ Log-Group-/Retention-Standard dokumentiert (siehe `docs/OPERATIONS.md`), im AWS-Account noch zu verifizieren |
-| Metriken | CloudWatch Metrics | ⚠️ Für minimale Alarme definiert, technische Anlage via CLI noch offen |
-| Alarme | CloudWatch Alarms | ⚠️ MVP-Alarmdefinitionen dokumentiert (Service unhealthy + Deployment-Stuck-Indicator), Umsetzung im Account noch offen |
+| Logs | CloudWatch Logs | ✅ Log Group `/swisstopo/dev/ecs/api` aktiv, Retention 30 Tage verifiziert |
+| Metriken | CloudWatch Metrics | ✅ Custom Metrics via Log Metric Filters aktiv (`HttpRequestCount`, `Http5xxCount` in `swisstopo/dev-api`) |
+| Alarme | CloudWatch Alarms | ✅ Alarme aktiv: `swisstopo-dev-api-running-taskcount-low` (Service-Ausfall) + `swisstopo-dev-api-http-5xx-rate-high` (Fehlerquote) |
+| Alert-Kanal | SNS | 🟡 Topic `swisstopo-dev-alerts` erstellt + Test-Publish erfolgreich (`MessageId 7ebdaccb-bba3-5a62-b442-ced2c32900b7`), externer Subscriber noch offen |
 | Uptime/HTTP Health | Externe Probe oder CloudWatch Synthetics | ⚠️ Guidance dokumentiert (`/health`), produktive Probe noch offen |
-| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh` | ✅ Read-only Scripts für Incident-Triage vorhanden |
+| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh` | ✅ Triage + Baseline-Provisioning vorhanden |
 | Tracing | X-Ray | ⚠️ zu evaluieren |
 
 ---
@@ -328,7 +329,7 @@ Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepfl
 Status-Updates zu umgesetzten Teilaspekten bitte in der jeweiligen BL-ID in `docs/BACKLOG.md` nachführen.
 
 - ✅ IaC-Fundament (Terraform, dev) umgesetzt: `infra/terraform/` mit Import-first-Runbook.
-- ✅ Monitoring-MVP in `docs/OPERATIONS.md` dokumentiert (Log-Group/Retention-Standard, minimale Alarmdefinitionen, Incident-Runbook mit AWS CLI).
-- ✅ Read-only Ops-Helper-Skripte ergänzt: `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`.
-- ⏳ Noch offen: Alarme tatsächlich im AWS-Account anlegen + AlarmActions (SNS/ChatOps) verdrahten.
+- ✅ Monitoring-Baseline in AWS angelegt (SNS Topic + Metric Filters + Alarme) via `scripts/setup_monitoring_baseline_dev.sh`.
+- ✅ Ops-Helper-Skripte vorhanden: `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`.
+- ⏳ Noch offen: Externen Alarm-Empfänger (E-Mail/ChatOps) abonnieren und End-to-End Zustellung testen.
 - ⏳ Noch offen: HTTP-Uptime-Probe auf `/health` produktiv aktivieren.

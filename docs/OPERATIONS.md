@@ -215,6 +215,18 @@ Die folgenden Standards sind absichtlich minimal gehalten und passen zum aktuell
 - CloudWatch Logs vorhanden/konfigurierbar
 - keine riskanten Änderungen am Live-Setup ohne Incident-Bedarf
 
+**Empfohlener Standard-Setup (idempotent):**
+
+```bash
+./scripts/setup_monitoring_baseline_dev.sh
+```
+
+Optional mit E-Mail-Subscriber:
+
+```bash
+ALERT_EMAIL="you@example.com" ./scripts/setup_monitoring_baseline_dev.sh
+```
+
 ### 1) CloudWatch Logs Standard (Log Group + Retention)
 
 **Log-Group-Namensschema (Standard):**
@@ -242,7 +254,7 @@ aws logs put-retention-policy   --region "$AWS_REGION"   --log-group-name "$LOG_
 
 ### 2) Minimale Alarme (MVP)
 
-> Ziel: Frühe Erkennung von „Service unhealthy“ und „Deployment hängt/fehlschlägt" ohne komplexes Observability-Setup.
+> Ziel: Frühe Erkennung von **Service-Ausfall** und **erhöhter API-Fehlerquote** ohne komplexes Observability-Setup.
 
 #### Alarm A — Service unhealthy (RunningTaskCount < 1)
 
@@ -252,15 +264,49 @@ Für den aktuellen MVP mit Desired Count = 1:
 aws cloudwatch put-metric-alarm   --region "$AWS_REGION"   --alarm-name "swisstopo-dev-api-running-taskcount-low"   --alarm-description "ECS service unhealthy: running tasks < 1"   --namespace AWS/ECS   --metric-name RunningTaskCount   --dimensions Name=ClusterName,Value=swisstopo-dev Name=ServiceName,Value=swisstopo-dev-api   --statistic Minimum   --period 60   --evaluation-periods 3   --datapoints-to-alarm 3   --threshold 1   --comparison-operator LessThanThreshold   --treat-missing-data breaching
 ```
 
-#### Alarm B — Deployment Failure Indicator (PendingTaskCount > 0 für längere Zeit)
+#### Alarm B — API-Fehlerquote zu hoch (5xx > 5%, bei mind. 20 Requests/5m)
 
-Detektiert typische Fälle, in denen neue Tasks nicht sauber starten (Image Pull, Healthcheck-Fail, Capacity-Probleme):
+Basiert auf zwei Log-Metriken in Namespace `swisstopo/dev-api`:
+- `HttpRequestCount`
+- `Http5xxCount`
+
+Alarm mit Metric Math (`IF(mt>=20,(m5/mt)*100,0) > 5`):
 
 ```bash
-aws cloudwatch put-metric-alarm   --region "$AWS_REGION"   --alarm-name "swisstopo-dev-api-pending-taskcount-stuck"   --alarm-description "Deployment likely stuck/failing: pending tasks > 0"   --namespace AWS/ECS   --metric-name PendingTaskCount   --dimensions Name=ClusterName,Value=swisstopo-dev Name=ServiceName,Value=swisstopo-dev-api   --statistic Maximum   --period 60   --evaluation-periods 15   --datapoints-to-alarm 10   --threshold 0   --comparison-operator GreaterThanThreshold   --treat-missing-data notBreaching
+aws cloudwatch put-metric-alarm \
+  --region "$AWS_REGION" \
+  --alarm-name "swisstopo-dev-api-http-5xx-rate-high" \
+  --alarm-description "API error rate too high: 5xx ratio > 5% (min 20 req/5m)" \
+  --evaluation-periods 2 \
+  --datapoints-to-alarm 2 \
+  --treat-missing-data notBreaching \
+  --metrics '[
+    {"Id":"m5","MetricStat":{"Metric":{"Namespace":"swisstopo/dev-api","MetricName":"Http5xxCount"},"Period":300,"Stat":"Sum"},"ReturnData":false},
+    {"Id":"mt","MetricStat":{"Metric":{"Namespace":"swisstopo/dev-api","MetricName":"HttpRequestCount"},"Period":300,"Stat":"Sum"},"ReturnData":false},
+    {"Id":"er","Expression":"IF(mt>=20,(m5/mt)*100,0)","Label":"Http5xxRatePercent","ReturnData":true}
+  ]' \
+  --threshold 5 \
+  --comparison-operator GreaterThanThreshold
 ```
 
 > Sobald Autoscaling >1 eingeführt wird, Alarm A auf „RunningTaskCount < DesiredTaskCount" (Metric Math) umstellen.
+
+### 2.1) Alarm-Kanal (SNS)
+
+Standard-Kanal in `dev`:
+- Topic: `arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts`
+
+Schnelltest:
+
+```bash
+aws sns publish \
+  --region "$AWS_REGION" \
+  --topic-arn "arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts" \
+  --subject "swisstopo-dev monitoring test" \
+  --message "manual test $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+```
+
+> Für End-to-End-Alarmierung muss mindestens ein Subscriber (E-Mail/ChatOps) bestätigt sein.
 
 ### 3) HTTP Health Check Guidance
 
