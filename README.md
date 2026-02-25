@@ -22,7 +22,7 @@
 
 ### Voraussetzungen
 
-- Python ≥ 3.10 (zu verifizieren — wird ergänzt sobald Stack definiert)
+- Python **3.12** (verbindliche Dev-/CI-Baseline; lokal idealerweise via `python3.12`)
 - AWS CLI ≥ 2.x (für Deployment-Operationen)
 - Zugriff auf AWS Account `523234426229` (Region: `eu-central-1`)
 
@@ -33,11 +33,19 @@
 git clone https://github.com/nimeob/geo-ranking-ch.git
 cd geo-ranking-ch
 
-# Dev-Abhängigkeiten installieren (nur pytest, keine Runtime-Deps nötig)
+# Virtuelle Umgebung mit Python 3.12 erstellen
+python3.12 -m venv .venv
+source .venv/bin/activate
+
+# Dev-Abhängigkeiten installieren (pytest + pre-commit)
 pip install -r requirements-dev.txt
 
-# Tests ausführen
+# Optional: Git-Hooks für Format/Lint aktivieren
+pre-commit install
+
+# Checks ausführen
 pytest tests/ -v
+pre-commit run --all-files
 
 # Minimalen Webservice starten (für ECS vorbereitet)
 python -m src.web_service
@@ -125,7 +133,7 @@ geo-ranking-ch/
 │       └── deploy.yml      # CI/CD Pipeline (aktiv: push auf main + workflow_dispatch)
 ├── Dockerfile              # Container-Build für ECS
 ├── requirements.txt        # Runtime-Abhängigkeiten (keine)
-├── requirements-dev.txt    # Dev-Abhängigkeiten (pytest)
+├── requirements-dev.txt    # Dev-Abhängigkeiten (pytest, pre-commit)
 ├── CHANGELOG.md
 └── README.md
 ```

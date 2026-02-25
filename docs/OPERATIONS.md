@@ -172,13 +172,17 @@ git push origin v<x.y.z>
 git clone https://github.com/nimeob/geo-ranking-ch.git
 cd geo-ranking-ch
 
-# Virtuelle Umgebung (Python-Beispiel — Stack zu verifizieren)
-python -m venv .venv
+# Verbindliche lokale Baseline: Python 3.12
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 
-# Pre-Commit Hooks installieren (Status/Entscheid siehe docs/BACKLOG.md: BL-10)
-# pre-commit install
+# Hooks für Format/Lint aktivieren
+pre-commit install
+
+# Lokale Checks
+pytest tests/ -v
+pre-commit run --all-files
 ```
 
 ### Empfohlene Tools
@@ -186,7 +190,7 @@ pip install -r requirements-dev.txt
 | Tool | Zweck | Pflicht |
 |---|---|---|
 | `pre-commit` | Linting/Formatierung vor Commit | empfohlen |
-| `black` / `ruff` | Python-Formatierung | empfohlen |
+| `black` / `ruff` | Python-Formatierung/Linting (via pre-commit) | empfohlen |
 | `pytest` | Tests | ja |
 | `docker` | Lokale Container-Tests | empfohlen |
 | `aws-vault` | Sichere AWS-Credential-Verwaltung | empfohlen |
