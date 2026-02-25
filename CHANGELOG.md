@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-11 AWS-Inventory & Konfigurationsdokumentation)
+- **`docs/AWS_INVENTORY.md`:** Vollständiges, verifiziertes AWS-Ressourcen-Inventar für die `dev`-Umgebung. Enthält alle Bereiche (IAM, ECR, ECS, CloudWatch, S3, Lambda, SNS, SSM, Netzwerk/VPC) mit Name/ARN, Region, Zweck, Tags, zentralen Konfig-Parametern, IaC-Status (`🔧 Terraform` vs. `🖐️ Manuell`) und Rebuild-Hinweisen inkl. Abhängigkeitsreihenfolge. Alle Werte direkt via read-only AWS-Abfragen verifiziert. Keine Secrets oder sensitiven Inhalte enthalten.
+- **`README.md`:** Doku-Index und Projektbaum um `docs/AWS_INVENTORY.md` erweitert.
+- **`docs/DEPLOYMENT_AWS.md`:** Verweis auf `docs/AWS_INVENTORY.md` als zentrales Ressourcen-Inventar ergänzt.
+- **`docs/BACKLOG.md`:** BL-11 auf abgeschlossen gesetzt inkl. Nachweis.
+
 ### Changed (2026-02-26 — BL-03 final abgeschlossen, Least-Privilege OIDC-Doku finalisiert)
 - **`infra/iam/trust-policy.json`:** Neu — Trust-Policy der OIDC-Deploy-Role versioniert (`repo:nimeob/geo-ranking-ch:ref:refs/heads/main`, verifiziert identisch mit live AWS-Konfiguration).
 - **`infra/iam/README.md`:** Status auf `✅ Final abgeschlossen` aktualisiert; bisheriger „Vorbereitung"-Hinweis (misleading) entfernt; neuen Nachweis-Abschnitt ergänzt (Role ARN, Policy-Version, Trust-Bedingung, E2E-Run-Links, Policy-Drift-Verifikation — kein Drift); Hinweise für Staging/Prod-OIDC-Rollen ergänzt.

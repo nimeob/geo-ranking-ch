@@ -145,14 +145,15 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-01
-- **Status:** 🆕 neu (2026-02-25, auf Wunsch von Nico)
+- **Status:** ✅ abgeschlossen (2026-02-26)
 - **Ziel:** Alle für dieses Projekt in AWS erstellten Ressourcen inkl. zentraler Konfiguration so dokumentieren, dass Dritte den Stand nachvollziehen und strukturiert nachbauen können.
 - **Akzeptanzkriterien:**
-  - Zentrales Inventar-Dokument vorhanden (z. B. `docs/AWS_INVENTORY.md`) mit Ressourcen nach Bereichen (IAM, ECR, ECS, CloudWatch, S3, Networking, optional Route53/API Gateway).
-  - Pro Ressource mindestens enthalten: Name/ARN, Region, Zweck, owner/relevante Tags, zentrale Konfig-Parameter.
-  - Für kritische Ressourcen sind Rebuild-Hinweise dokumentiert (Reihenfolge, Abhängigkeiten, benötigte Variablen).
-  - Klar markiert, was IaC-managed ist und was noch manuell betrieben wird.
-  - Read-only Erfassungs-/Exportkommandos sind dokumentiert (keine Secrets im Repo).
+  - Zentrales Inventar-Dokument vorhanden (z. B. `docs/AWS_INVENTORY.md`) mit Ressourcen nach Bereichen (IAM, ECR, ECS, CloudWatch, S3, Networking, optional Route53/API Gateway). ✅
+  - Pro Ressource mindestens enthalten: Name/ARN, Region, Zweck, owner/relevante Tags, zentrale Konfig-Parameter. ✅
+  - Für kritische Ressourcen sind Rebuild-Hinweise dokumentiert (Reihenfolge, Abhängigkeiten, benötigte Variablen). ✅
+  - Klar markiert, was IaC-managed ist und was noch manuell betrieben wird. ✅
+  - Read-only Erfassungs-/Exportkommandos sind dokumentiert (keine Secrets im Repo). ✅
+- **Nachweis:** [`docs/AWS_INVENTORY.md`](AWS_INVENTORY.md) — vollständig verifiziert via read-only AWS-Abfragen (Stand 2026-02-26)
 
 ---
 

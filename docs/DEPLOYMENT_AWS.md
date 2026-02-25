@@ -405,7 +405,9 @@ Prüft jetzt zusätzlich: Lambda-State, SNS-Subscription, TELEGRAM_CHAT_ID in En
 
 ## 8. Offene Punkte / TODOs
 
-Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (insb. **BL-01** bis **BL-10**), um doppelte Pflege zu vermeiden.
+Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (insb. **BL-01** bis **BL-11**), um doppelte Pflege zu vermeiden.
+
+> **AWS-Ressourcen-Inventar:** Eine vollständige, verifizierte Übersicht aller AWS-Ressourcen (Name/ARN, Region, Zweck, Tags, Konfig-Parameter, IaC-Status, Rebuild-Hinweise) findet sich in [`docs/AWS_INVENTORY.md`](AWS_INVENTORY.md).
 
 Status-Updates zu umgesetzten Teilaspekten bitte in der jeweiligen BL-ID in `docs/BACKLOG.md` nachführen.
 

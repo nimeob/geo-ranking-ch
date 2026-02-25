@@ -111,6 +111,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/ENV_PROMOTION_STRATEGY.md](docs/ENV_PROMOTION_STRATEGY.md) | Zielbild für staging/prod + Promotion-Gates (BL-09) |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Arbeitsmodus, PR-Regeln, Release-Checkliste |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | Zentraler, priorisierter Umsetzungs-Backlog |
+| [docs/AWS_INVENTORY.md](docs/AWS_INVENTORY.md) | Vollständiges AWS-Ressourcen-Inventar mit ARNs, Konfig, IaC-Status und Rebuild-Hinweisen (BL-11) |
 | [docs/AUTONOMOUS_AGENT_MODE.md](docs/AUTONOMOUS_AGENT_MODE.md) | Verbindlicher Arbeitsmodus für Nipa (Subagents + GitHub App Auth) |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
 
@@ -134,6 +135,7 @@ geo-ranking-ch/
 │   ├── NETWORK_INGRESS_DECISIONS.md
 │   ├── DATA_AND_API_SECURITY.md
 │   ├── ENV_PROMOTION_STRATEGY.md
+│   ├── AWS_INVENTORY.md
 │   └── OPERATIONS.md
 ├── .github/
 │   └── workflows/
