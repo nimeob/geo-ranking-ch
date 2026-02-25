@@ -1,113 +1,139 @@
 # Architektur — geo-ranking-ch
 
-> **Status:** Frühe Planungsphase. Dieses Dokument beschreibt die angestrebte Zielarchitektur und wird laufend aktualisiert, sobald Implementierungsentscheidungen getroffen werden.
+> **Status:** Aktueller Ist-Stand (MVP) mit aktivem ECS/Fargate-Deploy über GitHub Actions (`dev`).
 
 ---
 
-## Überblick
+## 1) Systemüberblick
 
-`geo-ranking-ch` verarbeitet Schweizer Geodaten und berechnet Rankings auf Basis konfigurierbarer Kriterien (z. B. Bevölkerungsdichte, Infrastruktur, Erreichbarkeit).
+`geo-ranking-ch` ist aktuell als containerisierter Python-Webservice umgesetzt und wird nach Build/Test automatisch in die AWS-`dev`-Umgebung ausgerollt.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                        geo-ranking-ch                        │
-│                                                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌──────────────────┐ │
-│  │  Datenquellen│───▶│  Processing │───▶│  Ranking/Output  │ │
-│  │  (Geodaten) │    │  (ETL/Score)│    │  (API/Export)    │ │
-│  └─────────────┘    └─────────────┘    └──────────────────┘ │
-└──────────────────────────────────────────────────────────────┘
+```text
+GitHub (main / manual)
+        │
+        ▼
+GitHub Actions (Build, Test, Deploy)
+        │
+        ├─ docker build + push → Amazon ECR
+        │
+        └─ ECS Task Definition (neue Revision mit neuem Image)
+                      │
+                      ▼
+                ECS Service (Fargate, dev)
+                      │
+                      ▼
+            HTTP API (`src/web_service.py`)
+            /health   /version   /analyze
 ```
 
 ---
 
-## Komponenten
+## 2) Laufzeit-Architektur (Ist)
 
-> **Hinweis:** Alle Komponenten sind **zu verifizieren / noch nicht implementiert** — sofern nicht anders markiert.
+### 2.1 Applikation
 
-### 1. Datenquellen
+- **Runtime:** Python 3.12 (Container)
+- **Entrypoint:** `python -m src.web_service`
+- **Port:** `8080`
+- **Container-Build:** `Dockerfile` im Repo-Root vorhanden
+- **HTTP-Service (MVP):** `src/web_service.py`
 
-| Quelle | Typ | Status |
+**Implementierte Endpoints:**
+
+| Methode | Pfad | Zweck |
 |---|---|---|
-| swisstopo / geo.admin.ch | REST API / WFS | zu verifizieren |
-| Bundesamt für Statistik (BFS) | Datei-Download (CSV/JSON) | zu verifizieren |
-| OpenStreetMap | Overpass API / PBF | zu verifizieren |
+| `GET` | `/health` | Health/Liveness-Check |
+| `GET` | `/version` | Service-/Build-Metadaten (`APP_VERSION`, `GIT_SHA`) |
+| `POST` | `/analyze` | Analyse-Endpoint (adressbezogene Auswertung) |
 
-### 2. Verarbeitungs-Pipeline
+### 2.2 AWS-Zielumgebung (`dev`)
 
-- **Ingest:** Laden von Rohdaten aus öffentlichen Quellen
-- **Transform:** Normalisierung, Geocodierung, Feature-Extraktion
-- **Score:** Berechnung des Rankings nach definierten Metriken
-- **Store:** Persistierung der Ergebnisse (S3 / Datenbank — zu verifizieren)
-
-### 3. Ausgabe / API
-
-- Art des Outputs (REST API / statisches JSON / Dashboard): **zu verifizieren**
-- Hosting-Modell: **zu verifizieren** (Lambda + API Gateway / ECS / S3 Static)
-
----
-
-## AWS-Infrastruktur (Ist-Stand)
-
-> Verifizierte Werte via `aws sts get-caller-identity` und `aws` CLI (Stand: 2026-02-25).
-
-| Parameter | Wert |
+| Komponente | Wert |
 |---|---|
-| AWS Account | `523234426229` |
-| Region | `eu-central-1` (Frankfurt) |
-| IAM Deploy-User | `swisstopo-api-deploy` |
-
-### AWS-Naming-Konvention
-
-AWS-Ressourcen dieses Projekts heißen intern **`swisstopo`** (z. B. `swisstopo-dev`, `swisstopo-dev-api`). Das ist so gewollt — der Repo-Name `geo-ranking-ch` und das interne AWS-Naming divergieren bewusst. Die AWS-Namen sind nicht öffentlich exponiert und müssen nicht umbenannt werden.
-
-| Ressource | Name |
-|---|---|
-| S3 Bucket | `swisstopo-dev-523234426229` |
+| Region | `eu-central-1` |
+| ECS Launch Type | Fargate |
 | ECS Cluster | `swisstopo-dev` |
 | ECS Service | `swisstopo-dev-api` |
-| ECR Repository | `523234426229.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-api` |
-| IAM Deploy-User | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` |
+| ECR Repository | `swisstopo-dev-api` |
 
-### Umgebungen
-
-> **Aktueller Stand:** Es existiert ausschließlich eine **`dev`-Umgebung**. `staging` und `prod` sind noch nicht aufgebaut und nicht geplant für den aktuellen Entwicklungsstand.
-
-Detailliertes Runbook: [`DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md)
+> Hinweis: AWS-Ressourcen werden intern unter dem Namen `swisstopo` geführt; das ist bewusst und konsistent mit dem bestehenden Setup.
 
 ---
 
-## Technologie-Stack
+## 3) CI/CD-Architektur (GitHub Actions)
 
-| Layer | Technologie | Status |
-|---|---|---|
-| Sprache | Python (angenommen) | zu verifizieren |
-| Infrastruktur | AWS (eu-central-1) | verifiziert (Account) |
-| IaC | CDK / Terraform / CloudFormation | zu verifizieren |
-| CI/CD | GitHub Actions | geplant (Placeholder vorhanden) |
-| Container | Docker / ECR | zu verifizieren |
+Workflow-Datei: **`.github/workflows/deploy.yml`**
+
+### Trigger
+
+- `workflow_dispatch` (manueller Start)
+- `push` auf Branch `main`
+
+### Pipeline-Phasen
+
+1. **Build & Test**
+   - Checkout
+   - Python-Setup
+   - `pip install -r requirements-dev.txt`
+   - `pytest tests/ -v --tb=short`
+
+2. **Deploy to ECS (dev)**
+   - Validierung erforderlicher Repo-Variablen
+   - Validierung, dass `Dockerfile` existiert
+   - AWS Credentials konfigurieren
+   - ECR Login
+   - Docker Image bauen und pushen (`<sha7>`-Tag)
+   - Aktuelle ECS Task Definition laden
+   - **Neue Task-Definition-Revision registrieren** (Container-Image wird ersetzt)
+   - **ECS Service update** auf neue Task-Definition
+   - Warten auf Stabilität via `aws ecs wait services-stable`
+
+3. **Optionaler Smoke-Test**
+   - URL aus `SERVICE_HEALTH_URL`
+   - HTTP-Check gegen Health-Endpoint
+   - **Wenn `SERVICE_HEALTH_URL` leer/nicht gesetzt:** Smoke-Test wird mit Notice **übersprungen** (kein Hard-Fail)
 
 ---
 
-## Datenfluss (Zielzustand)
+## 4) Konfiguration in GitHub (Secrets & Variables)
 
-```
-Externe Quellen          AWS                        Clients
-     │                    │                            │
-     │  HTTP/FTP          │                            │
-     ├──────────────▶ Lambda/ECS ──▶ S3/RDS ──▶ API GW ──▶ Endnutzer
-     │               (Ingest+ETL)  (Storage)  (Output)
-     │
-  swisstopo / BFS / OSM
-```
+### Required Secrets
+
+| Name | Zweck |
+|---|---|
+| `AWS_ACCESS_KEY_ID` | AWS-Zugriffsschlüssel für Deploy-User |
+| `AWS_SECRET_ACCESS_KEY` | AWS-Secret für Deploy-User |
+| `AWS_ACCOUNT_ID` | AWS Account-ID (für ECR Image URI) |
+
+### Required Variables
+
+| Name | Zweck |
+|---|---|
+| `ECR_REPOSITORY` | Ziel-ECR-Repository (z. B. `swisstopo-dev-api`) |
+| `ECS_CLUSTER` | Ziel-ECS-Cluster (z. B. `swisstopo-dev`) |
+| `ECS_SERVICE` | Ziel-ECS-Service (z. B. `swisstopo-dev-api`) |
+| `ECS_CONTAINER_NAME` | Containername in der Task Definition |
+
+### Optionale Variable
+
+| Name | Zweck |
+|---|---|
+| `SERVICE_HEALTH_URL` | URL für Smoke-Test nach Deploy; wenn nicht gesetzt → Schritt wird übersprungen |
 
 ---
 
-## Offene Entscheidungen
+## 5) Architektur-Entscheidungen (Stand heute)
 
-- [ ] Technologie-Stack final definieren (Sprache, Frameworks)
-- [ ] Hosting-Modell wählen (Serverless vs. Container vs. Static)
-- [ ] IaC-Tool auswählen (CDK empfohlen, konsistent mit swisstopo-Kontext)
-- [ ] Datenquellen und Update-Frequenz festlegen
-- [ ] Output-Format definieren (API / statisch / beide)
-- [ ] Datenschutz-Assessment (öffentliche Daten vs. personenbezogen)
+- **Deploy-Ziel:** ECS/Fargate in `dev` ist aktiv.
+- **Build/Release-Pfad:** GitHub Actions ist der führende Deploy-Pfad.
+- **Artefakt:** Docker Image in ECR, Deployment über neue ECS Task-Definition-Revision.
+- **Service-Form:** Lightweight MVP-Webservice mit klaren Basisendpoints (`/health`, `/version`, `/analyze`).
+
+---
+
+## 6) Offene Punkte / Nächste Architektur-Schritte
+
+- IaC-Definitionen (CDK/Terraform/CloudFormation) als Source of Truth ergänzen
+- Monitoring/Alerting (CloudWatch Logs/Metrics/Alarms) systematisch ausbauen
+- Erweiterung über `dev` hinaus (`staging`/`prod`) inklusive Promotion-Strategie
+- API-Sicherheitskonzept (AuthN/AuthZ, Rate Limits) konkretisieren

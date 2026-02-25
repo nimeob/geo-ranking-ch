@@ -47,6 +47,9 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`README.md`:** CI/CD-Beschreibung auf aktiven Push-Trigger aktualisiert; neue Variable `SERVICE_HEALTH_URL` dokumentiert.
 - **`docs/DEPLOYMENT_AWS.md`:** Workflow-Trigger, Smoke-Test-Schritt und Variable `SERVICE_HEALTH_URL` ergänzt.
 
+### Changed (2026-02-25 — Architektur-Doku auf Ist-Stand gebracht)
+- **`docs/ARCHITECTURE.md`:** Von Planungsstand auf aktuellen MVP-Betriebsstand aktualisiert (ECS/Fargate Deploy via GitHub Actions, Trigger, Webservice-Endpunkte, Task-Definition-Update-Flow, optionale Smoke-Tests, relevante GitHub Secrets/Variables).
+
 ---
 
 ## [0.1.0] — 2026-02-25
