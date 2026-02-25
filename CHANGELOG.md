@@ -24,6 +24,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`Dockerfile`:** Container-Build für ECS/Fargate ergänzt (Python 3.12, Port 8080).
 - **`src/web_service.py`:** Minimaler HTTP-Service mit Endpoints `/health`, `/version`, `/analyze`.
 
+### Added (2026-02-25 — BL-03 Least-Privilege IAM Vorarbeit)
+- **`infra/iam/deploy-policy.json`:** Konkrete Least-Privilege-Policy für den aktuellen ECS/ECR-dev-Deploypfad ergänzt (inkl. `iam:PassRole` nur für Task/Execution-Role).
+- **`infra/iam/README.md`:** Herleitung aus GitHub-Workflow, sichere Migrationsreihenfolge ohne Breaking Change und read-only Drift-Check-Notizen ergänzt.
+
+### Changed (2026-02-25 — BL-03 Statusdoku aktualisiert)
+- **`docs/DEPLOYMENT_AWS.md`:** IAM-Sektion auf workflow-basierte Minimalrechte umgestellt und auf neue Artefakte unter `infra/iam/` verlinkt; Hinweis auf risikoarme Umsetzung (keine sofortige Secret-Umschaltung) ergänzt.
+- **`docs/BACKLOG.md`:** BL-03 mit Statusnotiz „Track D Vorarbeit“ ergänzt (erledigte Vorarbeiten + offene Restschritte bis Done).
+
 ### Changed (2026-02-25 — ECS Deploy Workflow umgesetzt)
 - **`.github/workflows/deploy.yml`:** Deploy-Job auf ECS/Fargate (dev) konkretisiert: ECR Login, Docker Build+Push, neue ECS Task-Definition registrieren, Service-Update, Stabilitäts-Wait.
 - **`README.md`:** CI/CD-Sektion auf ECS-Deploy aktualisiert inkl. benötigter GitHub Secrets/Variables.

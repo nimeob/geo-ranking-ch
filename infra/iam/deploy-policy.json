@@ -1,0 +1,81 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StsReadIdentity",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrGetAuthorizationToken",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPushOnlyToDevRepository",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": "arn:aws:ecr:eu-central-1:523234426229:repository/swisstopo-dev-api"
+    },
+    {
+      "Sid": "EcsReadOnlyCurrentServiceAndTaskDefinition",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeServices",
+        "ecs:DescribeTaskDefinition"
+      ],
+      "Resource": [
+        "arn:aws:ecs:eu-central-1:523234426229:cluster/swisstopo-dev",
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api",
+        "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-api:*"
+      ]
+    },
+    {
+      "Sid": "EcsRegisterTaskDefinition",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:RegisterTaskDefinition"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcsUpdateOnlyDevService",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:UpdateService"
+      ],
+      "Resource": [
+        "arn:aws:ecs:eu-central-1:523234426229:cluster/swisstopo-dev",
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api"
+      ]
+    },
+    {
+      "Sid": "IamPassOnlyEcsTaskRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::523234426229:role/swisstopo-dev-ecs-execution-role",
+        "arn:aws:iam::523234426229:role/swisstopo-dev-ecs-task-role"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs-tasks.amazonaws.com"
+        }
+      }
+    }
+  ]
+}
