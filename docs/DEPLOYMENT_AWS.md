@@ -45,7 +45,7 @@ Promotion-Zielbild inkl. Gates und Rollback-Prozess ist in [`docs/ENV_PROMOTION_
 | ECS Cluster | `swisstopo-dev` | ✅ Verifiziert |
 | ECS Service | `swisstopo-dev-api` | ✅ Verifiziert |
 | ECR Repository | `523234426229.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-api` | ✅ Verifiziert |
-| Lambda Functions | — | ❌ Nicht gefunden |
+| Lambda Functions | `swisstopo-dev-sns-to-telegram` | ✅ Verifiziert |
 | CloudFormation Stacks | — | ❌ Nicht gefunden |
 | API Gateway | — | ⚠️ Zu prüfen |
 | RDS / DynamoDB | — | ⚠️ Zu prüfen |
@@ -304,8 +304,8 @@ git checkout v<stabile-version>
 | Logs | CloudWatch Logs | ✅ Log Group `/swisstopo/dev/ecs/api` aktiv, Retention 30 Tage verifiziert |
 | Metriken | CloudWatch Metrics | ✅ Custom Metrics via Log Metric Filters aktiv (`HttpRequestCount`, `Http5xxCount` in `swisstopo/dev-api`) |
 | Alarme | CloudWatch Alarms | ✅ Alarme aktiv: `swisstopo-dev-api-running-taskcount-low` (Service-Ausfall) + `swisstopo-dev-api-http-5xx-rate-high` (Fehlerquote) |
-| Alert-Kanal | SNS + Lambda → Telegram | 🟡 SNS-Topic aktiv; Lambda + SSM-Parameter müssen noch deployed werden (BL-08, siehe unten) |
-| Telegram-Alerting | Lambda `swisstopo-dev-sns-to-telegram` | 🟡 IaC + Code vorbereitet; Deploy via Script oder Terraform nötig |
+| Alert-Kanal | SNS + Lambda → Telegram | ✅ Aktiv und getestet (ALARM/OK im Telegram-Chat bestätigt, 2026-02-25) |
+| Telegram-Alerting | Lambda `swisstopo-dev-sns-to-telegram` | ✅ Aktiv (SSM SecureString + SNS-Subscription + Lambda-Permission verifiziert) |
 | Uptime/HTTP Health | Externe Probe oder CloudWatch Synthetics | ⚠️ Guidance dokumentiert (`/health`), produktive Probe noch offen |
 | Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks vorhanden |
 | Tracing | X-Ray | ⚠️ zu evaluieren |
@@ -410,5 +410,5 @@ Status-Updates zu umgesetzten Teilaspekten bitte in der jeweiligen BL-ID in `doc
 - ✅ Monitoring-Baseline in AWS angelegt (SNS Topic + Metric Filters + Alarme) via `scripts/setup_monitoring_baseline_dev.sh`.
 - ✅ Ops-Helper-Skripte vorhanden: `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`.
 - ✅ IaC + Code für Telegram-Alerting vorbereitet: `infra/lambda/sns_to_telegram/`, `infra/terraform/lambda_telegram.tf`, `scripts/setup_telegram_alerting_dev.sh`.
-- ⏳ Noch offen: Telegram-Alerting via Terraform oder Setup-Script deployen + Testalarm auslösen (manuelle Schritte Nico, siehe Abschnitt oben).
+- ✅ Telegram-Alerting deployed und end-to-end getestet (CloudWatch Alarm → SNS → Lambda → Telegram).
 - ⏳ Noch offen: HTTP-Uptime-Probe auf `/health` produktiv aktivieren.

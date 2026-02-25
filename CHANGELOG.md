@@ -14,6 +14,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-08 final abgeschlossen, Empfangsnachweis erbracht)
+- **`docs/BACKLOG.md`:** BL-08 von „in Umsetzung“ auf **abgeschlossen** gesetzt; Blocker/Next-Actions entfernt; Deploy- + Empfangsnachweis (`ALARM` und `OK`) dokumentiert.
+- **`docs/DEPLOYMENT_AWS.md`:** Status für Lambda/Alert-Kanal auf **verifiziert aktiv** aktualisiert; offene Punkte entsprechend bereinigt.
+- **`docs/OPERATIONS.md`:** Monitoring-Kapitel um klaren End-to-End-Status ergänzt (`CloudWatch → SNS → Lambda → Telegram` verifiziert).
+
 ### Changed (2026-02-25 — BL-08 Telegram-Alerting IaC implementiert)
 - **`infra/lambda/sns_to_telegram/lambda_function.py`:** Lambda-Handler (Python 3.12) für CloudWatch-Alarm → Telegram. Liest Bot-Token sicher aus SSM SecureString zur Laufzeit. Nachrichtenformat: Alarmname, State, Reason, Region, Account, Timestamp — robust bei fehlenden Feldern. Kein externer Dependency-Overhead (nur stdlib + boto3).
 - **`infra/terraform/lambda_telegram.tf`:** Terraform-Ressourcen für Lambda-Funktion, IAM-Role (Minimal-Privilege: CloudWatch Logs + SSM GetParameter + KMS Decrypt), Lambda-Permission für SNS und SNS → Lambda-Subscription. Aktivierung via Flag `manage_telegram_alerting = true`. Zip wird automatisch via `archive_file` erzeugt.

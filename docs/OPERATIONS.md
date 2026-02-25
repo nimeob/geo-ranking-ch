@@ -329,6 +329,8 @@ aws ssm put-parameter \
 # Dann: manage_telegram_alerting=true + terraform apply
 ```
 
+**Status (2026-02-25):** ✅ End-to-End verifiziert (`ALARM` und `OK` erfolgreich im Telegram-Chat empfangen).
+
 **Kontrollierter Testalarm:**
 
 ```bash

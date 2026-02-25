@@ -98,11 +98,11 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-02
-- **Status:** 🟡 Telegram-IaC umgesetzt — Deploy + Testnachweis ausstehend (2026-02-25)
+- **Status:** ✅ abgeschlossen (2026-02-25)
 - **Akzeptanzkriterien:**
   - CloudWatch Logs und Kernmetriken sind aktiv und geprüft. ✅
   - Mindestens Alarme für Service-Ausfall und Fehlerquote existieren. ✅
-  - Alarm-Empfänger/Kanal ist definiert und getestet. 🟡 (IaC bereit, Deploy ausstehend)
+  - Alarm-Empfänger/Kanal ist definiert und getestet. ✅ (Telegram-Bot Empfangsnachweis erbracht)
 - **Umgesetzt:**
   - ✅ Baseline-Script `scripts/setup_monitoring_baseline_dev.sh` angelegt und ausgeführt.
   - ✅ SNS Topic `arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts` erstellt.
@@ -116,14 +116,8 @@
     - Setup-Script: `scripts/setup_telegram_alerting_dev.sh` (Fallback ohne Terraform)
     - Nachrichtenformat: Alarmname, State, Reason, Region, Account, Timestamp (robust bei fehlenden Feldern)
     - Secret-Verwaltung: Bot-Token in SSM SecureString (`/swisstopo/dev/telegram-bot-token`), NICHT im State/Repo
-- **Offener Blocker (manueller Schritt Nico):**
-  - ⛔ SSM-Parameter mit Bot-Token und Lambda noch nicht deployed (AWS-Zugriff mit Write-Rechten nötig).
-- **Konkrete Next Actions für Nico:**
-  1. SSM-Parameter anlegen: `aws ssm put-parameter --name /swisstopo/dev/telegram-bot-token --type SecureString --value <TOKEN> ...`
-  2. Deploy: `TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=8614377280 ./scripts/setup_telegram_alerting_dev.sh` **oder** Terraform mit `manage_telegram_alerting=true`.
-  3. Testalarm: `aws cloudwatch set-alarm-state --alarm-name swisstopo-dev-api-running-taskcount-low --state-value ALARM --state-reason "Testalarm"`
-  4. Telegram-Empfang bestätigen, dann Reset: `--state-value OK`
-  5. `./scripts/check_monitoring_baseline_dev.sh` → sollte grün durch alle Telegram-Checks.
+  - ✅ Deployment durchgeführt (SSM + Lambda + SNS-Subscription aktiv) und Testalarm ausgelöst (`ALARM` → `OK`).
+  - ✅ Empfang in Telegram-Chat bestätigt (Alarmzustände `ALARM` und `OK` sichtbar).
 
 ### BL-09 — `staging`/`prod` und Promotion-Strategie vorbereiten
 - **Priorität:** P2
