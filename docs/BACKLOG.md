@@ -29,6 +29,7 @@
   - Mindestens ein erfolgreicher GitHub-Workflow-Run per Push auf `main` ist nachgewiesen.
   - ECS-Rollout endet auf `services-stable`.
   - Smoke-Test über `SERVICE_HEALTH_URL` auf `/health` ist erfolgreich dokumentiert.
+- **Nachweis:** Run-URL + Ergebnis werden in `docs/DEPLOYMENT_AWS.md` oder `docs/OPERATIONS.md` festgehalten.
 
 ### BL-03 — Separaten Deploy-User mit Least-Privilege aufsetzen
 - **Priorität:** P0
