@@ -150,9 +150,7 @@ Nach dem ECS-Rollout wartet der Workflow auf `services-stable` und führt anschl
 ### Voraussetzungen für den ECS-Deploy
 
 **GitHub Secrets (Actions):**
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_ACCOUNT_ID`
+- Keine AWS Access Keys erforderlich (Deploy läuft via GitHub OIDC Role Assume).
 
 **GitHub Variables (Actions):**
 - `ECR_REPOSITORY` (z. B. `swisstopo-dev-api`)
@@ -162,6 +160,8 @@ Nach dem ECS-Rollout wartet der Workflow auf `services-stable` und führt anschl
 - `SERVICE_HEALTH_URL` (vollständige URL für Smoke-Test nach Deploy, z. B. `https://<alb-dns>/health`; wenn leer, wird der Smoke-Test mit Hinweis übersprungen)
 
 **Zusätzlich erforderlich:**
+- GitHub OIDC Deploy-Role in AWS: `arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`
+- passende IAM-Policy für ECR/ECS (`infra/iam/deploy-policy.json`)
 - `Dockerfile` im Repo-Root
 - bestehender ECS Service inkl. Task Definition
 

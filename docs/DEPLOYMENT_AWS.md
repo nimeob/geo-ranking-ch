@@ -187,10 +187,7 @@ Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health
 
 | Secret | Beschreibung |
 |---|---|
-| `AWS_ACCESS_KEY_ID` | Deploy-User Access Key |
-| `AWS_SECRET_ACCESS_KEY` | Deploy-User Secret Key |
-| `AWS_ACCOUNT_ID` | `523234426229` |
-| `AWS_REGION` | `eu-central-1` |
+| _(keine erforderlich)_ | AWS Auth läuft via GitHub OIDC Role Assume (`aws-actions/configure-aws-credentials@v4`) |
 
 **Benötigte GitHub Variables (zu setzen unter Settings → Variables):**
 
@@ -201,6 +198,11 @@ Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health
 | `ECS_SERVICE` | ECS Service (z. B. `swisstopo-dev-api`) |
 | `ECS_CONTAINER_NAME` | Container-Name in der Task-Definition |
 | `SERVICE_HEALTH_URL` | Vollständige Health-URL für Smoke-Test (z. B. `https://<alb-dns>/health`) |
+
+**OIDC-Rollenbindung (AWS):**
+- Workflow verwendet `aws-actions/configure-aws-credentials@v4` mit
+  `role-to-assume: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`.
+- Erforderliche Minimalrechte siehe `infra/iam/deploy-policy.json`.
 
 > `SERVICE_HEALTH_URL` ist optional: fehlt die Variable, wird der Smoke-Test im Workflow sauber übersprungen.
 
