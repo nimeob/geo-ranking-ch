@@ -25,6 +25,7 @@
 - **Priorität:** P0
 - **Aufwand:** S
 - **Abhängigkeiten:** keine
+- **Status:** ✅ abgeschlossen (2026-02-25)
 - **Akzeptanzkriterien:**
   - Mindestens ein erfolgreicher GitHub-Workflow-Run per Push auf `main` ist nachgewiesen.
   - ECS-Rollout endet auf `services-stable`.
@@ -39,12 +40,11 @@
   - Dedizierter IAM-Deploy-User/Rolle für dieses Repo existiert.
   - Rechte sind auf notwendige Aktionen (ECR/ECS/ggf. IaC) begrenzt.
   - GitHub-Secrets sind auf den neuen Principal umgestellt.
-- **Status (2026-02-25, Track D Umsetzung):** 🟡 in Validierung
+- **Status (2026-02-25, Track D Umsetzung):** ✅ abgeschlossen
   - ✅ Workflow-basierte Minimalrechte hergeleitet und als Artefakte abgelegt: `infra/iam/deploy-policy.json` + `infra/iam/README.md`
   - ✅ OIDC-Deploy-Role `swisstopo-dev-github-deploy-role` bestätigt und mit der Repo-Policy `swisstopo-dev-github-deploy-policy` verbunden
   - ✅ Policy-Fix ausgerollt: `ecs:DescribeTaskDefinition` auf `Resource: "*"` gesetzt (AWS IAM Version `v2` als Default)
-  - ✅ Regressions-Bottleneck im Run `22417749775` behoben: Schritt **`Register new task definition revision`** läuft wieder erfolgreich
-  - ⏳ Offen für „done“: vollständiger End-to-End Deploy-Nachweis (`services-stable` + Smoke-Test) plus zusätzlicher Push-Run-Nachweis
+  - ✅ End-to-End Nachweis erfolgreich: `workflow_dispatch` Run `22417749775` + `push` Run `22417939827` jeweils mit `services-stable` und erfolgreichem Smoke-Test
 
 ### BL-04 — AWS-Tagging-Standard auf Bestandsressourcen durchsetzen
 - **Priorität:** P1
@@ -105,6 +105,7 @@
 - **Priorität:** P2
 - **Aufwand:** S
 - **Abhängigkeiten:** keine
+- **Status:** ✅ abgeschlossen (2026-02-25)
 - **Akzeptanzkriterien:**
   - Unterstützte Python-Version ist verbindlich dokumentiert (ohne „zu verifizieren“).
   - `.pre-commit-config.yaml` ist vorhanden oder bewusst verworfen (mit kurzer Begründung).
