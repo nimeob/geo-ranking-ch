@@ -1,0 +1,95 @@
+variable "project_name" {
+  description = "Interner AWS-Projektname (z. B. swisstopo)."
+  type        = string
+  default     = "swisstopo"
+}
+
+variable "environment" {
+  description = "Deployment-Umgebung (aktuell dev)."
+  type        = string
+  default     = "dev"
+}
+
+variable "aws_region" {
+  description = "AWS Region für Provider und Ressourcen."
+  type        = string
+  default     = "eu-central-1"
+}
+
+variable "owner" {
+  description = "Owner-Tag für Ressourcen."
+  type        = string
+  default     = "nico"
+}
+
+variable "managed_by" {
+  description = "ManagedBy-Tag für Ressourcen."
+  type        = string
+  default     = "terraform"
+}
+
+variable "lookup_existing_resources" {
+  description = "Wenn true, werden bestehende Ressourcen via Data Sources gelesen (Read-Only)."
+  type        = bool
+  default     = false
+}
+
+variable "manage_ecs_cluster" {
+  description = "Wenn true, verwaltet Terraform den ECS Cluster (Import vor Apply empfohlen)."
+  type        = bool
+  default     = false
+}
+
+variable "manage_ecr_repository" {
+  description = "Wenn true, verwaltet Terraform das ECR Repository (Import vor Apply empfohlen)."
+  type        = bool
+  default     = false
+}
+
+variable "manage_cloudwatch_log_group" {
+  description = "Wenn true, verwaltet Terraform die CloudWatch Log Group (Import vor Apply empfohlen)."
+  type        = bool
+  default     = false
+}
+
+variable "ecs_cluster_name" {
+  description = "Zielname des ECS Clusters im dev-Setup."
+  type        = string
+  default     = "swisstopo-dev"
+}
+
+variable "ecr_repository_name" {
+  description = "Zielname des ECR Repositories im dev-Setup."
+  type        = string
+  default     = "swisstopo-dev-api"
+}
+
+variable "cloudwatch_log_group_name" {
+  description = "Zielname der CloudWatch Log Group für den API-Service."
+  type        = string
+  default     = "/ecs/swisstopo-dev-api"
+}
+
+variable "cloudwatch_log_retention_days" {
+  description = "Retention für neue CloudWatch Log Group (nur relevant bei manage_cloudwatch_log_group=true)."
+  type        = number
+  default     = 14
+}
+
+variable "existing_ecs_cluster_name" {
+  description = "Name eines bereits existierenden ECS Clusters (Read-Only Lookup)."
+  type        = string
+  default     = "swisstopo-dev"
+}
+
+variable "existing_ecr_repository_name" {
+  description = "Name eines bereits existierenden ECR Repositories (Read-Only Lookup)."
+  type        = string
+  default     = "swisstopo-dev-api"
+}
+
+variable "existing_cloudwatch_log_group_name" {
+  description = "Name einer bereits existierenden CloudWatch Log Group (Read-Only Lookup)."
+  type        = string
+  default     = "/ecs/swisstopo-dev-api"
+}

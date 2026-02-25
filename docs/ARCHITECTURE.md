@@ -128,6 +128,7 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 - **Build/Release-Pfad:** GitHub Actions ist der führende Deploy-Pfad.
 - **Artefakt:** Docker Image in ECR, Deployment über neue ECS Task-Definition-Revision.
 - **Service-Form:** Lightweight MVP-Webservice mit klaren Basisendpoints (`/health`, `/version`, `/analyze`).
+- **IaC-Fundament (dev):** Terraform-Startpaket unter `infra/terraform/` für ECS/ECR/CloudWatch mit Import-first-Ansatz (`manage_*` standardmässig `false`).
 
 ---
 

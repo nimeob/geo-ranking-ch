@@ -193,6 +193,21 @@ Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health
 
 > ⚠️ Niemals Secrets direkt in Code oder Dokumente schreiben.
 
+### Terraform IaC-Startpaket (dev)
+
+Ein minimales, bewusst nicht-destruktives Terraform-Startpaket liegt unter:
+
+- `infra/terraform/`
+
+Inhalt:
+- Skelett für ECS Cluster, ECR Repository, CloudWatch Log Group
+- sichere Flags (`manage_* = false` als Default)
+- Import-first-Dokumentation in `infra/terraform/README.md`
+
+Empfohlene Reihenfolge: **`init` → `plan` → `import` → `apply`**.
+
+> Für bestehende dev-Ressourcen: **kein blindes apply**; zuerst Import pro Ressource.
+
 ---
 
 ## 5. Rollback-Prozedur
@@ -270,3 +285,5 @@ git checkout v<stabile-version>
 Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (insb. **BL-01** bis **BL-09**), um doppelte Pflege zu vermeiden.
 
 Status-Updates zu umgesetzten Teilaspekten bitte in der jeweiligen BL-ID in `docs/BACKLOG.md` nachführen.
+
+- ✅ IaC-Fundament (Terraform, dev) umgesetzt: `infra/terraform/` mit Import-first-Runbook.

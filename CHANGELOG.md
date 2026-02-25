@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-25 — Terraform IaC-Fundament für dev)
+- **`infra/terraform/`:** Minimales Terraform-Startpaket ergänzt (`versions.tf`, `providers.tf`, `variables.tf`, `main.tf`, `outputs.tf`, `terraform.tfvars.example`).
+- **`infra/terraform/README.md`:** Sicheres Import-first-Runbook ergänzt (`init` → `plan` → `import` → `apply`) inkl. Hinweise zu bestehenden dev-Ressourcen.
+- **`docs/DEPLOYMENT_AWS.md`:** Terraform-Startpaket und sichere Reihenfolge (`init/plan/import/apply`) dokumentiert.
+- **`docs/ARCHITECTURE.md`:** IaC-Fundament als aktueller Architekturbaustein ergänzt.
+
 ### Added (2026-02-25 — Container + Webservice MVP)
 - **`Dockerfile`:** Container-Build für ECS/Fargate ergänzt (Python 3.12, Port 8080).
 - **`src/web_service.py`:** Minimaler HTTP-Service mit Endpoints `/health`, `/version`, `/analyze`.
