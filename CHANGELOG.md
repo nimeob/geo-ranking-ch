@@ -14,6 +14,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — ECS Deploy Workflow umgesetzt)
+- **`.github/workflows/deploy.yml`:** Deploy-Job auf ECS/Fargate (dev) konkretisiert: ECR Login, Docker Build+Push, neue ECS Task-Definition registrieren, Service-Update, Stabilitäts-Wait.
+- **`README.md`:** CI/CD-Sektion auf ECS-Deploy aktualisiert inkl. benötigter GitHub Secrets/Variables.
+- **`docs/DEPLOYMENT_AWS.md`:** Stack-Entscheid auf ECS/Fargate dokumentiert; TODO-Status angepasst.
+
 ### Changed (2026-02-25 — Lizenzstatus korrigiert)
 - **README.md:** Lizenz-Badge von `MIT` auf `proprietär` geändert.
 - **README.md:** Lizenzsektion auf „vorerst proprietär (alle Rechte vorbehalten)“ umgestellt; Verweis auf nicht vorhandene `LICENSE`-Datei entfernt.

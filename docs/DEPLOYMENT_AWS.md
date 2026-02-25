@@ -247,9 +247,9 @@ git checkout v<stabile-version>
 
 ## 8. Offene Punkte / TODOs
 
-- [ ] Stack-Typ entscheiden: ECS Fargate vs. Lambda vs. S3 Static
+- [x] Stack-Typ entschieden: **ECS Fargate (dev)**
 - [ ] IaC-Code erstellen (CDK / Terraform / CloudFormation)
-- [ ] GitHub Actions Workflow fertigstellen (Placeholder ersetzen)
+- [ ] GitHub Actions Workflow auf ECS-Deploy umgestellt; erster erfolgreicher manueller Run noch ausstehend
 - [ ] Separaten IAM Deploy-User anlegen (Principle-of-Least-Privilege; aktuell: `swisstopo-api-deploy`)
 - [ ] Tagging an allen bestehenden Ressourcen verifizieren/setzen (siehe §2 Tagging Standard)
 - [ ] staging- und prod-Umgebung aufbauen (aktuell: nur `dev` vorhanden)

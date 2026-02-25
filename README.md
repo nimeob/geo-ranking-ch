@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/license-propriet%C3%A4r-lightgrey.svg)]()
 [![Status](https://img.shields.io/badge/status-in%20development-yellow.svg)]()
-[![CI/CD](https://img.shields.io/badge/CI%2FCD-workflow__dispatch%20only-orange.svg)](.github/workflows/deploy.yml)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-ECS%20dev%20(manual)-orange.svg)](.github/workflows/deploy.yml)
 
 ---
 
@@ -110,19 +110,26 @@ geo-ranking-ch/
 
 ## CI/CD
 
-Der Workflow `.github/workflows/deploy.yml` ist aktiv und kann manuell via **GitHub Actions → Run workflow** ausgelöst werden.
+Der Workflow `.github/workflows/deploy.yml` ist auf **ECS/Fargate (dev)** ausgerichtet und kann manuell via **GitHub Actions → Run workflow** ausgelöst werden.
 
-> **Auto-Trigger (push/release) ist noch deaktiviert** — erst nach vollständigem Setup aktivieren.
+> **Auto-Trigger (push/release) ist noch deaktiviert** — erst aktivieren, wenn der manuelle ECS-Deploy stabil läuft.
 
-### Voraussetzungen für produktiven Betrieb
+### Voraussetzungen für den ECS-Deploy
 
-| Schritt | Beschreibung |
-|---------|-------------|
-| 1 | Stack-Typ wählen: ECS Fargate / Lambda / S3 Static |
-| 2 | AWS-Ressourcen anlegen (siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md)) |
-| 3 | GitHub Secrets setzen: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID` |
-| 4 | Push-Trigger in `.github/workflows/deploy.yml` aktivieren |
-| 5 | Stack-spezifische Build/Deploy-Schritte im Workflow eintragen |
+**GitHub Secrets (Actions):**
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_ACCOUNT_ID`
+
+**GitHub Variables (Actions):**
+- `ECR_REPOSITORY` (z. B. `swisstopo-dev-api`)
+- `ECS_CLUSTER` (z. B. `swisstopo-dev`)
+- `ECS_SERVICE` (z. B. `swisstopo-dev-api`)
+- `ECS_CONTAINER_NAME` (Container-Name in der Task Definition, oft `app` oder `api`)
+
+**Zusätzlich erforderlich:**
+- `Dockerfile` im Repo-Root
+- bestehender ECS Service inkl. Task Definition
 
 ---
 
