@@ -21,6 +21,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/AUTONOMOUS_AGENT_MODE.md`:** Verbindlicher Arbeitsmodus für Nipa (Subagent-first, Parallelisierung, Modellvorgabe `openai-codex/gpt-5.3-codex` + `thinking=high` bei komplexen Aufgaben).
 - **`README.md` / `docs/OPERATIONS.md`:** Verlinkung und Kurzreferenz auf den neuen Agent-Autopilot-Standard ergänzt.
 
+### Changed (2026-02-25 — BL-03 OIDC Least-Privilege Korrektur)
+- **`infra/iam/deploy-policy.json`:** ECS-Leserechte präzisiert; `ecs:DescribeTaskDefinition` auf `Resource: "*"` umgestellt (kompatibel mit API-IAM-Evaluierung), `ecs:DescribeServices` scoped auf dev-Service belassen.
+- **AWS IAM (live):** `swisstopo-dev-github-deploy-policy` auf Version `v2` aktualisiert und als Default gesetzt.
+- **`docs/DEPLOYMENT_AWS.md` / `docs/BACKLOG.md`:** Validierungsstand ergänzt; ehemals fehlerhafter Deploy-Schritt `Register new task definition revision` im Run `22417749775` als erfolgreich dokumentiert.
+
 ### Changed (2026-02-25 — BL-02 CI/CD-Deploy-Verifikation)
 - **`.github/workflows/deploy.yml`:** Push-Trigger auf `main` wieder aktiviert (zusätzlich zu `workflow_dispatch`), damit BL-02 per Commit/Push verifiziert werden kann.
 - **`.github/workflows/deploy.yml`:** ECR-Image-URI auf feste AWS Account ID (`523234426229`) umgestellt, um leere `AWS_ACCOUNT_ID`-Repo-Variable im Build-Schritt zu umgehen.

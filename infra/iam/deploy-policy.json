@@ -30,17 +30,23 @@
       "Resource": "arn:aws:ecr:eu-central-1:523234426229:repository/swisstopo-dev-api"
     },
     {
-      "Sid": "EcsReadOnlyCurrentServiceAndTaskDefinition",
+      "Sid": "EcsDescribeServicesDevOnly",
       "Effect": "Allow",
       "Action": [
-        "ecs:DescribeServices",
-        "ecs:DescribeTaskDefinition"
+        "ecs:DescribeServices"
       ],
       "Resource": [
         "arn:aws:ecs:eu-central-1:523234426229:cluster/swisstopo-dev",
-        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api",
-        "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-api:*"
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api"
       ]
+    },
+    {
+      "Sid": "EcsDescribeTaskDefinition",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeTaskDefinition"
+      ],
+      "Resource": "*"
     },
     {
       "Sid": "EcsRegisterTaskDefinition",

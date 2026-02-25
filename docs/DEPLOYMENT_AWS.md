@@ -211,12 +211,13 @@ Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health
 | 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416418587 | `push` auf `main` | ✅ Success | `Wait for service stability` = ✅, `Smoke-Test /health` = ✅ |
 | 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416878804 | `push` auf `main` | ❌ Failure | `Build and push image` fehlgeschlagen (`AWS_ACCOUNT_ID` leer), nachgelagerte Schritte inkl. `services-stable`/Smoke-Test wurden übersprungen |
 | 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22416930879 | `push` auf `main` | ❌ Failure | `Register new task definition revision` fehlgeschlagen (`AccessDeniedException` auf `ecs:DescribeTaskDefinition`), `services-stable`/Smoke-Test übersprungen |
+| 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22417749775 | `workflow_dispatch` | 🔄 In Progress (Validierung) | Nach IAM-Policy-Fix läuft `Register new task definition revision` wieder erfolgreich; aktueller Wartepunkt: `Wait for service stability` |
 
 Kurzfazit BL-02:
 - Trigger per `push` auf `main`: ✅ nachgewiesen.
 - `services-stable` erfolgreich: ✅ in Run `22416418587`.
 - Smoke-Test `/health` erfolgreich: ✅ in Run `22416418587`.
-- Aktueller Regression-Hinweis: OIDC-Deploy-Role benötigt zusätzliche ECS-Rechte (`ecs:DescribeTaskDefinition`), damit neuere Push-Runs wieder bis zum Stabilitäts-/Smoke-Schritt durchlaufen.
+- Regression `ecs:DescribeTaskDefinition` wurde in IAM-Policy adressiert (OIDC-Role, Policy-Version `v2`); Validierungsrun `22417749775` bestätigt den ehemals fehlerhaften Schritt als grün.
 
 > ⚠️ Niemals Secrets direkt in Code oder Dokumente schreiben.
 
