@@ -45,11 +45,12 @@
   - Dedizierter IAM-Deploy-User/Rolle für dieses Repo existiert.
   - Rechte sind auf notwendige Aktionen (ECR/ECS/ggf. IaC) begrenzt.
   - GitHub-Secrets sind auf den neuen Principal umgestellt.
-- **Status (2026-02-25, Track D Umsetzung):** ✅ abgeschlossen
+- **Status (finalisiert 2026-02-26):** ✅ abgeschlossen
   - ✅ Workflow-basierte Minimalrechte hergeleitet und als Artefakte abgelegt: `infra/iam/deploy-policy.json` + `infra/iam/README.md`
   - ✅ OIDC-Deploy-Role `swisstopo-dev-github-deploy-role` bestätigt und mit der Repo-Policy `swisstopo-dev-github-deploy-policy` verbunden
   - ✅ Policy-Fix ausgerollt: `ecs:DescribeTaskDefinition` auf `Resource: "*"` gesetzt (AWS IAM Version `v2` als Default)
   - ✅ End-to-End Nachweis erfolgreich: `workflow_dispatch` Run `22417749775` + `push` Run `22417939827` jeweils mit `services-stable` und erfolgreichem Smoke-Test
+  - ✅ **BL-03 final:** Trust-Policy versioniert (`infra/iam/trust-policy.json`), `infra/iam/README.md` auf finalen Stand gebracht (OIDC live, Policy-Drift-Check, E2E-Nachweis), `docs/DEPLOYMENT_AWS.md` Deploy-Principal korrigiert (OIDC-Role als aktueller Principal, IAM-User als Legacy markiert)
 
 ### BL-04 — AWS-Tagging-Standard auf Bestandsressourcen durchsetzen
 - **Priorität:** P1

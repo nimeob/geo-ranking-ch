@@ -15,7 +15,8 @@
 |---|---|---|
 | AWS Account ID | `523234426229` | ✅ Verifiziert |
 | Region | `eu-central-1` (Frankfurt) | ✅ Verifiziert |
-| IAM Deploy-User | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | ✅ Verifiziert |
+| CI/CD Deploy-Principal | `arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role` (OIDC) | ✅ Verifiziert |
+| IAM Deploy-User | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | ⚠️ Legacy — nicht mehr für CI/CD genutzt |
 
 ### AWS-Naming-Konvention
 
@@ -94,33 +95,35 @@ aws ecs tag-resource \
 
 ---
 
-## 3. IAM-Berechtigungen (Deploy-User) — BL-03 Vorarbeit
+## 3. IAM-Berechtigungen (OIDC Deploy-Role) — BL-03 ✅ abgeschlossen
 
-Aktueller Workflow (`.github/workflows/deploy.yml`) benötigt für den ECS-Deploy in `dev` nur ECR+ECS+`iam:PassRole` (kein S3-/Lambda-/CloudFormation-Write im Workflow).
+Aktueller Workflow (`.github/workflows/deploy.yml`) nutzt GitHub OIDC — keine statischen AWS Access Keys erforderlich.
 
-Vorbereitete Artefakte (IaC-nah):
+Artefakte (versioniert in `infra/iam/`):
 
-- `infra/iam/deploy-policy.json` — konkrete Least-Privilege Policy für aktuellen dev-Stack
-- `infra/iam/README.md` — Herleitung, Scope und sichere Umsetzungsreihenfolge
+- `infra/iam/deploy-policy.json` — Least-Privilege Permission-Policy (identisch mit live v2)
+- `infra/iam/trust-policy.json` — Trust-Policy der OIDC-Deploy-Role (repo-scoped, `main`-only)
+- `infra/iam/README.md` — Herleitung, Nachweis, Hinweise für Staging/Prod
 
-### Deploy-Principal (Ist-Stand, read-only geprüft)
+### Deploy-Principal (Ist-Stand, verifiziert 2026-02-25)
 
-- ✅ `aws sts get-caller-identity` liefert:
-  - `arn:aws:iam::523234426229:user/swisstopo-api-deploy`
-- ✅ ECS/ECR Read-Aufrufe funktionieren (`DescribeServices`, `DescribeTaskDefinition`, `DescribeRepositories`)
-- ⚠️ IAM-Introspection nicht erlaubt (`iam:GetUser`, `iam:ListAttachedUserPolicies`, `iam:ListUserPolicies` => `AccessDenied`)
+- ✅ OIDC-Role `swisstopo-dev-github-deploy-role` existiert und ist korrekt konfiguriert
+- ✅ Attached Policy: `swisstopo-dev-github-deploy-policy` (v2, Defaultversion)
+- ✅ Policy-Inhalt identisch mit `infra/iam/deploy-policy.json` (kein Drift)
+- ✅ Trust-Condition: `repo:nimeob/geo-ranking-ch:ref:refs/heads/main` (nur `main`-Branch)
+- ✅ Keine Inline Policies, keine weiteren angehängten Policies
 
-### Ableitung Minimalrechte aus aktuellem Workflow
+### Minimalrechte (implementiert, kein Handlungsbedarf)
 
-| Schritt | Benötigte AWS Actions |
-|---|---|
-| ECR Login | `ecr:GetAuthorizationToken` |
-| Docker Push nach ECR | `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage` |
-| ECS Ist-TaskDef lesen | `ecs:DescribeServices`, `ecs:DescribeTaskDefinition` |
-| Neue Revision registrieren | `ecs:RegisterTaskDefinition` + `iam:PassRole` (Execution-/Task-Role) |
-| ECS Service umstellen + Wait | `ecs:UpdateService`, `ecs:DescribeServices` |
+| Schritt | Benötigte AWS Actions | Scope |
+|---|---|---|
+| ECR Login | `ecr:GetAuthorizationToken` | `*` |
+| Docker Push nach ECR | `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage` | nur `swisstopo-dev-api`-Repo |
+| ECS Ist-TaskDef lesen | `ecs:DescribeServices`, `ecs:DescribeTaskDefinition` | Service/Cluster scoped (DescribeServices); `*` für DescribeTaskDefinition (AWS-IAM-Constraint) |
+| Neue Revision registrieren | `ecs:RegisterTaskDefinition` + `iam:PassRole` (Execution-/Task-Role) | `*` für Register; PassRole nur auf die zwei Task-Roles |
+| ECS Service umstellen + Wait | `ecs:UpdateService`, `ecs:DescribeServices` | nur dev Cluster + Service |
 
-> Umsetzungshinweis (ohne Risiko): Neue Policy zuerst parallel anhängen und via `workflow_dispatch` validieren; produktive Secrets erst nach erfolgreichem Test umstellen.
+> Vollständiger Nachweis in `infra/iam/README.md`.
 
 ---
 

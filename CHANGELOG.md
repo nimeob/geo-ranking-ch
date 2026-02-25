@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-26 — BL-03 final abgeschlossen, Least-Privilege OIDC-Doku finalisiert)
+- **`infra/iam/trust-policy.json`:** Neu — Trust-Policy der OIDC-Deploy-Role versioniert (`repo:nimeob/geo-ranking-ch:ref:refs/heads/main`, verifiziert identisch mit live AWS-Konfiguration).
+- **`infra/iam/README.md`:** Status auf `✅ Final abgeschlossen` aktualisiert; bisheriger „Vorbereitung"-Hinweis (misleading) entfernt; neuen Nachweis-Abschnitt ergänzt (Role ARN, Policy-Version, Trust-Bedingung, E2E-Run-Links, Policy-Drift-Verifikation — kein Drift); Hinweise für Staging/Prod-OIDC-Rollen ergänzt.
+- **`docs/DEPLOYMENT_AWS.md`:** AWS-Basis-Tabelle: OIDC-Deploy-Role als aktueller CI/CD-Principal eingetragen; IAM-User `swisstopo-api-deploy` als Legacy markiert (nicht mehr für CI/CD genutzt). IAM-Sektion umbenannt auf „OIDC Deploy-Role — BL-03 ✅ abgeschlossen"; Minimalrechte-Tabelle um Scope-Spalte ergänzt.
+- **`docs/BACKLOG.md`:** BL-03 finaler Eintrag ergänzt (Trust-Policy-Artefakt, README/Doku-Update als Done nachgeführt).
+
 ### Changed (2026-02-25 — BL-08 final abgeschlossen, Empfangsnachweis erbracht)
 - **`docs/BACKLOG.md`:** BL-08 von „in Umsetzung“ auf **abgeschlossen** gesetzt; Blocker/Next-Actions entfernt; Deploy- + Empfangsnachweis (`ALARM` und `OK`) dokumentiert.
 - **`docs/DEPLOYMENT_AWS.md`:** Status für Lambda/Alert-Kanal auf **verifiziert aktiv** aktualisiert; offene Punkte entsprechend bereinigt.

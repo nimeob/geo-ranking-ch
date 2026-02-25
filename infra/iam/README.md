@@ -1,14 +1,25 @@
-# IAM Least-Privilege Vorarbeit (BL-03)
+# IAM Least-Privilege Deploy-Role (BL-03)
 
-Status: **Vorbereitung abgeschlossen** (noch **nicht** auf produktive Secrets umgestellt)
+Status: ✅ **Final abgeschlossen** (2026-02-25/26) — OIDC-Role live, Policy verifiziert, E2E nachgewiesen
 
-Diese Artefakte leiten aus dem aktuellen GitHub-Deploy-Workflow (`.github/workflows/deploy.yml`) eine minimale IAM-Berechtigungsmenge für den Deploy-Principal ab.
+Diese Artefakte dokumentieren die minimale IAM-Berechtigungsmenge für den GitHub-Actions-Deploy-Principal dieses Repos.
+
+---
+
+## Artefakte
+
+| Datei | Inhalt |
+|---|---|
+| `deploy-policy.json` | Least-Privilege Permission-Policy (live als `swisstopo-dev-github-deploy-policy` v2) |
+| `trust-policy.json` | Trust-Policy der OIDC-Deploy-Role (repo-scoped, `main`-only) |
+
+---
 
 ## Scope
 
-Aktueller Workflow-Flow (dev):
+Aktueller Workflow-Flow (dev, `.github/workflows/deploy.yml`):
 
-1. AWS Credentials laden (Access Key / Secret)
+1. GitHub OIDC Token → `sts:AssumeRoleWithWebIdentity` → `swisstopo-dev-github-deploy-role`
 2. ECR Login
 3. Docker Image bauen + nach ECR pushen
 4. ECS Service lesen (aktuelle Task Definition)
@@ -25,37 +36,69 @@ Datei: `infra/iam/deploy-policy.json`
 | Identity-Check (optional) | `sts:GetCallerIdentity` | `*` |
 | ECR Login | `ecr:GetAuthorizationToken` | `*` |
 | ECR Push | `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage` | nur Repo `swisstopo-dev-api` |
-| ECS Read | `ecs:DescribeServices`, `ecs:DescribeTaskDefinition` | nur dev Cluster/Service + TaskDef-Family |
+| ECS Read | `ecs:DescribeServices` | nur dev Cluster + Service |
+| ECS Read | `ecs:DescribeTaskDefinition` | `*` (AWS wertet ARN/Family-Scoping nicht aus — Policy v1→v2 Fix) |
 | ECS Register TaskDef | `ecs:RegisterTaskDefinition` | `*` (AWS-seitig nicht enger scoping-fähig) |
 | ECS Rollout | `ecs:UpdateService` | nur dev Service/Cluster |
 | PassRole für TaskDef | `iam:PassRole` | nur `swisstopo-dev-ecs-execution-role` + `swisstopo-dev-ecs-task-role` (Condition auf `ecs-tasks.amazonaws.com`) |
 
-## Read-only Bestandscheck (`swisstopo-api-deploy`)
+---
 
-Durchgeführt mit vorhandenen Credentials (nur read-only Aufrufe):
+## Nachweis: Ist-Stand AWS (verifiziert 2026-02-25)
 
-- ✅ `sts:GetCallerIdentity` bestätigt Principal:
-  - `arn:aws:iam::523234426229:user/swisstopo-api-deploy`
-- ✅ ECS/ECR Read-Aufrufe funktionieren (u. a. `DescribeServices`, `DescribeTaskDefinition`, `DescribeRepositories`)
-- ⚠️ IAM-Introspection ist **nicht** erlaubt (`iam:GetUser`, `iam:ListAttachedUserPolicies`, `iam:ListUserPolicies` → `AccessDenied`)
+### OIDC Identity Provider
 
-### Grobe Rechte-Drift (nur indirekt bewertbar)
+```
+arn:aws:iam::523234426229:oidc-provider/token.actions.githubusercontent.com
+```
 
-Direkte Policy-Drift kann ohne IAM-List-Rechte nicht sicher verifiziert werden.
-Indirekter Hinweis auf potenziell breitere Leserechte: folgende zusätzlichen Read-APIs sind erlaubt, obwohl sie im Deploy-Workflow nicht benötigt werden:
+### Deploy-Role
 
-- `s3api list-buckets`
-- `cloudformation list-stacks`
-- `lambda list-functions`
+| Attribut | Wert |
+|---|---|
+| Role ARN | `arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role` |
+| Erstellt | 2026-02-25T21:26:33 UTC |
+| Zuletzt genutzt | 2026-02-25T23:05:29 UTC (eu-central-1) |
+| Trust | `repo:nimeob/geo-ranking-ch:ref:refs/heads/main` — `main`-Branch only |
+| Attached Policy | `swisstopo-dev-github-deploy-policy` (v2, Defaultversion) |
 
-=> Empfehlung: Vor produktiver Umschaltung einmalig mit Admin-Rechten die aktuell angehängten Policies auslesen und gegen `deploy-policy.json` diffen.
+Trust-Policy liegt versioniert als `infra/iam/trust-policy.json`.
 
-## Sichere Umsetzungsreihenfolge (ohne Breaking Change)
+### Permission-Policy
 
-1. Policy als neue managed policy anlegen (noch nicht exklusiv umschalten).
-2. Testweise **zusätzlich** an Deploy-User hängen.
-3. Manuellen `workflow_dispatch` Deploy ausführen.
-4. CloudTrail/Workflow auf `AccessDenied` prüfen und Policy ggf. feinjustieren.
-5. Erst danach Alt-Policy entfernen und GitHub-Secrets final auf den neuen Principal standardisieren (oder OIDC-Rolle einführen).
+```
+arn:aws:iam::523234426229:policy/swisstopo-dev-github-deploy-policy
+```
 
-Wichtig: Diese Vorarbeit ändert **keine** laufenden Secrets oder aktive Pipeline-Konfiguration.
+- Aktive Version: `v2` (Default)
+- Inhalt: identisch mit `infra/iam/deploy-policy.json`
+- Keine Inline Policies an der Rolle
+
+### E2E-Nachweis
+
+| Run | Trigger | Ergebnis |
+|---|---|---|
+| [`22417749775`](https://github.com/nimeob/geo-ranking-ch/actions/runs/22417749775) | `workflow_dispatch` | ✅ IAM-Fix validiert, `services-stable` + Smoke-Test |
+| [`22417939827`](https://github.com/nimeob/geo-ranking-ch/actions/runs/22417939827) | `push` auf `main` | ✅ OIDC E2E, `services-stable` + Smoke-Test |
+
+---
+
+## Umsetzungshistorie (erledigt)
+
+Die ursprüngliche Migrationsreihenfolge (1. Policy parallel anhängen → 2. Test per `workflow_dispatch` → 3. Alt-Policy entfernen → 4. Auf OIDC-Role umstellen) wurde vollständig durchgeführt:
+
+- IAM-User `swisstopo-api-deploy` ist **nicht** mehr der Deploy-Principal für CI/CD
+- GitHub Actions nutzt ausschließlich OIDC (`role-to-assume` in `aws-actions/configure-aws-credentials@v4`)
+- Keine statischen AWS Access Keys in GitHub Secrets erforderlich
+
+---
+
+## Hinweise für Staging/Prod
+
+Für `staging`/`prod` ist eine **eigene OIDC-Deploy-Role** mit scope auf den jeweiligen Branch/Umgebung anzulegen:
+
+- Trust-Bedingung: `repo:nimeob/geo-ranking-ch:ref:refs/heads/staging` (bzw. `main` mit `environment:`-Gate)
+- Separate Permission-Policy mit Scope auf `staging`/`prod`-Ressourcen
+- Empfehlung: GitHub Environment-Protection-Rules als zusätzliches Gate (`environment: staging`)
+
+Siehe [`docs/ENV_PROMOTION_STRATEGY.md`](../../docs/ENV_PROMOTION_STRATEGY.md) für den Promotion-Pfad.
