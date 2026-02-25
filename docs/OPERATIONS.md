@@ -193,12 +193,143 @@ pip install -r requirements-dev.txt
 
 ---
 
-## Incident-Prozess
+## Monitoring & Alerting (ECS `dev` MVP)
 
-1. **Erkennen:** Monitoring-Alarm oder User-Report
-2. **Triagieren:** Schweregrad bestimmen (P1-P4)
-3. **Mitigieren:** Rollback oder Hotfix
-4. **Kommunizieren:** Status-Update (intern)
-5. **Postmortem:** Ursache dokumentieren, Maßnahmen ableiten
+Die folgenden Standards sind absichtlich minimal gehalten und passen zum aktuellen Ist-Stand:
+- ein ECS-Service (`swisstopo-dev-api`) in Cluster `swisstopo-dev`
+- CloudWatch Logs vorhanden/konfigurierbar
+- keine riskanten Änderungen am Live-Setup ohne Incident-Bedarf
 
-Rollback-Prozedur: siehe [`DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md#4-rollback-prozedur)
+### 1) CloudWatch Logs Standard (Log Group + Retention)
+
+**Log-Group-Namensschema (Standard):**
+- `/aws/ecs/<service-name>`
+- Für den aktuellen Service: `/aws/ecs/swisstopo-dev-api`
+
+**Retention-Standard:**
+- `dev`: **30 Tage**
+- `staging`/`prod` (später): mindestens 30–90 Tage je nach Compliance-Bedarf
+
+**Checks/Kommandos:**
+
+```bash
+export AWS_REGION=eu-central-1
+export ECS_CLUSTER=swisstopo-dev
+export ECS_SERVICE=swisstopo-dev-api
+export LOG_GROUP=/aws/ecs/swisstopo-dev-api
+
+# Log Group prüfen
+aws logs describe-log-groups   --region "$AWS_REGION"   --log-group-name-prefix "$LOG_GROUP"   --query 'logGroups[].{name:logGroupName,retention:retentionInDays,storedBytes:storedBytes}'
+
+# Falls nötig: Retention auf 30 Tage setzen
+aws logs put-retention-policy   --region "$AWS_REGION"   --log-group-name "$LOG_GROUP"   --retention-in-days 30
+```
+
+### 2) Minimale Alarme (MVP)
+
+> Ziel: Frühe Erkennung von „Service unhealthy“ und „Deployment hängt/fehlschlägt" ohne komplexes Observability-Setup.
+
+#### Alarm A — Service unhealthy (RunningTaskCount < 1)
+
+Für den aktuellen MVP mit Desired Count = 1:
+
+```bash
+aws cloudwatch put-metric-alarm   --region "$AWS_REGION"   --alarm-name "swisstopo-dev-api-running-taskcount-low"   --alarm-description "ECS service unhealthy: running tasks < 1"   --namespace AWS/ECS   --metric-name RunningTaskCount   --dimensions Name=ClusterName,Value=swisstopo-dev Name=ServiceName,Value=swisstopo-dev-api   --statistic Minimum   --period 60   --evaluation-periods 3   --datapoints-to-alarm 3   --threshold 1   --comparison-operator LessThanThreshold   --treat-missing-data breaching
+```
+
+#### Alarm B — Deployment Failure Indicator (PendingTaskCount > 0 für längere Zeit)
+
+Detektiert typische Fälle, in denen neue Tasks nicht sauber starten (Image Pull, Healthcheck-Fail, Capacity-Probleme):
+
+```bash
+aws cloudwatch put-metric-alarm   --region "$AWS_REGION"   --alarm-name "swisstopo-dev-api-pending-taskcount-stuck"   --alarm-description "Deployment likely stuck/failing: pending tasks > 0"   --namespace AWS/ECS   --metric-name PendingTaskCount   --dimensions Name=ClusterName,Value=swisstopo-dev Name=ServiceName,Value=swisstopo-dev-api   --statistic Maximum   --period 60   --evaluation-periods 15   --datapoints-to-alarm 10   --threshold 0   --comparison-operator GreaterThanThreshold   --treat-missing-data notBreaching
+```
+
+> Sobald Autoscaling >1 eingeführt wird, Alarm A auf „RunningTaskCount < DesiredTaskCount" (Metric Math) umstellen.
+
+### 3) HTTP Health Check Guidance
+
+- Der Deploy-Workflow nutzt bereits optional `SERVICE_HEALTH_URL` für Smoke-Tests.
+- Für Monitoring zusätzlich eine externe Probe (z. B. UptimeRobot, Better Stack oder CloudWatch Synthetics) auf `GET /health` einrichten.
+- Interner Minimal-Check via CLI:
+
+```bash
+# Erwartet HTTP 200 und optional JSON-Status
+curl -fsS "$SERVICE_HEALTH_URL"
+```
+
+- Wenn ein ALB eingesetzt wird: zusätzlich CloudWatch-Alarm auf `AWS/ApplicationELB -> UnHealthyHostCount > 0` für das Target Group/Load Balancer Paar ergänzen.
+
+---
+
+## Incident-Prozess (Runbook mit AWS CLI)
+
+1. **Erkennen:** CloudWatch Alarm oder User-Report
+2. **Triagieren:** Impact und Scope bestimmen
+3. **Mitigieren:** Quick-Fix (Redeploy/Rollback)
+4. **Kommunizieren:** Status intern dokumentieren
+5. **Nachbereitung:** Ursache + Follow-ups festhalten
+
+### 0) Vorbereitende Variablen
+
+```bash
+export AWS_REGION=eu-central-1
+export ECS_CLUSTER=swisstopo-dev
+export ECS_SERVICE=swisstopo-dev-api
+export LOG_GROUP=/aws/ecs/swisstopo-dev-api
+```
+
+### 1) Service-Schnellcheck
+
+```bash
+# Kurzstatus (desired/running/pending + rollout)
+aws ecs describe-services   --region "$AWS_REGION"   --cluster "$ECS_CLUSTER"   --services "$ECS_SERVICE"   --query 'services[0].{status:status,desired:desiredCount,running:runningCount,pending:pendingCount,taskDef:taskDefinition,rollout:deployments[0].rolloutState,rolloutReason:deployments[0].rolloutStateReason}'
+
+# Letzte Service-Events
+aws ecs describe-services   --region "$AWS_REGION"   --cluster "$ECS_CLUSTER"   --services "$ECS_SERVICE"   --query 'services[0].events[0:15].[createdAt,message]'
+```
+
+Alternativ (Helper-Script):
+
+```bash
+./scripts/check_ecs_service.sh
+```
+
+### 2) Laufende Tasks und Exit-Codes prüfen
+
+```bash
+TASK_ARNS=$(aws ecs list-tasks   --region "$AWS_REGION"   --cluster "$ECS_CLUSTER"   --service-name "$ECS_SERVICE"   --query 'taskArns'   --output text)
+
+aws ecs describe-tasks   --region "$AWS_REGION"   --cluster "$ECS_CLUSTER"   --tasks $TASK_ARNS   --query 'tasks[].{task:taskArn,last:lastStatus,health:healthStatus,stoppedReason:stoppedReason,containers:containers[].{name:name,last:lastStatus,exit:exitCode,reason:reason}}'
+```
+
+### 3) Logs live verfolgen
+
+```bash
+# letzte 30 Minuten + Follow
+aws logs tail "$LOG_GROUP" --region "$AWS_REGION" --since 30m --follow
+```
+
+Alternativ (Helper-Script):
+
+```bash
+./scripts/tail_logs.sh
+```
+
+### 4) HTTP-Health manuell verifizieren
+
+```bash
+curl -i "$SERVICE_HEALTH_URL"
+```
+
+### 5) Mitigation
+
+```bash
+# A) Neuer Rollout derselben Task-Definition
+aws ecs update-service   --region "$AWS_REGION"   --cluster "$ECS_CLUSTER"   --service "$ECS_SERVICE"   --force-new-deployment
+
+# B) Falls weiterhin fehlerhaft: Rollback auf vorherige Revision
+# siehe DEPLOYMENT_AWS.md Abschnitt "Rollback-Prozedur"
+```
+
+Rollback-Prozedur: siehe [`DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md#5-rollback-prozedur)

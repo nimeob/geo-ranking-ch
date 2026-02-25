@@ -253,15 +253,16 @@ git checkout v<stabile-version>
 
 ---
 
-## 6. Monitoring & Observability (Zielzustand)
+## 6. Monitoring & Observability (MVP-Stand)
 
 | Komponente | Tool | Status |
 |---|---|---|
-| Logs | CloudWatch Logs | ⚠️ zu konfigurieren |
-| Metriken | CloudWatch Metrics | ⚠️ zu konfigurieren |
-| Alarme | CloudWatch Alarms | ❌ noch nicht vorhanden |
+| Logs | CloudWatch Logs | ⚠️ Log-Group-/Retention-Standard dokumentiert (siehe `docs/OPERATIONS.md`), im AWS-Account noch zu verifizieren |
+| Metriken | CloudWatch Metrics | ⚠️ Für minimale Alarme definiert, technische Anlage via CLI noch offen |
+| Alarme | CloudWatch Alarms | ⚠️ MVP-Alarmdefinitionen dokumentiert (Service unhealthy + Deployment-Stuck-Indicator), Umsetzung im Account noch offen |
+| Uptime/HTTP Health | Externe Probe oder CloudWatch Synthetics | ⚠️ Guidance dokumentiert (`/health`), produktive Probe noch offen |
+| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh` | ✅ Read-only Scripts für Incident-Triage vorhanden |
 | Tracing | X-Ray | ⚠️ zu evaluieren |
-| Uptime | CloudWatch Synthetics / externe Probe | ⚠️ zu evaluieren |
 
 ---
 
@@ -282,8 +283,12 @@ git checkout v<stabile-version>
 
 ## 8. Offene Punkte / TODOs
 
-Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (insb. **BL-01** bis **BL-09**), um doppelte Pflege zu vermeiden.
+Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (insb. **BL-01** bis **BL-10**), um doppelte Pflege zu vermeiden.
 
 Status-Updates zu umgesetzten Teilaspekten bitte in der jeweiligen BL-ID in `docs/BACKLOG.md` nachführen.
 
 - ✅ IaC-Fundament (Terraform, dev) umgesetzt: `infra/terraform/` mit Import-first-Runbook.
+- ✅ Monitoring-MVP in `docs/OPERATIONS.md` dokumentiert (Log-Group/Retention-Standard, minimale Alarmdefinitionen, Incident-Runbook mit AWS CLI).
+- ✅ Read-only Ops-Helper-Skripte ergänzt: `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`.
+- ⏳ Noch offen: Alarme tatsächlich im AWS-Account anlegen + AlarmActions (SNS/ChatOps) verdrahten.
+- ⏳ Noch offen: HTTP-Uptime-Probe auf `/health` produktiv aktivieren.

@@ -63,6 +63,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/OPERATIONS.md`:** Verweis auf zentrale Backlog-Pflege ergänzt; lokaler TODO-Hinweis im Setup auf Backlog referenziert.
 - **`README.md`:** Dokumentationsübersicht um `docs/BACKLOG.md` ergänzt.
 
+### Changed (2026-02-25 — Monitoring/Alerting MVP für ECS)
+- **`docs/OPERATIONS.md`:** Monitoring-MVP ergänzt (CloudWatch Log Group + Retention-Standard, minimale Alarmdefinitionen, HTTP-Health-Check-Guidance, Incident-Runbook mit konkreten AWS-CLI-Kommandos).
+- **`docs/DEPLOYMENT_AWS.md`:** Monitoring-Status auf MVP-Stand aktualisiert; Teilfortschritt für BL-08 dokumentiert (inkl. klarer Restarbeiten).
+
+### Added (2026-02-25 — Read-only Ops Scripts)
+- **`scripts/check_ecs_service.sh`:** Read-only ECS-Triage-Helper (Service-Status, letzte Events, laufende Tasks/Containerzustände).
+- **`scripts/tail_logs.sh`:** Read-only CloudWatch-Log-Tail-Helper (Region/LogGroup/Since/Follow parametrisierbar).
+
 ---
 
 ## [0.1.0] — 2026-02-25
