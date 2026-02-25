@@ -69,6 +69,7 @@ output "resource_management_flags" {
     manage_cloudwatch_log_group = var.manage_cloudwatch_log_group
     manage_s3_bucket            = var.manage_s3_bucket
     manage_telegram_alerting    = var.manage_telegram_alerting
+    manage_health_probe         = var.manage_health_probe
   }
 }
 
@@ -85,4 +86,24 @@ output "telegram_lambda_function_name" {
 output "telegram_sns_subscription_arn" {
   description = "ARN der SNS → Lambda Subscription für Telegram-Alerting."
   value       = try(aws_sns_topic_subscription.lambda_telegram[0].arn, null)
+}
+
+output "health_probe_lambda_arn" {
+  description = "ARN der Health-Probe-Lambda-Funktion (leer wenn nicht gemanagt)."
+  value       = try(aws_lambda_function.health_probe[0].arn, null)
+}
+
+output "health_probe_lambda_function_name" {
+  description = "Name der Health-Probe-Lambda-Funktion (leer wenn nicht gemanagt)."
+  value       = try(aws_lambda_function.health_probe[0].function_name, null)
+}
+
+output "health_probe_alarm_name" {
+  description = "Name des Health-Probe-Alarms (leer wenn nicht gemanagt)."
+  value       = try(aws_cloudwatch_metric_alarm.health_probe_fail[0].alarm_name, null)
+}
+
+output "health_probe_schedule_rule_arn" {
+  description = "ARN der EventBridge-Rule für die Health-Probe (leer wenn nicht gemanagt)."
+  value       = try(aws_cloudwatch_event_rule.health_probe_schedule[0].arn, null)
 }

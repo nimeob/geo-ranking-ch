@@ -7,6 +7,10 @@ Dieses Verzeichnis ist ein **sicherer Terraform-Einstieg** für die bestehenden 
 - CloudWatch Log Group `/swisstopo/dev/ecs/api`
 - S3 Bucket `swisstopo-dev-523234426229`
 
+Optionale Erweiterungen (ebenfalls import-first):
+- Telegram-Alerting (Lambda + SNS Subscription)
+- HTTP-Health-Probe (Lambda + EventBridge + CloudWatch Alarm)
+
 Ziel: erst **read-only prüfen**, dann **importieren**, erst danach (bei sauberem Plan) aktiv verwalten.
 
 ## Sicherheitsprinzip
@@ -44,6 +48,8 @@ Die Terraform-Defaults sind darauf abgestimmt, um Drift direkt nach Import zu mi
 - `aws_ecr_repository.api` (optional managed)
 - `aws_cloudwatch_log_group.api` (optional managed)
 - `aws_s3_bucket.dev` (optional managed)
+- `aws_lambda_function.sns_to_telegram` + IAM + SNS Subscription (`manage_telegram_alerting=true`)
+- `aws_lambda_function.health_probe` + IAM + EventBridge + Alarm (`manage_health_probe=true`)
 - optionale Read-only-Data-Sources (`lookup_existing_resources=true`)
 
 ---
@@ -98,6 +104,23 @@ terraform import 'aws_cloudwatch_log_group.api[0]' /swisstopo/dev/ecs/api
 terraform import 'aws_s3_bucket.dev[0]' swisstopo-dev-523234426229
 ```
 
+Optional (BL-14, nur bei `manage_health_probe=true`):
+
+```bash
+# IAM Role
+terraform import 'aws_iam_role.health_probe[0]' swisstopo-dev-health-probe-role
+
+# Lambda
+terraform import 'aws_lambda_function.health_probe[0]' swisstopo-dev-health-probe
+
+# EventBridge Rule + Target
+terraform import 'aws_cloudwatch_event_rule.health_probe_schedule[0]' swisstopo-dev-health-probe-schedule
+terraform import 'aws_cloudwatch_event_target.health_probe_lambda[0]' swisstopo-dev-health-probe-schedule/health-probe-lambda
+
+# CloudWatch Alarm
+terraform import 'aws_cloudwatch_metric_alarm.health_probe_fail[0]' swisstopo-dev-api-health-probe-fail
+```
+
 ### 4) Erster Management-Plan
 
 ```bash
@@ -131,5 +154,5 @@ Das Script macht nur Read-only AWS-Aufrufe und gibt:
 ## Nächster Ausbau (später)
 
 - ECS Service / Task Definition als Terraform-Ressourcen ergänzen
-- CloudWatch Alarme/Dashboards ergänzen
+- Weitere CloudWatch Alarme/Dashboards (über aktuelle Baseline hinaus) ergänzen
 - Remote State + Locking (S3 + DynamoDB) definieren

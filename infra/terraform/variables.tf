@@ -128,6 +128,76 @@ variable "manage_telegram_alerting" {
   default     = false
 }
 
+# ---------------------------------------------------------------------------
+# HTTP Health Probe (BL-14)
+# ---------------------------------------------------------------------------
+
+variable "manage_health_probe" {
+  description = "Wenn true, verwaltet Terraform die Lambda-basierte HTTP-Health-Probe (IAM, Lambda, EventBridge, Alarm). Import-first empfohlen, da Ressourcen in dev bereits existieren können."
+  type        = bool
+  default     = false
+}
+
+variable "health_probe_ecs_cluster" {
+  description = "ECS Cluster Name für die Health-Probe-Lambda (ENV ECS_CLUSTER)."
+  type        = string
+  default     = "swisstopo-dev"
+}
+
+variable "health_probe_ecs_service" {
+  description = "ECS Service Name für die Health-Probe-Lambda (ENV ECS_SERVICE)."
+  type        = string
+  default     = "swisstopo-dev-api"
+}
+
+variable "health_probe_port" {
+  description = "HTTP-Port für den /health Probe-Aufruf (ENV HEALTH_PORT)."
+  type        = number
+  default     = 8080
+}
+
+variable "health_probe_path" {
+  description = "HTTP-Pfad für die Probe (ENV HEALTH_PATH)."
+  type        = string
+  default     = "/health"
+}
+
+variable "health_probe_metric_namespace" {
+  description = "CloudWatch Namespace für Probe-Metrik HealthProbeSuccess."
+  type        = string
+  default     = "swisstopo/dev-api"
+}
+
+variable "health_probe_lambda_name" {
+  description = "Name der Health-Probe-Lambda-Funktion."
+  type        = string
+  default     = "swisstopo-dev-health-probe"
+}
+
+variable "health_probe_role_name" {
+  description = "Name der IAM-Role für die Health-Probe-Lambda."
+  type        = string
+  default     = "swisstopo-dev-health-probe-role"
+}
+
+variable "health_probe_rule_name" {
+  description = "Name der EventBridge Schedule Rule für die Health-Probe-Lambda."
+  type        = string
+  default     = "swisstopo-dev-health-probe-schedule"
+}
+
+variable "health_probe_alarm_name" {
+  description = "Name des CloudWatch Alarms für fehlgeschlagene Health-Probe."
+  type        = string
+  default     = "swisstopo-dev-api-health-probe-fail"
+}
+
+variable "health_probe_schedule_expression" {
+  description = "Schedule Expression für EventBridge (z. B. rate(5 minutes))."
+  type        = string
+  default     = "rate(5 minutes)"
+}
+
 variable "aws_account_id" {
   description = "AWS Account ID (für IAM-Policy-ARNs). Nicht sensitiv."
   type        = string

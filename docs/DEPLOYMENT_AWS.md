@@ -407,8 +407,28 @@ Prüft jetzt zusätzlich: Lambda-State, SNS-Subscription, TELEGRAM_CHAT_ID in En
 
 **Setup (idempotent):**
 
+Option A (Script, schnell):
+
 ```bash
 AWS_ACCOUNT_ID=523234426229 ./scripts/setup_health_probe_dev.sh
+```
+
+Option B (Terraform, IaC-Parität seit BL-14):
+
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars  # falls noch nicht vorhanden
+
+# Aktivieren:
+#   manage_health_probe = true
+
+terraform init
+terraform import 'aws_iam_role.health_probe[0]' swisstopo-dev-health-probe-role
+terraform import 'aws_lambda_function.health_probe[0]' swisstopo-dev-health-probe
+terraform import 'aws_cloudwatch_event_rule.health_probe_schedule[0]' swisstopo-dev-health-probe-schedule
+terraform import 'aws_cloudwatch_event_target.health_probe_lambda[0]' swisstopo-dev-health-probe-schedule/health-probe-lambda
+terraform import 'aws_cloudwatch_metric_alarm.health_probe_fail[0]' swisstopo-dev-api-health-probe-fail
+terraform plan
 ```
 
 **Status-Check:**
@@ -455,4 +475,5 @@ Aktueller Stand (Deployment-relevant):
 - ✅ IaC-Fundament (`infra/terraform/`) für dev-Kernressourcen umgesetzt.
 - ✅ Monitoring/Alerting-Baseline inkl. SNS → Telegram produktiv aktiv.
 - ✅ HTTP-Uptime-Probe auf `/health` produktiv aktiv (BL-12 abgeschlossen).
-- ⏳ Nächster offener Deployment-Block: **BL-14** (Health-Probe in Terraform überführen, IaC-Parität).
+- 🟡 Health-Probe-IaC-Parität vorbereitet (BL-14, optional via `manage_health_probe`), Plan-Verifikation noch ausstehend.
+- ⏳ Nächster offener Gesamt-Block: **BL-15** (Legacy-IAM-Readiness, read-only).

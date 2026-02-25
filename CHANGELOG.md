@@ -29,6 +29,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/DEPLOYMENT_AWS.md`:** Verweis auf `docs/AWS_INVENTORY.md` als zentrales Ressourcen-Inventar ergänzt.
 - **`docs/BACKLOG.md`:** BL-11 auf abgeschlossen gesetzt inkl. Nachweis.
 
+### Changed (2026-02-26 — BL-14 in Umsetzung: Health-Probe IaC-Parität vorbereitet)
+- **`infra/terraform/health_probe.tf`:** Neu — optionale Terraform-Ressourcen für die bestehende HTTP-Health-Probe (`manage_health_probe`, Default `false`): IAM Role + Inline-Policy, Lambda, EventBridge Rule/Target, Lambda Permission, CloudWatch Alarm (`HealthProbeSuccess` < 1).
+- **`infra/terraform/variables.tf` / `outputs.tf` / `terraform.tfvars.example`:** Neue Health-Probe-Variablen, Management-Flag und Outputs ergänzt; safe defaults ohne destruktive Änderungen.
+- **`infra/terraform/README.md`:** Import-first Runbook um Health-Probe-Imports erweitert.
+- **`docs/DEPLOYMENT_AWS.md`:** Health-Probe-Setup um Terraform-Option (zusätzlich zum Script) ergänzt.
+- **`docs/BACKLOG.md`:** BL-14 auf „in Umsetzung“ gesetzt inkl. Blocker (`terraform` CLI fehlt in Runner) und konkreten Next Actions.
+
 ### Changed (2026-02-26 — BL-13 gestartet und abgeschlossen: Doku-Konsistenz nach Nacht-Plan)
 - **`docs/BACKLOG.md`:** Neue Folge-Sequenz nach abgeschlossenem Nacht-Plan angelegt (`BL-13` bis `BL-15`), `BL-13` als abgeschlossen dokumentiert und Nachweise ergänzt.
 - **`docs/DEPLOYMENT_AWS.md`:** Abschnitt „Offene Punkte / TODOs“ konsolidiert; veralteter Restpunkt zur bereits aktiven HTTP-Uptime-Probe entfernt; Backlog-Referenz auf aktuelle BL-Range (`BL-01` bis `BL-15`) aktualisiert.

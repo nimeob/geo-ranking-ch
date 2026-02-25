@@ -192,11 +192,22 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-12
-- **Status:** ⏳ offen
+- **Status:** 🟡 in Umsetzung (2026-02-26)
 - **Akzeptanzkriterien:**
-  - Health-Probe-Ressourcen (Lambda, IAM, EventBridge, Alarm) als optionale Terraform-Ressourcen modelliert.
-  - Existing Setup-Script bleibt als Fallback dokumentiert.
-  - `terraform plan` ist drift-arm und ohne destruktive Default-Änderungen.
+  - Health-Probe-Ressourcen (Lambda, IAM, EventBridge, Alarm) als optionale Terraform-Ressourcen modelliert. ✅
+  - Existing Setup-Script bleibt als Fallback dokumentiert. ✅
+  - `terraform plan` ist drift-arm und ohne destruktive Default-Änderungen. ⏳ offen
+- **Nachweis:**
+  - ✅ Neue IaC-Datei `infra/terraform/health_probe.tf` mit optionalem Flag `manage_health_probe` (Default `false`) inkl. Lambda-Packaging, IAM, EventBridge, Alarm.
+  - ✅ Terraform-Variablen/Outputs erweitert: `infra/terraform/variables.tf`, `infra/terraform/outputs.tf`, `infra/terraform/terraform.tfvars.example`.
+  - ✅ Import-first-Runbook ergänzt: `infra/terraform/README.md` (inkl. Import-Kommandos für bestehende dev-Ressourcen).
+  - ✅ Deployment-Doku aktualisiert: `docs/DEPLOYMENT_AWS.md` enthält Setup-Option A (Script) + Option B (Terraform).
+- **Blocker:**
+  - `terraform` CLI ist in der aktuellen Runner-Umgebung nicht installiert (`terraform: command not found`), daher konnten `terraform init/plan/validate` nicht ausgeführt werden.
+- **Next Actions:**
+  1. Terraform CLI im Runner bereitstellen (oder in CI-Job ausführen).
+  2. `infra/terraform`: `terraform init` + Import-Schritte laut README ausführen.
+  3. `terraform plan` dokumentieren und BL-14 auf ✅ setzen.
 
 ### BL-15 — Legacy-IAM-User Decommission-Readiness (read-only)
 - **Priorität:** P2
@@ -227,6 +238,6 @@
 
 ## Folge-Sequenz (ab 2026-02-26)
 
-1. **BL-13** (Doku-Konsistenz)
-2. **BL-14** (Health-Probe IaC-Parität)
-3. **BL-15** (Legacy-IAM-Readiness)
+1. **BL-13** (Doku-Konsistenz) ✅
+2. **BL-14** (Health-Probe IaC-Parität) 🟡
+3. **BL-15** (Legacy-IAM-Readiness) ⏳
