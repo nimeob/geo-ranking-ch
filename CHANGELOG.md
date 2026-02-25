@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-05 Netzwerk-/Ingress-Zielbild abgeschlossen)
+- **`docs/NETWORK_INGRESS_DECISIONS.md`:** Neu angelegt mit verifiziertem Ist-Stand (Default VPC/public subnets, SG-Ingress) und beschlossenem Zielbild (ALB vor ECS, private Tasks, Route53/ACM-Pflicht in `staging`/`prod`).
+- **`docs/BACKLOG.md`:** BL-05 auf abgeschlossen gesetzt und Nachweisdokument verlinkt.
+- **`docs/ARCHITECTURE.md`:** Architekturentscheid um Referenz auf Netzwerk-/Ingress-Zielbild ergänzt.
+- **`README.md`:** Doku-Index und Projektbaum um `docs/NETWORK_INGRESS_DECISIONS.md` erweitert.
+
 ### Changed (2026-02-25 — BL-01 IaC dev Source-of-Truth abgeschlossen)
 - **`infra/terraform/main.tf` / `variables.tf` / `outputs.tf` / `terraform.tfvars.example`:** Import-first-IaC auf dev-Kernressourcen erweitert (zusätzlich `aws_s3_bucket.dev`), Drift-arme Defaults an verifizierten Ist-Stand angepasst (`managed_by=openclaw`, Log Group `/swisstopo/dev/ecs/api`, Retention 30d, `ecs_container_insights_enabled=false`).
 - **`infra/terraform/README.md`:** Runbook auf ECS+ECR+CloudWatch+S3 aktualisiert, inkl. verifiziertem Ist-Stand und Import-IDs.

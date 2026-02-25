@@ -129,6 +129,7 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 - **Artefakt:** Docker Image in ECR, Deployment über neue ECS Task-Definition-Revision.
 - **Service-Form:** Lightweight MVP-Webservice mit klaren Basisendpoints (`/health`, `/version`, `/analyze`).
 - **IaC-Fundament (dev):** Terraform-Startpaket unter `infra/terraform/` für ECS/ECR/CloudWatch/S3 mit Import-first-Ansatz (`manage_*` standardmässig `false`).
+- **Netzwerk/Ingress-Zielbild:** Dokumentiert in `docs/NETWORK_INGRESS_DECISIONS.md` (ALB-direkt als Ziel, API Gateway aktuell nicht erforderlich, Route53-Pflichten für `staging`/`prod`).
 
 ---
 

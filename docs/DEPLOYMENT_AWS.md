@@ -25,6 +25,10 @@
 
 > **Aktueller Stand:** Es existiert ausschließlich eine **`dev`-Umgebung**. `staging` und `prod` sind noch nicht aufgebaut.
 
+### Netzwerk-/Ingress-Entscheidungen
+
+Das Zielbild für VPC-/Ingress-Design ist in [`docs/NETWORK_INGRESS_DECISIONS.md`](NETWORK_INGRESS_DECISIONS.md) dokumentiert (BL-05).
+
 ### Aktuelle Ressourcen (dev)
 
 | Ressource | Name / ARN | Status |
