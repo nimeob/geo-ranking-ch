@@ -122,10 +122,12 @@
 - **Priorität:** P2
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-01, BL-05, BL-07, BL-08
+- **Status:** ✅ abgeschlossen (2026-02-25)
 - **Akzeptanzkriterien:**
   - Zielarchitektur für `staging` und `prod` ist definiert.
   - Promotion-Pfad (`dev` → `staging` → `prod`) inkl. Gates dokumentiert.
   - Rollback- und Freigabeprozess pro Umgebung ist festgelegt.
+- **Nachweis:** [`docs/ENV_PROMOTION_STRATEGY.md`](ENV_PROMOTION_STRATEGY.md)
 
 ### BL-10 — Lokale Dev-Baseline konsolidieren (Python-Version + pre-commit)
 - **Priorität:** P2

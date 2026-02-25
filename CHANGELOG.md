@@ -14,6 +14,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-09 Promotion-Strategie für staging/prod vorbereitet)
+- **`docs/ENV_PROMOTION_STRATEGY.md`:** Neu angelegt mit Zielarchitektur pro Umgebung, Promotion-Gates (`dev`→`staging`→`prod`), Freigaberegeln und Rollback-Standard.
+- **`docs/BACKLOG.md`:** BL-09 auf abgeschlossen gesetzt und Nachweisdokument verlinkt.
+- **`README.md` / `docs/ARCHITECTURE.md` / `docs/DEPLOYMENT_AWS.md`:** Referenzen auf die neue Promotion-Strategie ergänzt.
+
 ### Changed (2026-02-25 — BL-08 Monitoring-Baseline umgesetzt, externer Receiver offen)
 - **`scripts/setup_monitoring_baseline_dev.sh`:** Neues idempotentes Setup-Script für dev-Monitoring (SNS Topic, Log Metric Filters, Alarme für Service-Ausfall + 5xx-Fehlerquote, SNS-Testpublishing).
 - **AWS (live, non-destructive):** Topic `swisstopo-dev-alerts`, Metric Filters (`HttpRequestCount`, `Http5xxCount`) und Alarme (`swisstopo-dev-api-running-taskcount-low`, `swisstopo-dev-api-http-5xx-rate-high`) angelegt; Kanaltest via SNS Publish durchgeführt.

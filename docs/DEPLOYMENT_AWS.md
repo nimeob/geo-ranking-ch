@@ -33,6 +33,10 @@ Das Zielbild für VPC-/Ingress-Design ist in [`docs/NETWORK_INGRESS_DECISIONS.md
 
 Die verbindlichen Entscheidungen zu Persistenzbedarf (BL-06) und API-Sicherheitskontrollen für `/analyze` (BL-07) sind in [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md) festgehalten.
 
+### `staging`/`prod` Vorbereitung
+
+Promotion-Zielbild inkl. Gates und Rollback-Prozess ist in [`docs/ENV_PROMOTION_STRATEGY.md`](ENV_PROMOTION_STRATEGY.md) dokumentiert (BL-09).
+
 ### Aktuelle Ressourcen (dev)
 
 | Ressource | Name / ARN | Status |

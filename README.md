@@ -108,6 +108,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/DEPLOYMENT_AWS.md](docs/DEPLOYMENT_AWS.md) | AWS-Deployment: Ist-Stand, Runbook, Rollback |
 | [docs/NETWORK_INGRESS_DECISIONS.md](docs/NETWORK_INGRESS_DECISIONS.md) | Beschlossenes Netzwerk-/Ingress-Zielbild (BL-05) |
 | [docs/DATA_AND_API_SECURITY.md](docs/DATA_AND_API_SECURITY.md) | Datenhaltungsentscheidung + API-Sicherheitskonzept (BL-06/BL-07) |
+| [docs/ENV_PROMOTION_STRATEGY.md](docs/ENV_PROMOTION_STRATEGY.md) | Zielbild für staging/prod + Promotion-Gates (BL-09) |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Arbeitsmodus, PR-Regeln, Release-Checkliste |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | Zentraler, priorisierter Umsetzungs-Backlog |
 | [docs/AUTONOMOUS_AGENT_MODE.md](docs/AUTONOMOUS_AGENT_MODE.md) | Verbindlicher Arbeitsmodus für Nipa (Subagents + GitHub App Auth) |
@@ -132,6 +133,7 @@ geo-ranking-ch/
 │   ├── DEPLOYMENT_AWS.md
 │   ├── NETWORK_INGRESS_DECISIONS.md
 │   ├── DATA_AND_API_SECURITY.md
+│   ├── ENV_PROMOTION_STRATEGY.md
 │   └── OPERATIONS.md
 ├── .github/
 │   └── workflows/
