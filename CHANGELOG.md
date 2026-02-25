@@ -79,6 +79,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`scripts/check_ecs_service.sh`:** Read-only ECS-Triage-Helper (Service-Status, letzte Events, laufende Tasks/Containerzustände).
 - **`scripts/tail_logs.sh`:** Read-only CloudWatch-Log-Tail-Helper (Region/LogGroup/Since/Follow parametrisierbar).
 
+### Changed (2026-02-25 — BL-04 Tagging-Audit abgeschlossen)
+- **`docs/TAGGING_AUDIT.md`:** Neu angelegt mit Inventar und Audit-Tabelle für dev-Ressourcen (ECS Cluster/Service, Task Definition Family inkl. aktiver Revisionen, ECR, relevante CloudWatch Log Groups).
+- **AWS Ressourcen:** Fehlende Standard-Tags (`Environment`, `ManagedBy`, `Owner`, `Project`) auf aktiven ECS Task Definitions `swisstopo-dev-api:1` bis `:7` ergänzt (nicht-destruktiv).
+- **`docs/BACKLOG.md`:** BL-04 auf „abgeschlossen“ gesetzt und auf Audit-Dokument verlinkt.
+
 ---
 
 ## [0.1.0] — 2026-02-25

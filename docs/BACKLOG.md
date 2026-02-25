@@ -49,6 +49,8 @@
 - **Priorität:** P1
 - **Aufwand:** S
 - **Abhängigkeiten:** keine
+- **Status:** ✅ abgeschlossen (2026-02-25)
+- **Umsetzungshinweis:** Audit + Maßnahmen dokumentiert in [`docs/TAGGING_AUDIT.md`](TAGGING_AUDIT.md).
 - **Akzeptanzkriterien:**
   - Relevante `dev`-Ressourcen tragen die Tags `Environment`, `ManagedBy`, `Owner`, `Project`.
   - Abweichungen sind bereinigt oder als Ausnahme dokumentiert.
