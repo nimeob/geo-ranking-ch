@@ -164,6 +164,15 @@ git push origin v<x.y.z>
 
 ---
 
+## Agent-Autopilot (Nipa)
+
+Der verbindliche Arbeitsmodus für autonome Weiterarbeit ist in [`docs/AUTONOMOUS_AGENT_MODE.md`](AUTONOMOUS_AGENT_MODE.md) dokumentiert.
+
+Kurzfassung:
+- GitHub-Operationen über GitHub App Wrapper (`scripts/gha`, `scripts/gpush`), nicht über User-Login.
+- Komplexe Aufgaben via Subagents mit `openai-codex/gpt-5.3-codex` und `thinking=high`.
+- Parallelisierung nutzen, wenn Aufgaben unabhängig sind.
+
 ## Lokale Entwicklung
 
 ### Setup

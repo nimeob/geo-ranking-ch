@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+TOKEN="$($SCRIPT_DIR/gh_app_token.sh)"
+
+REMOTE_URL="$(git remote get-url origin)"
+if [[ "$REMOTE_URL" =~ ^https:// ]]; then
+  AUTH_URL="${REMOTE_URL/https:\/\//https:\/\/x-access-token:${TOKEN}@}"
+else
+  echo "origin is not HTTPS ($REMOTE_URL). Please switch origin to https for app-token push." >&2
+  exit 1
+fi
+
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+# forward all args to git push, default to origin current branch
+if [[ "$#" -eq 0 ]]; then
+  exec git push "$AUTH_URL" "$BRANCH"
+else
+  exec git push "$AUTH_URL" "$@"
+fi

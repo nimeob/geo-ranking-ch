@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-25 — GitHub App Auth Wrapper + Agent-Autopilot)
+- **`scripts/gh_app_token.sh`:** Erzeugt on-demand GitHub App Installation Tokens aus `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY_PATH`.
+- **`scripts/gha`:** Wrapper für `gh` mit frischem App-Token (`GH_TOKEN`), damit CLI-Operationen ohne User-Login laufen.
+- **`scripts/gpush`:** Wrapper für `git push` über HTTPS + App-Token (`x-access-token`), ohne persistente User-Credentials.
+- **`docs/AUTONOMOUS_AGENT_MODE.md`:** Verbindlicher Arbeitsmodus für Nipa (Subagent-first, Parallelisierung, Modellvorgabe `openai-codex/gpt-5.3-codex` + `thinking=high` bei komplexen Aufgaben).
+- **`README.md` / `docs/OPERATIONS.md`:** Verlinkung und Kurzreferenz auf den neuen Agent-Autopilot-Standard ergänzt.
+
 ### Changed (2026-02-25 — BL-02 CI/CD-Deploy-Verifikation)
 - **`.github/workflows/deploy.yml`:** Push-Trigger auf `main` wieder aktiviert (zusätzlich zu `workflow_dispatch`), damit BL-02 per Commit/Push verifiziert werden kann.
 - **`.github/workflows/deploy.yml`:** ECR-Image-URI auf feste AWS Account ID (`523234426229`) umgestellt, um leere `AWS_ACCOUNT_ID`-Repo-Variable im Build-Schritt zu umgehen.
