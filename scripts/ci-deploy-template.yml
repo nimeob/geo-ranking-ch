@@ -1,0 +1,91 @@
+# TODO: Diesen Workflow an den finalen Stack anpassen.
+#
+# Dieser Placeholder zeigt das angestrebte CI/CD-Pattern.
+# Er wird NICHT ausgeführt, da die required Secrets und AWS-Ressourcen
+# noch nicht konfiguriert sind.
+#
+# Nächste Schritte:
+#   1. Stack-Typ festlegen (ECS / Lambda / S3 Static)
+#   2. AWS-Ressourcen anlegen (siehe docs/DEPLOYMENT_AWS.md)
+#   3. GitHub Secrets setzen:
+#        AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ACCOUNT_ID, AWS_REGION
+#   4. Diesen Workflow aktivieren (Kommentar "disabled:" entfernen)
+
+name: Deploy to AWS
+
+# disabled: Workflow ist noch nicht aktiv
+on:
+  workflow_dispatch:                      # Manuell auslösbar
+  # push:
+  #   branches: [main]                    # TODO: aktivieren nach Setup
+  # release:
+  #   types: [published]                  # TODO: für Prod-Deployments
+
+env:
+  AWS_REGION: eu-central-1
+  # AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}  # TODO: Secret setzen
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # CI: Build & Test
+  # ─────────────────────────────────────────────────────────
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # TODO: Stack-spezifische Build-Schritte
+      # Beispiel Python:
+      # - name: Set up Python
+      #   uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.12'
+      # - name: Install dependencies
+      #   run: pip install -r requirements-dev.txt
+      # - name: Run tests
+      #   run: pytest
+
+      - name: Placeholder — Stack noch nicht definiert
+        run: echo "TODO: Build & Test Schritte hier einfügen"
+
+  # ─────────────────────────────────────────────────────────
+  # Deploy: AWS
+  # ─────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    # TODO: Umgebungsnamen an eigene AWS-Environments anpassen
+    # environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # TODO: Deployment-Schritte je nach Stack:
+      # Option A: ECS Fargate
+      # - name: Login to Amazon ECR
+      #   uses: aws-actions/amazon-ecr-login@v2
+      # - name: Build & Push Image
+      #   ...
+      # - name: Deploy to ECS
+      #   ...
+      #
+      # Option B: Lambda
+      # - name: Deploy Lambda
+      #   run: aws lambda update-function-code ...
+      #
+      # Option C: S3 Static
+      # - name: Sync to S3
+      #   run: aws s3 sync ./dist s3://geo-ranking-ch-${{ secrets.AWS_ACCOUNT_ID }}/
+
+      - name: Placeholder — Deployment noch nicht implementiert
+        run: echo "TODO: Deployment-Schritte einfügen (ECS / Lambda / S3)"
