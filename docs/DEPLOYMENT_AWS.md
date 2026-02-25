@@ -46,7 +46,8 @@ Promotion-Zielbild inkl. Gates und Rollback-Prozess ist in [`docs/ENV_PROMOTION_
 | ECS Cluster | `swisstopo-dev` | ✅ Verifiziert |
 | ECS Service | `swisstopo-dev-api` | ✅ Verifiziert |
 | ECR Repository | `523234426229.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-api` | ✅ Verifiziert |
-| Lambda Functions | `swisstopo-dev-sns-to-telegram` | ✅ Verifiziert |
+| Lambda Functions | `swisstopo-dev-sns-to-telegram`, `swisstopo-dev-health-probe` | ✅ Verifiziert |
+| EventBridge Rules | `swisstopo-dev-health-probe-schedule` (rate 5 min) | ✅ Verifiziert |
 | CloudFormation Stacks | — | ❌ Nicht gefunden |
 | API Gateway | — | ⚠️ Zu prüfen |
 | RDS / DynamoDB | — | ⚠️ Zu prüfen |
@@ -309,8 +310,8 @@ git checkout v<stabile-version>
 | Alarme | CloudWatch Alarms | ✅ Alarme aktiv: `swisstopo-dev-api-running-taskcount-low` (Service-Ausfall) + `swisstopo-dev-api-http-5xx-rate-high` (Fehlerquote) |
 | Alert-Kanal | SNS + Lambda → Telegram | ✅ Aktiv und getestet (ALARM/OK im Telegram-Chat bestätigt, 2026-02-25) |
 | Telegram-Alerting | Lambda `swisstopo-dev-sns-to-telegram` | ✅ Aktiv (SSM SecureString + SNS-Subscription + Lambda-Permission verifiziert) |
-| Uptime/HTTP Health | Externe Probe oder CloudWatch Synthetics | ⚠️ Guidance dokumentiert (`/health`), produktive Probe noch offen |
-| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks vorhanden |
+| Uptime/HTTP Health | Lambda `swisstopo-dev-health-probe` + EventBridge (rate 5 min) | ✅ Aktiv und getestet (2026-02-25) — dynamische ECS-IP-Auflösung, Metrik `HealthProbeSuccess`, Alarm `swisstopo-dev-api-health-probe-fail` |
+| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh`, `scripts/setup_health_probe_dev.sh`, `scripts/check_health_probe_dev.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks + Uptime Probe vorhanden |
 | Tracing | X-Ray | ⚠️ zu evaluieren |
 
 ### Telegram-Alerting — Architektur & Deployment (BL-08)
@@ -385,6 +386,45 @@ aws cloudwatch set-alarm-state \
 ```
 
 Prüft jetzt zusätzlich: Lambda-State, SNS-Subscription, TELEGRAM_CHAT_ID in Env, SSM-Parameter-Existenz.
+
+### HTTP Uptime Probe — `GET /health` (BL-12)
+
+**Status (2026-02-25):** ✅ Aktiv und getestet
+
+**Datenfluss:** `EventBridge (rate 5 min) → Lambda swisstopo-dev-health-probe → HTTP GET /health → CloudWatch HealthProbeSuccess → Alarm → SNS → Telegram`
+
+**Besonderheit:** Kein ALB vorhanden → Task-IP ist ephemer. Lambda löst die öffentliche IP des laufenden ECS-Tasks dynamisch auf (ListTasks → DescribeTasks → DescribeNetworkInterfaces).
+
+**Komponenten:**
+
+| Ressource | Name / Pfad | Notizen |
+|---|---|---|
+| Lambda-Funktion | `swisstopo-dev-health-probe` | Python 3.12, Quelle: `infra/lambda/health_probe/` |
+| IAM-Role | `swisstopo-dev-health-probe-role` | Minimal: ECS/EC2 IP-Lookup + CW PutMetricData + Logs |
+| EventBridge Rule | `swisstopo-dev-health-probe-schedule` | rate(5 minutes), ENABLED |
+| CloudWatch Metrik | `swisstopo/dev-api / HealthProbeSuccess` | Dim: Service + Environment |
+| CloudWatch Alarm | `swisstopo-dev-api-health-probe-fail` | Min < 1 in 3/3 Perioden → SNS |
+
+**Setup (idempotent):**
+
+```bash
+AWS_ACCOUNT_ID=523234426229 ./scripts/setup_health_probe_dev.sh
+```
+
+**Status-Check:**
+
+```bash
+./scripts/check_health_probe_dev.sh
+# Exit 0 = ok | 10 = Warn | 20 = kritisch
+```
+
+**Erster verifizierter Testlauf (2026-02-25):**
+- IP `18.184.115.244` dynamisch aufgelöst
+- HTTP 200, `{"ok": true, "service": "geo-ranking-ch", ...}` erhalten
+- Metrik `HealthProbeSuccess = 1` in CloudWatch publiziert
+- Alarm `INSUFFICIENT_DATA` → nach ~15 Min `OK` (erwartetes Verhalten bei Ersterstellung)
+
+**Kosten:** ~€0.01/Monat (alles im Free Tier / Mikrokosten).
 
 ---
 

@@ -155,6 +155,25 @@
   - Read-only Erfassungs-/Exportkommandos sind dokumentiert (keine Secrets im Repo). ✅
 - **Nachweis:** [`docs/AWS_INVENTORY.md`](AWS_INVENTORY.md) — vollständig verifiziert via read-only AWS-Abfragen (Stand 2026-02-26)
 
+### BL-12 — HTTP Uptime Probe für `/health` aktivieren (dev)
+- **Priorität:** P1
+- **Aufwand:** S
+- **Abhängigkeiten:** BL-08
+- **Status:** ✅ abgeschlossen (2026-02-25)
+- **Akzeptanzkriterien:**
+  - Produktive HTTP-Probe auf `GET /health` läuft in dev.
+  - Probe integriert in bestehenden Alarm → SNS → Telegram Stack.
+  - Prüfbarer Nachweis (Logs, Metrik, Alarm).
+  - Doku in OPERATIONS.md, DEPLOYMENT_AWS.md aktualisiert.
+- **Umgesetzt:**
+  - ✅ Lambda `swisstopo-dev-health-probe` (Python 3.12): löst ECS-Task-IP dynamisch auf (kein ALB nötig), prüft HTTP GET `/health`, publiziert CloudWatch-Metrik `HealthProbeSuccess`.
+  - ✅ IAM-Role `swisstopo-dev-health-probe-role` (Minimal-Privilege: ECS/EC2 IP-Lookup + CW PutMetricData + Logs).
+  - ✅ EventBridge Scheduled Rule `swisstopo-dev-health-probe-schedule` (rate 5 min, ENABLED).
+  - ✅ CloudWatch Alarm `swisstopo-dev-api-health-probe-fail` (HealthProbeSuccess < 1, 3/3 Perioden, treat-missing=breaching) → SNS `swisstopo-dev-alerts` → Telegram.
+  - ✅ Erster Testlauf erfolgreich: IP `18.184.115.244` aufgelöst, HTTP 200, `HealthProbeSuccess = 1` publiziert.
+  - ✅ Scripts: `scripts/setup_health_probe_dev.sh` (idempotent), `scripts/check_health_probe_dev.sh` (read-only).
+  - ✅ Quellcode: `infra/lambda/health_probe/lambda_function.py`.
+
 ---
 
 ## Nacht-Plan

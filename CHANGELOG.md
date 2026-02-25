@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-25 — BL-12 HTTP Uptime Probe aktiv)
+- **`infra/lambda/health_probe/lambda_function.py`:** Lambda-Probe (Python 3.12). Löst öffentliche IP des laufenden ECS-Tasks dynamisch auf (kein ALB/stabile Domain erforderlich), führt HTTP GET `/health` durch, publiziert CloudWatch-Metrik `HealthProbeSuccess` (1=ok, 0=fail). Kein externer Dependency-Overhead (nur stdlib + boto3).
+- **`scripts/setup_health_probe_dev.sh`:** Idempotentes Setup-Script. Erstellt IAM-Role (`swisstopo-dev-health-probe-role`, Minimal-Privilege), Lambda `swisstopo-dev-health-probe`, EventBridge Scheduled Rule (rate 5 min) und CloudWatch Alarm (`swisstopo-dev-api-health-probe-fail` → SNS → Telegram). Kein `zip`-Binary nötig (ZIP via Python stdlib). Inkl. sofortigem Lambda-Testlauf nach Deployment.
+- **`scripts/check_health_probe_dev.sh`:** Read-only Status-Check: Lambda-State, EventBridge-Rule, letzte Invocations, HealthProbeSuccess-Metrik, Alarm-Zustand. Exit Codes: `0` OK, `10` Warn, `20` kritisch.
+- **AWS (live, non-destructive):** IAM-Role, Lambda, EventBridge Rule, CW Alarm erstellt und verifiziert. Erster Testlauf erfolgreich: IP dynamisch aufgelöst (`18.184.115.244`), HTTP 200 erhalten, `HealthProbeSuccess = 1` publiziert.
+- **`docs/OPERATIONS.md`:** Sektion 3 „HTTP Health Check Guidance" vollständig durch operativen Probe-Abschnitt ersetzt (Architektur, Ressourcen, Kommandos, Kosten, ALB-Hinweis).
+- **`docs/DEPLOYMENT_AWS.md`:** Ressourcen-Tabelle um Lambda + EventBridge erweitert; Monitoring-Tabelle aktualisiert (`Uptime/HTTP Health` = ✅ aktiv); neue Sektion „HTTP Uptime Probe — GET /health (BL-12)" mit Komponenten, Setup-Kommandos und Testnachweis.
+- **`docs/BACKLOG.md`:** BL-12 neu angelegt und als abgeschlossen markiert.
+
 ### Added (2026-02-26 — BL-11 AWS-Inventory & Konfigurationsdokumentation)
 - **`docs/AWS_INVENTORY.md`:** Vollständiges, verifiziertes AWS-Ressourcen-Inventar für die `dev`-Umgebung. Enthält alle Bereiche (IAM, ECR, ECS, CloudWatch, S3, Lambda, SNS, SSM, Netzwerk/VPC) mit Name/ARN, Region, Zweck, Tags, zentralen Konfig-Parametern, IaC-Status (`🔧 Terraform` vs. `🖐️ Manuell`) und Rebuild-Hinweisen inkl. Abhängigkeitsreihenfolge. Alle Werte direkt via read-only AWS-Abfragen verifiziert. Keine Secrets oder sensitiven Inhalte enthalten.
 - **`README.md`:** Doku-Index und Projektbaum um `docs/AWS_INVENTORY.md` erweitert.

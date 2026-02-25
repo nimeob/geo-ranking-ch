@@ -361,18 +361,74 @@ aws sns publish \
 
 > **Secret-Hinweis:** Bot-Token wird in SSM Parameter Store als SecureString gespeichert (`/swisstopo/dev/telegram-bot-token`). Er erscheint weder im Repo noch als Klartext im Terraform-State.
 
-### 3) HTTP Health Check Guidance
+### 3) HTTP Uptime Probe (`/health`)
 
-- Der Deploy-Workflow nutzt bereits optional `SERVICE_HEALTH_URL` für Smoke-Tests.
-- Für Monitoring zusätzlich eine externe Probe (z. B. UptimeRobot, Better Stack oder CloudWatch Synthetics) auf `GET /health` einrichten.
-- Interner Minimal-Check via CLI:
+**Status (2026-02-25):** ✅ Produktiv aktiv — Lambda-basierte Self-Resolving Probe
 
-```bash
-# Erwartet HTTP 200 und optional JSON-Status
-curl -fsS "$SERVICE_HEALTH_URL"
+**Architektur (kein ALB, kein stabile Domain → dynamische IP-Auflösung):**
+
+```
+EventBridge (rate 5 min)
+  → Lambda swisstopo-dev-health-probe
+      → ecs:ListTasks / ecs:DescribeTasks / ec2:DescribeNetworkInterfaces
+      → HTTP GET http://<public-ip>:8080/health
+      → cloudwatch:PutMetricData  HealthProbeSuccess (1=ok, 0=fail)
+        → Alarm swisstopo-dev-api-health-probe-fail
+          → SNS → Lambda → Telegram
 ```
 
-- Wenn ein ALB eingesetzt wird: zusätzlich CloudWatch-Alarm auf `AWS/ApplicationELB -> UnHealthyHostCount > 0` für das Target Group/Load Balancer Paar ergänzen.
+**Ressourcen:**
+
+| Ressource | Name / ARN |
+|---|---|
+| Lambda | `swisstopo-dev-health-probe` |
+| IAM Role | `swisstopo-dev-health-probe-role` |
+| EventBridge Rule | `swisstopo-dev-health-probe-schedule` (rate 5 min, ENABLED) |
+| CloudWatch Alarm | `swisstopo-dev-api-health-probe-fail` |
+| Metrik | `swisstopo/dev-api  /  HealthProbeSuccess` (Dim: Service, Environment) |
+
+**Lambda-Quellcode:** `infra/lambda/health_probe/lambda_function.py`
+
+**Setup/Update (idempotent):**
+
+```bash
+AWS_ACCOUNT_ID=523234426229 ./scripts/setup_health_probe_dev.sh
+```
+
+**Status-Check (read-only):**
+
+```bash
+./scripts/check_health_probe_dev.sh
+# Exit 0 = alles ok | 10 = Warnung | 20 = kritisch
+```
+
+**Metrik manuell prüfen:**
+
+```bash
+aws cloudwatch get-metric-statistics \
+  --region eu-central-1 \
+  --namespace 'swisstopo/dev-api' \
+  --metric-name HealthProbeSuccess \
+  --dimensions Name=Service,Value=swisstopo-dev-api Name=Environment,Value=dev \
+  --start-time "$(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" \
+  --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --period 300 \
+  --statistics Minimum
+```
+
+**Alarm-Logik:** `HealthProbeSuccess < 1` in 3 von 3 aufeinanderfolgenden 5-Min-Perioden (treat-missing-data=breaching).
+→ Trigger: Service nicht erreichbar **oder** kein Metrikpunkt (Lambda nicht gelaufen).
+
+**Kosten:** ~$0.01/Monat (Lambda Free Tier, EventBridge <$0.01, CloudWatch PutMetricData <$0.01).
+
+**Hinweis ALB:** Sobald ein ALB eingesetzt wird, ergänzend CloudWatch-Alarm auf `AWS/ApplicationELB → UnHealthyHostCount > 0` für das Target-Group/Load-Balancer-Paar hinzufügen — dann kann die Lambda-Probe vereinfacht werden (statische URL statt dynamischer IP-Auflösung).
+
+**Manueller Smoke-Check:**
+
+```bash
+# Erwartet HTTP 200 und JSON {"ok": true, ...}
+curl -fsS "$SERVICE_HEALTH_URL"
+```
 
 ---
 
