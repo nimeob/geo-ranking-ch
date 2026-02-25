@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/license-propriet%C3%A4r-lightgrey.svg)]()
 [![Status](https://img.shields.io/badge/status-in%20development-yellow.svg)]()
-[![CI/CD](https://img.shields.io/badge/CI%2FCD-ECS%20dev%20(manual)-orange.svg)](.github/workflows/deploy.yml)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-ECS%20dev%20(main%20%2B%20manual)-orange.svg)](.github/workflows/deploy.yml)
 
 ---
 
@@ -121,7 +121,7 @@ geo-ranking-ch/
 │   └── OPERATIONS.md
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml      # CI/CD Pipeline (aktiv, nur workflow_dispatch)
+│       └── deploy.yml      # CI/CD Pipeline (aktiv: push auf main + workflow_dispatch)
 ├── Dockerfile              # Container-Build für ECS
 ├── requirements.txt        # Runtime-Abhängigkeiten (keine)
 ├── requirements-dev.txt    # Dev-Abhängigkeiten (pytest)
@@ -133,9 +133,9 @@ geo-ranking-ch/
 
 ## CI/CD
 
-Der Workflow `.github/workflows/deploy.yml` ist auf **ECS/Fargate (dev)** ausgerichtet und kann manuell via **GitHub Actions → Run workflow** ausgelöst werden.
+Der Workflow `.github/workflows/deploy.yml` ist auf **ECS/Fargate (dev)** ausgerichtet und läuft bei **Push auf `main`** sowie manuell via **GitHub Actions → Run workflow**.
 
-> **Auto-Trigger (push/release) ist noch deaktiviert** — erst aktivieren, wenn der manuelle ECS-Deploy stabil läuft.
+Nach dem ECS-Rollout wartet der Workflow auf `services-stable` und führt anschliessend einen Smoke-Test auf `/health` aus (konfiguriert über `SERVICE_HEALTH_URL`).
 
 ### Voraussetzungen für den ECS-Deploy
 
@@ -149,6 +149,7 @@ Der Workflow `.github/workflows/deploy.yml` ist auf **ECS/Fargate (dev)** ausger
 - `ECS_CLUSTER` (z. B. `swisstopo-dev`)
 - `ECS_SERVICE` (z. B. `swisstopo-dev-api`)
 - `ECS_CONTAINER_NAME` (Container-Name in der Task Definition, oft `app` oder `api`)
+- `SERVICE_HEALTH_URL` (vollständige URL für Smoke-Test nach Deploy, z. B. `https://<alb-dns>/health`; wenn leer, wird der Smoke-Test mit Hinweis übersprungen)
 
 **Zusätzlich erforderlich:**
 - `Dockerfile` im Repo-Root

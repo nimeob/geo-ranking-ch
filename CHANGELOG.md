@@ -41,6 +41,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **README.md:** Hinweise zu AWS-Naming (`swisstopo`) und aktuellem Umgebungs-Stand (`dev` only) ergänzt
 - **OPERATIONS.md:** Hinweise zu Umgebung (`dev` only) und AWS-Naming an prominenter Stelle ergänzt; Post-Release-Checkliste auf `dev`-Deployment angepasst
 
+### Changed (2026-02-25 — ECS Smoke-Test + Push-Trigger)
+- **`.github/workflows/deploy.yml`:** Trigger für Push auf `main` aktiviert (zusätzlich zu `workflow_dispatch`).
+- **`.github/workflows/deploy.yml`:** Nach `aws ecs wait services-stable` Smoke-Test auf `SERVICE_HEALTH_URL` ergänzt (HTTP-Check auf `/health`); bei fehlender/leer gesetzter Variable wird der Schritt mit Notice übersprungen.
+- **`README.md`:** CI/CD-Beschreibung auf aktiven Push-Trigger aktualisiert; neue Variable `SERVICE_HEALTH_URL` dokumentiert.
+- **`docs/DEPLOYMENT_AWS.md`:** Workflow-Trigger, Smoke-Test-Schritt und Variable `SERVICE_HEALTH_URL` ergänzt.
+
 ---
 
 ## [0.1.0] — 2026-02-25

@@ -2,8 +2,8 @@ name: Deploy to AWS (ECS dev)
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]  # aktivieren, sobald der manuelle Deploy stabil läuft
+  push:
+    branches: [main]
 
 env:
   AWS_REGION: eu-central-1
@@ -148,6 +148,38 @@ jobs:
           aws ecs wait services-stable \
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_SERVICE"
+
+      - name: Smoke-Test /health
+        env:
+          SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SERVICE_HEALTH_URL:-}" ]; then
+            echo "::notice::SERVICE_HEALTH_URL ist leer/nicht gesetzt. Smoke-Test wird übersprungen."
+            echo "- Smoke-Test: ⏭️ übersprungen (SERVICE_HEALTH_URL nicht gesetzt)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "Smoke-Test gegen ${SERVICE_HEALTH_URL}"
+          HTTP_CODE=$(curl -sS -L \
+            --max-time 15 \
+            --retry 5 \
+            --retry-delay 5 \
+            --retry-connrefused \
+            -o /tmp/smoke-health-response.txt \
+            -w "%{http_code}" \
+            "${SERVICE_HEALTH_URL}")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Smoke-Test fehlgeschlagen: ${SERVICE_HEALTH_URL} lieferte HTTP ${HTTP_CODE}"
+            echo "Antwort (gekürzt):"
+            head -c 1000 /tmp/smoke-health-response.txt || true
+            exit 1
+          fi
+
+          echo "Smoke-Test erfolgreich: ${SERVICE_HEALTH_URL} (HTTP ${HTTP_CODE})"
+          echo "- Smoke-Test: ✅ ${SERVICE_HEALTH_URL} (HTTP ${HTTP_CODE})" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Deployment summary
         run: |

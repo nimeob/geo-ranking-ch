@@ -166,7 +166,9 @@ aws ecs update-service \
 
 ### Deployment via GitHub Actions
 
-CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (manueller Trigger). Er baut ein Docker-Image, pusht nach ECR und rolled den ECS-Service auf eine neue Task-Definition.
+CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (Trigger: **Push auf `main`** + manueller `workflow_dispatch`). Er baut ein Docker-Image, pusht nach ECR, rolled den ECS-Service auf eine neue Task-Definition und wartet auf `services-stable`.
+
+Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health`). Wenn die Variable leer oder nicht gesetzt ist, wird der Smoke-Test mit Hinweis übersprungen (kein Hard-Fail).
 
 **Benötigte GitHub Secrets (zu setzen unter Settings → Secrets):**
 
@@ -176,6 +178,18 @@ CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (m
 | `AWS_SECRET_ACCESS_KEY` | Deploy-User Secret Key |
 | `AWS_ACCOUNT_ID` | `523234426229` |
 | `AWS_REGION` | `eu-central-1` |
+
+**Benötigte GitHub Variables (zu setzen unter Settings → Variables):**
+
+| Variable | Beschreibung |
+|---|---|
+| `ECR_REPOSITORY` | Ziel-Repository in ECR (z. B. `swisstopo-dev-api`) |
+| `ECS_CLUSTER` | ECS Cluster (z. B. `swisstopo-dev`) |
+| `ECS_SERVICE` | ECS Service (z. B. `swisstopo-dev-api`) |
+| `ECS_CONTAINER_NAME` | Container-Name in der Task-Definition |
+| `SERVICE_HEALTH_URL` | Vollständige Health-URL für Smoke-Test (z. B. `https://<alb-dns>/health`) |
+
+> `SERVICE_HEALTH_URL` ist optional: fehlt die Variable, wird der Smoke-Test im Workflow sauber übersprungen.
 
 > ⚠️ Niemals Secrets direkt in Code oder Dokumente schreiben.
 
@@ -255,7 +269,7 @@ git checkout v<stabile-version>
 
 - [x] Stack-Typ entschieden: **ECS Fargate (dev)**
 - [ ] IaC-Code erstellen (CDK / Terraform / CloudFormation)
-- [ ] GitHub Actions Workflow auf ECS-Deploy umgestellt; erster erfolgreicher manueller Run noch ausstehend
+- [ ] Ersten erfolgreichen Workflow-Run mit aktivem Push-Trigger + Smoke-Test (`/health`) bestätigen
 - [ ] Separaten IAM Deploy-User anlegen (Principle-of-Least-Privilege; aktuell: `swisstopo-api-deploy`)
 - [ ] Tagging an allen bestehenden Ressourcen verifizieren/setzen (siehe §2 Tagging Standard)
 - [ ] staging- und prod-Umgebung aufbauen (aktuell: nur `dev` vorhanden)
