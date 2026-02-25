@@ -133,6 +133,12 @@ aws s3 mb s3://geo-ranking-ch-${AWS_ACCOUNT_ID} \
 # cd infra/ && cdk deploy --all
 ```
 
+### Runtime-Konvention (MVP Webservice)
+
+- Container-Port: `8080`
+- Healthcheck-Endpoint: `GET /health`
+- Version-Endpoint: `GET /version`
+
 ### Reguläres Deployment (nach erstem Setup)
 
 ```bash
@@ -158,9 +164,9 @@ aws ecs update-service \
   --region eu-central-1
 ```
 
-### Deployment via GitHub Actions (Zielzustand)
+### Deployment via GitHub Actions
 
-CI/CD ist noch nicht konfiguriert. Placeholder-Workflow vorhanden in `.github/workflows/deploy.yml`.
+CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (manueller Trigger). Er baut ein Docker-Image, pusht nach ECR und rolled den ECS-Service auf eine neue Task-Definition.
 
 **Benötigte GitHub Secrets (zu setzen unter Settings → Secrets):**
 

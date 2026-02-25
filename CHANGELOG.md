@@ -14,10 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-25 — Container + Webservice MVP)
+- **`Dockerfile`:** Container-Build für ECS/Fargate ergänzt (Python 3.12, Port 8080).
+- **`src/web_service.py`:** Minimaler HTTP-Service mit Endpoints `/health`, `/version`, `/analyze`.
+
 ### Changed (2026-02-25 — ECS Deploy Workflow umgesetzt)
 - **`.github/workflows/deploy.yml`:** Deploy-Job auf ECS/Fargate (dev) konkretisiert: ECR Login, Docker Build+Push, neue ECS Task-Definition registrieren, Service-Update, Stabilitäts-Wait.
 - **`README.md`:** CI/CD-Sektion auf ECS-Deploy aktualisiert inkl. benötigter GitHub Secrets/Variables.
-- **`docs/DEPLOYMENT_AWS.md`:** Stack-Entscheid auf ECS/Fargate dokumentiert; TODO-Status angepasst.
+- **`README.md`:** Lokale Docker-/Webservice-Nutzung dokumentiert.
+- **`docs/DEPLOYMENT_AWS.md`:** Stack-Entscheid auf ECS/Fargate dokumentiert; Runtime-Konvention (Port 8080, Healthcheck) ergänzt.
 
 ### Changed (2026-02-25 — Lizenzstatus korrigiert)
 - **README.md:** Lizenz-Badge von `MIT` auf `proprietär` geändert.

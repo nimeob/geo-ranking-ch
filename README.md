@@ -38,7 +38,28 @@ pip install -r requirements-dev.txt
 
 # Tests ausführen
 pytest tests/ -v
+
+# Minimalen Webservice starten (für ECS vorbereitet)
+python -m src.web_service
+# Healthcheck: http://localhost:8080/health
 ```
+
+### Docker (wie in ECS)
+
+```bash
+docker build -t geo-ranking-ch:dev .
+docker run --rm -p 8080:8080 geo-ranking-ch:dev
+# Healthcheck
+curl http://localhost:8080/health
+```
+
+### Webservice-Endpoints (MVP)
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| `GET` | `/health` | Liveness/Healthcheck |
+| `GET` | `/version` | Build/Commit-Metadaten |
+| `POST` | `/analyze` | Adressanalyse (`{"query":"..."}`) |
 
 ### Kernmodule (src/)
 
@@ -89,7 +110,8 @@ geo-ranking-ch/
 ├── src/                    # Quellcode (Python, stdlib only)
 │   ├── address_intel.py    # Adress-Intelligence + City-Ranking
 │   ├── gwr_codes.py        # GWR-Code-Tabellen
-│   └── geo_utils.py        # Geodaten-Utilities (Elevation, Geocoding, …)
+│   ├── geo_utils.py        # Geodaten-Utilities (Elevation, Geocoding, …)
+│   └── web_service.py      # HTTP-API (MVP für ECS)
 ├── tests/                  # Unit-Tests
 │   └── test_core.py
 ├── scripts/                # Deployment- und Utility-Skripte
@@ -100,6 +122,7 @@ geo-ranking-ch/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml      # CI/CD Pipeline (aktiv, nur workflow_dispatch)
+├── Dockerfile              # Container-Build für ECS
 ├── requirements.txt        # Runtime-Abhängigkeiten (keine)
 ├── requirements-dev.txt    # Dev-Abhängigkeiten (pytest)
 ├── CHANGELOG.md
