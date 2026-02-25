@@ -74,7 +74,7 @@ jobs:
       - name: Build and push image
         id: image
         env:
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
           ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
         run: |
           set -euo pipefail
