@@ -227,6 +227,17 @@ Optional mit E-Mail-Subscriber:
 ALERT_EMAIL="you@example.com" ./scripts/setup_monitoring_baseline_dev.sh
 ```
 
+**Read-only Baseline-Check (Status + Warnungen):**
+
+```bash
+./scripts/check_monitoring_baseline_dev.sh
+```
+
+Exit Codes:
+- `0`: Baseline vollständig und ohne Warnungen
+- `10`: Baseline technisch vorhanden, aber mit Warnungen (z. B. kein bestätigter Subscriber)
+- `20`: Kritische Baseline-Teile fehlen
+
 ### 1) CloudWatch Logs Standard (Log Group + Retention)
 
 **Log-Group-Namensschema (Standard):**

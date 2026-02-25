@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-08 Monitoring-Checklauf operationalisiert)
+- **`scripts/check_monitoring_baseline_dev.sh`:** Neues read-only Prüfscript ergänzt (ECS/Logs/Metric-Filters/Alarme/SNS inkl. Subscriber-Status) mit klaren Exit-Codes (`0` OK, `10` Warn, `20` Fail).
+- **`docs/OPERATIONS.md`:** Monitoring-Abschnitt um den Baseline-Check inkl. Exit-Code-Interpretation erweitert.
+- **`docs/DEPLOYMENT_AWS.md`:** Ops-Helper und Alert-Kanal-Status um den neuen Read-only Check ergänzt.
+- **`docs/BACKLOG.md`:** BL-08 Fortschritt und aktueller Checkstand dokumentiert (`keine SNS Subscriber vorhanden`).
+
 ### Changed (2026-02-25 — BL-09 Promotion-Strategie für staging/prod vorbereitet)
 - **`docs/ENV_PROMOTION_STRATEGY.md`:** Neu angelegt mit Zielarchitektur pro Umgebung, Promotion-Gates (`dev`→`staging`→`prod`), Freigaberegeln und Rollback-Standard.
 - **`docs/BACKLOG.md`:** BL-09 auf abgeschlossen gesetzt und Nachweisdokument verlinkt.

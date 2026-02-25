@@ -109,6 +109,8 @@
   - ✅ CloudWatch Metric Filters aktiv: `HttpRequestCount`, `Http5xxCount` (Namespace `swisstopo/dev-api`).
   - ✅ CloudWatch Alarme aktiv: `swisstopo-dev-api-running-taskcount-low`, `swisstopo-dev-api-http-5xx-rate-high`.
   - ✅ Kanaltest durchgeführt via `sns publish` (MessageId `7ebdaccb-bba3-5a62-b442-ced2c32900b7`).
+  - ✅ Read-only Prüfscript `scripts/check_monitoring_baseline_dev.sh` ergänzt (Baseline-Status + Subscriber-Warnungen).
+  - ✅ Letzter Check (2026-02-25): Infrastruktur `OK`, aber Warnung `keine SNS Subscriber vorhanden`.
 - **Blocker:**
   - ⛔ Kein bestätigter externer Subscriber auf dem SNS Topic (kein E-Mail/ChatOps Endpoint). Damit ist die End-to-End Zustellung an Menschen noch nicht verifiziert.
 - **Next Actions (konkret):**
