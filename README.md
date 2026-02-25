@@ -2,7 +2,7 @@
 
 > Geographisches Ranking-System für Schweizer Geodaten.
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-propriet%C3%A4r-lightgrey.svg)]()
 [![Status](https://img.shields.io/badge/status-in%20development-yellow.svg)]()
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-workflow__dispatch%20only-orange.svg)](.github/workflows/deploy.yml)
 
@@ -134,4 +134,6 @@ Siehe [`docs/OPERATIONS.md`](docs/OPERATIONS.md) für Commit-Konventionen, PR-Re
 
 ## Lizenz
 
-MIT — Details in [`LICENSE`](LICENSE) (TODO: Lizenz-Datei anlegen).
+Vorerst **proprietär** (alle Rechte vorbehalten).
+
+> Eine Open-Source-Lizenz ist aktuell nicht gesetzt. Falls später gewünscht, wird die Lizenzentscheidung explizit dokumentiert und als `LICENSE`-Datei ergänzt.
