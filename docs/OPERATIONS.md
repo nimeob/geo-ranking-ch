@@ -6,6 +6,8 @@ Arbeitsmodus, Branching-Strategie, Commit-Regeln und Release-Checkliste.
 
 > **AWS-Naming:** AWS-Ressourcen heißen intern `swisstopo` (z. B. Cluster `swisstopo-dev`). Das ist so gewollt — der Repo-Name `geo-ranking-ch` und das interne AWS-Naming divergieren bewusst.
 
+> **Offene Umsetzungs-/Operations-Themen:** zentral in [`docs/BACKLOG.md`](BACKLOG.md) pflegen (hier keine separaten TODO-Listen).
+
 ---
 
 ## Branching-Strategie
@@ -175,7 +177,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 
-# Pre-Commit Hooks installieren (TODO: .pre-commit-config.yaml anlegen)
+# Pre-Commit Hooks installieren (Status/Entscheid siehe docs/BACKLOG.md: BL-10)
 # pre-commit install
 ```
 

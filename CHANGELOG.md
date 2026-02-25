@@ -50,6 +50,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 ### Changed (2026-02-25 — Architektur-Doku auf Ist-Stand gebracht)
 - **`docs/ARCHITECTURE.md`:** Von Planungsstand auf aktuellen MVP-Betriebsstand aktualisiert (ECS/Fargate Deploy via GitHub Actions, Trigger, Webservice-Endpunkte, Task-Definition-Update-Flow, optionale Smoke-Tests, relevante GitHub Secrets/Variables).
 
+### Changed (2026-02-25 — Backlog-Konsolidierung)
+- **`docs/BACKLOG.md`:** Neu angelegt; alle offenen Punkte aus README + `docs/*.md` in priorisierten, umsetzbaren Backlog überführt (P0/P1/P2, Aufwand, Abhängigkeiten, Akzeptanzkriterien).
+- **`docs/ARCHITECTURE.md`:** Redundante Liste „Offene Punkte“ auf zentrale Backlog-Pflege umgestellt.
+- **`docs/DEPLOYMENT_AWS.md`:** Redundante TODO-Liste auf zentrale Backlog-Pflege umgestellt.
+- **`docs/OPERATIONS.md`:** Verweis auf zentrale Backlog-Pflege ergänzt; lokaler TODO-Hinweis im Setup auf Backlog referenziert.
+- **`README.md`:** Dokumentationsübersicht um `docs/BACKLOG.md` ergänzt.
+
 ---
 
 ## [0.1.0] — 2026-02-25

@@ -133,7 +133,4 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 
 ## 6) Offene Punkte / Nächste Architektur-Schritte
 
-- IaC-Definitionen (CDK/Terraform/CloudFormation) als Source of Truth ergänzen
-- Monitoring/Alerting (CloudWatch Logs/Metrics/Alarms) systematisch ausbauen
-- Erweiterung über `dev` hinaus (`staging`/`prod`) inklusive Promotion-Strategie
-- API-Sicherheitskonzept (AuthN/AuthZ, Rate Limits) konkretisieren
+Die offenen Architektur-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (insb. **BL-01**, **BL-05**, **BL-06**, **BL-07**, **BL-08**, **BL-09**), um doppelte TODO-Listen zu vermeiden.

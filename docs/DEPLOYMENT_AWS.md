@@ -267,12 +267,6 @@ git checkout v<stabile-version>
 
 ## 8. Offene Punkte / TODOs
 
-- [x] Stack-Typ entschieden: **ECS Fargate (dev)**
-- [ ] IaC-Code erstellen (CDK / Terraform / CloudFormation)
-- [ ] Ersten erfolgreichen Workflow-Run mit aktivem Push-Trigger + Smoke-Test (`/health`) bestätigen
-- [ ] Separaten IAM Deploy-User anlegen (Principle-of-Least-Privilege; aktuell: `swisstopo-api-deploy`)
-- [ ] Tagging an allen bestehenden Ressourcen verifizieren/setzen (siehe §2 Tagging Standard)
-- [ ] staging- und prod-Umgebung aufbauen (aktuell: nur `dev` vorhanden)
-- [ ] Monitoring + Alerting konfigurieren
-- [ ] Domain / Route53 prüfen (falls öffentliche API geplant)
-- [ ] Netzwerk: VPC-Konfiguration prüfen (Public vs. Private Subnets)
+Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (insb. **BL-01** bis **BL-09**), um doppelte Pflege zu vermeiden.
+
+Status-Updates zu umgesetzten Teilaspekten bitte in der jeweiligen BL-ID in `docs/BACKLOG.md` nachführen.
