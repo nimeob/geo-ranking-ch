@@ -67,10 +67,12 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-01
+- **Status:** ✅ abgeschlossen (2026-02-25)
 - **Akzeptanzkriterien:**
   - Entscheidung zu VPC-Topologie (Public/Private Subnets, Security Groups) dokumentiert.
   - Entscheidung dokumentiert, ob API Gateway benötigt wird oder ALB direkt genügt.
   - Entscheidung zu Domain/Route53 (inkl. Bedingungen für öffentliche API) dokumentiert.
+- **Nachweis:** [`docs/NETWORK_INGRESS_DECISIONS.md`](NETWORK_INGRESS_DECISIONS.md)
 
 ### BL-06 — Datenhaltungsbedarf klären (RDS/DynamoDB)
 - **Priorität:** P1
@@ -117,6 +119,19 @@
   - Unterstützte Python-Version ist verbindlich dokumentiert (ohne „zu verifizieren“).
   - `.pre-commit-config.yaml` ist vorhanden oder bewusst verworfen (mit kurzer Begründung).
   - `docs/OPERATIONS.md` Setup-Abschnitt ist entsprechend bereinigt.
+
+### BL-11 — AWS-Inventory & Konfigurations-Dokumentation (nachbaubar)
+- **Priorität:** P1
+- **Aufwand:** M
+- **Abhängigkeiten:** BL-01
+- **Status:** 🆕 neu (2026-02-25, auf Wunsch von Nico)
+- **Ziel:** Alle für dieses Projekt in AWS erstellten Ressourcen inkl. zentraler Konfiguration so dokumentieren, dass Dritte den Stand nachvollziehen und strukturiert nachbauen können.
+- **Akzeptanzkriterien:**
+  - Zentrales Inventar-Dokument vorhanden (z. B. `docs/AWS_INVENTORY.md`) mit Ressourcen nach Bereichen (IAM, ECR, ECS, CloudWatch, S3, Networking, optional Route53/API Gateway).
+  - Pro Ressource mindestens enthalten: Name/ARN, Region, Zweck, owner/relevante Tags, zentrale Konfig-Parameter.
+  - Für kritische Ressourcen sind Rebuild-Hinweise dokumentiert (Reihenfolge, Abhängigkeiten, benötigte Variablen).
+  - Klar markiert, was IaC-managed ist und was noch manuell betrieben wird.
+  - Read-only Erfassungs-/Exportkommandos sind dokumentiert (keine Secrets im Repo).
 
 ---
 
