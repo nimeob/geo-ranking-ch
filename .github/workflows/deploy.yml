@@ -2,6 +2,8 @@ name: Deploy to AWS (ECS dev)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
