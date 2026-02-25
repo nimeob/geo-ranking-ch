@@ -35,19 +35,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # TODO: Stack-spezifische Build-Schritte einfuegen.
-      # Beispiel Python:
-      # - name: Set up Python
-      #   uses: actions/setup-python@v5
-      #   with:
-      #     python-version: '3.12'
-      # - name: Install dependencies
-      #   run: pip install -r requirements-dev.txt
-      # - name: Run tests
-      #   run: pytest
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-      - name: Placeholder - Stack noch nicht definiert
-        run: echo "TODO - Build & Test Schritte hier einfuegen"
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        run: pytest tests/ -v --tb=short
 
   # --- Deploy: AWS ---
   deploy:
