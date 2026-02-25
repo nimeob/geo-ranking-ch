@@ -4,6 +4,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-in%20development-yellow.svg)]()
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-workflow__dispatch%20only-orange.svg)](.github/workflows/deploy.yml)
 
 ---
 
@@ -67,10 +68,29 @@ geo-ranking-ch/
 │   ├── DEPLOYMENT_AWS.md
 │   └── OPERATIONS.md
 ├── .github/
-│   └── workflows/          # CI/CD Pipelines (Placeholder)
+│   └── workflows/
+│       └── deploy.yml      # CI/CD Pipeline (aktiv, nur workflow_dispatch)
 ├── CHANGELOG.md
 └── README.md
 ```
+
+---
+
+## CI/CD
+
+Der Workflow `.github/workflows/deploy.yml` ist aktiv und kann manuell via **GitHub Actions → Run workflow** ausgelöst werden.
+
+> **Auto-Trigger (push/release) ist noch deaktiviert** — erst nach vollständigem Setup aktivieren.
+
+### Voraussetzungen für produktiven Betrieb
+
+| Schritt | Beschreibung |
+|---------|-------------|
+| 1 | Stack-Typ wählen: ECS Fargate / Lambda / S3 Static |
+| 2 | AWS-Ressourcen anlegen (siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md)) |
+| 3 | GitHub Secrets setzen: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID` |
+| 4 | Push-Trigger in `.github/workflows/deploy.yml` aktivieren |
+| 5 | Stack-spezifische Build/Deploy-Schritte im Workflow eintragen |
 
 ---
 

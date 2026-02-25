@@ -14,6 +14,10 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — CI/CD Workflow aktiviert)
+- **`.github/workflows/deploy.yml`:** Workflow aus `scripts/ci-deploy-template.yml` nach `.github/workflows/` überführt und aktiviert. Trigger: ausschliesslich `workflow_dispatch` (manuell). Auto-Trigger (push/release) bleibt deaktiviert bis Secrets und Stack-Schritte konfiguriert sind. Keine Secrets eingetragen.
+- **`README.md`:** CI/CD-Badge und neue Sektion „CI/CD" mit Setup-Checkliste ergänzt; Verzeichnisbaum aktualisiert.
+
 ### Changed (2026-02-25 — Doku-Update: AWS-Naming, Tagging, Umgebungen)
 - **DEPLOYMENT_AWS.md:** Neue Sektion „Tagging Standard" mit verbindlichen AWS-Tags (`Environment=dev`, `ManagedBy=openclaw`, `Owner=nico`, `Project=swisstopo`)
 - **DEPLOYMENT_AWS.md:** Ist-Stand-Ressourcen (`swisstopo-dev-*`) als verifiziert eingetragen; ECS/ECR-Befehle auf korrekte Cluster-/Service-Namen aktualisiert
