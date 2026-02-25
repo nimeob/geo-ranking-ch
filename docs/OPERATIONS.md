@@ -2,6 +2,10 @@
 
 Arbeitsmodus, Branching-Strategie, Commit-Regeln und Release-Checkliste.
 
+> **Umgebungen:** Aktuell existiert ausschließlich eine **`dev`-Umgebung** auf AWS. `staging` und `prod` sind noch nicht aufgebaut. Alle Deploy-Schritte in dieser Dokumentation beziehen sich auf `dev`, sofern nicht anders angegeben.
+
+> **AWS-Naming:** AWS-Ressourcen heißen intern `swisstopo` (z. B. Cluster `swisstopo-dev`). Das ist so gewollt — der Repo-Name `geo-ranking-ch` und das interne AWS-Naming divergieren bewusst.
+
 ---
 
 ## Branching-Strategie
@@ -150,8 +154,9 @@ git push origin v<x.y.z>
 
 ### Post-Release
 
-- [ ] Deployment in Prod ausgelöst (via Tag-triggered CI oder manuell)
-- [ ] Smoke-Test in Prod durchgeführt
+- [ ] Deployment in `dev` ausgelöst (via Tag-triggered CI oder manuell)
+- [ ] Smoke-Test in `dev` durchgeführt
+- [ ] _(prod/staging: noch nicht vorhanden — entfällt aktuell)_
 - [ ] Release-Branch gelöscht
 - [ ] Team informiert (falls relevant)
 

@@ -56,14 +56,22 @@
 | AWS Account | `523234426229` |
 | Region | `eu-central-1` (Frankfurt) |
 | IAM Deploy-User | `swisstopo-api-deploy` |
-| Spezifische geo-ranking-ch Ressourcen | **nicht gefunden** (zu verifizieren) |
 
-Es wurden keine dedizierten AWS-Ressourcen für `geo-ranking-ch` identifiziert. Im selben Account existieren swisstopo-Dev-Ressourcen (ECS Cluster `swisstopo-dev`, ECR `swisstopo-dev-api`, S3 `swisstopo-dev-523234426229`). Diese sind dem Schwesterprojekt zuzuordnen.
+### AWS-Naming-Konvention
 
-**Mögliche Szenarien (zu klären):**
-1. Das Deployment ist noch nicht provisioniert (frühe Projektphase)
-2. Ressourcen existieren unter einem anderen AWS-Profil / Account
-3. Das Projekt teilt Infrastruktur mit swisstopo (Mono-Repo-/Multi-Service-Pattern)
+AWS-Ressourcen dieses Projekts heißen intern **`swisstopo`** (z. B. `swisstopo-dev`, `swisstopo-dev-api`). Das ist so gewollt — der Repo-Name `geo-ranking-ch` und das interne AWS-Naming divergieren bewusst. Die AWS-Namen sind nicht öffentlich exponiert und müssen nicht umbenannt werden.
+
+| Ressource | Name |
+|---|---|
+| S3 Bucket | `swisstopo-dev-523234426229` |
+| ECS Cluster | `swisstopo-dev` |
+| ECS Service | `swisstopo-dev-api` |
+| ECR Repository | `523234426229.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-api` |
+| IAM Deploy-User | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` |
+
+### Umgebungen
+
+> **Aktueller Stand:** Es existiert ausschließlich eine **`dev`-Umgebung**. `staging` und `prod` sind noch nicht aufgebaut und nicht geplant für den aktuellen Entwicklungsstand.
 
 Detailliertes Runbook: [`DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md)
 

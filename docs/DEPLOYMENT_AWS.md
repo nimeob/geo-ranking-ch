@@ -17,40 +17,72 @@
 | Region | `eu-central-1` (Frankfurt) | ✅ Verifiziert |
 | IAM Deploy-User | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | ✅ Verifiziert |
 
-### geo-ranking-ch Ressourcen
+### AWS-Naming-Konvention
 
-> Bei Ausführung von `aws lambda list-functions`, `aws ecs list-clusters`, `aws s3 ls`, `aws ecr describe-repositories` (alle in `eu-central-1`) wurden **keine dedizierten Ressourcen für geo-ranking-ch gefunden**.
+> AWS-Ressourcen dieses Projekts heißen intern **`swisstopo`** — obwohl das Repository `geo-ranking-ch` heißt. Das ist bewusst so und muss nicht geändert werden. Die AWS-Namen sind intern und nicht öffentlich exponiert.
+
+### Umgebungen
+
+> **Aktueller Stand:** Es existiert ausschließlich eine **`dev`-Umgebung**. `staging` und `prod` sind noch nicht aufgebaut.
+
+### Aktuelle Ressourcen (dev)
 
 | Ressource | Name / ARN | Status |
 |---|---|---|
-| S3 Bucket | — | ❌ Noch nicht angelegt |
-| ECS Cluster | — | ❌ Noch nicht angelegt |
-| ECS Service | — | ❌ Noch nicht angelegt |
-| ECR Repository | — | ❌ Noch nicht angelegt |
+| S3 Bucket | `swisstopo-dev-523234426229` | ✅ Verifiziert |
+| ECS Cluster | `swisstopo-dev` | ✅ Verifiziert |
+| ECS Service | `swisstopo-dev-api` | ✅ Verifiziert |
+| ECR Repository | `523234426229.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-api` | ✅ Verifiziert |
 | Lambda Functions | — | ❌ Nicht gefunden |
 | CloudFormation Stacks | — | ❌ Nicht gefunden |
 | API Gateway | — | ⚠️ Zu prüfen |
 | RDS / DynamoDB | — | ⚠️ Zu prüfen |
 
-**Mögliche Ursachen:**
-- Projekt befindet sich noch in der Pre-Deployment-Phase
-- Ressourcen existieren unter einem anderen AWS-Profil oder Account
-- Deployment läuft über ein IaC-Tool, das noch nicht ausgeführt wurde
+---
 
-### Referenz: Swisstopo-Dev-Infrastruktur (gleicher Account)
+## 2. Tagging Standard
 
-Diese Ressourcen gehören zum Schwesterprojekt und dienen als Referenz-Pattern:
+Alle AWS-Ressourcen dieses Projekts **müssen** mit folgenden Tags versehen werden. Diese Tags sind verbindlich und dienen Kostenübersicht, Ownership und Automatisierung.
 
-| Ressource | Name |
-|---|---|
-| S3 Bucket | `swisstopo-dev-523234426229` |
-| ECS Cluster | `swisstopo-dev` |
-| ECS Service | `swisstopo-dev-api` |
-| ECR Repository | `523234426229.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-api` |
+| Tag-Key | Tag-Value | Beschreibung |
+|---|---|---|
+| `Environment` | `dev` | Aktuell einzige Umgebung |
+| `ManagedBy` | `openclaw` | Verwaltungsebene / Agent |
+| `Owner` | `nico` | Verantwortliche Person |
+| `Project` | `swisstopo` | Interner Projektname (AWS-seitig) |
+
+> **Hinweis:** Der Tag `Project=swisstopo` spiegelt das interne AWS-Naming wider. Der Repo-Name `geo-ranking-ch` ist davon unabhängig.
+
+### Tags per AWS CLI setzen (Beispiel S3)
+
+```bash
+aws s3api put-bucket-tagging \
+  --bucket swisstopo-dev-523234426229 \
+  --tagging 'TagSet=[
+    {Key=Environment,Value=dev},
+    {Key=ManagedBy,Value=openclaw},
+    {Key=Owner,Value=nico},
+    {Key=Project,Value=swisstopo}
+  ]'
+```
+
+### Tags per AWS CLI setzen (Beispiel ECS Cluster)
+
+```bash
+aws ecs tag-resource \
+  --resource-arn arn:aws:ecs:eu-central-1:523234426229:cluster/swisstopo-dev \
+  --tags \
+    key=Environment,value=dev \
+    key=ManagedBy,value=openclaw \
+    key=Owner,value=nico \
+    key=Project,value=swisstopo
+```
+
+> Bei IaC (CDK/Terraform): Tags auf Stack-Ebene definieren, damit sie automatisch auf alle Ressourcen vererbt werden.
 
 ---
 
-## 2. IAM-Berechtigungen (Deploy-User)
+## 3. IAM-Berechtigungen (Deploy-User)
 
 > ⚠️ Annahme: Der User `swisstopo-api-deploy` wird auch für geo-ranking-ch genutzt.  
 > Erforderliche Mindest-Berechtigungen für ein typisches Deployment (zu verifizieren):
@@ -67,7 +99,7 @@ lambda:UpdateFunctionCode, lambda:PublishVersion (falls Serverless)
 
 ---
 
-## 3. Deploy-Runbook
+## 4. Deploy-Runbook
 
 > ⚠️ Dieses Runbook ist ein Template und wird aktualisiert, sobald der Stack definiert ist.
 
@@ -106,22 +138,22 @@ aws s3 mb s3://geo-ranking-ch-${AWS_ACCOUNT_ID} \
 ```bash
 # 1. Docker Image bauen
 IMAGE_TAG=$(git rev-parse --short HEAD)
-docker build -t geo-ranking-ch-api:${IMAGE_TAG} .
+docker build -t swisstopo-dev-api:${IMAGE_TAG} .
 
 # 2. ECR Login
 aws ecr get-login-password --region eu-central-1 \
   | docker login --username AWS \
     --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com
 
-# 3. Image pushen
-docker tag geo-ranking-ch-api:${IMAGE_TAG} \
-  ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com/geo-ranking-ch-api:${IMAGE_TAG}
-docker push ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com/geo-ranking-ch-api:${IMAGE_TAG}
+# 3. Image pushen (ECR-Repo: swisstopo-dev-api — internes AWS-Naming)
+docker tag swisstopo-dev-api:${IMAGE_TAG} \
+  ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-api:${IMAGE_TAG}
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-api:${IMAGE_TAG}
 
-# 4. ECS Service aktualisieren (⚠️ Cluster/Service-Namen zu verifizieren)
+# 4. ECS Service aktualisieren (Cluster: swisstopo-dev, Service: swisstopo-dev-api)
 aws ecs update-service \
-  --cluster geo-ranking-ch \
-  --service geo-ranking-ch-api \
+  --cluster swisstopo-dev \
+  --service swisstopo-dev-api \
   --force-new-deployment \
   --region eu-central-1
 ```
@@ -143,23 +175,23 @@ CI/CD ist noch nicht konfiguriert. Placeholder-Workflow vorhanden in `.github/wo
 
 ---
 
-## 4. Rollback-Prozedur
+## 5. Rollback-Prozedur
 
-### ECS Service Rollback (⚠️ zu verifizieren sobald ECS läuft)
+### ECS Service Rollback
 
 ```bash
 # Vorherige Task-Definition-Revision ermitteln
 aws ecs describe-services \
-  --cluster geo-ranking-ch \
-  --services geo-ranking-ch-api \
+  --cluster swisstopo-dev \
+  --services swisstopo-dev-api \
   --query 'services[0].deployments'
 
 # Auf vorherige Revision zurückwechseln
 PREV_REVISION=<nummer>
 aws ecs update-service \
-  --cluster geo-ranking-ch \
-  --service geo-ranking-ch-api \
-  --task-definition geo-ranking-ch-api:${PREV_REVISION} \
+  --cluster swisstopo-dev \
+  --service swisstopo-dev-api \
+  --task-definition swisstopo-dev-api:${PREV_REVISION} \
   --region eu-central-1
 ```
 
@@ -186,7 +218,7 @@ git checkout v<stabile-version>
 
 ---
 
-## 5. Monitoring & Observability (Zielzustand)
+## 6. Monitoring & Observability (Zielzustand)
 
 | Komponente | Tool | Status |
 |---|---|---|
@@ -198,7 +230,7 @@ git checkout v<stabile-version>
 
 ---
 
-## 6. Kosten-Übersicht (Schätzung)
+## 7. Kosten-Übersicht (Schätzung)
 
 > ⚠️ Alle Angaben sind Schätzungen basierend auf dem swisstopo-Dev-Pattern im gleichen Account.
 
@@ -213,13 +245,14 @@ git checkout v<stabile-version>
 
 ---
 
-## 7. Offene Punkte / TODOs
+## 8. Offene Punkte / TODOs
 
 - [ ] Stack-Typ entscheiden: ECS Fargate vs. Lambda vs. S3 Static
 - [ ] IaC-Code erstellen (CDK / Terraform / CloudFormation)
 - [ ] GitHub Actions Workflow fertigstellen (Placeholder ersetzen)
-- [ ] Separaten IAM Deploy-User für geo-ranking-ch anlegen
-- [ ] Environment-Trennung klären (dev / staging / prod)
+- [ ] Separaten IAM Deploy-User anlegen (Principle-of-Least-Privilege; aktuell: `swisstopo-api-deploy`)
+- [ ] Tagging an allen bestehenden Ressourcen verifizieren/setzen (siehe §2 Tagging Standard)
+- [ ] staging- und prod-Umgebung aufbauen (aktuell: nur `dev` vorhanden)
 - [ ] Monitoring + Alerting konfigurieren
 - [ ] Domain / Route53 prüfen (falls öffentliche API geplant)
 - [ ] Netzwerk: VPC-Konfiguration prüfen (Public vs. Private Subnets)
