@@ -304,10 +304,84 @@ git checkout v<stabile-version>
 | Logs | CloudWatch Logs | ✅ Log Group `/swisstopo/dev/ecs/api` aktiv, Retention 30 Tage verifiziert |
 | Metriken | CloudWatch Metrics | ✅ Custom Metrics via Log Metric Filters aktiv (`HttpRequestCount`, `Http5xxCount` in `swisstopo/dev-api`) |
 | Alarme | CloudWatch Alarms | ✅ Alarme aktiv: `swisstopo-dev-api-running-taskcount-low` (Service-Ausfall) + `swisstopo-dev-api-http-5xx-rate-high` (Fehlerquote) |
-| Alert-Kanal | SNS | 🟡 Topic `swisstopo-dev-alerts` erstellt + Test-Publish erfolgreich (`MessageId 7ebdaccb-bba3-5a62-b442-ced2c32900b7`), Read-only Check bestätigt aktuell keine SNS Subscriber (2026-02-25), externer Subscriber weiter offen |
+| Alert-Kanal | SNS + Lambda → Telegram | 🟡 SNS-Topic aktiv; Lambda + SSM-Parameter müssen noch deployed werden (BL-08, siehe unten) |
+| Telegram-Alerting | Lambda `swisstopo-dev-sns-to-telegram` | 🟡 IaC + Code vorbereitet; Deploy via Script oder Terraform nötig |
 | Uptime/HTTP Health | Externe Probe oder CloudWatch Synthetics | ⚠️ Guidance dokumentiert (`/health`), produktive Probe noch offen |
-| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks vorhanden |
+| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks vorhanden |
 | Tracing | X-Ray | ⚠️ zu evaluieren |
+
+### Telegram-Alerting — Architektur & Deployment (BL-08)
+
+**Datenfluss:** `CloudWatch Alarm → SNS Topic → Lambda → Telegram Bot API`
+
+**Komponenten:**
+
+| Ressource | Name / Pfad | Notizen |
+|---|---|---|
+| Lambda-Funktion | `swisstopo-dev-sns-to-telegram` | Python 3.12, Quelle: `infra/lambda/sns_to_telegram/` |
+| IAM-Role | `swisstopo-dev-sns-to-telegram-role` | Minimal-Privilege: Logs + SSM-Read |
+| SNS-Subscription | Lambda-Endpoint auf `swisstopo-dev-alerts` | Terraform oder Script |
+| SSM-Parameter | `/swisstopo/dev/telegram-bot-token` | SecureString — **manuell anlegen, NICHT per Terraform** |
+| Chat-ID | Lambda-Umgebungsvariable `TELEGRAM_CHAT_ID` | kein Secret, numerisch |
+
+**Secret-Verwaltung:** Bot-Token liegt als SSM-Parameter `SecureString`. Er wird weder im Repo noch im Terraform-State als Klartext gespeichert. Terraform referenziert nur den Parameternamen; der Wert wird zur Lambda-Laufzeit via `boto3 ssm.get_parameter(WithDecryption=True)` gelesen.
+
+**Deploy-Option A — Terraform (empfohlen, idempotent):**
+
+```bash
+# Schritt 1: SSM-Parameter manuell anlegen (einmalig)
+aws ssm put-parameter \
+  --region eu-central-1 \
+  --name /swisstopo/dev/telegram-bot-token \
+  --type SecureString \
+  --value "<BOT_TOKEN>" \
+  --description "Telegram Bot Token für swisstopo-dev Alerting"
+
+# Schritt 2: terraform.tfvars anpassen
+# manage_telegram_alerting = true
+# telegram_chat_id         = "8614377280"
+
+# Schritt 3: Apply
+cd infra/terraform
+terraform plan
+terraform apply
+```
+
+**Deploy-Option B — Setup-Script (schnell, ohne Terraform):**
+
+```bash
+export TELEGRAM_BOT_TOKEN="<BOT_TOKEN>"
+export TELEGRAM_CHAT_ID="8614377280"
+./scripts/setup_telegram_alerting_dev.sh
+```
+
+Das Script legt SSM-Parameter, IAM-Role, Lambda-Funktion und SNS-Subscription in einem Schritt an (idempotent).
+
+**Testalarm kontrolliert auslösen:**
+
+```bash
+# Alarm auf ALARM setzen
+aws cloudwatch set-alarm-state \
+  --region eu-central-1 \
+  --alarm-name swisstopo-dev-api-running-taskcount-low \
+  --state-value ALARM \
+  --state-reason "Kontrollierter Testalarm"
+
+# Nach Empfang im Telegram zurücksetzen
+aws cloudwatch set-alarm-state \
+  --region eu-central-1 \
+  --alarm-name swisstopo-dev-api-running-taskcount-low \
+  --state-value OK \
+  --state-reason "Reset nach Testalarm"
+```
+
+**Baseline-Check inkl. Telegram-Verdrahtung:**
+
+```bash
+./scripts/check_monitoring_baseline_dev.sh
+```
+
+Prüft jetzt zusätzlich: Lambda-State, SNS-Subscription, TELEGRAM_CHAT_ID in Env, SSM-Parameter-Existenz.
 
 ---
 
@@ -335,5 +409,6 @@ Status-Updates zu umgesetzten Teilaspekten bitte in der jeweiligen BL-ID in `doc
 - ✅ IaC-Fundament (Terraform, dev) umgesetzt: `infra/terraform/` mit Import-first-Runbook.
 - ✅ Monitoring-Baseline in AWS angelegt (SNS Topic + Metric Filters + Alarme) via `scripts/setup_monitoring_baseline_dev.sh`.
 - ✅ Ops-Helper-Skripte vorhanden: `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`.
-- ⏳ Noch offen: Externen Alarm-Empfänger (E-Mail/ChatOps) abonnieren und End-to-End Zustellung testen.
+- ✅ IaC + Code für Telegram-Alerting vorbereitet: `infra/lambda/sns_to_telegram/`, `infra/terraform/lambda_telegram.tf`, `scripts/setup_telegram_alerting_dev.sh`.
+- ⏳ Noch offen: Telegram-Alerting via Terraform oder Setup-Script deployen + Testalarm auslösen (manuelle Schritte Nico, siehe Abschnitt oben).
 - ⏳ Noch offen: HTTP-Uptime-Probe auf `/health` produktiv aktivieren.

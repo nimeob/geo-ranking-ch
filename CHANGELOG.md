@@ -14,6 +14,18 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-25 — BL-08 Telegram-Alerting IaC implementiert)
+- **`infra/lambda/sns_to_telegram/lambda_function.py`:** Lambda-Handler (Python 3.12) für CloudWatch-Alarm → Telegram. Liest Bot-Token sicher aus SSM SecureString zur Laufzeit. Nachrichtenformat: Alarmname, State, Reason, Region, Account, Timestamp — robust bei fehlenden Feldern. Kein externer Dependency-Overhead (nur stdlib + boto3).
+- **`infra/terraform/lambda_telegram.tf`:** Terraform-Ressourcen für Lambda-Funktion, IAM-Role (Minimal-Privilege: CloudWatch Logs + SSM GetParameter + KMS Decrypt), Lambda-Permission für SNS und SNS → Lambda-Subscription. Aktivierung via Flag `manage_telegram_alerting = true`. Zip wird automatisch via `archive_file` erzeugt.
+- **`infra/terraform/variables.tf`:** Neue Variablen `manage_telegram_alerting`, `aws_account_id`, `sns_topic_arn`, `telegram_chat_id`.
+- **`infra/terraform/outputs.tf`:** Neue Outputs `telegram_lambda_arn`, `telegram_lambda_function_name`, `telegram_sns_subscription_arn`, erweitertes `resource_management_flags`.
+- **`infra/terraform/terraform.tfvars.example`:** Telegram-Alerting-Block mit Kommentaren zu manueller SSM-Anlage und Aktivierungsschritten ergänzt.
+- **`scripts/setup_telegram_alerting_dev.sh`:** Neu — idempotentes Setup-Script als Fallback zu Terraform. Legt SSM-Parameter, IAM-Role, Lambda und SNS-Subscription in einem Durchgang an. Erwartet `TELEGRAM_BOT_TOKEN` und `TELEGRAM_CHAT_ID` als Umgebungsvariablen (nie auf Disk oder im Repo).
+- **`scripts/check_monitoring_baseline_dev.sh`:** Telegram-Alerting-Checks ergänzt: Lambda-State, SNS-Subscription aktiv, `TELEGRAM_CHAT_ID` in Lambda-Env, SSM-Parameter-Existenz.
+- **`docs/DEPLOYMENT_AWS.md`:** Monitoring-Tabelle auf Telegram-Status aktualisiert; neue Sektion „Telegram-Alerting — Architektur & Deployment" mit Deploy-Optionen A/B, Testalarm-Kommandos und Secret-Hinweis.
+- **`docs/OPERATIONS.md`:** Alarm-Kanal-Sektion auf SNS + Lambda → Telegram erweitert; Kontrollierter Testalarm und SNS-Publish-Snippet ergänzt.
+- **`docs/BACKLOG.md`:** BL-08 auf aktuellen Stand gebracht: Telegram-IaC als umgesetzt; konkrete Next-Actions für Nico (SSM anlegen → Deploy → Testalarm → Verifikation).
+
 ### Changed (2026-02-25 — BL-08 Monitoring-Checklauf operationalisiert)
 - **`scripts/check_monitoring_baseline_dev.sh`:** Neues read-only Prüfscript ergänzt (ECS/Logs/Metric-Filters/Alarme/SNS inkl. Subscriber-Status) mit klaren Exit-Codes (`0` OK, `10` Warn, `20` Fail).
 - **`docs/OPERATIONS.md`:** Monitoring-Abschnitt um den Baseline-Check inkl. Exit-Code-Interpretation erweitert.

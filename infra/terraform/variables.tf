@@ -117,3 +117,31 @@ variable "existing_s3_bucket_name" {
   type        = string
   default     = "swisstopo-dev-523234426229"
 }
+
+# ---------------------------------------------------------------------------
+# Telegram Alerting (BL-08)
+# ---------------------------------------------------------------------------
+
+variable "manage_telegram_alerting" {
+  description = "Wenn true, erstellt Terraform Lambda + IAM Role + SNS-Subscription für Telegram-Alerting. Voraussetzung: SSM-Parameter /swisstopo/<env>/telegram-bot-token muss manuell angelegt sein."
+  type        = bool
+  default     = false
+}
+
+variable "aws_account_id" {
+  description = "AWS Account ID (für IAM-Policy-ARNs). Nicht sensitiv."
+  type        = string
+  default     = "523234426229"
+}
+
+variable "sns_topic_arn" {
+  description = "ARN des SNS Topics, auf das CloudWatch-Alarme publishen."
+  type        = string
+  default     = "arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts"
+}
+
+variable "telegram_chat_id" {
+  description = "Telegram Chat ID für Alarm-Empfang. Kein Secret (nur numerische ID)."
+  type        = string
+  default     = ""
+}

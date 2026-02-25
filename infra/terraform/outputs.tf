@@ -67,6 +67,22 @@ output "resource_management_flags" {
     manage_ecs_cluster          = var.manage_ecs_cluster
     manage_ecr_repository       = var.manage_ecr_repository
     manage_cloudwatch_log_group = var.manage_cloudwatch_log_group
-    manage_s3_bucket             = var.manage_s3_bucket
+    manage_s3_bucket            = var.manage_s3_bucket
+    manage_telegram_alerting    = var.manage_telegram_alerting
   }
+}
+
+output "telegram_lambda_arn" {
+  description = "ARN der Telegram-Alerting Lambda-Funktion (leer wenn nicht gemanagt)."
+  value       = try(aws_lambda_function.sns_to_telegram[0].arn, null)
+}
+
+output "telegram_lambda_function_name" {
+  description = "Name der Telegram-Alerting Lambda-Funktion (leer wenn nicht gemanagt)."
+  value       = try(aws_lambda_function.sns_to_telegram[0].function_name, null)
+}
+
+output "telegram_sns_subscription_arn" {
+  description = "ARN der SNS → Lambda Subscription für Telegram-Alerting."
+  value       = try(aws_sns_topic_subscription.lambda_telegram[0].arn, null)
 }

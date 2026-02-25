@@ -302,22 +302,62 @@ aws cloudwatch put-metric-alarm \
 
 > Sobald Autoscaling >1 eingeführt wird, Alarm A auf „RunningTaskCount < DesiredTaskCount" (Metric Math) umstellen.
 
-### 2.1) Alarm-Kanal (SNS)
+### 2.1) Alarm-Kanal (SNS + Lambda → Telegram)
 
 Standard-Kanal in `dev`:
 - Topic: `arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts`
+- Subscriber: Lambda `swisstopo-dev-sns-to-telegram` → Telegram Bot API
 
-Schnelltest:
+**Vollständiger Datenfluss:** `CloudWatch Alarm → SNS Topic → Lambda → Telegram (Chat-ID: 8614377280)`
+
+**Telegram-Alerting einrichten (einmalig):**
+
+```bash
+# Option A: Setup-Script (schnell, vollautomatisch)
+export TELEGRAM_BOT_TOKEN="<BOT_TOKEN>"
+export TELEGRAM_CHAT_ID="8614377280"
+./scripts/setup_telegram_alerting_dev.sh
+
+# Option B: Terraform (IaC, idempotent)
+# Zuerst SSM-Parameter anlegen (einmalig, manuell):
+aws ssm put-parameter \
+  --region eu-central-1 \
+  --name /swisstopo/dev/telegram-bot-token \
+  --type SecureString \
+  --value "<BOT_TOKEN>" \
+  --description "Telegram Bot Token für swisstopo-dev Alerting"
+# Dann: manage_telegram_alerting=true + terraform apply
+```
+
+**Kontrollierter Testalarm:**
+
+```bash
+# Alarm künstlich triggern
+aws cloudwatch set-alarm-state \
+  --region eu-central-1 \
+  --alarm-name swisstopo-dev-api-running-taskcount-low \
+  --state-value ALARM \
+  --state-reason "Kontrollierter Testalarm via set-alarm-state"
+
+# Nach Empfang im Telegram: zurücksetzen
+aws cloudwatch set-alarm-state \
+  --region eu-central-1 \
+  --alarm-name swisstopo-dev-api-running-taskcount-low \
+  --state-value OK \
+  --state-reason "Reset nach Testalarm"
+```
+
+**SNS-Publish für reinen Kanal-Test:**
 
 ```bash
 aws sns publish \
   --region "$AWS_REGION" \
   --topic-arn "arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts" \
   --subject "swisstopo-dev monitoring test" \
-  --message "manual test $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  --message '{"AlarmName":"TestAlarm","NewStateValue":"ALARM","NewStateReason":"Manueller Test","Region":"EU (Frankfurt)","AWSAccountId":"523234426229","StateChangeTime":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'
 ```
 
-> Für End-to-End-Alarmierung muss mindestens ein Subscriber (E-Mail/ChatOps) bestätigt sein.
+> **Secret-Hinweis:** Bot-Token wird in SSM Parameter Store als SecureString gespeichert (`/swisstopo/dev/telegram-bot-token`). Er erscheint weder im Repo noch als Klartext im Terraform-State.
 
 ### 3) HTTP Health Check Guidance
 

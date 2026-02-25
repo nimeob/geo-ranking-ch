@@ -7,6 +7,8 @@ ECS_SERVICE="${ECS_SERVICE:-swisstopo-dev-api}"
 LOG_GROUP="${LOG_GROUP:-/swisstopo/dev/ecs/api}"
 SNS_TOPIC_ARN="${SNS_TOPIC_ARN:-arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts}"
 METRIC_NAMESPACE="${METRIC_NAMESPACE:-swisstopo/dev-api}"
+TELEGRAM_LAMBDA_NAME="${TELEGRAM_LAMBDA_NAME:-swisstopo-dev-sns-to-telegram}"
+SSM_PARAM_NAME="${SSM_PARAM_NAME:-/swisstopo/dev/telegram-bot-token}"
 
 ALARM_TASK_LOW="swisstopo-dev-api-running-taskcount-low"
 ALARM_5XX_RATE="swisstopo-dev-api-http-5xx-rate-high"
@@ -144,6 +146,64 @@ if [[ "$sns_topic_exists" == "$SNS_TOPIC_ARN" ]]; then
   fi
 else
   fail "SNS Topic nicht gefunden (${SNS_TOPIC_ARN})"
+fi
+
+# 6) Telegram-Alerting: Lambda-Funktion existiert + korrekt verdrahtet
+echo
+echo "-- Telegram-Alerting --"
+
+lambda_state=$(aws lambda get-function \
+  --region "$AWS_REGION" \
+  --function-name "$TELEGRAM_LAMBDA_NAME" \
+  --query 'Configuration.State' \
+  --output text 2>/dev/null || true)
+
+if [[ "$lambda_state" == "Active" ]]; then
+  pass "Lambda-Funktion vorhanden und aktiv (${TELEGRAM_LAMBDA_NAME})"
+
+  # Prüfen ob Lambda als Subscriber beim SNS-Topic eingetragen ist
+  lambda_sub=$(aws sns list-subscriptions-by-topic \
+    --region "$AWS_REGION" \
+    --topic-arn "$SNS_TOPIC_ARN" \
+    --query "Subscriptions[?Protocol=='lambda' && contains(Endpoint, '${TELEGRAM_LAMBDA_NAME}')].SubscriptionArn" \
+    --output text 2>/dev/null || true)
+
+  if [[ -n "$lambda_sub" && "$lambda_sub" != "None" ]]; then
+    pass "Lambda ist als SNS-Subscriber eingetragen (${lambda_sub})"
+  else
+    fail "Lambda NICHT als SNS-Subscriber gefunden (SNS → Lambda Subscription fehlt)"
+  fi
+
+  # Prüfen ob TELEGRAM_CHAT_ID gesetzt ist
+  chat_id_set=$(aws lambda get-function-configuration \
+    --region "$AWS_REGION" \
+    --function-name "$TELEGRAM_LAMBDA_NAME" \
+    --query "Environment.Variables.TELEGRAM_CHAT_ID" \
+    --output text 2>/dev/null || true)
+
+  if [[ -n "$chat_id_set" && "$chat_id_set" != "None" && "$chat_id_set" != "" ]]; then
+    pass "TELEGRAM_CHAT_ID in Lambda-Umgebung gesetzt (${chat_id_set})"
+  else
+    fail "TELEGRAM_CHAT_ID nicht in Lambda-Umgebung gesetzt"
+  fi
+
+  # Prüfen ob SSM-Parameter für Bot-Token existiert
+  ssm_exists=$(aws ssm get-parameter \
+    --region "$AWS_REGION" \
+    --name "$SSM_PARAM_NAME" \
+    --query 'Parameter.Name' \
+    --output text 2>/dev/null || true)
+
+  if [[ "$ssm_exists" == "$SSM_PARAM_NAME" ]]; then
+    pass "SSM-Parameter für Bot-Token vorhanden (${SSM_PARAM_NAME})"
+  else
+    fail "SSM-Parameter fehlt (${SSM_PARAM_NAME}) — Bot-Token muss manuell angelegt werden"
+  fi
+
+elif [[ "$lambda_state" == "Inactive" || "$lambda_state" == "Failed" ]]; then
+  fail "Lambda-Funktion in fehlerhaftem Zustand: ${lambda_state} (${TELEGRAM_LAMBDA_NAME})"
+else
+  warn "Telegram-Alerting Lambda nicht gefunden (${TELEGRAM_LAMBDA_NAME}) — noch nicht deployed?"
 fi
 
 echo

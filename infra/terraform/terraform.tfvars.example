@@ -25,3 +25,19 @@ existing_ecs_cluster_name          = "swisstopo-dev"
 existing_ecr_repository_name       = "swisstopo-dev-api"
 existing_cloudwatch_log_group_name = "/swisstopo/dev/ecs/api"
 existing_s3_bucket_name            = "swisstopo-dev-523234426229"
+
+# --- Telegram Alerting (BL-08) ---
+# Voraussetzung: SSM-Parameter manuell anlegen (NICHT per Terraform, damit kein Token im State):
+#   aws ssm put-parameter \
+#     --region eu-central-1 \
+#     --name /swisstopo/dev/telegram-bot-token \
+#     --type SecureString \
+#     --value "<DEIN_BOT_TOKEN>" \
+#     --description "Telegram Bot Token für swisstopo-dev Alerting"
+#
+# Dann hier aktivieren:
+manage_telegram_alerting = false   # auf true setzen nach SSM-Parameter-Anlage
+
+aws_account_id   = "523234426229"
+sns_topic_arn    = "arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts"
+telegram_chat_id = ""              # z.B. "8614377280" — kein Secret, nur numerische ID
