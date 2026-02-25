@@ -59,6 +59,7 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 ### Changed (2026-02-25 — CI/CD Doku auf OIDC aktualisiert)
 - **`README.md`:** Falsche ECS-Deploy-Voraussetzung mit statischen AWS-Secrets entfernt; OIDC-Role-Assume als aktueller Standard dokumentiert.
 - **`docs/DEPLOYMENT_AWS.md`:** GitHub-Secrets-Sektion auf OIDC-Realität korrigiert (`keine AWS Access Keys erforderlich`), OIDC-Role-ARN + Verweis auf Minimalrechte ergänzt.
+- **`docs/ARCHITECTURE.md`:** Abschnitt „Secrets & Variables“ auf OIDC umgestellt (keine statischen AWS-Keys, Role-Assume dokumentiert).
 
 ### Changed (2026-02-25 — BL-02 CI/CD-Deploy-Verifikation)
 - **`.github/workflows/deploy.yml`:** Push-Trigger auf `main` wieder aktiviert (zusätzlich zu `workflow_dispatch`), damit BL-02 per Commit/Push verifiziert werden kann.

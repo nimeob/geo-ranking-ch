@@ -101,9 +101,13 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 
 | Name | Zweck |
 |---|---|
-| `AWS_ACCESS_KEY_ID` | AWS-Zugriffsschlüssel für Deploy-User |
-| `AWS_SECRET_ACCESS_KEY` | AWS-Secret für Deploy-User |
-| `AWS_ACCOUNT_ID` | AWS Account-ID (für ECR Image URI) |
+| _(keine erforderlich)_ | AWS-Authentifizierung erfolgt via GitHub OIDC Role Assume |
+
+### OIDC-AWS-Bindung
+
+| Name | Zweck |
+|---|---|
+| `role-to-assume` | `arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role` (in `aws-actions/configure-aws-credentials@v4`) |
 
 ### Required Variables
 
