@@ -249,6 +249,23 @@ if ! is_positive_number "$CURL_MAX_TIME"; then
   exit 2
 fi
 
+if ! python3 - "$SMOKE_TIMEOUT_SECONDS" "$CURL_MAX_TIME" <<'PY'
+import math
+import sys
+
+smoke_timeout = float(sys.argv[1])
+curl_max_time = float(sys.argv[2])
+
+if not math.isfinite(smoke_timeout) or not math.isfinite(curl_max_time):
+    raise SystemExit(1)
+if curl_max_time < smoke_timeout:
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] CURL_MAX_TIME muss >= SMOKE_TIMEOUT_SECONDS sein (aktuell: ${CURL_MAX_TIME} < ${SMOKE_TIMEOUT_SECONDS})." >&2
+  exit 2
+fi
+
 if [[ ! "$CURL_RETRY_COUNT" =~ ^[0-9]+$ ]]; then
   echo "[BL-18.1] CURL_RETRY_COUNT muss eine Ganzzahl >= 0 sein (aktuell: ${CURL_RETRY_COUNT})." >&2
   exit 2

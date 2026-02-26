@@ -856,6 +856,34 @@ class TestRemoteSmokeScript(unittest.TestCase):
             self.assertIn("CURL_MAX_TIME muss eine Zahl > 0 sein", cp.stderr)
             self.assertFalse(out_json.exists())
 
+    def test_smoke_script_rejects_curl_max_time_below_smoke_timeout(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "3",
+                    "CURL_MAX_TIME": "2",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("CURL_MAX_TIME muss >= SMOKE_TIMEOUT_SECONDS sein", cp.stderr)
+            self.assertFalse(out_json.exists())
+
     def test_smoke_script_rejects_invalid_retry_count(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"

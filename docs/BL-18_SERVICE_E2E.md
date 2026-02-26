@@ -108,7 +108,7 @@ Wichtige Optionen:
 - `DEV_BASE_URL`: muss nach Normalisierung eine gültige Host/Port-Kombination enthalten; nicht-numerische bzw. out-of-range Ports (`:abc`, `:70000`) werden fail-fast mit `exit 2` zurückgewiesen.
 - `SMOKE_QUERY`: wird vor dem Request getrimmt, darf nicht leer sein und keine Steuerzeichen enthalten; whitespace-only/Control-Char-Werte werden fail-fast mit `exit 2` abgewiesen, damit der Smoke nicht erst im API-Pfad mit `400` scheitert.
 - `DEV_API_AUTH_TOKEN` (optional): wird vor dem Request getrimmt; whitespace-only Werte, Tokens mit eingebettetem Whitespace **und** Tokens mit Steuerzeichen werden fail-fast mit `exit 2` abgewiesen, damit Auth-Fehlersuchen bei Copy/Paste-Inputs reproduzierbar bleiben.
-- `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein und werden vor der Validierung getrimmt (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf`).
+- `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein, werden vor der Validierung getrimmt und `CURL_MAX_TIME` muss zusätzlich `>= SMOKE_TIMEOUT_SECONDS` sein (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf` sowie inkonsistenten Timeout-Kombinationen).
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein und werden vor der Validierung getrimmt.
 - `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche); wird vor dem Request getrimmt, darf keine eingebetteten Whitespaces oder Steuerzeichen enthalten und darf maximal 128 Zeichen enthalten (sonst `exit 2`).
 - `SMOKE_REQUEST_ID_HEADER` (`request|correlation`, default `request`): wird vor Validierung getrimmt und case-insensitive normalisiert; wählt, ob die Request-ID via `X-Request-Id` (Standard) oder via `X-Correlation-Id` gesendet wird; `correlation` erlaubt einen reproduzierbaren Fallback-Check für Services, die `X-Request-Id` leer/unset oder wegen ungültiger Zeichen verwerfen.
@@ -147,6 +147,19 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker A, Timeout-Konsistenz-Guard `CURL_MAX_TIME >= SMOKE_TIMEOUT_SECONDS` + 3x Stabilität, Iteration 28)
+
+- Command:
+  - `pytest -q tests/test_remote_smoke_script.py tests/test_remote_stability_script.py`
+  - `HOST="127.0.0.1" PORT="38697" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:38697/AnAlYzE//health/analyze/health///  " DEV_API_AUTH_TOKEN="  bl18-token  " SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 3 " CURL_MAX_TIME=" 3.5 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-a-1772109929.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="http://127.0.0.1:38697/health" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_MODE="basic" SMOKE_TIMEOUT_SECONDS="2" CURL_MAX_TIME="4" CURL_RETRY_COUNT="1" CURL_RETRY_DELAY="1" STABILITY_RUNS="3" STABILITY_INTERVAL_SECONDS="1" STABILITY_MAX_FAILURES="0" STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-a-1772109929.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - Script-E2E-Tests: Exit `0`, `75 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-a-1772109929.json`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-a-1772109929.ndjson`; Runs 1..3 alle `status=pass`).
+  - Server-Log: `artifacts/bl18.1-worker-a-server-1772109929.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Auto-Mkdir für fehlende `STABILITY_REPORT_PATH`-Verzeichnisse + 5x Stabilität, Iteration 27)
 
