@@ -286,7 +286,7 @@
 - **Priorität:** P1
 - **Aufwand:** S
 - **Abhängigkeiten:** BL-18
-- **Status:** ❄️ eingefroren bis BL-19-MVP abgeschlossen (Nico-Vorgabe, 2026-02-26)
+- **Status:** ✅ abgeschlossen (2026-02-27, Issue #4)
 - **Akzeptanzkriterien:**
   - Reproduzierbarer Smoke-Test ruft `POST /analyze` über öffentliche URL auf.
   - Test prüft mindestens HTTP-Status `200`, `ok=true` und vorhandenes `result`-Objekt.
@@ -296,6 +296,7 @@
   - Kein weiterer BL-18.1-Ausbau bis BL-19-MVP abgeschlossen ist.
   - Ausnahmen nur bei kritischem Produktions-/Deploy-Blocker oder expliziter Nico-Freigabe.
 - **Umgesetzt (Iteration 2026-02-26, historisch):**
+  - ✅ 2026-02-27: #4 abgeschlossen. Merge von PR #143 (`55e78ca`) mit Deploy-Run `22464814832` erfolgreich (`services-stable` + `/health` grün); anschließender Internet-Smoke gegen `http://18.159.133.63:8080/analyze` mit `scripts/run_remote_api_smoketest.sh` erfolgreich (Artefakt: `artifacts/bl18.1-smoke-internet-issue4-1772146927.json`, `status=pass`, `http_status=200`, `ok=true`, Request-ID-Echo konsistent).
   - ✅ 2026-02-26: kritischer Deploy-Blocker behoben (Freeze-Ausnahme): ECS-Task-Healthcheck nutzt `curl`, Image enthielt jedoch kein `curl` → Container wurde fortlaufend als unhealthy ersetzt. Fix via `Dockerfile` (`apt-get install --no-install-recommends curl`) + Regressionstest `tests/test_dockerfile_runtime_deps.py`.
   - ✅ 2026-02-26: #134 abgeschlossen (externe Blocker-Retry-Steuerung automatisiert): `scripts/blocker_retry_supervisor.py` ergänzt (3h Grace-Period, max. 3 Fehlversuche, automatisches Follow-up-Issue), Doku in `docs/AUTONOMOUS_AGENT_MODE.md` + `docs/OPERATIONS.md` nachgezogen und durch `tests/test_blocker_retry_supervisor.py` reproduzierbar abgesichert.
   - `scripts/run_remote_api_smoketest.sh` ergänzt und gehärtet (Retry-Handling, Request-ID, optionale JSON-Artefaktausgabe via `SMOKE_OUTPUT_JSON`, default Echo-Validierung von Request-ID in Header + JSON).
