@@ -19,21 +19,6 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = REPO_ROOT / "docs" / "api" / "field_catalog.json"
 
-EXAMPLES = {
-    "legacy": REPO_ROOT
-    / "docs"
-    / "api"
-    / "examples"
-    / "v1"
-    / "location-intelligence.response.success.address.json",
-    "grouped": REPO_ROOT
-    / "docs"
-    / "api"
-    / "examples"
-    / "current"
-    / "analyze.response.grouped.success.json",
-}
-
 ALLOWED_SHAPES = {"legacy", "grouped"}
 ALLOWED_TYPES = {"string", "number", "boolean", "object", "array", "null"}
 ALLOWED_STABILITY = {"stable", "beta", "internal"}
@@ -124,6 +109,47 @@ def _load_json(path: Path) -> Any:
         raise ValidationError(f"File not found: {path}") from exc
     except json.JSONDecodeError as exc:
         raise ValidationError(f"Invalid JSON in {path}: {exc}") from exc
+
+
+def _resolve_example_paths(catalog: dict[str, Any]) -> tuple[dict[str, Path], list[str]]:
+    errors: list[str] = []
+    paths: dict[str, Path] = {}
+
+    response_shapes = catalog.get("response_shapes")
+    if not isinstance(response_shapes, dict):
+        return {}, ["Catalog must contain object 'response_shapes'"]
+
+    declared_shapes = set(response_shapes.keys())
+    if declared_shapes != ALLOWED_SHAPES:
+        errors.append(
+            "response_shapes must declare exactly "
+            f"{sorted(ALLOWED_SHAPES)}, got {sorted(declared_shapes)}"
+        )
+
+    for shape in sorted(ALLOWED_SHAPES):
+        rel_path = response_shapes.get(shape)
+        if not isinstance(rel_path, str) or not rel_path.strip():
+            errors.append(f"response_shapes.{shape} must be non-empty string path")
+            continue
+
+        candidate = (REPO_ROOT / rel_path).resolve()
+        try:
+            candidate.relative_to(REPO_ROOT)
+        except ValueError:
+            errors.append(
+                f"response_shapes.{shape} must stay inside repository root: {rel_path!r}"
+            )
+            continue
+
+        if not candidate.exists():
+            errors.append(
+                f"response_shapes.{shape} points to missing file: {rel_path!r}"
+            )
+            continue
+
+        paths[shape] = candidate
+
+    return paths, errors
 
 
 def validate() -> list[str]:
@@ -236,9 +262,19 @@ def validate() -> list[str]:
     if errors:
         return errors
 
+    example_paths, path_errors = _resolve_example_paths(catalog)
+    errors.extend(path_errors)
+
+    for shape in sorted(ALLOWED_SHAPES):
+        if not any(shape in entry["response_shapes"] for entry in compiled_entries):
+            errors.append(f"no manifest entry declares response_shape={shape}")
+
+    if errors:
+        return errors
+
     example_leafs: dict[str, list[tuple[list[str], str]]] = {}
-    for shape, path in EXAMPLES.items():
-        payload = _load_json(path)
+    for shape in sorted(ALLOWED_SHAPES):
+        payload = _load_json(example_paths[shape])
         leafs = list(_iter_leaf_paths(payload))
         example_leafs[shape] = leafs
 
