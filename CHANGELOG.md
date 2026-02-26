@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Langlauf-Recheck, 3x Stabilität)
+- **Langlauf-Reproduzierbarkeits-Check (Worker C):** `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`21 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`), inklusive Request-ID-Echo in Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-1772090698.json` und `artifacts/bl18.1-remote-stability-local-worker-c-1772090698.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-C-Langlauf synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Command/Exit/Evidenz auf den aktuellen Worker-C-Langlauf-Recheck aktualisiert (Smoke + 3x Stabilität + frischer E2E-Precheck).
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Langlauf-Real-Run, 3x Stabilität + Flake-Recheck)
 - **Langlauf-Reproduzierbarkeits-Check (Worker B):** dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`), inklusive Request-ID-Echo in Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-1772090574.json` und `artifacts/bl18.1-remote-stability-local-worker-b-1772090574.ndjson`.
 - **Stabilitäts-Recheck E2E:** `./scripts/run_webservice_e2e.sh` im selben Lauf zusätzlich 5x wiederholt, jeweils erfolgreich (`21 passed`, Exit `0`).
