@@ -7,7 +7,7 @@ cd "$REPO_ROOT"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 echo "[BL-18] Starte lokale E2E-Tests ..."
-"$PYTHON_BIN" -m pytest -q tests/test_web_e2e.py tests/test_remote_smoke_script.py
+"$PYTHON_BIN" -m pytest -q tests/test_web_e2e.py tests/test_remote_smoke_script.py tests/test_remote_stability_script.py
 
 if [[ -n "${DEV_BASE_URL:-}" ]]; then
   echo "[BL-18] Starte dev E2E-Tests gegen ${DEV_BASE_URL} ..."

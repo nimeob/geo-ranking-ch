@@ -76,7 +76,8 @@ curl http://localhost:8080/health
 ### E2E-Tests (Webservice)
 
 ```bash
-# lokal (immer) + dev (optional via DEV_BASE_URL)
+# lokal (immer; inkl. /analyze E2E + Smoke-/Stability-Script-Tests)
+# + dev (optional via DEV_BASE_URL)
 ./scripts/run_webservice_e2e.sh
 
 # dedizierter Remote-Smoke-Test für BL-18.1 (/analyze)

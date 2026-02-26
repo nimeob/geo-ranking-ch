@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Stabilitätsrunner-E2E-Härtung)
+- **`tests/test_remote_stability_script.py`:** Neue lokale E2E-Tests für `run_remote_api_stability_check.sh` (Happy Path mit zwei erfolgreichen Runs + Abbruchpfad via `STABILITY_STOP_ON_FIRST_FAIL=1`).
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Test-Runner-/Doku-Abgleich)
+- **`scripts/run_webservice_e2e.sh`:** Lokalen BL-18-Testlauf um `tests/test_remote_stability_script.py` erweitert.
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Testabdeckung und Nachweisführung für BL-18.1-Stabilitätsläufe aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: API Request-ID-Korrelation)
 - **`tests/test_web_e2e.py`:** E2E-Abdeckung für Request-ID-Echo auf `/analyze` ergänzt (Header `X-Request-Id` + JSON-Feld `request_id` in Erfolgs- und Auth-Fehlpfad).
 

@@ -52,8 +52,11 @@
   - läuft gegen `DEV_BASE_URL`
   - optional mit `DEV_API_AUTH_TOKEN`
   - deckt mindestens Health/Version/404 + Analyze-Endpunkt ab
+- **Script-E2E (lokal):**
+  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service.
+  - `tests/test_remote_stability_script.py`: validiert den Mehrfach-Runner inkl. NDJSON-Report und `STABILITY_STOP_ON_FIRST_FAIL`.
 - **Run-Skript:** `scripts/run_webservice_e2e.sh`
-  - führt lokal immer aus
+  - führt lokal immer aus (`test_web_e2e.py` + Smoke-/Stability-Script-E2E)
   - dev nur, wenn `DEV_BASE_URL` gesetzt ist
 
 ## Ausführung
