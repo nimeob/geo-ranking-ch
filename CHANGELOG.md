@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Stability-Report-Guard + Langlauf-Nachweis)
+- **`tests/test_remote_stability_script.py`:** neuer E2E-Fall stellt sicher, dass der Stability-Runner fehlende/leer gebliebene Smoke-Reports auch dann als Fehlrun behandelt, wenn das Smoke-Script `rc=0` liefert.
+- **`scripts/run_remote_api_stability_check.sh`:** optionales Override `STABILITY_SMOKE_SCRIPT` ergänzt (Tests/Debug) sowie Fail-Safe für fehlende Smoke-JSON-Artefakte implementiert; `request_id` enthält zusätzlich PID-Suffix (`bl18-stability-<run>-<epoch>-<pid>`) zur Entkopplung paralleler Läufe.
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`36 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772093324.json` und `artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772093324.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-B Stability-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Stability-Runner-Hinweise auf `STABILITY_SMOKE_SCRIPT`, Missing-Report-Fail-Safe und aktuellen Worker-B-Langlauf (`36 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Request-ID-Guard + Langlauf-Nachweis)
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID` wird vor dem Request getrimmt und fail-fast validiert (Whitespace-only + Steuerzeichen werden reproduzierbar mit `exit 2` abgewiesen), damit Request-ID-Echo-Checks stabil bleiben.
 - **`tests/test_remote_smoke_script.py`:** neue E2E-Abdeckung für getrimmte Request-ID (Happy-Path) sowie Negativfälle für Whitespace-only und Steuerzeichen in `SMOKE_REQUEST_ID`.

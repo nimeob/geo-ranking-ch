@@ -13,6 +13,7 @@ set -euo pipefail
 #   STABILITY_MAX_FAILURES="0"
 #   STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability.ndjson"
 #   STABILITY_STOP_ON_FIRST_FAIL="0"
+#   STABILITY_SMOKE_SCRIPT="/path/to/run_remote_api_smoketest.sh"  # optionales Override (Tests/Debug)
 #   + alle Variablen aus run_remote_api_smoketest.sh (SMOKE_QUERY, DEV_API_AUTH_TOKEN, ...)
 
 if [[ -z "${DEV_BASE_URL:-}" ]]; then
@@ -21,7 +22,12 @@ if [[ -z "${DEV_BASE_URL:-}" ]]; then
 fi
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-SMOKE_SCRIPT="${REPO_ROOT}/scripts/run_remote_api_smoketest.sh"
+SMOKE_SCRIPT="${STABILITY_SMOKE_SCRIPT:-${REPO_ROOT}/scripts/run_remote_api_smoketest.sh}"
+
+if [[ ! -x "$SMOKE_SCRIPT" ]]; then
+  echo "[BL-18.1] Smoke-Script nicht ausführbar/gefunden: ${SMOKE_SCRIPT}" >&2
+  exit 2
+fi
 
 STABILITY_RUNS="${STABILITY_RUNS:-6}"
 STABILITY_INTERVAL_SECONDS="${STABILITY_INTERVAL_SECONDS:-15}"
@@ -61,7 +67,7 @@ fail_count=0
 for run_no in $(seq 1 "$STABILITY_RUNS"); do
   echo "[BL-18.1] Run ${run_no}/${STABILITY_RUNS} ..."
   tmp_json="$(mktemp)"
-  request_id="bl18-stability-${run_no}-$(date +%s)"
+  request_id="bl18-stability-${run_no}-$(date +%s)-$$"
 
   set +e
   (
@@ -71,10 +77,9 @@ for run_no in $(seq 1 "$STABILITY_RUNS"); do
   rc=$?
   set -e
 
-  if [[ "$rc" -eq 0 ]]; then
-    pass_count=$((pass_count + 1))
-  else
-    fail_count=$((fail_count + 1))
+  run_failed=0
+  if [[ "$rc" -ne 0 ]]; then
+    run_failed=1
     echo "[BL-18.1] WARN: Run ${run_no} fehlgeschlagen (rc=${rc})."
   fi
 
@@ -91,6 +96,10 @@ data["run_no"] = run_no
 print(json.dumps(data, ensure_ascii=False))
 PY
   else
+    run_failed=1
+    if [[ "$rc" -eq 0 ]]; then
+      echo "[BL-18.1] WARN: Run ${run_no} lieferte kein Smoke-JSON (tmp_json fehlt/leer trotz rc=0)."
+    fi
     python3 - "$run_no" "$rc" >> "$STABILITY_REPORT_PATH" <<'PY'
 import json
 import sys
@@ -101,9 +110,15 @@ print(json.dumps({"status": "fail", "reason": "missing_report", "run_no": run_no
 PY
   fi
 
+  if [[ "$run_failed" -eq 0 ]]; then
+    pass_count=$((pass_count + 1))
+  else
+    fail_count=$((fail_count + 1))
+  fi
+
   rm -f "$tmp_json"
 
-  if [[ "$STABILITY_STOP_ON_FIRST_FAIL" == "1" && "$rc" -ne 0 ]]; then
+  if [[ "$STABILITY_STOP_ON_FIRST_FAIL" == "1" && "$run_failed" -ne 0 ]]; then
     echo "[BL-18.1] Abbruch nach erstem Fehlrun (STABILITY_STOP_ON_FIRST_FAIL=1)."
     break
   fi

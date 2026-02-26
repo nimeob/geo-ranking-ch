@@ -73,6 +73,7 @@ class TestRemoteStabilityScript(unittest.TestCase):
         max_failures: int,
         stop_on_first_fail: int,
         base_url: str | None = None,
+        smoke_script: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
         with tempfile.TemporaryDirectory() as tmpdir:
             report_path = Path(tmpdir) / "stability.ndjson"
@@ -97,6 +98,9 @@ class TestRemoteStabilityScript(unittest.TestCase):
                 env["DEV_API_AUTH_TOKEN"] = "bl18-token"
             else:
                 env.pop("DEV_API_AUTH_TOKEN", None)
+
+            if smoke_script is not None:
+                env["STABILITY_SMOKE_SCRIPT"] = smoke_script
 
             cp = subprocess.run(
                 [str(STABILITY_SCRIPT)],
@@ -155,6 +159,33 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertEqual(entries[0].get("status"), "fail")
         self.assertEqual(entries[0].get("reason"), "http_status")
         self.assertEqual(entries[0].get("http_status"), 401)
+
+    def test_stability_runner_marks_missing_smoke_report_as_failure_even_with_rc_zero(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_smoke = Path(tmpdir) / "fake_smoke.sh"
+            fake_smoke.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "echo '[fake-smoke] rc=0 ohne report'\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            fake_smoke.chmod(0o755)
+
+            cp, entries = self._run_stability(
+                include_token=True,
+                runs=1,
+                max_failures=0,
+                stop_on_first_fail=0,
+                smoke_script=str(fake_smoke),
+            )
+
+        self.assertNotEqual(cp.returncode, 0)
+        self.assertIn("kein Smoke-JSON", cp.stdout)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].get("status"), "fail")
+        self.assertEqual(entries[0].get("reason"), "missing_report")
+        self.assertEqual(entries[0].get("rc"), 0)
 
     def test_stability_runner_rejects_invalid_stop_on_first_fail_flag(self):
         cp, entries = self._run_stability(
