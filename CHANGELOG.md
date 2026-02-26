@@ -19,6 +19,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/api/contract-stability-policy.md`** um BL-18.fc1-Abschnitt erweitert (Forward-Compatibility-Guardrails mit Referenzen auf #3 und #127).
 - **`docs/BACKLOG.md`** BL-18-Fortschritt um Abschluss von #130 inkl. Testnachweis aktualisiert.
 
+### Changed (2026-02-26 — BL-18.fc2 Request-Options-Envelope)
+- **`src/web_service.py`** um robusten `options`-Envelope-Parser ergänzt: `options` ist optional (Default-Verhalten unverändert), muss bei Presence ein Objekt sein (`400 bad_request` bei Typfehler), unbekannte Keys bleiben additive No-Op-Felder.
+- **`tests/test_web_e2e.py`** um Guard-Tests erweitert: unbekannte `options`-Keys dürfen den Happy-Path nicht brechen; nicht-objektförmige `options` liefern deterministisch `400 bad_request` statt Crash.
+- **`docs/api/contract-stability-policy.md`** und **`docs/api/contract-v1.md`** um FC2-Policy ergänzt (stabiler `options`-Namespace für spätere Erweiterungen, Verweise auf #3/#107/#127).
+- **`docs/BACKLOG.md`** BL-18-Fortschritt um Abschluss von #131 inkl. Nachweiskommando aktualisiert.
+
 ### Changed (2026-02-26 — BL-15 CloudTrail-Audit Testhärtung)
 - **`tests/test_audit_legacy_cloudtrail_consumers.py`** neu ergänzt: reproduzierbare Script-Tests für `scripts/audit_legacy_cloudtrail_consumers.sh` (Parametervalidierung, No-Events `exit 0`, Events-Found `exit 10`, LookupEvents-Filterung via `INCLUDE_LOOKUP_EVENTS`).
 - **`docs/BACKLOG.md`** BL-15-Nachweis um den Testhärtungsstand für Issue #109 erweitert.

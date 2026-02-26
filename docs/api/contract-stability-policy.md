@@ -72,6 +72,22 @@ Automatisierter Nachweis im Repo:
 - `tests/test_web_service_grouped_response.py`
 - `tests/test_remote_smoke_script.py`
 
+### 4.1 BL-18.fc2 Request-Options-Envelope (additiv, no-op by default)
+
+Bezug:
+- Parent-/Kontext-Issue: [#3](https://github.com/nimeob/geo-ranking-ch/issues/3)
+- Folgeabhängigkeiten: [#107](https://github.com/nimeob/geo-ranking-ch/issues/107), [#127](https://github.com/nimeob/geo-ranking-ch/issues/127)
+
+Regel für den aktuellen `/analyze`-Request-Contract:
+- Optionaler Top-Level-Namespace `options` ist für additive Erweiterungen reserviert.
+- Fehlt `options`, bleibt das Laufzeitverhalten unverändert (voll rückwärtskompatibel).
+- Ist `options` vorhanden, muss es ein JSON-Objekt sein; sonst `400 bad_request`.
+- Unbekannte Keys unter `options` werden als **No-Op** behandelt (ignoriert statt Crash/500), um spätere Deep-Mode-Felder ohne Breaking Change ergänzen zu können.
+
+Automatisierter Nachweis im Repo:
+- `tests/test_web_e2e.py::TestWebServiceE2E::test_analyze_ignores_unknown_options_keys_as_additive_noop`
+- `tests/test_web_e2e.py::TestWebServiceE2E::test_bad_request_options_must_be_object_when_provided`
+
 ## 5) Changelog-/Release-Hinweisprozess
 
 Bei jeder Contract-Änderung:

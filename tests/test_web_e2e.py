@@ -312,6 +312,50 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("result", body)
 
+    def test_analyze_ignores_unknown_options_keys_as_additive_noop(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "options": {
+                    "future_flag": True,
+                    "deep_mode": {"enabled": True, "profile": "pro"},
+                    "nested_future": {"alpha": {"beta": 1}},
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+        self.assertIn("result", body)
+
+    def test_bad_request_options_must_be_object_when_provided(self):
+        invalid_options = (
+            [],
+            "deep",
+            1,
+            True,
+        )
+        for value in invalid_options:
+            with self.subTest(options=value):
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload={
+                        "query": "__ok__",
+                        "intelligence_mode": "basic",
+                        "timeout_seconds": 2,
+                        "options": value,
+                    },
+                    headers={"Authorization": "Bearer bl18-token"},
+                )
+                self.assertEqual(status, 400)
+                self.assertEqual(body.get("error"), "bad_request")
+                self.assertIn("options must be an object", body.get("message", ""))
+
     def test_bad_request_invalid_mode(self):
         status, body = _http_json(
             "POST",
