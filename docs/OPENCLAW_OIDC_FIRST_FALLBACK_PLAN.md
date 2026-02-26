@@ -136,6 +136,17 @@ Zeitfenster-Aggregation (z. B. für 48h Legacy-Fallback-Beobachtung):
 - Exit `10`: Window ist "not-ready" (Legacy beobachtet, non-zero Exit oder zu wenige Reports).
 - Exit `2`: ungültige Eingaben/Report-Dateien.
 
+OIDC-only Guard (konsolidierter Runtime+CloudTrail-Nachweis, BL-17.wp7):
+```bash
+./scripts/check_bl17_oidc_only_guard.py \
+  --output-json artifacts/bl17/oidc-only-guard-report.json \
+  --cloudtrail-lookback-hours 24
+```
+- Output-Schema: `status = ok|warn|fail` + `checks.*.evidence_paths`.
+- Exit `0`: konsolidiert `ok` (kein Legacy-Befund in Posture/Runtime/CloudTrail).
+- Exit `10`: konsolidiert `fail` (Legacy-Befund erkannt).
+- Exit `20`: konsolidiert `warn` (Teilcheck inkonsistent/nicht eindeutig).
+
 ---
 
 ## Rollback (wenn AssumeRole-Flow blockiert)
