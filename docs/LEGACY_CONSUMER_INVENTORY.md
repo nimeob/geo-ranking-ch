@@ -15,6 +15,8 @@ Aus den read-only Audits:
 - `./scripts/audit_legacy_aws_consumer_refs.sh` → Exit `10` (aktiver Caller = Legacy-User)
 - `./scripts/audit_legacy_runtime_consumers.sh` → Exit `30` (aktiver Caller + Runtime-Env enthält AWS Key-Variablen)
 - `LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh` → Exit `10` (Legacy-Events aktiv; dominante Fingerprints gruppiert)
+- `LOOKBACK_HOURS=8 ./scripts/audit_legacy_cloudtrail_consumers.sh` → Exit `10` (Recheck bestätigt dominanten Fingerprint `76.13.144.185` + AWS-Service-Delegation)
+- `./scripts/check_bl17_oidc_assumerole_posture.sh` → Exit `30` (OIDC-Marker in Workflows ok, Runtime-Caller bleibt Legacy)
 - GitHub Deploy-Workflow (`.github/workflows/deploy.yml`) ist OIDC-only (kein statischer Key im aktiven CI/CD-Pfad)
 
 Interpretation:
@@ -29,20 +31,22 @@ Interpretation:
 | Consumer | Ort/Typ | Aktueller Auth-Pfad | Status | Zielpfad | Owner | Nächster Schritt |
 |---|---|---|---|---|---|---|
 | GitHub Actions Deploy (`deploy.yml`) | GitHub Hosted Runner | OIDC Role Assume (`swisstopo-dev-github-deploy-role`) | ✅ migriert | OIDC beibehalten | Repo | Periodische Drift-Prüfung |
-| OpenClaw Runtime (dieser Host) | Host/Container Runtime | AWS Env-Creds (Legacy User als aktiver Caller) | 🟡 offen | OIDC-first via `workflow_dispatch`; Legacy nur Fallback | Nipa/Nico | Quelle der Credential-Injection identifizieren + entfernen |
+| OpenClaw Runtime (dieser Host) | Host/Container Runtime | AWS Env-Creds (Legacy User als aktiver Caller), punktuell `sts:AssumeRole` sichtbar | 🟡 offen | OIDC-first via `workflow_dispatch` + `openclaw-ops-role`; Legacy nur Fallback | Nipa/Nico | Credential-Injection-Quelle entfernen und AWS-Ops standardisiert über `scripts/aws_exec_via_openclaw_ops.sh` ausführen |
 | Externe Runner/Hosts (unbekannt) | außerhalb dieses Hosts | unbekannt | ⏳ offen | OIDC/AssumeRole je Consumer | Nico | Zielsysteme inventarisieren (Liste unten) |
 | Lokale/Runner AWS-CLI Skripte (`scripts/*.sh`) | Repo-Artefakte | abhängig vom aufrufenden Runtime-Credential-Context | 🟡 offen | Aufruf über OIDC-Ausführungspfad oder eng begrenzte AssumeRole | Repo | Pro Script Ausführungspfad dokumentieren |
 
-### 2.1) Fingerprint-Hinweise aus CloudTrail (6h-Fenster)
+### 2.1) Fingerprint-Hinweise aus CloudTrail (6h + 8h Recheck)
 
 - Dominanter Non-AWS-Fingerprint: `source_ip=76.13.144.185`
   - `aws-cli/2.33.29` (STS/Logs/CloudTrail Calls)
   - `aws-sdk-js/3.996.0` (Bedrock Calls)
   - Terraform Provider (`HashiCorp Terraform/1.11.4`) auf diversen AWS-APIs
 - Zusätzliche AWS-Service-Delegation: `source_ip=lambda.amazonaws.com` (KMS-Zugriffe)
+- 8h-Recheck: 404 ausgewertete Events, davon weiter hohe Aktivität auf `76.13.144.185`; zusätzlich `sts:AssumeRole`-Events beobachtet.
 
 Bewertung:
 - `76.13.144.185` ist aktuell primärer Kandidat für den aktiven Legacy-Consumer-Pfad.
+- Die sichtbaren `AssumeRole`-Events sind ein positives Signal für BL-17, aber noch kein Nachweis für AssumeRole-first im Runtime-Default.
 - Für BL-15 bleibt offen, ob daneben weitere externe Runner/Hosts in separaten Zeitfenstern Legacy-Zugriffe ausführen.
 
 ---
