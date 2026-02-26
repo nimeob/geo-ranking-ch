@@ -56,7 +56,9 @@ class Handler(BaseHTTPRequestHandler):
         """Liefert eine korrelierbare Request-ID (Header oder Fallback)."""
         header_candidates = (
             self.headers.get("X-Request-Id", ""),
+            self.headers.get("X_Request_Id", ""),
             self.headers.get("X-Correlation-Id", ""),
+            self.headers.get("X_Correlation_Id", ""),
         )
         for candidate in header_candidates:
             request_id = _sanitize_request_id_candidate(candidate)

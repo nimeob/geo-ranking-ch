@@ -14,6 +14,18 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m echte `_`-Request-ID-Header + 3x Stabilität, Iteration 34)
+- **`src/web_service.py`:** akzeptiert Request-ID-Header jetzt robust sowohl in `-`- als auch `_`-Notation (`X-Request-Id`/`X_Request_Id`, `X-Correlation-Id`/`X_Correlation_Id`) und behält die bisherige Fallback-Logik + Sanitizer-Grenzen (keine Whitespaces/Control-Chars, max. 128) bei.
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID_HEADER`-Alias-Mapping erweitert: bei `_`-Aliasen werden die Header nun real als `X_Request_Id`/`X_Correlation_Id` gesendet statt nur intern zu normalisieren; der Smoke-Report enthält dafür das neue Feld `request_id_header_name`.
+- **`tests/test_web_e2e.py`:** neue API-E2E-Fälle sichern `_`-Header-Support reproduzierbar ab (primärer `X_Request_Id`-Happy-Path + Fallback auf `X_Correlation_Id`).
+- **`tests/test_remote_smoke_script.py`:** Assert-Abdeckung erweitert, sodass für alle Header-Modi auch das tatsächlich gesendete Header-Feld (`request_id_header_name`) verifiziert wird.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`99 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) mit real gesendetem `_`-Header (`SMOKE_REQUEST_ID_HEADER="X_Request_Id"`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772114297.json`, `artifacts/worker-1-10m/iteration-34/bl18.1-remote-stability-local-worker-1-10m-1772114297.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772114297.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-34 + echte `_`-Header-Sendung synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Request-ID-Dokumentation auf `_`-Header-Support im Service aktualisiert, Smoke-Option `SMOKE_REQUEST_ID_HEADER` bzgl. real gesendeter `_`-Header präzisiert und Nachweisführung auf Iteration 34 (`99 passed`, Smoke + 3x Stabilität, `request_id_header_name=X_Request_Id`) synchronisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A case-insensitive `intelligence_mode` + 3x Stabilität, Iteration 33)
 - **`src/web_service.py`:** normalisiert `intelligence_mode` jetzt API-seitig mit `strip()+lower()`, sodass robuste Client-Eingaben wie `"  ExTenDeD  "` konsistent als `extended` verarbeitet werden.
 - **`tests/test_web_e2e.py`:** neuer E2E-Happy-Path verifiziert reproduzierbar, dass gemischter/case-insensitiver `intelligence_mode` (`"  ExTenDeD  "`) erfolgreich akzeptiert wird.

@@ -18,7 +18,7 @@ set -euo pipefail
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
-#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ x-request-id/x-correlation-id/x_request_id/x_correlation_id Aliasse), Default: request; wird getrimmt und darf keine eingebetteten Whitespaces/Steuerzeichen enthalten
+#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ x-request-id/x-correlation-id/x_request_id/x_correlation_id Aliasse), Default: request; bei _-Aliasen wird der Header explizit als X_Request_Id/X_Correlation_Id gesendet
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
@@ -306,18 +306,31 @@ then
 fi
 
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER,,}"
+REQUEST_ID_HEADER_NAME="X-Request-Id"
 case "$SMOKE_REQUEST_ID_HEADER" in
-  request|x-request-id|x_request_id)
+  request|x-request-id)
     SMOKE_REQUEST_ID_HEADER="request"
+    REQUEST_ID_HEADER_NAME="X-Request-Id"
     ;;
-  correlation|x-correlation-id|x_correlation_id)
+  x_request_id)
+    SMOKE_REQUEST_ID_HEADER="request"
+    REQUEST_ID_HEADER_NAME="X_Request_Id"
+    ;;
+  correlation|x-correlation-id)
     SMOKE_REQUEST_ID_HEADER="correlation"
+    REQUEST_ID_HEADER_NAME="X-Correlation-Id"
+    ;;
+  x_correlation_id)
+    SMOKE_REQUEST_ID_HEADER="correlation"
+    REQUEST_ID_HEADER_NAME="X_Correlation_Id"
     ;;
   *)
     echo "[BL-18.1] Ungültiger SMOKE_REQUEST_ID_HEADER='${SMOKE_REQUEST_ID_HEADER}' (erlaubt: request|correlation|x-request-id|x-correlation-id|x_request_id|x_correlation_id)." >&2
     exit 2
     ;;
 esac
+
+export REQUEST_ID_HEADER_NAME
 
 case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
   0|1) ;;
@@ -441,12 +454,7 @@ PY
   AUTH_HEADER=(-H "Authorization: Bearer ${DEV_API_AUTH_TOKEN_TRIMMED}")
 fi
 
-REQUEST_ID_HEADERS=()
-if [[ "$SMOKE_REQUEST_ID_HEADER" == "correlation" ]]; then
-  REQUEST_ID_HEADERS=(-H "X-Correlation-Id: ${SMOKE_REQUEST_ID}")
-else
-  REQUEST_ID_HEADERS=(-H "X-Request-Id: ${SMOKE_REQUEST_ID}")
-fi
+REQUEST_ID_HEADERS=(-H "${REQUEST_ID_HEADER_NAME}: ${SMOKE_REQUEST_ID}")
 
 REQUEST_BODY=$(python3 - <<'PY'
 import json
@@ -513,6 +521,7 @@ report = {
     "http_status": None,
     "request_id": os.environ["SMOKE_REQUEST_ID"],
     "request_id_header_source": os.environ.get("SMOKE_REQUEST_ID_HEADER", "request"),
+    "request_id_header_name": os.environ.get("REQUEST_ID_HEADER_NAME", "X-Request-Id"),
     "request_id_echo_enforced": os.environ.get("SMOKE_ENFORCE_REQUEST_ID_ECHO", "1") == "1",
     "response_request_id": None,
     "response_header_request_id": None,
@@ -569,6 +578,7 @@ report = {
     "http_status": http_code,
     "request_id": expected_request_id,
     "request_id_header_source": os.environ.get("SMOKE_REQUEST_ID_HEADER", "request"),
+    "request_id_header_name": os.environ.get("REQUEST_ID_HEADER_NAME", "X-Request-Id"),
     "request_id_echo_enforced": enforce_request_id_echo,
     "response_request_id": None,
     "response_header_request_id": response_header_request_id,
@@ -648,6 +658,7 @@ else:
                         "duration_seconds": report["duration_seconds"],
                         "request_id": report["request_id"],
                         "request_id_header_source": report["request_id_header_source"],
+                        "request_id_header_name": report["request_id_header_name"],
                         "response_request_id": report["response_request_id"],
                         "response_header_request_id": report["response_header_request_id"],
                     },
