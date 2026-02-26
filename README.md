@@ -113,8 +113,13 @@ curl http://localhost:8080/health
 
 ### E2E-Tests (Webservice)
 
+Regression-Minimum (schneller Lokal-Check) ist in [`docs/BL-18_SERVICE_E2E.md#regression-minimum-lokal-optional-dev`](docs/BL-18_SERVICE_E2E.md#regression-minimum-lokal-optional-dev) dokumentiert.
+
 ```bash
-# lokal (immer; inkl. /analyze E2E + Smoke-/Stability-Script-Tests)
+# Regression-Minimum lokal (schneller Check)
+python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_stability_script.py
+
+# lokal (voller Lauf; inkl. /analyze E2E + Smoke-/Stability-Script-Tests)
 # + dev (optional via DEV_BASE_URL)
 ./scripts/run_webservice_e2e.sh
 
