@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Langlauf-Recheck Reproduzierbarkeit/Stabilität)
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`38 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772094021.json` und `artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772094021.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-B Langlauf-Recheck synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Nachweisführung auf den aktuellen Worker-B-Recheck (`38 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Non-PASS-Report-Guard + Langlauf-Nachweis)
 - **`scripts/run_remote_api_stability_check.sh`:** wertet Smoke-Reports jetzt inhaltlich aus; Runs mit vorhandenem JSON, aber `status!=pass` (oder ungültigem JSON/Payload) werden als Fehlrun gezählt, auch wenn das Smoke-Script `rc=0` liefert.
 - **`tests/test_remote_stability_script.py`:** neuer E2E-Guard mit Fake-Smoke-Script verifiziert reproduzierbar, dass ein Report mit `status="fail"` trotz `rc=0` den Stabilitätslauf korrekt fehlschlagen lässt.
