@@ -3,9 +3,11 @@ set -euo pipefail
 
 # Reproduzierbarer Remote-Smoke-Test für Issue BL-18.1
 # Erwartet öffentliche Base-URL des Services und prüft POST /analyze auf 200 + ok=true + result-Objekt.
+# DEV_BASE_URL darf optional bereits auf /health oder /analyze enden (wird robust normalisiert).
 #
 # Nutzung:
 #   DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_smoketest.sh
+#   DEV_BASE_URL="https://<endpoint>/analyze" ./scripts/run_remote_api_smoketest.sh
 #   DEV_BASE_URL="https://<endpoint>" DEV_API_AUTH_TOKEN="<token>" ./scripts/run_remote_api_smoketest.sh
 #
 # Optionale Env-Variablen:
@@ -52,7 +54,35 @@ case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
     ;;
 esac
 
-BASE_URL="${DEV_BASE_URL%/}"
+RAW_BASE_URL="${DEV_BASE_URL%/}"
+if [[ ! "$RAW_BASE_URL" =~ ^https?:// ]]; then
+  echo "[BL-18.1] DEV_BASE_URL muss mit http:// oder https:// beginnen (aktuell: ${DEV_BASE_URL})." >&2
+  exit 2
+fi
+
+BASE_URL="$RAW_BASE_URL"
+if [[ "$BASE_URL" == */health ]]; then
+  BASE_URL="${BASE_URL%/health}"
+fi
+if [[ "$BASE_URL" == */analyze ]]; then
+  BASE_URL="${BASE_URL%/analyze}"
+fi
+BASE_URL="${BASE_URL%/}"
+
+if ! python3 - "$BASE_URL" <<'PY'
+import sys
+from urllib.parse import urlsplit
+
+base_url = sys.argv[1]
+parts = urlsplit(base_url)
+if parts.scheme not in {"http", "https"} or not parts.netloc:
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] DEV_BASE_URL ist nach Normalisierung ungültig (aktuell: ${BASE_URL})." >&2
+  exit 2
+fi
+
 ANALYZE_URL="${BASE_URL}/analyze"
 export ANALYZE_URL
 

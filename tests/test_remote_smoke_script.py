@@ -65,7 +65,10 @@ class TestRemoteSmokeScript(unittest.TestCase):
             cls.proc.kill()
 
     def _run_smoke(
-        self, *, include_token: bool
+        self,
+        *,
+        include_token: bool,
+        base_url: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict, str]:
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"
@@ -73,7 +76,7 @@ class TestRemoteSmokeScript(unittest.TestCase):
             env = os.environ.copy()
             env.update(
                 {
-                    "DEV_BASE_URL": self.base_url,
+                    "DEV_BASE_URL": base_url or self.base_url,
                     "SMOKE_QUERY": "__ok__",
                     "SMOKE_MODE": "basic",
                     "SMOKE_TIMEOUT_SECONDS": "2",
@@ -117,6 +120,46 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("status"), "fail")
         self.assertEqual(data.get("reason"), "http_status")
         self.assertEqual(data.get("http_status"), 401)
+
+    def test_smoke_script_normalizes_base_url_when_analyze_suffix_is_provided(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            base_url=f"{self.base_url}/analyze",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertEqual(data.get("http_status"), 200)
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+
+    def test_smoke_script_rejects_invalid_base_url_scheme(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": f"127.0.0.1:{self.port}",
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("DEV_BASE_URL muss mit http:// oder https:// beginnen", cp.stderr)
+            self.assertFalse(out_json.exists())
 
 
 if __name__ == "__main__":

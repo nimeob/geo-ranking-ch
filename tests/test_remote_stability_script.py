@@ -72,13 +72,14 @@ class TestRemoteStabilityScript(unittest.TestCase):
         runs: int,
         max_failures: int,
         stop_on_first_fail: int,
+        base_url: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
         with tempfile.TemporaryDirectory() as tmpdir:
             report_path = Path(tmpdir) / "stability.ndjson"
             env = os.environ.copy()
             env.update(
                 {
-                    "DEV_BASE_URL": self.base_url,
+                    "DEV_BASE_URL": base_url or self.base_url,
                     "SMOKE_QUERY": "__ok__",
                     "SMOKE_MODE": "basic",
                     "SMOKE_TIMEOUT_SECONDS": "2",
@@ -128,6 +129,19 @@ class TestRemoteStabilityScript(unittest.TestCase):
             self.assertTrue(str(row.get("request_id", "")).startswith(f"bl18-stability-{idx}-"))
             self.assertEqual(row.get("response_request_id"), row.get("request_id"))
             self.assertEqual(row.get("response_header_request_id"), row.get("request_id"))
+
+    def test_stability_runner_accepts_health_suffix_in_base_url(self):
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs=2,
+            max_failures=0,
+            stop_on_first_fail=0,
+            base_url=f"{self.base_url}/health",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(len(entries), 2)
+        self.assertTrue(all(row.get("status") == "pass" for row in entries))
 
     def test_stability_runner_stops_on_first_failure_when_configured(self):
         cp, entries = self._run_stability(

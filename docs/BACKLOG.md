@@ -1,7 +1,7 @@
 # Backlog (konsolidiert)
 
 > Quelle: konsolidierte offene Punkte aus `README.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_AWS.md`, `docs/OPERATIONS.md`.
-> Stand: 2026-02-25
+> Stand: 2026-02-26
 
 ## Legende
 
@@ -280,6 +280,7 @@
   - `src/web_service.py` um Request-Korrelation für `/analyze` erweitert (`X-Request-Id`/`X-Correlation-Id` Echo in Response-Header + JSON-Feld `request_id`) für reproduzierbare Remote-Diagnosen.
   - `scripts/run_remote_api_stability_check.sh` ergänzt (Mehrfachlauf mit NDJSON-Report + Fail-Threshold für kurze Stabilitäts-/Abnahmeläufe).
   - `tests/test_remote_smoke_script.py` ergänzt (lokale E2E-Validierung des Smoke-Skripts inkl. Auth-Pfad/Fehlpfad + Request-ID-Echo-Nachweis).
+  - `scripts/run_remote_api_smoketest.sh` URL-Normalisierung ergänzt (`/health`/`/analyze`-Suffixe) + harte http(s)-Schema-Validierung zur robusten Runbook-Reproduzierbarkeit.
   - `tests/test_remote_stability_script.py` ergänzt (lokale E2E-Validierung des Stabilitätsrunners inkl. Stop-on-first-fail-, NDJSON- und Request-ID-Korrelationsnachweis).
   - `scripts/run_remote_api_stability_check.sh` validiert `STABILITY_STOP_ON_FIRST_FAIL` strikt (`0|1`) für reproduzierbare CLI-Konfiguration; Negativfall ist über `tests/test_remote_stability_script.py` abgedeckt.
   - `.github/workflows/deploy.yml` um optionalen `/analyze`-Smoke-Test nach Deploy erweitert (gesteuert via `SERVICE_BASE_URL` + optional `SERVICE_API_AUTH_TOKEN`).

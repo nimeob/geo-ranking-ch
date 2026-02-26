@@ -82,6 +82,7 @@ curl http://localhost:8080/health
 
 # dedizierter Remote-Smoke-Test für BL-18.1 (/analyze)
 # validiert: HTTP 200, ok=true, result vorhanden, Request-ID-Echo (Header+JSON)
+# DEV_BASE_URL muss http(s) sein; /health oder /analyze als Suffix werden automatisch normalisiert
 DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_smoketest.sh
 
 # kurzer Stabilitätslauf (mehrere Remote-Smokes, mit NDJSON-Report)

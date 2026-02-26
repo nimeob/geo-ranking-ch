@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: URL-Normalisierung im Remote-Smoke abgesichert)
+- **`tests/test_remote_smoke_script.py`:** Zusätzliche E2E-Checks für normalisierte Base-URLs (`.../analyze`) und harten Negativfall für ungültiges URL-Schema (`exit 2`).
+- **`tests/test_remote_stability_script.py`:** E2E-Check ergänzt, dass der Stabilitätsrunner auch mit `DEV_BASE_URL`-Suffix `.../health` reproduzierbar erfolgreich läuft.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Smoke-Runbook robuster gegen URL-Fehlkonfiguration)
+- **`scripts/run_remote_api_smoketest.sh`:** Vor dem Request robuste Base-URL-Normalisierung (`/health`/`/analyze`-Suffix) und harte Validierung auf `http(s)` + gültige URL-Struktur ergänzt.
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Runbook-/Backlog-Doku auf neue URL-Normalisierung und Eingabevalidierung synchronisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Stabilitätsrunner-Inputvalidierung)
 - **`tests/test_remote_stability_script.py`:** Negativtest ergänzt, der ungültiges `STABILITY_STOP_ON_FIRST_FAIL` (`!= 0|1`) mit Exit-Code `2` absichert.
 
