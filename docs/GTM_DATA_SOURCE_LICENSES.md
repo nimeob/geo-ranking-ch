@@ -2,7 +2,7 @@
 
 Stand: 2026-02-26  
 Bezug: #36  
-Abhängige Quelleninventar-Arbeit: #24 (BL-20.2.a)
+Abhängige Quelleninventar-Arbeit: #24 (BL-20.2.a), Ergebnis: [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md)
 
 ## Zweck
 
@@ -40,4 +40,4 @@ Geprüft wurden die in den GTM-nahen Artefakten explizit genannten Quellen:
 - OSM Copyright & ODbL: https://www.openstreetmap.org/copyright
 - opendata.swiss / BFS-Datensatzbedingungen je Quelle
 
-> Hinweis: Dieses Dokument ist ein **GTM-Claim-Gate** für MVP-Kommunikation. Die vollständige, datensatzgenaue Lizenz-/Nutzungsdokumentation wird in **#24 (BL-20.2.a)** geführt und fortgeschrieben.
+> Hinweis: Dieses Dokument ist ein **GTM-Claim-Gate** für MVP-Kommunikation. Die vollständige, datensatzgenaue Lizenz-/Nutzungsdokumentation wird in [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md) (Issue #24 / BL-20.2.a) geführt und fortgeschrieben.

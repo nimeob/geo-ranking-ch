@@ -67,7 +67,7 @@ Für eine Adresse/einen Punkt sollen u. a. schnell sichtbar werden:
 - **Community/Open:** OpenStreetMap
 - **Weitere öffentliche Quellen:** je nach Thema (Lärm, Mobilität, Infrastruktur)
 
-Hinweis: Quelle, Lizenz und Nutzungsbedingungen sind je Datendomäne explizit zu dokumentieren (GTM-Claim-Gate: [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md); vollständiges Quelleninventar in #24 / BL-20.2.a).
+Hinweis: Quelle, Lizenz und Nutzungsbedingungen sind je Datendomäne explizit zu dokumentieren (GTM-Claim-Gate: [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md); vollständiges Quelleninventar: [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md), entstanden aus #24 / BL-20.2.a).
 
 ---
 
