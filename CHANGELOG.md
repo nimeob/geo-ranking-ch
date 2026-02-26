@@ -14,6 +14,10 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-26 — BL-15 CloudTrail-Audit Testhärtung)
+- **`tests/test_audit_legacy_cloudtrail_consumers.py`** neu ergänzt: reproduzierbare Script-Tests für `scripts/audit_legacy_cloudtrail_consumers.sh` (Parametervalidierung, No-Events `exit 0`, Events-Found `exit 10`, LookupEvents-Filterung via `INCLUDE_LOOKUP_EVENTS`).
+- **`docs/BACKLOG.md`** BL-15-Nachweis um den Testhärtungsstand für Issue #109 erweitert.
+
 ### Changed (2026-02-26 — BL-15 Readiness-Recheck Hardening)
 - **`scripts/audit_legacy_aws_consumer_refs.sh`** Repo-Scan auf `git grep` mit Excludes (`artifacts/`, `.venv/`, `.terraform/`) umgestellt, damit erzeugte Audit-Logs keine Folgeaudits verfälschen.
 - **`docs/LEGACY_IAM_USER_READINESS.md`** um dokumentierten Worker-Recheck ohne lokale `aws`-CLI ergänzt (Exit-Codes + Implikationen für BL-15-Status).
