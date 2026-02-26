@@ -65,6 +65,9 @@ Für den grouped-Shape liegt die gleiche Faktorlogik unter:
 - `result.data.modules.explainability.base.factors[*]`
 - `result.data.modules.explainability.personalized.factors[*]`
 
+Darstellungs-/Integrationsregeln für Frontends (Sortierung, `direction`/`contribution`, Fallbacks, i18n):
+- [`docs/user/explainability-v2-integrator-guide.md`](../user/explainability-v2-integrator-guide.md)
+
 ### Error Response
 
 Top-Level:

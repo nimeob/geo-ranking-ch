@@ -291,5 +291,6 @@ curl -sS -X POST "http://localhost:8080/analyze" \
 
 Nächste Seiten:
 
+- [Explainability v2 Integrator Guide](./explainability-v2-integrator-guide.md)
 - [Configuration / ENV](./configuration-env.md)
 - [Troubleshooting](./troubleshooting.md)
