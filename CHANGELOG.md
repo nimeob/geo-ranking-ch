@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-20.7.a.r2 Konfigurationsmatrix Packaging/Runtime)
+- **`docs/PACKAGING_BASELINE.md`** um Abschnitt „Konfigurationsmatrix (Packaging/Runtime)" erweitert: konsolidierte Parameterliste für Build-/Run-Modi inkl. Pflicht/Optional, Default und Beispielwerten.
+- **`tests/test_user_docs.py`** erweitert: Regressionstest für die neue Matrix-Sektion inkl. Pflicht-Querverweis auf den User-Config-Guide.
+
+### Changed (2026-02-26 — BL-20.7.a.r2 Doku-/Backlog-Sync)
+- **`docs/user/configuration-env.md`** um direkten Verweis auf die Packaging-Konfigurationsmatrix ergänzt.
+- **`README.md`** Dokumentationstabellen-Eintrag zu `docs/PACKAGING_BASELINE.md` auf r1/r2/r3-Umfang aktualisiert.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#55 abgeschlossen; nächster Schritt: Parent #34 finalisieren).
+
 ### Added (2026-02-26 — BL-20.7.a.r1 Packaging-Baseline)
 - **`docs/PACKAGING_BASELINE.md`** neu angelegt: reproduzierbare Build/Run-Matrix (Local + Docker), Schrittfolgen für Verifikation (`/health`) und klarer Scope für den API-only Packaging-Basisschnitt.
 - **`tests/test_user_docs.py`** erweitert: Regressionstest auf Pflichtsektionen der Packaging-Baseline.

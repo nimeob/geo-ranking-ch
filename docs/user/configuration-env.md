@@ -2,6 +2,8 @@
 
 Dieser Guide bündelt alle relevanten Umgebungsvariablen für Service und Betriebs-Skripte.
 
+Für den kompakten Packaging-Überblick (Pflicht/Optional + Default/Beispiel pro Parameter) siehe zusätzlich die Konfigurationsmatrix in [`docs/PACKAGING_BASELINE.md`](../PACKAGING_BASELINE.md).
+
 ## 1) Webservice (`src/web_service.py`)
 
 ### ENV-Referenz
