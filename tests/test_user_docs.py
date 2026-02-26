@@ -90,12 +90,19 @@ class TestUserDocumentation(unittest.TestCase):
         required_markers = [
             "# Packaging Baseline (BL-20.7.a)",
             "## 2) Build/Run-Matrix (reproduzierbar)",
-            "## 3) Reproduzierbarer Local-Run (Schrittfolge)",
-            "## 4) Reproduzierbarer Docker-Run",
-            "## 5) Scope-Grenze dieser Baseline",
+            "## 3) Konfigurationsmatrix (Packaging/Runtime)",
+            "## 4) Reproduzierbarer Local-Run (Schrittfolge)",
+            "## 5) Reproduzierbarer Docker-Run",
+            "## 6) Scope-Grenze dieser Baseline",
         ]
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in Packaging-Baseline: {marker}")
+
+        self.assertIn(
+            "[`docs/user/configuration-env.md`](./user/configuration-env.md)",
+            content,
+            msg="Packaging-Konfigurationsmatrix muss auf den User-Config-Guide verlinken",
+        )
 
     def test_root_readme_contains_thematic_webservice_feature_list(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
