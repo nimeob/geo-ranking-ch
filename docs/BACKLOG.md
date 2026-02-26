@@ -316,13 +316,16 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-18 (API-Verhalten stabil dokumentierbar)
-- **Status:** 🟡 neu / in Planung (Issue #5)
+- **Status:** 🟡 in Umsetzung (Issue #5)
 - **Akzeptanzkriterien:**
   - Eine nutzerorientierte Doku beschreibt Installation, Konfiguration und Betrieb verständlich.
   - API-Nutzung inkl. Auth, Timeouts, Request-ID und Fehlerbilder ist mit Beispielen dokumentiert.
   - Troubleshooting enthält die häufigsten Fehlerfälle mit klaren Gegenmaßnahmen.
   - Doku ist versioniert und aus dem README direkt erreichbar.
-- **Nächster Schritt:** Umsetzung über folgende Teilaufgaben (BL-19.1 bis BL-19.8).
+- **Fortschritt (2026-02-26):**
+  - ✅ BL-19.1 Informationsarchitektur umgesetzt (`docs/user/README.md`)
+  - ✅ BL-19.2 Getting Started umgesetzt (`docs/user/getting-started.md`)
+  - ⏳ Nächste Schritte: BL-19.4 (API Usage Guide), BL-19.3 (Configuration/ENV), BL-19.7 (README-Integration verfeinern)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
   2. **BL-19.2 – Getting Started:** Quickstart für lokale Inbetriebnahme inkl. Minimal-Konfiguration und erstem erfolgreichen Request.
