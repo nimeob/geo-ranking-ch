@@ -293,7 +293,7 @@
   - `tests/test_remote_smoke_script.py` um Negativfälle für ungültige Timeout-/Retry-Parameter erweitert (früher Blocker/Traceback → jetzt klare CLI-Fehlermeldung).
   - `tests/test_remote_smoke_script.py` deckt jetzt auch ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`) reproduzierbar mit `exit 2` ab.
   - `tests/test_remote_stability_script.py` ergänzt (lokale E2E-Validierung des Stabilitätsrunners inkl. Stop-on-first-fail-, NDJSON- und Request-ID-Korrelationsnachweis) und um Guard-Fälle erweitert: fehlendes Smoke-JSON trotz `rc=0` **sowie** Smoke-Reports mit `status!=pass` werden reproduzierbar als Fehlrun erkannt; zusätzlich ist jetzt die Trim-Abdeckung für numerische Flag-Inputs (`STABILITY_RUNS=" 2 "`, `STABILITY_MAX_FAILURES=" 0 "`, `STABILITY_STOP_ON_FIRST_FAIL=" 0 "`) inkl. Tab-Varianten (`"\t2\t"`, `"\t0\t"`) enthalten.
-  - `scripts/run_remote_api_stability_check.sh` validiert `STABILITY_STOP_ON_FIRST_FAIL` strikt (`0|1`), trimmt alle numerischen Runner-Flags (`STABILITY_RUNS`, `STABILITY_INTERVAL_SECONDS`, `STABILITY_MAX_FAILURES`, `STABILITY_STOP_ON_FIRST_FAIL`) vor der Validierung, trimmt `STABILITY_REPORT_PATH` vor Nutzung und weist whitespace-only bzw. Control-Char-Pfade fail-fast mit `exit 2` zurück, trimmt/validiert jetzt auch das optionale Script-Override `STABILITY_SMOKE_SCRIPT` (whitespace-only + Control-Char-Overrides → `exit 2`) und behandelt fehlende/leer gebliebene Smoke-Reports sowie Non-PASS-Reports fail-safe als Fehlrun.
+  - `scripts/run_remote_api_stability_check.sh` validiert `STABILITY_STOP_ON_FIRST_FAIL` strikt (`0|1`), trimmt alle numerischen Runner-Flags (`STABILITY_RUNS`, `STABILITY_INTERVAL_SECONDS`, `STABILITY_MAX_FAILURES`, `STABILITY_STOP_ON_FIRST_FAIL`) vor der Validierung, trimmt `STABILITY_REPORT_PATH` vor Nutzung und weist whitespace-only bzw. Control-Char-Pfade fail-fast mit `exit 2` zurück, trimmt/validiert jetzt auch das optionale Script-Override `STABILITY_SMOKE_SCRIPT` (whitespace-only + Control-Char-Overrides → `exit 2`), löst relative `STABILITY_SMOKE_SCRIPT`-Overrides robust gegen `REPO_ROOT` auf und erzwingt für das Override eine ausführbare Datei (`-f` + `-x`), sowie behandelt fehlende/leer gebliebene Smoke-Reports und Non-PASS-Reports fail-safe als Fehlrun.
   - `.github/workflows/deploy.yml` um optionalen `/analyze`-Smoke-Test nach Deploy erweitert (gesteuert via `SERVICE_BASE_URL` + optional `SERVICE_API_AUTH_TOKEN`).
   - `docs/BL-18_SERVICE_E2E.md` um Reproduzierbarkeit/Stabilitäts-Runbook erweitert (inkl. lokalem 2-Run-Nachweis: `pass=2`, `fail=0`).
   - `tests/test_web_e2e.py` um API-E2E-Guards erweitert: ist `X-Request-Id` leer/whitespace **oder enthält Steuerzeichen** (z. B. Tab), fällt der Service deterministisch auf `X-Correlation-Id` zurück und spiegelt diese ID in Header+JSON.
@@ -306,8 +306,33 @@
   - `tests/test_remote_smoke_script.py` ergänzt dafür einen Happy-Path mit getrimmtem `SMOKE_QUERY="  __ok__  "` sowie Negativtests für whitespace-only `SMOKE_QUERY` und `SMOKE_QUERY` mit Steuerzeichen.
   - `scripts/run_remote_api_smoketest.sh` trimmt `SMOKE_OUTPUT_JSON` jetzt vor der Nutzung konsistent (inkl. Curl-Fehlpfad-Report), weist whitespace-only Werte nach dem Trim fail-fast zurück und validiert den Pfad zusätzlich auf Steuerzeichen; so werden whitespace-umhüllte Pfade robust normalisiert und Fehlkonfigurationen reproduzierbar mit `exit 2` abgewiesen.
   - `tests/test_remote_smoke_script.py` ergänzt dafür einen Curl-Fehlpfad-Test, der den getrimmten `SMOKE_OUTPUT_JSON`-Reportpfad (`reason=curl_error`) reproduzierbar absichert, plus Negativtests für `SMOKE_OUTPUT_JSON` mit Steuerzeichen und whitespace-only Wert (`exit 2`).
-  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit Request-ID-Echo in Header+JSON bestätigt; zuletzt im Worker-1-10m-Langlauf (Iteration 21) im getrimmten `request`-Header-Mode (`SMOKE_REQUEST_ID_HEADER="  request  "`), getrimmtem Echo-Flag (`SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "`), case-insensitive normalisiertem `SMOKE_MODE="  RiSk  "`, getrimmtem `SMOKE_QUERY="  __ok__  "`, getrimmtem optionalen Bearer-Token (`DEV_API_AUTH_TOKEN` via `printf '  bl18-token\t'`) und getrimmtem `STABILITY_SMOKE_SCRIPT`-Override (`printf '  ./scripts/run_remote_api_smoketest.sh\t'`) durchgeführt; Evidenz in `artifacts/bl18.1-smoke-local-worker-1-10m-1772105805.json` + `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772105805.ndjson` (`pass=5`, `fail=0`) bei kombinierter Suffix-Kette (`DEV_BASE_URL="  HTTP://127.0.0.1:39269/AnAlYzE//health/analyze/health/analyze///  "`).
-  - Reproduzierbarkeits-Check erneuert: `./scripts/run_webservice_e2e.sh` erfolgreich (`79 passed`, Exit `0`) direkt vor dem dedizierten Worker-1-10m-Langlauf (Smoke + 5x Stabilität inkl. getrimmtem `STABILITY_SMOKE_SCRIPT`-Override).
+  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit Request-ID-Echo in Header+JSON bestätigt; zuletzt im Worker-1-10m-Langlauf (Iteration 22) im getrimmten `request`-Header-Mode (`SMOKE_REQUEST_ID_HEADER="  request  "`), getrimmtem Echo-Flag (`SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "`), case-insensitive normalisiertem `SMOKE_MODE="  RiSk  "`, getrimmtem `SMOKE_QUERY="  __ok__  "`, getrimmtem optionalen Bearer-Token (`DEV_API_AUTH_TOKEN` via `printf '  bl18-token\t'`) und tab-umhülltem, **relativem** `STABILITY_SMOKE_SCRIPT`-Override (`printf '  ./scripts/run_remote_api_smoketest.sh\t'`) aus fremdem `cwd` durchgeführt; Evidenz in `artifacts/bl18.1-smoke-local-worker-1-10m-1772106342.json` + `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772106342.ndjson` (`pass=5`, `fail=0`) bei kombinierter Suffix-Kette (`DEV_BASE_URL="  HTTP://127.0.0.1:46943/AnAlYzE//health/analyze/health/analyze///  "`).
+  - Reproduzierbarkeits-Check erneuert: `./scripts/run_webservice_e2e.sh` erfolgreich (`81 passed`, Exit `0`) direkt vor dem dedizierten Worker-1-10m-Langlauf (Smoke + 5x Stabilität inkl. relativem `STABILITY_SMOKE_SCRIPT`-Override aus fremdem `cwd`).
+
+### BL-19 — Userdokumentation
+- **Priorität:** P2
+- **Aufwand:** M
+- **Abhängigkeiten:** BL-18 (API-Verhalten stabil dokumentierbar)
+- **Status:** 🟡 neu / in Planung (Issue #5)
+- **Akzeptanzkriterien:**
+  - Eine nutzerorientierte Doku beschreibt Installation, Konfiguration und Betrieb verständlich.
+  - API-Nutzung inkl. Auth, Timeouts, Request-ID und Fehlerbilder ist mit Beispielen dokumentiert.
+  - Troubleshooting enthält die häufigsten Fehlerfälle mit klaren Gegenmaßnahmen.
+  - Doku ist versioniert und aus dem README direkt erreichbar.
+- **Nächster Schritt:** Umsetzung über folgende Teilaufgaben (BL-19.1 bis BL-19.8).
+- **Teilaufgaben (vorgeschlagen):**
+  1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
+  2. **BL-19.2 – Getting Started:** Quickstart für lokale Inbetriebnahme inkl. Minimal-Konfiguration und erstem erfolgreichen Request.
+  3. **BL-19.3 – Konfiguration & Umgebungsvariablen:** Alle relevanten ENV-Variablen inkl. Defaults, Pflicht/Optional, Validierungsregeln dokumentieren.
+  4. **BL-19.4 – API Usage Guide:** Endpoint-Referenz (`/analyze`, Health), Auth, Request/Response-Beispiele, Request-ID-Verhalten und typische Statuscodes.
+  5. **BL-19.5 – Fehlerbilder & Troubleshooting:** Häufige Fehlerszenarien (401/400/504, Timeout, Token, URL-Normalisierung) mit konkreten Diagnose-/Fix-Schritten.
+  6. **BL-19.6 – Betrieb & Runbooks:** Smoke-/Stability-Runs, Deploy-Checks, Artefakte, Minimal-SLO/Monitoring-Hinweise verständlich zusammenfassen.
+  7. **BL-19.7 – README-Integration:** Root-README auf Userdoku verlinken (Quicklinks: Setup, API, Troubleshooting, Operations).
+  8. **BL-19.8 – Doku-Qualitätsgate:** Linkcheck/Strukturcheck + „frisches Setup“-Testlauf gegen Doku; Abweichungen als Follow-up Issues erfassen.
+- **Priorisierung (empfohlen):**
+  - **MVP / zuerst umsetzen:** BL-19.1 → BL-19.2 → BL-19.4 → BL-19.3 → BL-19.7
+  - **Phase 2 / direkt danach:** BL-19.5 → BL-19.6 → BL-19.8
+- **Begründung:** Erst schnelle Nutzbarkeit (Einstieg + funktionierende API-Nutzung), dann Tiefe (Troubleshooting/Operations) und abschließend Qualitätsgate.
 
 ---
 
@@ -333,3 +358,4 @@
 3. **BL-15** (Legacy-IAM-Readiness) 🟡
 4. **BL-17** (OpenClaw OIDC-first + Legacy-Fallback) ⏳
 5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ⏳
+6. **BL-19** (Userdokumentation) ⏳
