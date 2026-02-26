@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Short-Alias-Support für `SMOKE_REQUEST_ID_HEADER` + Real-Run, Iteration 40)
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID_HEADER` akzeptiert zusätzlich kompakte Alias-Werte (`request-id`, `correlation-id`, `request_id`, `correlation_id`) und mappt diese deterministisch auf die real gesendeten Header (`X-Request-Id`/`X-Correlation-Id` bzw. `X_Request_Id`/`X_Correlation_Id`).
+- **`tests/test_remote_smoke_script.py`:** neue Happy-Path-Tests verifizieren reproduzierbar, dass `request-id` und `correlation_id` robust normalisiert werden und die erwarteten Header-Namen (`request_id_header_name`) im Smoke-Report auftauchen.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`108 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) mit Short-Aliasen (`SMOKE_REQUEST_ID_HEADER="request-id"` im Smoke, `"correlation_id"` in Stabilität).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772117788.json`, `artifacts/worker-1-10m/iteration-40/bl18.1-remote-stability-local-worker-1-10m-1772117788.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772117788.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-40 + Short-Alias-Support synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** erlaubte `SMOKE_REQUEST_ID_HEADER`-Werte um Short-Aliasse (`request-id|correlation-id|request_id|correlation_id`) erweitert und Nachweisführung auf Iteration 40 (`108 passed`, Smoke + 3x Stabilität, `request_id_header_name=X-Request-Id` + `X_Correlation_Id`) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Request-ID-Delimiter-Guard + Real-Run, Iteration 39)
 - **`src/web_service.py`:** Request-ID-Sanitizer verwirft jetzt zusätzlich Header-Werte mit Trennzeichen `,`/`;`, damit aggregierte/mehrdeutige IDs nicht als gültige Korrelations-ID gespiegelt werden.
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID` wird fail-fast auch auf Trennzeichen `,`/`;` geprüft (`exit 2` + klare CLI-Meldung).

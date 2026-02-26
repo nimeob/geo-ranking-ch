@@ -18,7 +18,7 @@ set -euo pipefail
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
-#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ x-request-id/x-correlation-id/x_request_id/x_correlation_id Aliasse), Default: request; bei _-Aliasen wird der Header explizit als X_Request_Id/X_Correlation_Id gesendet
+#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; bei _-Aliasen wird der Header explizit als X_Request_Id/X_Correlation_Id gesendet
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
@@ -320,24 +320,24 @@ fi
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER,,}"
 REQUEST_ID_HEADER_NAME="X-Request-Id"
 case "$SMOKE_REQUEST_ID_HEADER" in
-  request|x-request-id)
+  request|request-id|x-request-id)
     SMOKE_REQUEST_ID_HEADER="request"
     REQUEST_ID_HEADER_NAME="X-Request-Id"
     ;;
-  x_request_id)
+  request_id|x_request_id)
     SMOKE_REQUEST_ID_HEADER="request"
     REQUEST_ID_HEADER_NAME="X_Request_Id"
     ;;
-  correlation|x-correlation-id)
+  correlation|correlation-id|x-correlation-id)
     SMOKE_REQUEST_ID_HEADER="correlation"
     REQUEST_ID_HEADER_NAME="X-Correlation-Id"
     ;;
-  x_correlation_id)
+  correlation_id|x_correlation_id)
     SMOKE_REQUEST_ID_HEADER="correlation"
     REQUEST_ID_HEADER_NAME="X_Correlation_Id"
     ;;
   *)
-    echo "[BL-18.1] Ungültiger SMOKE_REQUEST_ID_HEADER='${SMOKE_REQUEST_ID_HEADER}' (erlaubt: request|correlation|x-request-id|x-correlation-id|x_request_id|x_correlation_id)." >&2
+    echo "[BL-18.1] Ungültiger SMOKE_REQUEST_ID_HEADER='${SMOKE_REQUEST_ID_HEADER}' (erlaubt: request|correlation|request-id|correlation-id|x-request-id|x-correlation-id|request_id|correlation_id|x_request_id|x_correlation_id)." >&2
     exit 2
     ;;
 esac
