@@ -81,12 +81,15 @@ Requests:
 Responses:
 - [`docs/api/examples/v1/location-intelligence.response.success.address.json`](./examples/v1/location-intelligence.response.success.address.json)
 - [`docs/api/examples/v1/location-intelligence.response.error.bad-request.json`](./examples/v1/location-intelligence.response.error.bad-request.json)
+- [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
 
 ## 6) CI-Check (verdrahtet)
 
 - Workflow: [`.github/workflows/contract-tests.yml`](../../.github/workflows/contract-tests.yml)
-- Trigger: Änderungen an `docs/api/**`, `tests/test_api_contract_v1.py`, `tests/data/api_contract_v1/**`
-- Ausführung: `pytest -q tests/test_api_contract_v1.py`
+- Trigger: Änderungen an `docs/api/**`, `tests/test_api_contract_v1.py`, `tests/test_api_field_catalog.py`, `tests/data/api_contract_v1/**`, `scripts/validate_field_catalog.py`
+- Ausführung:
+  - `pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py`
+  - `python3 scripts/validate_field_catalog.py`
 - Golden-Testdaten:
   - positiv: `tests/data/api_contract_v1/valid/*.json`
   - negativ: `tests/data/api_contract_v1/invalid/*.json`
@@ -95,3 +98,30 @@ Responses:
 
 - **BL-20.1.a:** Versionierungspfad, Contract-Dokument, JSON-Schemas, Fehlercode-Matrix, Beispielpayloads
 - **BL-20.1.b:** Golden-Case-Validierung (positive/negative Contract-Tests), Testdatenablage und CI-Verdrahtung
+
+## 8) Maschinenlesbarer Feldkatalog (BL-20.1.e)
+
+Für die laufende Response-Felddokumentation (legacy + grouped) ist der Feldkatalog die Single-Source-of-Truth:
+
+- Feldmanifest: [`docs/api/field_catalog.json`](./field_catalog.json)
+- grouped Referenzpayload: [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
+- Validator: [`scripts/validate_field_catalog.py`](../../scripts/validate_field_catalog.py)
+
+Der Validator prüft automatisiert:
+- Manifest-Schema (Pflichtattribute, Feldtypen, Stabilitätsklassen)
+- Vollständige Feldabdeckung gegenüber den Beispielpayloads je Response-Shape
+- Typ-Konsistenz (Manifest vs. Beispiele)
+- Required-Felder pro Shape
+
+## 9) Pflegeprozess für neue/angepasste Response-Felder
+
+Bei jeder Contract-Änderung an `legacy` oder `grouped` gilt:
+
+1. Beispielpayload anpassen (`docs/api/examples/...`).
+2. `docs/api/field_catalog.json` mit neuem/angepasstem Feldpfad aktualisieren.
+3. `python3 scripts/validate_field_catalog.py` lokal ausführen.
+4. Contract-Tests laufen lassen:
+   - `pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py`
+5. Änderungsnotiz in `CHANGELOG.md` ergänzen (Breaking vs. Non-Breaking klar markieren).
+
+Nur wenn Manifest + Beispiele + Checks konsistent sind, gilt der Contract als aktualisiert.
