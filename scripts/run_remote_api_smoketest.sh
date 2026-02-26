@@ -21,6 +21,7 @@ set -euo pipefail
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (Default: request)
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"
+#   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
 
 if [[ -z "${DEV_BASE_URL:-}" ]]; then
   echo "[BL-18.1] DEV_BASE_URL ist nicht gesetzt. Beispiel: DEV_BASE_URL=https://<endpoint> ./scripts/run_remote_api_smoketest.sh" >&2
@@ -354,6 +355,18 @@ if any(ord(ch) < 32 or ord(ch) == 127 for ch in token):
 PY
   then
     echo "[BL-18.1] DEV_API_AUTH_TOKEN darf keine Steuerzeichen enthalten." >&2
+    exit 2
+  fi
+
+  if ! python3 - "${DEV_API_AUTH_TOKEN_TRIMMED}" <<'PY'
+import sys
+
+token = sys.argv[1]
+if any(ch.isspace() for ch in token):
+    raise SystemExit(1)
+PY
+  then
+    echo "[BL-18.1] DEV_API_AUTH_TOKEN darf keine eingebetteten Whitespaces enthalten." >&2
     exit 2
   fi
 

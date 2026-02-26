@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Embedded-Whitespace-Guard für `DEV_API_AUTH_TOKEN` + 5x Stabilität, Iteration 18)
+- **`scripts/run_remote_api_smoketest.sh`:** optionales `DEV_API_AUTH_TOKEN` rejectet nach dem Trim jetzt zusätzlich eingebettete Whitespaces fail-fast mit `exit 2`; dadurch bleiben Bearer-Header robust und reproduzierbar, ohne implizite Token-Splits bei fehlerhaften Env-Inputs.
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass `DEV_API_AUTH_TOKEN="bl18 token"` mit klarer CLI-Fehlermeldung (`exit 2`) scheitert.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`72 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit kombiniert normalisierter Suffix-Kette.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772103860.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772103860.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-10m-server-1772103860.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-18 + `DEV_API_AUTH_TOKEN`-Whitespace-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Negativfall-Abdeckung und Nachweisführung auf den neuen Embedded-Whitespace-Guard für `DEV_API_AUTH_TOKEN` sowie den aktuellen Worker-1-10m-Langlauf (`72 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Control-Char-Guard für `SMOKE_OUTPUT_JSON` + 5x Stabilität, Iteration 17)
 - **`scripts/run_remote_api_smoketest.sh`:** validiert `SMOKE_OUTPUT_JSON` nach dem Trim jetzt zusätzlich auf Steuerzeichen; Pfade mit Control-Chars (z. B. Zeilenumbruch) werden fail-fast mit `exit 2` abgewiesen, damit Artefaktpfade im Smoke-Runner reproduzierbar und log-sicher bleiben.
 - **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass `SMOKE_OUTPUT_JSON` mit Steuerzeichen klar mit `exit 2` und eindeutiger CLI-Fehlermeldung scheitert.
