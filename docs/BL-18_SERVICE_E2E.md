@@ -65,3 +65,16 @@ DEV_BASE_URL="https://<dein-dev-endpoint>" ./scripts/run_webservice_e2e.sh
 # falls dev auth aktiv ist
 DEV_BASE_URL="https://<dein-dev-endpoint>" DEV_API_AUTH_TOKEN="<token>" ./scripts/run_webservice_e2e.sh
 ```
+
+## BL-18.1 — Remote-API-Smoke-Test (Internet)
+
+Für den dedizierten Erfolgsnachweis über öffentliche Erreichbarkeit (`POST /analyze`) steht ein separates Script bereit:
+
+```bash
+DEV_BASE_URL="https://<dein-dev-endpoint>" ./scripts/run_remote_api_smoketest.sh
+
+# optional mit Auth
+DEV_BASE_URL="https://<dein-dev-endpoint>" DEV_API_AUTH_TOKEN="<token>" ./scripts/run_remote_api_smoketest.sh
+```
+
+Der Check validiert mindestens: HTTP `200`, `ok=true`, `result` vorhanden.

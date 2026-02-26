@@ -262,6 +262,19 @@
   - `scripts/run_webservice_e2e.sh`: einheitlicher Runner für lokal + optional dev.
   - `docs/BL-18_SERVICE_E2E.md`: Ist-Analyse + Runbook dokumentiert.
 
+### BL-18.1 — Erfolgreicher API-Test über Internet (OpenClaw-Agent)
+- **Priorität:** P1
+- **Aufwand:** S
+- **Abhängigkeiten:** BL-18
+- **Status:** 🟡 in Umsetzung (2026-02-26)
+- **Akzeptanzkriterien:**
+  - Reproduzierbarer Smoke-Test ruft `POST /analyze` über öffentliche URL auf.
+  - Test prüft mindestens HTTP-Status `200`, `ok=true` und vorhandenes `result`-Objekt.
+  - Test ist per Script ausführbar (inkl. optionalem Bearer-Token).
+  - Kurzer Nachweislauf ist dokumentiert (stdout/Runbook-Eintrag).
+- **Umgesetzt (Iteration 2026-02-26):**
+  - `scripts/run_remote_api_smoketest.sh` ergänzt (OpenClaw/CLI-tauglicher Internet-Smoke-Test für `/analyze`, inkl. optionalem `DEV_API_AUTH_TOKEN`).
+
 ---
 
 ## Nacht-Plan (abgeschlossen)
