@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Trim-Guard für `SMOKE_OUTPUT_JSON` (inkl. Curl-Fehlpfad) + 5x Stabilität, Iteration 16)
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_OUTPUT_JSON` wird jetzt vor der Nutzung getrimmt und dadurch in allen Pfaden konsistent verwendet (inkl. Curl-Fehlerpfad-Report), damit whitespace-umhüllte Artefaktpfade nicht in abweichende/versteckte Zielpfade schreiben.
+- **`tests/test_remote_smoke_script.py`:** neuer Curl-Fehlpfad-Test verifiziert reproduzierbar, dass ein whitespace-umhüllter `SMOKE_OUTPUT_JSON`-Pfad korrekt auf den getrimmten Zielpfad schreibt (`reason=curl_error`).
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`70 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit kombiniert normalisierter Suffix-Kette und whitespace-umhülltem `SMOKE_OUTPUT_JSON`.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772102717.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772102717.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-10m-server-1772102717.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-16 + `SMOKE_OUTPUT_JSON`-Trim synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf den neuen `SMOKE_OUTPUT_JSON`-Trim-Guard sowie den aktuellen Worker-1-10m-Langlauf (`70 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Embedded-Whitespace-Guard für `SMOKE_REQUEST_ID` + 5x Stabilität, Iteration 15)
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID` rejectet jetzt zusätzlich eingebettete Whitespaces fail-fast mit `exit 2`; dadurch bleiben Request-Header/Trace-IDs reproduzierbar ohne implizite Header-Normalisierung durch Clients/Proxies.
 - **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass `SMOKE_REQUEST_ID` mit eingebettetem Whitespace (`"bl18 bad-request-id"`) klar mit `exit 2` und eindeutiger CLI-Fehlermeldung fehlschlägt.

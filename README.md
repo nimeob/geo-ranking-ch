@@ -97,6 +97,7 @@ curl http://localhost:8080/health
 # optional: SMOKE_REQUEST_ID_HEADER=request|correlation (Default request; Wert wird getrimmt + case-insensitive normalisiert; correlation prüft Fallback über X-Correlation-Id)
 # optional: SMOKE_ENFORCE_REQUEST_ID_ECHO=1|0 (Wert wird vor Validierung getrimmt)
 # optional: DEV_API_AUTH_TOKEN wird vor Verwendung getrimmt; whitespace-only Werte und Steuerzeichen werden fail-fast mit exit 2 abgewiesen
+# optional: SMOKE_OUTPUT_JSON wird vor der Nutzung getrimmt (robuste Artefaktausgabe auch bei whitespace-umhüllten Pfaden)
 DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_smoketest.sh
 
 # kurzer Stabilitätslauf (mehrere Remote-Smokes, mit NDJSON-Report)

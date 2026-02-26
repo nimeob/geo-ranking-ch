@@ -1083,6 +1083,40 @@ class TestRemoteSmokeScript(unittest.TestCase):
             self.assertIn("SMOKE_REQUEST_ID darf maximal 128 Zeichen enthalten", cp.stderr)
             self.assertFalse(out_json.exists())
 
+    def test_smoke_script_trims_output_json_path_before_writing_curl_error_report(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke-curl-error.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": f"http://127.0.0.1:{_free_port()}",
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "1",
+                    "CURL_MAX_TIME": "1",
+                    "CURL_RETRY_COUNT": "0",
+                    "CURL_RETRY_DELAY": "0",
+                    "SMOKE_OUTPUT_JSON": f"  {out_json}  ",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 1)
+            self.assertIn("curl-Aufruf fehlgeschlagen", cp.stdout)
+            self.assertTrue(out_json.exists())
+
+            report = json.loads(out_json.read_text(encoding="utf-8"))
+            self.assertEqual(report.get("status"), "fail")
+            self.assertEqual(report.get("reason"), "curl_error")
+            self.assertEqual(report.get("http_status"), None)
+
 
 if __name__ == "__main__":
     unittest.main()

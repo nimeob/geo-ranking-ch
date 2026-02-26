@@ -63,6 +63,12 @@ SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID:-bl18-$(date +%s)}"
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER:-request}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
 
+SMOKE_OUTPUT_JSON="$(python3 - "${SMOKE_OUTPUT_JSON}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
 SMOKE_QUERY="$(python3 - "${SMOKE_QUERY}" <<'PY'
 import sys
 print(sys.argv[1].strip())
