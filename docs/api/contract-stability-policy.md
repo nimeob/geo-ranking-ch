@@ -50,7 +50,29 @@ Breaking Changes werden **nicht** still in `/api/v1` ausgerollt. Sie erfordern:
 2. dokumentierte Migration,
 3. klaren Release-Hinweis.
 
-## 4) Changelog-/Release-Hinweisprozess
+## 4) BL-18.fc1 Regression-Guardrails (Forward-Compatibility)
+
+Bezug:
+- Parent-/Kontext-Issue: [#3](https://github.com/nimeob/geo-ranking-ch/issues/3)
+- Folgeabhängigkeit: [#127](https://github.com/nimeob/geo-ranking-ch/issues/127)
+
+Für additive Contract-Evolution in `/api/v1` gelten zusätzlich folgende dauerhafte Regression-Guards:
+
+1. **Legacy-Minimalprojektion bleibt stabil:**
+   - additive optionale Felder dürfen die Auswertung einer bestehenden Minimal-Client-Sicht nicht verändern.
+2. **Semantische Trennung bleibt strikt:**
+   - `result.status` enthält Qualitäts-/Source-Meta,
+   - `result.data` enthält Entity-/Moduldaten,
+   - status-artige Schlüssel dürfen nicht nach `result.data` durchrutschen.
+3. **Smoke-Kompatibilität bleibt robust:**
+   - zusätzliche optionale Felder dürfen den Smoke-Mindestcheck (`ok=true`, `result` vorhanden) nicht brechen.
+
+Automatisierter Nachweis im Repo:
+- `tests/test_contract_compatibility_regression.py`
+- `tests/test_web_service_grouped_response.py`
+- `tests/test_remote_smoke_script.py`
+
+## 5) Changelog-/Release-Hinweisprozess
 
 Bei jeder Contract-Änderung:
 
@@ -63,7 +85,7 @@ Bei jeder Contract-Änderung:
 5. Änderungsnotiz in [`CHANGELOG.md`](../../CHANGELOG.md) unter `[Unreleased]` ergänzen.
 6. Bei Breaking-Änderung zusätzlich explizite Migrationshinweise (alt -> neu) in den Release-Notes dokumentieren.
 
-## 5) Referenzen
+## 6) Referenzen
 
 - API-Vertrag: [`docs/api/contract-v1.md`](./contract-v1.md)
 - Feldmanifest: [`docs/api/field_catalog.json`](./field_catalog.json)
