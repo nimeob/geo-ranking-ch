@@ -32,6 +32,9 @@
   - `POST /analyze` übernimmt die **erste gültige** ID aus `X-Request-Id` (primär) oder `X-Correlation-Id` (Fallback) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
   - Leere/whitespace-only IDs **und** IDs mit Steuerzeichen (z. B. Tabs) werden verworfen; ist `X-Request-Id` dadurch ungültig, wird deterministisch auf `X-Correlation-Id` zurückgefallen.
   - Ohne mitgelieferte gültige ID erzeugt der Service eine interne Request-ID.
+- **Port-ENV-Kompatibilität für lokale Runner:**
+  - `src/web_service.py` akzeptiert `PORT` weiterhin als primäre Port-Variable.
+  - Falls `PORT` fehlt/leer ist, wird auf `WEB_PORT` zurückgefallen (hilfreich für lokale Wrapper/Agent-Runner, die `WEB_PORT` setzen).
 - **Test-Fault-Injection (nur lokal/gezielt):**
   - via `ENABLE_E2E_FAULT_INJECTION=1`
   - Query `__timeout__` erzwingt `504`
@@ -140,6 +143,19 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker C, WEB_PORT-Fallback + Request-Header-Mode + 5x Stabilität, Iteration 10)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `env -u PORT HOST="127.0.0.1" WEB_PORT="42503" API_AUTH_TOKEN="bl18-token" python3 -m src.web_service` (isolierter lokaler Service-Start; Validierung des `WEB_PORT`-Fallbacks bei explizit entferntem `PORT`)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:42503/health/analyze//health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-c-langlauf-1772099864  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.75 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-c-1772099864.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:42503/health/analyze//health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.75 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-c-1772099864.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `62 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt im getrimmten `request`-Header-Mode trotz Space-umhüllter Inputs und kombinierter Suffix-Kette (`artifacts/bl18.1-smoke-local-worker-c-1772099864.json`, `request_id_header_source=request`, `request_id_echo_enforced=true`, `started_at_utc=2026-02-26T09:57:54Z`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-c-1772099864.ndjson`; Runs 1..5 alle `status=pass`).
+  - Server-Log: `artifacts/bl18.1-worker-c-server-1772099864.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker A, Langlauf-Recheck Tab-Trim + kombinierte Suffix-Kette + 5x Stabilität, Iteration 9)
 

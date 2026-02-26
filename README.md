@@ -49,6 +49,7 @@ pre-commit run --all-files
 
 # Minimalen Webservice starten (für ECS vorbereitet)
 python -m src.web_service
+# optionaler Port via ENV: PORT (primär) oder WEB_PORT (Fallback für lokale Wrapper)
 # Healthcheck: http://localhost:8080/health
 ```
 

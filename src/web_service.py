@@ -234,9 +234,22 @@ class Handler(BaseHTTPRequestHandler):
             )
 
 
+def _resolve_port() -> int:
+    """Liest die Service-Port-Konfiguration robust aus ENV.
+
+    Kompatibilität: `PORT` bleibt primär, `WEB_PORT` dient als Fallback
+    (z. B. für lokale Wrapper/Runner).
+    """
+
+    port_raw = os.getenv("PORT")
+    if port_raw is None or not str(port_raw).strip():
+        port_raw = os.getenv("WEB_PORT", "8080")
+    return int(str(port_raw).strip())
+
+
 def main() -> None:
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8080"))
+    port = _resolve_port()
     httpd = ThreadingHTTPServer((host, port), Handler)
     print(f"geo-ranking-ch web service listening on {host}:{port}")
     httpd.serve_forever()

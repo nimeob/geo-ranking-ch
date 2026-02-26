@@ -263,3 +263,53 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body.get("request_id"), correlation_id)
         self.assertEqual(resp_headers.get("x-request-id"), correlation_id)
+
+
+class TestWebServiceEnvPortFallback(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.port = _free_port()
+        cls.base_url = f"http://127.0.0.1:{cls.port}"
+        env = os.environ.copy()
+        env.update(
+            {
+                "HOST": "127.0.0.1",
+                "WEB_PORT": str(cls.port),
+                "PYTHONPATH": str(REPO_ROOT),
+            }
+        )
+        env.pop("PORT", None)
+
+        cls.proc = subprocess.Popen(
+            [sys.executable, "-m", "src.web_service"],
+            cwd=str(REPO_ROOT),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        deadline = time.time() + 12
+        while time.time() < deadline:
+            try:
+                status, _ = _http_json("GET", f"{cls.base_url}/health", payload=None)
+                if status == 200:
+                    return
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+        raise RuntimeError("web_service wurde via WEB_PORT nicht rechtzeitig erreichbar")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        try:
+            cls.proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            cls.proc.kill()
+
+    def test_health_works_with_web_port_fallback(self):
+        status, body = _http_json("GET", f"{self.base_url}/health")
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))

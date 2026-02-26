@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C WEB_PORT-Fallback + Request-Header-Mode + 5x Stabilität, Iteration 10)
+- **`src/web_service.py`:** Port-Auflösung für den lokalen Service robuster gemacht (`PORT` bleibt primär; fehlt/leer → Fallback auf `WEB_PORT`).
+- **`tests/test_web_e2e.py`:** zusätzlicher E2E-Test `TestWebServiceEnvPortFallback` sichert reproduzierbar ab, dass der Service via `WEB_PORT` startet, wenn `PORT` nicht gesetzt ist.
+- **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`62 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit case-insensitive `SMOKE_MODE="  RiSk  "` und kombinierter Suffix-Kette.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-c-1772099864.json`, `artifacts/bl18.1-remote-stability-local-worker-c-1772099864.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-c-server-1772099864.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-C Iteration-10 + WEB_PORT-Fallback synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Runbook-Nachweis und Backlog-Status auf den aktuellen Worker-C-Langlauf (`62 passed`, Smoke + 5x Stabilität) sowie die `WEB_PORT`-Fallback-Kompatibilität synchronisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Langlauf-Recheck mit Tab-Trim + kombinierter Suffix-Kette, Iteration 9)
 - **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`61 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) bei Tab-umhüllter Base-URL/Header-/Flag-Eingabe und kombinierter Suffix-Kette (`.../AnAlYzE//health/analyze/health/analyze///`).
 - **Evidenz:** `artifacts/bl18.1-smoke-local-worker-a-1772099418.json`, `artifacts/bl18.1-remote-stability-local-worker-a-1772099418.ndjson`.
