@@ -42,6 +42,10 @@ class TestUserDocumentation(unittest.TestCase):
         self.assertIn("[Configuration / ENV](./configuration-env.md)", user_index)
         self.assertIn("[API Usage Guide](./api-usage.md)", user_index)
         self.assertIn("[Troubleshooting](./troubleshooting.md)", user_index)
+        self.assertIn(
+            "[Explainability v2 Integrator Guide](./explainability-v2-integrator-guide.md)",
+            user_index,
+        )
         self.assertIn("[Operations Quick Guide](./operations-runbooks.md)", user_index)
 
         getting_started = (REPO_ROOT / "docs" / "user" / "getting-started.md").read_text(
@@ -81,6 +85,38 @@ class TestUserDocumentation(unittest.TestCase):
         ]
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt im Operations-Guide: {marker}")
+
+    def test_explainability_integrator_guide_exists_with_cross_links(self):
+        guide_path = REPO_ROOT / "docs" / "user" / "explainability-v2-integrator-guide.md"
+        self.assertTrue(
+            guide_path.is_file(),
+            msg="docs/user/explainability-v2-integrator-guide.md fehlt",
+        )
+
+        content = guide_path.read_text(encoding="utf-8")
+        required_markers = [
+            "# Explainability v2 Integrator Guide (BL-20.1.g.wp3)",
+            "## 2) Rendering-Regeln (verbindliche Empfehlung)",
+            "## 3) JSON-Beispiel (grouped, gekürzt)",
+            "## 4) Fallback- und Degradationsregeln",
+            "## 5) i18n- und Labeling-Regeln (`key` -> UI-Label)",
+        ]
+        for marker in required_markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt im Integrator-Guide: {marker}")
+
+        contract_doc = (REPO_ROOT / "docs" / "api" / "contract-v1.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "docs/user/explainability-v2-integrator-guide.md",
+            contract_doc,
+            msg="Contract-Doku muss auf den Explainability-Integrator-Guide verlinken",
+        )
+
+        api_usage_doc = (REPO_ROOT / "docs" / "user" / "api-usage.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "[Explainability v2 Integrator Guide](./explainability-v2-integrator-guide.md)",
+            api_usage_doc,
+            msg="User-API-Doku muss auf den Explainability-Integrator-Guide verlinken",
+        )
 
     def test_packaging_baseline_doc_exists_with_core_sections(self):
         packaging_path = REPO_ROOT / "docs" / "PACKAGING_BASELINE.md"

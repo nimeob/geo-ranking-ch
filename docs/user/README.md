@@ -17,6 +17,8 @@ Ziel dieser Doku: den Service schnell nutzbar machen — für lokale Entwicklung
   - Schnellster Weg von 0 → erster erfolgreicher `/analyze`-Call.
 - **[API Usage Guide](./api-usage.md)**
   - Endpoints, Header, Request/Response-Schema, Beispiele.
+- **[Explainability v2 Integrator Guide](./explainability-v2-integrator-guide.md)**
+  - Rendering-/Fallback-Regeln für Faktorbeiträge (`pro|contra|neutral`) inkl. i18n-Hinweise.
 - **[Configuration / ENV](./configuration-env.md)**
   - Alle relevanten Umgebungsvariablen inkl. Defaults/Validierung und Praxisbeispielen.
 - **[Troubleshooting](./troubleshooting.md)**
@@ -28,9 +30,10 @@ Ziel dieser Doku: den Service schnell nutzbar machen — für lokale Entwicklung
 
 1. Getting Started
 2. API Usage Guide
-3. Configuration / ENV
-4. Troubleshooting
-5. Operations
+3. Explainability v2 Integrator Guide
+4. Configuration / ENV
+5. Troubleshooting
+6. Operations
 
 ## Scope-Hinweis
 
