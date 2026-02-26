@@ -101,3 +101,15 @@ Eine Iteration ist erst „done“, wenn:
 - Keine Secrets in Repo/Logs/Docs
 - Keine destruktiven Infra-Änderungen ohne expliziten Auftrag
 - Bei unsicherem Scope zuerst Doku- oder Read-only-Hardening
+
+### Blocker-Retry-Policy (verbindlich, externe/temporäre Fehler)
+
+Für externe/temporäre Blocker (z. B. Endpoint-Timeouts, kurzfristige Infra-Unreachability) gilt:
+
+1. **Nicht sofort dauerhaft blocken.**
+2. **Grace Period: 3 Stunden** nach erstem Auftreten.
+3. **Auto-Retry bis max. 3 Versuche** (inkl. Erstversuch), jeweils mit klarer Zeit + Fehlergrund im Issue-Kommentar.
+4. Nach jedem Fehlversuch bleibt/kommt das Issue zurück auf **`status:todo`** für den nächsten Retry-Slot.
+5. **Erst wenn alle 3 Versuche fehlschlagen:**
+   - neues Follow-up-Issue anlegen (klarer externer Blocker, benötigter Input/Owner, Recheck-Kriterium),
+   - ursprüngliches Issue auf `status:blocked` setzen und Follow-up verlinken.
