@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Header-Alias-Normalisierung für `SMOKE_REQUEST_ID_HEADER` + 5x Stabilität, Iteration 30)
+- **`scripts/run_remote_api_smoketest.sh`:** akzeptiert für `SMOKE_REQUEST_ID_HEADER` jetzt zusätzlich Header-Namen als Alias (`x-request-id`/`x-correlation-id`, inkl. `_`-Varianten) und normalisiert diese robust auf die internen Modi `request|correlation`.
+- **`tests/test_remote_smoke_script.py`:** Happy-Path-Abdeckung um Alias-Eingaben (`"  X-Request-Id  "`, `"\tX-Correlation-Id\t"`) erweitert; der Negativtest bleibt bestehen und validiert weiterhin fail-fast bei unbekannten Modi.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`91 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit aliasbasiertem Header-Mode (`X-Request-Id`/`X-Correlation-Id`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772111763.json`, `artifacts/worker-1-10m/iteration-30/bl18.1-remote-stability-local-worker-1-10m-1772111763.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772111763.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-30 + Header-Alias-Support synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, erlaubte `SMOKE_REQUEST_ID_HEADER`-Werte und Nachweisführung auf Header-Alias-Normalisierung sowie den aktuellen Worker-1-10m-Langlauf (`91 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m API-Guard für `X-Request-Id`-Überlänge + 5x Stabilität, Iteration 29)
 - **`src/web_service.py`:** Request-ID-Sanitizer verwirft jetzt Header-IDs mit mehr als 128 Zeichen statt sie still zu kürzen; damit bleibt die gespiegelt ausgegebene ID token-stabil und fällt bei Überlänge deterministisch auf die nächste gültige Kandidaten-ID zurück.
 - **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert reproduzierbar den Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` 129 Zeichen lang ist.
