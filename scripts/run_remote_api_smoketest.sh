@@ -93,6 +93,12 @@ PY
     echo "[BL-18.1] SMOKE_OUTPUT_JSON darf kein Verzeichnis sein: ${SMOKE_OUTPUT_JSON}" >&2
     exit 2
   fi
+
+  SMOKE_OUTPUT_PARENT="$(dirname -- "${SMOKE_OUTPUT_JSON}")"
+  if [[ -e "${SMOKE_OUTPUT_PARENT}" && ! -d "${SMOKE_OUTPUT_PARENT}" ]]; then
+    echo "[BL-18.1] Elternpfad von SMOKE_OUTPUT_JSON ist kein Verzeichnis: ${SMOKE_OUTPUT_PARENT}" >&2
+    exit 2
+  fi
 fi
 
 SMOKE_QUERY="$(python3 - "${SMOKE_QUERY}" <<'PY'

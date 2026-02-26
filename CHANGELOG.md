@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Datei-Elternpfad-Guard für `SMOKE_OUTPUT_JSON` + 5x Stabilität, Iteration 25)
+- **`scripts/run_remote_api_smoketest.sh`:** prüft `SMOKE_OUTPUT_JSON` jetzt zusätzlich auf einen gültigen Elternpfad; existiert der Parent bereits als Datei (statt Verzeichnis), bricht der Runner fail-fast mit klarer CLI-Fehlermeldung + `exit 2` ab, statt später beim `mkdir`/Write mit Laufzeitfehler zu scheitern.
+- **`tests/test_remote_smoke_script.py`:** neuer Guard-Test verifiziert reproduzierbar, dass ein `SMOKE_OUTPUT_JSON`-Ziel unterhalb eines Datei-Elternpfads deterministisch mit `exit 2` zurückgewiesen wird.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`84 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-a-1772108086.json`, `artifacts/bl18.1-remote-stability-local-worker-a-1772108086.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log unter `artifacts/bl18.1-worker-a-server-1772108086.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-A Iteration-25 + `SMOKE_OUTPUT_JSON`-Datei-Elternpfad-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Negativfall-Abdeckung und BL-18.1-Nachweisführung auf den neuen Datei-Elternpfad-Guard für `SMOKE_OUTPUT_JSON` sowie den aktuellen Worker-A-Langlauf (`84 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Verzeichnis-Guard für `SMOKE_OUTPUT_JSON` + 5x Stabilität, Iteration 24)
 - **`scripts/run_remote_api_smoketest.sh`:** validiert `SMOKE_OUTPUT_JSON` jetzt zusätzlich auf Verzeichnisziele (`-d`) und bricht mit klarer CLI-Fehlermeldung + `exit 2` ab, statt erst beim JSON-Write mit einem Laufzeitfehler zu scheitern.
 - **`tests/test_remote_smoke_script.py`:** neuer Guard-Test verifiziert reproduzierbar, dass ein existierendes Verzeichnis als `SMOKE_OUTPUT_JSON` deterministisch mit `exit 2` zurückgewiesen wird.
