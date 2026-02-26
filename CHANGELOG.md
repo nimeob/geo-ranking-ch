@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m `Request_Id`-Smoke + `X_Correlation_Id`-Stabilität, Iteration 46)
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`120 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`).
+- **Smoke-Variante:** getrimmter Short-Underscore-Primäralias (`SMOKE_REQUEST_ID_HEADER="request_id"`) mit booleschem Echo-Alias (`SMOKE_ENFORCE_REQUEST_ID_ECHO="YeS"`) und bewusst leer gelassener `SMOKE_REQUEST_ID` (auto-generierte Default-ID bestätigt, `request_id_header_name=Request_Id`).
+- **Stabilitäts-Variante:** getrimmter Underscore-`X`-Correlation-Alias (`SMOKE_REQUEST_ID_HEADER="x_correlation_id"`) mit deaktiviertem Echo-Check (`SMOKE_ENFORCE_REQUEST_ID_ECHO="off"`) und booleschem Stop-Flag-Alias (`STABILITY_STOP_ON_FIRST_FAIL="No"`) stabil reproduziert (`request_id_header_name=X_Correlation_Id`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772121276.json`, `artifacts/worker-1-10m/iteration-46/bl18.1-remote-stability-local-worker-1-10m-1772121276.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772121276.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-1-10m Iteration-46 synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Nachweisführung auf Iteration 46 (`120 passed`, Smoke + 3x Stabilität) angehoben und um den kombinierten Alias-Run (`request_id` im Smoke, `x_correlation_id` in Stabilität, boolesche Flag-Aliasse `YeS/off/No`) ergänzt.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m auto-generierte Default-Request-ID + Real-Run, Iteration 45)
 - **`scripts/run_remote_api_smoketest.sh`:** für leere/nicht gesetzte `SMOKE_REQUEST_ID` wird jetzt eine eindeutige Default-ID (`bl18-<epoch>-<uuid-suffix>`) erzeugt, damit enge/parallele Läufe nicht auf derselben Korrelations-ID landen.
 - **`tests/test_remote_smoke_script.py`:** E2E-Fall ergänzt, der bei eingefrorener Systemzeit (`PATH`-override auf Fake-`date`) zwei Smoke-Läufe ohne `SMOKE_REQUEST_ID` startet und die eindeutige Auto-ID-Generierung reproduzierbar absichert.

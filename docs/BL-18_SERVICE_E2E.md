@@ -149,6 +149,21 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, `request_id`-Smoke + `x_correlation_id`-Stabilität, Iteration 46)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="40793" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:40793/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  ExTenDeD  " SMOKE_REQUEST_ID_HEADER="  request_id  " SMOKE_ENFORCE_REQUEST_ID_ECHO="  YeS  " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772121276.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:40793/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  ExTenDeD  " SMOKE_REQUEST_ID_HEADER="  x_correlation_id  " SMOKE_ENFORCE_REQUEST_ID_ECHO="  off  " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 3 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL="  No  " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-46/bl18.1-remote-stability-local-worker-1-10m-1772121276.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `120 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden (`request_id_header_name=Request_Id`, `request_id_echo_enforced=true`).
+  - Default-ID-Guard weiter bestätigt: ohne gesetztes `SMOKE_REQUEST_ID` wurde automatisch `bl18-1772121276-ee1f0ddd1e` erzeugt und konsistent in Header+JSON gespiegelt.
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`request_id_header_name=X_Correlation_Id`, `request_id_echo_enforced=false`).
+  - Evidenz: `artifacts/bl18.1-smoke-local-worker-1-10m-1772121276.json`, `artifacts/worker-1-10m/iteration-46/bl18.1-remote-stability-local-worker-1-10m-1772121276.ndjson`.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772121276.log`.
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, auto-generierte Default-`SMOKE_REQUEST_ID` + Real-Run, Iteration 45)
 
 - Command:
