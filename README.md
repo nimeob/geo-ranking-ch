@@ -198,6 +198,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
 | [docs/api/contract-v1.md](docs/api/contract-v1.md) | Versionierter API-Vertrag v1 für BL-20 (`/api/v1`, Schemas, Fehlercodes, Beispielpayloads) |
 | [docs/GO_TO_MARKET_MVP.md](docs/GO_TO_MARKET_MVP.md) | GTM-MVP-Artefakte: Value Proposition, Scope, Demo-Storyline, offene Risiken (BL-20.7.b) |
+| [docs/PACKAGING_BASELINE.md](docs/PACKAGING_BASELINE.md) | Reproduzierbare Build/Run-Baseline für API-only Packaging inkl. Verify-Checks (BL-20.7.a.r1) |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
 
 ---
