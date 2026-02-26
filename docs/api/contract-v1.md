@@ -79,9 +79,10 @@ Requests:
 - [`docs/api/examples/v1/location-intelligence.request.point.json`](./examples/v1/location-intelligence.request.point.json)
 
 Responses:
-- [`docs/api/examples/v1/location-intelligence.response.success.address.json`](./examples/v1/location-intelligence.response.success.address.json)
-- [`docs/api/examples/v1/location-intelligence.response.error.bad-request.json`](./examples/v1/location-intelligence.response.error.bad-request.json)
-- [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
+- Vollständig (legacy): [`docs/api/examples/v1/location-intelligence.response.success.address.json`](./examples/v1/location-intelligence.response.success.address.json)
+- Vollständig (grouped): [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
+- Edge-Case (fehlende/deaktivierte Daten, grouped): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](./examples/current/analyze.response.grouped.partial-disabled.json)
+- Fehler-Envelope: [`docs/api/examples/v1/location-intelligence.response.error.bad-request.json`](./examples/v1/location-intelligence.response.error.bad-request.json)
 
 ## 6) CI-Check (verdrahtet)
 
@@ -105,7 +106,8 @@ Für die laufende Response-Felddokumentation (legacy + grouped) ist der Feldkata
 
 - Feldmanifest: [`docs/api/field_catalog.json`](./field_catalog.json)
 - Human-readable Referenz: [`docs/api/field-reference-v1.md`](./field-reference-v1.md)
-- grouped Referenzpayload: [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
+- grouped Referenzpayload (vollständig): [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
+- grouped Edge-Case-Payload (fehlende/deaktivierte Daten): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](./examples/current/analyze.response.grouped.partial-disabled.json)
 - Validator: [`scripts/validate_field_catalog.py`](../../scripts/validate_field_catalog.py)
 
 Der Validator prüft automatisiert:

@@ -6,7 +6,8 @@ Diese Referenz ist die menschenlesbare Sicht auf den maschinenlesbaren Feldkatal
 
 - Feldmanifest (Single Source of Truth): [`docs/api/field_catalog.json`](./field_catalog.json)
 - Legacy-Referenzpayload: [`docs/api/examples/v1/location-intelligence.response.success.address.json`](./examples/v1/location-intelligence.response.success.address.json)
-- Grouped-Referenzpayload: [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
+- Grouped-Referenzpayload (vollständig): [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
+- Grouped-Edge-Case (fehlende/deaktivierte Daten): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](./examples/current/analyze.response.grouped.partial-disabled.json)
 
 ## Notation
 
