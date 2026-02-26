@@ -7,6 +7,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_DOC = REPO_ROOT / "docs" / "api" / "contract-v1.md"
+STABILITY_POLICY_DOC = REPO_ROOT / "docs" / "api" / "contract-stability-policy.md"
 SCHEMA_DIR = REPO_ROOT / "docs" / "api" / "schemas" / "v1"
 EXAMPLE_DIR = REPO_ROOT / "docs" / "api" / "examples" / "v1"
 GOLDEN_DIR = REPO_ROOT / "tests" / "data" / "api_contract_v1"
@@ -257,9 +258,29 @@ class TestApiContractV1(unittest.TestCase):
             "upstream_error",
             "## 6) CI-Check (verdrahtet)",
             "## 7) Scope-Abgrenzung BL-20.1.a / BL-20.1.b",
+            "## 10) Stability Guide + Contract-Change-Policy (BL-20.1.d.wp4)",
+            "docs/api/contract-stability-policy.md",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
+
+    def test_stability_policy_doc_contains_required_rules(self):
+        self.assertTrue(STABILITY_POLICY_DOC.is_file(), msg="docs/api/contract-stability-policy.md fehlt")
+        content = STABILITY_POLICY_DOC.read_text(encoding="utf-8")
+
+        markers = [
+            "Stabilitätsklassen (verbindlich)",
+            "stable",
+            "beta",
+            "internal",
+            "Non-Breaking",
+            "Breaking",
+            "CHANGELOG.md",
+            "/api/v1",
+            "scripts/validate_field_catalog.py",
+        ]
+        for marker in markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt in contract-stability-policy.md: {marker}")
 
     def test_schema_files_exist_and_are_valid_json(self):
         schema_paths = [
