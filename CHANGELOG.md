@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Control-Char-Guard für `SMOKE_QUERY` + 5x Stabilität, Iteration 14)
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_QUERY` wird nach dem Trim jetzt zusätzlich auf Steuerzeichen validiert; Control-Char-Queries werden fail-fast mit `exit 2` abgewiesen, bevor ein Request gesendet wird.
+- **`tests/test_remote_smoke_script.py`:** ergänzt einen neuen Negativtest für `SMOKE_QUERY` mit Steuerzeichen (z. B. Zeilenumbruch), damit Fehlkonfigurationen reproduzierbar als `exit 2` sichtbar werden.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`68 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit kombinierter Suffix-Kette.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772101465.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772101465.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-10m-server-1772101465.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-14 + `SMOKE_QUERY`-Control-Char-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf den neuen `SMOKE_QUERY`-Control-Char-Guard sowie den aktuellen Worker-1-10m-Langlauf (`68 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Trim-/Empty-Guard für `SMOKE_QUERY` + 5x Stabilität, Iteration 13)
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_QUERY` wird jetzt vor dem Request getrimmt und whitespace-only Werte werden fail-fast mit `exit 2` abgewiesen, damit Fehlkonfigurationen früh und eindeutig sichtbar sind.
 - **`tests/test_remote_smoke_script.py`:** ergänzt einen Happy-Path für getrimmtes `SMOKE_QUERY="  __ok__  "` sowie einen Negativtest für whitespace-only `SMOKE_QUERY` (`exit 2`).

@@ -412,6 +412,33 @@ class TestRemoteSmokeScript(unittest.TestCase):
             self.assertIn("SMOKE_QUERY ist leer nach Whitespace-Normalisierung", cp.stderr)
             self.assertFalse(out_json.exists())
 
+    def test_smoke_script_rejects_smoke_query_with_control_characters(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__\nwith-break",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("SMOKE_QUERY darf keine Steuerzeichen enthalten", cp.stderr)
+            self.assertFalse(out_json.exists())
+
     def test_smoke_script_trims_retry_count_and_delay_before_validation(self):
         cp, data, request_id = self._run_smoke(
             include_token=True,

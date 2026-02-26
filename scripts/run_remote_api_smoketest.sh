@@ -123,6 +123,18 @@ if [[ -z "${SMOKE_QUERY}" ]]; then
   exit 2
 fi
 
+if ! python3 - "${SMOKE_QUERY}" <<'PY'
+import sys
+
+query = sys.argv[1]
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in query):
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] SMOKE_QUERY darf keine Steuerzeichen enthalten." >&2
+  exit 2
+fi
+
 if [[ -z "${SMOKE_REQUEST_ID}" ]]; then
   echo "[BL-18.1] SMOKE_REQUEST_ID ist leer nach Whitespace-Normalisierung." >&2
   exit 2
