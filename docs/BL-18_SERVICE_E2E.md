@@ -134,6 +134,17 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker C, Langlauf-Recheck Reverse-Suffix-Kette + Kombi-Normalisierung)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:34463/AnAlYzE/health//  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-c-langlauf-1772094175  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-c-langlauf-1772094175.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:34463/AnAlYzE/health//  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=3 STABILITY_INTERVAL_SECONDS=1 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772094175.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `39 passed` (inkl. neuem Smoke-E2E-Guard für kombinierte Reverse-Suffix-Kette `"  HTTP://.../AnAlYzE/health//  "`).
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-c-langlauf-1772094175.json`, `started_at_utc=2026-02-26T08:22:55Z`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772094175.ndjson`).
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Recheck Reproduzierbarkeit/Stabilität)
 
 - Command:

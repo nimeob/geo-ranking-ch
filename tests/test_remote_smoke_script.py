@@ -238,6 +238,19 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
 
+    def test_smoke_script_handles_combined_scheme_case_reverse_suffix_chain_slash_and_whitespace(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            base_url=f"  HTTP://127.0.0.1:{self.port}/AnAlYzE/health//  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertEqual(data.get("http_status"), 200)
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+
     def test_smoke_script_normalizes_redundant_trailing_slashes_after_suffix_chain(self):
         cp, data, request_id = self._run_smoke(
             include_token=True,
