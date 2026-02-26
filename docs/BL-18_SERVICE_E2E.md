@@ -141,6 +141,18 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker A, Langlauf-Recheck Tab-Trim + kombinierte Suffix-Kette + 5x Stabilität, Iteration 9)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL=$' \tHTTP://127.0.0.1:43577/AnAlYzE//health/analyze/health/analyze///\t ' DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_MODE=$' \tExTenDeD\t ' SMOKE_REQUEST_ID="  bl18-worker-a-langlauf-1772099418  " SMOKE_REQUEST_ID_HEADER=$' \tCorrelation\t ' SMOKE_ENFORCE_REQUEST_ID_ECHO=$' \t1\t ' SMOKE_TIMEOUT_SECONDS=$'\t2.5\t' CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=$'\t1\t' CURL_RETRY_DELAY=$'\t1\t' SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-a-1772099418.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL=$' \tHTTP://127.0.0.1:43577/AnAlYzE//health/analyze/health/analyze///\t ' DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_MODE=$' \tExTenDeD\t ' SMOKE_REQUEST_ID_HEADER=$' \tCorrelation\t ' SMOKE_ENFORCE_REQUEST_ID_ECHO=$' \t1\t ' SMOKE_TIMEOUT_SECONDS=$'\t2.5\t' CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=$'\t1\t' CURL_RETRY_DELAY=$'\t1\t' STABILITY_RUNS="5" STABILITY_INTERVAL_SECONDS="1" STABILITY_MAX_FAILURES="0" STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-a-1772099418.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `61 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt im getrimmten Correlation-Mode trotz Tab-umhüllter Inputs und kombinierter Suffix-Kette (`artifacts/bl18.1-smoke-local-worker-a-1772099418.json`, `request_id_header_source=correlation`, `request_id_echo_enforced=true`, `started_at_utc=2026-02-26T09:50:18Z`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-a-1772099418.ndjson`; Runs 1..5 alle `status=pass`).
+  - Server-Log: `artifacts/bl18.1-service-worker-a-1772099418.log`.
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Recheck case-insensitive `SMOKE_MODE` + 5x Stabilität, Iteration 8)
 
 - Command:

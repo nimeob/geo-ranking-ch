@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Langlauf-Recheck mit Tab-Trim + kombinierter Suffix-Kette, Iteration 9)
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`61 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) bei Tab-umhüllter Base-URL/Header-/Flag-Eingabe und kombinierter Suffix-Kette (`.../AnAlYzE//health/analyze/health/analyze///`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-a-1772099418.json`, `artifacts/bl18.1-remote-stability-local-worker-a-1772099418.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-service-worker-a-1772099418.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-A Iteration-9-Nachweis synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Command/Exit/Evidenz auf den aktuellen Worker-A-Langlauf (`61 passed`, Smoke + 5x Stabilität) mit Tab-getrimmten Inputs und kombinierter Suffix-Kette aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-B case-insensitive `SMOKE_MODE` + 5x Stabilität, Iteration 8)
 - **`scripts/run_remote_api_smoketest.sh`:** normalisiert `SMOKE_MODE` nach dem Trim jetzt zusätzlich case-insensitive (`"  ExTenDeD  "` → `extended`), damit robuste Env-Inputs bei manuellen Runbook-Aufrufen reproduzierbar akzeptiert werden.
 - **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path verifiziert reproduzierbar, dass gemischt geschriebene `SMOKE_MODE`-Werte erfolgreich verarbeitet werden.
