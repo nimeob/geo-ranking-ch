@@ -22,16 +22,18 @@ class TestUserDocumentation(unittest.TestCase):
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt im API-Guide: {marker}")
 
-    def test_user_docs_index_links_to_api_usage_and_troubleshooting(self):
+    def test_user_docs_index_links_to_api_usage_troubleshooting_and_operations(self):
         user_index = (REPO_ROOT / "docs" / "user" / "README.md").read_text(encoding="utf-8")
         self.assertIn("[API Usage Guide](./api-usage.md)", user_index)
         self.assertIn("[Troubleshooting](./troubleshooting.md)", user_index)
+        self.assertIn("[Operations Quick Guide](./operations-runbooks.md)", user_index)
 
         getting_started = (REPO_ROOT / "docs" / "user" / "getting-started.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("[API Usage Guide](./api-usage.md)", getting_started)
         self.assertIn("[Troubleshooting](./troubleshooting.md)", getting_started)
+        self.assertIn("[Operations Quick Guide](./operations-runbooks.md)", getting_started)
 
     def test_troubleshooting_guide_exists_with_core_sections(self):
         troubleshooting_path = REPO_ROOT / "docs" / "user" / "troubleshooting.md"
@@ -48,6 +50,21 @@ class TestUserDocumentation(unittest.TestCase):
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt im Troubleshooting-Guide: {marker}")
 
+    def test_operations_quick_guide_exists_with_core_sections(self):
+        operations_path = REPO_ROOT / "docs" / "user" / "operations-runbooks.md"
+        self.assertTrue(operations_path.is_file(), msg="docs/user/operations-runbooks.md fehlt")
+
+        content = operations_path.read_text(encoding="utf-8")
+        required_markers = [
+            "# Operations Quick Guide (BL-19.6)",
+            "## 1) Daily Quick Check (2–5 Minuten)",
+            "## 2) Reproduzierbarer Smoke-Test (`/analyze`)",
+            "## 3) Kurzer Stabilitätslauf",
+            "## 5) Incident-Minirunbook",
+        ]
+        for marker in required_markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt im Operations-Guide: {marker}")
+
     def test_root_readme_contains_thematic_webservice_feature_list(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
@@ -57,6 +74,7 @@ class TestUserDocumentation(unittest.TestCase):
         self.assertIn("**Robuste API-Eingänge**", readme)
         self.assertIn("**Betrieb & Nachvollziehbarkeit**", readme)
         self.assertIn("docs/user/api-usage.md", readme)
+        self.assertIn("docs/user/operations-runbooks.md", readme)
 
 
 if __name__ == "__main__":

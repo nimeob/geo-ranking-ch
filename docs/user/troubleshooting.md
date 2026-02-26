@@ -173,4 +173,5 @@ Am besten direkt mitliefern:
 Weiterführend:
 - [Getting Started](./getting-started.md)
 - [API Usage Guide](./api-usage.md)
-- [Operations](../OPERATIONS.md)
+- [Operations Quick Guide](./operations-runbooks.md)
+- [Operations (Infra/Team)](../OPERATIONS.md)
