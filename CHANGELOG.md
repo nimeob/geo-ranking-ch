@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Correlation-Header-Mode im Smoke-Runner + Langlauf-Nachweis)
+- **`scripts/run_remote_api_smoketest.sh`:** neuer Modus `SMOKE_REQUEST_ID_HEADER=request|correlation` (default `request`). Damit kann der BL-18.1-Smoke reproduzierbar entweder über `X-Request-Id` oder gezielt über `X-Correlation-Id` laufen; der gewählte Header-Kanal wird als `request_id_header_source` im JSON-Report ausgegeben.
+- **`tests/test_remote_smoke_script.py`:** neue E2E-Abdeckung für den Correlation-Mode inkl. Fail-Fast-Guard bei ungültigen Header-Modi.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`51 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im Correlation-Mode erfolgreich (`pass=3`, `fail=0`, Exit `0`). Evidenz in `artifacts/bl18.1-smoke-local-worker-a-langlauf-1772096518.json` und `artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772096518.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Correlation-Header-Mode synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** BL-18.1-Bedienhinweise, Testabdeckung und Nachweisführung auf den neuen `SMOKE_REQUEST_ID_HEADER`-Schalter + aktuellen Worker-A-Langlauf (`51 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Request-ID-Fallback auf `X-Correlation-Id` + Langlauf-Nachweis)
 - **`src/web_service.py`:** Request-ID-Auswahl für `/analyze` nutzt jetzt deterministisch die erste **nicht-leere** Header-ID (`X-Request-Id` primär, `X-Correlation-Id` Fallback), statt bei whitespace-only `X-Request-Id` auf eine zufällige interne ID zu fallen.
 - **`tests/test_web_e2e.py`:** neuer API-E2E-Guard verifiziert reproduzierbar, dass ein leeres/whitespace-only `X-Request-Id` korrekt auf `X-Correlation-Id` zurückfällt und konsistent in Header+JSON gespiegelt wird.

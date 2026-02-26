@@ -70,6 +70,7 @@ class TestRemoteSmokeScript(unittest.TestCase):
         include_token: bool,
         base_url: str | None = None,
         request_id: str | None = None,
+        request_id_header: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict, str]:
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"
@@ -88,6 +89,8 @@ class TestRemoteSmokeScript(unittest.TestCase):
                     "SMOKE_OUTPUT_JSON": str(out_json),
                 }
             )
+            if request_id_header is not None:
+                env["SMOKE_REQUEST_ID_HEADER"] = request_id_header
             if include_token:
                 env["DEV_API_AUTH_TOKEN"] = "bl18-token"
             else:
@@ -111,6 +114,7 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("http_status"), 200)
         self.assertIn("query", data.get("result_keys", []))
         self.assertTrue(data.get("request_id_echo_enforced"))
+        self.assertEqual(data.get("request_id_header_source"), "request")
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
@@ -126,6 +130,19 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), "bl18-custom-request-id")
         self.assertEqual(data.get("response_request_id"), "bl18-custom-request-id")
         self.assertEqual(data.get("response_header_request_id"), "bl18-custom-request-id")
+
+    def test_smoke_script_supports_correlation_header_mode_for_request_id_echo(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            request_id_header="correlation",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("request_id_header_source"), "correlation")
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+        self.assertEqual(data.get("response_header_request_id"), request_id)
 
     def test_smoke_script_fails_without_token_when_auth_enabled(self):
         cp, data, _ = self._run_smoke(include_token=False)
@@ -641,6 +658,34 @@ class TestRemoteSmokeScript(unittest.TestCase):
 
             self.assertEqual(cp.returncode, 2)
             self.assertIn("CURL_RETRY_DELAY muss eine Ganzzahl >= 0 sein", cp.stderr)
+            self.assertFalse(out_json.exists())
+
+    def test_smoke_script_rejects_invalid_request_id_header_mode(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_REQUEST_ID_HEADER": "x-request-id",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("Ungültiger SMOKE_REQUEST_ID_HEADER='x-request-id'", cp.stderr)
             self.assertFalse(out_json.exists())
 
     def test_smoke_script_rejects_invalid_request_id_echo_flag(self):

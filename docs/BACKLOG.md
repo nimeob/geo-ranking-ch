@@ -297,8 +297,10 @@
   - `.github/workflows/deploy.yml` um optionalen `/analyze`-Smoke-Test nach Deploy erweitert (gesteuert via `SERVICE_BASE_URL` + optional `SERVICE_API_AUTH_TOKEN`).
   - `docs/BL-18_SERVICE_E2E.md` um Reproduzierbarkeit/Stabilitäts-Runbook erweitert (inkl. lokalem 2-Run-Nachweis: `pass=2`, `fail=0`).
   - `tests/test_web_e2e.py` um API-E2E-Guard erweitert: ist `X-Request-Id` leer/whitespace, fällt der Service deterministisch auf `X-Correlation-Id` zurück und spiegelt diese ID in Header+JSON.
-  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit Request-ID-Echo in Header+JSON bestätigt; zuletzt im Worker-C-Langlauf mit verketteter Base-URL (`DEV_BASE_URL="  HTTP://127.0.0.1:52255/health/analyze/health///  "`) und getrimmter Request-ID (`SMOKE_REQUEST_ID="  bl18-worker-c-langlauf-1772096264  "`), Evidenz in `artifacts/bl18.1-smoke-local-worker-c-langlauf-1772096264.json` + `artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772096264.ndjson` (`pass=3`, `fail=0`, Stability-Run-IDs mit PID-Suffix).
-  - Reproduzierbarkeits-Check erneuert: `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`49 passed`, Exit `0`) direkt vor dem dedizierten Worker-C-Langlauf (Smoke + 3x Stabilität).
+  - `scripts/run_remote_api_smoketest.sh` unterstützt jetzt `SMOKE_REQUEST_ID_HEADER=request|correlation` (default `request`) und erlaubt damit reproduzierbare Remote-Fallback-Checks über `X-Correlation-Id`; ungültige Header-Modi werden fail-fast mit `exit 2` zurückgewiesen.
+  - `tests/test_remote_smoke_script.py` ergänzt Happy-Path-Abdeckung für `SMOKE_REQUEST_ID_HEADER=correlation` sowie einen Negativtest für ungültige Header-Modi.
+  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit Request-ID-Echo in Header+JSON bestätigt; zuletzt im Worker-A-Langlauf mit Correlation-Header-Mode (`SMOKE_REQUEST_ID_HEADER="correlation"`) und verketteter Base-URL (`DEV_BASE_URL="  HTTP://127.0.0.1:39597/AnAlYzE/health///  "`), Evidenz in `artifacts/bl18.1-smoke-local-worker-a-langlauf-1772096518.json` + `artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772096518.ndjson` (`pass=3`, `fail=0`, Stability-Run-IDs mit PID-Suffix).
+  - Reproduzierbarkeits-Check erneuert: `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`51 passed`, Exit `0`) direkt vor dem dedizierten Worker-A-Langlauf (Smoke + 3x Stabilität).
 
 ---
 

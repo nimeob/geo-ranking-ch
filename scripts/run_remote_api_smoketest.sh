@@ -18,6 +18,7 @@ set -euo pipefail
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
+#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (Default: request)
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"
 
@@ -59,6 +60,7 @@ CURL_RETRY_COUNT="${CURL_RETRY_COUNT:-3}"
 CURL_RETRY_DELAY="${CURL_RETRY_DELAY:-2}"
 SMOKE_OUTPUT_JSON="${SMOKE_OUTPUT_JSON:-}"
 SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID:-bl18-$(date +%s)}"
+SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER:-request}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
 
 SMOKE_REQUEST_ID="$(python3 - "${SMOKE_REQUEST_ID}" <<'PY'
@@ -96,7 +98,7 @@ then
   exit 2
 fi
 
-export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_ENFORCE_REQUEST_ID_ECHO
+export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_REQUEST_ID_HEADER SMOKE_ENFORCE_REQUEST_ID_ECHO
 
 is_positive_number() {
   python3 - "$1" <<'PY'
@@ -140,6 +142,15 @@ if [[ ! "$CURL_RETRY_DELAY" =~ ^[0-9]+$ ]]; then
   echo "[BL-18.1] CURL_RETRY_DELAY muss eine Ganzzahl >= 0 sein (aktuell: ${CURL_RETRY_DELAY})." >&2
   exit 2
 fi
+
+SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER,,}"
+case "$SMOKE_REQUEST_ID_HEADER" in
+  request|correlation) ;;
+  *)
+    echo "[BL-18.1] Ungültiger SMOKE_REQUEST_ID_HEADER='${SMOKE_REQUEST_ID_HEADER}' (erlaubt: request|correlation)." >&2
+    exit 2
+    ;;
+esac
 
 case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
   0|1) ;;
@@ -228,6 +239,13 @@ if [[ -n "${DEV_API_AUTH_TOKEN:-}" ]]; then
   AUTH_HEADER=(-H "Authorization: Bearer ${DEV_API_AUTH_TOKEN}")
 fi
 
+REQUEST_ID_HEADERS=()
+if [[ "$SMOKE_REQUEST_ID_HEADER" == "correlation" ]]; then
+  REQUEST_ID_HEADERS=(-H "X-Correlation-Id: ${SMOKE_REQUEST_ID}")
+else
+  REQUEST_ID_HEADERS=(-H "X-Request-Id: ${SMOKE_REQUEST_ID}")
+fi
+
 REQUEST_BODY=$(python3 - <<'PY'
 import json
 import os
@@ -259,7 +277,7 @@ HTTP_CODE=$(curl -sS -m "${CURL_MAX_TIME}" \
   -o "$TMP_BODY" -w "%{http_code}" \
   -X POST "${ANALYZE_URL}" \
   -H "Content-Type: application/json" \
-  -H "X-Request-Id: ${SMOKE_REQUEST_ID}" \
+  "${REQUEST_ID_HEADERS[@]}" \
   "${AUTH_HEADER[@]}" \
   -d "$REQUEST_BODY")
 CURL_EXIT=$?
@@ -292,6 +310,7 @@ report = {
     "curl_exit": int(os.environ["CURL_EXIT"]),
     "http_status": None,
     "request_id": os.environ["SMOKE_REQUEST_ID"],
+    "request_id_header_source": os.environ.get("SMOKE_REQUEST_ID_HEADER", "request"),
     "request_id_echo_enforced": os.environ.get("SMOKE_ENFORCE_REQUEST_ID_ECHO", "1") == "1",
     "response_request_id": None,
     "response_header_request_id": None,
@@ -347,6 +366,7 @@ report = {
     "reason": None,
     "http_status": http_code,
     "request_id": expected_request_id,
+    "request_id_header_source": os.environ.get("SMOKE_REQUEST_ID_HEADER", "request"),
     "request_id_echo_enforced": enforce_request_id_echo,
     "response_request_id": None,
     "response_header_request_id": response_header_request_id,
@@ -425,6 +445,7 @@ else:
                         "result_keys": sorted(result.keys())[:12],
                         "duration_seconds": report["duration_seconds"],
                         "request_id": report["request_id"],
+                        "request_id_header_source": report["request_id_header_source"],
                         "response_request_id": report["response_request_id"],
                         "response_header_request_id": report["response_header_request_id"],
                     },
