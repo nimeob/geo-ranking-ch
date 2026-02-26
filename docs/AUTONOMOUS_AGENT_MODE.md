@@ -56,6 +56,18 @@ Regel: Neue Features gelten erst als „integriert“, wenn alle drei Säulen ak
 - **BL-19 zuerst** auf arbeitsfähigen Stand bringen (Doku-Säule aufholen).
 - **BL-20 erst danach** starten.
 - Während BL-20 laufen alle 3 Säulen pro Iteration parallel mit.
+- **BL-18.1 ist eingefroren (Freeze)**, bis BL-19-MVP abgeschlossen ist.
+
+### BL-18.1 Freeze-Regel (verbindlich)
+
+- Keine neuen BL-18.1-Commits, keine Scope-Erweiterung, keine zusätzlichen Hardening-Loops.
+- Erlaubt sind nur:
+  1. **kritische Produktionsfixes** (akuter Ausfall/Deployment-Blocker), oder
+  2. **explizite Freigabe durch Nico**.
+- Bei erlaubten Ausnahmefixes:
+  - minimaler Eingriff,
+  - kurzer Nachweis im Commit,
+  - danach sofort zurück zu BL-19.
 
 ### BL-19 Gate vor BL-20 (harte Eintrittsbedingung)
 

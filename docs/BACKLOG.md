@@ -269,13 +269,16 @@
 - **Priorität:** P1
 - **Aufwand:** S
 - **Abhängigkeiten:** BL-18
-- **Status:** 🟡 in Umsetzung (2026-02-26)
+- **Status:** ❄️ eingefroren bis BL-19-MVP abgeschlossen (Nico-Vorgabe, 2026-02-26)
 - **Akzeptanzkriterien:**
   - Reproduzierbarer Smoke-Test ruft `POST /analyze` über öffentliche URL auf.
   - Test prüft mindestens HTTP-Status `200`, `ok=true` und vorhandenes `result`-Objekt.
   - Test ist per Script ausführbar (inkl. optionalem Bearer-Token).
   - Kurzer Nachweislauf ist dokumentiert (stdout/Runbook-Eintrag).
-- **Umgesetzt (Iteration 2026-02-26, laufend):**
+- **Freeze-Regel (verbindlich):**
+  - Kein weiterer BL-18.1-Ausbau bis BL-19-MVP abgeschlossen ist.
+  - Ausnahmen nur bei kritischem Produktions-/Deploy-Blocker oder expliziter Nico-Freigabe.
+- **Umgesetzt (Iteration 2026-02-26, historisch):**
   - `scripts/run_remote_api_smoketest.sh` ergänzt und gehärtet (Retry-Handling, Request-ID, optionale JSON-Artefaktausgabe via `SMOKE_OUTPUT_JSON`, default Echo-Validierung von Request-ID in Header + JSON).
   - `src/web_service.py` um Request-Korrelation für `/analyze` erweitert (erste **gültige** ID aus `X-Request-Id`/`X_Request_Id` bzw. `X-Correlation-Id`/`X_Correlation_Id` wird in Response-Header + JSON-Feld `request_id` gespiegelt; leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen, IDs mit Trennzeichen `,`/`;`, Non-ASCII-IDs oder IDs mit mehr als 128 Zeichen werden verworfen) für reproduzierbare Remote-Diagnosen.
   - `scripts/run_remote_api_stability_check.sh` ergänzt (Mehrfachlauf mit NDJSON-Report + Fail-Threshold für kurze Stabilitäts-/Abnahmeläufe).
