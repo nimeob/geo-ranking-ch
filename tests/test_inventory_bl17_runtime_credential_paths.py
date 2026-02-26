@@ -107,6 +107,36 @@ class TestInventoryBl17RuntimeCredentialPaths(unittest.TestCase):
             self.assertTrue(detections["assumerole-wrapper-available"]["detected"])
             self.assertEqual(report["summary"]["recommended_exit_code"], 0)
 
+    def test_temporary_session_keys_are_not_reported_as_static(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            script_copy, bin_dir = self._prepare_temp_repo(
+                tmp_path,
+                caller_arn="arn:aws:sts::523234426229:assumed-role/openclaw-ops-role/runtime-session",
+            )
+
+            env = os.environ.copy()
+            env["PATH"] = f"{bin_dir}:{env['PATH']}"
+            env["AWS_ACCESS_KEY_ID"] = "ASIA1234567890ABCD"
+            env["AWS_SECRET_ACCESS_KEY"] = "session-secret"
+            env["AWS_SESSION_TOKEN"] = "session-token"
+
+            result = subprocess.run(
+                [str(script_copy)],
+                cwd=tmp_path,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            report = json.loads(result.stdout)
+            detections = {d["id"]: d for d in report["detections"]}
+            self.assertFalse(detections["runtime-env-static-keys"]["detected"])
+            self.assertTrue(detections["runtime-env-session-credentials"]["detected"])
+            self.assertNotIn("runtime-env-static-keys", report["summary"]["risk_ids"])
+
 
 if __name__ == "__main__":
     unittest.main()

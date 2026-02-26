@@ -100,16 +100,50 @@ for var in AWS_PROFILE AWS_DEFAULT_PROFILE AWS_REGION AWS_DEFAULT_REGION AWS_ROL
   fi
 done
 
+credential_mode="absent"
+if [[ -n "${AWS_ACCESS_KEY_ID-}" || -n "${AWS_SECRET_ACCESS_KEY-}" || -n "${AWS_SESSION_TOKEN-}" ]]; then
+  has_access=0
+  has_secret=0
+  has_session=0
+
+  [[ -n "${AWS_ACCESS_KEY_ID-}" ]] && has_access=1
+  [[ -n "${AWS_SECRET_ACCESS_KEY-}" ]] && has_secret=1
+  [[ -n "${AWS_SESSION_TOKEN-}" ]] && has_session=1
+
+  if (( has_access == 1 && has_secret == 1 )); then
+    access_upper="${AWS_ACCESS_KEY_ID^^}"
+    if (( has_session == 1 )); then
+      if [[ "$access_upper" == ASIA* ]]; then
+        credential_mode="session-temporary"
+      elif [[ "$access_upper" == AKIA* ]]; then
+        credential_mode="long-lived-static"
+      else
+        credential_mode="session-unknown-prefix"
+      fi
+    else
+      credential_mode="long-lived-static"
+    fi
+  elif (( has_access == 0 && has_secret == 0 && has_session == 1 )); then
+    credential_mode="session-only"
+  else
+    credential_mode="partial"
+  fi
+fi
+
+echo "credential_mode=${credential_mode}"
+
 if [[ -n "${AWS_ACCESS_KEY_ID-}" ]]; then
   echo "AWS_ACCESS_KEY_ID=$(short_key "$AWS_ACCESS_KEY_ID")"
-  runtime_ref=1
 fi
 if [[ -n "${AWS_SECRET_ACCESS_KEY-}" ]]; then
   echo "AWS_SECRET_ACCESS_KEY=set"
-  runtime_ref=1
 fi
 if [[ -n "${AWS_SESSION_TOKEN-}" ]]; then
   echo "AWS_SESSION_TOKEN=set"
+fi
+
+if [[ "$credential_mode" == "long-lived-static" || "$credential_mode" == "partial" || "$credential_mode" == "session-unknown-prefix" ]]; then
+  runtime_ref=1
 fi
 
 echo

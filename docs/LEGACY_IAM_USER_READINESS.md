@@ -174,6 +174,24 @@ Zusätzliche Härtung im Zuge dieses Laufs:
 
 Interpretation: BL-15 bleibt **nicht decommission-ready**. OIDC in CI/CD ist intakt, aber Runtime-Default und CloudTrail-Fingerprints zeigen weiterhin aktive Legacy-Nutzung.
 
+### Read-only Recheck (2026-02-26, BL-17.wp6 AssumeRole-Default-Pfad)
+
+Neuer Runtime-Startpfad:
+
+```bash
+./scripts/openclaw_runtime_assumerole_exec.sh <kommando>
+```
+
+Verifizierter Nachweislauf im neuen Default-Pfad:
+
+- `./scripts/openclaw_runtime_assumerole_exec.sh ./scripts/inventory_bl17_runtime_credential_paths.py --output-json artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json` → Exit `0`
+  - Befund `runtime-env-static-keys`: **detected=false**
+  - Caller: `assumed-role/openclaw-ops-role/...`
+- `./scripts/openclaw_runtime_assumerole_exec.sh ./scripts/audit_legacy_runtime_consumers.sh` → Exit `0`
+- `./scripts/openclaw_runtime_assumerole_exec.sh ./scripts/check_bl17_oidc_assumerole_posture.sh --report-json artifacts/bl17/posture-after-assumerole-default.json` → Exit `0`
+
+Interpretation: Der neue Runtime-Default eliminiert den statischen Env-Key-Befund im aktiven Prozesskontext (temporäre STS-Session-Credentials statt Legacy-User-Key als Startzustand).
+
 ### Externe Consumer-Matrix (BL-15 Iteration, 2026-02-26)
 
 Zur strukturierten Abarbeitung der offenen Consumer wurde ein dediziertes Tracking ergänzt:
