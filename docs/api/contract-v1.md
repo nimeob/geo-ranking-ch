@@ -152,3 +152,14 @@ Inhalt der Referenz:
 - Modus-/Feature-Abhängigkeiten (u. a. `intelligence_mode`)
 - Edge-Case-Notation für dynamische Keys (`*`) und Arrays (`[*]`)
 - Querverweis auf den maschinenlesbaren Katalog als Source-of-Truth
+
+## 12) Scoring Methodology Specification (BL-20.1.f)
+
+Die dedizierte Methodik-Spezifikation für Bewertungs-/Risiko-/Confidence-Felder ist hier dokumentiert:
+
+- [`docs/api/scoring_methodology.md`](./scoring_methodology.md)
+
+Inhalt (inkrementell):
+- Vollständiger Score-Katalog (Pfad, Skala, Richtung, Stabilitätsstatus)
+- Methodik-/Interpretationsregeln (inkl. Missing/Outlier-Handling)
+- Worked Examples und Golden-Checks (in Folgeschritten)

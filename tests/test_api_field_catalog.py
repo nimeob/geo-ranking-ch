@@ -10,6 +10,7 @@ VALIDATOR = REPO_ROOT / "scripts" / "validate_field_catalog.py"
 CONTRACT_DOC = REPO_ROOT / "docs" / "api" / "contract-v1.md"
 FIELD_REFERENCE_DOC = REPO_ROOT / "docs" / "api" / "field-reference-v1.md"
 FIELD_CATALOG = REPO_ROOT / "docs" / "api" / "field_catalog.json"
+SCORING_METHODOLOGY_DOC = REPO_ROOT / "docs" / "api" / "scoring_methodology.md"
 GROUPED_PARTIAL_EXAMPLE = (
     REPO_ROOT / "docs" / "api" / "examples" / "current" / "analyze.response.grouped.partial-disabled.json"
 )
@@ -36,6 +37,7 @@ class TestApiFieldCatalog(unittest.TestCase):
         markers = [
             "docs/api/field_catalog.json",
             "docs/api/field-reference-v1.md",
+            "docs/api/scoring_methodology.md",
             "scripts/validate_field_catalog.py",
             "analyze.response.grouped.success.json",
             "analyze.response.grouped.partial-disabled.json",
@@ -70,6 +72,49 @@ class TestApiFieldCatalog(unittest.TestCase):
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in field-reference-v1.md: {marker}")
+
+    def test_scoring_methodology_covers_all_scoring_paths_from_catalog(self):
+        self.assertTrue(
+            SCORING_METHODOLOGY_DOC.is_file(),
+            msg="Scoring-Methodik fehlt: docs/api/scoring_methodology.md",
+        )
+
+        content = SCORING_METHODOLOGY_DOC.read_text(encoding="utf-8")
+        markers = [
+            "## 1) Score-Katalog",
+            "Stabilitätsstatus",
+            "docs/api/field_catalog.json",
+            "result.status.quality.confidence.score",
+            "result.suitability_light.score",
+        ]
+        for marker in markers:
+            self.assertIn(
+                marker,
+                content,
+                msg=f"Marker fehlt in scoring_methodology.md: {marker}",
+            )
+
+        catalog = json.loads(FIELD_CATALOG.read_text(encoding="utf-8"))
+        scoring_paths = sorted(
+            {
+                field.get("path", "")
+                for field in catalog.get("fields", [])
+                if isinstance(field, dict)
+                and isinstance(field.get("path"), str)
+                and any(
+                    keyword in field["path"]
+                    for keyword in ("score", "risk", "rating", "confidence", "traffic_light")
+                )
+            }
+        )
+        self.assertTrue(scoring_paths, msg="Keine scoring-relevanten Feldpfade im Katalog gefunden")
+
+        for path in scoring_paths:
+            self.assertIn(
+                f"`{path}`",
+                content,
+                msg=f"Scoring-Feldpfad fehlt in scoring_methodology.md: {path}",
+            )
 
     def test_grouped_partial_example_documents_missing_or_disabled_data(self):
         self.assertTrue(
