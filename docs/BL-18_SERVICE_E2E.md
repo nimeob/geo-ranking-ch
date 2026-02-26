@@ -114,6 +114,7 @@ DEV_BASE_URL="https://<dein-dev-endpoint>" DEV_API_AUTH_TOKEN="<token>" ./script
 ```
 
 Der Check validiert mindestens: HTTP `200`, `ok=true`, `result` vorhanden **und** (default) Request-ID-Echo (`X-Request-Id` Header + JSON-Feld `request_id` entsprechen der gesendeten `SMOKE_REQUEST_ID`).
+Bei grouped API-Responses enthält das Smoke-Artefakt (`result_keys`) auf Top-Level erwartungsgemäss die Keys `status` und `data`.
 
 ### Reproduzierbarkeit / Artefakt-Ausgabe
 
