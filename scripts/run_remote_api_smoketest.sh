@@ -11,7 +11,7 @@ set -euo pipefail
 #   DEV_BASE_URL="https://<endpoint>" DEV_API_AUTH_TOKEN="<token>" ./scripts/run_remote_api_smoketest.sh
 #
 # Optionale Env-Variablen:
-#   SMOKE_QUERY="St. Leonhard-Strasse 40, St. Gallen"
+#   SMOKE_QUERY="St. Leonhard-Strasse 40, St. Gallen"  # wird getrimmt; darf nicht leer sein
 #   SMOKE_MODE="basic"   # basic|extended|risk (case-insensitive, wird auf lowercase normalisiert)
 #   SMOKE_TIMEOUT_SECONDS="20"
 #   CURL_MAX_TIME="45"
@@ -63,6 +63,12 @@ SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID:-bl18-$(date +%s)}"
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER:-request}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
 
+SMOKE_QUERY="$(python3 - "${SMOKE_QUERY}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
 SMOKE_REQUEST_ID="$(python3 - "${SMOKE_REQUEST_ID}" <<'PY'
 import sys
 print(sys.argv[1].strip())
@@ -111,6 +117,11 @@ import sys
 print(sys.argv[1].strip())
 PY
 )"
+
+if [[ -z "${SMOKE_QUERY}" ]]; then
+  echo "[BL-18.1] SMOKE_QUERY ist leer nach Whitespace-Normalisierung." >&2
+  exit 2
+fi
 
 if [[ -z "${SMOKE_REQUEST_ID}" ]]; then
   echo "[BL-18.1] SMOKE_REQUEST_ID ist leer nach Whitespace-Normalisierung." >&2

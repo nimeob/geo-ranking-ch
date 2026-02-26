@@ -71,6 +71,7 @@ class TestRemoteSmokeScript(unittest.TestCase):
         base_url: str | None = None,
         request_id: str | None = None,
         request_id_header: str | None = None,
+        smoke_query: str | None = None,
         smoke_mode: str | None = None,
         smoke_timeout_seconds: str | None = None,
         curl_max_time: str | None = None,
@@ -85,7 +86,7 @@ class TestRemoteSmokeScript(unittest.TestCase):
             env.update(
                 {
                     "DEV_BASE_URL": base_url or self.base_url,
-                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_QUERY": smoke_query or "__ok__",
                     "SMOKE_MODE": smoke_mode or "basic",
                     "SMOKE_TIMEOUT_SECONDS": smoke_timeout_seconds or "2",
                     "CURL_MAX_TIME": curl_max_time or "10",
@@ -372,6 +373,44 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("http_status"), 200)
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
+
+    def test_smoke_script_trims_smoke_query_before_request(self):
+        cp, data, _ = self._run_smoke(
+            include_token=True,
+            smoke_query="  __ok__  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertEqual(data.get("http_status"), 200)
+
+    def test_smoke_script_rejects_whitespace_only_smoke_query(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "   ",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("SMOKE_QUERY ist leer nach Whitespace-Normalisierung", cp.stderr)
+            self.assertFalse(out_json.exists())
 
     def test_smoke_script_trims_retry_count_and_delay_before_validation(self):
         cp, data, request_id = self._run_smoke(
