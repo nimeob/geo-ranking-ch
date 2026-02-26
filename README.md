@@ -69,6 +69,16 @@ curl http://localhost:8080/health
 | `GET` | `/version` | Build/Commit-Metadaten |
 | `POST` | `/analyze` | Adressanalyse (`{"query":"..."}`) |
 
+### Remote-API-Smoke-Test (BL-18.1)
+
+```bash
+DEV_BASE_URL="https://<dein-dev-endpoint>" ./scripts/run_remote_api_smoketest.sh
+# optional:
+# DEV_BASE_URL="https://<dein-dev-endpoint>" DEV_API_AUTH_TOKEN="<token>" ./scripts/run_remote_api_smoketest.sh
+```
+
+Details und Nachweisformat: [`docs/BL-18_SERVICE_E2E.md`](docs/BL-18_SERVICE_E2E.md)
+
 ### Kernmodule (src/)
 
 | Modul | Beschreibung |
@@ -108,6 +118,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/DEPLOYMENT_AWS.md](docs/DEPLOYMENT_AWS.md) | AWS-Deployment: Ist-Stand, Runbook, Rollback |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Arbeitsmodus, PR-Regeln, Release-Checkliste |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | Zentraler, priorisierter Umsetzungs-Backlog |
+| [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Remote-API-Smoke-Test (BL-18.1) inkl. Runbook |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
 
 ---

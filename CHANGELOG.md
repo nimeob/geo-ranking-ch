@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Remote-API-Smoke-Test)
+- **`scripts/run_remote_api_smoketest.sh`:** Reproduzierbarer Smoke-Runner für `POST /analyze` (validiert `HTTP 200`, `ok=true`, `result` vorhanden; optionaler Auth-Header und JSON-Report-Artefakt).
+- **`tests/test_remote_smoke_script.py`:** Lokale Script-E2E-Abdeckung für Happy-Path, `/health`-URL-Normalisierung, Missing-Config-Fail-fast, Unauthorized-Fall und Token-Trim.
+- **`docs/BL-18_SERVICE_E2E.md`:** Runbook/Nachweisdokument für BL-18.1 ergänzt.
+
+### Changed (2026-02-26 — BL-18.1 Doku-Verlinkung)
+- **`README.md`:** Remote-Smoke-Test-Sektion ergänzt und auf `docs/BL-18_SERVICE_E2E.md` verlinkt.
+- **`docs/BACKLOG.md`:** BL-18.1 als abgeschlossen dokumentiert.
+
 ### Changed (2026-02-25 — BL-02 CI/CD-Deploy-Verifikation)
 - **`.github/workflows/deploy.yml`:** Push-Trigger auf `main` wieder aktiviert (zusätzlich zu `workflow_dispatch`), damit BL-02 per Commit/Push verifiziert werden kann.
 - **`.github/workflows/deploy.yml`:** ECR-Image-URI auf feste AWS Account ID (`523234426229`) umgestellt, um leere `AWS_ACCOUNT_ID`-Repo-Variable im Build-Schritt zu umgehen.

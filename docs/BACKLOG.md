@@ -109,6 +109,20 @@
   - `.pre-commit-config.yaml` ist vorhanden oder bewusst verworfen (mit kurzer Begründung).
   - `docs/OPERATIONS.md` Setup-Abschnitt ist entsprechend bereinigt.
 
+### BL-18.1 — Erfolgreicher API-Test über Internet (`POST /analyze`)
+- **Priorität:** P1
+- **Aufwand:** S
+- **Abhängigkeiten:** BL-02
+- **Status:** ✅ abgeschlossen (2026-02-26)
+- **Umsetzung:**
+  - Reproduzierbarer Smoke-Runner `scripts/run_remote_api_smoketest.sh` ergänzt.
+  - Dokumentation + Runbook in `docs/BL-18_SERVICE_E2E.md` ergänzt.
+  - Testabdeckung in `tests/test_remote_smoke_script.py` ergänzt.
+- **Akzeptanzkriterien:**
+  - Öffentliche API ist über `DEV_BASE_URL` per `POST /analyze` testbar.
+  - Erfolgsfall prüft mindestens `HTTP 200`, `ok=true`, `result` vorhanden.
+  - Optionaler JSON-Nachweis (`SMOKE_OUTPUT_JSON`) kann als Artefakt abgelegt werden.
+
 ---
 
 ## Nacht-Plan
