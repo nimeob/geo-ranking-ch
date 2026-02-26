@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Control-Char-Guard für `SMOKE_OUTPUT_JSON` + 5x Stabilität, Iteration 17)
+- **`scripts/run_remote_api_smoketest.sh`:** validiert `SMOKE_OUTPUT_JSON` nach dem Trim jetzt zusätzlich auf Steuerzeichen; Pfade mit Control-Chars (z. B. Zeilenumbruch) werden fail-fast mit `exit 2` abgewiesen, damit Artefaktpfade im Smoke-Runner reproduzierbar und log-sicher bleiben.
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass `SMOKE_OUTPUT_JSON` mit Steuerzeichen klar mit `exit 2` und eindeutiger CLI-Fehlermeldung scheitert.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`71 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit kombiniert normalisierter Suffix-Kette.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772103286.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772103286.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-10m-server-1772103286.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-17 + `SMOKE_OUTPUT_JSON`-Control-Char-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf den neuen Control-Char-Guard für `SMOKE_OUTPUT_JSON` sowie den aktuellen Worker-1-10m-Langlauf (`71 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Trim-Guard für `SMOKE_OUTPUT_JSON` (inkl. Curl-Fehlpfad) + 5x Stabilität, Iteration 16)
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_OUTPUT_JSON` wird jetzt vor der Nutzung getrimmt und dadurch in allen Pfaden konsistent verwendet (inkl. Curl-Fehlerpfad-Report), damit whitespace-umhüllte Artefaktpfade nicht in abweichende/versteckte Zielpfade schreiben.
 - **`tests/test_remote_smoke_script.py`:** neuer Curl-Fehlpfad-Test verifiziert reproduzierbar, dass ein whitespace-umhüllter `SMOKE_OUTPUT_JSON`-Pfad korrekt auf den getrimmten Zielpfad schreibt (`reason=curl_error`).
