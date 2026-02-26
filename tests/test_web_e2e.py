@@ -165,6 +165,37 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 401)
         self.assertEqual(body.get("error"), "unauthorized")
 
+    def test_auth_accepts_case_insensitive_bearer_and_trimmed_whitespace(self):
+        for header_value in (
+            "bearer bl18-token",
+            "  BeArEr    bl18-token  ",
+        ):
+            with self.subTest(header_value=header_value):
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload={"query": "__ok__", "timeout_seconds": 2},
+                    headers={"Authorization": header_value},
+                )
+                self.assertEqual(status, 200)
+                self.assertTrue(body.get("ok"))
+
+    def test_auth_rejects_malformed_bearer_headers(self):
+        for header_value in (
+            "Bearer",
+            "Bearer bl18-token extra",
+            "Basic bl18-token",
+        ):
+            with self.subTest(header_value=header_value):
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload={"query": "__ok__", "timeout_seconds": 2},
+                    headers={"Authorization": header_value},
+                )
+                self.assertEqual(status, 401)
+                self.assertEqual(body.get("error"), "unauthorized")
+
     def test_analyze_happy_path(self):
         status, body = _http_json(
             "POST",

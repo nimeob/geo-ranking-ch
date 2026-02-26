@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 from src.address_intel import AddressIntelError, build_report
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
+_BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
 _TOP_LEVEL_STATUS_KEYS = {
     "confidence",
     "sources",
@@ -180,6 +181,19 @@ def _as_positive_finite_number(value: Any, field_name: str) -> float:
     return parsed
 
 
+def _extract_bearer_token(auth_header: Any) -> str:
+    """Extrahiert Bearer-Token robust aus Authorization-Headern.
+
+    - akzeptiert `Bearer` case-insensitive
+    - toleriert führende/trailing Whitespaces und mehrere Leerzeichen nach dem Scheme
+    - erlaubt nur genau ein nicht-leeres Token-Segment
+    """
+    match = _BEARER_AUTH_RE.match(str(auth_header))
+    if not match:
+        return ""
+    return match.group(1)
+
+
 def _sanitize_request_id_candidate(candidate: Any) -> str:
     """Normalisiert Request-ID-Header robust für Echo/Response-Header."""
     value = str(candidate).strip()
@@ -294,9 +308,8 @@ class Handler(BaseHTTPRequestHandler):
 
         required_token = os.getenv("API_AUTH_TOKEN", "").strip()
         if required_token:
-            auth_header = self.headers.get("Authorization", "")
-            expected = f"Bearer {required_token}"
-            if auth_header != expected:
+            provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
+            if provided_token != required_token:
                 self._send_json(
                     {"ok": False, "error": "unauthorized", "request_id": request_id},
                     status=HTTPStatus.UNAUTHORIZED,
