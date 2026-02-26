@@ -26,6 +26,17 @@ if [[ -z "${DEV_BASE_URL:-}" ]]; then
   exit 2
 fi
 
+DEV_BASE_URL_TRIMMED="$(python3 - "${DEV_BASE_URL}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+if [[ -z "${DEV_BASE_URL_TRIMMED}" ]]; then
+  echo "[BL-18.1] DEV_BASE_URL ist leer nach Whitespace-Normalisierung." >&2
+  exit 2
+fi
+
 SMOKE_QUERY="${SMOKE_QUERY:-St. Leonhard-Strasse 40, St. Gallen}"
 SMOKE_MODE="${SMOKE_MODE:-basic}"
 SMOKE_TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-20}"
@@ -89,7 +100,7 @@ case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
     ;;
 esac
 
-RAW_BASE_URL="${DEV_BASE_URL%/}"
+RAW_BASE_URL="${DEV_BASE_URL_TRIMMED%/}"
 if [[ ! "$RAW_BASE_URL" =~ ^[Hh][Tt][Tt][Pp]([Ss])?:// ]]; then
   echo "[BL-18.1] DEV_BASE_URL muss mit http:// oder https:// beginnen (aktuell: ${DEV_BASE_URL})." >&2
   exit 2
