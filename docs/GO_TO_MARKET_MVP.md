@@ -78,21 +78,24 @@ Für Standort- und Gebäudeentscheidungen sind in der Schweiz relevante Daten ü
 
 ---
 
-## 5) Offene Risiken (als Follow-up-Issues)
+## 5) Risiken & Follow-ups
 
-- **#36 — Lizenzgrenzen für GTM-Artefakte verifizieren**
-  - Risiko: unzulässige Vermarktungs-Claims bzgl. Datenquellen
+- **✅ #36 — Lizenzgrenzen für GTM-Artefakte verifiziert**
+  - Ergebnis: GTM-Claim-Gate inkl. kommerzieller Nutzbarkeit/Attributionspflichten dokumentiert in [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md)
+  - Regel: unspezifische Quellenclaims sind als „Claim nicht verwenden“ markiert
+  - Referenz auf Quelleninventar: #24 (BL-20.2.a)
 - **#37 — Reproduzierbares Demo-Datenset definieren**
   - Risiko: inkonsistente Live-Demo durch Datenänderungen
 - **#38 — Packaging-/Pricing-Hypothesen mit Zielsegmenten validieren**
   - Risiko: fehlende Entscheidungsbasis für Angebotsmodell
 
-Diese Risiken werden bewusst separat bearbeitet, damit BL-20.7.b als MVP-Basis abgeschlossen werden kann, ohne Folgeaufgaben zu verlieren.
+Die verbleibenden Risiken werden separat bearbeitet, damit BL-20.7.b als MVP-Basis erhalten bleibt und Folgeaufgaben klar nachverfolgbar sind.
 
 ---
 
 ## 6) Nächster Schritt nach BL-20.7.b
 
 1. BL-20.7.a (Packaging-Basis Build/Run/Config) finalisieren (#34)
-2. Risiken #36/#37/#38 priorisieren und in den nächsten Sprint übernehmen
-3. Danach GTM-Baseline mit erstem Pilot-Run gegentesten
+2. Offene Risiken #37/#38 priorisieren und in den nächsten Sprint übernehmen
+3. Parallel #24 (BL-20.2.a) als vollständiges Quelleninventar/Lizenzmatrix ausbauen
+4. Danach GTM-Baseline mit erstem Pilot-Run gegentesten

@@ -366,7 +366,8 @@
 - **Zielbild:** Adresse oder Kartenpunkt in der Schweiz analysieren und als kombinierte Standort-/Gebäudeauskunft bereitstellen; Webservice und GUI separat nutzbar/vermarktbar.
 - **Fortschritt (2026-02-26):**
   - ✅ BL-20.7.b abgeschlossen (Issue #35): GTM-MVP-Artefakte dokumentiert in [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md) (Value Proposition, Scope, Demo-Flow).
-  - ✅ Offene GTM-Risiken als Follow-up-Issues nachgeführt: #36 (Lizenzgrenzen), #37 (Demo-Datenset), #38 (Packaging/Pricing-Hypothesen).
+  - ✅ 2026-02-26: #36 abgeschlossen (Lizenzgrenzen/GTM-Claims) mit Claim-Gate in [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md) inkl. Verweis auf #24 (BL-20.2.a).
+  - ⏳ Offene GTM-Follow-ups: #37 (Demo-Datenset), #38 (Packaging/Pricing-Hypothesen).
   - ⏳ Nächster direkter Schritt in BL-20.7: #34 (Packaging-Basis Build/Run/Config).
 - **Akzeptanzkriterien (Phase 1):**
   - API liefert für Adresse und Kartenpunkt ein einheitliches Ergebnisobjekt (Gebäudeprofil + Umfeldprofil).
