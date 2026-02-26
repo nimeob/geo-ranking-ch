@@ -42,6 +42,8 @@ def _sanitize_request_id_candidate(candidate: Any) -> str:
         return ""
     if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
         return ""
+    if any(ch.isspace() for ch in value):
+        return ""
     return value[:128]
 
 

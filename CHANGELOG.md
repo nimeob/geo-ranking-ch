@@ -14,6 +14,17 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m API-Guard für eingebetteten Whitespace in `X-Request-Id` + 5x Stabilität, Iteration 28)
+- **`src/web_service.py`:** Request-ID-Sanitizer verwirft jetzt zusätzlich Header-IDs mit eingebettetem Whitespace (`X-Request-Id`/`X-Correlation-Id`), damit nur token-stabile Korrelations-IDs gespiegelt werden.
+- **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert reproduzierbar den Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` eingebetteten Whitespace enthält (`"bl18 bad-id"`).
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`88 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`).
+- **API-Guard real verifiziert:** `/analyze` verwirft `X-Request-Id: "bl18 bad-id"` deterministisch und spiegelt `X-Correlation-Id` konsistent in Response-Header + JSON.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772110559.json`, `artifacts/worker-1-10m/iteration-28/bl18.1-remote-stability-local-worker-1-10m-1772110559.ndjson`, `artifacts/bl18.1-request-id-fallback-worker-1-10m-1772110577.json`.
+- **Serverläufe:** `artifacts/bl18.1-worker-1-10m-server-1772110559.log`, `artifacts/bl18.1-worker-1-10m-requestid-server-1772110577.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-28 + Request-ID-Whitespace-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Request-ID-Regeln und Nachweisführung auf den neuen Embedded-Whitespace-Guard sowie den aktuellen Worker-1-10m-Langlauf (`88 passed`, Smoke + 5x Stabilität + realer Fallback-Check) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Auto-Mkdir für fehlende `STABILITY_REPORT_PATH`-Verzeichnisse + 5x Stabilität, Iteration 27)
 - **`scripts/run_remote_api_stability_check.sh`:** akzeptiert `STABILITY_REPORT_PATH` jetzt auch dann, wenn Verzeichnis-Elternpfade noch nicht existieren; fehlende Verzeichnisse werden robust via `mkdir -p` angelegt. Der Fail-Fast-Guard bleibt für Verzeichnisziele und Datei-Elternpfade (`Parent` existiert, aber ist kein Verzeichnis) aktiv.
 - **`tests/test_remote_stability_script.py`:** neuer Happy-Path-Test verifiziert reproduzierbar, dass fehlende Elternverzeichnisse für `STABILITY_REPORT_PATH` automatisch erstellt werden und der NDJSON-Report erfolgreich geschrieben wird.
