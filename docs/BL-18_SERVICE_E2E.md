@@ -78,3 +78,53 @@ DEV_BASE_URL="https://<dein-dev-endpoint>" DEV_API_AUTH_TOKEN="<token>" ./script
 ```
 
 Der Check validiert mindestens: HTTP `200`, `ok=true`, `result` vorhanden.
+
+### Reproduzierbarkeit / Artefakt-Ausgabe
+
+`run_remote_api_smoketest.sh` unterstützt strukturierte Ausgabe als JSON-Artefakt:
+
+```bash
+DEV_BASE_URL="https://<dein-dev-endpoint>" \
+SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json" \
+./scripts/run_remote_api_smoketest.sh
+```
+
+Wichtige Optionen:
+- `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern
+- `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche)
+- `SMOKE_MODE`, `SMOKE_TIMEOUT_SECONDS`: reproduzierbarer Request-Input
+
+### Stabilitäts-/Abnahme-Lauf (mehrere Requests)
+
+Für kurze Stabilitätschecks (z. B. vor Abnahme oder nach Deploy) gibt es einen Mehrfach-Runner:
+
+```bash
+DEV_BASE_URL="https://<dein-dev-endpoint>" \
+DEV_API_AUTH_TOKEN="<token>" \
+STABILITY_RUNS=6 \
+STABILITY_INTERVAL_SECONDS=15 \
+STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability.ndjson" \
+./scripts/run_remote_api_stability_check.sh
+```
+
+Der Runner:
+- führt den Remote-Smoke-Test mehrfach aus,
+- schreibt pro Lauf eine NDJSON-Zeile,
+- bricht mit Exit `1` ab, wenn `fail_count > STABILITY_MAX_FAILURES`.
+
+### CI-Hook (optional)
+
+Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/analyze`-Smoke-Test ausführen:
+
+- Basis-URL via `SERVICE_BASE_URL` (oder Fallback aus `SERVICE_HEALTH_URL` ohne `/health`)
+- optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
+
+Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (2026-02-26, lokal reproduzierbar)
+
+- Command:
+  - `DEV_BASE_URL="http://127.0.0.1:<port>" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=2 STABILITY_INTERVAL_SECONDS=1 ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - `pass=2`, `fail=0`, Exit `0`
+  - NDJSON-Report mit zwei erfolgreichen Runs (`status=pass`, `http_status=200`, `reason=ok`).

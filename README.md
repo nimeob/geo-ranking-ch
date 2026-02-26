@@ -76,6 +76,14 @@ curl http://localhost:8080/health
 ```bash
 # lokal (immer) + dev (optional via DEV_BASE_URL)
 ./scripts/run_webservice_e2e.sh
+
+# dedizierter Remote-Smoke-Test für BL-18.1 (/analyze)
+DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_smoketest.sh
+
+# kurzer Stabilitätslauf (mehrere Remote-Smokes, mit NDJSON-Report)
+DEV_BASE_URL="https://<endpoint>" \
+DEV_API_AUTH_TOKEN="<token>" \
+./scripts/run_remote_api_stability_check.sh
 ```
 
 ### Kernmodule (src/)
@@ -173,6 +181,7 @@ Nach dem ECS-Rollout wartet der Workflow auf `services-stable` und führt anschl
 
 **GitHub Secrets (Actions):**
 - Keine AWS Access Keys erforderlich (Deploy läuft via GitHub OIDC Role Assume).
+- Optional: `SERVICE_API_AUTH_TOKEN` (für `/analyze`-Smoke-Test, wenn `API_AUTH_TOKEN` im Service aktiv ist).
 
 **GitHub Variables (Actions):**
 - `ECR_REPOSITORY` (z. B. `swisstopo-dev-api`)
@@ -180,6 +189,7 @@ Nach dem ECS-Rollout wartet der Workflow auf `services-stable` und führt anschl
 - `ECS_SERVICE` (z. B. `swisstopo-dev-api`)
 - `ECS_CONTAINER_NAME` (Container-Name in der Task Definition, oft `app` oder `api`)
 - `SERVICE_HEALTH_URL` (vollständige URL für Smoke-Test nach Deploy, z. B. `https://<alb-dns>/health`; wenn leer, wird der Smoke-Test mit Hinweis übersprungen)
+- Optional: `SERVICE_BASE_URL` (Basis-URL ohne Pfad für `/analyze`-Smoke-Test; falls nicht gesetzt, versucht der Workflow den Wert aus `SERVICE_HEALTH_URL` durch Entfernen von `/health` abzuleiten)
 
 **Zusätzlich erforderlich:**
 - GitHub OIDC Deploy-Role in AWS: `arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`

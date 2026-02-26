@@ -59,11 +59,22 @@ class TestWebServiceE2EDev(unittest.TestCase):
                 "POST",
                 f"{self.base_url}/analyze",
                 payload=payload,
+                headers={"Authorization": "Bearer wrong-token"},
+                timeout=40,
+            )
+            self.assertEqual(status, 401)
+            self.assertEqual(body.get("error"), "unauthorized")
+
+            status, body = _http_json(
+                "POST",
+                f"{self.base_url}/analyze",
+                payload=payload,
                 headers={"Authorization": f"Bearer {self.dev_token}"},
                 timeout=40,
             )
             self.assertEqual(status, 200)
             self.assertTrue(body.get("ok"))
+            self.assertIn("result", body)
             return
 
         status, body = _http_json("POST", f"{self.base_url}/analyze", payload=payload, timeout=40)

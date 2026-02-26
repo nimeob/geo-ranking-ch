@@ -14,6 +14,17 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Remote-Smoke-Härtung + Stabilitätslauf)
+- **`scripts/run_remote_api_stability_check.sh`:** Neuer Mehrfach-Runner für BL-18.1. Führt mehrere `/analyze`-Smoke-Requests aus, schreibt NDJSON-Report und erzwingt über `STABILITY_MAX_FAILURES` eine klare Pass/Fail-Abnahme.
+- **`tests/test_remote_smoke_script.py`:** Neue lokale E2E-Tests für das Remote-Smoke-Skript (Happy Path mit Token + erwarteter 401-Fehlpfad ohne Token).
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Reproduzierbarkeit + CI-Nachweis)
+- **`scripts/run_remote_api_smoketest.sh`:** Um Retry-Handling, Request-ID, stricte Mode-Validierung und optionale JSON-Artefaktausgabe (`SMOKE_OUTPUT_JSON`) erweitert.
+- **`scripts/run_webservice_e2e.sh`:** Lokalen BL-18-Testlauf um `tests/test_remote_smoke_script.py` ergänzt.
+- **`tests/test_web_e2e_dev.py`:** Dev-Auth-Negativfall mit bewusst falschem Bearer-Token ergänzt.
+- **`.github/workflows/deploy.yml`:** Optionaler `/analyze`-Smoke-Test nach ECS-Deploy ergänzt (Base-URL via `SERVICE_BASE_URL` bzw. ableitbar aus `SERVICE_HEALTH_URL`, optional mit Secret `SERVICE_API_AUTH_TOKEN`).
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md` / `README.md`:** Runbook, Backlog-Nachweis und Bedienhinweise für BL-18.1 aktualisiert.
+
 ### Changed (2026-02-26 — BL-15 Iteration: 8h-Recheck + AssumeRole-Korrelation)
 - **`docs/LEGACY_IAM_USER_READINESS.md`:** Read-only Recheck ergänzt (`audit_legacy_*`, `LOOKBACK_HOURS=8 audit_legacy_cloudtrail_consumers.sh`, `check_bl17_oidc_assumerole_posture.sh`) inkl. Befund „OIDC-Workflows korrekt, Runtime-Caller weiterhin Legacy“.
 - **`docs/LEGACY_CONSUMER_INVENTORY.md`:** Basislage + Fingerprint-Sektion auf 6h/8h-Recheck erweitert; `sts:AssumeRole`-Signal dokumentiert, aber weiterhin kein AssumeRole-first-Default bestätigt.

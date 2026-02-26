@@ -183,6 +183,34 @@ jobs:
           echo "Smoke-Test erfolgreich: ${SERVICE_HEALTH_URL} (HTTP ${HTTP_CODE})"
           echo "- Smoke-Test: ✅ ${SERVICE_HEALTH_URL} (HTTP ${HTTP_CODE})" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Smoke-Test /analyze (optional BL-18.1)
+        env:
+          SERVICE_BASE_URL: ${{ vars.SERVICE_BASE_URL }}
+          SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}
+          SERVICE_API_AUTH_TOKEN: ${{ secrets.SERVICE_API_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          BASE_URL="${SERVICE_BASE_URL:-}"
+          if [ -z "${BASE_URL}" ] && [ -n "${SERVICE_HEALTH_URL:-}" ]; then
+            BASE_URL="${SERVICE_HEALTH_URL%/health}"
+          fi
+
+          if [ -z "${BASE_URL}" ]; then
+            echo "::notice::Keine SERVICE_BASE_URL (und kein ableitbarer Wert aus SERVICE_HEALTH_URL) gesetzt. Analyze-Smoke wird übersprungen."
+            echo "- Analyze-Smoke: ⏭️ übersprungen (keine Base-URL konfiguriert)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "Analyze-Smoke gegen ${BASE_URL}/analyze"
+          if [ -n "${SERVICE_API_AUTH_TOKEN:-}" ]; then
+            DEV_BASE_URL="${BASE_URL}" DEV_API_AUTH_TOKEN="${SERVICE_API_AUTH_TOKEN}" SMOKE_OUTPUT_JSON="/tmp/bl18.1-smoke.json" ./scripts/run_remote_api_smoketest.sh
+          else
+            DEV_BASE_URL="${BASE_URL}" SMOKE_OUTPUT_JSON="/tmp/bl18.1-smoke.json" ./scripts/run_remote_api_smoketest.sh
+          fi
+
+          echo "- Analyze-Smoke: ✅ ${BASE_URL}/analyze" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Deployment summary
         run: |
           cat <<EOF >> "$GITHUB_STEP_SUMMARY"

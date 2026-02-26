@@ -275,8 +275,12 @@
   - Test prüft mindestens HTTP-Status `200`, `ok=true` und vorhandenes `result`-Objekt.
   - Test ist per Script ausführbar (inkl. optionalem Bearer-Token).
   - Kurzer Nachweislauf ist dokumentiert (stdout/Runbook-Eintrag).
-- **Umgesetzt (Iteration 2026-02-26):**
-  - `scripts/run_remote_api_smoketest.sh` ergänzt (OpenClaw/CLI-tauglicher Internet-Smoke-Test für `/analyze`, inkl. optionalem `DEV_API_AUTH_TOKEN`).
+- **Umgesetzt (Iteration 2026-02-26, laufend):**
+  - `scripts/run_remote_api_smoketest.sh` ergänzt und gehärtet (Retry-Handling, Request-ID, optionale JSON-Artefaktausgabe via `SMOKE_OUTPUT_JSON`).
+  - `scripts/run_remote_api_stability_check.sh` ergänzt (Mehrfachlauf mit NDJSON-Report + Fail-Threshold für kurze Stabilitäts-/Abnahmeläufe).
+  - `tests/test_remote_smoke_script.py` ergänzt (lokale E2E-Validierung des Smoke-Skripts inkl. Auth-Pfad/Fehlpfad).
+  - `.github/workflows/deploy.yml` um optionalen `/analyze`-Smoke-Test nach Deploy erweitert (gesteuert via `SERVICE_BASE_URL` + optional `SERVICE_API_AUTH_TOKEN`).
+  - `docs/BL-18_SERVICE_E2E.md` um Reproduzierbarkeit/Stabilitäts-Runbook erweitert (inkl. lokalem 2-Run-Nachweis: `pass=2`, `fail=0`).
 
 ---
 
