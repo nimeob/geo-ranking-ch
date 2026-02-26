@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Repeat-Reverse-Suffix-Chain-Guard + Langlauf-Nachweis)
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path deckt wiederholte Reverse-Suffix-Ketten mit Schema-Case + Whitespace ab (`"  HTTP://.../AnAlYzE/health/analyze/health///  "`) und härtet die iterative `/health`-/`/analyze`-Normalisierung gegen Regressionen in gemischter Reihenfolge.
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`41 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772094625.json` und `artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772094625.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-B Repeat-Reverse-Suffix-Langlauf synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Nachweisführung und Testabdeckung auf den aktuellen Worker-B-Langlauf (`41 passed`, Smoke + 3x Stabilität) inkl. wiederholter Reverse-Suffix-Kette (`.../AnAlYzE/health/analyze/health///`) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Repeat-Suffix-Chain-Guard + Langlauf-Nachweis)
 - **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path deckt wiederholte Base-URL-Suffix-Ketten (`.../health/analyze/health/analyze///`) ab und härtet die iterative `/health`-/`/analyze`-Normalisierung gegen Regressionen.
 - **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`40 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-langlauf-1772094394.json` und `artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772094394.ndjson`.
