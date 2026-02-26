@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Suffix-Reihenfolge-Guard + Langlauf-Nachweis)
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path validiert die gemischte Suffix-Reihenfolge `.../analyze/health//` (inkl. trailing Slashes), damit die Base-URL-Normalisierung nicht nur `.../health/analyze`, sondern auch den umgekehrten Kettenfall regressionssicher abdeckt.
+- **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`37 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-langlauf-1772093532.json` und `artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772093532.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-C Suffix-Reihenfolge synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise und Nachweisführung auf den aktuellen Worker-C-Langlauf (`37 passed`, Smoke + 3x Stabilität) sowie die neue Absicherung für gemischte Suffix-Reihenfolge (`.../analyze/health//`) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Stability-Report-Guard + Langlauf-Nachweis)
 - **`tests/test_remote_stability_script.py`:** neuer E2E-Fall stellt sicher, dass der Stability-Runner fehlende/leer gebliebene Smoke-Reports auch dann als Fehlrun behandelt, wenn das Smoke-Script `rc=0` liefert.
 - **`scripts/run_remote_api_stability_check.sh`:** optionales Override `STABILITY_SMOKE_SCRIPT` ergänzt (Tests/Debug) sowie Fail-Safe für fehlende Smoke-JSON-Artefakte implementiert; `request_id` enthält zusätzlich PID-Suffix (`bl18-stability-<run>-<epoch>-<pid>`) zur Entkopplung paralleler Läufe.

@@ -84,7 +84,7 @@ curl http://localhost:8080/health
 
 # dedizierter Remote-Smoke-Test für BL-18.1 (/analyze)
 # validiert: HTTP 200, ok=true, result vorhanden, Request-ID-Echo (Header+JSON)
-# DEV_BASE_URL muss http(s) sein (auch mit grossgeschriebenem Schema wie HTTP://); führende/trailing Whitespaces, redundante trailing Slashes sowie /health-/analyze-Suffixe (case-insensitive, auch verkettet) werden automatisch normalisiert
+# DEV_BASE_URL muss http(s) sein (auch mit grossgeschriebenem Schema wie HTTP://); führende/trailing Whitespaces, redundante trailing Slashes sowie /health-/analyze-Suffixe (case-insensitive, auch verkettet und in gemischter Reihenfolge wie /analyze/health) werden automatisch normalisiert
 # DEV_BASE_URL darf keine Query-/Fragment-Komponenten enthalten (z. B. ?foo=bar oder #frag)
 # SMOKE_TIMEOUT_SECONDS/CURL_MAX_TIME müssen endliche Zahlen >0 sein; CURL_RETRY_COUNT/CURL_RETRY_DELAY Ganzzahlen >=0
 # SMOKE_REQUEST_ID wird getrimmt und darf keine Steuerzeichen enthalten (Fail-fast bei Fehlwerten)
