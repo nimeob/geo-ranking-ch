@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Repeat-Suffix-Chain-Guard + Langlauf-Nachweis)
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path deckt wiederholte Base-URL-Suffix-Ketten (`.../health/analyze/health/analyze///`) ab und härtet die iterative `/health`-/`/analyze`-Normalisierung gegen Regressionen.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`40 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-langlauf-1772094394.json` und `artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772094394.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-A Repeat-Suffix-Langlauf synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf den aktuellen Worker-A-Langlauf (`40 passed`, Smoke + 3x Stabilität) inkl. wiederholter Suffix-Kette (`.../health/analyze/health/analyze///`) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Reverse-Suffix-Ketten-Guard + Langlauf-Nachweis)
 - **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path deckt die kombinierte Reverse-Suffix-Kette `"  HTTP://.../AnAlYzE/health//  "` ab (Schema-Case + gemischte Suffix-Reihenfolge + trailing Slashes + Whitespace in einem Lauf).
 - **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`39 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-langlauf-1772094175.json` und `artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772094175.ndjson`.
