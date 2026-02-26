@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-01-high-confidence",
+  "description": "Hoher Confidence-Referenzfall mit starkem Match und geringen Penalties",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.96,
+    "data_completeness_points": 28,
+    "cross_source_consistency_points": 18,
+    "required_source_health_points": 10,
+    "mismatch_penalty_points": 2,
+    "ambiguity_penalty_points": 1,
+    "pt_access_score": 84,
+    "noise_risk": "low",
+    "suitability_score": 78
+  }
+}

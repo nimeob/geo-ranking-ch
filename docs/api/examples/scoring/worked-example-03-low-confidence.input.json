@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-03-low-confidence",
+  "description": "Niedriger Confidence-Referenzfall mit hoher Ambiguität und starkem Mismatch-Abzug",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.51,
+    "data_completeness_points": 13,
+    "cross_source_consistency_points": 8,
+    "required_source_health_points": 6,
+    "mismatch_penalty_points": 9,
+    "ambiguity_penalty_points": 4,
+    "pt_access_score": 41,
+    "noise_risk": "high",
+    "suitability_score": 41
+  }
+}
