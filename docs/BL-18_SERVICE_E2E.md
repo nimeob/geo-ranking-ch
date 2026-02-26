@@ -17,8 +17,9 @@
 ### Service-Funktionalität
 
 - **Auth (optional, per Env):**
-  - `API_AUTH_TOKEN` gesetzt → `/analyze` verlangt `Authorization: Bearer <token>`.
-  - Ohne/mit falschem Token → `401 unauthorized`.
+  - `API_AUTH_TOKEN` gesetzt → `/analyze` verlangt einen Bearer-Token im `Authorization`-Header.
+  - Das Scheme `Bearer` wird case-insensitive akzeptiert und führende/trailing Whitespaces bzw. multiple Spaces nach dem Scheme werden robust normalisiert (z. B. `bearer <token>`, `  BeArEr    <token>  `).
+  - Token-Match bleibt strikt exakt (kein Prefix-Match, keine zusätzlichen Token-Segmente); ohne/mit falschem Token → `401 unauthorized`.
 - **Timeout-Handling verbessert:**
   - `ANALYZE_DEFAULT_TIMEOUT_SECONDS` (Default 15)
   - `ANALYZE_MAX_TIMEOUT_SECONDS` (Default 45)
