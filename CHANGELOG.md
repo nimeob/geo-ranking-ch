@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Primärheader-Priorität + Correlation-`_`-Real-Run, Iteration 35)
+- **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert die Request-ID-Priorität explizit: ist `X-Request-Id` ungültig, aber `X_Request_Id` gültig, wird deterministisch `X_Request_Id` gespiegelt (vor Correlation-Fallback).
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`100 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) im `_`-Correlation-Header-Mode (`SMOKE_REQUEST_ID_HEADER="X_Correlation_Id"`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772114701.json`, `artifacts/worker-1-10m/iteration-35/bl18.1-remote-stability-local-worker-1-10m-1772114701.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772114701.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-1-10m Iteration-35 + Primärheader-Priorität synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** API-Verhalten und Nachweisführung um die Primärheader-Priorität (`X_Request_Id` vor Correlation bei ungültigem `X-Request-Id`) ergänzt; Real-Run-/Repro-Nachweise auf Iteration 35 (`100 passed`, Smoke + 3x Stabilität, `request_id_header_name=X_Correlation_Id`) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m echte `_`-Request-ID-Header + 3x Stabilität, Iteration 34)
 - **`src/web_service.py`:** akzeptiert Request-ID-Header jetzt robust sowohl in `-`- als auch `_`-Notation (`X-Request-Id`/`X_Request_Id`, `X-Correlation-Id`/`X_Correlation_Id`) und behält die bisherige Fallback-Logik + Sanitizer-Grenzen (keine Whitespaces/Control-Chars, max. 128) bei.
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID_HEADER`-Alias-Mapping erweitert: bei `_`-Aliasen werden die Header nun real als `X_Request_Id`/`X_Correlation_Id` gesendet statt nur intern zu normalisieren; der Smoke-Report enthält dafür das neue Feld `request_id_header_name`.
