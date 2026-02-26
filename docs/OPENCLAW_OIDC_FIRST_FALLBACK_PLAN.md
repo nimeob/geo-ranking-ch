@@ -33,7 +33,9 @@ Damit bleibt volle AWS-Verwaltung möglich, ohne den Legacy-Key als Primärmecha
 1. **CI/CD-Deploys:** immer OIDC-Workflow verwenden.
 2. **Direkte AWS-Operationen in OpenClaw:** zuerst `AssumeRole` in `openclaw-ops-role`.
 3. **Legacy-Identity direkt verwenden:** nur bei Blocker/Incident und kurz dokumentieren.
-4. **Jede Fallback-Nutzung** mit Grund + Scope + Ergebnis in `docs/LEGACY_IAM_USER_READINESS.md` protokollieren.
+4. **Jede Fallback-Nutzung** mit standardisiertem Minimalformat protokollieren:
+   - Template: `docs/LEGACY_FALLBACK_LOG_TEMPLATE.md`
+   - Journal: `docs/LEGACY_IAM_USER_READINESS.md` (Section "Fallback-Log Entries")
 
 ---
 
