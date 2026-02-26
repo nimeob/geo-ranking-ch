@@ -171,14 +171,20 @@ def keyword_matches(text: str, keyword: str) -> bool:
     return keyword in text
 
 
+def is_countable_for_workstream_balance(issue) -> bool:
+    labels = {l["name"] for l in issue.get("labels", [])}
+    if "crawler:auto" in labels:
+        return False
+    if "status:blocked" in labels:
+        return False
+    return True
+
+
 def compute_workstream_counts(issues):
     counts = {k: 0 for k in WORKSTREAM_KEYWORDS}
 
     for issue in issues:
-        labels = {l["name"] for l in issue.get("labels", [])}
-        if "crawler:auto" in labels:
-            continue
-        if "status:blocked" in labels:
+        if not is_countable_for_workstream_balance(issue):
             continue
 
         text = f"{issue.get('title', '')}\n{issue.get('body', '')}".lower()
@@ -194,29 +200,77 @@ def compute_workstream_counts(issues):
     return counts
 
 
+def get_open_issues_for_workstream_balance():
+    return run_json([
+        "issue", "list", "--state", "open", "--limit", "300",
+        "--json", "number,title,body,labels"
+    ])
+
+
+def build_workstream_balance_baseline(issues):
+    counts = compute_workstream_counts(issues)
+    max_count = max(counts.values()) if counts else 0
+    min_count = min(counts.values()) if counts else 0
+    gap = max_count - min_count
+    severe_zero_gap = max_count >= 2 and min_count == 0
+    spread_too_large = gap >= 3
+
+    return {
+        "counts": counts,
+        "max_count": max_count,
+        "min_count": min_count,
+        "gap": gap,
+        "target_gap_max": 2,
+        "severe_zero_gap": severe_zero_gap,
+        "spread_too_large": spread_too_large,
+        "needs_catchup": severe_zero_gap or spread_too_large,
+    }
+
+
+def format_workstream_balance_markdown(baseline, generated_at: str):
+    counts = baseline["counts"]
+    return (
+        f"# Workstream-Balance Baseline ({generated_at})\n\n"
+        "Heuristische Zählung aus offenen, nicht-blockierten Issues (ohne `crawler:auto`).\n\n"
+        "## Counts\n"
+        f"- Development: **{counts['development']}**\n"
+        f"- Dokumentation: **{counts['documentation']}**\n"
+        f"- Testing: **{counts['testing']}**\n"
+        f"- Gap (max-min): **{baseline['gap']}**\n"
+        f"- Ziel-Gap: **<= {baseline['target_gap_max']}**\n"
+        f"- Catch-up nötig: **{'ja' if baseline['needs_catchup'] else 'nein'}**\n"
+    )
+
+
+def print_workstream_balance_report(report_format: str):
+    issues = get_open_issues_for_workstream_balance()
+    baseline = build_workstream_balance_baseline(issues)
+    generated_at = now_iso()
+
+    if report_format == "json":
+        payload = {
+            "generated_at": generated_at,
+            **baseline,
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return
+
+    print(format_workstream_balance_markdown(baseline, generated_at))
+
+
 def audit_workstream_balance(dry_run: bool):
     """
     Guardrail: Development, Documentation und Testing sollen parallel nachgezogen werden.
     Wenn ein Bereich deutlich hinterherhinkt, wird ein P0-Catch-up-Issue erzeugt.
     """
     open_titles = list_open_titles()
+    issues = get_open_issues_for_workstream_balance()
+    baseline = build_workstream_balance_baseline(issues)
 
-    issues = run_json([
-        "issue", "list", "--state", "open", "--limit", "300",
-        "--json", "number,title,body,labels"
-    ])
-
-    counts = compute_workstream_counts(issues)
-
-    max_count = max(counts.values()) if counts else 0
-    min_count = min(counts.values()) if counts else 0
-
-    severe_zero_gap = max_count >= 2 and min_count == 0
-    spread_too_large = (max_count - min_count) >= 3
-
-    if not (severe_zero_gap or spread_too_large):
+    if not baseline["needs_catchup"]:
         return
 
+    counts = baseline["counts"]
     title = "[Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen"
     if title in open_titles:
         return
@@ -241,7 +295,22 @@ def audit_workstream_balance(dry_run: bool):
 def main():
     parser = argparse.ArgumentParser(description="GitHub repo crawler: reopen inconsistent closed issues + create findings")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--print-workstream-balance",
+        action="store_true",
+        help="Gibt eine reproduzierbare Workstream-Balance-Baseline aus, ohne Issues zu verändern.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("markdown", "json"),
+        default="markdown",
+        help="Ausgabeformat für --print-workstream-balance (default: markdown).",
+    )
     args = parser.parse_args()
+
+    if args.print_workstream_balance:
+        print_workstream_balance_report(report_format=args.format)
+        return
 
     ensure_label("crawler:auto", "5319e7", "Automatisch vom Crawler erzeugte Findings", dry_run=args.dry_run)
     ensure_label("priority:P0", "b60205", "Kritisch/zeitnah", dry_run=args.dry_run)
