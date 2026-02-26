@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Query/Fragment-Guard + Langlauf-Nachweis)
+- **`tests/test_remote_smoke_script.py`:** E2E-Happy-Path für verkettete Base-URL-Suffixe (`.../health/analyze`) ergänzt sowie Negativtest für `DEV_BASE_URL` mit Query/Fragment (`exit 2`).
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`24 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-1772091225.json` und `artifacts/bl18.1-remote-stability-local-worker-b-1772091225.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Smoke-Runner robust gegen URL-Query/Fragment)
+- **`scripts/run_remote_api_smoketest.sh`:** Base-URL-Normalisierung verarbeitet verkettete `/health`-/`/analyze`-Suffixe; Query/Fragment-Komponenten werden fail-fast mit `exit 2` abgewiesen, damit der abgeleitete `/analyze`-Pfad reproduzierbar bleibt.
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Runbook/Backlog auf Query/Fragment-Guard, neue E2E-Abdeckung und aktuellen Worker-B-Real-Run (`24 passed`, Smoke + 3x Stabilität) synchronisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Langlauf-Check `/health`-Normalisierung + 3x Stabilität)
 - **`tests/test_remote_smoke_script.py`:** zusätzlicher E2E-Happy-Path, dass `DEV_BASE_URL` mit Suffix `.../health` robust auf `/analyze` normalisiert wird.
 - **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`22 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-1772090927.json` und `artifacts/bl18.1-remote-stability-local-worker-a-1772090927.ndjson`.

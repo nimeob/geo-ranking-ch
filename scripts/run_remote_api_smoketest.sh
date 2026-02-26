@@ -96,13 +96,20 @@ if [[ ! "$RAW_BASE_URL" =~ ^https?:// ]]; then
 fi
 
 BASE_URL="$RAW_BASE_URL"
-if [[ "$BASE_URL" == */health ]]; then
-  BASE_URL="${BASE_URL%/health}"
+while [[ "$BASE_URL" == */health || "$BASE_URL" == */analyze ]]; do
+  if [[ "$BASE_URL" == */health ]]; then
+    BASE_URL="${BASE_URL%/health}"
+  fi
+  if [[ "$BASE_URL" == */analyze ]]; then
+    BASE_URL="${BASE_URL%/analyze}"
+  fi
+  BASE_URL="${BASE_URL%/}"
+done
+
+if [[ "$BASE_URL" == *"?"* || "$BASE_URL" == *"#"* ]]; then
+  echo "[BL-18.1] DEV_BASE_URL darf keine Query- oder Fragment-Komponenten enthalten (aktuell: ${DEV_BASE_URL})." >&2
+  exit 2
 fi
-if [[ "$BASE_URL" == */analyze ]]; then
-  BASE_URL="${BASE_URL%/analyze}"
-fi
-BASE_URL="${BASE_URL%/}"
 
 if ! python3 - "$BASE_URL" <<'PY'
 import sys

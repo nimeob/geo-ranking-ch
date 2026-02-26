@@ -279,16 +279,18 @@
   - `scripts/run_remote_api_smoketest.sh` ergänzt und gehärtet (Retry-Handling, Request-ID, optionale JSON-Artefaktausgabe via `SMOKE_OUTPUT_JSON`, default Echo-Validierung von Request-ID in Header + JSON).
   - `src/web_service.py` um Request-Korrelation für `/analyze` erweitert (`X-Request-Id`/`X-Correlation-Id` Echo in Response-Header + JSON-Feld `request_id`) für reproduzierbare Remote-Diagnosen.
   - `scripts/run_remote_api_stability_check.sh` ergänzt (Mehrfachlauf mit NDJSON-Report + Fail-Threshold für kurze Stabilitäts-/Abnahmeläufe).
-  - `tests/test_remote_smoke_script.py` ergänzt (lokale E2E-Validierung des Smoke-Skripts inkl. Auth-Pfad/Fehlpfad + Request-ID-Echo-Nachweis) und um Happy-Path für `DEV_BASE_URL=.../health` erweitert (URL-Normalisierung auf `/analyze` reproduzierbar abgesichert).
-  - `scripts/run_remote_api_smoketest.sh` URL-Normalisierung ergänzt (`/health`/`/analyze`-Suffixe) + harte http(s)-Schema-Validierung zur robusten Runbook-Reproduzierbarkeit.
+  - `tests/test_remote_smoke_script.py` ergänzt (lokale E2E-Validierung des Smoke-Skripts inkl. Auth-Pfad/Fehlpfad + Request-ID-Echo-Nachweis) und um Happy-Paths für `DEV_BASE_URL=.../health` sowie verkettete Suffixe (`.../health/analyze`) erweitert (URL-Normalisierung auf `/analyze` reproduzierbar abgesichert).
+  - `tests/test_remote_smoke_script.py` enthält zusätzlich einen Negativfall für `DEV_BASE_URL` mit Query/Fragment (reproduzierbarer `exit 2`).
+  - `scripts/run_remote_api_smoketest.sh` URL-Normalisierung ergänzt (`/health`/`/analyze`-Suffixe, auch verkettet) + harte http(s)-Schema-Validierung zur robusten Runbook-Reproduzierbarkeit.
+  - `scripts/run_remote_api_smoketest.sh` rejectet `DEV_BASE_URL` mit Query/Fragment (`?`/`#`) jetzt fail-fast mit `exit 2`, damit der abgeleitete `/analyze`-Pfad reproduzierbar bleibt.
   - `scripts/run_remote_api_smoketest.sh` validiert Eingabeparameter strikt (`SMOKE_TIMEOUT_SECONDS`/`CURL_MAX_TIME` = endliche Zahl > 0, `CURL_RETRY_COUNT`/`CURL_RETRY_DELAY` Ganzzahl >= 0) und bricht bei Fehlwerten reproduzierbar mit `exit 2` ab.
   - `tests/test_remote_smoke_script.py` um Negativfälle für ungültige Timeout-/Retry-Parameter erweitert (früher Blocker/Traceback → jetzt klare CLI-Fehlermeldung).
   - `tests/test_remote_stability_script.py` ergänzt (lokale E2E-Validierung des Stabilitätsrunners inkl. Stop-on-first-fail-, NDJSON- und Request-ID-Korrelationsnachweis).
   - `scripts/run_remote_api_stability_check.sh` validiert `STABILITY_STOP_ON_FIRST_FAIL` strikt (`0|1`) für reproduzierbare CLI-Konfiguration; Negativfall ist über `tests/test_remote_stability_script.py` abgedeckt.
   - `.github/workflows/deploy.yml` um optionalen `/analyze`-Smoke-Test nach Deploy erweitert (gesteuert via `SERVICE_BASE_URL` + optional `SERVICE_API_AUTH_TOKEN`).
   - `docs/BL-18_SERVICE_E2E.md` um Reproduzierbarkeit/Stabilitäts-Runbook erweitert (inkl. lokalem 2-Run-Nachweis: `pass=2`, `fail=0`).
-  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit Request-ID-Echo in Header+JSON bestätigt; zuletzt im Worker-A-Langlauf mit `artifacts/bl18.1-smoke-local-worker-a-1772090927.json` + `artifacts/bl18.1-remote-stability-local-worker-a-1772090927.ndjson` (`pass=3`, `fail=0`). Frühere bestätigte Läufe bleiben nachvollziehbar dokumentiert (`worker-c`, `worker-a`, `worker-b2`, `worker-a-isolated`, `worker-b-langlauf`).
-  - Reproduzierbarkeits-Check erneuert: `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`22 passed`, Exit `0`) direkt vor dem dedizierten Worker-A-Langlauf (Smoke + 3x Stabilität).
+  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit Request-ID-Echo in Header+JSON bestätigt; zuletzt im Worker-B-Langlauf mit `artifacts/bl18.1-smoke-local-worker-b-1772091225.json` + `artifacts/bl18.1-remote-stability-local-worker-b-1772091225.ndjson` (`pass=3`, `fail=0`). Frühere bestätigte Läufe bleiben nachvollziehbar dokumentiert (`worker-a`, `worker-c`, `worker-a-isolated`, `worker-b2`, `worker-b-langlauf`).
+  - Reproduzierbarkeits-Check erneuert: `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`24 passed`, Exit `0`) direkt vor dem dedizierten Worker-B-Langlauf (Smoke + 3x Stabilität).
 
 ---
 
