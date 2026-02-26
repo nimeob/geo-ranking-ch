@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+from urllib.parse import urlsplit
 
 from src.address_intel import AddressIntelError, build_report
 
@@ -56,6 +57,17 @@ def _sanitize_request_id_candidate(candidate: Any) -> str:
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
 
+    def _normalized_path(self) -> str:
+        """Normalisiert den Request-Pfad für robustes Routing.
+
+        - ignoriert Query/Fragment-Komponenten
+        - behandelt optionale trailing Slashes auf bekannten Endpunkten tolerant
+        """
+        path = urlsplit(self.path).path or "/"
+        if path != "/":
+            path = path.rstrip("/") or "/"
+        return path
+
     def _request_id(self) -> str:
         """Liefert eine korrelierbare Request-ID (Header oder Fallback)."""
         header_candidates = (
@@ -92,8 +104,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         request_id = self._request_id()
+        request_path = self._normalized_path()
 
-        if self.path == "/health":
+        if request_path == "/health":
             self._send_json(
                 {
                     "ok": True,
@@ -104,7 +117,7 @@ class Handler(BaseHTTPRequestHandler):
                 request_id=request_id,
             )
             return
-        if self.path == "/version":
+        if request_path == "/version":
             self._send_json(
                 {
                     "service": "geo-ranking-ch",
@@ -123,8 +136,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         request_id = self._request_id()
+        request_path = self._normalized_path()
 
-        if self.path != "/analyze":
+        if request_path != "/analyze":
             self._send_json(
                 {"ok": False, "error": "not_found", "request_id": request_id},
                 status=HTTPStatus.NOT_FOUND,

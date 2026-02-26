@@ -149,6 +149,22 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Pfad-Normalisierung (`/analyze/` + Query tolerant), Iteration 47)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="38443" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:38443/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772121986  " SMOKE_REQUEST_ID_HEADER="  correlation-id  " SMOKE_ENFORCE_REQUEST_ID_ECHO="  on  " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772121986.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:38443/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  ExTenDeD  " SMOKE_REQUEST_ID_HEADER="  x_request_id  " SMOKE_ENFORCE_REQUEST_ID_ECHO="  No  " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 3 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL="  off  " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-47/bl18.1-remote-stability-local-worker-1-10m-1772121986.ndjson" ./scripts/run_remote_api_stability_check.sh`
+  - API-Realcheck Pfad-Normalisierung: `GET /health/?probe=1` und `POST /analyze/?trace=path-normalization` inkl. Request-ID-Echo-Validierung → `artifacts/bl18.1-path-normalization-worker-1-10m-1772121986.json`.
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `122 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden (`request_id_header_name=Correlation-Id`, `request_id_echo_enforced=true`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`request_id_header_name=X_Request_Id`, `request_id_echo_enforced=false`).
+  - API-Pfad-Normalisierung greift reproduzierbar: `/health/?probe=1` und `/analyze/?trace=...` liefern `200` und spiegeln die gesetzte Request-ID konsistent in Header+JSON.
+  - Evidenz: `artifacts/bl18.1-smoke-local-worker-1-10m-1772121986.json`, `artifacts/worker-1-10m/iteration-47/bl18.1-remote-stability-local-worker-1-10m-1772121986.ndjson`, `artifacts/bl18.1-path-normalization-worker-1-10m-1772121986.json`.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772121986.log`.
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, `request_id`-Smoke + `x_correlation_id`-Stabilität, Iteration 46)
 
 - Command:

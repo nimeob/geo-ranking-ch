@@ -78,6 +78,8 @@ curl http://localhost:8080/health
 
 **Mode-Input:** `intelligence_mode` wird vor der Validierung getrimmt und case-insensitive normalisiert (z. B. `"  ExTenDeD  "` → `extended`); erlaubt sind `basic|extended|risk`.
 
+**Routing-Kompatibilität:** Die Endpunkte tolerieren optionale trailing Slashes und ignorieren Query/Fragment-Teile bei der Routenauflösung (z. B. `/health/?probe=1`, `/version/?ts=1`, `/analyze/?trace=1`).
+
 ### E2E-Tests (Webservice)
 
 ```bash
