@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Langlauf-Recheck im Correlation-Mode, 5x Stabilität)
+- **Langlauf-Real-Run (Worker B):** dedizierter BL-18.1-Lauf im Correlation-Header-Mode mit robuster Suffix-Kette (`DEV_BASE_URL="  HTTP://127.0.0.1:45757/analyze//health/analyze/health///  "`) erfolgreich ausgeführt.
+- **Smoke:** `run_remote_api_smoketest.sh` Exit `0`, `HTTP 200`, `ok=true`, Request-ID-Echo konsistent in Header+JSON (`request_id_header_source=correlation`), Evidenz: `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772096678.json`.
+- **Stabilität:** `run_remote_api_stability_check.sh` mit `STABILITY_RUNS=5` erfolgreich (`pass=5`, `fail=0`, Exit `0`), Evidenz: `artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772096678.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-b-server-1772096678.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Nachweisführung auf Worker-B-5x-Langlauf synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Command/Exit/Evidenz auf den aktuellen Worker-B-Recheck mit Correlation-Header-Mode und `5x` Stabilitätslauf aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Correlation-Header-Mode im Smoke-Runner + Langlauf-Nachweis)
 - **`scripts/run_remote_api_smoketest.sh`:** neuer Modus `SMOKE_REQUEST_ID_HEADER=request|correlation` (default `request`). Damit kann der BL-18.1-Smoke reproduzierbar entweder über `X-Request-Id` oder gezielt über `X-Correlation-Id` laufen; der gewählte Header-Kanal wird als `request_id_header_source` im JSON-Report ausgegeben.
 - **`tests/test_remote_smoke_script.py`:** neue E2E-Abdeckung für den Correlation-Mode inkl. Fail-Fast-Guard bei ungültigen Header-Modi.

@@ -139,6 +139,17 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Recheck Correlation-Mode + 5x Stabilität)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:45757/analyze//health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-b-langlauf-1772096678  " SMOKE_REQUEST_ID_HEADER="correlation" SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-b-langlauf-1772096678.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:45757/analyze//health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID_HEADER="correlation" STABILITY_RUNS=5 STABILITY_INTERVAL_SECONDS=0 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772096678.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `51 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt im Correlation-Mode (`artifacts/bl18.1-smoke-local-worker-b-langlauf-1772096678.json`, `request_id_header_source=correlation`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772096678.ndjson`).
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker A, Langlauf-Iteration Correlation-Header-Mode im Smoke-Runner)
 
 - Command:
