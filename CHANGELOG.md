@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Datei-Elternpfad-Guard für `STABILITY_REPORT_PATH` + 5x Stabilität, Iteration 26)
+- **`scripts/run_remote_api_stability_check.sh`:** validiert `STABILITY_REPORT_PATH` jetzt zusätzlich auf einen gültigen Elternpfad; liegt der Parent als Datei statt Verzeichnis vor, bricht der Runner fail-fast mit klarer CLI-Fehlermeldung + `exit 2` ab, statt erst beim `mkdir -p`/Report-Write mit Shell-Fehler zu scheitern.
+- **`tests/test_remote_stability_script.py`:** neuer Guard-Test verifiziert reproduzierbar, dass ein `STABILITY_REPORT_PATH` unterhalb eines Datei-Elternpfads deterministisch mit `exit 2` zurückgewiesen wird.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`85 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772108666.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772108666.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log unter `artifacts/bl18.1-worker-1-10m-server-1772108666.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-26 + `STABILITY_REPORT_PATH`-Datei-Elternpfad-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Stabilitäts-Runbook, Negativfall-Abdeckung und BL-18.1-Nachweisführung auf den neuen Datei-Elternpfad-Guard für `STABILITY_REPORT_PATH` sowie den aktuellen Worker-1-10m-Langlauf (`85 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Datei-Elternpfad-Guard für `SMOKE_OUTPUT_JSON` + 5x Stabilität, Iteration 25)
 - **`scripts/run_remote_api_smoketest.sh`:** prüft `SMOKE_OUTPUT_JSON` jetzt zusätzlich auf einen gültigen Elternpfad; existiert der Parent bereits als Datei (statt Verzeichnis), bricht der Runner fail-fast mit klarer CLI-Fehlermeldung + `exit 2` ab, statt später beim `mkdir`/Write mit Laufzeitfehler zu scheitern.
 - **`tests/test_remote_smoke_script.py`:** neuer Guard-Test verifiziert reproduzierbar, dass ein `SMOKE_OUTPUT_JSON`-Ziel unterhalb eines Datei-Elternpfads deterministisch mit `exit 2` zurückgewiesen wird.

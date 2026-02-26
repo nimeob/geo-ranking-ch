@@ -247,6 +247,23 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertIn("STABILITY_REPORT_PATH darf kein Verzeichnis sein", cp.stderr)
         self.assertEqual(entries, [])
 
+    def test_stability_runner_rejects_report_path_when_parent_is_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            parent_file = Path(tmpdir) / "reports-parent"
+            parent_file.write_text("not-a-directory", encoding="utf-8")
+
+            cp, entries = self._run_stability(
+                include_token=True,
+                runs=1,
+                max_failures=0,
+                stop_on_first_fail=0,
+                report_path_env=str(parent_file / "stability.ndjson"),
+            )
+
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("Elternpfad von STABILITY_REPORT_PATH ist kein Verzeichnis", cp.stderr)
+        self.assertEqual(entries, [])
+
     def test_stability_runner_trims_smoke_script_override_before_exec(self):
         smoke_script = REPO_ROOT / "scripts" / "run_remote_api_smoketest.sh"
         cp, entries = self._run_stability(
