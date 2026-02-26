@@ -177,7 +177,7 @@ Kurzfassung:
 - Komplexe Aufgaben via Subagents mit `openai-codex/gpt-5.3-codex` und `thinking=high`.
 - Parallelisierung nutzen, wenn Aufgaben unabhängig sind.
 - Vor AWS-Ops-Läufen BL-17 Quick-Check ausführen: `./scripts/check_bl17_oidc_assumerole_posture.sh`.
-- Direkte AWS-CLI-Aufrufe bevorzugt über `./scripts/aws_exec_via_openclaw_ops.sh <aws-subcommand...>` ausführen (AssumeRole-first).
+- Direkte AWS-CLI-Aufrufe bevorzugt über `./scripts/aws_exec_via_openclaw_ops.sh <aws-subcommand...>` ausführen (AssumeRole-first, fail-fast Input-Validation für Role-ARN/Session-Parameter inklusive).
 - Falls Detailanalyse nötig: `./scripts/audit_legacy_aws_consumer_refs.sh` (Repo/Caller), `./scripts/audit_legacy_runtime_consumers.sh` (Runtime-Quellen) und `LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh` (CloudTrail-Fingerprints) separat ausführen.
 - Offene Legacy-Consumer je Lauf in `docs/LEGACY_CONSUMER_INVENTORY.md` nachführen (insb. externe Runner/Hosts).
 

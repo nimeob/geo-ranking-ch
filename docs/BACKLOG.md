@@ -249,6 +249,11 @@
   - `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md` auf Hybrid-Standard präzisiert (OIDC für CI/CD + AssumeRole-first für direkte OpenClaw-Ops).
   - `scripts/aws_exec_via_openclaw_ops.sh` ergänzt (führt beliebige AWS-CLI-Subcommands in temporärer `openclaw-ops-role` Session aus).
   - `scripts/check_bl17_oidc_assumerole_posture.sh` ergänzt (OIDC-Workflow-Marker, statische-Key-Checks, Caller-Klassifikation + Kontext-Audits in einem Lauf).
+  - ✅ 2026-02-26: #136 abgeschlossen (Wrapper-Härtung + Tests): `scripts/aws_exec_via_openclaw_ops.sh` validiert jetzt Role-ARN, Session-Dauer (`900..43200`) und Session-Name fail-fast; JSON-Parsing-/Credential-Fehler aus `assume-role` werden deterministisch abgefangen. Testabdeckung via `tests/test_aws_exec_via_openclaw_ops.py` (Missing-Args, Invalid-Duration, Invalid-Role-ARN, Parse-Error, Happy-Path).
+- **Work-Packages (Issue #2):**
+  - [x] #136
+  - [ ] #137
+  - [ ] #138
 
 ### BL-18 — Service funktional weiterentwickeln + als Webservice E2E testen
 - **Priorität:** P1

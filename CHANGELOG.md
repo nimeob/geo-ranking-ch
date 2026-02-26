@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-26 — BL-17.wp1 AssumeRole-Exec Wrapper Hardening)
+- **`scripts/aws_exec_via_openclaw_ops.sh`** gehärtet: fail-fast Validierung für `OPENCLAW_OPS_ROLE_ARN`, `OPENCLAW_OPS_SESSION_SECONDS` (Integer `900..43200`) und `OPENCLAW_OPS_SESSION_NAME`; robuste Fehlerbehandlung für `aws sts assume-role` und JSON-/Credential-Parsing.
+- **`tests/test_aws_exec_via_openclaw_ops.py`** ergänzt: reproduzierbare Script-Tests für Missing-Args, Invalid-Duration, Invalid-Role-ARN, Parse-Error und Happy-Path mit gemocktem AWS-CLI-Verhalten.
+- **`docs/OPERATIONS.md`** um Hinweis auf fail-fast Input-Validation des AssumeRole-Exec-Wrappers ergänzt.
+- **`docs/BACKLOG.md`** BL-17-Fortschritt + Work-Package-Checklist um Abschluss von #136 erweitert.
+
 ### Added (2026-02-26 — BL-18.1.wp2 Blocker-Retry-Supervisor)
 - **`scripts/blocker_retry_supervisor.py`** neu ergänzt: überwacht `status:blocked`-Issues auf externe Timeout/Reachability-Fehler, erzwingt 3h Grace-Period + max. 3 Fehlversuche und erstellt bei 3/3 automatisch ein Follow-up-Issue inkl. Rückverlinkung.
 - **`tests/test_blocker_retry_supervisor.py`** ergänzt: reproduzierbare Unit-Tests für Fehlerklassifikation, Grace-Handling und Follow-up-Erzeugung.
