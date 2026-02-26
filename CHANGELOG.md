@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18/BL-18.1 Iteration: API-Timeout-Guard + Worker-C-Nachweis)
+- **`tests/test_web_e2e.py`:** Negativfall für non-finite `timeout_seconds` (`nan`) ergänzt; API muss reproduzierbar mit `400 bad_request` antworten.
+- **Lokaler Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`21 passed`) sowie dedizierte BL-18.1-Läufe via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=2`, `fail=0`, Request-ID-Echo Header+JSON konsistent); Evidenz in `artifacts/bl18.1-smoke-local-worker-c.json` und `artifacts/bl18.1-remote-stability-local-worker-c.ndjson`.
+
+### Changed (2026-02-26 — BL-18 Iteration: Endliche Timeout-Validierung im API-Pfad)
+- **`src/web_service.py`:** `timeout_seconds` sowie `ANALYZE_DEFAULT_TIMEOUT_SECONDS`/`ANALYZE_MAX_TIMEOUT_SECONDS` auf endliche Zahlen `> 0` gehärtet (`nan`/`inf` werden als `400 bad_request` abgewiesen statt spätem Folgefehler).
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Doku/Runbook/Backlog auf API-seitige Numerik-Validierung und Worker-C-Real-Run-Nachweis synchronisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Non-finite Numerik-Guards + Worker-B-Nachweis)
 - **`tests/test_remote_smoke_script.py`:** Negativtests für non-finite Timeouts ergänzt (`SMOKE_TIMEOUT_SECONDS=nan`, `CURL_MAX_TIME=inf`) mit reproduzierbarem `exit 2`.
 - **Lokaler Real-Run (Worker B):** `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` gegen lokale Webservice-Instanz erfolgreich ausgeführt (`pass=2`, `fail=0`, Request-ID-Echo Header+JSON konsistent), Evidenz in `artifacts/bl18.1-smoke-local-worker-b.json` und `artifacts/bl18.1-remote-stability-local-worker-b.ndjson`.

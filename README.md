@@ -73,6 +73,8 @@ curl http://localhost:8080/health
 
 **Request-Korrelation:** Für `POST /analyze` wird `X-Request-Id` (alternativ `X-Correlation-Id`) in die Antwort gespiegelt (`X-Request-Id` Header + JSON-Feld `request_id`). Ohne Header erzeugt der Service automatisch eine Request-ID.
 
+**Timeout-Input:** `timeout_seconds` muss eine **endliche Zahl > 0** sein (z. B. kein `nan`/`inf`), sonst antwortet die API mit `400 bad_request`.
+
 ### E2E-Tests (Webservice)
 
 ```bash

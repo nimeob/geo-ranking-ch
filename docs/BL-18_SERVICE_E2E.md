@@ -22,7 +22,7 @@
 - **Timeout-Handling verbessert:**
   - `ANALYZE_DEFAULT_TIMEOUT_SECONDS` (Default 15)
   - `ANALYZE_MAX_TIMEOUT_SECONDS` (Default 45)
-  - Request-Feld `timeout_seconds` erlaubt, validiert (`> 0`) und auf Max gecappt.
+  - Request-Feld `timeout_seconds` erlaubt, validiert (endliche Zahl `> 0`, d. h. Reject von `nan`/`inf`) und auf Max gecappt.
 - **Validierung Intelligence-Mode:**
   - Zulässig: `basic | extended | risk`
   - Ungültig → `400 bad_request`.
@@ -45,7 +45,7 @@
     - Not Found (404)
     - Auth required (401)
     - Happy Path analyze (200)
-    - Invalid mode / bad request (400)
+    - Invalid mode + non-finite `timeout_seconds` / bad request (400)
     - Timeout (504)
     - Internal (500)
 - **Dev:** `tests/test_web_e2e_dev.py`
@@ -134,10 +134,10 @@ Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu bl
 ### Kurz-Nachweis (2026-02-26, lokal reproduzierbar)
 
 - Command:
-  - `DEV_BASE_URL="http://127.0.0.1:<port>" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=2 STABILITY_INTERVAL_SECONDS=1 ./scripts/run_remote_api_stability_check.sh`
-  - `DEV_BASE_URL="http://127.0.0.1:18081" SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local.json" ./scripts/run_remote_api_smoketest.sh`
-  - `DEV_BASE_URL="http://127.0.0.1:18081" STABILITY_RUNS=2 STABILITY_INTERVAL_SECONDS=1 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local.ndjson" ./scripts/run_remote_api_stability_check.sh`
+  - `./scripts/run_webservice_e2e.sh` (lokale E2E-Suite inkl. Script-E2E; Ergebnis: `21 passed`)
+  - `DEV_BASE_URL="http://127.0.0.1:18082" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-c.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="http://127.0.0.1:18082" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=2 STABILITY_INTERVAL_SECONDS=1 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-c.ndjson" ./scripts/run_remote_api_stability_check.sh`
 - Ergebnis:
-  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt.
-  - Stabilität: `pass=2`, `fail=0`, Exit `0`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-c.json`, `started_at_utc=2026-02-26T07:08:22Z`).
+  - Stabilität: `pass=2`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-c.ndjson`).
   - NDJSON-Report mit zwei erfolgreichen Runs (`status=pass`, `http_status=200`, `reason=ok`).

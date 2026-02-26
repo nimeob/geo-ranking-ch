@@ -154,6 +154,20 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(body.get("error"), "bad_request")
 
+    def test_bad_request_non_finite_timeout(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "Bahnhofstrasse 1, 8001 Zürich",
+                "timeout_seconds": "nan",
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("timeout_seconds", body.get("message", ""))
+
     def test_bad_request_empty_body(self):
         req = request.Request(
             f"{self.base_url}/analyze",

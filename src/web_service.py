@@ -10,6 +10,7 @@ Endpoints:
 from __future__ import annotations
 
 import json
+import math
 import os
 import uuid
 from datetime import datetime, timezone
@@ -20,6 +21,18 @@ from typing import Any
 from src.address_intel import AddressIntelError, build_report
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
+
+
+def _as_positive_finite_number(value: Any, field_name: str) -> float:
+    """Validiert numerische Inputs robust für API/ENV-Werte."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be a finite number > 0") from exc
+
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise ValueError(f"{field_name} must be a finite number > 0")
+    return parsed
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -137,12 +150,16 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
-            default_timeout = float(os.getenv("ANALYZE_DEFAULT_TIMEOUT_SECONDS", "15"))
-            max_timeout = float(os.getenv("ANALYZE_MAX_TIMEOUT_SECONDS", "45"))
+            default_timeout = _as_positive_finite_number(
+                os.getenv("ANALYZE_DEFAULT_TIMEOUT_SECONDS", "15"),
+                "ANALYZE_DEFAULT_TIMEOUT_SECONDS",
+            )
+            max_timeout = _as_positive_finite_number(
+                os.getenv("ANALYZE_MAX_TIMEOUT_SECONDS", "45"),
+                "ANALYZE_MAX_TIMEOUT_SECONDS",
+            )
             req_timeout_raw = data.get("timeout_seconds", default_timeout)
-            timeout = float(req_timeout_raw)
-            if timeout <= 0:
-                raise ValueError("timeout_seconds must be > 0")
+            timeout = _as_positive_finite_number(req_timeout_raw, "timeout_seconds")
             timeout = min(timeout, max_timeout)
 
             report = build_report(
