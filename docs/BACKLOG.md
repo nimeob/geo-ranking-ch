@@ -264,6 +264,7 @@
   - `tests/test_web_e2e_dev.py`: dev-E2E gegen `DEV_BASE_URL` ergänzt (mit optionalem `DEV_API_AUTH_TOKEN`).
   - `scripts/run_webservice_e2e.sh`: einheitlicher Runner für lokal + optional dev.
   - `docs/BL-18_SERVICE_E2E.md`: Ist-Analyse + Runbook dokumentiert.
+  - `scripts/gpush` robust gegenüber bereits tokenisierten `origin`-HTTPS-URLs gemacht (Credentials werden vor Token-Injektion normalisiert statt doppelt prependet); `tests/test_gpush_script.py` deckt Nachweisfälle für plain HTTPS + bereits tokenisierte Origins ab (Issue #50, 2026-02-26).
 
 ### BL-18.1 — Erfolgreicher API-Test über Internet (OpenClaw-Agent)
 - **Priorität:** P1

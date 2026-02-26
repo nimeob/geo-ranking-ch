@@ -6,7 +6,13 @@ TOKEN="$($SCRIPT_DIR/gh_app_token.sh)"
 
 REMOTE_URL="$(git remote get-url origin)"
 if [[ "$REMOTE_URL" =~ ^https:// ]]; then
-  AUTH_URL="${REMOTE_URL/https:\/\//https:\/\/x-access-token:${TOKEN}@}"
+  remote_without_scheme="${REMOTE_URL#https://}"
+  if [[ "$remote_without_scheme" == *@* ]]; then
+    remote_host_and_path="${remote_without_scheme#*@}"
+  else
+    remote_host_and_path="$remote_without_scheme"
+  fi
+  AUTH_URL="https://x-access-token:${TOKEN}@${remote_host_and_path}"
 else
   echo "origin is not HTTPS ($REMOTE_URL). Please switch origin to https for app-token push." >&2
   exit 1
