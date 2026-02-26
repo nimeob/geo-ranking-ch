@@ -46,6 +46,14 @@ Diese Referenz ist die menschenlesbare Sicht auf den maschinenlesbaren Feldkatal
 | `result.explainability.sources[*].as_of` | `string` | Ja | `stable` | `alle` | Standdatum der jeweiligen Quelle. (`[*]` = Array-Element(e)) | `2026-02-20` |
 | `result.explainability.sources[*].confidence` | `number` | Ja | `stable` | `alle` | Confidence pro Explainability-Quelle. (`[*]` = Array-Element(e)) | `0.93` |
 | `result.explainability.sources[*].license` | `string` | Ja | `beta` | `alle` | Lizenz-/Nutzungshinweis je Quelle. (`[*]` = Array-Element(e)) | `ODbL` |
+| `result.explainability.*.factors[*].key` | `string` | Ja | `beta` | `alle` | Faktor-Key in Explainability v2 (`*` = `base` oder `personalized`). (`[*]` = Array-Element(e)) | `noise` |
+| `result.explainability.*.factors[*].raw_value` | `number` | Ja | `beta` | `alle` | Rohwert des Faktors vor Normalisierung. (`*` = `base` oder `personalized`) | `68` |
+| `result.explainability.*.factors[*].normalized` | `number` | Ja | `beta` | `alle` | Normalisierter Faktorwert. (`*` = `base` oder `personalized`) | `0.68` |
+| `result.explainability.*.factors[*].weight` | `number` | Ja | `beta` | `alle` | Faktor-Gewichtung im jeweiligen Profil. (`*` = `base` oder `personalized`) | `0.35` |
+| `result.explainability.*.factors[*].contribution` | `number` | Ja | `beta` | `alle` | Gewichteter Beitragswert zum (Teil-)Score. (`*` = `base` oder `personalized`) | `-0.238` |
+| `result.explainability.*.factors[*].direction` | `string` | Ja | `beta` | `alle` | Wirkungsrichtung des Faktors (`pro\|contra\|neutral`). (`*` = `base` oder `personalized`) | `contra` |
+| `result.explainability.*.factors[*].reason` | `string` | Ja | `beta` | `alle` | Maschinenlesbare Begründung für den Faktorbeitrag. (`*` = `base` oder `personalized`) | `Hohe Nachtlärm-Exposition entlang Hauptverkehrsachse.` |
+| `result.explainability.*.factors[*].source` | `string` | Ja | `beta` | `alle` | Primäre Datenquelle des Faktors. (`*` = `base` oder `personalized`) | `laermkataster_ch` |
 
 ## Grouped-Shape (`response_shape=grouped`)
 
@@ -75,6 +83,14 @@ Diese Referenz ist die menschenlesbare Sicht auf den maschinenlesbaren Feldkatal
 | `result.data.modules.building.decoded.heizung[*].label` | `string` | Ja | `beta` | `alle` | Dekodierte Heizungsbezeichnung. (`[*]` = Array-Element(e)) | `Wärmepumpe` |
 | `result.data.modules.energy.decoded_summary.heizung[*]` | `string` | Ja | `beta` | `alle` | Heizungszusammenfassung als Stringliste. (`[*]` = Array-Element(e)) | `Wärmepumpe` |
 | `result.data.modules.cross_source.plz_layer.plz` | `number` | Ja | `beta` | `alle` | PLZ aus Cross-Source-Layer. | `8001` |
+| `result.data.modules.explainability.*.factors[*].key` | `string` | Ja | `beta` | `alle` | Grouped Explainability-v2 Faktor-Key (`*` = `base` oder `personalized`). (`[*]` = Array-Element(e)) | `noise` |
+| `result.data.modules.explainability.*.factors[*].raw_value` | `number` | Ja | `beta` | `alle` | Rohwert des Faktors vor Normalisierung. (`*` = `base` oder `personalized`) | `61` |
+| `result.data.modules.explainability.*.factors[*].normalized` | `number` | Ja | `beta` | `alle` | Normalisierter Faktorwert. (`*` = `base` oder `personalized`) | `0.61` |
+| `result.data.modules.explainability.*.factors[*].weight` | `number` | Ja | `beta` | `alle` | Faktor-Gewichtung im jeweiligen Profil. (`*` = `base` oder `personalized`) | `0.30` |
+| `result.data.modules.explainability.*.factors[*].contribution` | `number` | Ja | `beta` | `alle` | Gewichteter Beitrag je Faktor. (`*` = `base` oder `personalized`) | `-0.183` |
+| `result.data.modules.explainability.*.factors[*].direction` | `string` | Ja | `beta` | `alle` | Wirkungsrichtung (`pro\|contra\|neutral`). (`*` = `base` oder `personalized`) | `contra` |
+| `result.data.modules.explainability.*.factors[*].reason` | `string` | Ja | `beta` | `alle` | Maschinenlesbare Faktorbegründung. (`*` = `base` oder `personalized`) | `Lärmbelastung im Radius 500m über Referenzmedian.` |
+| `result.data.modules.explainability.*.factors[*].source` | `string` | Ja | `beta` | `alle` | Primäre Datenquelle des Faktors. (`*` = `base` oder `personalized`) | `laermkataster_ch` |
 | `result.data.modules.intelligence.tenants_businesses.entities[*].name` | `string` | Bedingt (bei aktivem Modus) | `beta` | `intelligence_mode=extended\|risk` | Entity-Name im Intelligence-Modul. (`[*]` = Array-Element(e)) | `Muster AG` |
 | `result.data.modules.field_provenance.*.primary_source` | `string` | Ja | `internal` | `alle` | Primärquelle je Feld in modules.field_provenance. (`*` = dynamischer Key) | `geoadmin_search` |
 | `result.data.modules.field_provenance.*.present` | `boolean` | Ja | `internal` | `alle` | Presence-Flag je Feld in modules.field_provenance. (`*` = dynamischer Key) | `true` |

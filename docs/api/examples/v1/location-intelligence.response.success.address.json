@@ -38,7 +38,55 @@
           "confidence": 0.64,
           "license": "ODbL"
         }
-      ]
+      ],
+      "base": {
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 68,
+            "normalized": 0.68,
+            "weight": 0.35,
+            "contribution": -0.238,
+            "direction": "contra",
+            "reason": "Hohe Nachtlärm-Exposition entlang Hauptverkehrsachse.",
+            "source": "laermkataster_ch"
+          },
+          {
+            "key": "pt_access",
+            "raw_value": 84,
+            "normalized": 0.84,
+            "weight": 0.25,
+            "contribution": 0.21,
+            "direction": "pro",
+            "reason": "Sehr gute ÖV-Erreichbarkeit in Gehdistanz.",
+            "source": "oev_access_index"
+          }
+        ]
+      },
+      "personalized": {
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 68,
+            "normalized": 0.68,
+            "weight": 0.5,
+            "contribution": -0.34,
+            "direction": "contra",
+            "reason": "Profil \"quiet\" priorisiert niedrige Lärmbelastung deutlich stärker.",
+            "source": "laermkataster_ch"
+          },
+          {
+            "key": "pt_access",
+            "raw_value": 84,
+            "normalized": 0.84,
+            "weight": 0.15,
+            "contribution": 0.126,
+            "direction": "pro",
+            "reason": "ÖV bleibt relevant, wird im quiet-Profil aber geringer gewichtet.",
+            "source": "oev_access_index"
+          }
+        ]
+      }
     }
   }
 }

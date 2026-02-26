@@ -50,6 +50,20 @@ Top-Level:
   - `context_profile`
   - `suitability_light`
   - `explainability.sources[]`
+  - `explainability.base.factors[]`
+  - `explainability.personalized.factors[]`
+
+### Explainability v2 (BL-20.1.g.wp1)
+
+Verbindliche Faktorstruktur für Legacy-Responses:
+- `result.explainability.base.factors[*]`
+- `result.explainability.personalized.factors[*]`
+- Pflichtfelder je Faktor: `key`, `raw_value`, `normalized`, `weight`, `contribution`, `direction`, `reason`, `source`
+- `direction` ist auf `pro|contra|neutral` begrenzt
+
+Für den grouped-Shape liegt die gleiche Faktorlogik unter:
+- `result.data.modules.explainability.base.factors[*]`
+- `result.data.modules.explainability.personalized.factors[*]`
 
 ### Error Response
 

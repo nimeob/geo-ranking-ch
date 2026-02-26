@@ -43,6 +43,9 @@ class TestApiFieldCatalog(unittest.TestCase):
             "analyze.response.grouped.success.json",
             "analyze.response.grouped.partial-disabled.json",
             "location-intelligence.response.success.address.json",
+            "result.explainability.base.factors[*]",
+            "result.explainability.personalized.factors[*]",
+            "result.data.modules.explainability.base.factors[*]",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
@@ -70,6 +73,8 @@ class TestApiFieldCatalog(unittest.TestCase):
             "intelligence_mode=extended|risk",
             "docs/api/field_catalog.json",
             "analyze.response.grouped.partial-disabled.json",
+            "result.explainability.*.factors[*].key",
+            "result.data.modules.explainability.*.factors[*].key",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in field-reference-v1.md: {marker}")

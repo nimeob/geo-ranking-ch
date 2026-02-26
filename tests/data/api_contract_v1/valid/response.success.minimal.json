@@ -17,7 +17,35 @@
           "as_of": "2026-02-20",
           "confidence": 0.9
         }
-      ]
+      ],
+      "base": {
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 62,
+            "normalized": 0.62,
+            "weight": 0.4,
+            "contribution": -0.248,
+            "direction": "contra",
+            "reason": "Lärm ist moderat erhöht.",
+            "source": "laermkataster_ch"
+          }
+        ]
+      },
+      "personalized": {
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 62,
+            "normalized": 0.62,
+            "weight": 0.55,
+            "contribution": -0.341,
+            "direction": "contra",
+            "reason": "Quiet-Profil erhöht die Negativwirkung von Lärm.",
+            "source": "laermkataster_ch"
+          }
+        ]
+      }
     }
   }
 }
