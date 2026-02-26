@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Langlauf-Check `/health`-Normalisierung + 3x Stabilität)
+- **`tests/test_remote_smoke_script.py`:** zusätzlicher E2E-Happy-Path, dass `DEV_BASE_URL` mit Suffix `.../health` robust auf `/analyze` normalisiert wird.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`22 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-1772090927.json` und `artifacts/bl18.1-remote-stability-local-worker-a-1772090927.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-A-Langlauf synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Command/Exit/Evidenz und BL-18.1-Nachweis auf den aktuellen Worker-A-Langlauf aktualisiert (E2E `22 passed`, Smoke + 3x Stabilität).
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Langlauf-Recheck, 3x Stabilität)
 - **Langlauf-Reproduzierbarkeits-Check (Worker C):** `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`21 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`), inklusive Request-ID-Echo in Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-1772090698.json` und `artifacts/bl18.1-remote-stability-local-worker-c-1772090698.ndjson`.
 
