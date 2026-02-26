@@ -47,6 +47,24 @@ Parallel:
 curl -fsS http://127.0.0.1:8080/health
 ```
 
+### Basis-Release-Checkliste (API-only Packaging)
+
+Diese Checkliste ist der minimale Gate für einen releasefähigen API-only Stand. Sie ergänzt die allgemeine Release-Sequenz in [`docs/OPERATIONS.md`](./OPERATIONS.md#release-checkliste).
+
+| Check | Kommando / Nachweis | Erwartung |
+|---|---|---|
+| Build (lokal) | `python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt` | Dependencies lösen ohne Fehler |
+| Run (lokal) | `python -m src.web_service` | Service startet ohne Traceback |
+| Smoke | `curl -fsS http://127.0.0.1:8080/health` | HTTP `200`, `{"ok": true}` |
+| Test-Gate | `pytest tests/test_web_e2e.py -q` | Exit-Code `0` |
+| Doku-Check | `./scripts/check_docs_quality_gate.sh` | Exit-Code `0` |
+| Artefakt-Nachweis | Test-/Run-Ausgaben in `artifacts/` oder PR-Beschreibung verlinken | Prüfbare Evidenz vorhanden |
+
+### Follow-ups / offene Abhängigkeiten
+
+- Konfigurationsmatrix-Vertiefung (Pflicht/Optional, Defaults, Sensitivität) erfolgt separat in Issue **#55**.
+- Diese Checkliste bleibt absichtlich API-only; GUI-spezifische Release-Gates folgen mit BL-20.6.
+
 ## 5) Scope-Grenze dieser Baseline
 
 - Fokus: **Build/Run-Reproduzierbarkeit** für API-only MVP

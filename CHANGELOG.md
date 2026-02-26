@@ -22,6 +22,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`README.md`** Dokumentationstabelle um `docs/PACKAGING_BASELINE.md` erweitert.
 - **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#54 abgeschlossen; Next Steps #55/#56).
 
+### Added (2026-02-26 — BL-20.7.a.r3 Basis-Release-Checkliste)
+- **`docs/PACKAGING_BASELINE.md`** um eine prüfbare API-only Basis-Release-Checkliste ergänzt (Build, Run, Smoke, Test-Gate, Doku-Gate, Artefakt-Nachweis) inkl. markierter Follow-ups.
+
+### Changed (2026-02-26 — BL-20.7.a.r3 Doku-/Backlog-Sync)
+- **`docs/OPERATIONS.md`** Release-Checkliste um direkten Verweis auf die Packaging-Baseline-Checks erweitert.
+- **`README.md`** Packaging-Doku-Beschreibung auf Build/Run + Basis-Release-Checkliste aktualisiert.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#56 abgeschlossen, nächster Schritt #55).
+
 ### Added (2026-02-26 — BL-20.1.a API-Contract v1)
 - **`docs/api/contract-v1.md`** neu angelegt: versionierter BL-20-Vertrag mit Pfadstrategie (`/api/v1`), Request-/Response-Profil, Fehlercode-Matrix und Verweisen auf Schemas/Beispielpayloads.
 - **`docs/api/schemas/v1/*.json`** ergänzt: Request-, Success-Response- und Error-Envelope-Schema für `POST /api/v1/location-intelligence`.
