@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-20.7.a.r1 Packaging-Baseline)
+- **`docs/PACKAGING_BASELINE.md`** neu angelegt: reproduzierbare Build/Run-Matrix (Local + Docker), Schrittfolgen für Verifikation (`/health`) und klarer Scope für den API-only Packaging-Basisschnitt.
+- **`tests/test_user_docs.py`** erweitert: Regressionstest auf Pflichtsektionen der Packaging-Baseline.
+
+### Changed (2026-02-26 — BL-20.7.a.r1 Doku-/Backlog-Sync)
+- **`README.md`** Dokumentationstabelle um `docs/PACKAGING_BASELINE.md` erweitert.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#54 abgeschlossen; Next Steps #55/#56).
+
 ### Added (2026-02-26 — BL-20.1.a API-Contract v1)
 - **`docs/api/contract-v1.md`** neu angelegt: versionierter BL-20-Vertrag mit Pfadstrategie (`/api/v1`), Request-/Response-Profil, Fehlercode-Matrix und Verweisen auf Schemas/Beispielpayloads.
 - **`docs/api/schemas/v1/*.json`** ergänzt: Request-, Success-Response- und Error-Envelope-Schema für `POST /api/v1/location-intelligence`.

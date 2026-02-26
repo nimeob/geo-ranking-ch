@@ -82,6 +82,21 @@ class TestUserDocumentation(unittest.TestCase):
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt im Operations-Guide: {marker}")
 
+    def test_packaging_baseline_doc_exists_with_core_sections(self):
+        packaging_path = REPO_ROOT / "docs" / "PACKAGING_BASELINE.md"
+        self.assertTrue(packaging_path.is_file(), msg="docs/PACKAGING_BASELINE.md fehlt")
+
+        content = packaging_path.read_text(encoding="utf-8")
+        required_markers = [
+            "# Packaging Baseline (BL-20.7.a)",
+            "## 2) Build/Run-Matrix (reproduzierbar)",
+            "## 3) Reproduzierbarer Local-Run (Schrittfolge)",
+            "## 4) Reproduzierbarer Docker-Run",
+            "## 5) Scope-Grenze dieser Baseline",
+        ]
+        for marker in required_markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt in Packaging-Baseline: {marker}")
+
     def test_root_readme_contains_thematic_webservice_feature_list(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
@@ -93,6 +108,7 @@ class TestUserDocumentation(unittest.TestCase):
         self.assertIn("docs/user/configuration-env.md", readme)
         self.assertIn("docs/user/api-usage.md", readme)
         self.assertIn("docs/user/operations-runbooks.md", readme)
+        self.assertIn("docs/PACKAGING_BASELINE.md", readme)
 
 
 if __name__ == "__main__":
