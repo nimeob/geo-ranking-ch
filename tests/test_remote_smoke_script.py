@@ -1164,6 +1164,33 @@ class TestRemoteSmokeScript(unittest.TestCase):
             self.assertIn("SMOKE_OUTPUT_JSON darf keine Steuerzeichen enthalten", cp.stderr)
             self.assertFalse(out_json.exists())
 
+    def test_smoke_script_rejects_output_json_path_when_target_is_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_dir = Path(tmpdir) / "smoke-report-dir"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_OUTPUT_JSON": str(out_dir),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("SMOKE_OUTPUT_JSON darf kein Verzeichnis sein", cp.stderr)
+
     def test_smoke_script_trims_output_json_path_before_writing_curl_error_report(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke-curl-error.json"

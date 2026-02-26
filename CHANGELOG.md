@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Verzeichnis-Guard für `SMOKE_OUTPUT_JSON` + 5x Stabilität, Iteration 24)
+- **`scripts/run_remote_api_smoketest.sh`:** validiert `SMOKE_OUTPUT_JSON` jetzt zusätzlich auf Verzeichnisziele (`-d`) und bricht mit klarer CLI-Fehlermeldung + `exit 2` ab, statt erst beim JSON-Write mit einem Laufzeitfehler zu scheitern.
+- **`tests/test_remote_smoke_script.py`:** neuer Guard-Test verifiziert reproduzierbar, dass ein existierendes Verzeichnis als `SMOKE_OUTPUT_JSON` deterministisch mit `exit 2` zurückgewiesen wird.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`83 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772107493.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772107493.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log unter `artifacts/bl18.1-worker-1-10m-server-1772107493.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-24 + `SMOKE_OUTPUT_JSON`-Verzeichnis-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise und BL-18.1-Nachweisführung auf den neuen Verzeichnis-Guard für `SMOKE_OUTPUT_JSON` sowie den aktuellen Worker-1-10m-Langlauf (`83 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Verzeichnis-Guard für `STABILITY_REPORT_PATH` + 5x Stabilität, Iteration 23)
 - **`scripts/run_remote_api_stability_check.sh`:** prüft `STABILITY_REPORT_PATH` jetzt vor dem Schreiben explizit auf Verzeichnisziele (`-d`) und bricht mit klarer CLI-Fehlermeldung + `exit 2` ab, statt erst beim Redirect/Truncate mit einem Shell-Fehler zu scheitern.
 - **`tests/test_remote_stability_script.py`:** neuer Guard-Test verifiziert reproduzierbar, dass ein existierendes Verzeichnis als `STABILITY_REPORT_PATH` deterministisch mit `exit 2` zurückgewiesen wird.

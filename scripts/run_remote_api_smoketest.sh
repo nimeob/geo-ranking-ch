@@ -20,7 +20,7 @@ set -euo pipefail
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (Default: request)
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
-#   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only -> fail-fast
+#   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
 
 if [[ -z "${DEV_BASE_URL:-}" ]]; then
@@ -86,6 +86,11 @@ if any(ord(ch) < 32 or ord(ch) == 127 for ch in path):
 PY
   then
     echo "[BL-18.1] SMOKE_OUTPUT_JSON darf keine Steuerzeichen enthalten." >&2
+    exit 2
+  fi
+
+  if [[ -d "${SMOKE_OUTPUT_JSON}" ]]; then
+    echo "[BL-18.1] SMOKE_OUTPUT_JSON darf kein Verzeichnis sein: ${SMOKE_OUTPUT_JSON}" >&2
     exit 2
   fi
 fi
