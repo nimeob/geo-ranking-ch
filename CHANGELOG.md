@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Forward-Suffix-Chain mit internem Double-Slash + Langlauf-Nachweis)
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path deckt wiederholte Forward-Suffix-Ketten mit internem Double-Slash ab (`"  HTTP://.../health//analyze/health/analyze///  "`) und härtet die iterative `/health`-/`/analyze`-Normalisierung gegen zusätzliche Slash-Segmentierung in Vorwärtsrichtung.
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`48 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772095998.json` und `artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772095998.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Forward-Double-Slash-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf den neuen Forward-Chain-Guard (`.../health//analyze/health/analyze///`) sowie den aktuellen Worker-B-Langlauf (`48 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Embedded-Whitespace-Guard + Langlauf-Nachweis)
 - **`scripts/run_remote_api_smoketest.sh`:** validiert `DEV_BASE_URL` jetzt zusätzlich auf eingebettete Whitespaces/Steuerzeichen und bricht bei fehlerhaften URL-Inputs fail-fast mit `exit 2` ab (statt späterem, weniger präzisem curl-Fehler).
 - **`tests/test_remote_smoke_script.py`:** neuer Negativtest sichert reproduzierbar `exit 2` für `DEV_BASE_URL` mit eingebettetem Whitespace (`http://.../hea lth`).

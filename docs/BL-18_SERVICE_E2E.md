@@ -53,7 +53,7 @@
   - optional mit `DEV_API_AUTH_TOKEN`
   - deckt mindestens Health/Version/404 + Analyze-Endpunkt ab
 - **Script-E2E (lokal):**
-  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//` sowie Negativfällen für `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2`, zu lange `SMOKE_REQUEST_ID` (`>128`), ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`) und `DEV_BASE_URL` mit Userinfo `user:pass@host`).
+  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, wiederholter Forward-Suffix-Ketten mit internem Double-Slash wie `.../health//analyze/health/analyze///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//` sowie Negativfällen für `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2`, zu lange `SMOKE_REQUEST_ID` (`>128`), ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`) und `DEV_BASE_URL` mit Userinfo `user:pass@host`).
   - `tests/test_remote_stability_script.py`: validiert den Mehrfach-Runner inkl. NDJSON-Report und `STABILITY_STOP_ON_FIRST_FAIL`.
 - **Run-Skript:** `scripts/run_webservice_e2e.sh`
   - führt lokal immer aus (`test_web_e2e.py` + Smoke-/Stability-Script-E2E)
@@ -136,6 +136,17 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Iteration Forward-Suffix-Chain mit internem Double-Slash)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:49769/health//analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-b-langlauf-1772095998  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-b-langlauf-1772095998.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:49769/health//analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=3 STABILITY_INTERVAL_SECONDS=0 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772095998.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `48 passed` (inkl. neuem Smoke-E2E-Guard für wiederholte Forward-Suffix-Kette mit internem Double-Slash + Schema-Case + Whitespace `"  HTTP://.../health//analyze/health/analyze///  "`).
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-b-langlauf-1772095998.json`, `started_at_utc=2026-02-26T08:53:19Z`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772095998.ndjson`).
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker A, Langlauf-Iteration Embedded-Whitespace-Guard)
 
