@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1 Trim-Recheck für Timeout-Inputs + 5x Stabilität, Iteration 6)
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path verifiziert reproduzierbar, dass getrimmte Timeout-Inputs (`SMOKE_TIMEOUT_SECONDS="\t2.5\t"`, `CURL_MAX_TIME=" 15 "`) im dedizierten BL-18.1-Smoke-Runner robust akzeptiert werden.
+- **Langlauf-Real-Run (Worker 1):** `./scripts/run_webservice_e2e.sh` erfolgreich (`59 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) trotz absichtlich Space-umhüllter Timeout-/Retry-Flags.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-langlauf-1772098485.json`, `artifacts/bl18.1-remote-stability-local-worker-1-langlauf-1772098485.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-server-1772098485.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-1 Iteration-6-Nachweis synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Testabdeckung und Nachweisführung auf getrimmte Timeout-Inputs (`SMOKE_TIMEOUT_SECONDS`, `CURL_MAX_TIME`) sowie den aktuellen Worker-1-Langlauf (`59 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Trim-Recheck für `SMOKE_MODE` + Retry-Flags, Iteration 5)
 - **`scripts/run_remote_api_smoketest.sh`:** trimmt jetzt zusätzlich `SMOKE_MODE`, `SMOKE_TIMEOUT_SECONDS`, `CURL_MAX_TIME`, `CURL_RETRY_COUNT` und `CURL_RETRY_DELAY` vor der Validierung; robuste Env-Inputs wie `"  basic  "` oder `" 1 "` werden damit reproduzierbar akzeptiert.
 - **`tests/test_remote_smoke_script.py`:** neue E2E-Happy-Paths verifizieren getrimmtes `SMOKE_MODE` sowie getrimmte Retry-Flags (`CURL_RETRY_COUNT`/`CURL_RETRY_DELAY`) gegen einen lokal gestarteten Service.

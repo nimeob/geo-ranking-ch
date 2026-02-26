@@ -72,6 +72,8 @@ class TestRemoteSmokeScript(unittest.TestCase):
         request_id: str | None = None,
         request_id_header: str | None = None,
         smoke_mode: str | None = None,
+        smoke_timeout_seconds: str | None = None,
+        curl_max_time: str | None = None,
         curl_retry_count: str | None = None,
         curl_retry_delay: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict, str]:
@@ -84,8 +86,8 @@ class TestRemoteSmokeScript(unittest.TestCase):
                     "DEV_BASE_URL": base_url or self.base_url,
                     "SMOKE_QUERY": "__ok__",
                     "SMOKE_MODE": smoke_mode or "basic",
-                    "SMOKE_TIMEOUT_SECONDS": "2",
-                    "CURL_MAX_TIME": "10",
+                    "SMOKE_TIMEOUT_SECONDS": smoke_timeout_seconds or "2",
+                    "CURL_MAX_TIME": curl_max_time or "10",
                     "CURL_RETRY_COUNT": curl_retry_count or "1",
                     "CURL_RETRY_DELAY": curl_retry_delay or "1",
                     "SMOKE_REQUEST_ID": request_id,
@@ -292,6 +294,20 @@ class TestRemoteSmokeScript(unittest.TestCase):
             include_token=True,
             curl_retry_count="\t1\t",
             curl_retry_delay="\t1\t",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertEqual(data.get("http_status"), 200)
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+
+    def test_smoke_script_trims_timeout_and_curl_max_time_before_validation(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            smoke_timeout_seconds="\t2.5\t",
+            curl_max_time=" 15 ",
         )
 
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)

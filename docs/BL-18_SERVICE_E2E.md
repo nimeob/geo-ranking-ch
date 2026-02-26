@@ -54,7 +54,7 @@
   - optional mit `DEV_API_AUTH_TOKEN`
   - deckt mindestens Health/Version/404 + Analyze-Endpunkt ab
 - **Script-E2E (lokal):**
-  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, wiederholter Forward-Suffix-Ketten mit internem Double-Slash wie `.../health//analyze/health/analyze///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//`, getrimmter Header-/Flag-Inputs wie `SMOKE_REQUEST_ID_HEADER="  Correlation  "`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "`, `SMOKE_MODE="  basic  "` und getrimmter Retry-Flags wie `CURL_RETRY_COUNT="\t1\t"`/`CURL_RETRY_DELAY="\t1\t"`, Tab-umhüllter Inputs (`"\thttp://.../health\t"`, `"\tCorrelation\t"`) sowie Negativfällen für `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2`, zu lange `SMOKE_REQUEST_ID` (`>128`), ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`) und `DEV_BASE_URL` mit Userinfo `user:pass@host`).
+  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, wiederholter Forward-Suffix-Ketten mit internem Double-Slash wie `.../health//analyze/health/analyze///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//`, getrimmter Header-/Flag-Inputs wie `SMOKE_REQUEST_ID_HEADER="  Correlation  "`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "`, `SMOKE_MODE="  basic  "`, getrimmten Timeout-Inputs `SMOKE_TIMEOUT_SECONDS="\t2.5\t"`/`CURL_MAX_TIME=" 15 "` und getrimmter Retry-Flags wie `CURL_RETRY_COUNT="\t1\t"`/`CURL_RETRY_DELAY="\t1\t"`, Tab-umhüllter Inputs (`"\thttp://.../health\t"`, `"\tCorrelation\t"`) sowie Negativfällen für `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2`, zu lange `SMOKE_REQUEST_ID` (`>128`), ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`) und `DEV_BASE_URL` mit Userinfo `user:pass@host`).
   - `tests/test_remote_stability_script.py`: validiert den Mehrfach-Runner inkl. NDJSON-Report, `STABILITY_STOP_ON_FIRST_FAIL` sowie getrimmter numerischer Flag-Inputs (inkl. Space-/Tab-Varianten wie `" 2 "`, `"\t2\t"`, `" 0 "`).
 - **Run-Skript:** `scripts/run_webservice_e2e.sh`
   - führt lokal immer aus (`test_web_e2e.py` + Smoke-/Stability-Script-E2E)
@@ -139,6 +139,18 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker 1, Langlauf-Recheck getrimmte Timeout-Inputs + 5x Stabilität, Iteration 6)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:59099/health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-1-langlauf-1772098485  " SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-langlauf-1772098485.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:59099/health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-1-langlauf-1772098485.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `59 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt im getrimmten Correlation-Mode trotz Space-umhüllter Timeout-Inputs (`SMOKE_TIMEOUT_SECONDS=" 2.5 "`, `CURL_MAX_TIME=" 15 "`) (`artifacts/bl18.1-smoke-local-worker-1-langlauf-1772098485.json`, `request_id_header_source=correlation`, `request_id_echo_enforced=true`, `started_at_utc=2026-02-26T09:34:45Z`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` mit getrimmten Timeout-/Retry-/Stability-Flags (`artifacts/bl18.1-remote-stability-local-worker-1-langlauf-1772098485.ndjson`).
+  - Server-Log: `artifacts/bl18.1-worker-1-server-1772098485.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Recheck getrimmte Retry-Flags + getrimmter SMOKE_MODE, Iteration 5)
 
