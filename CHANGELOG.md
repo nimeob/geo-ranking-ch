@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Tab-Whitespace-Trim-Recheck + 5x Stabilität, Iteration 4)
+- **`tests/test_remote_smoke_script.py`:** neuer Happy-Path verifiziert reproduzierbar, dass Tab-umhüllte Inputs (`DEV_BASE_URL="\thttp://.../health\t"`, `SMOKE_REQUEST_ID_HEADER="\tCorrelation\t"`) korrekt vor der Validierung getrimmt und im Correlation-Mode erfolgreich verarbeitet werden.
+- **`tests/test_remote_stability_script.py`:** zusätzliche E2E-Abdeckung für Tab-umhüllte numerische Flags (`"\t2\t"`, `"\t0\t"`) ergänzt, damit der Trim-Guard über Space-only Inputs hinaus abgesichert ist.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`56 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) trotz Tab-umhüllter Header-/Echo-/Stability-Flags. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-langlauf-1772097841.json` und `artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772097841.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-a-server-1772097841.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-A Iteration-4-Nachweis synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Testabdeckung und Nachweisführung auf Tab-Whitespace-Trim-Recheck aktualisiert (E2E `56 passed`, Smoke + 5x Stabilität mit Tab-umhüllten Inputs).
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Iteration 3 Recheck mit getrimmtem Echo-Flag + 5x Stabilität)
 - **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`54 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) bei explizit getrimmtem Echo-Flag (`SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "`). Evidenz in `artifacts/bl18.1-smoke-local-worker-c-langlauf-1772097551.json` und `artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772097551.ndjson`.
 - **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-c-server-1772097551.log` dokumentiert.

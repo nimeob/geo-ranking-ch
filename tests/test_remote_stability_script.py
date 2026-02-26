@@ -172,6 +172,18 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertEqual(len(entries), 2)
         self.assertTrue(all(row.get("status") == "pass" for row in entries))
 
+    def test_stability_runner_trims_tab_wrapped_flags_before_validation(self):
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs="\t2\t",
+            max_failures="\t0\t",
+            stop_on_first_fail="\t0\t",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(len(entries), 2)
+        self.assertTrue(all(row.get("status") == "pass" for row in entries))
+
     def test_stability_runner_marks_missing_smoke_report_as_failure_even_with_rc_zero(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_smoke = Path(tmpdir) / "fake_smoke.sh"
