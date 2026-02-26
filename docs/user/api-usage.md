@@ -117,11 +117,60 @@ curl -sS -X POST "http://localhost:8080/analyze" \
 
 ### Erfolgsantwort (200, verkürzt)
 
+> Contract-Hinweis (BL-20.1.c): Der Webservice trennt Antwortdaten strikt in `result.status` (Qualität/Source-Health/Meta) und `result.data` (fachliche Daten).
+
 ```json
 {
   "ok": true,
   "result": {
-    "query": "Bahnhofstrasse 1, 8001 Zürich"
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 92,
+          "max": 100,
+          "level": "high"
+        },
+        "executive_summary": {
+          "verdict": "ok"
+        }
+      },
+      "source_health": {
+        "geoadmin_search": {
+          "status": "ok",
+          "records": 1
+        }
+      },
+      "source_meta": {
+        "source_attribution": {
+          "match": [
+            "geoadmin_search"
+          ]
+        }
+      }
+    },
+    "data": {
+      "entity": {
+        "query": "Bahnhofstrasse 1, 8001 Zürich",
+        "matched_address": "Bahnhofstrasse 1, 8001 Zürich"
+      },
+      "modules": {
+        "match": {
+          "selected_score": 0.99,
+          "candidate_count": 3
+        }
+      },
+      "by_source": {
+        "geoadmin_search": {
+          "source": "geoadmin_search",
+          "data": {
+            "match": {
+              "selected_score": 0.99,
+              "candidate_count": 3
+            }
+          }
+        }
+      }
+    }
   },
   "request_id": "api-guide-001"
 }

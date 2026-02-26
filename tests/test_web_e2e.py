@@ -57,6 +57,27 @@ def _http_json(
         return e.code, parsed
 
 
+def _collect_status_like_paths(payload, prefix=""):
+    paths = []
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            key_str = str(key)
+            current = f"{prefix}.{key_str}" if prefix else key_str
+            normalized = key_str.lower()
+            if (
+                normalized == "status"
+                or normalized.startswith("status_")
+                or normalized.endswith("_status")
+            ):
+                paths.append(current)
+            paths.extend(_collect_status_like_paths(value, current))
+    elif isinstance(payload, list):
+        for idx, item in enumerate(payload):
+            current = f"{prefix}[{idx}]" if prefix else f"[{idx}]"
+            paths.extend(_collect_status_like_paths(item, current))
+    return paths
+
+
 class TestWebServiceE2E(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -157,7 +178,29 @@ class TestWebServiceE2E(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         self.assertTrue(body.get("ok"))
-        self.assertIn("result", body)
+        result = body.get("result")
+        self.assertIsInstance(result, dict)
+        self.assertIn("status", result)
+        self.assertIn("data", result)
+
+        status_block = result.get("status")
+        self.assertIsInstance(status_block, dict)
+        self.assertIn("quality", status_block)
+        self.assertIn("source_health", status_block)
+        self.assertIn("source_meta", status_block)
+
+        data_block = result.get("data")
+        self.assertIsInstance(data_block, dict)
+        self.assertIn("entity", data_block)
+        self.assertIn("modules", data_block)
+        self.assertIn("by_source", data_block)
+
+        status_like_paths = _collect_status_like_paths(data_block)
+        self.assertEqual(
+            status_like_paths,
+            [],
+            msg=f"status-Felder dürfen in result.data nicht vorkommen: {status_like_paths}",
+        )
 
     def test_analyze_accepts_trailing_slash_and_query(self):
         request_id = "bl18-e2e-analyze-query-path"
