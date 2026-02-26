@@ -126,6 +126,8 @@ class TestRemoteStabilityScript(unittest.TestCase):
             self.assertEqual(row.get("reason"), "ok")
             self.assertEqual(row.get("http_status"), 200)
             self.assertTrue(str(row.get("request_id", "")).startswith(f"bl18-stability-{idx}-"))
+            self.assertEqual(row.get("response_request_id"), row.get("request_id"))
+            self.assertEqual(row.get("response_header_request_id"), row.get("request_id"))
 
     def test_stability_runner_stops_on_first_failure_when_configured(self):
         cp, entries = self._run_stability(

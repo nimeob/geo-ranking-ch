@@ -64,9 +64,12 @@ class TestRemoteSmokeScript(unittest.TestCase):
         except subprocess.TimeoutExpired:
             cls.proc.kill()
 
-    def _run_smoke(self, *, include_token: bool) -> tuple[subprocess.CompletedProcess[str], dict]:
+    def _run_smoke(
+        self, *, include_token: bool
+    ) -> tuple[subprocess.CompletedProcess[str], dict, str]:
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"
+            request_id = f"bl18-smoke-test-{int(time.time() * 1000)}"
             env = os.environ.copy()
             env.update(
                 {
@@ -77,6 +80,7 @@ class TestRemoteSmokeScript(unittest.TestCase):
                     "CURL_MAX_TIME": "10",
                     "CURL_RETRY_COUNT": "1",
                     "CURL_RETRY_DELAY": "1",
+                    "SMOKE_REQUEST_ID": request_id,
                     "SMOKE_OUTPUT_JSON": str(out_json),
                 }
             )
@@ -93,18 +97,22 @@ class TestRemoteSmokeScript(unittest.TestCase):
                 text=True,
             )
             data = json.loads(out_json.read_text(encoding="utf-8"))
-            return cp, data
+            return cp, data, request_id
 
     def test_smoke_script_passes_with_valid_token(self):
-        cp, data = self._run_smoke(include_token=True)
+        cp, data, request_id = self._run_smoke(include_token=True)
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
         self.assertEqual(data.get("status"), "pass")
         self.assertEqual(data.get("reason"), "ok")
         self.assertEqual(data.get("http_status"), 200)
         self.assertIn("query", data.get("result_keys", []))
+        self.assertTrue(data.get("request_id_echo_enforced"))
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+        self.assertEqual(data.get("response_header_request_id"), request_id)
 
     def test_smoke_script_fails_without_token_when_auth_enabled(self):
-        cp, data = self._run_smoke(include_token=False)
+        cp, data, _ = self._run_smoke(include_token=False)
         self.assertNotEqual(cp.returncode, 0)
         self.assertEqual(data.get("status"), "fail")
         self.assertEqual(data.get("reason"), "http_status")

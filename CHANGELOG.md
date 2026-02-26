@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Request-ID-Echo-Abnahme im Smoke-Runner)
+- **`tests/test_remote_smoke_script.py`:** Happy-Path erweitert um harte Assertions auf Request-ID-Korrelation (`request_id`, `response_request_id`, `response_header_request_id`).
+- **`tests/test_remote_stability_script.py`:** NDJSON-Validierung um Request-ID-Echo-Nachweis pro Run ergänzt.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Smoke-Runner prüft Header+JSON-Korrelation)
+- **`scripts/run_remote_api_smoketest.sh`:** Response-Header werden jetzt mit ausgewertet; default wird Request-ID-Echo gegen `SMOKE_REQUEST_ID` erzwungen (Header `X-Request-Id` + JSON `request_id`), inkl. neuer Fehlgründe `request_id_header_mismatch` / `request_id_body_mismatch` und Schalter `SMOKE_ENFORCE_REQUEST_ID_ECHO=0|1`.
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** BL-18.1-Nachweisführung auf Request-ID-Echo-Abnahme aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Stabilitätsrunner-E2E-Härtung)
 - **`tests/test_remote_stability_script.py`:** Neue lokale E2E-Tests für `run_remote_api_stability_check.sh` (Happy Path mit zwei erfolgreichen Runs + Abbruchpfad via `STABILITY_STOP_ON_FIRST_FAIL=1`).
 

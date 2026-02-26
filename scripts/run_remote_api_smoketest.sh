@@ -16,6 +16,7 @@ set -euo pipefail
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
 #   SMOKE_REQUEST_ID="bl18-<id>"
+#   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"
 
 if [[ -z "${DEV_BASE_URL:-}" ]]; then
@@ -31,13 +32,22 @@ CURL_RETRY_COUNT="${CURL_RETRY_COUNT:-3}"
 CURL_RETRY_DELAY="${CURL_RETRY_DELAY:-2}"
 SMOKE_OUTPUT_JSON="${SMOKE_OUTPUT_JSON:-}"
 SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID:-bl18-$(date +%s)}"
+SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
 
-export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID
+export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_ENFORCE_REQUEST_ID_ECHO
 
 case "$SMOKE_MODE" in
   basic|extended|risk) ;;
   *)
     echo "[BL-18.1] Ungültiger SMOKE_MODE='${SMOKE_MODE}' (erlaubt: basic|extended|risk)." >&2
+    exit 2
+    ;;
+esac
+
+case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
+  0|1) ;;
+  *)
+    echo "[BL-18.1] Ungültiger SMOKE_ENFORCE_REQUEST_ID_ECHO='${SMOKE_ENFORCE_REQUEST_ID_ECHO}' (erlaubt: 0|1)." >&2
     exit 2
     ;;
 esac
@@ -65,7 +75,8 @@ PY
 )
 
 TMP_BODY="$(mktemp)"
-trap 'rm -f "$TMP_BODY"' EXIT
+TMP_HEADERS="$(mktemp)"
+trap 'rm -f "$TMP_BODY" "$TMP_HEADERS"' EXIT
 
 started_at_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 start_epoch="$(date +%s)"
@@ -77,6 +88,7 @@ HTTP_CODE=$(curl -sS -m "${CURL_MAX_TIME}" \
   --retry-delay "${CURL_RETRY_DELAY}" \
   --retry-connrefused \
   --retry-all-errors \
+  -D "$TMP_HEADERS" \
   -o "$TMP_BODY" -w "%{http_code}" \
   -X POST "${ANALYZE_URL}" \
   -H "Content-Type: application/json" \
@@ -113,6 +125,9 @@ report = {
     "curl_exit": int(os.environ["CURL_EXIT"]),
     "http_status": None,
     "request_id": os.environ["SMOKE_REQUEST_ID"],
+    "request_id_echo_enforced": os.environ.get("SMOKE_ENFORCE_REQUEST_ID_ECHO", "1") == "1",
+    "response_request_id": None,
+    "response_header_request_id": None,
     "url": os.environ["ANALYZE_URL"],
     "started_at_utc": os.environ["started_at_utc"],
     "ended_at_utc": os.environ["ended_at_utc"],
@@ -125,20 +140,49 @@ PY
   exit 1
 fi
 
-python3 - "$HTTP_CODE" "$TMP_BODY" <<'PY'
+python3 - "$HTTP_CODE" "$TMP_BODY" "$TMP_HEADERS" <<'PY'
 import json
 import os
 import pathlib
 import sys
 
+
+def _extract_last_headers(raw_text: str) -> dict[str, str]:
+    normalized = raw_text.replace("\r\n", "\n")
+    blocks = [b for b in normalized.split("\n\n") if b.strip()]
+    for block in reversed(blocks):
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        if not lines:
+            continue
+        if not lines[0].startswith("HTTP/"):
+            continue
+        headers: dict[str, str] = {}
+        for line in lines[1:]:
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            headers[key.strip().lower()] = value.strip()
+        return headers
+    return {}
+
+
 http_code = int(sys.argv[1])
 body = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8", errors="replace")
+headers_raw = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8", errors="replace")
+headers = _extract_last_headers(headers_raw)
+response_header_request_id = headers.get("x-request-id")
+
+enforce_request_id_echo = os.environ.get("SMOKE_ENFORCE_REQUEST_ID_ECHO", "1") == "1"
+expected_request_id = os.environ["SMOKE_REQUEST_ID"]
 
 report = {
     "status": "fail",
     "reason": None,
     "http_status": http_code,
-    "request_id": os.environ["SMOKE_REQUEST_ID"],
+    "request_id": expected_request_id,
+    "request_id_echo_enforced": enforce_request_id_echo,
+    "response_request_id": None,
+    "response_header_request_id": response_header_request_id,
     "url": os.environ["ANALYZE_URL"],
     "started_at_utc": os.environ["started_at_utc"],
     "ended_at_utc": os.environ["ended_at_utc"],
@@ -153,6 +197,9 @@ except json.JSONDecodeError:
     print(f"[BL-18.1] FAIL: Response ist kein valides JSON (HTTP {http_code}).")
     print(body)
 else:
+    response_body_request_id = data.get("request_id")
+    report["response_request_id"] = response_body_request_id
+
     if http_code != 200:
         report["reason"] = "http_status"
         print(f"[BL-18.1] FAIL: Erwartet HTTP 200, erhalten {http_code}.")
@@ -167,6 +214,38 @@ else:
             report["reason"] = "missing_result"
             print("[BL-18.1] FAIL: Feld 'result' fehlt oder ist leer.")
             print(json.dumps(data, ensure_ascii=False, indent=2))
+        elif enforce_request_id_echo and response_header_request_id != expected_request_id:
+            report["reason"] = "request_id_header_mismatch"
+            print(
+                "[BL-18.1] FAIL: Response-Header X-Request-Id stimmt nicht mit Request-ID überein."
+            )
+            print(
+                json.dumps(
+                    {
+                        "expected_request_id": expected_request_id,
+                        "response_header_request_id": response_header_request_id,
+                        "response_request_id": response_body_request_id,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+        elif enforce_request_id_echo and response_body_request_id != expected_request_id:
+            report["reason"] = "request_id_body_mismatch"
+            print(
+                "[BL-18.1] FAIL: Response-Feld request_id stimmt nicht mit Request-ID überein."
+            )
+            print(
+                json.dumps(
+                    {
+                        "expected_request_id": expected_request_id,
+                        "response_header_request_id": response_header_request_id,
+                        "response_request_id": response_body_request_id,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
         else:
             report["status"] = "pass"
             report["reason"] = "ok"
@@ -179,6 +258,8 @@ else:
                         "result_keys": sorted(result.keys())[:12],
                         "duration_seconds": report["duration_seconds"],
                         "request_id": report["request_id"],
+                        "response_request_id": report["response_request_id"],
+                        "response_header_request_id": report["response_header_request_id"],
                     },
                     ensure_ascii=False,
                     indent=2,

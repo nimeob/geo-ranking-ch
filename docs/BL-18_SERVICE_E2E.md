@@ -83,7 +83,7 @@ DEV_BASE_URL="https://<dein-dev-endpoint>" ./scripts/run_remote_api_smoketest.sh
 DEV_BASE_URL="https://<dein-dev-endpoint>" DEV_API_AUTH_TOKEN="<token>" ./scripts/run_remote_api_smoketest.sh
 ```
 
-Der Check validiert mindestens: HTTP `200`, `ok=true`, `result` vorhanden.
+Der Check validiert mindestens: HTTP `200`, `ok=true`, `result` vorhanden **und** (default) Request-ID-Echo (`X-Request-Id` Header + JSON-Feld `request_id` entsprechen der gesendeten `SMOKE_REQUEST_ID`).
 
 ### Reproduzierbarkeit / Artefakt-Ausgabe
 
@@ -98,6 +98,7 @@ SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json" \
 Wichtige Optionen:
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern
 - `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche)
+- `SMOKE_ENFORCE_REQUEST_ID_ECHO` (`1|0`, default `1`): erzwingt Echo-Prüfung für Header + JSON (`request_id`)
 - `SMOKE_MODE`, `SMOKE_TIMEOUT_SECONDS`: reproduzierbarer Request-Input
 
 ### Stabilitäts-/Abnahme-Lauf (mehrere Requests)
