@@ -231,7 +231,7 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-03, BL-15
-- **Status:** ⏳ offen
+- **Status:** 🟡 in Umsetzung (2026-02-26)
 - **Akzeptanzkriterien:**
   - Primärpfad für AWS-Operationen läuft über GitHub Actions OIDC.
   - Legacy-Key wird nur als dokumentierter Fallback genutzt.
