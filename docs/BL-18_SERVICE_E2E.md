@@ -140,6 +140,18 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Recheck getrimmter Correlation-Mode + 5x Stabilität, Iteration 2)
+
+- Command:
+  - `python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_smoke_script.py tests/test_remote_stability_script.py`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:39243/analyze//health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-b-langlauf-1772097377  " SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-b-langlauf-1772097377.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:39243/analyze//health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID_HEADER="  Correlation  " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772097377.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `54 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt im getrimmten Correlation-Mode (`artifacts/bl18.1-smoke-local-worker-b-langlauf-1772097377.json`, `request_id_header_source=correlation`, `started_at_utc=2026-02-26T09:16:17Z`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` trotz absichtlich getrimmter numerischer Flags (`" 5 "`, `" 0 "`) und getrimmtem Stop-Flag (`" 0 "`) (`artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772097377.ndjson`, Run-IDs inkl. PID-Suffix wie `bl18-stability-1-1772097377-72356`).
+  - Server-Log: `artifacts/bl18.1-worker-b-server-1772097377.log`.
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1, Langlauf-Recheck getrimmte Stability-Flags + 5x Stabilität)
 
 - Command:
