@@ -332,7 +332,9 @@
 - **Fortschritt (2026-02-26):**
   - ✅ BL-19.1 Informationsarchitektur umgesetzt (`docs/user/README.md`)
   - ✅ BL-19.2 Getting Started umgesetzt (`docs/user/getting-started.md`)
-  - ⏳ Nächste Schritte: BL-19.4 (API Usage Guide), BL-19.3 (Configuration/ENV), BL-19.7 (README-Integration verfeinern)
+  - ✅ BL-19.4 API Usage Guide umgesetzt (`docs/user/api-usage.md`)
+  - ✅ BL-19.7 README-Integration verfeinert (Feature-Liste + User-Doku-Links in `README.md`)
+  - ⏳ Nächster Schritt: BL-19.3 (Configuration/ENV)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
   2. **BL-19.2 – Getting Started:** Quickstart für lokale Inbetriebnahme inkl. Minimal-Konfiguration und erstem erfolgreichen Request.

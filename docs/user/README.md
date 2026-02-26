@@ -15,7 +15,7 @@ Ziel dieser Doku: den Service schnell nutzbar machen — für lokale Entwicklung
 
 - **[Getting Started](./getting-started.md)**
   - Schnellster Weg von 0 → erster erfolgreicher `/analyze`-Call.
-- **(folgt) API Usage Guide**
+- **[API Usage Guide](./api-usage.md)**
   - Endpoints, Header, Request/Response-Schema, Beispiele.
 - **(folgt) Configuration / ENV**
   - Alle relevanten Umgebungsvariablen inkl. Defaults/Validierung.

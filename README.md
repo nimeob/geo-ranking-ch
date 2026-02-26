@@ -18,6 +18,26 @@
 
 > **Umgebungen:** Aktuell existiert ausschließlich eine **`dev`-Umgebung**. `staging` und `prod` sind noch nicht aufgebaut.
 
+### Webservice-Features (thematisch geordnet)
+
+- **API-Grundfunktionen**
+  - `GET /health` für Liveness-Checks
+  - `GET /version` für Build-/Commit-Transparenz
+  - `POST /analyze` für adressbasierte Standortanalyse
+- **Sicherheit & Zugriff**
+  - optionale Bearer-Auth via `API_AUTH_TOKEN`
+  - robuste Request-ID-Sanitization (ASCII-only, Längenlimit, Delimiter-/Whitespace-Guards)
+- **Robuste API-Eingänge**
+  - `intelligence_mode` mit Trim + case-insensitive Normalisierung (`basic|extended|risk`)
+  - `timeout_seconds` als endliche Zahl `> 0` (inkl. serverseitigem Max-Cap)
+  - tolerantes Routing (trailing slash, double slash, Query/Fragment-ignorant)
+- **Betrieb & Nachvollziehbarkeit**
+  - konsistente Request-Korrelation über Header + JSON-Feld `request_id`
+  - lokale/dev E2E-, Smoke- und Stabilitäts-Runner mit Artefakt-Ausgabe
+- **Developer Experience**
+  - stdlib-only Webservice (`src/web_service.py`) für einfache Reproduzierbarkeit
+  - klar dokumentierte User-Guides unter `docs/user/`
+
 ## Schnellstart
 
 ### Voraussetzungen
@@ -79,6 +99,8 @@ curl http://localhost:8080/health
 **Mode-Input:** `intelligence_mode` wird vor der Validierung getrimmt und case-insensitive normalisiert (z. B. `"  ExTenDeD  "` → `extended`); erlaubt sind `basic|extended|risk`.
 
 **Routing-Kompatibilität:** Die Endpunkte tolerieren optionale trailing Slashes, kollabieren doppelte Slash-Segmente (`//`) auf einen Slash und ignorieren Query/Fragment-Teile bei der Routenauflösung (z. B. `/health/?probe=1`, `//version///?ts=1`, `//analyze//?trace=1`).
+
+👉 Detaillierte API-Referenz: [`docs/user/api-usage.md`](docs/user/api-usage.md)
 
 ### E2E-Tests (Webservice)
 
@@ -165,6 +187,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/AUTONOMOUS_AGENT_MODE.md](docs/AUTONOMOUS_AGENT_MODE.md) | Verbindlicher Arbeitsmodus für Nipa (Subagents + GitHub App Auth) |
 | [docs/user/README.md](docs/user/README.md) | User-Doku Einstieg (BL-19.1) |
 | [docs/user/getting-started.md](docs/user/getting-started.md) | Schnellstart bis zum ersten erfolgreichen `/analyze`-Call (BL-19.2) |
+| [docs/user/api-usage.md](docs/user/api-usage.md) | API-Referenz mit Auth, Headern, Inputs/Outputs und Statuscodes (BL-19.4) |
 | [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Ist-Analyse + E2E-Runbook für BL-18 |
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |

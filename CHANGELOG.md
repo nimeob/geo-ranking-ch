@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-19.4 API Usage Guide + README-Featurestruktur)
+- **`docs/user/api-usage.md`** neu angelegt: vollständige Endpoint-Referenz (`/health`, `/version`, `/analyze`) mit Auth-Verhalten, Request-/Response-Beispielen, Request-ID-Priorität/Sanitization, Statuscode-Matrix und API-relevanten ENV-Variablen.
+- **`tests/test_user_docs.py`** ergänzt: Regressionstests für User-Doku-Struktur (API-Guide vorhanden, korrekte Cross-Links in `docs/user/*`, thematisch gegliederte Feature-Sektion im Root-README).
+
+### Changed (2026-02-26 — BL-19.4/BL-19.7 Doku-Integration)
+- **`docs/user/README.md`** verlinkt den API-Guide jetzt direkt (`./api-usage.md`) statt Platzhalter.
+- **`docs/user/getting-started.md`** verweist auf den neuen API-Guide als nächsten Schritt.
+- **`README.md`** um thematisch organisierte Webservice-Featureliste erweitert und User-Doku-Link auf `docs/user/api-usage.md` ergänzt.
+- **`docs/BACKLOG.md`** Fortschritt für BL-19 aktualisiert (BL-19.4 + BL-19.7 als umgesetzt markiert, nächster Fokus BL-19.3).
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Double-Slash-Pfad-Normalisierung + Real-Run, Iteration 48)
 - **`src/web_service.py`:** Routing-Normalisierung kollabiert jetzt zusätzlich doppelte Slash-Segmente (`//`) auf einen Slash, bevor Endpunkte aufgelöst werden; Query-/Fragment-Ignorierung und tolerant handling für trailing Slashes bleiben unverändert aktiv.
 - **`tests/test_web_e2e.py`:** neue E2E-Fälle sichern reproduzierbar ab, dass `//health//?probe=1`, `//version///?ts=1` und `POST //analyze//?trace=double-slash` korrekt funktionieren inkl. Request-ID-Echo.
