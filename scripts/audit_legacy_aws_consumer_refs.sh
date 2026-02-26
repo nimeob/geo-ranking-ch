@@ -49,11 +49,20 @@ fi
 
 echo
 echo "--- 2) Legacy-/Key-Referenzen im Repo (inkl. Doku/Template) ---"
-grep -RInE "swisstopo-api-deploy|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY" \
-  --exclude-dir=.git \
-  --exclude-dir=.venv \
-  --exclude-dir=.terraform \
-  . || true
+if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git -c color.ui=never grep -nE "swisstopo-api-deploy|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY" \
+    -- . \
+    ':(exclude)artifacts/**' \
+    ':(exclude).venv/**' \
+    ':(exclude).terraform/**' || true
+else
+  grep -RInE "swisstopo-api-deploy|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY" \
+    --exclude-dir=.git \
+    --exclude-dir=artifacts \
+    --exclude-dir=.venv \
+    --exclude-dir=.terraform \
+    . || true
+fi
 
 echo
 echo "--- 3) Skripte mit AWS-CLI-Aufrufen (potenzielle Consumer) ---"
