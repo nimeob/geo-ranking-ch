@@ -212,7 +212,7 @@ Ungültige Kandidaten werden verworfen, danach greift der nächste Header in Pri
 | `APP_VERSION` | `dev` | Ausgabe in `GET /version` |
 | `GIT_SHA` | `unknown` | Ausgabe in `GET /version` |
 
-Hinweis: Eine vollständige ENV-Referenz folgt in **BL-19.3 (Configuration Guide)**.
+Vollständige ENV-Referenz: **[Configuration / ENV Guide](./configuration-env.md)**.
 
 ---
 
@@ -231,7 +231,7 @@ curl -sS -X POST "http://localhost:8080/analyze" \
   -d '{"query":"St. Gallen"}'
 ```
 
-Nächste Seiten (in Arbeit):
+Nächste Seiten:
 
-- Configuration / ENV *(folgt in BL-19.3)*
+- **[Configuration / ENV Guide](./configuration-env.md)**
 - Troubleshooting *(folgt in BL-19.5)*

@@ -17,8 +17,8 @@ Ziel dieser Doku: den Service schnell nutzbar machen — für lokale Entwicklung
   - Schnellster Weg von 0 → erster erfolgreicher `/analyze`-Call.
 - **[API Usage Guide](./api-usage.md)**
   - Endpoints, Header, Request/Response-Schema, Beispiele.
-- **(folgt) Configuration / ENV**
-  - Alle relevanten Umgebungsvariablen inkl. Defaults/Validierung.
+- **[Configuration / ENV Guide](./configuration-env.md)**
+  - Alle relevanten Umgebungsvariablen inkl. Defaults, Prioritätsregeln und Validierung.
 - **(folgt) Troubleshooting**
   - Häufige Fehlerbilder (401/400/504, URL/Auth/Timeout).
 - **(folgt) Operations Quick Guide**

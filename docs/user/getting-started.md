@@ -96,4 +96,6 @@ DEV_BASE_URL="https://<dein-endpoint>" ./scripts/run_webservice_e2e.sh
 
 ---
 
-Nächste Seite: **[API Usage Guide](./api-usage.md)**
+Nächste Seiten:
+- **[API Usage Guide](./api-usage.md)**
+- **[Configuration / ENV Guide](./configuration-env.md)**

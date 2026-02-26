@@ -24,6 +24,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`README.md`** um thematisch organisierte Webservice-Featureliste erweitert und User-Doku-Link auf `docs/user/api-usage.md` ergänzt.
 - **`docs/BACKLOG.md`** Fortschritt für BL-19 aktualisiert (BL-19.4 + BL-19.7 als umgesetzt markiert, nächster Fokus BL-19.3).
 
+### Added (2026-02-26 — BL-19.3 Configuration/ENV Guide)
+- **`docs/user/configuration-env.md`** neu angelegt: vollständige ENV-Referenz für Service- und Address-Intel-Variablen mit Pflicht/Optional, Defaults, Prioritätsregeln (`PORT` vor `WEB_PORT`), Validierung und Fehlkonfigurationshinweisen.
+- **`tests/test_user_docs.py`** erweitert: Regressionstest für den neuen Configuration-Guide (Datei + Kernmarker + kritische ENV-Namen) sowie Cross-Link-Checks aus `docs/user/README.md`, `docs/user/getting-started.md` und `docs/user/api-usage.md`.
+
+### Changed (2026-02-26 — BL-19.3 Link-Integration + Backlog-Update)
+- **`docs/user/README.md`** und **`docs/user/getting-started.md`** verlinken den neuen Configuration/ENV-Guide direkt.
+- **`docs/user/api-usage.md`** verweist bei der ENV-Referenz jetzt auf `./configuration-env.md` statt auf einen BL-19.3-Platzhalter.
+- **`README.md`** Dokumentationsübersicht um `docs/user/configuration-env.md` ergänzt.
+- **`docs/BACKLOG.md`** BL-19-Fortschritt ergänzt (BL-19.3 als umgesetzt, nächster Fokus BL-19.5).
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Double-Slash-Pfad-Normalisierung + Real-Run, Iteration 48)
 - **`src/web_service.py`:** Routing-Normalisierung kollabiert jetzt zusätzlich doppelte Slash-Segmente (`//`) auf einen Slash, bevor Endpunkte aufgelöst werden; Query-/Fragment-Ignorierung und tolerant handling für trailing Slashes bleiben unverändert aktiv.
 - **`tests/test_web_e2e.py`:** neue E2E-Fälle sichern reproduzierbar ab, dass `//health//?probe=1`, `//version///?ts=1` und `POST //analyze//?trace=double-slash` korrekt funktionieren inkl. Request-ID-Echo.
