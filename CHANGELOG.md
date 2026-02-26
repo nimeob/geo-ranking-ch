@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1.wp2 Blocker-Retry-Supervisor)
+- **`scripts/blocker_retry_supervisor.py`** neu ergänzt: überwacht `status:blocked`-Issues auf externe Timeout/Reachability-Fehler, erzwingt 3h Grace-Period + max. 3 Fehlversuche und erstellt bei 3/3 automatisch ein Follow-up-Issue inkl. Rückverlinkung.
+- **`tests/test_blocker_retry_supervisor.py`** ergänzt: reproduzierbare Unit-Tests für Fehlerklassifikation, Grace-Handling und Follow-up-Erzeugung.
+
+### Changed (2026-02-26 — BL-18.1.wp2 Doku-Sync)
+- **`docs/AUTONOMOUS_AGENT_MODE.md`** um verbindliche Blocker-Retry-Policy (Grace/Retry/Follow-up) erweitert.
+- **`docs/OPERATIONS.md`** um Betriebsabschnitt für den Retry-Supervisor inkl. Cron-Hinweis + manuellem Debug-Lauf ergänzt.
+- **`docs/BACKLOG.md`** BL-18.1-Fortschritt um Abschluss von #134 inkl. Testnachweis aktualisiert.
+
 ### Changed (2026-02-26 — BL-18.fc1 Contract-Compatibility-Regression)
 - **`tests/test_contract_compatibility_regression.py`** ergänzt: Guard-Tests für additive Contract-Evolution (Legacy-Minimalprojektion bleibt stabil), explizite Semantik-Trennung `result.status` vs. `result.data` und Smoke-Minimum-Kompatibilität.
 - **`docs/api/contract-stability-policy.md`** um BL-18.fc1-Abschnitt erweitert (Forward-Compatibility-Guardrails mit Referenzen auf #3 und #127).

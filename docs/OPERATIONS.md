@@ -181,6 +181,26 @@ Kurzfassung:
 - Falls Detailanalyse nötig: `./scripts/audit_legacy_aws_consumer_refs.sh` (Repo/Caller), `./scripts/audit_legacy_runtime_consumers.sh` (Runtime-Quellen) und `LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh` (CloudTrail-Fingerprints) separat ausführen.
 - Offene Legacy-Consumer je Lauf in `docs/LEGACY_CONSUMER_INVENTORY.md` nachführen (insb. externe Runner/Hosts).
 
+### Automatische Blocker-Retry-Steuerung (extern/temporär)
+
+Für externe/temporäre Fehler (z. B. Endpoint nicht erreichbar, Timeout) läuft ein technischer Supervisor:
+
+- Script: `scripts/blocker_retry_supervisor.py`
+- Empfohlen als Cron-Job: `geo-ranking-blocker-retry-supervisor-30m` (alle 30 Minuten)
+
+Regeln (erzwingt die Policy aus `AUTONOMOUS_AGENT_MODE.md`):
+- Grace-Period: **3 Stunden** nach letztem externen Fehler
+- Maximal **3 Fehlversuche** pro Issue
+- Nach Grace-Period: Issue zurück auf `status:todo` (nächster Retry)
+- Nach 3/3 Fehlversuchen: automatisches Follow-up-Issue + Parent bleibt `status:blocked`
+
+Manueller Lauf (Debug/On-demand):
+
+```bash
+cd /data/.openclaw/workspace/geo-ranking-ch
+python3 scripts/blocker_retry_supervisor.py
+```
+
 ## Lokale Entwicklung
 
 ### Setup
