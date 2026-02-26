@@ -107,11 +107,14 @@ terraform import 'aws_s3_bucket.dev[0]' swisstopo-dev-523234426229
 Optional (BL-14, nur bei `manage_health_probe=true`):
 
 ```bash
-# IAM Role
+# IAM Role + Policies
 terraform import 'aws_iam_role.health_probe[0]' swisstopo-dev-health-probe-role
+terraform import 'aws_iam_role_policy.health_probe_inline[0]' 'swisstopo-dev-health-probe-role:health-probe-inline'
+terraform import 'aws_iam_role_policy_attachment.health_probe_basic_execution[0]' 'swisstopo-dev-health-probe-role/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
 
-# Lambda
+# Lambda + EventBridge Invoke Permission
 terraform import 'aws_lambda_function.health_probe[0]' swisstopo-dev-health-probe
+terraform import 'aws_lambda_permission.health_probe_eventbridge_invoke[0]' 'swisstopo-dev-health-probe/allow-eventbridge-health-probe'
 
 # EventBridge Rule + Target
 terraform import 'aws_cloudwatch_event_rule.health_probe_schedule[0]' swisstopo-dev-health-probe-schedule

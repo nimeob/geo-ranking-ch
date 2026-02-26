@@ -37,6 +37,7 @@ resource "aws_iam_role" "health_probe" {
   count = var.manage_health_probe ? 1 : 0
 
   name               = var.health_probe_role_name
+  description        = "Health Probe Lambda: ECS task IP lookup + HTTP probe + CW metric"
   assume_role_policy = data.aws_iam_policy_document.health_probe_assume_role[0].json
   tags               = local.common_tags
 
@@ -110,7 +111,7 @@ resource "aws_lambda_function" "health_probe" {
   count = var.manage_health_probe ? 1 : 0
 
   function_name = var.health_probe_lambda_name
-  description   = "HTTP Uptime Probe: ${var.environment} GET /health (dynamische ECS-IP)"
+  description   = "HTTP Uptime Probe: ${var.project_name}-${var.environment} GET /health (dynamische ECS-IP)"
   role          = aws_iam_role.health_probe[0].arn
 
   filename         = data.archive_file.health_probe_zip[0].output_path
@@ -147,7 +148,7 @@ resource "aws_cloudwatch_event_rule" "health_probe_schedule" {
   count = var.manage_health_probe ? 1 : 0
 
   name                = var.health_probe_rule_name
-  description         = "Trigger HTTP health probe Lambda regelmäßig"
+  description         = "Trigger HTTP health probe Lambda alle 5 Minuten"
   schedule_expression = var.health_probe_schedule_expression
   state               = "ENABLED"
 
@@ -157,15 +158,15 @@ resource "aws_cloudwatch_event_rule" "health_probe_schedule" {
 resource "aws_cloudwatch_event_target" "health_probe_lambda" {
   count = var.manage_health_probe ? 1 : 0
 
-  rule = aws_cloudwatch_event_rule.health_probe_schedule[0].name
-  arn  = aws_lambda_function.health_probe[0].arn
-  id   = "health-probe-lambda"
+  rule      = aws_cloudwatch_event_rule.health_probe_schedule[0].name
+  arn       = aws_lambda_function.health_probe[0].arn
+  target_id = "health-probe-lambda"
 }
 
 resource "aws_lambda_permission" "health_probe_eventbridge_invoke" {
   count = var.manage_health_probe ? 1 : 0
 
-  statement_id  = "AllowEventBridgeHealthProbeTf"
+  statement_id  = "allow-eventbridge-health-probe"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.health_probe[0].function_name
   principal     = "events.amazonaws.com"

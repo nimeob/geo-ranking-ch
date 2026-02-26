@@ -424,7 +424,10 @@ cp terraform.tfvars.example terraform.tfvars  # falls noch nicht vorhanden
 
 terraform init
 terraform import 'aws_iam_role.health_probe[0]' swisstopo-dev-health-probe-role
+terraform import 'aws_iam_role_policy.health_probe_inline[0]' 'swisstopo-dev-health-probe-role:health-probe-inline'
+terraform import 'aws_iam_role_policy_attachment.health_probe_basic_execution[0]' 'swisstopo-dev-health-probe-role/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
 terraform import 'aws_lambda_function.health_probe[0]' swisstopo-dev-health-probe
+terraform import 'aws_lambda_permission.health_probe_eventbridge_invoke[0]' 'swisstopo-dev-health-probe/allow-eventbridge-health-probe'
 terraform import 'aws_cloudwatch_event_rule.health_probe_schedule[0]' swisstopo-dev-health-probe-schedule
 terraform import 'aws_cloudwatch_event_target.health_probe_lambda[0]' swisstopo-dev-health-probe-schedule/health-probe-lambda
 terraform import 'aws_cloudwatch_metric_alarm.health_probe_fail[0]' swisstopo-dev-api-health-probe-fail
@@ -475,5 +478,5 @@ Aktueller Stand (Deployment-relevant):
 - ✅ IaC-Fundament (`infra/terraform/`) für dev-Kernressourcen umgesetzt.
 - ✅ Monitoring/Alerting-Baseline inkl. SNS → Telegram produktiv aktiv.
 - ✅ HTTP-Uptime-Probe auf `/health` produktiv aktiv (BL-12 abgeschlossen).
-- 🟡 Health-Probe-IaC-Parität vorbereitet (BL-14, optional via `manage_health_probe`), Plan-Verifikation noch ausstehend.
+- ✅ Health-Probe-IaC-Parität verifiziert (BL-14 abgeschlossen): Terraform `validate` grün; Default-Plan ohne Infrastrukturänderungen; Import-first-Plan mit `manage_health_probe=true` zeigt **0 add / 4 change / 0 destroy** (nur in-place Drift-Korrekturen).
 - ⏳ Nächster offener Gesamt-Block: **BL-15** (Legacy-IAM-Readiness, read-only).

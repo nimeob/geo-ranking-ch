@@ -15,10 +15,7 @@ output "ecs_cluster_name" {
 
 output "ecs_cluster_arn" {
   description = "ECS-Cluster-ARN (falls managed oder erfolgreich read-only aufgelöst)."
-  value = coalesce(
-    try(aws_ecs_cluster.dev[0].arn, null),
-    try(data.aws_ecs_cluster.existing[0].arn, null)
-  )
+  value       = try(aws_ecs_cluster.dev[0].arn, data.aws_ecs_cluster.existing[0].arn, null)
 }
 
 output "ecr_repository_name" {
@@ -28,10 +25,7 @@ output "ecr_repository_name" {
 
 output "ecr_repository_url" {
   description = "ECR Repository URL (falls managed oder erfolgreich read-only aufgelöst)."
-  value = coalesce(
-    try(aws_ecr_repository.api[0].repository_url, null),
-    try(data.aws_ecr_repository.existing[0].repository_url, null)
-  )
+  value       = try(aws_ecr_repository.api[0].repository_url, data.aws_ecr_repository.existing[0].repository_url, null)
 }
 
 output "cloudwatch_log_group_name" {
@@ -41,10 +35,7 @@ output "cloudwatch_log_group_name" {
 
 output "cloudwatch_log_group_arn" {
   description = "CloudWatch Log Group ARN (falls managed oder erfolgreich read-only aufgelöst)."
-  value = coalesce(
-    try(aws_cloudwatch_log_group.api[0].arn, null),
-    try(data.aws_cloudwatch_log_group.existing[0].arn, null)
-  )
+  value       = try(aws_cloudwatch_log_group.api[0].arn, data.aws_cloudwatch_log_group.existing[0].arn, null)
 }
 
 output "s3_bucket_name" {
@@ -54,10 +45,7 @@ output "s3_bucket_name" {
 
 output "s3_bucket_arn" {
   description = "S3 Bucket ARN (falls managed oder erfolgreich read-only aufgelöst)."
-  value = coalesce(
-    try(aws_s3_bucket.dev[0].arn, null),
-    try(data.aws_s3_bucket.existing[0].arn, null)
-  )
+  value       = try(aws_s3_bucket.dev[0].arn, data.aws_s3_bucket.existing[0].arn, null)
 }
 
 output "resource_management_flags" {

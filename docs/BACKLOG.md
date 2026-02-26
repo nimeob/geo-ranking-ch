@@ -192,22 +192,17 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-12
-- **Status:** 🟡 in Umsetzung (2026-02-26)
+- **Status:** ✅ abgeschlossen (2026-02-26)
 - **Akzeptanzkriterien:**
   - Health-Probe-Ressourcen (Lambda, IAM, EventBridge, Alarm) als optionale Terraform-Ressourcen modelliert. ✅
   - Existing Setup-Script bleibt als Fallback dokumentiert. ✅
-  - `terraform plan` ist drift-arm und ohne destruktive Default-Änderungen. ⏳ offen
+  - `terraform plan` ist drift-arm und ohne destruktive Default-Änderungen. ✅
 - **Nachweis:**
-  - ✅ Neue IaC-Datei `infra/terraform/health_probe.tf` mit optionalem Flag `manage_health_probe` (Default `false`) inkl. Lambda-Packaging, IAM, EventBridge, Alarm.
-  - ✅ Terraform-Variablen/Outputs erweitert: `infra/terraform/variables.tf`, `infra/terraform/outputs.tf`, `infra/terraform/terraform.tfvars.example`.
-  - ✅ Import-first-Runbook ergänzt: `infra/terraform/README.md` (inkl. Import-Kommandos für bestehende dev-Ressourcen).
-  - ✅ Deployment-Doku aktualisiert: `docs/DEPLOYMENT_AWS.md` enthält Setup-Option A (Script) + Option B (Terraform).
-- **Blocker:**
-  - `terraform` CLI ist in der aktuellen Runner-Umgebung nicht installiert (`terraform: command not found`), daher konnten `terraform init/plan/validate` nicht ausgeführt werden.
-- **Next Actions:**
-  1. Terraform CLI im Runner bereitstellen (oder in CI-Job ausführen).
-  2. `infra/terraform`: `terraform init` + Import-Schritte laut README ausführen.
-  3. `terraform plan` dokumentieren und BL-14 auf ✅ setzen.
+  - ✅ IaC-Ressourcen vollständig in `infra/terraform/health_probe.tf` modelliert (inkl. EventBridge-Permission + IAM-Policies) mit `manage_health_probe=false` als Safe-Default.
+  - ✅ Terraform-Validierung erfolgreich ausgeführt (`terraform validate` mit Terraform v1.11.4).
+  - ✅ Default-Plan verifiziert: keine Infrastrukturänderungen (nur Output-State bei leerem Statefile).
+  - ✅ Import-first-Plan verifiziert (`manage_health_probe=true` + vollständige Imports): **0 add / 4 change / 0 destroy** (nur in-place Drift-Korrekturen, keine destruktiven Aktionen).
+  - ✅ Import-Kommandos für alle Health-Probe-Objekte erweitert in `infra/terraform/README.md` und `docs/DEPLOYMENT_AWS.md` (inkl. `aws_lambda_permission`, `aws_iam_role_policy`, `aws_iam_role_policy_attachment`).
 
 ### BL-15 — Legacy-IAM-User Decommission-Readiness (read-only)
 - **Priorität:** P2
@@ -239,5 +234,5 @@
 ## Folge-Sequenz (ab 2026-02-26)
 
 1. **BL-13** (Doku-Konsistenz) ✅
-2. **BL-14** (Health-Probe IaC-Parität) 🟡
+2. **BL-14** (Health-Probe IaC-Parität) ✅
 3. **BL-15** (Legacy-IAM-Readiness) ⏳
