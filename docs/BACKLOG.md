@@ -219,12 +219,14 @@
   - ✅ Entscheidungs-Template („Go/No-Go") ergänzt; aktueller Vorschlag: **No-Go**, solange aktive Consumer nicht vollständig migriert sind.
   - ✅ Repo-scope Consumer-Inventar via `scripts/audit_legacy_aws_consumer_refs.sh` ergänzt (Workflow-/Script-Referenzen + aktiver Caller-ARN).
   - ✅ Host-level Runtime-Baseline via `scripts/audit_legacy_runtime_consumers.sh` ergänzt (Environment/Cron/Systemd/OpenClaw-Config read-only geprüft; keine persistierten Key-Referenzen auf dem Host gefunden).
+  - ✅ Externe Consumer-Matrix/Tracking ergänzt: `docs/LEGACY_CONSUMER_INVENTORY.md` (Known Consumers, offene externe Targets, Exit-Kriterien).
 - **Blocker:**
   - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed + aktueller Caller-ARN), daher noch keine sichere Abschaltfreigabe.
+  - Runtime-Audit zeigt weiterhin gesetzte AWS-Key-Variablen im laufenden Kontext; Quelle der Injection ist noch nicht final eliminiert.
 - **Next Actions:**
   1. ✅ Repo-scope Consumer-Inventar abgeschlossen (Workflow OIDC-konform, lokale/Runner-Skripte als offene Consumer identifiziert).
-  2. Runtime-Consumer außerhalb des Repos vollständig inventarisieren (Host-Baseline erledigt; offene externe Runner/Hosts + Fremd-Cron-Umgebungen erfassen).
-  3. Für offene Consumer auf OIDC/AssumeRole migrieren.
+  2. 🟡 Runtime-Consumer außerhalb des Repos vollständig inventarisieren (Host-Baseline erledigt; Trackingfile `docs/LEGACY_CONSUMER_INVENTORY.md` angelegt; externe Runner/Hosts + Fremd-Cron-Umgebungen pro Target nachziehen).
+  3. Für offene Consumer auf OIDC/AssumeRole migrieren (zuerst bekannte OpenClaw-Runtime-Credential-Injection entfernen, dann externe Targets).
   4. Geplantes Wartungsfenster: Key nur deaktivieren (nicht löschen), 24h beobachten, dann Entscheidung zur Finalisierung.
 
 ### BL-17 — OpenClaw AWS-Betrieb auf OIDC-first umstellen (Legacy nur Fallback)
@@ -237,6 +239,9 @@
   - Legacy-Key wird nur als dokumentierter Fallback genutzt.
   - Fallback-Nutzung wird protokolliert und schrittweise auf 0 reduziert.
   - OIDC-first/Fallback-Runbook ist dokumentiert (Pfad wird bei BL-17-Start final fixiert).
+- **Umgesetzt (laufend):**
+  - `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md` auf Hybrid-Standard präzisiert (OIDC für CI/CD + AssumeRole-first für direkte OpenClaw-Ops).
+  - `scripts/aws_exec_via_openclaw_ops.sh` ergänzt (führt beliebige AWS-CLI-Subcommands in temporärer `openclaw-ops-role` Session aus).
 
 ### BL-18 — Service funktional weiterentwickeln + als Webservice E2E testen
 - **Priorität:** P1
