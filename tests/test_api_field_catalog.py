@@ -8,6 +8,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = REPO_ROOT / "scripts" / "validate_field_catalog.py"
 CONTRACT_DOC = REPO_ROOT / "docs" / "api" / "contract-v1.md"
+FIELD_REFERENCE_DOC = REPO_ROOT / "docs" / "api" / "field-reference-v1.md"
 FIELD_CATALOG = REPO_ROOT / "docs" / "api" / "field_catalog.json"
 
 
@@ -31,6 +32,7 @@ class TestApiFieldCatalog(unittest.TestCase):
         content = CONTRACT_DOC.read_text(encoding="utf-8")
         markers = [
             "docs/api/field_catalog.json",
+            "docs/api/field-reference-v1.md",
             "scripts/validate_field_catalog.py",
             "analyze.response.grouped.success.json",
             "location-intelligence.response.success.address.json",
@@ -50,6 +52,19 @@ class TestApiFieldCatalog(unittest.TestCase):
 
             path = (REPO_ROOT / rel_path).resolve()
             self.assertTrue(path.is_file(), msg=f"Fehlende Beispielpayload für {shape}: {rel_path}")
+
+    def test_human_readable_field_reference_contains_both_shapes(self):
+        content = FIELD_REFERENCE_DOC.read_text(encoding="utf-8")
+        markers = [
+            "Legacy-Shape (`response_shape=legacy`)",
+            "Grouped-Shape (`response_shape=grouped`)",
+            "result.input_mode",
+            "result.data.entity.query",
+            "intelligence_mode=extended|risk",
+            "docs/api/field_catalog.json",
+        ]
+        for marker in markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt in field-reference-v1.md: {marker}")
 
 
 if __name__ == "__main__":

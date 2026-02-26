@@ -104,6 +104,7 @@ Responses:
 Für die laufende Response-Felddokumentation (legacy + grouped) ist der Feldkatalog die Single-Source-of-Truth:
 
 - Feldmanifest: [`docs/api/field_catalog.json`](./field_catalog.json)
+- Human-readable Referenz: [`docs/api/field-reference-v1.md`](./field-reference-v1.md)
 - grouped Referenzpayload: [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
 - Validator: [`scripts/validate_field_catalog.py`](../../scripts/validate_field_catalog.py)
 
@@ -137,3 +138,15 @@ Kurzregel:
 - `beta`: nur defensiv konsumieren (Fallback/Feature-Flag).
 - `internal`: kein externer Integrationsvertrag.
 - Breaking Changes werden nicht in `/api/v1` ausgerollt, sondern über eine neue Hauptversion mit Migrationshinweisen.
+
+## 11) Human-readable Feldreferenz (BL-20.1.d.wp2)
+
+Die vollständige, menschenlesbare Feldreferenz für beide ausgelieferten Response-Shapes (`legacy`, `grouped`) ist hier dokumentiert:
+
+- [`docs/api/field-reference-v1.md`](./field-reference-v1.md)
+
+Inhalt der Referenz:
+- Feldpfad pro Shape inkl. Semantik, Typ, Pflicht/Optionalität und Beispielwert
+- Modus-/Feature-Abhängigkeiten (u. a. `intelligence_mode`)
+- Edge-Case-Notation für dynamische Keys (`*`) und Arrays (`[*]`)
+- Querverweis auf den maschinenlesbaren Katalog als Source-of-Truth
