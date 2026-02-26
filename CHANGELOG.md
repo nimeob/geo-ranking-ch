@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Trim-/Guard für `STABILITY_SMOKE_SCRIPT` + 5x Stabilität, Iteration 21)
+- **`scripts/run_remote_api_stability_check.sh`:** optionales Script-Override `STABILITY_SMOKE_SCRIPT` wird jetzt vor Nutzung getrimmt und auf Steuerzeichen geprüft; whitespace-only oder Control-Char-Overrides brechen fail-fast mit `exit 2` ab, bevor ein fehlerhafter Runner-Pfad ausgeführt wird.
+- **`tests/test_remote_stability_script.py`:** drei neue Guard-Tests decken reproduzierbar ab: (1) getrimmtes `STABILITY_SMOKE_SCRIPT`-Override läuft erfolgreich, (2) whitespace-only Override scheitert mit `exit 2`, (3) Control-Char-Override scheitert mit `exit 2`.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`79 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit getrimmtem optionalen Bearer-Token (`printf '  bl18-token\t'`) und tab-umhülltem `STABILITY_SMOKE_SCRIPT`-Override (`printf '  ./scripts/run_remote_api_smoketest.sh\t'`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772105805.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772105805.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-10m-server-1772105805.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-21 + `STABILITY_SMOKE_SCRIPT`-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Stabilitäts-Runbook, Bedienhinweise und BL-18.1-Nachweisführung auf den neuen `STABILITY_SMOKE_SCRIPT`-Trim/Fail-Fast-Guard sowie den aktuellen Worker-1-10m-Langlauf (`79 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Trim-/Guard für `STABILITY_REPORT_PATH` + 5x Stabilität, Iteration 20)
 - **`scripts/run_remote_api_stability_check.sh`:** `STABILITY_REPORT_PATH` wird jetzt vor Nutzung getrimmt; whitespace-only Werte (nach Trim leer) und Pfade mit Steuerzeichen werden fail-fast mit `exit 2` abgewiesen, damit NDJSON-Artefakte reproduzierbar und log-sicher geschrieben werden.
 - **`tests/test_remote_stability_script.py`:** drei neue Guard-Tests decken reproduzierbar ab: (1) getrimmter Report-Pfad wird korrekt verwendet, (2) whitespace-only `STABILITY_REPORT_PATH` schlägt mit `exit 2` fehl, (3) Control-Char-Pfade schlagen mit `exit 2` fehl.

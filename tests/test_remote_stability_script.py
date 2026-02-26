@@ -229,6 +229,46 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertIn("STABILITY_REPORT_PATH darf keine Steuerzeichen enthalten", cp.stderr)
         self.assertEqual(entries, [])
 
+    def test_stability_runner_trims_smoke_script_override_before_exec(self):
+        smoke_script = REPO_ROOT / "scripts" / "run_remote_api_smoketest.sh"
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs=1,
+            max_failures=0,
+            stop_on_first_fail=0,
+            smoke_script=f"  {smoke_script}\t",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].get("status"), "pass")
+
+    def test_stability_runner_rejects_whitespace_only_smoke_script_override(self):
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs=1,
+            max_failures=0,
+            stop_on_first_fail=0,
+            smoke_script="  \t  ",
+        )
+
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("STABILITY_SMOKE_SCRIPT ist leer nach Whitespace-Normalisierung", cp.stderr)
+        self.assertEqual(entries, [])
+
+    def test_stability_runner_rejects_smoke_script_override_with_control_characters(self):
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs=1,
+            max_failures=0,
+            stop_on_first_fail=0,
+            smoke_script=f"{REPO_ROOT / 'scripts' / 'run_remote_api_smoketest.sh'}\ninvalid",
+        )
+
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("STABILITY_SMOKE_SCRIPT darf keine Steuerzeichen enthalten", cp.stderr)
+        self.assertEqual(entries, [])
+
     def test_stability_runner_marks_missing_smoke_report_as_failure_even_with_rc_zero(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_smoke = Path(tmpdir) / "fake_smoke.sh"
