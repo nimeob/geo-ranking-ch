@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Auto-Mkdir für fehlende `STABILITY_REPORT_PATH`-Verzeichnisse + 5x Stabilität, Iteration 27)
+- **`scripts/run_remote_api_stability_check.sh`:** akzeptiert `STABILITY_REPORT_PATH` jetzt auch dann, wenn Verzeichnis-Elternpfade noch nicht existieren; fehlende Verzeichnisse werden robust via `mkdir -p` angelegt. Der Fail-Fast-Guard bleibt für Verzeichnisziele und Datei-Elternpfade (`Parent` existiert, aber ist kein Verzeichnis) aktiv.
+- **`tests/test_remote_stability_script.py`:** neuer Happy-Path-Test verifiziert reproduzierbar, dass fehlende Elternverzeichnisse für `STABILITY_REPORT_PATH` automatisch erstellt werden und der NDJSON-Report erfolgreich geschrieben wird.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`86 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit neuem verschachteltem Reportpfad.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772109315.json`, `artifacts/worker-1-10m/iteration-27/bl18.1-remote-stability-local-worker-1-10m-1772109315.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log unter `artifacts/bl18.1-worker-1-10m-server-1772109315.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-27 + Auto-Mkdir für `STABILITY_REPORT_PATH` synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Stabilitäts-Runbook, Bedienhinweise und BL-18.1-Nachweisführung auf Auto-Mkdir für fehlende `STABILITY_REPORT_PATH`-Verzeichnis-Elternpfade sowie den aktuellen Worker-1-10m-Langlauf (`86 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Datei-Elternpfad-Guard für `STABILITY_REPORT_PATH` + 5x Stabilität, Iteration 26)
 - **`scripts/run_remote_api_stability_check.sh`:** validiert `STABILITY_REPORT_PATH` jetzt zusätzlich auf einen gültigen Elternpfad; liegt der Parent als Datei statt Verzeichnis vor, bricht der Runner fail-fast mit klarer CLI-Fehlermeldung + `exit 2` ab, statt erst beim `mkdir -p`/Report-Write mit Shell-Fehler zu scheitern.
 - **`tests/test_remote_stability_script.py`:** neuer Guard-Test verifiziert reproduzierbar, dass ein `STABILITY_REPORT_PATH` unterhalb eines Datei-Elternpfads deterministisch mit `exit 2` zurückgewiesen wird.

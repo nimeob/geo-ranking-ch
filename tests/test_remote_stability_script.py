@@ -204,6 +204,25 @@ class TestRemoteStabilityScript(unittest.TestCase):
             self.assertEqual(len(entries), 2)
             self.assertTrue(all(row.get("status") == "pass" for row in entries))
 
+    def test_stability_runner_creates_missing_report_parent_directories(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = Path(tmpdir) / "new-reports" / "nested" / "stability.ndjson"
+            self.assertFalse(report_path.parent.exists())
+
+            cp, entries = self._run_stability(
+                include_token=True,
+                runs=2,
+                max_failures=0,
+                stop_on_first_fail=0,
+                report_path_env=str(report_path),
+            )
+
+            self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+            self.assertTrue(report_path.parent.is_dir())
+            self.assertTrue(report_path.exists())
+            self.assertEqual(len(entries), 2)
+            self.assertTrue(all(row.get("status") == "pass" for row in entries))
+
     def test_stability_runner_rejects_whitespace_only_report_path(self):
         cp, entries = self._run_stability(
             include_token=True,

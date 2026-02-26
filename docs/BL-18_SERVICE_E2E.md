@@ -134,7 +134,7 @@ Der Runner:
 - schreibt pro Lauf eine NDJSON-Zeile,
 - unterstützt optionales Fail-Fast via `STABILITY_STOP_ON_FIRST_FAIL=1` (nur `0|1` erlaubt; Wert wird vor Validierung getrimmt),
 - trimmt numerische Runner-Flags (`STABILITY_RUNS`, `STABILITY_INTERVAL_SECONDS`, `STABILITY_MAX_FAILURES`) vor der Validierung für robuste Env-Inputs,
-- trimmt `STABILITY_REPORT_PATH` vor der Nutzung und weist whitespace-only, Control-Char-, Verzeichnis-Pfade sowie Pfade mit Datei-Elternpfad (Parent ist kein Verzeichnis) fail-fast mit `exit 2` zurück,
+- trimmt `STABILITY_REPORT_PATH` vor der Nutzung, erstellt fehlende Verzeichnis-Elternpfade automatisch und weist whitespace-only, Control-Char-, Verzeichnis-Pfade sowie Pfade mit Datei-Elternpfad (Parent ist kein Verzeichnis) fail-fast mit `exit 2` zurück,
 - erlaubt für Tests/Debug ein optionales Script-Override via `STABILITY_SMOKE_SCRIPT=/pfad/zu/run_remote_api_smoketest.sh`, trimmt diesen Pfad vor Nutzung, löst relative Overrides robust gegen `REPO_ROOT` auf und weist whitespace-only/Control-Char-Overrides sowie Nicht-Datei-Pfade (z. B. Verzeichnisse) fail-fast mit `exit 2` zurück,
 - zählt fehlende/leer gebliebene Smoke-JSON-Artefakte **und** Reports mit `status!=pass` als Fehlrun (auch wenn das Smoke-Script `rc=0` liefert),
 - bricht mit Exit `1` ab, wenn `fail_count > STABILITY_MAX_FAILURES`.
@@ -147,6 +147,19 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Auto-Mkdir für fehlende `STABILITY_REPORT_PATH`-Verzeichnisse + 5x Stabilität, Iteration 27)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="50117" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:50117/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772109315  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772109315.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:50117/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-27/bl18.1-remote-stability-local-worker-1-10m-1772109315.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `86 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-1-10m-1772109315.json`, `request_id_header_source=request`, `request_id_echo_enforced=true`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` (`artifacts/worker-1-10m/iteration-27/bl18.1-remote-stability-local-worker-1-10m-1772109315.ndjson`; Runs 1..5 alle `status=pass`) bei automatisch erzeugtem, zuvor fehlendem Verzeichnis-Elternpfad.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772109315.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Datei-Elternpfad-Guard für `STABILITY_REPORT_PATH` + 5x Stabilität, Iteration 26)
 

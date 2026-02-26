@@ -87,7 +87,7 @@ if [[ -d "${STABILITY_REPORT_PATH}" ]]; then
 fi
 
 STABILITY_REPORT_PARENT="$(dirname -- "${STABILITY_REPORT_PATH}")"
-if [[ ! -d "${STABILITY_REPORT_PARENT}" ]]; then
+if [[ -e "${STABILITY_REPORT_PARENT}" && ! -d "${STABILITY_REPORT_PARENT}" ]]; then
   echo "[BL-18.1] Elternpfad von STABILITY_REPORT_PATH ist kein Verzeichnis: ${STABILITY_REPORT_PARENT}" >&2
   exit 2
 fi
