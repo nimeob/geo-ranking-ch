@@ -78,7 +78,7 @@ Für Standort- und Gebäudeentscheidungen sind in der Schweiz relevante Daten ü
 
 ---
 
-## 5) Risiken & Follow-ups
+## 5) Offene Risiken (als Follow-up-Issues)
 
 - **✅ #36 — Lizenzgrenzen für GTM-Artefakte verifiziert**
   - Ergebnis: GTM-Claim-Gate inkl. kommerzieller Nutzbarkeit/Attributionspflichten dokumentiert in [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md)
@@ -95,7 +95,6 @@ Die verbleibenden Risiken werden separat bearbeitet, damit BL-20.7.b als MVP-Bas
 
 ## 6) Nächster Schritt nach BL-20.7.b
 
-1. BL-20.7.a (Packaging-Basis Build/Run/Config) finalisieren (#34)
-2. Offene Risiken #37/#38 priorisieren und in den nächsten Sprint übernehmen
-3. Parallel #24 (BL-20.2.a) als vollständiges Quelleninventar/Lizenzmatrix ausbauen
-4. Danach GTM-Baseline mit erstem Pilot-Run gegentesten
+1. Offene Risiken #37/#38 priorisieren und in den nächsten Sprint übernehmen
+2. GTM-Baseline mit erstem Pilot-Run gegentesten
+3. API-Felddoku/Manifest-Follow-ups (#66/#67) für Integrationsfähigkeit priorisieren
