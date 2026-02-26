@@ -290,6 +290,18 @@ PY
     exit 2
   fi
 
+  if ! python3 - "${DEV_API_AUTH_TOKEN_TRIMMED}" <<'PY'
+import sys
+
+token = sys.argv[1]
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in token):
+    raise SystemExit(1)
+PY
+  then
+    echo "[BL-18.1] DEV_API_AUTH_TOKEN darf keine Steuerzeichen enthalten." >&2
+    exit 2
+  fi
+
   AUTH_HEADER=(-H "Authorization: Bearer ${DEV_API_AUTH_TOKEN_TRIMMED}")
 fi
 

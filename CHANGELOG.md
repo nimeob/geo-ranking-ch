@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Control-Char-Guard für `DEV_API_AUTH_TOKEN` + 5x Stabilität, Iteration 12)
+- **`scripts/run_remote_api_smoketest.sh`:** optionales `DEV_API_AUTH_TOKEN` wird nach dem Trim jetzt zusätzlich auf Steuerzeichen validiert; Tokens mit Control-Chars werden fail-fast mit `exit 2` abgewiesen, bevor ein Request gesendet wird.
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass `DEV_API_AUTH_TOKEN` mit Steuerzeichen (z. B. Zeilenumbruch im Token) sauber mit `exit 2` fehlschlägt.
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`65 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit kombinierter Suffix-Kette und getrimmtem optionalen Bearer-Token.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-b-1772100694.json`, `artifacts/bl18.1-remote-stability-local-worker-b-1772100694.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-b-server-1772100694.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-B Iteration-12 + Token-Control-Char-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf den neuen Control-Char-Guard für `DEV_API_AUTH_TOKEN` sowie den aktuellen Worker-B-Langlauf (`65 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Trim-Guard für `DEV_API_AUTH_TOKEN` + 5x Stabilität, Iteration 11)
 - **`scripts/run_remote_api_smoketest.sh`:** trimmt optionales `DEV_API_AUTH_TOKEN` jetzt vor dem Request; whitespace-only Tokenwerte werden fail-fast mit `exit 2` zurückgewiesen, damit Auth-Checks bei Copy/Paste-Inputs reproduzierbar bleiben.
 - **`tests/test_remote_smoke_script.py`:** ergänzt E2E-Happy-Path für Space/Tab-umhülltes `DEV_API_AUTH_TOKEN` sowie Negativtest für whitespace-only Token (`exit 2`).
