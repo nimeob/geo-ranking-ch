@@ -30,6 +30,9 @@
   - Ungültig → `400 bad_request`.
 - **Explizites Timeout-Mapping:**
   - `TimeoutError` → `504 timeout`.
+- **JSON-/Body-Edgecase-Mapping vereinheitlicht (BL-18.wp2):**
+  - Invalides UTF-8 im JSON-Body wird deterministisch als `400 bad_request` behandelt (statt internem 500-Pfad).
+  - JSON-Bodys, die kein Objekt sind (z. B. Array/String), werden deterministisch als `400 bad_request` zurückgewiesen.
 - **Request-ID-Korrelation für API-Debugging:**
   - `POST /analyze` übernimmt die **erste gültige** ID aus `X-Request-Id`/`X_Request_Id` (primär) oder `X-Correlation-Id`/`X_Correlation_Id` (Fallback) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
   - Leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen (z. B. Tabs), IDs mit Trennzeichen `,`/`;`, **Non-ASCII-IDs** sowie IDs >128 Zeichen werden verworfen; ist ein primärer Request-Header dadurch ungültig, wird deterministisch auf die nächste gültige Correlation-ID zurückgefallen.
@@ -52,6 +55,7 @@
     - Auth required (401)
     - Happy Path analyze (200)
     - Invalid mode + non-finite `timeout_seconds` / bad request (400)
+    - JSON-/Body-Edgecases (leerer Body, malformed JSON, invalides UTF-8, JSON-Array/String statt Objekt) -> `400 bad_request`
     - Timeout (504)
     - Internal (500)
     - Request-ID-Echo inkl. Fallback auf Correlation-Header (`X-Correlation-Id`/`X_Correlation_Id`), wenn primäre Request-Header (`X-Request-Id`/`X_Request_Id`) leer/whitespace sind oder wegen eingebettetem Whitespace/Steuerzeichen/Trennzeichen (`,`/`;`)/Non-ASCII-Zeichen/Überlänge (`>128`) ungültig werden; ist `X-Request-Id` ungültig, aber `X_Request_Id` gültig, wird deterministisch der gültige Unterstrich-Primärheader gespiegelt (vor Correlation-Fallback)
@@ -101,6 +105,14 @@ Hinweise:
   - `python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_stability_script.py`
 - Ergebnis:
   - Exit `0`, `53 passed`, `5 subtests passed`.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker B, BL-18.wp2 JSON-/Body-Edgecases)
+
+- Command:
+  - `python3 -m pytest -q tests/test_web_e2e.py`
+- Ergebnis:
+  - Exit `0`, `33 passed`, `9 subtests passed`.
+  - Neue E2E-Cases sichern deterministisch `400 bad_request` für malformed JSON, invalides UTF-8 und JSON-Body-Typfehler (Array/String statt Objekt) ab.
 
 ## BL-18.1 — Remote-API-Smoke-Test (Internet)
 
