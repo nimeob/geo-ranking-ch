@@ -239,6 +239,20 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
 
+    def test_smoke_script_accepts_lowercase_correlation_underscore_alias_for_request_id_mode(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            request_id_header="  x_correlation_id  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("request_id_header_source"), "correlation")
+        self.assertEqual(data.get("request_id_header_name"), "X_Correlation_Id")
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+        self.assertEqual(data.get("response_header_request_id"), request_id)
+
     def test_smoke_script_fails_without_token_when_auth_enabled(self):
         cp, data, _ = self._run_smoke(include_token=False)
         self.assertNotEqual(cp.returncode, 0)

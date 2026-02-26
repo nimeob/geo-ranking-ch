@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m lowercase `_`-Correlation-Alias + invalides `_`-Primärheader-Fallback, Iteration 37)
+- **`tests/test_remote_smoke_script.py`:** Happy-Path-Abdeckung ergänzt, dass `SMOKE_REQUEST_ID_HEADER="x_correlation_id"` (lowercase + getrimmt) robust akzeptiert, als Correlation-Mode normalisiert und real als `X_Correlation_Id` gesendet wird (`request_id_header_name=X_Correlation_Id`).
+- **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert die Fallback-Kette explizit, wenn sowohl `X-Request-Id` als auch `X_Request_Id` ungültig sind (z. B. embedded-whitespace/control-char) und danach deterministisch `X-Correlation-Id` gewinnt.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`102 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) mit getrimmtem lowercase `_`-Correlation-Alias (`SMOKE_REQUEST_ID_HEADER="x_correlation_id"`) und gemischt geschriebenem `SMOKE_MODE="ExTenDeD"`.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772115947.json`, `artifacts/worker-1-10m/iteration-37/bl18.1-remote-stability-local-worker-1-10m-1772115947.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772115947.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-1-10m Iteration-37 + lowercase `_`-Correlation-Nachweis synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Nachweisführung auf Iteration 37 angehoben (`102 passed`, Smoke + 3x Stabilität), inklusive explizitem Real-Run-Nachweis für `SMOKE_REQUEST_ID_HEADER="x_correlation_id"` (`request_id_header_name=X_Correlation_Id`) und dokumentierter API-Fallback-Kette bei ungültigen primären Request-ID-Headern.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m lowercase `_`-Header-Alias-Real-Run, Iteration 36)
 - **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`100 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) mit getrimmtem lowercase `_`-Header-Alias (`SMOKE_REQUEST_ID_HEADER="x_request_id"`) und gemischt geschriebenem `SMOKE_MODE="BaSiC"`.
 - **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772115249.json`, `artifacts/worker-1-10m/iteration-36/bl18.1-remote-stability-local-worker-1-10m-1772115249.ndjson`.
