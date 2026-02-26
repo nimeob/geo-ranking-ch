@@ -330,6 +330,22 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(body.get("request_id"), request_id)
         self.assertEqual(resp_headers.get("x-request-id"), request_id)
 
+    def test_request_id_accepts_lowercase_underscore_primary_header_alias(self):
+        request_id = "bl18-e2e-lowercase-underscore-request-id"
+        status, body, resp_headers = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={"query": "__ok__", "timeout_seconds": 2},
+            headers={
+                "Authorization": "Bearer bl18-token",
+                "x_request_id": request_id,
+            },
+            return_headers=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(body.get("request_id"), request_id)
+        self.assertEqual(resp_headers.get("x-request-id"), request_id)
+
     def test_request_id_prefers_valid_underscore_primary_when_hyphen_primary_is_invalid(self):
         underscore_request_id = "bl18-e2e-underscore-primary-fallback"
         status, body, resp_headers = _http_json(

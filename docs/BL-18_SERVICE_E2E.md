@@ -149,6 +149,21 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, lowercase `_`-Request-Alias E2E-Abdeckung + Real-Run, Iteration 38)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="35647" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:35647/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772116556  " SMOKE_REQUEST_ID_HEADER="  x_request_id  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772116556.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:35647/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  x_request_id  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 3 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-38/bl18.1-remote-stability-local-worker-1-10m-1772116556.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `104 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden; lowercase `_`-Request-Alias (`x_request_id`) wird robust akzeptiert, real als `X_Request_Id` gesendet und konsistent in Header+JSON gespiegelt (`request_id_header_name=X_Request_Id`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0`; Runs 1..3 alle `status=pass`.
+  - API-Guard: neue E2E-Fälle sichern sowohl CLI- als auch API-seitig ab, dass lowercase Unterstrich-Primärheader (`x_request_id`) robust akzeptiert bleiben.
+  - Evidenz: `artifacts/bl18.1-smoke-local-worker-1-10m-1772116556.json`, `artifacts/worker-1-10m/iteration-38/bl18.1-remote-stability-local-worker-1-10m-1772116556.ndjson`.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772116556.log`.
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, lowercase `_`-Correlation-Alias + invalides `_`-Primärheader-Fallback, Iteration 37)
 
 - Command:
