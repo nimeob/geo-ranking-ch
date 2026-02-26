@@ -44,6 +44,8 @@ def _sanitize_request_id_candidate(candidate: Any) -> str:
         return ""
     if any(ch.isspace() for ch in value):
         return ""
+    if any(ch in ",;" for ch in value):
+        return ""
     if len(value) > 128:
         return ""
     return value

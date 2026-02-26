@@ -31,7 +31,7 @@
   - `TimeoutError` → `504 timeout`.
 - **Request-ID-Korrelation für API-Debugging:**
   - `POST /analyze` übernimmt die **erste gültige** ID aus `X-Request-Id`/`X_Request_Id` (primär) oder `X-Correlation-Id`/`X_Correlation_Id` (Fallback) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
-  - Leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen (z. B. Tabs) **und IDs >128 Zeichen** werden verworfen; ist ein primärer Request-Header dadurch ungültig, wird deterministisch auf die nächste gültige Correlation-ID zurückgefallen.
+  - Leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen (z. B. Tabs), IDs mit Trennzeichen `,`/`;` **und IDs >128 Zeichen** werden verworfen; ist ein primärer Request-Header dadurch ungültig, wird deterministisch auf die nächste gültige Correlation-ID zurückgefallen.
   - Ohne mitgelieferte gültige ID erzeugt der Service eine interne Request-ID.
 - **Port-ENV-Kompatibilität für lokale Runner:**
   - `src/web_service.py` akzeptiert `PORT` weiterhin als primäre Port-Variable.
@@ -53,13 +53,13 @@
     - Invalid mode + non-finite `timeout_seconds` / bad request (400)
     - Timeout (504)
     - Internal (500)
-    - Request-ID-Echo inkl. Fallback auf Correlation-Header (`X-Correlation-Id`/`X_Correlation_Id`), wenn primäre Request-Header (`X-Request-Id`/`X_Request_Id`) leer/whitespace sind oder wegen eingebettetem Whitespace/Steuerzeichen/Überlänge (`>128`) ungültig werden; ist `X-Request-Id` ungültig, aber `X_Request_Id` gültig, wird deterministisch der gültige Unterstrich-Primärheader gespiegelt (vor Correlation-Fallback)
+    - Request-ID-Echo inkl. Fallback auf Correlation-Header (`X-Correlation-Id`/`X_Correlation_Id`), wenn primäre Request-Header (`X-Request-Id`/`X_Request_Id`) leer/whitespace sind oder wegen eingebettetem Whitespace/Steuerzeichen/Trennzeichen (`,`/`;`)/Überlänge (`>128`) ungültig werden; ist `X-Request-Id` ungültig, aber `X_Request_Id` gültig, wird deterministisch der gültige Unterstrich-Primärheader gespiegelt (vor Correlation-Fallback)
 - **Dev:** `tests/test_web_e2e_dev.py`
   - läuft gegen `DEV_BASE_URL`
   - optional mit `DEV_API_AUTH_TOKEN`
   - deckt mindestens Health/Version/404 + Analyze-Endpunkt ab
 - **Script-E2E (lokal):**
-  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, wiederholter Forward-Suffix-Ketten mit internem Double-Slash wie `.../health//analyze/health/analyze///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//`, getrimmter Header-/Flag-Inputs wie `SMOKE_REQUEST_ID_HEADER="  Correlation  "`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "`, `SMOKE_MODE="  basic  "` und `SMOKE_MODE="  ExTenDeD  "`, getrimmtem Query-Input `SMOKE_QUERY="  __ok__  "`, getrimmten Timeout-Inputs `SMOKE_TIMEOUT_SECONDS="\t2.5\t"`/`CURL_MAX_TIME=" 15 "`, getrimmter Retry-Flags wie `CURL_RETRY_COUNT="\t1\t"`/`CURL_RETRY_DELAY="\t1\t"`, getrimmtem optionalen Bearer-Token `DEV_API_AUTH_TOKEN="\tbl18-token  "`, Tab-umhüllter Inputs (`"\thttp://.../health\t"`, `"\tCorrelation\t"`) sowie Negativfällen für whitespace-only `SMOKE_QUERY`, `SMOKE_QUERY` mit Steuerzeichen, `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2`, eingebettete Whitespaces in `SMOKE_REQUEST_ID`, zu lange `SMOKE_REQUEST_ID` (`>128`), ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`), `DEV_BASE_URL` mit Userinfo `user:pass@host`, whitespace-only `DEV_API_AUTH_TOKEN`, `DEV_API_AUTH_TOKEN` mit Steuerzeichen und `DEV_API_AUTH_TOKEN` mit eingebettetem Whitespace).
+  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, wiederholter Forward-Suffix-Ketten mit internem Double-Slash wie `.../health//analyze/health/analyze///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//`, getrimmter Header-/Flag-Inputs wie `SMOKE_REQUEST_ID_HEADER="  Correlation  "`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "`, `SMOKE_MODE="  basic  "` und `SMOKE_MODE="  ExTenDeD  "`, getrimmtem Query-Input `SMOKE_QUERY="  __ok__  "`, getrimmten Timeout-Inputs `SMOKE_TIMEOUT_SECONDS="\t2.5\t"`/`CURL_MAX_TIME=" 15 "`, getrimmter Retry-Flags wie `CURL_RETRY_COUNT="\t1\t"`/`CURL_RETRY_DELAY="\t1\t"`, getrimmtem optionalen Bearer-Token `DEV_API_AUTH_TOKEN="\tbl18-token  "`, Tab-umhüllter Inputs (`"\thttp://.../health\t"`, `"\tCorrelation\t"`) sowie Negativfällen für whitespace-only `SMOKE_QUERY`, `SMOKE_QUERY` mit Steuerzeichen, `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2`, eingebettete Whitespaces oder Trennzeichen (`,`/`;`) in `SMOKE_REQUEST_ID`, zu lange `SMOKE_REQUEST_ID` (`>128`), ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`), `DEV_BASE_URL` mit Userinfo `user:pass@host`, whitespace-only `DEV_API_AUTH_TOKEN`, `DEV_API_AUTH_TOKEN` mit Steuerzeichen und `DEV_API_AUTH_TOKEN` mit eingebettetem Whitespace).
   - `tests/test_remote_stability_script.py`: validiert den Mehrfach-Runner inkl. NDJSON-Report, `STABILITY_STOP_ON_FIRST_FAIL` sowie getrimmter numerischer Flag-Inputs (inkl. Space-/Tab-Varianten wie `" 2 "`, `"\t2\t"`, `" 0 "`).
 - **Run-Skript:** `scripts/run_webservice_e2e.sh`
   - führt lokal immer aus (`test_web_e2e.py` + Smoke-/Stability-Script-E2E)
@@ -111,7 +111,7 @@ Wichtige Optionen:
 - `DEV_API_AUTH_TOKEN` (optional): wird vor dem Request getrimmt; whitespace-only Werte, Tokens mit eingebettetem Whitespace **und** Tokens mit Steuerzeichen werden fail-fast mit `exit 2` abgewiesen, damit Auth-Fehlersuchen bei Copy/Paste-Inputs reproduzierbar bleiben.
 - `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein, werden vor der Validierung getrimmt und `CURL_MAX_TIME` muss zusätzlich `>= SMOKE_TIMEOUT_SECONDS` sein (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf` sowie inkonsistenten Timeout-Kombinationen).
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein und werden vor der Validierung getrimmt.
-- `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche); wird vor dem Request getrimmt, darf keine eingebetteten Whitespaces oder Steuerzeichen enthalten und darf maximal 128 Zeichen enthalten (sonst `exit 2`).
+- `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche); wird vor dem Request getrimmt, darf keine eingebetteten Whitespaces, keine Steuerzeichen und keine Trennzeichen (`,`/`;`) enthalten und darf maximal 128 Zeichen enthalten (sonst `exit 2`).
 - `SMOKE_REQUEST_ID_HEADER` (`request|correlation|x-request-id|x-correlation-id|x_request_id|x_correlation_id`, default `request`): wird vor Validierung getrimmt und case-insensitive normalisiert; whitespace-only Werte, eingebettete Whitespaces und Steuerzeichen werden fail-fast mit `exit 2` zurückgewiesen. Header-Namen werden als Alias akzeptiert (`x-request-id`/`x_request_id`→`request`, `x-correlation-id`/`x_correlation_id`→`correlation`) und steuern, ob die Request-ID via `X-Request-Id`, `X_Request_Id`, `X-Correlation-Id` oder `X_Correlation_Id` gesendet wird; der JSON-Report enthält dazu `request_id_header_name`.
 - `SMOKE_ENFORCE_REQUEST_ID_ECHO` (`1|0`, default `1`): wird vor Validierung getrimmt und erzwingt Echo-Prüfung für Header + JSON (`request_id`).
 - `SMOKE_MODE`: reproduzierbarer Request-Modus (`basic|extended|risk`), wird vor der Validierung getrimmt und case-insensitive normalisiert (z. B. `"  ExTenDeD  "` → `extended`).
@@ -148,6 +148,21 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Request-ID-Delimiter-Guard + Real-Run, Iteration 39)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="55187" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:55187/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772117243  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772117243.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:55187/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 3 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-39/bl18.1-remote-stability-local-worker-1-10m-1772117243.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `106 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden; `request`-Header-Mode bleibt stabil (`request_id_header_name=X-Request-Id`) und Echo Header+JSON konsistent.
+  - Stabilität: `pass=3`, `fail=0`, Exit `0`; Runs 1..3 alle `status=pass`.
+  - API-Guard: neuer E2E-Fall + Realcheck bestätigen, dass `X-Request-Id` mit Trennzeichen (`,`/`;`) als ungültig verworfen wird und deterministisch `X-Correlation-Id` in Header+JSON gespiegelt wird.
+  - Evidenz: `artifacts/bl18.1-smoke-local-worker-1-10m-1772117243.json`, `artifacts/worker-1-10m/iteration-39/bl18.1-remote-stability-local-worker-1-10m-1772117243.ndjson`, `artifacts/bl18.1-request-id-delimiter-fallback-worker-1-10m-1772117243.json`.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772117243.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, lowercase `_`-Request-Alias E2E-Abdeckung + Real-Run, Iteration 38)
 

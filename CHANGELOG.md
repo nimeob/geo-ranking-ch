@@ -14,6 +14,18 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Request-ID-Delimiter-Guard + Real-Run, Iteration 39)
+- **`src/web_service.py`:** Request-ID-Sanitizer verwirft jetzt zusätzlich Header-Werte mit Trennzeichen `,`/`;`, damit aggregierte/mehrdeutige IDs nicht als gültige Korrelations-ID gespiegelt werden.
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID` wird fail-fast auch auf Trennzeichen `,`/`;` geprüft (`exit 2` + klare CLI-Meldung).
+- **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert reproduzierbar den Correlation-Fallback bei `X-Request-Id` mit Trennzeichen.
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest deckt fail-fast für `SMOKE_REQUEST_ID` mit Trennzeichen ab.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`106 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode (`SMOKE_REQUEST_ID_HEADER="request"`, `SMOKE_MODE="RiSk"`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772117243.json`, `artifacts/worker-1-10m/iteration-39/bl18.1-remote-stability-local-worker-1-10m-1772117243.ndjson`, `artifacts/bl18.1-request-id-delimiter-fallback-worker-1-10m-1772117243.json`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772117243.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-39 + Delimiter-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Request-ID-Regeln um Trennzeichen-Guards (`,`/`;`) erweitert und Nachweisführung auf Iteration 39 (`106 passed`, Smoke + 3x Stabilität + delimiter-fallback real check) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m lowercase `_`-Request-Alias E2E-Abdeckung + Real-Run, Iteration 38)
 - **`tests/test_remote_smoke_script.py`:** Happy-Path-Abdeckung ergänzt, dass `SMOKE_REQUEST_ID_HEADER="x_request_id"` (lowercase + getrimmt) robust akzeptiert, als Request-Mode normalisiert und real als `X_Request_Id` gesendet wird (`request_id_header_name=X_Request_Id`).
 - **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert, dass auch ein lowercase Unterstrich-Primärheader (`x_request_id`) für `/analyze` korrekt akzeptiert und in Header+JSON gespiegelt wird.
