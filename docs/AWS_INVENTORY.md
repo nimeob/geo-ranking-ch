@@ -1,10 +1,10 @@
 # AWS Inventory & Konfigurationsdokumentation
 
-> **Projekt:** geo-ranking-ch (internes AWS-Naming: `swisstopo`)  
-> **Account:** `523234426229`  
-> **Region:** `eu-central-1` (Frankfurt)  
-> **Umgebung:** `dev` (einzige aktive Umgebung; `staging`/`prod` noch nicht angelegt)  
-> **Stand:** 2026-02-26 — vollständig verifiziert via read-only AWS-Abfragen  
+> **Projekt:** geo-ranking-ch (internes AWS-Naming: `swisstopo`)
+> **Account:** `523234426229`
+> **Region:** `eu-central-1` (Frankfurt)
+> **Umgebung:** `dev` (einzige aktive Umgebung; `staging`/`prod` noch nicht angelegt)
+> **Stand:** 2026-02-26 — vollständig verifiziert via read-only AWS-Abfragen
 
 ---
 
@@ -22,7 +22,7 @@
 
 ## Read-only Erfassungskommandos
 
-Diese Befehle sind rein lesend und können zur Verifikation jederzeit ausgeführt werden.  
+Diese Befehle sind rein lesend und können zur Verifikation jederzeit ausgeführt werden.
 **Keine Secrets oder sensitiven Werte werden ausgegeben.**
 
 ```bash
@@ -118,6 +118,7 @@ Details und Audit: [`docs/TAGGING_AUDIT.md`](TAGGING_AUDIT.md)
 - Details, Evidenz und Go/No-Go-Template: [`docs/LEGACY_IAM_USER_READINESS.md`](LEGACY_IAM_USER_READINESS.md)
 - Reproduzierbarer Repo-Consumer-Check: `./scripts/audit_legacy_aws_consumer_refs.sh`
 - Reproduzierbarer Runtime-Baseline-Check (Host): `./scripts/audit_legacy_runtime_consumers.sh`
+- Reproduzierbarer CloudTrail-Fingerprint-Check: `LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh`
 - Offene externe Consumer-Targets + Migrationsstatus: [`docs/LEGACY_CONSUMER_INVENTORY.md`](LEGACY_CONSUMER_INVENTORY.md)
 
 ---
@@ -510,7 +511,7 @@ cd infra/terraform && terraform plan && terraform apply
 | Letztes Update | 2026-02-26T00:06:47Z | ✅ |
 | IaC | 🖐️ Manuell angelegt — **absichtlich nicht in Terraform-State** | — |
 
-> 🔑 **Der Wert dieses Parameters wird niemals im Repository, in Logs oder in Dokumenten gespeichert.**  
+> 🔑 **Der Wert dieses Parameters wird niemals im Repository, in Logs oder in Dokumenten gespeichert.**
 > Beim Rebuild: manuell mit `aws ssm put-parameter` anlegen (siehe oben, Abschnitt 6.1).
 
 ---

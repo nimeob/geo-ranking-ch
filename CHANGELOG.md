@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-15 Iteration: CloudTrail-Consumer-Fingerprints)
+- **`scripts/audit_legacy_cloudtrail_consumers.sh`:** Neues read-only Audit-Script für Legacy-IAM-Attribution via CloudTrail (`lookup-events` auf Username). Gruppiert Events nach `source_ip` + `user_agent`, zeigt `event_source`/`event_name`, filtert `LookupEvents` standardmäßig heraus und liefert klare Exit-Codes (`0` kein Legacy-Event, `10` Legacy-Aktivität, `20` Fehler).
+
+### Changed (2026-02-26 — BL-15 Iteration: Attribution präzisiert)
+- **`docs/LEGACY_IAM_USER_READINESS.md`:** Um Abschnitt „CloudTrail-Fingerprint Audit“ mit verifiziertem 6h-Lauf ergänzt (dominanter Non-AWS-Fingerprint `76.13.144.185`, zusätzliche AWS-Service-Delegation via `lambda.amazonaws.com`).
+- **`docs/LEGACY_CONSUMER_INVENTORY.md`:** Basislage + Fingerprint-Hinweise um neue CloudTrail-Evidenz erweitert.
+- **`docs/BACKLOG.md`:** BL-15-Nachweis/Blocker/Next-Actions um das neue Fingerprint-Audit konkretisiert.
+- **`docs/OPERATIONS.md` / `docs/DEPLOYMENT_AWS.md` / `docs/AWS_INVENTORY.md`:** Runbook-Verweise auf `audit_legacy_cloudtrail_consumers.sh` ergänzt.
+
 ### Added (2026-02-26 — BL-18 Iteration: Webservice-E2E + Auth/Timeout-Abdeckung)
 - **`tests/test_web_e2e.py`:** Neue lokale End-to-End-Test-Suite mit Prozessstart des Webservice und Abdeckung für Health/Version, 404, Auth (401), Bad Request (400), Timeout (504), Internal Error (500) und Happy Path für `/analyze`.
 - **`tests/test_web_e2e_dev.py`:** Neue dev-E2E-Suite gegen `DEV_BASE_URL` (optional `DEV_API_AUTH_TOKEN`) für reproduzierbare Endpoint-Checks in der laufenden Umgebung.

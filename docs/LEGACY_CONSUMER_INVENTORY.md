@@ -14,6 +14,7 @@ Aus den read-only Audits:
 
 - `./scripts/audit_legacy_aws_consumer_refs.sh` → Exit `10` (aktiver Caller = Legacy-User)
 - `./scripts/audit_legacy_runtime_consumers.sh` → Exit `30` (aktiver Caller + Runtime-Env enthält AWS Key-Variablen)
+- `LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh` → Exit `10` (Legacy-Events aktiv; dominante Fingerprints gruppiert)
 - GitHub Deploy-Workflow (`.github/workflows/deploy.yml`) ist OIDC-only (kein statischer Key im aktiven CI/CD-Pfad)
 
 Interpretation:
@@ -31,6 +32,18 @@ Interpretation:
 | OpenClaw Runtime (dieser Host) | Host/Container Runtime | AWS Env-Creds (Legacy User als aktiver Caller) | 🟡 offen | OIDC-first via `workflow_dispatch`; Legacy nur Fallback | Nipa/Nico | Quelle der Credential-Injection identifizieren + entfernen |
 | Externe Runner/Hosts (unbekannt) | außerhalb dieses Hosts | unbekannt | ⏳ offen | OIDC/AssumeRole je Consumer | Nico | Zielsysteme inventarisieren (Liste unten) |
 | Lokale/Runner AWS-CLI Skripte (`scripts/*.sh`) | Repo-Artefakte | abhängig vom aufrufenden Runtime-Credential-Context | 🟡 offen | Aufruf über OIDC-Ausführungspfad oder eng begrenzte AssumeRole | Repo | Pro Script Ausführungspfad dokumentieren |
+
+### 2.1) Fingerprint-Hinweise aus CloudTrail (6h-Fenster)
+
+- Dominanter Non-AWS-Fingerprint: `source_ip=76.13.144.185`
+  - `aws-cli/2.33.29` (STS/Logs/CloudTrail Calls)
+  - `aws-sdk-js/3.996.0` (Bedrock Calls)
+  - Terraform Provider (`HashiCorp Terraform/1.11.4`) auf diversen AWS-APIs
+- Zusätzliche AWS-Service-Delegation: `source_ip=lambda.amazonaws.com` (KMS-Zugriffe)
+
+Bewertung:
+- `76.13.144.185` ist aktuell primärer Kandidat für den aktiven Legacy-Consumer-Pfad.
+- Für BL-15 bleibt offen, ob daneben weitere externe Runner/Hosts in separaten Zeitfenstern Legacy-Zugriffe ausführen.
 
 ---
 

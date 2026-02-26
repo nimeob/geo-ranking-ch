@@ -220,13 +220,15 @@
   - ✅ Repo-scope Consumer-Inventar via `scripts/audit_legacy_aws_consumer_refs.sh` ergänzt (Workflow-/Script-Referenzen + aktiver Caller-ARN).
   - ✅ Host-level Runtime-Baseline via `scripts/audit_legacy_runtime_consumers.sh` ergänzt (Environment/Cron/Systemd/OpenClaw-Config read-only geprüft; keine persistierten Key-Referenzen auf dem Host gefunden).
   - ✅ Externe Consumer-Matrix/Tracking ergänzt: `docs/LEGACY_CONSUMER_INVENTORY.md` (Known Consumers, offene externe Targets, Exit-Kriterien).
-  - ✅ Read-only Recheck ausgeführt (2026-02-26): `audit_legacy_aws_consumer_refs.sh` => Exit `10`; `audit_legacy_runtime_consumers.sh` => Exit `30` (Legacy-Caller weiter aktiv, Runtime-Key-Variablen weiterhin gesetzt).
+  - ✅ CloudTrail-Fingerprint-Audit ergänzt: `scripts/audit_legacy_cloudtrail_consumers.sh` (read-only, gruppiert Events nach `source_ip` + `user_agent`, `LookupEvents` standardmäßig gefiltert).
+  - ✅ Read-only Recheck ausgeführt (2026-02-26): `audit_legacy_aws_consumer_refs.sh` => Exit `10`; `audit_legacy_runtime_consumers.sh` => Exit `30`; `LOOKBACK_HOURS=6 audit_legacy_cloudtrail_consumers.sh` => Exit `10` (Legacy-Aktivität weiter aktiv, primärer Non-AWS-Fingerprint `76.13.144.185`, zusätzlich AWS-Service-Delegation via `lambda.amazonaws.com`).
 - **Blocker:**
   - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed + aktueller Caller-ARN), daher noch keine sichere Abschaltfreigabe.
   - Runtime-Audit zeigt weiterhin gesetzte AWS-Key-Variablen im laufenden Kontext; Quelle der Injection ist noch nicht final eliminiert.
+  - CloudTrail-Fingerprints zeigen wiederkehrende Non-AWS-Quelle (`76.13.144.185`), aber externe/weitere Runner außerhalb dieses Hosts sind weiterhin nicht vollständig ausgeschlossen.
 - **Next Actions:**
   1. ✅ Repo-scope Consumer-Inventar abgeschlossen (Workflow OIDC-konform, lokale/Runner-Skripte als offene Consumer identifiziert).
-  2. 🟡 Runtime-Consumer außerhalb des Repos vollständig inventarisieren (Host-Baseline erledigt; Trackingfile `docs/LEGACY_CONSUMER_INVENTORY.md` angelegt; externe Runner/Hosts + Fremd-Cron-Umgebungen pro Target nachziehen).
+  2. 🟡 Runtime-Consumer außerhalb des Repos vollständig inventarisieren (Host-Baseline + CloudTrail-Fingerprints erledigt; Trackingfile `docs/LEGACY_CONSUMER_INVENTORY.md` angelegt; externe Runner/Hosts + Fremd-Cron-Umgebungen pro Target gegen Fingerprint `76.13.144.185` verifizieren).
   3. Für offene Consumer auf OIDC/AssumeRole migrieren (zuerst bekannte OpenClaw-Runtime-Credential-Injection entfernen, dann externe Targets).
   4. Geplantes Wartungsfenster: Key nur deaktivieren (nicht löschen), 24h beobachten, dann Entscheidung zur Finalisierung.
 

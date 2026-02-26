@@ -1,6 +1,6 @@
 # Legacy IAM User Decommission Readiness (read-only)
 
-> Scope: **BL-15** — nur Evidenz + Risikoanalyse + Decommission-Checkliste.  
+> Scope: **BL-15** — nur Evidenz + Risikoanalyse + Decommission-Checkliste.
 > Es wurden **keine** produktiven Rechte entzogen und **keine** Keys deaktiviert.
 
 Stand: 2026-02-26 (UTC)
@@ -81,6 +81,22 @@ Verifizierte Befunde aus dem Lauf:
 
 Interpretation: Der aktive Legacy-Consumer ist aktuell **laufzeitgebunden** (Environment/Credential-Injection), nicht über persistierte Profile/Config auf diesem Host hinterlegt. Für „decommission-ready“ fehlt weiterhin die vollständige Inventarisierung weiterer externer Runner/Hosts.
 
+### CloudTrail-Fingerprint Audit (read-only, 2026-02-26)
+
+Zur schnelleren Attribution von aktiven Consumern wurde ergänzt:
+
+```bash
+LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh
+```
+
+Verifizierter Lauf (`Exit 10`):
+
+- Deutlich aktive Legacy-Nutzung im 6h-Fenster (mehrere hundert Events; `LookupEvents` standardmäßig gefiltert)
+- Dominanter Non-AWS-Fingerprint: `source_ip=76.13.144.185` (u. a. `aws-cli/2.33.29`, `aws-sdk-js/3.996.0`, Terraform Provider)
+- Zusätzlich delegierte AWS-Service-Aktivität sichtbar (`source_ip=lambda.amazonaws.com`, KMS Events)
+
+Interpretation: Die Legacy-Nutzung ist weiterhin aktiv und technisch klarer eingrenzbar (hauptsächlich ein wiederkehrender Host-Fingerprint plus AWS-Service-Delegation). Für Decommission fehlt weiterhin die vollständige Zuordnung aller externen Runner/Hosts gegen diese Fingerprints.
+
 ### Externe Consumer-Matrix (BL-15 Iteration, 2026-02-26)
 
 Zur strukturierten Abarbeitung der offenen Consumer wurde ein dediziertes Tracking ergänzt:
@@ -113,6 +129,7 @@ Haupttreiber:
 - [x] Repo-scope Consumer-Inventar erstellt (Workflow/Script-Referenzen via `./scripts/audit_legacy_aws_consumer_refs.sh`)
 - [ ] Runtime-Consumer vervollständigen (OpenClaw Runner, lokale Shell-Profile, Cronjobs außerhalb des Repos)
   - ✅ Host-Baseline via `./scripts/audit_legacy_runtime_consumers.sh` erhoben.
+  - ✅ CloudTrail-Fingerprint-Audit via `LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh` erhoben.
   - ✅ Consumer-Matrix für offene Targets angelegt: `docs/LEGACY_CONSUMER_INVENTORY.md`.
   - ⏳ Externe Runner/Hosts (außerhalb dieses OpenClaw-Hosts) noch offen.
 - [ ] Für jeden Consumer Ersatzpfad definieren (bevorzugt OIDC/AssumeRole, sonst eng begrenzte Role)
@@ -142,13 +159,13 @@ Haupttreiber:
 **Frage:** Können wir `swisstopo-api-deploy` jetzt dekommissionieren?
 
 - **Go**, wenn:
-  1) alle Consumer migriert sind,  
-  2) 24h ohne Legacy-Key stabil,  
+  1) alle Consumer migriert sind,
+  2) 24h ohne Legacy-Key stabil,
   3) CI/CD via OIDC weiterhin grün.
 
 - **No-Go**, wenn:
-  1) irgendein aktiver Consumer offen ist,  
-  2) Access-Denied-Fehler nach Deaktivierung auftreten,  
+  1) irgendein aktiver Consumer offen ist,
+  2) Access-Denied-Fehler nach Deaktivierung auftreten,
   3) Notfall-Rollback nicht vorbereitet ist.
 
 Empfohlene Default-Entscheidung aktuell: **No-Go (noch nicht bereit)**, da aktive Nutzung des Legacy-Users verifiziert ist.
