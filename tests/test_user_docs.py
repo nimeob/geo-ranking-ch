@@ -22,8 +22,24 @@ class TestUserDocumentation(unittest.TestCase):
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt im API-Guide: {marker}")
 
-    def test_user_docs_index_links_to_api_usage_troubleshooting_and_operations(self):
+    def test_configuration_env_guide_exists_with_core_sections(self):
+        configuration_path = REPO_ROOT / "docs" / "user" / "configuration-env.md"
+        self.assertTrue(configuration_path.is_file(), msg="docs/user/configuration-env.md fehlt")
+
+        content = configuration_path.read_text(encoding="utf-8")
+        required_markers = [
+            "# Configuration / ENV Guide",
+            "## 1) Webservice (`src/web_service.py`)",
+            "## 2) Remote-Smoke (`scripts/run_remote_api_smoketest.sh`)",
+            "## 3) Stabilitätslauf (`scripts/run_remote_api_stability_check.sh`)",
+            "## 4) Konfigurationsbeispiele",
+        ]
+        for marker in required_markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt im Configuration/ENV-Guide: {marker}")
+
+    def test_user_docs_index_links_to_core_guides(self):
         user_index = (REPO_ROOT / "docs" / "user" / "README.md").read_text(encoding="utf-8")
+        self.assertIn("[Configuration / ENV](./configuration-env.md)", user_index)
         self.assertIn("[API Usage Guide](./api-usage.md)", user_index)
         self.assertIn("[Troubleshooting](./troubleshooting.md)", user_index)
         self.assertIn("[Operations Quick Guide](./operations-runbooks.md)", user_index)
@@ -31,6 +47,7 @@ class TestUserDocumentation(unittest.TestCase):
         getting_started = (REPO_ROOT / "docs" / "user" / "getting-started.md").read_text(
             encoding="utf-8"
         )
+        self.assertIn("[Configuration / ENV](./configuration-env.md)", getting_started)
         self.assertIn("[API Usage Guide](./api-usage.md)", getting_started)
         self.assertIn("[Troubleshooting](./troubleshooting.md)", getting_started)
         self.assertIn("[Operations Quick Guide](./operations-runbooks.md)", getting_started)
@@ -73,6 +90,7 @@ class TestUserDocumentation(unittest.TestCase):
         self.assertIn("**Sicherheit & Zugriff**", readme)
         self.assertIn("**Robuste API-Eingänge**", readme)
         self.assertIn("**Betrieb & Nachvollziehbarkeit**", readme)
+        self.assertIn("docs/user/configuration-env.md", readme)
         self.assertIn("docs/user/api-usage.md", readme)
         self.assertIn("docs/user/operations-runbooks.md", readme)
 

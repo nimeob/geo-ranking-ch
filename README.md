@@ -190,6 +190,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/AUTONOMOUS_AGENT_MODE.md](docs/AUTONOMOUS_AGENT_MODE.md) | Verbindlicher Arbeitsmodus für Nipa (Subagents + GitHub App Auth) |
 | [docs/user/README.md](docs/user/README.md) | User-Doku Einstieg (BL-19.1) |
 | [docs/user/getting-started.md](docs/user/getting-started.md) | Schnellstart bis zum ersten erfolgreichen `/analyze`-Call (BL-19.2) |
+| [docs/user/configuration-env.md](docs/user/configuration-env.md) | Konfigurations-/ENV-Referenz inkl. Defaults, Validierung und lokalen/prodnahen Beispielen (BL-19.3) |
 | [docs/user/api-usage.md](docs/user/api-usage.md) | API-Referenz mit Auth, Headern, Inputs/Outputs und Statuscodes (BL-19.4) |
 | [docs/user/troubleshooting.md](docs/user/troubleshooting.md) | Häufige Fehlerbilder (401/400/504/404), Diagnose-Checks und Eskalationspfad (BL-19.5) |
 | [docs/user/operations-runbooks.md](docs/user/operations-runbooks.md) | Tagesbetrieb-Runbook (Quick-Checks, Smoke/Stability, Deploy-Checks, Incident-Minirunbook) (BL-19.6) |

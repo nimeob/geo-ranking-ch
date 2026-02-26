@@ -172,6 +172,7 @@ Am besten direkt mitliefern:
 
 Weiterführend:
 - [Getting Started](./getting-started.md)
+- [Configuration / ENV](./configuration-env.md)
 - [API Usage Guide](./api-usage.md)
 - [Operations Quick Guide](./operations-runbooks.md)
 - [Operations (Infra/Team)](../OPERATIONS.md)
