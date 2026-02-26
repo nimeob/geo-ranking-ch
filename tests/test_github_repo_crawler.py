@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -113,6 +114,61 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
                     crawler.audit_workstream_balance(dry_run=False)
 
         self.assertEqual(created, [])
+
+    def test_build_workstream_balance_baseline_computes_gap_and_target(self):
+        issues = [
+            {"title": "Implement API feature", "body": "", "labels": []},
+            {"title": "Build integration", "body": "", "labels": []},
+            {"title": "Docs guide", "body": "", "labels": []},
+            {"title": "Blocked regression tests", "body": "", "labels": [{"name": "status:blocked"}]},
+        ]
+
+        baseline = crawler.build_workstream_balance_baseline(issues)
+
+        self.assertEqual(baseline["counts"]["development"], 2)
+        self.assertEqual(baseline["counts"]["documentation"], 1)
+        self.assertEqual(baseline["counts"]["testing"], 0)
+        self.assertEqual(baseline["gap"], 2)
+        self.assertEqual(baseline["target_gap_max"], 2)
+        self.assertTrue(baseline["needs_catchup"])
+
+    def test_format_workstream_balance_markdown_contains_core_fields(self):
+        baseline = {
+            "counts": {"development": 3, "documentation": 2, "testing": 1},
+            "gap": 2,
+            "target_gap_max": 2,
+            "needs_catchup": True,
+        }
+
+        rendered = crawler.format_workstream_balance_markdown(baseline, "2026-02-26T21:00:00+00:00")
+
+        self.assertIn("Workstream-Balance Baseline", rendered)
+        self.assertIn("Development: **3**", rendered)
+        self.assertIn("Dokumentation: **2**", rendered)
+        self.assertIn("Testing: **1**", rendered)
+        self.assertIn("Ziel-Gap: **<= 2**", rendered)
+        self.assertIn("Catch-up nötig: **ja**", rendered)
+
+    def test_print_workstream_balance_report_json_renders_machine_readable_payload(self):
+        issues = [
+            {"title": "Implement API feature", "body": "", "labels": []},
+            {"title": "Docs guide", "body": "", "labels": []},
+            {"title": "Regression test", "body": "", "labels": []},
+        ]
+
+        with patch.object(crawler, "get_open_issues_for_workstream_balance", return_value=issues):
+            with patch.object(crawler, "now_iso", return_value="2026-02-26T21:10:00+00:00"):
+                with patch("builtins.print") as mocked_print:
+                    crawler.print_workstream_balance_report(report_format="json")
+
+        printed = mocked_print.call_args[0][0]
+        payload = json.loads(printed)
+
+        self.assertEqual(payload["generated_at"], "2026-02-26T21:10:00+00:00")
+        self.assertEqual(payload["counts"]["development"], 1)
+        self.assertEqual(payload["counts"]["documentation"], 1)
+        self.assertEqual(payload["counts"]["testing"], 1)
+        self.assertFalse(payload["needs_catchup"])
 
 
 if __name__ == "__main__":
