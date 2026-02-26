@@ -121,6 +121,15 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("version", version)
 
+    def test_health_and_version_accept_double_slashes(self):
+        status, health = _http_json("GET", f"{self.base_url}//health//?probe=1")
+        self.assertEqual(status, 200)
+        self.assertTrue(health.get("ok"))
+
+        status, version = _http_json("GET", f"{self.base_url}//version///?ts=1")
+        self.assertEqual(status, 200)
+        self.assertIn("version", version)
+
     def test_not_found(self):
         status, body = _http_json("GET", f"{self.base_url}/missing")
         self.assertEqual(status, 404)
@@ -155,6 +164,27 @@ class TestWebServiceE2E(unittest.TestCase):
         status, body, resp_headers = _http_json(
             "POST",
             f"{self.base_url}/analyze/?trace=1",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+            },
+            headers={
+                "Authorization": "Bearer bl18-token",
+                "X-Request-Id": request_id,
+            },
+            return_headers=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+        self.assertEqual(body.get("request_id"), request_id)
+        self.assertEqual(resp_headers.get("x-request-id"), request_id)
+
+    def test_analyze_accepts_double_slashes_and_query(self):
+        request_id = "bl18-e2e-analyze-double-slash-path"
+        status, body, resp_headers = _http_json(
+            "POST",
+            f"{self.base_url}//analyze//?trace=double-slash",
             payload={
                 "query": "__ok__",
                 "intelligence_mode": "basic",

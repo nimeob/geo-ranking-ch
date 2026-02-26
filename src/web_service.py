@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -62,8 +63,10 @@ class Handler(BaseHTTPRequestHandler):
 
         - ignoriert Query/Fragment-Komponenten
         - behandelt optionale trailing Slashes auf bekannten Endpunkten tolerant
+        - kollabiert doppelte Slash-Segmente (`//`) auf einen Slash
         """
         path = urlsplit(self.path).path or "/"
+        path = re.sub(r"/{2,}", "/", path)
         if path != "/":
             path = path.rstrip("/") or "/"
         return path

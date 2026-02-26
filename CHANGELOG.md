@@ -14,6 +14,19 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Double-Slash-Pfad-Normalisierung + Real-Run, Iteration 48)
+- **`src/web_service.py`:** Routing-Normalisierung kollabiert jetzt zusätzlich doppelte Slash-Segmente (`//`) auf einen Slash, bevor Endpunkte aufgelöst werden; Query-/Fragment-Ignorierung und tolerant handling für trailing Slashes bleiben unverändert aktiv.
+- **`tests/test_web_e2e.py`:** neue E2E-Fälle sichern reproduzierbar ab, dass `//health//?probe=1`, `//version///?ts=1` und `POST //analyze//?trace=double-slash` korrekt funktionieren inkl. Request-ID-Echo.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`124 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`).
+- **Smoke-Variante:** getrimmter Short-Hyphen-Request-Alias (`SMOKE_REQUEST_ID_HEADER="request-id"`) mit Echo-Check aktiv (`SMOKE_ENFORCE_REQUEST_ID_ECHO="TrUe"`, `request_id_header_name=Request-Id`).
+- **Stabilitäts-Variante:** getrimmter Underscore-`X`-Correlation-Alias (`SMOKE_REQUEST_ID_HEADER="x_correlation_id"`) mit deaktiviertem Echo-Check (`SMOKE_ENFORCE_REQUEST_ID_ECHO="off"`) und booleschem Stop-Flag-Alias (`STABILITY_STOP_ON_FIRST_FAIL="no"`) stabil reproduziert (`request_id_header_name=X_Correlation_Id`).
+- **API-Realcheck Double-Slash-Pfade:** `GET //health//?probe=double-slash` und `POST //analyze//?trace=double-slash` liefern `200` + konsistentes Request-ID-Echo in Header+JSON.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772122638.json`, `artifacts/worker-1-10m/iteration-48/bl18.1-remote-stability-local-worker-1-10m-1772122638.ndjson`, `artifacts/bl18.1-double-slash-path-normalization-worker-1-10m-1772122638.json`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772122638.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: README/Runbook/Backlog auf Worker-1-10m Iteration-48 + Double-Slash-Pfade synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Routing-Hinweise um Double-Slash-Kollaps ergänzt und Nachweisführung auf Iteration 48 (`124 passed`, Smoke + 3x Stabilität + API-Double-Slash-Realcheck) angehoben.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Pfad-Normalisierung (`/analyze/` + Query tolerant) + Real-Run, Iteration 47)
 - **`src/web_service.py`:** Routing normalisiert jetzt den Request-Pfad robust über `urlsplit(...).path` und toleriert optionale trailing Slashes; Query-/Fragment-Anteile werden für die Endpunktauflösung ignoriert (`/health/?...`, `/version/?...`, `/analyze/?...`).
 - **`tests/test_web_e2e.py`:** neue E2E-Fälle sichern reproduzierbar ab, dass `/health/?probe=1`, `/version/?ts=1` und `POST /analyze/?trace=1` weiterhin korrekt funktionieren inkl. Request-ID-Echo.
