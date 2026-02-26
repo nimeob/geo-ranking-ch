@@ -479,4 +479,4 @@ Aktueller Stand (Deployment-relevant):
 - ✅ Monitoring/Alerting-Baseline inkl. SNS → Telegram produktiv aktiv.
 - ✅ HTTP-Uptime-Probe auf `/health` produktiv aktiv (BL-12 abgeschlossen).
 - ✅ Health-Probe-IaC-Parität verifiziert (BL-14 abgeschlossen): Terraform `validate` grün; Default-Plan ohne Infrastrukturänderungen; Import-first-Plan mit `manage_health_probe=true` zeigt **0 add / 4 change / 0 destroy** (nur in-place Drift-Korrekturen).
-- ⏳ Nächster offener Gesamt-Block: **BL-15** (Legacy-IAM-Readiness, read-only) — aktueller Arbeitsstand inkl. Consumer-Inventar (`scripts/audit_legacy_aws_consumer_refs.sh`) + Runtime-Baseline (`scripts/audit_legacy_runtime_consumers.sh`) und Go/No-Go-Template: `docs/LEGACY_IAM_USER_READINESS.md`.
+- ⏳ Nächster offener Gesamt-Block: **BL-15** (Legacy-IAM-Readiness, read-only) — aktueller Arbeitsstand inkl. Consumer-Inventar (`scripts/audit_legacy_aws_consumer_refs.sh`), Runtime-Baseline (`scripts/audit_legacy_runtime_consumers.sh`), externer Consumer-Matrix (`docs/LEGACY_CONSUMER_INVENTORY.md`) und Go/No-Go-Template: `docs/LEGACY_IAM_USER_READINESS.md`.

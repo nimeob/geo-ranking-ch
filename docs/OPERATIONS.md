@@ -176,6 +176,7 @@ Kurzfassung:
 - Parallelisierung nutzen, wenn Aufgaben unabhängig sind.
 - Vor AWS-Ops-Läufen Legacy-Principal prüfen: `./scripts/audit_legacy_aws_consumer_refs.sh`.
 - Für Runtime-Quellen (Env/Cron/Systemd/OpenClaw-Config) zusätzlich `./scripts/audit_legacy_runtime_consumers.sh` ausführen.
+- Offene Legacy-Consumer je Lauf in `docs/LEGACY_CONSUMER_INVENTORY.md` nachführen (insb. externe Runner/Hosts).
 
 ## Lokale Entwicklung
 

@@ -40,6 +40,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 ### Added (2026-02-26 — BL-15 Iteration: Runtime-Consumer-Baseline automatisiert)
 - **`scripts/audit_legacy_runtime_consumers.sh`:** Neues read-only Audit-Script für Runtime-Quellen außerhalb des Repos (sanitisiertes Environment, Shell-/Environment-Profile, AWS Credential-Files, User/System-Cron, Systemd Units, OpenClaw-Konfig-Dateien). Exit-Codes: `0` (kein Befund), `10` (Legacy-Caller aktiv), `20` (Runtime-Referenzen), `30` (beides).
 
+### Added (2026-02-26 — BL-15 Iteration: Externe Consumer-Matrix)
+- **`docs/LEGACY_CONSUMER_INVENTORY.md`:** Neues Tracking-Dokument für offene Legacy-Consumer außerhalb des bereits migrierten OIDC-CI/CD-Pfads (Known Consumers, offene externe Targets, Migrationspfade, Exit-Kriterien für BL-15).
+
+### Changed (2026-02-26 — BL-15 Iteration: Consumer-Blocker präzisiert)
+- **`docs/LEGACY_IAM_USER_READINESS.md`:** Um Verweis auf die neue Consumer-Matrix erweitert; Phase-A-Checkliste präzisiert (Host-Baseline erledigt, externe Targets weiterhin offen).
+- **`docs/BACKLOG.md`:** BL-15-Nachweis um Consumer-Matrix ergänzt, Blocker um Runtime-Credential-Injection konkretisiert, Next Actions auf externe Target-Inventarisierung geschärft; BL-17-Status auf „offen (Start nach BL-15)" konsolidiert.
+- **`docs/DEPLOYMENT_AWS.md` / `docs/AWS_INVENTORY.md` / `docs/OPERATIONS.md`:** Verweise auf die neue Consumer-Matrix ergänzt.
+- **`docs/ARCHITECTURE.md`:** Abschnitt „Offene Punkte“ auf aktuelle offene Blöcke (`BL-15`, `BL-17`, `BL-18`) aktualisiert.
+
 ### Changed (2026-02-26 — BL-15 Fortschritt + Folge-Sequenz konsolidiert)
 - **`docs/LEGACY_IAM_USER_READINESS.md`:** Neue Section „Repo-scope Consumer-Inventar" ergänzt; Befund dokumentiert: aktive Workflow-Pipeline läuft OIDC-only, aktiver OpenClaw-Caller bleibt Legacy-User.
 - **`docs/BACKLOG.md`:** BL-15 Nachweise/Blocker/Next-Actions auf Audit-Stand aktualisiert (Repo-Inventar abgeschlossen, Runtime-Inventar offen). Folge-Sequenz um BL-17/BL-18 als nächste priorisierte Blöcke konkretisiert.

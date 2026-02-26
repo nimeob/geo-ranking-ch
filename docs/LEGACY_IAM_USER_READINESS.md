@@ -81,6 +81,18 @@ Verifizierte Befunde aus dem Lauf:
 
 Interpretation: Der aktive Legacy-Consumer ist aktuell **laufzeitgebunden** (Environment/Credential-Injection), nicht über persistierte Profile/Config auf diesem Host hinterlegt. Für „decommission-ready“ fehlt weiterhin die vollständige Inventarisierung weiterer externer Runner/Hosts.
 
+### Externe Consumer-Matrix (BL-15 Iteration, 2026-02-26)
+
+Zur strukturierten Abarbeitung der offenen Consumer wurde ein dediziertes Tracking ergänzt:
+
+- `docs/LEGACY_CONSUMER_INVENTORY.md`
+
+Aktueller Kurzbefund daraus:
+
+- GitHub Actions Deploy ist bereits OIDC-migriert.
+- OpenClaw Runtime auf diesem Host nutzt weiterhin runtime-injizierte Legacy-Umgebungsvariablen.
+- Externe Runner/Hosts sind noch nicht vollständig inventarisiert (Hauptblocker für Decommission-Freigabe).
+
 ---
 
 ## 2) Risiko-Einschätzung
@@ -101,8 +113,10 @@ Haupttreiber:
 - [x] Repo-scope Consumer-Inventar erstellt (Workflow/Script-Referenzen via `./scripts/audit_legacy_aws_consumer_refs.sh`)
 - [ ] Runtime-Consumer vervollständigen (OpenClaw Runner, lokale Shell-Profile, Cronjobs außerhalb des Repos)
   - ✅ Host-Baseline via `./scripts/audit_legacy_runtime_consumers.sh` erhoben.
+  - ✅ Consumer-Matrix für offene Targets angelegt: `docs/LEGACY_CONSUMER_INVENTORY.md`.
   - ⏳ Externe Runner/Hosts (außerhalb dieses OpenClaw-Hosts) noch offen.
 - [ ] Für jeden Consumer Ersatzpfad definieren (bevorzugt OIDC/AssumeRole, sonst eng begrenzte Role)
+  - 🟡 Für bekannte Consumer initial im Tracker hinterlegt; externe Targets noch offen.
 - [ ] Read-only Smoke-Tests pro Ersatzpfad dokumentieren
 
 ### Phase B — Controlled Cutover
