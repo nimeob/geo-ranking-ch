@@ -359,6 +359,10 @@
 - **Status:** ⛔ blockiert bis BL-19-MVP steht (Nico-Vorgabe, 2026-02-26)
 - **Quelle/Vision:** [`docs/VISION_PRODUCT.md`](./VISION_PRODUCT.md)
 - **Zielbild:** Adresse oder Kartenpunkt in der Schweiz analysieren und als kombinierte Standort-/Gebäudeauskunft bereitstellen; Webservice und GUI separat nutzbar/vermarktbar.
+- **Fortschritt (2026-02-26):**
+  - ✅ BL-20.7.b abgeschlossen (Issue #35): GTM-MVP-Artefakte dokumentiert in [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md) (Value Proposition, Scope, Demo-Flow).
+  - ✅ Offene GTM-Risiken als Follow-up-Issues nachgeführt: #36 (Lizenzgrenzen), #37 (Demo-Datenset), #38 (Packaging/Pricing-Hypothesen).
+  - ⏳ Nächster direkter Schritt in BL-20.7: #34 (Packaging-Basis Build/Run/Config).
 - **Akzeptanzkriterien (Phase 1):**
   - API liefert für Adresse und Kartenpunkt ein einheitliches Ergebnisobjekt (Gebäudeprofil + Umfeldprofil).
   - Ergebnis enthält Explainability-Felder (`sources`, `as_of`, `confidence`, `derived_from`).
