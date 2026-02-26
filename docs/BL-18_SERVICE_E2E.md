@@ -117,6 +117,7 @@ STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability.ndjson" \
 Der Runner:
 - führt den Remote-Smoke-Test mehrfach aus,
 - schreibt pro Lauf eine NDJSON-Zeile,
+- unterstützt optionales Fail-Fast via `STABILITY_STOP_ON_FIRST_FAIL=1` (nur `0|1` erlaubt),
 - bricht mit Exit `1` ab, wenn `fail_count > STABILITY_MAX_FAILURES`.
 
 ### CI-Hook (optional)

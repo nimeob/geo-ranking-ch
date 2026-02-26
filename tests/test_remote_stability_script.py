@@ -142,6 +142,15 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertEqual(entries[0].get("reason"), "http_status")
         self.assertEqual(entries[0].get("http_status"), 401)
 
+    def test_stability_runner_rejects_invalid_stop_on_first_fail_flag(self):
+        cp, entries = self._run_stability(
+            include_token=True, runs=2, max_failures=0, stop_on_first_fail=2
+        )
+
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("STABILITY_STOP_ON_FIRST_FAIL muss 0 oder 1 sein", cp.stderr)
+        self.assertEqual(entries, [])
+
 
 if __name__ == "__main__":
     unittest.main()

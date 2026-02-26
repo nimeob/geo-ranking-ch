@@ -42,6 +42,14 @@ if ! [[ "$STABILITY_MAX_FAILURES" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
+case "$STABILITY_STOP_ON_FIRST_FAIL" in
+  0|1) ;;
+  *)
+    echo "[BL-18.1] STABILITY_STOP_ON_FIRST_FAIL muss 0 oder 1 sein (aktuell: ${STABILITY_STOP_ON_FIRST_FAIL})." >&2
+    exit 2
+    ;;
+esac
+
 mkdir -p "$(dirname -- "$STABILITY_REPORT_PATH")"
 : > "$STABILITY_REPORT_PATH"
 

@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Stabilitätsrunner-Inputvalidierung)
+- **`tests/test_remote_stability_script.py`:** Negativtest ergänzt, der ungültiges `STABILITY_STOP_ON_FIRST_FAIL` (`!= 0|1`) mit Exit-Code `2` absichert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Fail-Fast-Flag reproduzierbar validiert)
+- **`scripts/run_remote_api_stability_check.sh`:** `STABILITY_STOP_ON_FIRST_FAIL` wird jetzt strikt auf `0|1` validiert; Fehleingaben brechen früh und eindeutig mit Exit `2` ab.
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Doku auf validiertes Fail-Fast-Flag und Testnachweis aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Request-ID-Echo-Abnahme im Smoke-Runner)
 - **`tests/test_remote_smoke_script.py`:** Happy-Path erweitert um harte Assertions auf Request-ID-Korrelation (`request_id`, `response_request_id`, `response_header_request_id`).
 - **`tests/test_remote_stability_script.py`:** NDJSON-Validierung um Request-ID-Echo-Nachweis pro Run ergänzt.

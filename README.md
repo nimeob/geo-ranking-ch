@@ -85,6 +85,7 @@ curl http://localhost:8080/health
 DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_smoketest.sh
 
 # kurzer Stabilitätslauf (mehrere Remote-Smokes, mit NDJSON-Report)
+# optional fail-fast: STABILITY_STOP_ON_FIRST_FAIL=1 (nur 0|1 erlaubt)
 DEV_BASE_URL="https://<endpoint>" \
 DEV_API_AUTH_TOKEN="<token>" \
 ./scripts/run_remote_api_stability_check.sh
