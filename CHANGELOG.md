@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-20.1.d.wp4 Stability Guide + Contract-Change-Policy)
+- **`docs/api/contract-stability-policy.md`** neu angelegt: verbindliche Stabilitätsklassen (`stable`, `beta`, `internal`) inkl. Integrator-Regeln, Breaking/Non-Breaking-Kriterien und Versionsregel für `/api/v1`.
+
+### Changed (2026-02-26 — BL-20.1.d.wp4 Doku-/Backlog-Sync)
+- **`docs/api/contract-v1.md`** um Abschnitt „Stability Guide + Contract-Change-Policy" erweitert (Cross-Link + Kurzregeln).
+- **`README.md`** Dokumentationstabelle um den Stability-Policy-Leitfaden ergänzt.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschluss von #73 aktualisiert.
+
 ### Added (2026-02-26 — BL-20.2.b Feld-Mapping Quelle -> Domain)
 - **`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`** neu angelegt: quellenweises Feld-Mapping auf Domainpfade (`build_report`/`result.data.*`) inkl. verbindlicher Transform-/Normalisierungsregeln und Source->Module-Zuordnung für `by_source`.
 - **`tests/test_data_source_field_mapping_docs.py`** ergänzt: Regressionstest auf Pflichtsektionen der Mapping-Doku inkl. Follow-up-Verweisen (#63/#64/#65).

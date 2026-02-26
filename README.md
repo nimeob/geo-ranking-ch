@@ -198,6 +198,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
 | [docs/DATA_SOURCE_FIELD_MAPPING_CH.md](docs/DATA_SOURCE_FIELD_MAPPING_CH.md) | Technisches Feld-Mapping Quelle -> Domain inkl. Transform-Regeln und Follow-up-Gaps (BL-20.2.b) |
 | [docs/api/contract-v1.md](docs/api/contract-v1.md) | Versionierter API-Vertrag v1 für BL-20 (`/api/v1`, Schemas, Fehlercodes, Beispielpayloads) |
+| [docs/api/contract-stability-policy.md](docs/api/contract-stability-policy.md) | Stabilitätsleitfaden (`stable`/`beta`/`internal`) + Breaking/Non-Breaking-Policy inkl. Changelog-/Release-Prozess (BL-20.1.d.wp4) |
 | [docs/GO_TO_MARKET_MVP.md](docs/GO_TO_MARKET_MVP.md) | GTM-MVP-Artefakte: Value Proposition, Scope, Demo-Storyline, offene Risiken (BL-20.7.b) |
 | [docs/PACKAGING_BASELINE.md](docs/PACKAGING_BASELINE.md) | Reproduzierbare Build/Run-Baseline für API-only Packaging inkl. Konfigurationsmatrix (Pflicht/Optional, Default/Beispiel), Verify-Checks und Basis-Release-Checkliste (BL-20.7.a.r1/r2/r3) |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |

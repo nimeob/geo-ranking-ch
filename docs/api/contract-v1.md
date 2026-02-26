@@ -125,3 +125,15 @@ Bei jeder Contract-Änderung an `legacy` oder `grouped` gilt:
 5. Änderungsnotiz in `CHANGELOG.md` ergänzen (Breaking vs. Non-Breaking klar markieren).
 
 Nur wenn Manifest + Beispiele + Checks konsistent sind, gilt der Contract als aktualisiert.
+
+## 10) Stability Guide + Contract-Change-Policy (BL-20.1.d.wp4)
+
+Der verbindliche Leitfaden für Stabilitätsklassen (`stable`, `beta`, `internal`) sowie die Klassifizierung von Contract-Änderungen (Breaking vs. Non-Breaking) ist hier dokumentiert:
+
+- [`docs/api/contract-stability-policy.md`](./contract-stability-policy.md)
+
+Kurzregel:
+- `stable`: darf von Integratoren fest vorausgesetzt werden.
+- `beta`: nur defensiv konsumieren (Fallback/Feature-Flag).
+- `internal`: kein externer Integrationsvertrag.
+- Breaking Changes werden nicht in `/api/v1` ausgerollt, sondern über eine neue Hauptversion mit Migrationshinweisen.
