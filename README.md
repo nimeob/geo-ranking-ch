@@ -160,6 +160,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/LEGACY_CONSUMER_INVENTORY.md](docs/LEGACY_CONSUMER_INVENTORY.md) | Offene Legacy-Consumer-Matrix inkl. Migrationsstatus/Next Actions (BL-15) |
 | [docs/AUTONOMOUS_AGENT_MODE.md](docs/AUTONOMOUS_AGENT_MODE.md) | Verbindlicher Arbeitsmodus für Nipa (Subagents + GitHub App Auth) |
 | [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Ist-Analyse + E2E-Runbook für BL-18 |
+| [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
 
 ---

@@ -334,6 +334,30 @@
   - **Phase 2 / direkt danach:** BL-19.5 → BL-19.6 → BL-19.8
 - **Begründung:** Erst schnelle Nutzbarkeit (Einstieg + funktionierende API-Nutzung), dann Tiefe (Troubleshooting/Operations) und abschließend Qualitätsgate.
 
+### BL-20 — Produktvision umsetzen: API + GUI für CH-Standort-/Gebäude-Intelligence
+- **Priorität:** P1
+- **Aufwand:** L
+- **Abhängigkeiten:** BL-18, BL-19
+- **Status:** 🟡 neu (2026-02-26)
+- **Quelle/Vision:** [`docs/VISION_PRODUCT.md`](docs/VISION_PRODUCT.md)
+- **Zielbild:** Adresse oder Kartenpunkt in der Schweiz analysieren und als kombinierte Standort-/Gebäudeauskunft bereitstellen; Webservice und GUI separat nutzbar/vermarktbar.
+- **Akzeptanzkriterien (Phase 1):**
+  - API liefert für Adresse und Kartenpunkt ein einheitliches Ergebnisobjekt (Gebäudeprofil + Umfeldprofil).
+  - Ergebnis enthält Explainability-Felder (`sources`, `as_of`, `confidence`, `derived_from`).
+  - GUI-MVP unterstützt Adresseingabe + Kartenklick und zeigt Kernindikatoren verständlich an.
+  - API und GUI sind unabhängig deploybar und dokumentiert.
+- **Teilaufgaben (Startschnitt):**
+  1. **BL-20.1 – Domain-Model/API-Vertrag** für Building/Context/Suitability finalisieren.
+  2. **BL-20.2 – Datenquellen-Mapping** (swisstopo/GWR/OSM/öffentliche Quellen) inkl. Lizenz-/Nutzungsnotizen.
+  3. **BL-20.3 – Vertical A (Adresse → Gebäudeprofil)** produktionsnah bereitstellen.
+  4. **BL-20.4 – Vertical B (Adresse → Umfeldprofil)** mit ÖV/POI/Lärmindikatoren.
+  5. **BL-20.5 – Vertical C (Kartenpunkt → Bau-Eignung light)** mit Topografie/Hang/Zugang.
+  6. **BL-20.6 – GUI-MVP** (Adresse + Kartenklick + Ergebnispanel).
+  7. **BL-20.7 – Packaging/Go-to-Market-Basis** (API-only vs. GUI-Angebot trennbar).
+- **Prioritätsregel (ab sofort):**
+  - Webservice-Feature-Entwicklung hat Vorrang vor Testscript-Hardening.
+  - Test-Skripte laufen im Maintenance-Mode (Regression + Stabilität), außer bei neuen Risiken/Anforderungen.
+
 ---
 
 ## Nacht-Plan (abgeschlossen)
@@ -359,3 +383,4 @@
 4. **BL-17** (OpenClaw OIDC-first + Legacy-Fallback) ⏳
 5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ⏳
 6. **BL-19** (Userdokumentation) ⏳
+7. **BL-20** (Produktvision API+GUI umsetzen) ⏳
