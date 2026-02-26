@@ -7,6 +7,42 @@ Stand: 2026-02-26 (UTC)
 
 ---
 
+## Legacy-Fallback-Log (BL-17.wp2)
+
+Standardformat für Legacy-Notfallnutzung:
+- [`docs/LEGACY_FALLBACK_LOG_TEMPLATE.md`](LEGACY_FALLBACK_LOG_TEMPLATE.md)
+
+### Fallback-Log Entries
+
+Derzeit keine neu protokollierten Incident-Fallbacks in diesem Dokument.
+Wenn ein Legacy-Fallback notwendig ist, Eintrag im obigen Template-Format ergänzen (Markdown + optional JSON-Snippet).
+
+#### Referenz-Beispiel
+
+```markdown
+### Legacy Fallback Entry — legacy-fallback-2026-02-26-002
+
+- timestamp_utc: 2026-02-26T23:52:00Z
+- actor: openclaw-host
+- reason: AssumeRole-Aufruf lieferte mehrfach Throttling, Incident-Fenster aktiv
+- scope: aws cloudwatch describe-alarms --region eu-central-1 --max-items 5
+- started_utc: 2026-02-26T23:50:00Z
+- ended_utc: 2026-02-26T23:52:00Z
+- duration_minutes: 2
+- outcome: success
+- rollback_needed: no
+- evidence:
+  - cloudtrail_window_utc: 2026-02-26T23:45:00Z..2026-02-27T00:00:00Z
+  - refs:
+    - artifacts/legacy-fallback/2026-02-26-002.log
+    - artifacts/legacy-fallback/2026-02-26-002-cloudtrail.json
+- follow_up:
+  - issue: #138
+  - action: Runtime-Evidence-Export um Throttling-Klassifikation ergänzen
+```
+
+---
+
 ## 1) Verifizierte Ist-Lage (`swisstopo-api-deploy`)
 
 | Item | Wert | Evidenz |
