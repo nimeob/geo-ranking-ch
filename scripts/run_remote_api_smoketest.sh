@@ -18,7 +18,7 @@ set -euo pipefail
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
-#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ x-request-id/x-correlation-id Aliasse), Default: request
+#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ x-request-id/x-correlation-id/x_request_id/x_correlation_id Aliasse), Default: request
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
@@ -285,7 +285,7 @@ case "$SMOKE_REQUEST_ID_HEADER" in
     SMOKE_REQUEST_ID_HEADER="correlation"
     ;;
   *)
-    echo "[BL-18.1] Ungültiger SMOKE_REQUEST_ID_HEADER='${SMOKE_REQUEST_ID_HEADER}' (erlaubt: request|correlation|x-request-id|x-correlation-id)." >&2
+    echo "[BL-18.1] Ungültiger SMOKE_REQUEST_ID_HEADER='${SMOKE_REQUEST_ID_HEADER}' (erlaubt: request|correlation|x-request-id|x-correlation-id|x_request_id|x_correlation_id)." >&2
     exit 2
     ;;
 esac

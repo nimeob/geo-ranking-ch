@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Unterstrich-Header-Aliasse für `SMOKE_REQUEST_ID_HEADER` + 5x Stabilität, Iteration 31)
+- **`tests/test_remote_smoke_script.py`:** Happy-Path-Abdeckung um Unterstrich-Aliasse erweitert (`"  X_Request_Id  "`, `"\tX_Correlation_Id\t"`) und damit den bereits dokumentierten Alias-Support (`x_request_id`/`x_correlation_id`) reproduzierbar abgesichert.
+- **`scripts/run_remote_api_smoketest.sh`:** CLI-Hinweise für `SMOKE_REQUEST_ID_HEADER` präzisiert; erlaubte Werte in Hilfe-/Fehlermeldung listen jetzt explizit auch `x_request_id|x_correlation_id`.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`93 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit Unterstrich-Header-Aliasen (`X_Request_Id`/`X_Correlation_Id`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772112297.json`, `artifacts/worker-1-10m/iteration-31/bl18.1-remote-stability-local-worker-1-10m-1772112297.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772112297.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-31 + Unterstrich-Header-Alias-Support synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** erlaubte `SMOKE_REQUEST_ID_HEADER`-Werte und BL-18.1-Nachweisführung auf Unterstrich-Aliasse (`x_request_id|x_correlation_id`) sowie den aktuellen Worker-1-10m-Langlauf (`93 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Header-Alias-Normalisierung für `SMOKE_REQUEST_ID_HEADER` + 5x Stabilität, Iteration 30)
 - **`scripts/run_remote_api_smoketest.sh`:** akzeptiert für `SMOKE_REQUEST_ID_HEADER` jetzt zusätzlich Header-Namen als Alias (`x-request-id`/`x-correlation-id`, inkl. `_`-Varianten) und normalisiert diese robust auf die internen Modi `request|correlation`.
 - **`tests/test_remote_smoke_script.py`:** Happy-Path-Abdeckung um Alias-Eingaben (`"  X-Request-Id  "`, `"\tX-Correlation-Id\t"`) erweitert; der Negativtest bleibt bestehen und validiert weiterhin fail-fast bei unbekannten Modi.
