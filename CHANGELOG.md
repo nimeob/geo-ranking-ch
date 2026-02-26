@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Fail-fast-Guards für `SMOKE_REQUEST_ID_HEADER` (whitespace/control) + 5x Stabilität, Iteration 32)
+- **`scripts/run_remote_api_smoketest.sh`:** validiert `SMOKE_REQUEST_ID_HEADER` jetzt vor der Alias-Normalisierung zusätzlich auf whitespace-only, eingebettete Whitespaces und Steuerzeichen; Fehlwerte brechen deterministisch mit klarer CLI-Meldung + `exit 2` ab.
+- **`tests/test_remote_smoke_script.py`:** neue Negativtests sichern reproduzierbar ab, dass `SMOKE_REQUEST_ID_HEADER` bei whitespace-only, embedded-whitespace und Control-Char-Inputs fail-fast zurückgewiesen wird.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`96 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit Alias-Headern (`X_Request_Id`/`X_Correlation_Id`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772112911.json`, `artifacts/worker-1-10m/iteration-32/bl18.1-remote-stability-local-worker-1-10m-1772112911.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772112911.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-32 + Header-Mode-Guards synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Guard-Regeln und BL-18.1-Nachweisführung auf die neuen `SMOKE_REQUEST_ID_HEADER`-Fail-fast-Checks (whitespace/control) sowie den aktuellen Worker-1-10m-Langlauf (`96 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Unterstrich-Header-Aliasse für `SMOKE_REQUEST_ID_HEADER` + 5x Stabilität, Iteration 31)
 - **`tests/test_remote_smoke_script.py`:** Happy-Path-Abdeckung um Unterstrich-Aliasse erweitert (`"  X_Request_Id  "`, `"\tX_Correlation_Id\t"`) und damit den bereits dokumentierten Alias-Support (`x_request_id`/`x_correlation_id`) reproduzierbar abgesichert.
 - **`scripts/run_remote_api_smoketest.sh`:** CLI-Hinweise für `SMOKE_REQUEST_ID_HEADER` präzisiert; erlaubte Werte in Hilfe-/Fehlermeldung listen jetzt explizit auch `x_request_id|x_correlation_id`.

@@ -111,7 +111,7 @@ Wichtige Optionen:
 - `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein, werden vor der Validierung getrimmt und `CURL_MAX_TIME` muss zusätzlich `>= SMOKE_TIMEOUT_SECONDS` sein (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf` sowie inkonsistenten Timeout-Kombinationen).
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein und werden vor der Validierung getrimmt.
 - `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche); wird vor dem Request getrimmt, darf keine eingebetteten Whitespaces oder Steuerzeichen enthalten und darf maximal 128 Zeichen enthalten (sonst `exit 2`).
-- `SMOKE_REQUEST_ID_HEADER` (`request|correlation|x-request-id|x-correlation-id|x_request_id|x_correlation_id`, default `request`): wird vor Validierung getrimmt und case-insensitive normalisiert; akzeptiert zusätzlich Header-Namen als Alias (`x-request-id`/`x_request_id`→`request`, `x-correlation-id`/`x_correlation_id`→`correlation`) und wählt, ob die Request-ID via `X-Request-Id` (Standard) oder via `X-Correlation-Id` gesendet wird.
+- `SMOKE_REQUEST_ID_HEADER` (`request|correlation|x-request-id|x-correlation-id|x_request_id|x_correlation_id`, default `request`): wird vor Validierung getrimmt und case-insensitive normalisiert; whitespace-only Werte, eingebettete Whitespaces und Steuerzeichen werden fail-fast mit `exit 2` zurückgewiesen. Zusätzlich werden Header-Namen als Alias akzeptiert (`x-request-id`/`x_request_id`→`request`, `x-correlation-id`/`x_correlation_id`→`correlation`) und steuern, ob die Request-ID via `X-Request-Id` (Standard) oder `X-Correlation-Id` gesendet wird.
 - `SMOKE_ENFORCE_REQUEST_ID_ECHO` (`1|0`, default `1`): wird vor Validierung getrimmt und erzwingt Echo-Prüfung für Header + JSON (`request_id`).
 - `SMOKE_MODE`: reproduzierbarer Request-Modus (`basic|extended|risk`), wird vor der Validierung getrimmt und case-insensitive normalisiert (z. B. `"  ExTenDeD  "` → `extended`).
 - `SMOKE_OUTPUT_JSON` (optional): wird vor der Verwendung getrimmt; whitespace-only Pfade (nach Trim leer), Pfade mit Steuerzeichen, Verzeichnisziele sowie Pfade mit Datei-Elternpfad (Parent ist kein Verzeichnis) werden fail-fast mit `exit 2` abgewiesen, damit die Artefakt-Ausgabe robust und konsistent bleibt (inkl. Curl-Fehlpfad-Report).
@@ -147,6 +147,21 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Fail-fast-Guards für `SMOKE_REQUEST_ID_HEADER` (whitespace/control) + 5x Stabilität, Iteration 32)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="43071" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:43071/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772112911  " SMOKE_REQUEST_ID_HEADER="  X_Request_Id  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772112911.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:43071/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  X_Correlation_Id  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-32/bl18.1-remote-stability-local-worker-1-10m-1772112911.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `96 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden; Alias `X_Request_Id` wird weiter robust auf `request` normalisiert (`request_id_header_source=request`, Echo Header+JSON konsistent).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0`; Alias `X_Correlation_Id` wird weiter robust auf `correlation` normalisiert (Runs 1..5 alle `status=pass`).
+  - Neue Guard-Abdeckung: `SMOKE_REQUEST_ID_HEADER` rejectet jetzt whitespace-only Inputs, eingebettete Whitespaces und Steuerzeichen fail-fast mit `exit 2` (lokal über `tests/test_remote_smoke_script.py` abgesichert).
+  - Evidenz: `artifacts/bl18.1-smoke-local-worker-1-10m-1772112911.json`, `artifacts/worker-1-10m/iteration-32/bl18.1-remote-stability-local-worker-1-10m-1772112911.ndjson`.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772112911.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Unterstrich-Header-Aliasse für `SMOKE_REQUEST_ID_HEADER` + 5x Stabilität, Iteration 31)
 

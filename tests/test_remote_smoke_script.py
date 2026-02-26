@@ -992,6 +992,90 @@ class TestRemoteSmokeScript(unittest.TestCase):
             self.assertIn("CURL_RETRY_DELAY muss eine Ganzzahl >= 0 sein", cp.stderr)
             self.assertFalse(out_json.exists())
 
+    def test_smoke_script_rejects_whitespace_only_request_id_header_mode(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_REQUEST_ID_HEADER": "   ",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("SMOKE_REQUEST_ID_HEADER ist leer nach Whitespace-Normalisierung", cp.stderr)
+            self.assertFalse(out_json.exists())
+
+    def test_smoke_script_rejects_request_id_header_mode_with_control_characters(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_REQUEST_ID_HEADER": "request\nheader",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("SMOKE_REQUEST_ID_HEADER darf keine Steuerzeichen enthalten", cp.stderr)
+            self.assertFalse(out_json.exists())
+
+    def test_smoke_script_rejects_request_id_header_mode_with_embedded_whitespace(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_REQUEST_ID_HEADER": "request header",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("SMOKE_REQUEST_ID_HEADER darf keine eingebetteten Whitespaces enthalten", cp.stderr)
+            self.assertFalse(out_json.exists())
+
     def test_smoke_script_rejects_invalid_request_id_header_mode(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"

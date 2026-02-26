@@ -94,7 +94,7 @@ curl http://localhost:8080/health
 # SMOKE_TIMEOUT_SECONDS/CURL_MAX_TIME müssen endliche Zahlen >0 sein; CURL_RETRY_COUNT/CURL_RETRY_DELAY Ganzzahlen >=0 (alle Werte werden vor Validierung getrimmt)
 # optional: SMOKE_MODE=basic|extended|risk (Wert wird vor Validierung getrimmt + case-insensitive normalisiert)
 # SMOKE_REQUEST_ID wird getrimmt, darf weder Steuerzeichen noch eingebettete Whitespaces enthalten und muss <=128 Zeichen sein (Fail-fast bei Fehlwerten)
-# optional: SMOKE_REQUEST_ID_HEADER=request|correlation|x-request-id|x-correlation-id|x_request_id|x_correlation_id (Default request; Wert wird getrimmt + case-insensitive normalisiert; Header-Namen werden als Alias akzeptiert)
+# optional: SMOKE_REQUEST_ID_HEADER=request|correlation|x-request-id|x-correlation-id|x_request_id|x_correlation_id (Default request; Wert wird getrimmt + case-insensitive normalisiert; Header-Namen werden als Alias akzeptiert; embedded Whitespaces/Steuerzeichen sind nicht erlaubt)
 # optional: SMOKE_ENFORCE_REQUEST_ID_ECHO=1|0 (Wert wird vor Validierung getrimmt)
 # optional: DEV_API_AUTH_TOKEN wird vor Verwendung getrimmt; whitespace-only Werte, eingebettete Whitespaces und Steuerzeichen werden fail-fast mit exit 2 abgewiesen
 # optional: SMOKE_OUTPUT_JSON wird vor der Nutzung getrimmt; whitespace-only Pfade, Pfade mit Steuerzeichen, Verzeichnisziele und Pfade mit Datei-Elternpfad (Parent ist kein Verzeichnis) werden fail-fast mit exit 2 abgewiesen (robuste/sichere Artefaktausgabe auch bei whitespace-umhüllten Pfaden)

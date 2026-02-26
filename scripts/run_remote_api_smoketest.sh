@@ -18,7 +18,7 @@ set -euo pipefail
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
-#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ x-request-id/x-correlation-id/x_request_id/x_correlation_id Aliasse), Default: request
+#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ x-request-id/x-correlation-id/x_request_id/x_correlation_id Aliasse), Default: request; wird getrimmt und darf keine eingebetteten Whitespaces/Steuerzeichen enthalten
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
@@ -273,6 +273,35 @@ fi
 
 if [[ ! "$CURL_RETRY_DELAY" =~ ^[0-9]+$ ]]; then
   echo "[BL-18.1] CURL_RETRY_DELAY muss eine Ganzzahl >= 0 sein (aktuell: ${CURL_RETRY_DELAY})." >&2
+  exit 2
+fi
+
+if [[ -z "${SMOKE_REQUEST_ID_HEADER}" ]]; then
+  echo "[BL-18.1] SMOKE_REQUEST_ID_HEADER ist leer nach Whitespace-Normalisierung." >&2
+  exit 2
+fi
+
+if ! python3 - "${SMOKE_REQUEST_ID_HEADER}" <<'PY'
+import sys
+
+value = sys.argv[1]
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] SMOKE_REQUEST_ID_HEADER darf keine Steuerzeichen enthalten." >&2
+  exit 2
+fi
+
+if ! python3 - "${SMOKE_REQUEST_ID_HEADER}" <<'PY'
+import sys
+
+value = sys.argv[1]
+if any(ch.isspace() for ch in value):
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] SMOKE_REQUEST_ID_HEADER darf keine eingebetteten Whitespaces enthalten." >&2
   exit 2
 fi
 
