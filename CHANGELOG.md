@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B2 Langlauf-Recheck kombinierte Base-URL-Normalisierung)
+- **Langlauf-Real-Run (Worker B2):** `./scripts/run_webservice_e2e.sh` erfolgreich (`31 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b2-1772092596.json` und `artifacts/bl18.1-remote-stability-local-worker-b2-1772092596.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-B2-Recheck synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Nachweisführung und Reproduzierbarkeits-Status auf den aktuellen Worker-B2-Langlauf (`31 passed`, Smoke + 3x Stabilität, kombinierter `HTTP://.../HeAlTh/AnAlYzE/`-Input) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Kombi-Normalisierung + Validierungsabdeckung)
 - **`tests/test_remote_smoke_script.py`:** neuer Happy-Path für kombinierte Base-URL-Normalisierung (`"  HTTP://.../HeAlTh/AnAlYzE/  "`) ergänzt; zusätzliche Negativtests für `CURL_RETRY_DELAY=-1` und ungültiges `SMOKE_ENFORCE_REQUEST_ID_ECHO=2` sichern Fail-fast-Verhalten reproduzierbar ab.
 - **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`31 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-1772092447.json` und `artifacts/bl18.1-remote-stability-local-worker-a-1772092447.ndjson`.
