@@ -187,6 +187,34 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertEqual(entries[0].get("reason"), "missing_report")
         self.assertEqual(entries[0].get("rc"), 0)
 
+    def test_stability_runner_marks_non_pass_report_as_failure_even_with_rc_zero(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_smoke = Path(tmpdir) / "fake_smoke.sh"
+            fake_smoke.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "cat > \"${SMOKE_OUTPUT_JSON}\" <<'JSON'\n"
+                '{"status":"fail","reason":"forced_fail","http_status":503,"request_id":"fake-run"}\n'
+                "JSON\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            fake_smoke.chmod(0o755)
+
+            cp, entries = self._run_stability(
+                include_token=True,
+                runs=1,
+                max_failures=0,
+                stop_on_first_fail=0,
+                smoke_script=str(fake_smoke),
+            )
+
+        self.assertNotEqual(cp.returncode, 0)
+        self.assertIn("keinen PASS-Report", cp.stdout)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].get("status"), "fail")
+        self.assertEqual(entries[0].get("reason"), "forced_fail")
+
     def test_stability_runner_rejects_invalid_stop_on_first_fail_flag(self):
         cp, entries = self._run_stability(
             include_token=True, runs=2, max_failures=0, stop_on_first_fail=2

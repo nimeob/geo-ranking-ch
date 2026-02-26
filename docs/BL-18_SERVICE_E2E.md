@@ -122,7 +122,7 @@ Der Runner:
 - schreibt pro Lauf eine NDJSON-Zeile,
 - unterstützt optionales Fail-Fast via `STABILITY_STOP_ON_FIRST_FAIL=1` (nur `0|1` erlaubt),
 - erlaubt für Tests/Debug ein optionales Script-Override via `STABILITY_SMOKE_SCRIPT=/pfad/zu/run_remote_api_smoketest.sh`,
-- zählt fehlende/leer gebliebene Smoke-JSON-Artefakte als Fehlrun (auch wenn das Smoke-Script `rc=0` liefert),
+- zählt fehlende/leer gebliebene Smoke-JSON-Artefakte **und** Reports mit `status!=pass` als Fehlrun (auch wenn das Smoke-Script `rc=0` liefert),
 - bricht mit Exit `1` ab, wenn `fail_count > STABILITY_MAX_FAILURES`.
 
 ### CI-Hook (optional)
@@ -133,6 +133,17 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker A, Langlauf-Iteration Non-PASS-Report-Guard im Stability-Runner)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="http://127.0.0.1:35035/health/analyze/health//" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-a-langlauf-1772093853  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-a-langlauf-1772093853.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="http://127.0.0.1:35035/health/analyze/health//" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=3 STABILITY_INTERVAL_SECONDS=1 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772093853.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `38 passed` (inkl. neuem Stability-E2E-Guard für Reports mit `status!=pass` bei `rc=0`).
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-a-langlauf-1772093853.json`, `started_at_utc=2026-02-26T08:17:33Z`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772093853.ndjson`).
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker C, Langlauf-Recheck Suffix-Reihenfolge `/analyze/health`)
 

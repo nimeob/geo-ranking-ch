@@ -84,17 +84,55 @@ for run_no in $(seq 1 "$STABILITY_RUNS"); do
   fi
 
   if [[ -s "$tmp_json" ]]; then
-    python3 - "$tmp_json" "$run_no" >> "$STABILITY_REPORT_PATH" <<'PY'
+    report_outcome="$(python3 - "$tmp_json" "$run_no" "$STABILITY_REPORT_PATH" <<'PY'
 import json
 import sys
 
 src = sys.argv[1]
 run_no = int(sys.argv[2])
-with open(src, "r", encoding="utf-8") as f:
-    data = json.load(f)
-data["run_no"] = run_no
-print(json.dumps(data, ensure_ascii=False))
+report_path = sys.argv[3]
+
+status = "pass"
+reason = "ok"
+
+try:
+    with open(src, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    data = {
+        "status": "fail",
+        "reason": "invalid_report_json",
+        "run_no": run_no,
+    }
+    status = "fail"
+    reason = "invalid_report_json"
+else:
+    if not isinstance(data, dict):
+        data = {
+            "status": "fail",
+            "reason": "invalid_report_payload",
+            "run_no": run_no,
+            "report_type": type(data).__name__,
+        }
+        status = "fail"
+        reason = "invalid_report_payload"
+    else:
+        data["run_no"] = run_no
+        if data.get("status") != "pass":
+            status = "fail"
+            reason = str(data.get("reason") or "smoke_report_status")
+
+with open(report_path, "a", encoding="utf-8") as f:
+    f.write(json.dumps(data, ensure_ascii=False) + "\n")
+
+print(f"{status}:{reason}")
 PY
+)"
+
+    if [[ "$report_outcome" != pass:* ]]; then
+      run_failed=1
+      echo "[BL-18.1] WARN: Run ${run_no} lieferte keinen PASS-Report (${report_outcome#*:})."
+    fi
   else
     run_failed=1
     if [[ "$rc" -eq 0 ]]; then

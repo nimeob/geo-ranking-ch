@@ -93,7 +93,7 @@ DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_smoketest.sh
 # kurzer Stabilitätslauf (mehrere Remote-Smokes, mit NDJSON-Report)
 # optional fail-fast: STABILITY_STOP_ON_FIRST_FAIL=1 (nur 0|1 erlaubt)
 # optionales Script-Override (Tests/Debug): STABILITY_SMOKE_SCRIPT=/pfad/zu/run_remote_api_smoketest.sh
-# Safety-Guard: fehlendes/leer gebliebenes Smoke-JSON zählt als Fehlrun (auch wenn das Smoke-Script rc=0 liefert)
+# Safety-Guard: fehlendes/leer gebliebenes Smoke-JSON **oder** ein Report mit `status!=pass` zählt als Fehlrun (auch wenn das Smoke-Script rc=0 liefert)
 DEV_BASE_URL="https://<endpoint>" \
 DEV_API_AUTH_TOKEN="<token>" \
 ./scripts/run_remote_api_stability_check.sh
