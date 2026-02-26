@@ -14,6 +14,17 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-20.1.a API-Contract v1)
+- **`docs/api/contract-v1.md`** neu angelegt: versionierter BL-20-Vertrag mit Pfadstrategie (`/api/v1`), Request-/Response-Profil, Fehlercode-Matrix und Verweisen auf Schemas/Beispielpayloads.
+- **`docs/api/schemas/v1/*.json`** ergänzt: Request-, Success-Response- und Error-Envelope-Schema für `POST /api/v1/location-intelligence`.
+- **`docs/api/examples/v1/*.json`** ergänzt: adressbasierter + punktbasierter Request, Success-Response und `bad_request`-Fehlerbeispiel.
+- **`tests/test_api_contract_v1.py`** ergänzt: Guard-Tests für Contract-Doku, Schema-/Beispieldateien und Basiskonsistenz der Payloads.
+
+### Changed (2026-02-26 — BL-20.1.a Doku-Sync)
+- **`docs/user/api-usage.md`** um Verweis auf den versionierten BL-20-API-Vertrag ergänzt.
+- **`README.md`** Dokumentationstabelle um `docs/api/contract-v1.md` erweitert.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#22 abgeschlossen, nächster Schritt #23) und BL-20-Status auf „in Umsetzung" angehoben.
+
 ### Added (2026-02-26 — BL-19.6 Betrieb & Runbooks)
 - **`docs/user/operations-runbooks.md`** neu angelegt: kompaktes User-Runbook für Daily Quick Check, reproduzierbaren `/analyze`-Smoke, kurzen Stabilitätslauf, Deploy-Checks und Incident-Minirunbook mit Evidenz-Pfad.
 - **`tests/test_user_docs.py`** erweitert: prüft Präsenz/Kernsektionen des neuen Operations-Guides sowie Cross-Links aus User-Index/Getting-Started.

@@ -1,0 +1,19 @@
+{
+  "request_id": "bl20-contract-req-002",
+  "input": {
+    "mode": "point",
+    "point": {
+      "lat": 47.3769,
+      "lon": 8.5417
+    }
+  },
+  "requested_modules": [
+    "context_profile",
+    "suitability_light",
+    "explainability"
+  ],
+  "options": {
+    "language": "de",
+    "timeout_seconds": 20
+  }
+}
