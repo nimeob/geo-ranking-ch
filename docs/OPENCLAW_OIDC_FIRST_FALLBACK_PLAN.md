@@ -88,6 +88,14 @@ cd /data/.openclaw/workspace/geo-ranking-ch
 - Klassifiziert den aktiven Runtime-Caller (AssumeRole vs. Legacy-User).
 - Führt die bestehenden Read-only Audits (`audit_legacy_aws_consumer_refs.sh`, `audit_legacy_runtime_consumers.sh`) als Kontext mit aus.
 
+Optionaler Evidence-Export (für reproduzierbare Nachweise in BL-17/BL-15):
+```bash
+./scripts/check_bl17_oidc_assumerole_posture.sh --report-json artifacts/bl17/posture-report.json
+# alternativ via ENV:
+BL17_POSTURE_REPORT_JSON=artifacts/bl17/posture-report.json ./scripts/check_bl17_oidc_assumerole_posture.sh
+```
+Der JSON-Report enthält mindestens Timestamp, Caller-Klassifikation und relevante Exit-Codes (`workflow_check`, `caller_check`, Kontext-Audits, final).
+
 ---
 
 ## Rollback (wenn AssumeRole-Flow blockiert)
