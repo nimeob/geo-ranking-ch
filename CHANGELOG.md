@@ -25,6 +25,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`README.md`** Dokumentationstabelle um `docs/api/contract-v1.md` erweitert.
 - **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#22 abgeschlossen, nächster Schritt #23) und BL-20-Status auf „in Umsetzung" angehoben.
 
+### Added (2026-02-26 — BL-20.1.b Contract-Validierungstests)
+- **`tests/data/api_contract_v1/valid/*.json`** ergänzt: positive Golden-Case-Payloads für Request/Success/Error.
+- **`tests/data/api_contract_v1/invalid/*.json`** ergänzt: negative Golden-Case-Payloads für typische Vertragsverletzungen.
+- **`.github/workflows/contract-tests.yml`** ergänzt: dedizierter CI-Check für API-Contract-v1-Golden-Tests.
+
+### Changed (2026-02-26 — BL-20.1.b Test-/CI-Verdrahtung)
+- **`tests/test_api_contract_v1.py`** von Struktur-Checks auf echte Contract-Golden-Validierung erweitert (positive + negative Fälle).
+- **`docs/api/contract-v1.md`** um CI-Abschnitt (Workflow + Trigger + Golden-Testdaten) ergänzt.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#23 abgeschlossen, nächster Schritt #24).
+
 ### Added (2026-02-26 — BL-19.6 Betrieb & Runbooks)
 - **`docs/user/operations-runbooks.md`** neu angelegt: kompaktes User-Runbook für Daily Quick Check, reproduzierbaren `/analyze`-Smoke, kurzen Stabilitätslauf, Deploy-Checks und Incident-Minirunbook mit Evidenz-Pfad.
 - **`tests/test_user_docs.py`** erweitert: prüft Präsenz/Kernsektionen des neuen Operations-Guides sowie Cross-Links aus User-Index/Getting-Started.

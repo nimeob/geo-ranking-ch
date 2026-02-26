@@ -1,0 +1,15 @@
+{
+  "request_id": "golden-req-002",
+  "input": {
+    "mode": "point",
+    "point": {
+      "lat": 47.4245,
+      "lon": 9.3767
+    }
+  },
+  "requested_modules": ["context_profile", "suitability_light", "explainability"],
+  "options": {
+    "language": "de",
+    "timeout_seconds": 12
+  }
+}

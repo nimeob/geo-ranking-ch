@@ -1,0 +1,8 @@
+{
+  "request_id": "golden-req-001",
+  "input": {
+    "mode": "address",
+    "address": "St. Leonhard-Strasse 39, 9000 St. Gallen"
+  },
+  "requested_modules": ["building_profile"]
+}

@@ -1,0 +1,11 @@
+{
+  "request_id": "golden-bad-003",
+  "input": {
+    "mode": "point",
+    "point": {
+      "lat": 49.2,
+      "lon": 13.1
+    }
+  },
+  "requested_modules": ["context_profile"]
+}

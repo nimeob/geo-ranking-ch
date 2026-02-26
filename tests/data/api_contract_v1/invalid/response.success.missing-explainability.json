@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "api_version": "v1",
+  "request_id": "golden-bad-004",
+  "result": {
+    "entity_id": "ch:egid:404",
+    "input_mode": "address",
+    "as_of": "2026-02-26T18:40:00Z",
+    "confidence": 0.8,
+    "building_profile": {},
+    "context_profile": {},
+    "suitability_light": {}
+  }
+}

@@ -82,8 +82,16 @@ Responses:
 - [`docs/api/examples/v1/location-intelligence.response.success.address.json`](./examples/v1/location-intelligence.response.success.address.json)
 - [`docs/api/examples/v1/location-intelligence.response.error.bad-request.json`](./examples/v1/location-intelligence.response.error.bad-request.json)
 
-## 6) Abgrenzung zu BL-20.1.b
+## 6) CI-Check (verdrahtet)
 
-BL-20.1.a liefert die **Versionierung + Schemas + Fehlercodes + Beispielpayloads**.
+- Workflow: [`.github/workflows/contract-tests.yml`](../../.github/workflows/contract-tests.yml)
+- Trigger: Änderungen an `docs/api/**`, `tests/test_api_contract_v1.py`, `tests/data/api_contract_v1/**`
+- Ausführung: `pytest -q tests/test_api_contract_v1.py`
+- Golden-Testdaten:
+  - positiv: `tests/data/api_contract_v1/valid/*.json`
+  - negativ: `tests/data/api_contract_v1/invalid/*.json`
 
-BL-20.1.b erweitert auf **Golden-Case-Validierungstests** (automatisierte Contract-Checks gegen Positiv-/Negativfälle).
+## 7) Scope-Abgrenzung BL-20.1.a / BL-20.1.b
+
+- **BL-20.1.a:** Versionierungspfad, Contract-Dokument, JSON-Schemas, Fehlercode-Matrix, Beispielpayloads
+- **BL-20.1.b:** Golden-Case-Validierung (positive/negative Contract-Tests), Testdatenablage und CI-Verdrahtung
