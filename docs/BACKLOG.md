@@ -254,7 +254,7 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-17
-- **Status:** 🟡 in Umsetzung (2026-02-26)
+- **Status:** ✅ abgeschlossen (2026-02-26, Issue #3)
 - **Akzeptanzkriterien:**
   - Mindestens ein fachlicher Ausbau am Service ist implementiert und dokumentiert.
   - API-/Webservice-Endpunkte sind per End-to-End-Tests validiert (lokal + dev).
@@ -265,6 +265,7 @@
   - ✅ 2026-02-26: #120 abgeschlossen (JSON-/Body-Edgecases für `/analyze` abgesichert: malformed JSON, invalides UTF-8 sowie JSON-Array/String statt Objekt liefern deterministisch `400 bad_request`; Service-Guard in `src/web_service.py` ergänzt und E2E-Abdeckung in `tests/test_web_e2e.py` erweitert, Nachweis via `python3 -m pytest -q tests/test_web_e2e.py` mit Exit `0`).
   - ✅ 2026-02-26: #121 abgeschlossen (BL-18 Regression-Minimum als reproduzierbares Mini-Runbook in `docs/BL-18_SERVICE_E2E.md` ergänzt, inkl. lokalem Nachweislauf `python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_stability_script.py` mit Exit `0`; README auf den neuen Regression-Minimum-Abschnitt verlinkt).
   - ✅ 2026-02-26: #122 abgeschlossen (Smoke-Runner auf grouped Response harmonisiert: `result_keys` validieren nun `status` + `data` statt Legacy-`query`; Nachweis via `python3 -m pytest -q tests/test_remote_smoke_script.py` und `./scripts/run_webservice_e2e.sh`, beide Exit `0`).
+  - ✅ 2026-02-26: #3 abgeschlossen (Parent-Abschluss-Sync mit Finalchecks `python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_stability_script.py tests/test_remote_smoke_script.py` sowie `./scripts/run_webservice_e2e.sh`, jeweils Exit `0`; Forward-Compatibility für BL-30.1/30.2/30.3 bestätigt — additive Contract-Evolution und stabile `result.status`/`result.data`-Trennung bleiben gewahrt).
   - `src/web_service.py`: optionales Bearer-Auth-Gate (`API_AUTH_TOKEN`), Timeout-Parameterisierung (`timeout_seconds`, `ANALYZE_*_TIMEOUT_SECONDS`) inkl. endlicher Numerik-Validierung (`nan`/`inf` → `400 bad_request`), getrimmte/case-insensitive Mode-Normalisierung (`basic|extended|risk`) und `TimeoutError -> 504` Mapping ergänzt.
   - `tests/test_web_e2e.py`: lokale E2E-Abdeckung inkl. 200/400/401/404/500/504 aufgebaut (inkl. Negativfall non-finite `timeout_seconds`).
   - `tests/test_web_e2e_dev.py`: dev-E2E gegen `DEV_BASE_URL` ergänzt (mit optionalem `DEV_API_AUTH_TOKEN`).
@@ -444,6 +445,6 @@
 2. **BL-14** (Health-Probe IaC-Parität) ✅
 3. **BL-15** (Legacy-IAM-Readiness) 🟡
 4. **BL-17** (OpenClaw OIDC-first + Legacy-Fallback) ⏳
-5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ⏳
+5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ✅
 6. **BL-19** (Userdokumentation) ⏳
 7. **BL-20** (Produktvision API+GUI umsetzen) ⏳
