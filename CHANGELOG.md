@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Userinfo-Guard + Langlauf-Nachweis)
+- **`scripts/run_remote_api_smoketest.sh`:** lehnt `DEV_BASE_URL` mit Userinfo (`user:pass@host`) jetzt fail-fast mit `exit 2` ab, um unbeabsichtigte Credential-Leaks in Shell-History/Logs zu verhindern.
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest stellt reproduzierbar sicher, dass Userinfo in `DEV_BASE_URL` mit sauberer CLI-Fehlermeldung zurückgewiesen wird.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`43 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-langlauf-1772095085.json` und `artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772095085.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Userinfo-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf Userinfo-Guard + aktuellen Worker-A-Langlauf (`43 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Reverse-Suffix-Chain-Guard mit internem Double-Slash + Langlauf-Nachweis)
 - **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path deckt wiederholte Reverse-Suffix-Ketten mit internem Double-Slash ab (`"  HTTP://.../AnAlYzE//health/analyze/health///  "`) und härtet die iterative `/health`-/`/analyze`-Normalisierung gegen zusätzliche Slash-Segmentierung in gemischter Reihenfolge.
 - **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`42 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-langlauf-1772094827.json` und `artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772094827.ndjson`.

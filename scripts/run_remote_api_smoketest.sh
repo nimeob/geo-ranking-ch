@@ -164,6 +164,20 @@ from urllib.parse import urlsplit
 
 base_url = sys.argv[1]
 parts = urlsplit(base_url)
+if parts.username is not None or parts.password is not None:
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] DEV_BASE_URL darf keine Userinfo (user:pass@host) enthalten (aktuell: ${DEV_BASE_URL})." >&2
+  exit 2
+fi
+
+if ! python3 - "$BASE_URL" <<'PY'
+import sys
+from urllib.parse import urlsplit
+
+base_url = sys.argv[1]
+parts = urlsplit(base_url)
 if parts.scheme not in {"http", "https"} or not parts.netloc:
     raise SystemExit(1)
 PY
