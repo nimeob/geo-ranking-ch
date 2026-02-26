@@ -25,6 +25,7 @@ https://<dein-endpoint>
 | `POST` | `/analyze` | Adressanalyse und Standort-Resultat | optional (`API_AUTH_TOKEN`) |
 
 > BL-20 Vertragsarbeit: Der versionierte Produktvertrag liegt unter [`docs/api/contract-v1.md`](../api/contract-v1.md) (Namespace `/api/v1`).
+> Maschinenlesbarer Feldkatalog für Response-Felder: [`docs/api/field_catalog.json`](../api/field_catalog.json).
 
 ### Routing-Verhalten (wichtig)
 

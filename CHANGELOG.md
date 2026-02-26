@@ -70,6 +70,18 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/api/contract-v1.md`** um CI-Abschnitt (Workflow + Trigger + Golden-Testdaten) ergänzt.
 - **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#23 abgeschlossen, nächster Schritt #24).
 
+### Added (2026-02-26 — BL-20.1.e Maschinenlesbarer API-Feldkatalog)
+- **`docs/api/field_catalog.json`** neu angelegt: Feldmanifest für aktuell ausgelieferte Response-Felder über beide Shapes (`legacy`, `grouped`) inkl. Typ, Required-Status, Stability, Provenance-Hinweis und Modusbedingungen.
+- **`docs/api/examples/current/analyze.response.grouped.success.json`** ergänzt: referenzierbarer grouped Success-Payload für Contract-/Manifest-Validierung.
+- **`scripts/validate_field_catalog.py`** ergänzt: prüft Manifest-Schema, Feldabdeckung gegen Beispielpayloads, Typkonsistenz und Required-Felder pro Shape.
+- **`tests/test_api_field_catalog.py`** ergänzt: Regressionstest für Feldkatalog-Validator und Contract-Doku-Referenzen.
+
+### Changed (2026-02-26 — BL-20.1.e Doku-/CI-Sync)
+- **`.github/workflows/contract-tests.yml`** erweitert: Trigger + Ausführung für Feldkatalog-Checks (`tests/test_api_field_catalog.py`, `scripts/validate_field_catalog.py`).
+- **`docs/api/contract-v1.md`** um Feldkatalog-Abschnitt und Pflegeprozess ergänzt (Single-Source-of-Truth + Update-Workflow).
+- **`docs/user/api-usage.md`** um direkten Verweis auf den maschinenlesbaren Feldkatalog ergänzt.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#67 abgeschlossen).
+
 ### Added (2026-02-26 — BL-19.6 Betrieb & Runbooks)
 - **`docs/user/operations-runbooks.md`** neu angelegt: kompaktes User-Runbook für Daily Quick Check, reproduzierbaren `/analyze`-Smoke, kurzen Stabilitätslauf, Deploy-Checks und Incident-Minirunbook mit Evidenz-Pfad.
 - **`tests/test_user_docs.py`** erweitert: prüft Präsenz/Kernsektionen des neuen Operations-Guides sowie Cross-Links aus User-Index/Getting-Started.

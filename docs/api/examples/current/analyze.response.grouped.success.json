@@ -1,0 +1,133 @@
+{
+  "ok": true,
+  "request_id": "bl20-field-catalog-001",
+  "result": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 92,
+          "max": 100,
+          "level": "high"
+        },
+        "executive_summary": {
+          "verdict": "ok"
+        }
+      },
+      "source_health": {
+        "geoadmin_search": {
+          "status": "ok",
+          "records": 1
+        },
+        "osm_reverse": {
+          "status": "partial",
+          "records": 1
+        }
+      },
+      "source_meta": {
+        "source_classification": {
+          "building.baujahr": {
+            "primary_source": "geoadmin_search"
+          }
+        },
+        "source_attribution": {
+          "match": [
+            "geoadmin_search"
+          ],
+          "intelligence": [
+            "osm_reverse"
+          ]
+        },
+        "field_provenance": {
+          "building.baujahr": {
+            "primary_source": "geoadmin_search",
+            "present": true
+          }
+        }
+      }
+    },
+    "data": {
+      "entity": {
+        "query": "Bahnhofstrasse 1, 8001 Zürich",
+        "matched_address": "Bahnhofstrasse 1, 8001 Zürich",
+        "ids": {
+          "egid": "123"
+        },
+        "coordinates": {
+          "lat": 47.3769,
+          "lon": 8.5417
+        },
+        "administrative": {
+          "gemeinde": "Zürich"
+        }
+      },
+      "modules": {
+        "match": {
+          "selected_score": 0.99,
+          "candidate_count": 3
+        },
+        "building": {
+          "baujahr": 1999,
+          "decoded": {
+            "heizung": [
+              {
+                "label": "Wärmepumpe"
+              }
+            ]
+          }
+        },
+        "energy": {
+          "decoded_summary": {
+            "heizung": [
+              "Wärmepumpe"
+            ]
+          }
+        },
+        "cross_source": {
+          "plz_layer": {
+            "plz": 8001
+          }
+        },
+        "intelligence": {
+          "tenants_businesses": {
+            "entities": [
+              {
+                "name": "Muster AG"
+              }
+            ]
+          }
+        },
+        "field_provenance": {
+          "building.baujahr": {
+            "primary_source": "geoadmin_search",
+            "present": true
+          }
+        }
+      },
+      "by_source": {
+        "geoadmin_search": {
+          "source": "geoadmin_search",
+          "data": {
+            "match": {
+              "selected_score": 0.99,
+              "candidate_count": 3
+            }
+          }
+        },
+        "osm_reverse": {
+          "source": "osm_reverse",
+          "data": {
+            "intelligence": {
+              "tenants_businesses": {
+                "entities": [
+                  {
+                    "name": "Muster AG"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

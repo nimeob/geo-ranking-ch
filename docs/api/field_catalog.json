@@ -1,0 +1,543 @@
+{
+  "catalog_version": "2026-02-26",
+  "description": "Maschinenlesbares Feld-Manifest für aktuell ausgelieferte API-Response-Felder (legacy + grouped).",
+  "response_shapes": {
+    "legacy": "docs/api/examples/v1/location-intelligence.response.success.address.json",
+    "grouped": "docs/api/examples/current/analyze.response.grouped.success.json"
+  },
+  "fields": [
+    {
+      "path": "ok",
+      "response_shapes": ["legacy", "grouped"],
+      "type": "boolean",
+      "required": true,
+      "stability": "stable",
+      "description": "Signalisiert erfolgreichen Request.",
+      "provenance_hint": "Webservice-Response-Envelope",
+      "mode_conditions": ["all"],
+      "example": true
+    },
+    {
+      "path": "request_id",
+      "response_shapes": ["legacy", "grouped"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Korrelation-ID für Request/Logs.",
+      "provenance_hint": "Request-Header oder Service-Fallback",
+      "mode_conditions": ["all"],
+      "example": "bl20-field-catalog-001"
+    },
+    {
+      "path": "api_version",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": {"legacy": true, "grouped": false},
+      "stability": "stable",
+      "description": "Vertragsversion des v1-API-Namespaces.",
+      "provenance_hint": "Contract-v1 Envelope",
+      "mode_conditions": ["all"],
+      "example": "v1"
+    },
+
+    {
+      "path": "result.entity_id",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Stabile Entity-ID des analysierten Objekts.",
+      "provenance_hint": "Entity-Resolution Layer",
+      "mode_conditions": ["all"],
+      "example": "ch:egid:1029384"
+    },
+    {
+      "path": "result.input_mode",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Input-Modus (address|point).",
+      "provenance_hint": "Request/Validation Layer",
+      "mode_conditions": ["all"],
+      "example": "address"
+    },
+    {
+      "path": "result.as_of",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Zeitstempel der fachlichen Datensicht.",
+      "provenance_hint": "Domain-Aggregation",
+      "mode_conditions": ["all"],
+      "example": "2026-02-26T18:35:00Z"
+    },
+    {
+      "path": "result.confidence",
+      "response_shapes": ["legacy"],
+      "type": "number",
+      "required": true,
+      "stability": "stable",
+      "description": "Gesamt-Confidence (0..1) im legacy Shape.",
+      "provenance_hint": "Scoring",
+      "mode_conditions": ["all"],
+      "example": 0.84
+    },
+    {
+      "path": "result.building_profile.egid",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "EGID des Gebäudes.",
+      "provenance_hint": "GWR / Gebäudeidentifikation",
+      "mode_conditions": ["all"],
+      "example": "1029384"
+    },
+    {
+      "path": "result.building_profile.build_year",
+      "response_shapes": ["legacy"],
+      "type": "number",
+      "required": true,
+      "stability": "beta",
+      "description": "Baujahr im legacy Building-Profil.",
+      "provenance_hint": "GWR/Bauinventar",
+      "mode_conditions": ["all"],
+      "example": 1998
+    },
+    {
+      "path": "result.building_profile.heating_type",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "beta",
+      "description": "Primärer Heiztyp im legacy Profil.",
+      "provenance_hint": "Energie-/Gebäudedaten",
+      "mode_conditions": ["all"],
+      "example": "Fernwärme"
+    },
+    {
+      "path": "result.context_profile.pt_access_score",
+      "response_shapes": ["legacy"],
+      "type": "number",
+      "required": true,
+      "stability": "beta",
+      "description": "ÖV-Zugangs-Score (context profile).",
+      "provenance_hint": "Context Scoring",
+      "mode_conditions": ["all"],
+      "example": 77
+    },
+    {
+      "path": "result.context_profile.noise_risk",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "beta",
+      "description": "Lärmrisiko-Klassifikation.",
+      "provenance_hint": "Context Scoring",
+      "mode_conditions": ["all"],
+      "example": "medium"
+    },
+    {
+      "path": "result.suitability_light.traffic_light",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "beta",
+      "description": "Ampelurteil der Eignung.",
+      "provenance_hint": "Suitability-Modul",
+      "mode_conditions": ["all"],
+      "example": "yellow"
+    },
+    {
+      "path": "result.suitability_light.score",
+      "response_shapes": ["legacy"],
+      "type": "number",
+      "required": true,
+      "stability": "beta",
+      "description": "Numerischer Suitability-Score.",
+      "provenance_hint": "Suitability-Modul",
+      "mode_conditions": ["all"],
+      "example": 63
+    },
+    {
+      "path": "result.suitability_light.reasons[*]",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": {"legacy": true, "grouped": false},
+      "stability": "beta",
+      "description": "Liste der Hauptgründe zum Suitability-Urteil.",
+      "provenance_hint": "Suitability Explainability",
+      "mode_conditions": ["all"],
+      "example": "Gute ÖV-Anbindung"
+    },
+    {
+      "path": "result.explainability.sources[*].source",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Name der Datenquelle pro Explainability-Eintrag.",
+      "provenance_hint": "Source Attribution",
+      "mode_conditions": ["all"],
+      "example": "geoadmin_gwr"
+    },
+    {
+      "path": "result.explainability.sources[*].as_of",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Standdatum der jeweiligen Quelle.",
+      "provenance_hint": "Source Attribution",
+      "mode_conditions": ["all"],
+      "example": "2026-02-20"
+    },
+    {
+      "path": "result.explainability.sources[*].confidence",
+      "response_shapes": ["legacy"],
+      "type": "number",
+      "required": true,
+      "stability": "stable",
+      "description": "Confidence pro Explainability-Quelle.",
+      "provenance_hint": "Source Attribution",
+      "mode_conditions": ["all"],
+      "example": 0.93
+    },
+    {
+      "path": "result.explainability.sources[*].license",
+      "response_shapes": ["legacy"],
+      "type": "string",
+      "required": {"legacy": true, "grouped": false},
+      "stability": "beta",
+      "description": "Lizenz-/Nutzungshinweis je Quelle.",
+      "provenance_hint": "Data-source metadata",
+      "mode_conditions": ["all"],
+      "example": "ODbL"
+    },
+
+    {
+      "path": "result.status.quality.confidence.score",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": true,
+      "stability": "stable",
+      "description": "Qualitäts-Confidence Score im grouped status-Block.",
+      "provenance_hint": "Scoring",
+      "mode_conditions": ["all"],
+      "example": 92
+    },
+    {
+      "path": "result.status.quality.confidence.max",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": true,
+      "stability": "stable",
+      "description": "Maximalwert des Confidence-Scores.",
+      "provenance_hint": "Scoring",
+      "mode_conditions": ["all"],
+      "example": 100
+    },
+    {
+      "path": "result.status.quality.confidence.level",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Verbale Confidence-Klasse.",
+      "provenance_hint": "Scoring",
+      "mode_conditions": ["all"],
+      "example": "high"
+    },
+    {
+      "path": "result.status.quality.executive_summary.verdict",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Verdichtetes Fazit im quality-Block.",
+      "provenance_hint": "Executive summary generator",
+      "mode_conditions": ["all"],
+      "example": "ok"
+    },
+    {
+      "path": "result.status.source_health.*.status",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Gesundheitsstatus je Quelle (dynamischer Source-Key).",
+      "provenance_hint": "Source health aggregation",
+      "mode_conditions": ["all"],
+      "example": "ok"
+    },
+    {
+      "path": "result.status.source_health.*.records",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Anzahl berücksichtigter Records je Quelle.",
+      "provenance_hint": "Source health aggregation",
+      "mode_conditions": ["all"],
+      "example": 1
+    },
+    {
+      "path": "result.status.source_meta.source_classification.*.primary_source",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Primärquelle pro klassifiziertem Feld.",
+      "provenance_hint": "Source classification",
+      "mode_conditions": ["all"],
+      "example": "geoadmin_search"
+    },
+    {
+      "path": "result.status.source_meta.source_attribution.*[*]",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "stable",
+      "description": "Zugeordnete Quellen je Modulgruppe.",
+      "provenance_hint": "Source attribution",
+      "mode_conditions": ["all"],
+      "example": "osm_reverse"
+    },
+    {
+      "path": "result.status.source_meta.field_provenance.*.primary_source",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Primärquelle im Feld-Provenance-Block.",
+      "provenance_hint": "Field provenance",
+      "mode_conditions": ["all"],
+      "example": "geoadmin_search"
+    },
+    {
+      "path": "result.status.source_meta.field_provenance.*.present",
+      "response_shapes": ["grouped"],
+      "type": "boolean",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Kennzeichnet, ob das Feld in den Rohdaten vorhanden war.",
+      "provenance_hint": "Field provenance",
+      "mode_conditions": ["all"],
+      "example": true
+    },
+
+    {
+      "path": "result.data.entity.query",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Eingangsquery im entity-Block.",
+      "provenance_hint": "Request echo",
+      "mode_conditions": ["all"],
+      "example": "Bahnhofstrasse 1, 8001 Zürich"
+    },
+    {
+      "path": "result.data.entity.matched_address",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Normalisierte/gematchte Adresse.",
+      "provenance_hint": "Address matching",
+      "mode_conditions": ["all"],
+      "example": "Bahnhofstrasse 1, 8001 Zürich"
+    },
+    {
+      "path": "result.data.entity.ids.egid",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "stable",
+      "description": "EGID im grouped entity.ids-Block.",
+      "provenance_hint": "GWR",
+      "mode_conditions": ["all"],
+      "example": "123"
+    },
+    {
+      "path": "result.data.entity.coordinates.lat",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "stable",
+      "description": "Breitengrad des Entities.",
+      "provenance_hint": "Geocoding",
+      "mode_conditions": ["all"],
+      "example": 47.3769
+    },
+    {
+      "path": "result.data.entity.coordinates.lon",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "stable",
+      "description": "Längengrad des Entities.",
+      "provenance_hint": "Geocoding",
+      "mode_conditions": ["all"],
+      "example": 8.5417
+    },
+    {
+      "path": "result.data.entity.administrative.gemeinde",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Gemeindezuordnung des Entities.",
+      "provenance_hint": "Administrative enrichment",
+      "mode_conditions": ["all"],
+      "example": "Zürich"
+    },
+
+    {
+      "path": "result.data.modules.match.selected_score",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": true,
+      "stability": "stable",
+      "description": "Match-Score des gewählten Kandidaten.",
+      "provenance_hint": "Matching-Modul",
+      "mode_conditions": ["all"],
+      "example": 0.99
+    },
+    {
+      "path": "result.data.modules.match.candidate_count",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": true,
+      "stability": "stable",
+      "description": "Anzahl geprüfter Match-Kandidaten.",
+      "provenance_hint": "Matching-Modul",
+      "mode_conditions": ["all"],
+      "example": 3
+    },
+    {
+      "path": "result.data.modules.building.baujahr",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Baujahr im grouped building-Modul.",
+      "provenance_hint": "Building-Modul",
+      "mode_conditions": ["all"],
+      "example": 1999
+    },
+    {
+      "path": "result.data.modules.building.decoded.heizung[*].label",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Dekodierte Heizungsbezeichnung.",
+      "provenance_hint": "Energy decoding",
+      "mode_conditions": ["all"],
+      "example": "Wärmepumpe"
+    },
+    {
+      "path": "result.data.modules.energy.decoded_summary.heizung[*]",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Heizungszusammenfassung als Stringliste.",
+      "provenance_hint": "Energy-Modul",
+      "mode_conditions": ["all"],
+      "example": "Wärmepumpe"
+    },
+    {
+      "path": "result.data.modules.cross_source.plz_layer.plz",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "PLZ aus Cross-Source-Layer.",
+      "provenance_hint": "Cross-source consistency",
+      "mode_conditions": ["all"],
+      "example": 8001
+    },
+    {
+      "path": "result.data.modules.intelligence.tenants_businesses.entities[*].name",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Entity-Name im Intelligence-Modul.",
+      "provenance_hint": "Intelligence-Modul",
+      "mode_conditions": ["intelligence_mode=extended|risk"],
+      "example": "Muster AG"
+    },
+    {
+      "path": "result.data.modules.field_provenance.*.primary_source",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "internal",
+      "description": "Primärquelle je Feld in modules.field_provenance.",
+      "provenance_hint": "Field provenance (internal mirror)",
+      "mode_conditions": ["all"],
+      "example": "geoadmin_search"
+    },
+    {
+      "path": "result.data.modules.field_provenance.*.present",
+      "response_shapes": ["grouped"],
+      "type": "boolean",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "internal",
+      "description": "Presence-Flag je Feld in modules.field_provenance.",
+      "provenance_hint": "Field provenance (internal mirror)",
+      "mode_conditions": ["all"],
+      "example": true
+    },
+
+    {
+      "path": "result.data.by_source.*.source",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": true,
+      "stability": "stable",
+      "description": "Dynamischer Source-Key gespiegelt als Feldwert.",
+      "provenance_hint": "by_source projection",
+      "mode_conditions": ["all"],
+      "example": "geoadmin_search"
+    },
+    {
+      "path": "result.data.by_source.*.data.match.selected_score",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Match-Score innerhalb by_source-Projektion.",
+      "provenance_hint": "by_source projection",
+      "mode_conditions": ["all"],
+      "example": 0.99
+    },
+    {
+      "path": "result.data.by_source.*.data.match.candidate_count",
+      "response_shapes": ["grouped"],
+      "type": "number",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Kandidatenzahl innerhalb by_source-Projektion.",
+      "provenance_hint": "by_source projection",
+      "mode_conditions": ["all"],
+      "example": 3
+    },
+    {
+      "path": "result.data.by_source.*.data.intelligence.tenants_businesses.entities[*].name",
+      "response_shapes": ["grouped"],
+      "type": "string",
+      "required": {"legacy": false, "grouped": true},
+      "stability": "beta",
+      "description": "Intelligence-Entityname innerhalb by_source-Projektion.",
+      "provenance_hint": "by_source projection",
+      "mode_conditions": ["intelligence_mode=extended|risk"],
+      "example": "Muster AG"
+    }
+  ]
+}
