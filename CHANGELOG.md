@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Suffix-Case-Härtung + Langlauf-Nachweis)
+- **`scripts/run_remote_api_smoketest.sh`:** normalisiert `DEV_BASE_URL`-Suffixe `/health` und `/analyze` jetzt case-insensitive (z. B. `.../HeAlTh/AnAlYzE`) bevor `/analyze` aufgerufen wird.
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path sichert reproduzierbar ab, dass case-gemischte Suffixe korrekt normalisiert werden.
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`28 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-1772091885.json` und `artifacts/bl18.1-remote-stability-local-worker-b-1772091885.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Suffix-Case-Langlauf synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Hinweise und Nachweise auf case-insensitive Suffix-Normalisierung, neue E2E-Abdeckung und aktuellen Worker-B-Langlauf (`28 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Whitespace-Trim-Härtung + Langlauf-Nachweis)
 - **`scripts/run_remote_api_smoketest.sh`:** normalisiert `DEV_BASE_URL` jetzt zusätzlich per Whitespace-Trim; whitespace-only Inputs werden reproduzierbar früh mit `exit 2` abgewiesen.
 - **`tests/test_remote_smoke_script.py`:** E2E-Happy-Path für getrimmte `DEV_BASE_URL` (`"  http://.../health  "`) sowie Negativfall für whitespace-only `DEV_BASE_URL` ergänzt.

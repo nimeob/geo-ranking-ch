@@ -107,14 +107,19 @@ if [[ ! "$RAW_BASE_URL" =~ ^[Hh][Tt][Tt][Pp]([Ss])?:// ]]; then
 fi
 
 BASE_URL="$RAW_BASE_URL"
-while [[ "$BASE_URL" == */health || "$BASE_URL" == */analyze ]]; do
-  if [[ "$BASE_URL" == */health ]]; then
-    BASE_URL="${BASE_URL%/health}"
+while true; do
+  base_url_lower="${BASE_URL,,}"
+  if [[ "$base_url_lower" == */health ]]; then
+    BASE_URL="${BASE_URL:0:${#BASE_URL}-7}"
+    BASE_URL="${BASE_URL%/}"
+    continue
   fi
-  if [[ "$BASE_URL" == */analyze ]]; then
-    BASE_URL="${BASE_URL%/analyze}"
+  if [[ "$base_url_lower" == */analyze ]]; then
+    BASE_URL="${BASE_URL:0:${#BASE_URL}-8}"
+    BASE_URL="${BASE_URL%/}"
+    continue
   fi
-  BASE_URL="${BASE_URL%/}"
+  break
 done
 
 if [[ "$BASE_URL" == *"?"* || "$BASE_URL" == *"#"* ]]; then
