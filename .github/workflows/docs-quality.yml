@@ -1,0 +1,41 @@
+name: docs-quality
+
+on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "CHANGELOG.md"
+      - "docs/**/*.md"
+      - "scripts/check_docs_quality_gate.sh"
+      - "tests/test_user_docs.py"
+      - "tests/test_markdown_links.py"
+      - "requirements-dev.txt"
+      - ".github/workflows/docs-quality.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "README.md"
+      - "CHANGELOG.md"
+      - "docs/**/*.md"
+      - "scripts/check_docs_quality_gate.sh"
+      - "tests/test_user_docs.py"
+      - "tests/test_markdown_links.py"
+      - "requirements-dev.txt"
+      - ".github/workflows/docs-quality.yml"
+
+jobs:
+  docs-quality-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run docs quality gate (fresh venv)
+        run: ./scripts/check_docs_quality_gate.sh

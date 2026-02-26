@@ -67,6 +67,9 @@ pre-commit install
 pytest tests/ -v
 pre-commit run --all-files
 
+# Doku-Qualitätsgate (BL-19.8): Linkcheck + Strukturcheck im frischen venv
+./scripts/check_docs_quality_gate.sh
+
 # Minimalen Webservice starten (für ECS vorbereitet)
 python -m src.web_service
 # optionaler Port via ENV: PORT (primär) oder WEB_PORT (Fallback für lokale Wrapper)
@@ -204,16 +207,19 @@ geo-ranking-ch/
 │   ├── geo_utils.py
 │   ├── gwr_codes.py
 │   └── web_service.py                # HTTP-API (/health, /version, /analyze)
-├── tests/                            # Unit- und E2E-Tests
+├── tests/                            # Unit-, E2E- und Doku-Qualitäts-Tests
 │   ├── test_core.py
 │   ├── test_web_e2e.py
 │   ├── test_web_e2e_dev.py
 │   ├── test_remote_smoke_script.py
-│   └── test_remote_stability_script.py
-├── scripts/                          # Audit-, Deploy- und E2E-/Smoke-Runner
+│   ├── test_remote_stability_script.py
+│   ├── test_user_docs.py
+│   └── test_markdown_links.py
+├── scripts/                          # Audit-, Deploy-, E2E-/Smoke- und Qualitäts-Runner
 │   ├── run_webservice_e2e.sh
 │   ├── run_remote_api_smoketest.sh
 │   ├── run_remote_api_stability_check.sh
+│   ├── check_docs_quality_gate.sh
 │   ├── check_bl17_oidc_assumerole_posture.sh
 │   ├── audit_legacy_aws_consumer_refs.sh
 │   ├── audit_legacy_runtime_consumers.sh
@@ -228,7 +234,8 @@ geo-ranking-ch/
 │   ├── terraform/                    # IaC für AWS-Ressourcen
 │   ├── iam/                          # IAM Policies/Trusts
 │   └── lambda/                       # Lambda-Funktionen (health_probe, sns_to_telegram)
-├── .github/workflows/deploy.yml      # CI/CD (push main + manual dispatch)
+├── .github/workflows/deploy.yml      # CI/CD Deploy (push main + manual dispatch)
+├── .github/workflows/docs-quality.yml# Doku-Qualitätsgate bei Doku-Änderungen
 ├── Dockerfile
 ├── requirements.txt
 ├── requirements-dev.txt
@@ -244,7 +251,9 @@ geo-ranking-ch/
 
 Der Workflow `.github/workflows/deploy.yml` ist auf **ECS/Fargate (dev)** ausgerichtet und läuft bei **Push auf `main`** sowie manuell via **GitHub Actions → Run workflow**.
 
-Nach dem ECS-Rollout wartet der Workflow auf `services-stable` und führt anschliessend einen Smoke-Test auf `/health` aus (konfiguriert über `SERVICE_HEALTH_URL`).
+Zusätzlich sichert `.github/workflows/docs-quality.yml` bei Doku-Änderungen automatisch das **BL-19.8 Doku-Qualitätsgate** ab (`./scripts/check_docs_quality_gate.sh` mit frischem venv, Struktur- und Markdown-Linkchecks).
+
+Nach dem ECS-Rollout wartet der Deploy-Workflow auf `services-stable` und führt anschliessend einen Smoke-Test auf `/health` aus (konfiguriert über `SERVICE_HEALTH_URL`).
 
 ### Voraussetzungen für den ECS-Deploy
 

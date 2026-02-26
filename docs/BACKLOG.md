@@ -332,10 +332,12 @@
 - **Fortschritt (2026-02-26):**
   - ✅ BL-19.1 Informationsarchitektur umgesetzt (`docs/user/README.md`)
   - ✅ BL-19.2 Getting Started umgesetzt (`docs/user/getting-started.md`)
+  - ✅ BL-19.3 Configuration/ENV Guide umgesetzt (`docs/user/configuration-env.md`)
   - ✅ BL-19.4 API Usage Guide umgesetzt (`docs/user/api-usage.md`)
   - ✅ BL-19.5 Fehlerbilder & Troubleshooting umgesetzt (`docs/user/troubleshooting.md` inkl. Diagnose-Checks)
   - ✅ BL-19.7 README-Integration verfeinert (Feature-Liste + User-Doku-Links in `README.md`)
-  - ⏳ Nächster Schritt: BL-19.3 (Configuration/ENV)
+  - ✅ BL-19.8 Doku-Qualitätsgate umgesetzt (`scripts/check_docs_quality_gate.sh`, `tests/test_markdown_links.py`, `.github/workflows/docs-quality.yml`)
+  - ⏳ Nächster Schritt: BL-19.5 (Fehlerbilder & Troubleshooting)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
   2. **BL-19.2 – Getting Started:** Quickstart für lokale Inbetriebnahme inkl. Minimal-Konfiguration und erstem erfolgreichen Request.
@@ -355,7 +357,7 @@
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-18, BL-19
 - **Status:** ⛔ blockiert bis BL-19-MVP steht (Nico-Vorgabe, 2026-02-26)
-- **Quelle/Vision:** [`docs/VISION_PRODUCT.md`](docs/VISION_PRODUCT.md)
+- **Quelle/Vision:** [`docs/VISION_PRODUCT.md`](./VISION_PRODUCT.md)
 - **Zielbild:** Adresse oder Kartenpunkt in der Schweiz analysieren und als kombinierte Standort-/Gebäudeauskunft bereitstellen; Webservice und GUI separat nutzbar/vermarktbar.
 - **Akzeptanzkriterien (Phase 1):**
   - API liefert für Adresse und Kartenpunkt ein einheitliches Ergebnisobjekt (Gebäudeprofil + Umfeldprofil).
