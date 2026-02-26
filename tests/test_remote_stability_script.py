@@ -74,9 +74,12 @@ class TestRemoteStabilityScript(unittest.TestCase):
         stop_on_first_fail: int,
         base_url: str | None = None,
         smoke_script: str | None = None,
+        report_path_env: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
         with tempfile.TemporaryDirectory() as tmpdir:
             report_path = Path(tmpdir) / "stability.ndjson"
+            report_path_raw = report_path_env if report_path_env is not None else str(report_path)
+            report_path_trimmed = Path(report_path_raw.strip())
             env = os.environ.copy()
             env.update(
                 {
@@ -91,7 +94,7 @@ class TestRemoteStabilityScript(unittest.TestCase):
                     "STABILITY_INTERVAL_SECONDS": "0",
                     "STABILITY_MAX_FAILURES": str(max_failures),
                     "STABILITY_STOP_ON_FIRST_FAIL": str(stop_on_first_fail),
-                    "STABILITY_REPORT_PATH": str(report_path),
+                    "STABILITY_REPORT_PATH": report_path_raw,
                 }
             )
             if include_token:
@@ -110,10 +113,10 @@ class TestRemoteStabilityScript(unittest.TestCase):
                 text=True,
             )
             entries = []
-            if report_path.exists():
+            if report_path_trimmed.is_file():
                 entries = [
                     json.loads(line)
-                    for line in report_path.read_text(encoding="utf-8").splitlines()
+                    for line in report_path_trimmed.read_text(encoding="utf-8").splitlines()
                     if line.strip()
                 ]
             return cp, entries
@@ -183,6 +186,48 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
         self.assertEqual(len(entries), 2)
         self.assertTrue(all(row.get("status") == "pass" for row in entries))
+
+    def test_stability_runner_trims_report_path_before_write(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = Path(tmpdir) / "trimmed-stability.ndjson"
+            cp, entries = self._run_stability(
+                include_token=True,
+                runs=2,
+                max_failures=0,
+                stop_on_first_fail=0,
+                report_path_env=f"  {report_path}\t",
+            )
+
+            self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+            self.assertTrue(report_path.exists())
+            self.assertEqual(len(entries), 2)
+            self.assertTrue(all(row.get("status") == "pass" for row in entries))
+
+    def test_stability_runner_rejects_whitespace_only_report_path(self):
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs=1,
+            max_failures=0,
+            stop_on_first_fail=0,
+            report_path_env="  \t  ",
+        )
+
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("STABILITY_REPORT_PATH ist leer nach Whitespace-Normalisierung", cp.stderr)
+        self.assertEqual(entries, [])
+
+    def test_stability_runner_rejects_report_path_with_control_characters(self):
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs=1,
+            max_failures=0,
+            stop_on_first_fail=0,
+            report_path_env="stability\nreport.ndjson",
+        )
+
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("STABILITY_REPORT_PATH darf keine Steuerzeichen enthalten", cp.stderr)
+        self.assertEqual(entries, [])
 
     def test_stability_runner_marks_missing_smoke_report_as_failure_even_with_rc_zero(self):
         with tempfile.TemporaryDirectory() as tmpdir:

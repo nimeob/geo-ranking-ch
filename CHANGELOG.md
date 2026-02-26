@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Trim-/Guard für `STABILITY_REPORT_PATH` + 5x Stabilität, Iteration 20)
+- **`scripts/run_remote_api_stability_check.sh`:** `STABILITY_REPORT_PATH` wird jetzt vor Nutzung getrimmt; whitespace-only Werte (nach Trim leer) und Pfade mit Steuerzeichen werden fail-fast mit `exit 2` abgewiesen, damit NDJSON-Artefakte reproduzierbar und log-sicher geschrieben werden.
+- **`tests/test_remote_stability_script.py`:** drei neue Guard-Tests decken reproduzierbar ab: (1) getrimmter Report-Pfad wird korrekt verwendet, (2) whitespace-only `STABILITY_REPORT_PATH` schlägt mit `exit 2` fehl, (3) Control-Char-Pfade schlagen mit `exit 2` fehl.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`76 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit case-insensitive normalisiertem `SMOKE_MODE="  RiSk  "`, getrimmtem Token/Query und tab-umhülltem `STABILITY_REPORT_PATH`.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772105148.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772105148.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-10m-server-1772105148.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-20 + `STABILITY_REPORT_PATH`-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Stabilitäts-Runbook-Hinweise und BL-18.1-Nachweisführung auf den neuen `STABILITY_REPORT_PATH`-Trim/Fail-Fast-Guard sowie den aktuellen Worker-1-10m-Langlauf (`76 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Whitespace-only-Guard für `SMOKE_OUTPUT_JSON` + 5x Stabilität, Iteration 19)
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_OUTPUT_JSON` bricht jetzt zusätzlich fail-fast mit `exit 2` ab, wenn der Wert nach Trim leer wird (whitespace-only Input), statt stillschweigend die Artefaktausgabe zu deaktivieren.
 - **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass whitespace-only `SMOKE_OUTPUT_JSON` mit klarer CLI-Fehlermeldung (`exit 2`) scheitert.

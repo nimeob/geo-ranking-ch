@@ -11,7 +11,7 @@ set -euo pipefail
 #   STABILITY_RUNS="6"
 #   STABILITY_INTERVAL_SECONDS="15"
 #   STABILITY_MAX_FAILURES="0"
-#   STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability.ndjson"
+#   STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability.ndjson"  # wird getrimmt; whitespace-only -> fail-fast
 #   STABILITY_STOP_ON_FIRST_FAIL="0"
 #   STABILITY_SMOKE_SCRIPT="/path/to/run_remote_api_smoketest.sh"  # optionales Override (Tests/Debug)
 #   + alle Variablen aus run_remote_api_smoketest.sh (SMOKE_QUERY, DEV_API_AUTH_TOKEN, ...)
@@ -32,7 +32,8 @@ fi
 STABILITY_RUNS="${STABILITY_RUNS:-6}"
 STABILITY_INTERVAL_SECONDS="${STABILITY_INTERVAL_SECONDS:-15}"
 STABILITY_MAX_FAILURES="${STABILITY_MAX_FAILURES:-0}"
-STABILITY_REPORT_PATH="${STABILITY_REPORT_PATH:-artifacts/bl18.1-remote-stability.ndjson}"
+STABILITY_REPORT_PATH_RAW="${STABILITY_REPORT_PATH:-artifacts/bl18.1-remote-stability.ndjson}"
+STABILITY_REPORT_PATH="${STABILITY_REPORT_PATH_RAW}"
 STABILITY_STOP_ON_FIRST_FAIL="${STABILITY_STOP_ON_FIRST_FAIL:-0}"
 
 trim_value() {
@@ -45,7 +46,25 @@ PY
 STABILITY_RUNS="$(trim_value "${STABILITY_RUNS}")"
 STABILITY_INTERVAL_SECONDS="$(trim_value "${STABILITY_INTERVAL_SECONDS}")"
 STABILITY_MAX_FAILURES="$(trim_value "${STABILITY_MAX_FAILURES}")"
+STABILITY_REPORT_PATH="$(trim_value "${STABILITY_REPORT_PATH}")"
 STABILITY_STOP_ON_FIRST_FAIL="$(trim_value "${STABILITY_STOP_ON_FIRST_FAIL}")"
+
+if [[ -n "${STABILITY_REPORT_PATH_RAW}" && -z "${STABILITY_REPORT_PATH}" ]]; then
+  echo "[BL-18.1] STABILITY_REPORT_PATH ist leer nach Whitespace-Normalisierung." >&2
+  exit 2
+fi
+
+if ! python3 - "${STABILITY_REPORT_PATH}" <<'PY'
+import sys
+
+path = sys.argv[1]
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in path):
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] STABILITY_REPORT_PATH darf keine Steuerzeichen enthalten." >&2
+  exit 2
+fi
 
 if ! [[ "$STABILITY_RUNS" =~ ^[0-9]+$ ]] || [[ "$STABILITY_RUNS" -le 0 ]]; then
   echo "[BL-18.1] STABILITY_RUNS muss eine positive Ganzzahl sein (aktuell: ${STABILITY_RUNS})." >&2
