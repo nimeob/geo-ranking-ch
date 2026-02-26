@@ -65,6 +65,8 @@ pre-commit install
 
 # Checks ausführen
 pytest tests/ -v
+# fokussierter Crawler-Regressionscheck (Workstream-Balance-Heuristik)
+pytest tests/test_github_repo_crawler.py -v
 pre-commit run --all-files
 
 # Doku-Qualitätsgate (BL-19.8): Linkcheck + Strukturcheck im frischen venv

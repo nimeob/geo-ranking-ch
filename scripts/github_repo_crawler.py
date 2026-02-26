@@ -12,6 +12,19 @@ GHA = str(REPO_ROOT / "scripts" / "gha")
 EVIDENCE_RE = re.compile(r"\b(commit|pr\s*#|#\d+|pytest|test[s]?|merged|fixes)\b", re.IGNORECASE)
 TODO_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b")
 
+WORKSTREAM_KEYWORDS = {
+    "development": {
+        "entwickl", "develop", "implement", "feature", "api", "service", "pipeline",
+        "integration", "gui", "vertical", "build", "refactor"
+    },
+    "documentation": {
+        "doku", "dokument", "docs", "readme", "runbook", "guide", "architecture", "operations"
+    },
+    "testing": {
+        "test", "pytest", "e2e", "smoke", "stability", "regression", "qa", "validation"
+    },
+}
+
 
 def run(args):
     return subprocess.check_output([GHA, *args], cwd=REPO_ROOT, text=True)
@@ -150,6 +163,37 @@ def scan_repo_for_findings(dry_run: bool):
         create_issue(title, body, dry_run=dry_run)
 
 
+def keyword_matches(text: str, keyword: str) -> bool:
+    # Kurze Kürzel (api/gui/qa/e2e) nur als eigenständige Tokens matchen,
+    # um False-Positives wie "guide" -> "gui" zu vermeiden.
+    if len(keyword) <= 3:
+        return re.search(rf"\b{re.escape(keyword)}\b", text) is not None
+    return keyword in text
+
+
+def compute_workstream_counts(issues):
+    counts = {k: 0 for k in WORKSTREAM_KEYWORDS}
+
+    for issue in issues:
+        labels = {l["name"] for l in issue.get("labels", [])}
+        if "crawler:auto" in labels:
+            continue
+        if "status:blocked" in labels:
+            continue
+
+        text = f"{issue.get('title', '')}\n{issue.get('body', '')}".lower()
+        matched = set()
+        for category, keywords in WORKSTREAM_KEYWORDS.items():
+            if any(keyword_matches(text, keyword) for keyword in keywords):
+                matched.add(category)
+
+        # keine Erkennung -> neutral ignorieren
+        for category in matched:
+            counts[category] += 1
+
+    return counts
+
+
 def audit_workstream_balance(dry_run: bool):
     """
     Guardrail: Development, Documentation und Testing sollen parallel nachgezogen werden.
@@ -162,37 +206,7 @@ def audit_workstream_balance(dry_run: bool):
         "--json", "number,title,body,labels"
     ])
 
-    categories = {
-        "development": {
-            "entwickl", "develop", "implement", "feature", "api", "service", "pipeline",
-            "integration", "gui", "vertical", "build", "refactor"
-        },
-        "documentation": {
-            "doku", "dokument", "docs", "readme", "runbook", "guide", "architecture", "operations"
-        },
-        "testing": {
-            "test", "pytest", "e2e", "smoke", "stability", "regression", "qa", "validation"
-        },
-    }
-
-    counts = {k: 0 for k in categories}
-
-    for issue in issues:
-        labels = {l["name"] for l in issue.get("labels", [])}
-        if "crawler:auto" in labels:
-            continue
-        if "status:blocked" in labels:
-            continue
-
-        text = f"{issue.get('title', '')}\n{issue.get('body', '')}".lower()
-        matched = set()
-        for cat, kws in categories.items():
-            if any(kw in text for kw in kws):
-                matched.add(cat)
-
-        # keine Erkennung -> neutral ignorieren
-        for cat in matched:
-            counts[cat] += 1
+    counts = compute_workstream_counts(issues)
 
     max_count = max(counts.values()) if counts else 0
     min_count = min(counts.values()) if counts else 0
