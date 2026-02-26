@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-20.2.b Feld-Mapping Quelle -> Domain)
+- **`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`** neu angelegt: quellenweises Feld-Mapping auf Domainpfade (`build_report`/`result.data.*`) inkl. verbindlicher Transform-/Normalisierungsregeln und Source->Module-Zuordnung für `by_source`.
+- **`tests/test_data_source_field_mapping_docs.py`** ergänzt: Regressionstest auf Pflichtsektionen der Mapping-Doku inkl. Follow-up-Verweisen (#63/#64/#65).
+- **Follow-up-Issues angelegt:** #63 (machine-readable Mapping-Spec), #64 (Transform-Regeln als wiederverwendbare Functions + Tests), #65 (Source-Schema-Drift-Checks).
+
+### Changed (2026-02-26 — BL-20.2.b Doku-/Backlog-Sync)
+- **`docs/DATA_SOURCE_INVENTORY_CH.md`** um direkten Verweis auf die neue Feld-Mapping-Spezifikation erweitert.
+- **`README.md`** Dokumentationstabelle um `docs/DATA_SOURCE_FIELD_MAPPING_CH.md` ergänzt.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt aktualisiert (#25 abgeschlossen; Follow-up-Gaps #63/#64/#65 dokumentiert).
+
 ### Added (2026-02-26 — BL-20.7.a.r2 Konfigurationsmatrix Packaging/Runtime)
 - **`docs/PACKAGING_BASELINE.md`** um Abschnitt „Konfigurationsmatrix (Packaging/Runtime)" erweitert: konsolidierte Parameterliste für Build-/Run-Modi inkl. Pflicht/Optional, Default und Beispielwerten.
 - **`tests/test_user_docs.py`** erweitert: Regressionstest für die neue Matrix-Sektion inkl. Pflicht-Querverweis auf den User-Config-Guide.
