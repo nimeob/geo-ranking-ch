@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-02-medium-confidence",
+  "description": "Mittlerer Confidence-Referenzfall mit moderaten Penalties und teilweiser Datenlücke",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.74,
+    "data_completeness_points": 22,
+    "cross_source_consistency_points": 14,
+    "required_source_health_points": 8,
+    "mismatch_penalty_points": 6,
+    "ambiguity_penalty_points": 3,
+    "pt_access_score": 67,
+    "noise_risk": "medium",
+    "suitability_score": 58
+  }
+}

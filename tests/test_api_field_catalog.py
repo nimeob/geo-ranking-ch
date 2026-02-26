@@ -14,6 +14,7 @@ SCORING_METHODOLOGY_DOC = REPO_ROOT / "docs" / "api" / "scoring_methodology.md"
 GROUPED_PARTIAL_EXAMPLE = (
     REPO_ROOT / "docs" / "api" / "examples" / "current" / "analyze.response.grouped.partial-disabled.json"
 )
+SCORING_WORKED_EXAMPLES_DIR = REPO_ROOT / "docs" / "api" / "examples" / "scoring"
 
 
 class TestApiFieldCatalog(unittest.TestCase):
@@ -187,6 +188,93 @@ class TestApiFieldCatalog(unittest.TestCase):
             empty_sources,
             msg="Edge-Case-Beispiel muss mindestens eine Quelle mit leerem data-Objekt enthalten",
         )
+
+    def test_scoring_worked_examples_are_linked_and_reproducible(self):
+        content = SCORING_METHODOLOGY_DOC.read_text(encoding="utf-8")
+
+        cases = [
+            "worked-example-01-high-confidence",
+            "worked-example-02-medium-confidence",
+            "worked-example-03-low-confidence",
+        ]
+
+        for case in cases:
+            input_rel = f"docs/api/examples/scoring/{case}.input.json"
+            output_rel = f"docs/api/examples/scoring/{case}.output.json"
+            self.assertIn(input_rel, content, msg=f"Input-Link fehlt in scoring_methodology.md: {input_rel}")
+            self.assertIn(output_rel, content, msg=f"Output-Link fehlt in scoring_methodology.md: {output_rel}")
+
+            input_path = SCORING_WORKED_EXAMPLES_DIR / f"{case}.input.json"
+            output_path = SCORING_WORKED_EXAMPLES_DIR / f"{case}.output.json"
+            self.assertTrue(input_path.is_file(), msg=f"Fehlendes Input-Artefakt: {input_path}")
+            self.assertTrue(output_path.is_file(), msg=f"Fehlendes Output-Artefakt: {output_path}")
+
+            input_payload = json.loads(input_path.read_text(encoding="utf-8"))
+            output_payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+            inputs = input_payload.get("inputs", {})
+            calc = output_payload.get("calculation", {})
+            projected_conf = (
+                output_payload.get("result_projection", {})
+                .get("status", {})
+                .get("quality", {})
+                .get("confidence", {})
+            )
+
+            selected_score = float(inputs["match_selected_score"])
+            expected_match_component = selected_score * 40
+            expected_score_raw = (
+                expected_match_component
+                + float(inputs["data_completeness_points"])
+                + float(inputs["cross_source_consistency_points"])
+                + float(inputs["required_source_health_points"])
+                - float(inputs["mismatch_penalty_points"])
+                - float(inputs["ambiguity_penalty_points"])
+            )
+            expected_score = max(0, min(100, round(expected_score_raw)))
+            expected_legacy_confidence = round(expected_score / 100, 2)
+
+            if expected_score >= 82:
+                expected_level = "high"
+            elif expected_score >= 62:
+                expected_level = "medium"
+            else:
+                expected_level = "low"
+
+            self.assertAlmostEqual(
+                float(calc["match_component_points"]),
+                expected_match_component,
+                places=6,
+                msg=f"Match-Komponente stimmt nicht für {case}",
+            )
+            self.assertAlmostEqual(
+                float(calc["score_raw"]),
+                expected_score_raw,
+                places=6,
+                msg=f"score_raw stimmt nicht für {case}",
+            )
+            self.assertEqual(
+                int(calc["score_rounded"]),
+                expected_score,
+                msg=f"score_rounded stimmt nicht für {case}",
+            )
+            self.assertEqual(
+                calc["level"],
+                expected_level,
+                msg=f"Confidence-Level stimmt nicht für {case}",
+            )
+            self.assertEqual(
+                float(calc["legacy_confidence"]),
+                expected_legacy_confidence,
+                msg=f"Legacy-Confidence stimmt nicht für {case}",
+            )
+
+            self.assertEqual(int(projected_conf["score"]), expected_score)
+            self.assertEqual(projected_conf["level"], expected_level)
+            self.assertEqual(
+                float(output_payload.get("result_projection", {}).get("confidence")),
+                expected_legacy_confidence,
+            )
 
 
 if __name__ == "__main__":

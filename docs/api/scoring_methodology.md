@@ -1,7 +1,7 @@
 # BL-20.1.f — Scoring Methodology Specification (v1)
 
 Stand: 2026-02-26
-Status: Draft (WP1 + WP2)
+Status: Draft (WP1 + WP2 + WP3)
 Methodik-Version: `scoring-v1-draft`
 
 Diese Spezifikation dokumentiert die aktuell vertraglich relevanten Bewertungs-/Risiko-/Confidence-Felder der API inkl. Berechnungslogik, Interpretationsrahmen und Integrationshinweisen.
@@ -192,7 +192,40 @@ Verifikation:
 - `python3 scripts/validate_field_catalog.py`
 - `pytest -q tests/test_api_field_catalog.py`
 
-## 8) Open Items (Folge-Work-Packages)
+## 8) Reproduzierbare Worked Examples (WP3)
 
-- #81: Reproduzierbare Worked Examples (Input -> Rechenschritte -> Endscore)
+Die folgenden Referenzfälle sind so aufgebaut, dass Integratoren die Methodik 1:1 nachrechnen können (Input -> Rechenschritte -> Endscore):
+
+| Beispiel | Zielprofil | Input-Artefakt | Output-Artefakt |
+|---|---|---|---|
+| Beispiel A | hoher Confidence-Case (klarer Match, geringe Penalties) | [`docs/api/examples/scoring/worked-example-01-high-confidence.input.json`](./examples/scoring/worked-example-01-high-confidence.input.json) | [`docs/api/examples/scoring/worked-example-01-high-confidence.output.json`](./examples/scoring/worked-example-01-high-confidence.output.json) |
+| Beispiel B | mittlerer Confidence-Case (teilweise Lücken, moderate Penalties) | [`docs/api/examples/scoring/worked-example-02-medium-confidence.input.json`](./examples/scoring/worked-example-02-medium-confidence.input.json) | [`docs/api/examples/scoring/worked-example-02-medium-confidence.output.json`](./examples/scoring/worked-example-02-medium-confidence.output.json) |
+| Beispiel C | niedriger Confidence-Case (hohe Ambiguität + Mismatch-Risiko) | [`docs/api/examples/scoring/worked-example-03-low-confidence.input.json`](./examples/scoring/worked-example-03-low-confidence.input.json) | [`docs/api/examples/scoring/worked-example-03-low-confidence.output.json`](./examples/scoring/worked-example-03-low-confidence.output.json) |
+
+### 8.1 Rechenweg (verbindliches Muster)
+
+Für alle drei Fälle gilt derselbe deterministische Ablauf:
+
+```text
+match_component = selected_score * 40
+score_raw = match_component + data_completeness + cross_source_consistency + required_source_health - mismatch_penalty - ambiguity_penalty
+score = clamp(round(score_raw), 0, 100)
+legacy_confidence = round(score / 100, 2)
+```
+
+Level-Mapping bleibt identisch zu Abschnitt 2.1 / 3.1:
+- `high`: `score >= 82`
+- `medium`: `62 <= score < 82`
+- `low`: `score < 62`
+
+### 8.2 Kurzresultate je Referenzfall
+
+| Beispiel | `score_raw` | `score` | `level` | `result.confidence` |
+|---|---:|---:|---|---:|
+| A | `91.4` | `91` | `high` | `0.91` |
+| B | `64.6` | `65` | `medium` | `0.65` |
+| C | `34.4` | `34` | `low` | `0.34` |
+
+## 9) Open Items (Folge-Work-Packages)
+
 - #82: Golden-Tests + Methodik-Versionierung

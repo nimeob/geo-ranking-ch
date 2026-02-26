@@ -1,0 +1,44 @@
+{
+  "example_id": "score-worked-example-01-high-confidence",
+  "methodology_version": "scoring-v1-draft",
+  "calculation": {
+    "match_component_points": 38.4,
+    "data_completeness_points": 28,
+    "cross_source_consistency_points": 18,
+    "required_source_health_points": 10,
+    "mismatch_penalty_points": 2,
+    "ambiguity_penalty_points": 1,
+    "score_raw": 91.4,
+    "score_rounded": 91,
+    "score_max": 100,
+    "level": "high",
+    "legacy_confidence": 0.91
+  },
+  "result_projection": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 91,
+          "max": 100,
+          "level": "high"
+        }
+      }
+    },
+    "data": {
+      "modules": {
+        "match": {
+          "selected_score": 0.96
+        }
+      }
+    },
+    "confidence": 0.91,
+    "context_profile": {
+      "pt_access_score": 84,
+      "noise_risk": "low"
+    },
+    "suitability_light": {
+      "score": 78,
+      "traffic_light": "green"
+    }
+  }
+}
