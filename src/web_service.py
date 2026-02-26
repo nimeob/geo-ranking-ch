@@ -44,7 +44,9 @@ def _sanitize_request_id_candidate(candidate: Any) -> str:
         return ""
     if any(ch.isspace() for ch in value):
         return ""
-    return value[:128]
+    if len(value) > 128:
+        return ""
+    return value
 
 
 class Handler(BaseHTTPRequestHandler):

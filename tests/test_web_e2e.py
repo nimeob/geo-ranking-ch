@@ -281,6 +281,24 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(body.get("request_id"), correlation_id)
         self.assertEqual(resp_headers.get("x-request-id"), correlation_id)
 
+    def test_request_id_falls_back_to_correlation_header_when_primary_is_too_long(self):
+        correlation_id = "bl18-e2e-correlation-length-fallback"
+        too_long = "x" * 129
+        status, body, resp_headers = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={"query": "__ok__", "timeout_seconds": 2},
+            headers={
+                "Authorization": "Bearer bl18-token",
+                "X-Request-Id": too_long,
+                "X-Correlation-Id": correlation_id,
+            },
+            return_headers=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(body.get("request_id"), correlation_id)
+        self.assertEqual(resp_headers.get("x-request-id"), correlation_id)
+
 
 class TestWebServiceEnvPortFallback(unittest.TestCase):
     @classmethod

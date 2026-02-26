@@ -30,7 +30,7 @@
   - `TimeoutError` → `504 timeout`.
 - **Request-ID-Korrelation für API-Debugging:**
   - `POST /analyze` übernimmt die **erste gültige** ID aus `X-Request-Id` (primär) oder `X-Correlation-Id` (Fallback) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
-  - Leere/whitespace-only IDs, IDs mit eingebettetem Whitespace **und** IDs mit Steuerzeichen (z. B. Tabs) werden verworfen; ist `X-Request-Id` dadurch ungültig, wird deterministisch auf `X-Correlation-Id` zurückgefallen.
+  - Leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen (z. B. Tabs) **und IDs >128 Zeichen** werden verworfen; ist `X-Request-Id` dadurch ungültig, wird deterministisch auf `X-Correlation-Id` zurückgefallen.
   - Ohne mitgelieferte gültige ID erzeugt der Service eine interne Request-ID.
 - **Port-ENV-Kompatibilität für lokale Runner:**
   - `src/web_service.py` akzeptiert `PORT` weiterhin als primäre Port-Variable.
@@ -52,7 +52,7 @@
     - Invalid mode + non-finite `timeout_seconds` / bad request (400)
     - Timeout (504)
     - Internal (500)
-    - Request-ID-Echo inkl. Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` leer/whitespace ist oder wegen eingebettetem Whitespace/Steuerzeichen ungültig wird
+    - Request-ID-Echo inkl. Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` leer/whitespace ist oder wegen eingebettetem Whitespace/Steuerzeichen/Überlänge (`>128`) ungültig wird
 - **Dev:** `tests/test_web_e2e_dev.py`
   - läuft gegen `DEV_BASE_URL`
   - optional mit `DEV_API_AUTH_TOKEN`
@@ -147,6 +147,21 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, API-Guard für `X-Request-Id`-Überlänge + 5x Stabilität, Iteration 29)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="53097" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:53097/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772111118  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772111118.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:53097/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-29/bl18.1-remote-stability-local-worker-1-10m-1772111118.ndjson" ./scripts/run_remote_api_stability_check.sh`
+  - Verifikations-Call für den neuen API-Guard: `POST /analyze` mit `X-Request-Id`-Länge `129` + `X-Correlation-Id: "bl18-correlation-length-fallback-real"`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `89 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-1-10m-1772111118.json`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` (`artifacts/worker-1-10m/iteration-29/bl18.1-remote-stability-local-worker-1-10m-1772111118.ndjson`; Runs 1..5 alle `status=pass`).
+  - API-Guard real verifiziert: `X-Request-Id` mit Überlänge (`129`) wird verworfen, Fallback auf `X-Correlation-Id` greift konsistent in Header+JSON (`artifacts/bl18.1-request-id-length-fallback-worker-1-10m-1772111118.json`).
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772111118.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, API-Guard für eingebetteten Whitespace in `X-Request-Id` + 5x Stabilität, Iteration 28)
 

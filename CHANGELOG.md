@@ -14,6 +14,17 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m API-Guard für `X-Request-Id`-Überlänge + 5x Stabilität, Iteration 29)
+- **`src/web_service.py`:** Request-ID-Sanitizer verwirft jetzt Header-IDs mit mehr als 128 Zeichen statt sie still zu kürzen; damit bleibt die gespiegelt ausgegebene ID token-stabil und fällt bei Überlänge deterministisch auf die nächste gültige Kandidaten-ID zurück.
+- **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert reproduzierbar den Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` 129 Zeichen lang ist.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`89 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`).
+- **API-Guard real verifiziert:** `/analyze` verwirft `X-Request-Id` mit Überlänge (`129`) deterministisch und spiegelt stattdessen `X-Correlation-Id` konsistent in Response-Header + JSON.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772111118.json`, `artifacts/worker-1-10m/iteration-29/bl18.1-remote-stability-local-worker-1-10m-1772111118.ndjson`, `artifacts/bl18.1-request-id-length-fallback-worker-1-10m-1772111118.json`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772111118.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-29 + Request-ID-Längen-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Request-ID-Regeln und Nachweisführung um den neuen Überlängen-Guard (`>128`) sowie den aktuellen Worker-1-10m-Langlauf (`89 passed`, Smoke + 5x Stabilität + realer Fallback-Check) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m API-Guard für eingebetteten Whitespace in `X-Request-Id` + 5x Stabilität, Iteration 28)
 - **`src/web_service.py`:** Request-ID-Sanitizer verwirft jetzt zusätzlich Header-IDs mit eingebettetem Whitespace (`X-Request-Id`/`X-Correlation-Id`), damit nur token-stabile Korrelations-IDs gespiegelt werden.
 - **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert reproduzierbar den Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` eingebetteten Whitespace enthält (`"bl18 bad-id"`).
