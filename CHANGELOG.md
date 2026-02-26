@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Short-Request-ID-Header-Aliasse (`Request-Id`/`Correlation-Id`) + Real-Run, Iteration 43)
+- **`src/web_service.py`:** Request-ID-Korrelation akzeptiert jetzt zusätzlich kurze Header-Aliasse (`Request-Id`/`Request_Id` als primär, `Correlation-Id`/`Correlation_Id` als Fallback) und nutzt weiterhin denselben Sanitizer/Fallback-Pfad wie bei `X-*`-Headern.
+- **`tests/test_web_e2e.py`:** neue API-E2E-Fälle verifizieren reproduzierbar, dass `Request-Id` primär gespiegelt wird und bei ungültigem primären Request-Alias deterministisch `Correlation-Id` gewinnt.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`115 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) im getrimmten Short-Alias-Mode (`SMOKE_REQUEST_ID_HEADER="request-id"` im Smoke, `"correlation_id"` in Stabilität).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772119525.json`, `artifacts/worker-1-10m/iteration-43/bl18.1-remote-stability-local-worker-1-10m-1772119525.ndjson`, `artifacts/bl18.1-request-id-short-alias-worker-1-10m-1772119525.json`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772119525.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-43 + Short-Header-Aliasse synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Request-ID-Korrelationsdoku um Short-Aliasse (`Request-Id`/`Correlation-Id`) erweitert und Nachweisführung auf Iteration 43 (`115 passed`, Smoke + 3x Stabilität + Short-Alias-API-Realcheck) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A-10m ASCII-Only Request-ID-Guard + Real-Run, Iteration 42)
 - **`src/web_service.py`:** Request-ID-Sanitizer verwirft jetzt zusätzlich Non-ASCII-Werte; bei ungültigem Primärheader bleibt der bestehende Correlation-Fallback deterministisch aktiv.
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID` wird fail-fast auch auf ASCII-only geprüft (`exit 2` bei Non-ASCII), damit unsichtbare/mehrdeutige Headerwerte nicht in Remote-Runs landen.

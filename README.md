@@ -72,7 +72,7 @@ curl http://localhost:8080/health
 
 **Auth (optional):** Wenn `API_AUTH_TOKEN` gesetzt ist, erfordert `POST /analyze` den Header `Authorization: Bearer <token>`.
 
-**Request-Korrelation:** Für `POST /analyze` wird die **erste gültige** ID aus `X-Request-Id`/`X_Request_Id` (primär) bzw. `X-Correlation-Id`/`X_Correlation_Id` (Fallback) in die Antwort gespiegelt (`X-Request-Id` Header + JSON-Feld `request_id`). Leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen, IDs mit Trennzeichen (`,`/`;`) sowie IDs länger als 128 Zeichen werden verworfen; ohne gültige Header-ID erzeugt der Service automatisch eine Request-ID.
+**Request-Korrelation:** Für `POST /analyze` wird die **erste gültige** ID aus `X-Request-Id`/`X_Request_Id`/`Request-Id`/`Request_Id` (primär) bzw. `X-Correlation-Id`/`X_Correlation_Id`/`Correlation-Id`/`Correlation_Id` (Fallback) in die Antwort gespiegelt (`X-Request-Id` Header + JSON-Feld `request_id`). Leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen, IDs mit Trennzeichen (`,`/`;`), Non-ASCII-IDs sowie IDs länger als 128 Zeichen werden verworfen; ohne gültige Header-ID erzeugt der Service automatisch eine Request-ID.
 
 **Timeout-Input:** `timeout_seconds` muss eine **endliche Zahl > 0** sein (z. B. kein `nan`/`inf`), sonst antwortet die API mit `400 bad_request`.
 

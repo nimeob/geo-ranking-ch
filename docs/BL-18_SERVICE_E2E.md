@@ -149,6 +149,22 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Short-Request-ID-Header-Aliasse (`Request-Id`/`Correlation-Id`) + Real-Run, Iteration 43)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="35627" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:35627/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772119525  " SMOKE_REQUEST_ID_HEADER="  request-id  " SMOKE_ENFORCE_REQUEST_ID_ECHO="  TrUe  " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772119525.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:35627/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  correlation_id  " SMOKE_ENFORCE_REQUEST_ID_ECHO="  FaLsE  " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 3 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL="  fAlSe  " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-43/bl18.1-remote-stability-local-worker-1-10m-1772119525.ndjson" ./scripts/run_remote_api_stability_check.sh`
+  - API-Realcheck Short-Aliasse: Request mit `Request-Id="bl18-short-primary-alias"` (primär) sowie Fallback-Request mit ungültigem primären Request-Alias + `Correlation-Id="bl18-short-correlation-fallback"` → Report `artifacts/bl18.1-request-id-short-alias-worker-1-10m-1772119525.json`.
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `115 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden (`request_id_header_name=X-Request-Id`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`request_id_header_name=X_Correlation_Id`).
+  - API-Short-Alias-Guard greift reproduzierbar: `Request-Id` wird primär gespiegelt; bei ungültigem primären Request-Alias gewinnt deterministisch `Correlation-Id`.
+  - Evidenz: `artifacts/bl18.1-smoke-local-worker-1-10m-1772119525.json`, `artifacts/worker-1-10m/iteration-43/bl18.1-remote-stability-local-worker-1-10m-1772119525.ndjson`, `artifacts/bl18.1-request-id-short-alias-worker-1-10m-1772119525.json`.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772119525.log`.
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker A-10m, ASCII-Only Request-ID-Guard + Real-Run, Iteration 42)
 
 - Command:

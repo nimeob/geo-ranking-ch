@@ -61,8 +61,12 @@ class Handler(BaseHTTPRequestHandler):
         header_candidates = (
             self.headers.get("X-Request-Id", ""),
             self.headers.get("X_Request_Id", ""),
+            self.headers.get("Request-Id", ""),
+            self.headers.get("Request_Id", ""),
             self.headers.get("X-Correlation-Id", ""),
             self.headers.get("X_Correlation_Id", ""),
+            self.headers.get("Correlation-Id", ""),
+            self.headers.get("Correlation_Id", ""),
         )
         for candidate in header_candidates:
             request_id = _sanitize_request_id_candidate(candidate)
