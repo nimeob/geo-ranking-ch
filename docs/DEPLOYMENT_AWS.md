@@ -468,7 +468,7 @@ terraform plan
 
 ## 8. Offene Punkte / TODOs
 
-Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (aktuell **BL-01** bis **BL-15**), um doppelte Pflege zu vermeiden.
+Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (aktuell **BL-01** bis **BL-18**), um doppelte Pflege zu vermeiden.
 
 > **AWS-Ressourcen-Inventar:** Eine vollständige, verifizierte Übersicht aller AWS-Ressourcen (Name/ARN, Region, Zweck, Tags, Konfig-Parameter, IaC-Status, Rebuild-Hinweise) findet sich in [`docs/AWS_INVENTORY.md`](AWS_INVENTORY.md).
 
@@ -479,4 +479,4 @@ Aktueller Stand (Deployment-relevant):
 - ✅ Monitoring/Alerting-Baseline inkl. SNS → Telegram produktiv aktiv.
 - ✅ HTTP-Uptime-Probe auf `/health` produktiv aktiv (BL-12 abgeschlossen).
 - ✅ Health-Probe-IaC-Parität verifiziert (BL-14 abgeschlossen): Terraform `validate` grün; Default-Plan ohne Infrastrukturänderungen; Import-first-Plan mit `manage_health_probe=true` zeigt **0 add / 4 change / 0 destroy** (nur in-place Drift-Korrekturen).
-- ⏳ Nächster offener Gesamt-Block: **BL-15** (Legacy-IAM-Readiness, read-only) — aktueller Arbeitsstand und Go/No-Go-Template: `docs/LEGACY_IAM_USER_READINESS.md`.
+- ⏳ Nächster offener Gesamt-Block: **BL-15** (Legacy-IAM-Readiness, read-only) — aktueller Arbeitsstand inkl. Consumer-Inventar (`scripts/audit_legacy_aws_consumer_refs.sh`) und Go/No-Go-Template: `docs/LEGACY_IAM_USER_READINESS.md`.

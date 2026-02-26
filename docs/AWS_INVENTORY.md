@@ -116,6 +116,7 @@ Details und Audit: [`docs/TAGGING_AUDIT.md`](TAGGING_AUDIT.md)
 
 **Decommission-Readiness (BL-15):**
 - Details, Evidenz und Go/No-Go-Template: [`docs/LEGACY_IAM_USER_READINESS.md`](LEGACY_IAM_USER_READINESS.md)
+- Reproduzierbarer Repo-Consumer-Check: `./scripts/audit_legacy_aws_consumer_refs.sh`
 
 ---
 

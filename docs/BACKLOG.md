@@ -217,12 +217,36 @@
   - ✅ Neues Runbook `docs/LEGACY_IAM_USER_READINESS.md` mit verifizierter Ist-Lage (aktiver Key, Last-Used, Policy-Set), Access-Advisor-Auszug und CloudTrail-Hinweisen.
   - ✅ Decommission-Checkliste in 3 Phasen (Vorbereitung, Controlled Cutover, Finalisierung) inkl. klarer Rollback-Strategie dokumentiert.
   - ✅ Entscheidungs-Template („Go/No-Go") ergänzt; aktueller Vorschlag: **No-Go**, solange aktive Consumer nicht vollständig migriert sind.
+  - ✅ Repo-scope Consumer-Inventar via `scripts/audit_legacy_aws_consumer_refs.sh` ergänzt (Workflow-/Script-Referenzen + aktiver Caller-ARN).
 - **Blocker:**
-  - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed), daher noch keine sichere Abschaltfreigabe.
+  - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed + aktueller Caller-ARN), daher noch keine sichere Abschaltfreigabe.
 - **Next Actions:**
-  1. Alle Consumer des Keys (`swisstopo-api-deploy`) vollständig inventarisieren.
-  2. Für offene Consumer auf OIDC/AssumeRole migrieren.
-  3. Geplantes Wartungsfenster: Key nur deaktivieren (nicht löschen), 24h beobachten, dann Entscheidung zur Finalisierung.
+  1. ✅ Repo-scope Consumer-Inventar abgeschlossen (Workflow OIDC-konform, lokale/Runner-Skripte als offene Consumer identifiziert).
+  2. Runtime-Consumer außerhalb des Repos (Cron, Shell-Profile, Runner-Umgebung) vollständig inventarisieren.
+  3. Für offene Consumer auf OIDC/AssumeRole migrieren.
+  4. Geplantes Wartungsfenster: Key nur deaktivieren (nicht löschen), 24h beobachten, dann Entscheidung zur Finalisierung.
+
+### BL-17 — OpenClaw AWS-Betrieb auf OIDC-first umstellen (Legacy nur Fallback)
+- **Priorität:** P1
+- **Aufwand:** M
+- **Abhängigkeiten:** BL-03, BL-15
+- **Status:** ⏳ offen
+- **Akzeptanzkriterien:**
+  - Primärpfad für AWS-Operationen läuft über GitHub Actions OIDC.
+  - Legacy-Key wird nur als dokumentierter Fallback genutzt.
+  - Fallback-Nutzung wird protokolliert und schrittweise auf 0 reduziert.
+  - OIDC-first/Fallback-Runbook ist dokumentiert (Pfad wird bei BL-17-Start final fixiert).
+
+### BL-18 — Service funktional weiterentwickeln + als Webservice E2E testen
+- **Priorität:** P1
+- **Aufwand:** M
+- **Abhängigkeiten:** BL-17
+- **Status:** ⏳ offen
+- **Akzeptanzkriterien:**
+  - Mindestens ein fachlicher Ausbau am Service ist implementiert und dokumentiert.
+  - API-/Webservice-Endpunkte sind per End-to-End-Tests validiert (lokal + dev).
+  - Negativfälle (4xx/5xx), Timeouts und Auth-Fälle sind in Tests abgedeckt.
+  - Testergebnisse sind nachvollziehbar dokumentiert (Runbook/CI-Output).
 
 ---
 
@@ -246,3 +270,5 @@
 1. **BL-13** (Doku-Konsistenz) ✅
 2. **BL-14** (Health-Probe IaC-Parität) ✅
 3. **BL-15** (Legacy-IAM-Readiness) 🟡
+4. **BL-17** (OpenClaw OIDC-first + Legacy-Fallback) ⏳
+5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ⏳

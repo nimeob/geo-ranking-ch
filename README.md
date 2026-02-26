@@ -112,6 +112,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Arbeitsmodus, PR-Regeln, Release-Checkliste |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | Zentraler, priorisierter Umsetzungs-Backlog |
 | [docs/AWS_INVENTORY.md](docs/AWS_INVENTORY.md) | Vollständiges AWS-Ressourcen-Inventar mit ARNs, Konfig, IaC-Status und Rebuild-Hinweisen (BL-11) |
+| [docs/LEGACY_IAM_USER_READINESS.md](docs/LEGACY_IAM_USER_READINESS.md) | Read-only Decommission-Readiness inkl. Go/No-Go für `swisstopo-api-deploy` (BL-15) |
 | [docs/AUTONOMOUS_AGENT_MODE.md](docs/AUTONOMOUS_AGENT_MODE.md) | Verbindlicher Arbeitsmodus für Nipa (Subagents + GitHub App Auth) |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
 
@@ -136,6 +137,7 @@ geo-ranking-ch/
 │   ├── DATA_AND_API_SECURITY.md
 │   ├── ENV_PROMOTION_STRATEGY.md
 │   ├── AWS_INVENTORY.md
+│   ├── LEGACY_IAM_USER_READINESS.md
 │   └── OPERATIONS.md
 ├── .github/
 │   └── workflows/

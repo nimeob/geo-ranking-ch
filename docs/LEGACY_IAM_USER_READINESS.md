@@ -46,6 +46,23 @@ Aktuelle Events zeigen User-Agent `Terraform/1.11.4` auf diesem Principal (read-
 
 **Interpretation:** Der Legacy-User ist weiterhin in aktiver Nutzung (mindestens durch lokale/Runner-basierte Automationsläufe) und kann nicht „blind“ entfernt werden.
 
+### Repo-scope Consumer-Inventar (read-only, 2026-02-26)
+
+Zur reproduzierbaren Erfassung wurde ein read-only Audit-Script ergänzt:
+
+```bash
+./scripts/audit_legacy_aws_consumer_refs.sh
+```
+
+Verifizierte Befunde aus dem Lauf:
+
+- Aktiver AWS-Caller im OpenClaw-Umfeld: `arn:aws:iam::523234426229:user/swisstopo-api-deploy` (Legacy-User weiterhin aktiv).
+- Aktiver Deploy-Workflow `.github/workflows/deploy.yml` verwendet OIDC (`aws-actions/configure-aws-credentials@v4`) und enthält **keine** statischen AWS-Key-Referenzen.
+- Potenzielle lokale/Runner-Consumer bleiben alle `scripts/*` mit direkten `aws`-CLI-Aufrufen (Setup- und Check-Skripte).
+- Statische Key-Referenzen wurden nur im deaktivierten Template `scripts/ci-deploy-template.yml` gefunden (nicht produktiver Pfad).
+
+Damit ist der Consumer-Blocker für BL-15 präziser eingegrenzt: **kein CI/CD-Deploy-Problem**, sondern primär lokale/Runner-basierte AWS-Ops-Pfade.
+
 ---
 
 ## 2) Risiko-Einschätzung
@@ -63,7 +80,8 @@ Haupttreiber:
 
 ### Phase A — Vorbereitung (ohne Impact)
 
-- [ ] Alle Consumer des Keys inventarisieren (OpenClaw Runner, lokale Shell-Profile, CI/CD-Reste, Skripte, Cronjobs)
+- [x] Repo-scope Consumer-Inventar erstellt (Workflow/Script-Referenzen via `./scripts/audit_legacy_aws_consumer_refs.sh`)
+- [ ] Runtime-Consumer vervollständigen (OpenClaw Runner, lokale Shell-Profile, Cronjobs außerhalb des Repos)
 - [ ] Für jeden Consumer Ersatzpfad definieren (bevorzugt OIDC/AssumeRole, sonst eng begrenzte Role)
 - [ ] Read-only Smoke-Tests pro Ersatzpfad dokumentieren
 

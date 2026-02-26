@@ -174,6 +174,7 @@ Kurzfassung:
 - GitHub-Operationen über GitHub App Wrapper (`scripts/gha`, `scripts/gpush`), nicht über User-Login.
 - Komplexe Aufgaben via Subagents mit `openai-codex/gpt-5.3-codex` und `thinking=high`.
 - Parallelisierung nutzen, wenn Aufgaben unabhängig sind.
+- Vor AWS-Ops-Läufen Legacy-Principal prüfen: `./scripts/audit_legacy_aws_consumer_refs.sh`.
 
 ## Lokale Entwicklung
 

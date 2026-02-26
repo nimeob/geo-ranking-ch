@@ -34,6 +34,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/AWS_INVENTORY.md`:** Abschnitt 1.1 von Annahme auf verifizierten Status aktualisiert; Decommission-Status + Link auf das neue Readiness-Runbook ergänzt.
 - **`docs/BACKLOG.md`:** BL-15 auf „in Umsetzung" gesetzt, Nachweise/Blocker/Next-Actions ergänzt.
 
+### Added (2026-02-26 — BL-15 Iteration: Legacy-Consumer-Inventar automatisiert)
+- **`scripts/audit_legacy_aws_consumer_refs.sh`:** Neues read-only Audit-Script zur reproduzierbaren Erfassung von Legacy-IAM-Key-Consumern (Caller-ARN, OIDC-vs-Static-Key-Check in aktiven Workflows, Repo-Referenzen, AWS-CLI-Skripte). Exit-Codes: `0` (kein harter Befund), `10` (Legacy-Caller aktiv), `20` (statische Keys in aktiven Workflows).
+
+### Changed (2026-02-26 — BL-15 Fortschritt + Folge-Sequenz konsolidiert)
+- **`docs/LEGACY_IAM_USER_READINESS.md`:** Neue Section „Repo-scope Consumer-Inventar" ergänzt; Befund dokumentiert: aktive Workflow-Pipeline läuft OIDC-only, aktiver OpenClaw-Caller bleibt Legacy-User.
+- **`docs/BACKLOG.md`:** BL-15 Nachweise/Blocker/Next-Actions auf Audit-Stand aktualisiert (Repo-Inventar abgeschlossen, Runtime-Inventar offen). Folge-Sequenz um BL-17/BL-18 als nächste priorisierte Blöcke konkretisiert.
+- **`docs/AWS_INVENTORY.md`:** Legacy-IAM-Abschnitt um reproduzierbaren Repo-Consumer-Check (`./scripts/audit_legacy_aws_consumer_refs.sh`) ergänzt.
+- **`docs/DEPLOYMENT_AWS.md`:** Backlog-Referenz auf aktuelle Range (`BL-01` bis `BL-18`) aktualisiert; Hinweis auf neuen Consumer-Audit ergänzt.
+- **`docs/OPERATIONS.md`:** Agent-Autopilot-Kurzfassung um verpflichtenden Legacy-Principal-Check (`./scripts/audit_legacy_aws_consumer_refs.sh`) erweitert.
+
 ### Changed (2026-02-26 — BL-14 abgeschlossen: Terraform-Plan verifiziert, Import-Runbook präzisiert)
 - **`infra/terraform/health_probe.tf`:** Terraform-Definition für Health-Probe finalisiert (Fix `target_id` statt ungültigem `id` bei `aws_cloudwatch_event_target`; `statement_id` auf bestehenden Wert `allow-eventbridge-health-probe` abgestimmt; Beschreibungen auf Live-Setup harmonisiert).
 - **`infra/terraform/outputs.tf`:** Safe-Output-Fix: fehlerhafte `coalesce(...)`-Ausdrücke durch robuste `try(..., null)`-Varianten ersetzt, damit `terraform plan` im Safe-Default (`manage_* = false`) ohne Fehler läuft.
