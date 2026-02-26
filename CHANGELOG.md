@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-26 — BL-15 Readiness-Recheck Hardening)
+- **`scripts/audit_legacy_aws_consumer_refs.sh`** Repo-Scan auf `git grep` mit Excludes (`artifacts/`, `.venv/`, `.terraform/`) umgestellt, damit erzeugte Audit-Logs keine Folgeaudits verfälschen.
+- **`docs/LEGACY_IAM_USER_READINESS.md`** um dokumentierten Worker-Recheck ohne lokale `aws`-CLI ergänzt (Exit-Codes + Implikationen für BL-15-Status).
+- **`docs/BACKLOG.md`** BL-15-Nachweis um den Worker-Recheck und die Script-Härtung erweitert.
+- **`tests/test_audit_legacy_aws_consumer_refs.py`** ergänzt: Regressionstest, dass `artifacts/` beim Legacy-Repo-Scan ignoriert wird.
+
 ### Added (2026-02-26 — BL-20.1.d.wp2 Human-readable Field Reference)
 - **`docs/api/field-reference-v1.md`** neu angelegt: menschenlesbare Feldreferenz für `legacy` + `grouped` inkl. Feldpfad, Semantik, Typ, Pflicht/Optionalität, Stabilitätsklasse, Modusbedingungen und Beispielwert.
 
