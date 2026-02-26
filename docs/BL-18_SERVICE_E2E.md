@@ -79,6 +79,29 @@ DEV_BASE_URL="https://<dein-dev-endpoint>" ./scripts/run_webservice_e2e.sh
 DEV_BASE_URL="https://<dein-dev-endpoint>" DEV_API_AUTH_TOKEN="<token>" ./scripts/run_webservice_e2e.sh
 ```
 
+## Regression-Minimum (lokal + optional dev)
+
+Für schnelle, reproduzierbare BL-18-Regressionschecks (kleines Zeitbudget) gilt folgende Minimal-Sequenz:
+
+```bash
+# lokal: API-E2E + Stability-Runner-E2E (ohne Remote-Smoke-Script-Pfad)
+python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_stability_script.py
+
+# optional dev: Basis-E2E gegen DEV-Endpoint
+DEV_BASE_URL="https://<dein-dev-endpoint>" python3 -m pytest -q tests/test_web_e2e_dev.py
+```
+
+Hinweise:
+- Für den vollständigen BL-18-Lauf bleibt `./scripts/run_webservice_e2e.sh` der Standard.
+- Das Regression-Minimum ist bewusst klein gehalten und eignet sich als täglicher Schnellcheck vor/zwischen größeren Iterationen.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker B, Regression-Minimum)
+
+- Command:
+  - `python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_stability_script.py`
+- Ergebnis:
+  - Exit `0`, `53 passed`, `5 subtests passed`.
+
 ## BL-18.1 — Remote-API-Smoke-Test (Internet)
 
 Für den dedizierten Erfolgsnachweis über öffentliche Erreichbarkeit (`POST /analyze`) steht ein separates Script bereit:

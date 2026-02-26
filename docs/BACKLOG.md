@@ -262,6 +262,7 @@
   - Testergebnisse sind nachvollziehbar dokumentiert (Runbook/CI-Output).
 - **Umgesetzt (Iteration 2026-02-26):**
   - ✅ 2026-02-26: #119 abgeschlossen (Bearer-Auth-Header robust normalisiert: `Bearer` case-insensitive + tolerante Leading/Trailing-/Mehrfach-Whitespace-Verarbeitung bei weiterhin exaktem Token-Match), inkl. neuer E2E-Abdeckung in `tests/test_web_e2e.py` und Doku-Nachtrag in `docs/BL-18_SERVICE_E2E.md`.
+  - ✅ 2026-02-26: #121 abgeschlossen (BL-18 Regression-Minimum als reproduzierbares Mini-Runbook in `docs/BL-18_SERVICE_E2E.md` ergänzt, inkl. lokalem Nachweislauf `python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_stability_script.py` mit Exit `0`; README auf den neuen Regression-Minimum-Abschnitt verlinkt).
   - `src/web_service.py`: optionales Bearer-Auth-Gate (`API_AUTH_TOKEN`), Timeout-Parameterisierung (`timeout_seconds`, `ANALYZE_*_TIMEOUT_SECONDS`) inkl. endlicher Numerik-Validierung (`nan`/`inf` → `400 bad_request`), getrimmte/case-insensitive Mode-Normalisierung (`basic|extended|risk`) und `TimeoutError -> 504` Mapping ergänzt.
   - `tests/test_web_e2e.py`: lokale E2E-Abdeckung inkl. 200/400/401/404/500/504 aufgebaut (inkl. Negativfall non-finite `timeout_seconds`).
   - `tests/test_web_e2e_dev.py`: dev-E2E gegen `DEV_BASE_URL` ergänzt (mit optionalem `DEV_API_AUTH_TOKEN`).
