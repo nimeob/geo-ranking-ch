@@ -90,13 +90,38 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
             {"title": "Regression test", "body": "", "labels": []},
         ]
         created = []
+        closed = []
 
         with patch.object(crawler, "list_open_titles", return_value={}):
             with patch.object(crawler, "run_json", return_value=issues):
                 with patch.object(crawler, "create_issue", side_effect=lambda *args, **kwargs: created.append((args, kwargs))):
-                    crawler.audit_workstream_balance(dry_run=False)
+                    with patch.object(crawler, "close_issue", side_effect=lambda *args, **kwargs: closed.append((args, kwargs))):
+                        crawler.audit_workstream_balance(dry_run=False)
 
         self.assertEqual(created, [])
+        self.assertEqual(closed, [])
+
+    def test_audit_workstream_balance_closes_existing_issue_when_recovered(self):
+        issues = [
+            {"title": "Implement API feature", "body": "", "labels": [{"name": "status:blocked"}]},
+            {"title": "Docs guide", "body": "", "labels": [{"name": "status:blocked"}]},
+            {"title": "Regression test", "body": "", "labels": [{"name": "status:blocked"}]},
+        ]
+        open_titles = {
+            crawler.WORKSTREAM_BALANCE_ISSUE_TITLE: 158,
+        }
+        closed = []
+
+        with patch.object(crawler, "list_open_titles", return_value=open_titles):
+            with patch.object(crawler, "run_json", return_value=issues):
+                with patch.object(crawler, "close_issue", side_effect=lambda *args, **kwargs: closed.append((args, kwargs))):
+                    crawler.audit_workstream_balance(dry_run=False)
+
+        self.assertEqual(len(closed), 1)
+        args, kwargs = closed[0]
+        self.assertEqual(args[0], 158)
+        self.assertIn("Gap=0 <= Ziel 2", args[1])
+        self.assertFalse(kwargs["dry_run"])
 
     def test_audit_workstream_balance_does_not_create_duplicate_issue(self):
         issues = [
@@ -104,7 +129,7 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
             {"title": "Service integration", "body": "", "labels": []},
         ]
         open_titles = {
-            "[Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen": 98
+            crawler.WORKSTREAM_BALANCE_ISSUE_TITLE: 98
         }
         created = []
 

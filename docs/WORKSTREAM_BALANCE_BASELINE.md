@@ -18,6 +18,7 @@ Methodik (aus `scripts/github_repo_crawler.py`):
 - Grundlage sind offene Issues (`gh issue list --state open`)
 - ausgeschlossen werden `status:blocked` und `crawler:auto`
 - Workstream-Zuordnung erfolgt heuristisch über Keywords in Titel/Body
+- Ein offenes P0-Catch-up-Issue (`[Crawler][P0] Workstream-Balance ...`) wird automatisch geschlossen, sobald der Gap wieder im Zielkorridor (`<= 2`) liegt.
 
 ## Baseline-Werte
 

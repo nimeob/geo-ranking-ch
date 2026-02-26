@@ -25,6 +25,8 @@ WORKSTREAM_KEYWORDS = {
     },
 }
 
+WORKSTREAM_BALANCE_ISSUE_TITLE = "[Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen"
+
 
 def run(args):
     return subprocess.check_output([GHA, *args], cwd=REPO_ROOT, text=True)
@@ -60,6 +62,20 @@ def reopen_issue(number: int, reason: str, dry_run: bool):
     run(["issue", "reopen", str(number)])
     run(["issue", "comment", str(number), "--body", comment])
     print(f"reopened #{number}: {reason}")
+
+
+def close_issue(number: int, reason: str, dry_run: bool):
+    comment = (
+        f"✅ Crawler-Audit ({now_iso()}): Workstream-Balance wieder im Zielkorridor.\n\n"
+        f"Grund:\n- {reason}\n\n"
+        "Das automatische P0-Catch-up-Issue wird daher geschlossen."
+    )
+    if dry_run:
+        print(f"[DRY] close #{number}: {reason}")
+        return
+    run(["issue", "comment", str(number), "--body", comment])
+    run(["issue", "close", str(number)])
+    print(f"closed #{number}: {reason}")
 
 
 def create_issue(title: str, body: str, dry_run: bool, priority: str = "priority:P2"):
@@ -262,17 +278,26 @@ def audit_workstream_balance(dry_run: bool):
     """
     Guardrail: Development, Documentation und Testing sollen parallel nachgezogen werden.
     Wenn ein Bereich deutlich hinterherhinkt, wird ein P0-Catch-up-Issue erzeugt.
+    Wenn die Balance wieder passt, wird ein bestehendes P0-Catch-up-Issue automatisch geschlossen.
     """
     open_titles = list_open_titles()
     issues = get_open_issues_for_workstream_balance()
     baseline = build_workstream_balance_baseline(issues)
+    counts = baseline["counts"]
+
+    existing_issue_number = open_titles.get(WORKSTREAM_BALANCE_ISSUE_TITLE)
 
     if not baseline["needs_catchup"]:
+        if existing_issue_number is not None:
+            reason = (
+                "Keine Catch-up-Lücke mehr erkannt "
+                f"(Dev={counts['development']}, Doku={counts['documentation']}, Testing={counts['testing']}, "
+                f"Gap={baseline['gap']} <= Ziel {baseline['target_gap_max']})."
+            )
+            close_issue(existing_issue_number, reason, dry_run=dry_run)
         return
 
-    counts = baseline["counts"]
-    title = "[Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen"
-    if title in open_titles:
+    if existing_issue_number is not None:
         return
 
     body = (
@@ -289,7 +314,7 @@ def audit_workstream_balance(dry_run: bool):
         "3. Abschluss erst, wenn die Lücke sichtbar reduziert ist\n\n"
         "Hinweis: P0 ist hier ausschließlich für das Aufholen liegengebliebener, kritischer Arbeit reserviert."
     )
-    create_issue(title, body, dry_run=dry_run, priority="priority:P0")
+    create_issue(WORKSTREAM_BALANCE_ISSUE_TITLE, body, dry_run=dry_run, priority="priority:P0")
 
 
 def main():
