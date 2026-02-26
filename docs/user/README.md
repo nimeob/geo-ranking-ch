@@ -21,8 +21,8 @@ Ziel dieser Doku: den Service schnell nutzbar machen — für lokale Entwicklung
   - Alle relevanten Umgebungsvariablen inkl. Defaults/Validierung.
 - **[Troubleshooting](./troubleshooting.md)**
   - Häufige Fehlerbilder (401/400/504, URL/Auth/Timeout) inkl. Diagnose-Checks.
-- **(folgt) Operations Quick Guide**
-  - Smoke/Stability/Deploy-Checks für den Tagesbetrieb.
+- **[Operations Quick Guide](./operations-runbooks.md)**
+  - Smoke/Stability/Deploy-Checks und Incident-Minirunbook für den Tagesbetrieb.
 
 ## Empfohlene Lesereihenfolge
 

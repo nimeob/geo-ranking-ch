@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-19.6 Betrieb & Runbooks)
+- **`docs/user/operations-runbooks.md`** neu angelegt: kompaktes User-Runbook für Daily Quick Check, reproduzierbaren `/analyze`-Smoke, kurzen Stabilitätslauf, Deploy-Checks und Incident-Minirunbook mit Evidenz-Pfad.
+- **`tests/test_user_docs.py`** erweitert: prüft Präsenz/Kernsektionen des neuen Operations-Guides sowie Cross-Links aus User-Index/Getting-Started.
+
+### Changed (2026-02-26 — BL-19.6 Doku-Integration)
+- **`docs/user/README.md`** verlinkt jetzt den Operations Quick Guide.
+- **`docs/user/getting-started.md`** und **`docs/user/troubleshooting.md`** um direkte Verweise auf `operations-runbooks.md` ergänzt.
+- **`README.md`** Doku-Tabelle um `docs/user/operations-runbooks.md` erweitert.
+- **`docs/BACKLOG.md`** BL-19-Fortschritt um BL-19.6 ergänzt und Next-Step auf Parent-Issue-Finalisierung aktualisiert.
+
 ### Added (2026-02-26 — BL-19.8 Doku-Qualitätsgate)
 - **`tests/test_markdown_links.py`** neu angelegt: prüft für alle getrackten Markdown-Dateien interne Links (Datei-Targets, Repo-Grenzen, Verzeichnisziele) sowie Markdown-Anker auf auflösbare Überschriften-Slugs.
 - **`scripts/check_docs_quality_gate.sh`** neu angelegt: führt BL-19.8 als „frisches Setup“ in einem temporären venv aus (Install `requirements-dev.txt`, danach `pytest -q tests/test_user_docs.py tests/test_markdown_links.py`).
