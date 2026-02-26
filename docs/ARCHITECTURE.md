@@ -141,4 +141,4 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 
 ## 6) Offene Punkte / Nächste Architektur-Schritte
 
-Die offenen Architektur-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (aktuell v. a. **BL-15**, **BL-17**, **BL-18**), um doppelte TODO-Listen zu vermeiden.
+Die offenen Architektur-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (aktuell v. a. **BL-15**, **BL-17**, **BL-18**), um doppelte Nebenlisten zu vermeiden.
