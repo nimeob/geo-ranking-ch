@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-20.1.d.wp2 Human-readable Field Reference)
+- **`docs/api/field-reference-v1.md`** neu angelegt: menschenlesbare Feldreferenz für `legacy` + `grouped` inkl. Feldpfad, Semantik, Typ, Pflicht/Optionalität, Stabilitätsklasse, Modusbedingungen und Beispielwert.
+
+### Changed (2026-02-26 — BL-20.1.d.wp2 Doku-/Test-Sync)
+- **`docs/api/contract-v1.md`** um direkten Verweis auf die neue Feldreferenz erweitert (Abschnitt „Human-readable Feldreferenz“ + Link im Feldkatalog-Abschnitt).
+- **`README.md`** Dokumentationstabelle um `docs/api/field-reference-v1.md` ergänzt.
+- **`tests/test_api_field_catalog.py`** um Marker-Checks für die neue Feldreferenz erweitert.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschluss von #71 aktualisiert.
+
 ### Added (2026-02-26 — BL-20.1.d.wp4 Stability Guide + Contract-Change-Policy)
 - **`docs/api/contract-stability-policy.md`** neu angelegt: verbindliche Stabilitätsklassen (`stable`, `beta`, `internal`) inkl. Integrator-Regeln, Breaking/Non-Breaking-Kriterien und Versionsregel für `/api/v1`.
 
