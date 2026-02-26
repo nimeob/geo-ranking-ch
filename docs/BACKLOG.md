@@ -208,11 +208,21 @@
 - **Priorität:** P2
 - **Aufwand:** S
 - **Abhängigkeiten:** BL-03
-- **Status:** ⏳ offen
+- **Status:** 🟡 in Umsetzung (2026-02-26)
 - **Akzeptanzkriterien:**
-  - Read-only Evidenz zu aktueller Nutzung des Legacy-Users `swisstopo-api-deploy` dokumentiert.
-  - Risikoarme Decommission-Checkliste (ohne direkte Abschaltung) liegt vor.
-  - Entscheidungsvorlage in `docs/AWS_INVENTORY.md` oder dediziertem Runbook verlinkt.
+  - Read-only Evidenz zu aktueller Nutzung des Legacy-Users `swisstopo-api-deploy` dokumentiert. ✅
+  - Risikoarme Decommission-Checkliste (ohne direkte Abschaltung) liegt vor. ✅
+  - Entscheidungsvorlage in `docs/AWS_INVENTORY.md` oder dediziertem Runbook verlinkt. ✅
+- **Nachweis:**
+  - ✅ Neues Runbook `docs/LEGACY_IAM_USER_READINESS.md` mit verifizierter Ist-Lage (aktiver Key, Last-Used, Policy-Set), Access-Advisor-Auszug und CloudTrail-Hinweisen.
+  - ✅ Decommission-Checkliste in 3 Phasen (Vorbereitung, Controlled Cutover, Finalisierung) inkl. klarer Rollback-Strategie dokumentiert.
+  - ✅ Entscheidungs-Template („Go/No-Go") ergänzt; aktueller Vorschlag: **No-Go**, solange aktive Consumer nicht vollständig migriert sind.
+- **Blocker:**
+  - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed), daher noch keine sichere Abschaltfreigabe.
+- **Next Actions:**
+  1. Alle Consumer des Keys (`swisstopo-api-deploy`) vollständig inventarisieren.
+  2. Für offene Consumer auf OIDC/AssumeRole migrieren.
+  3. Geplantes Wartungsfenster: Key nur deaktivieren (nicht löschen), 24h beobachten, dann Entscheidung zur Finalisierung.
 
 ---
 
@@ -235,4 +245,4 @@
 
 1. **BL-13** (Doku-Konsistenz) ✅
 2. **BL-14** (Health-Probe IaC-Parität) ✅
-3. **BL-15** (Legacy-IAM-Readiness) ⏳
+3. **BL-15** (Legacy-IAM-Readiness) 🟡

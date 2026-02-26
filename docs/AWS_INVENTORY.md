@@ -100,19 +100,22 @@ Details und Audit: [`docs/TAGGING_AUDIT.md`](TAGGING_AUDIT.md)
 
 ### 1.1 Deploy-User (Legacy)
 
-> ⚠️ **Annahme:** Der IAM-User `swisstopo-api-deploy` existiert noch aus früheren Phasen. Der aktive CI/CD-Pfad nutzt heute die OIDC-Rolle (1.2). Wann und ob der User deaktiviert wird, ist noch offen.
+> Der IAM-User `swisstopo-api-deploy` ist weiterhin vorhanden und aktiv nutzbar. Der produktive CI/CD-Standardpfad läuft zwar über OIDC (1.2), aber der Legacy-User wird aktuell weiterhin in lokalen/Runner-basierten AWS-Läufen verwendet.
 
 | Parameter | Wert | Status |
 |---|---|---|
 | Name | `swisstopo-api-deploy` | ✅ |
 | ARN | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | ✅ |
-| Zweck | Früherer Deploy-Principal; ersetzt durch OIDC-Rolle | ✅ |
+| Zweck | Legacy-Principal (historisch Deploy; heute noch in Nutzung) | ✅ |
 | IaC | 🖐️ Manuell angelegt | — |
+| Decommission-Status | Readiness dokumentiert, Abschaltung noch nicht freigegeben | 🟡 |
 
-**Bekannte Rechte (indirekt verifiziert, IAM-Introspection verweigert):**
-- ECR, ECS (Read+Write auf dev-Scope)
-- S3 `list-buckets`, CloudFormation `list-stacks`, Lambda `list-functions` (breiter als nötig — Drift)
-- Kein `iam:GetUser`, `iam:ListAttachedUserPolicies` (Access Denied)
+**Aktueller Rechtestand (verifiziert 2026-02-26):**
+- Managed Policies: `IAMFullAccess`, `PowerUserAccess`
+- Inline Policy: `swisstopo-dev-ecs-passrole` (PassRole nur für ECS Task-/Execution-Role)
+
+**Decommission-Readiness (BL-15):**
+- Details, Evidenz und Go/No-Go-Template: [`docs/LEGACY_IAM_USER_READINESS.md`](LEGACY_IAM_USER_READINESS.md)
 
 ---
 

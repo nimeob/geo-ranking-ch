@@ -29,6 +29,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/DEPLOYMENT_AWS.md`:** Verweis auf `docs/AWS_INVENTORY.md` als zentrales Ressourcen-Inventar ergänzt.
 - **`docs/BACKLOG.md`:** BL-11 auf abgeschlossen gesetzt inkl. Nachweis.
 
+### Added (2026-02-26 — BL-15 gestartet: Legacy-IAM Decommission Readiness dokumentiert)
+- **`docs/LEGACY_IAM_USER_READINESS.md`:** Neues read-only Runbook mit verifizierter Ist-Lage des Legacy-Users `swisstopo-api-deploy` (aktiver Key, Last-Used, Policy-Set, Access-Advisor-Auszug, CloudTrail-Hinweise), risikoarmer 3-Phasen-Decommission-Checkliste und Go/No-Go-Entscheidungsvorlage.
+- **`docs/AWS_INVENTORY.md`:** Abschnitt 1.1 von Annahme auf verifizierten Status aktualisiert; Decommission-Status + Link auf das neue Readiness-Runbook ergänzt.
+- **`docs/BACKLOG.md`:** BL-15 auf „in Umsetzung" gesetzt, Nachweise/Blocker/Next-Actions ergänzt.
+
 ### Changed (2026-02-26 — BL-14 abgeschlossen: Terraform-Plan verifiziert, Import-Runbook präzisiert)
 - **`infra/terraform/health_probe.tf`:** Terraform-Definition für Health-Probe finalisiert (Fix `target_id` statt ungültigem `id` bei `aws_cloudwatch_event_target`; `statement_id` auf bestehenden Wert `allow-eventbridge-health-probe` abgestimmt; Beschreibungen auf Live-Setup harmonisiert).
 - **`infra/terraform/outputs.tf`:** Safe-Output-Fix: fehlerhafte `coalesce(...)`-Ausdrücke durch robuste `try(..., null)`-Varianten ersetzt, damit `terraform plan` im Safe-Default (`manage_* = false`) ohne Fehler läuft.
