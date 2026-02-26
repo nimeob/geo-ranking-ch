@@ -339,6 +339,7 @@
   - ✅ BL-19.8 Doku-Qualitätsgate umgesetzt (`scripts/check_docs_quality_gate.sh`, `tests/test_markdown_links.py`, `.github/workflows/docs-quality.yml`)
   - ✅ 2026-02-26: Crawler-Finding #40 in `docs/OPERATIONS.md` bereinigt (Formulierung ohne TODO/FIXME-Trigger, weiterhin Verweis auf zentralen Backlog)
   - ✅ 2026-02-26: Crawler-Finding #41 in `docs/ARCHITECTURE.md` bereinigt (Formulierung ohne TODO/FIXME-Trigger, zentraler Backlog-Verweis bleibt)
+  - ✅ 2026-02-26: Follow-up #43 behoben (defekter relativer Link in `docs/VISION_PRODUCT.md` auf `GO_TO_MARKET_MVP.md` korrigiert; Link-Qualitätscheck wieder grün)
   - ⏳ Nächster Schritt: BL-19.6 (Betrieb & Runbooks)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).

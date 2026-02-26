@@ -90,7 +90,7 @@ Hinweis: Quelle, Lizenz und Nutzungsbedingungen sind je Datendomäne explizit zu
 
 ## GTM-MVP-Artefakte
 
-- Für die erste Go-to-Market-Basis siehe [`docs/GO_TO_MARKET_MVP.md`](docs/GO_TO_MARKET_MVP.md).
+- Für die erste Go-to-Market-Basis siehe [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md).
 - Enthält Value Proposition, Scope-Rahmen, Demo-Storyline und offene GTM-Risiken als Follow-up-Issues.
 
 ---
