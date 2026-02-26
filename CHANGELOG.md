@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Langlauf-Recheck `HTTP://.../HeAlTh`)
+- **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`28 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-1772092067.json` und `artifacts/bl18.1-remote-stability-local-worker-c-1772092067.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-C-Recheck synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** BL-18.1-Nachweisführung auf den aktuellen Worker-C-Recheck mit gemischtem Base-URL-Input (`HTTP://.../HeAlTh`) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Suffix-Case-Härtung + Langlauf-Nachweis)
 - **`scripts/run_remote_api_smoketest.sh`:** normalisiert `DEV_BASE_URL`-Suffixe `/health` und `/analyze` jetzt case-insensitive (z. B. `.../HeAlTh/AnAlYzE`) bevor `/analyze` aufgerufen wird.
 - **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path sichert reproduzierbar ab, dass case-gemischte Suffixe korrekt normalisiert werden.
