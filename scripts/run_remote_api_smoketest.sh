@@ -69,6 +69,36 @@ print(sys.argv[1].strip())
 PY
 )"
 
+SMOKE_MODE="$(python3 - "${SMOKE_MODE}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+SMOKE_TIMEOUT_SECONDS="$(python3 - "${SMOKE_TIMEOUT_SECONDS}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+CURL_MAX_TIME="$(python3 - "${CURL_MAX_TIME}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+CURL_RETRY_COUNT="$(python3 - "${CURL_RETRY_COUNT}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+CURL_RETRY_DELAY="$(python3 - "${CURL_RETRY_DELAY}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
 SMOKE_REQUEST_ID_HEADER="$(python3 - "${SMOKE_REQUEST_ID_HEADER}" <<'PY'
 import sys
 print(sys.argv[1].strip())

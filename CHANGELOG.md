@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Trim-Recheck für `SMOKE_MODE` + Retry-Flags, Iteration 5)
+- **`scripts/run_remote_api_smoketest.sh`:** trimmt jetzt zusätzlich `SMOKE_MODE`, `SMOKE_TIMEOUT_SECONDS`, `CURL_MAX_TIME`, `CURL_RETRY_COUNT` und `CURL_RETRY_DELAY` vor der Validierung; robuste Env-Inputs wie `"  basic  "` oder `" 1 "` werden damit reproduzierbar akzeptiert.
+- **`tests/test_remote_smoke_script.py`:** neue E2E-Happy-Paths verifizieren getrimmtes `SMOKE_MODE` sowie getrimmte Retry-Flags (`CURL_RETRY_COUNT`/`CURL_RETRY_DELAY`) gegen einen lokal gestarteten Service.
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`58 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) trotz absichtlich Space-umhüllter Retry-Flags.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772101928.json`, `artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772101928.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-b-server-1772101928.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-B Iteration-5-Nachweis synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf getrimmte `SMOKE_MODE`-/Retry-Inputs sowie den aktuellen Worker-B-Langlauf (`58 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Tab-Whitespace-Trim-Recheck + 5x Stabilität, Iteration 4)
 - **`tests/test_remote_smoke_script.py`:** neuer Happy-Path verifiziert reproduzierbar, dass Tab-umhüllte Inputs (`DEV_BASE_URL="\thttp://.../health\t"`, `SMOKE_REQUEST_ID_HEADER="\tCorrelation\t"`) korrekt vor der Validierung getrimmt und im Correlation-Mode erfolgreich verarbeitet werden.
 - **`tests/test_remote_stability_script.py`:** zusätzliche E2E-Abdeckung für Tab-umhüllte numerische Flags (`"\t2\t"`, `"\t0\t"`) ergänzt, damit der Trim-Guard über Space-only Inputs hinaus abgesichert ist.

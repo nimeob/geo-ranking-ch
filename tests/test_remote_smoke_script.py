@@ -71,6 +71,9 @@ class TestRemoteSmokeScript(unittest.TestCase):
         base_url: str | None = None,
         request_id: str | None = None,
         request_id_header: str | None = None,
+        smoke_mode: str | None = None,
+        curl_retry_count: str | None = None,
+        curl_retry_delay: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict, str]:
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"
@@ -80,11 +83,11 @@ class TestRemoteSmokeScript(unittest.TestCase):
                 {
                     "DEV_BASE_URL": base_url or self.base_url,
                     "SMOKE_QUERY": "__ok__",
-                    "SMOKE_MODE": "basic",
+                    "SMOKE_MODE": smoke_mode or "basic",
                     "SMOKE_TIMEOUT_SECONDS": "2",
                     "CURL_MAX_TIME": "10",
-                    "CURL_RETRY_COUNT": "1",
-                    "CURL_RETRY_DELAY": "1",
+                    "CURL_RETRY_COUNT": curl_retry_count or "1",
+                    "CURL_RETRY_DELAY": curl_retry_delay or "1",
                     "SMOKE_REQUEST_ID": request_id,
                     "SMOKE_OUTPUT_JSON": str(out_json),
                 }
@@ -270,6 +273,33 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
+
+    def test_smoke_script_trims_smoke_mode_before_validation(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            smoke_mode="  basic  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertEqual(data.get("http_status"), 200)
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+
+    def test_smoke_script_trims_retry_count_and_delay_before_validation(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            curl_retry_count="\t1\t",
+            curl_retry_delay="\t1\t",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertEqual(data.get("http_status"), 200)
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
 
     def test_smoke_script_handles_combined_scheme_case_suffix_chain_slash_and_whitespace(self):
         cp, data, request_id = self._run_smoke(
