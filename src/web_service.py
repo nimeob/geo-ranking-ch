@@ -322,7 +322,15 @@ class Handler(BaseHTTPRequestHandler):
             if length <= 0:
                 raise ValueError("empty body")
             raw = self.rfile.read(length)
-            data = json.loads(raw.decode("utf-8"))
+            try:
+                decoded_body = raw.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise ValueError("body must be valid utf-8 json") from exc
+
+            data = json.loads(decoded_body)
+            if not isinstance(data, dict):
+                raise ValueError("json body must be an object")
+
             query = str(data.get("query", "")).strip()
             if not query:
                 raise ValueError("query is required")

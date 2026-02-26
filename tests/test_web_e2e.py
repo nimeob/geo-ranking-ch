@@ -57,6 +57,28 @@ def _http_json(
         return e.code, parsed
 
 
+def _http_raw_json(
+    method: str,
+    url: str,
+    raw_body: bytes,
+    headers=None,
+    timeout: float = 10.0,
+):
+    req_headers = {"Content-Type": "application/json"}
+    if headers:
+        req_headers.update(headers)
+    req = request.Request(url, method=method, data=raw_body, headers=req_headers)
+
+    try:
+        with request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8")
+            return resp.status, json.loads(body)
+    except error.HTTPError as e:
+        body = e.read().decode("utf-8")
+        parsed = json.loads(body) if body else {}
+        return e.code, parsed
+
+
 def _collect_status_like_paths(payload, prefix=""):
     paths = []
     if isinstance(payload, dict):
@@ -318,18 +340,52 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertIn("timeout_seconds", body.get("message", ""))
 
     def test_bad_request_empty_body(self):
-        req = request.Request(
+        status, body = _http_raw_json(
+            "POST",
             f"{self.base_url}/analyze",
-            method="POST",
-            data=b"",
-            headers={
-                "Authorization": "Bearer bl18-token",
-                "Content-Type": "application/json",
-            },
+            raw_body=b"",
+            headers={"Authorization": "Bearer bl18-token"},
         )
-        with self.assertRaises(error.HTTPError) as ctx:
-            request.urlopen(req, timeout=10)
-        self.assertEqual(ctx.exception.code, 400)
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+
+    def test_bad_request_invalid_json_and_body_edgecases(self):
+        cases = [
+            (
+                "malformed_json_trailing_comma",
+                b'{"query":"__ok__",}',
+                None,
+            ),
+            (
+                "invalid_utf8_json",
+                b'{"query":"__ok__"}\x80',
+                "body must be valid utf-8 json",
+            ),
+            (
+                "json_array_instead_of_object",
+                b'["__ok__"]',
+                "json body must be an object",
+            ),
+            (
+                "json_string_instead_of_object",
+                b'"__ok__"',
+                "json body must be an object",
+            ),
+        ]
+
+        for name, raw_body, expected_message in cases:
+            with self.subTest(case=name):
+                status, body = _http_raw_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    raw_body=raw_body,
+                    headers={"Authorization": "Bearer bl18-token"},
+                )
+                self.assertEqual(status, 400)
+                self.assertEqual(body.get("error"), "bad_request")
+                self.assertIn("request_id", body)
+                if expected_message:
+                    self.assertIn(expected_message, body.get("message", ""))
 
     def test_timeout_and_internal_are_mapped(self):
         status, body = _http_json(
