@@ -17,29 +17,33 @@ Standardformat für Legacy-Notfallnutzung:
 Derzeit keine neu protokollierten Incident-Fallbacks in diesem Dokument.
 Wenn ein Legacy-Fallback notwendig ist, Eintrag im obigen Template-Format ergänzen (Markdown + optional JSON-Snippet).
 
-#### Referenz-Beispiel
+#### Synthetisches Vollbeispiel (BL-17.wp8, read-only)
 
 ```markdown
-### Legacy Fallback Entry — legacy-fallback-2026-02-26-002
+### Legacy Fallback Entry — legacy-fallback-2026-02-27-001
 
-- timestamp_utc: 2026-02-26T23:52:00Z
+- timestamp_utc: 2026-02-27T00:18:00Z
 - actor: openclaw-host
-- reason: AssumeRole-Aufruf lieferte mehrfach Throttling, Incident-Fenster aktiv
+- reason: AssumeRole-Primärpfad lieferte im Incident-Fenster wiederholt `ThrottlingException` bei zeitkritischem Read-only-Diagnoselauf
 - scope: aws cloudwatch describe-alarms --region eu-central-1 --max-items 5
-- started_utc: 2026-02-26T23:50:00Z
-- ended_utc: 2026-02-26T23:52:00Z
-- duration_minutes: 2
+- started_utc: 2026-02-27T00:16:00Z
+- ended_utc: 2026-02-27T00:19:00Z
+- duration_minutes: 3
 - outcome: success
 - rollback_needed: no
 - evidence:
-  - cloudtrail_window_utc: 2026-02-26T23:45:00Z..2026-02-27T00:00:00Z
+  - cloudtrail_window_utc: 2026-02-27T00:10:00Z..2026-02-27T00:30:00Z
   - refs:
-    - artifacts/legacy-fallback/2026-02-26-002.log
-    - artifacts/legacy-fallback/2026-02-26-002-cloudtrail.json
+    - artifacts/legacy-fallback/2026-02-27-001.log
+    - artifacts/legacy-fallback/2026-02-27-001-cloudtrail.txt
+    - artifacts/legacy-fallback/2026-02-27-001-runtime-inventory.json
+    - artifacts/legacy-fallback/2026-02-27-001-posture.json
 - follow_up:
-  - issue: #138
-  - action: Runtime-Evidence-Export um Throttling-Klassifikation ergänzen
+  - issue: #150
+  - action: Break-glass-Runbook schärfen (Triggerkriterien + Evidenz-Checkliste + Rückweg auf AssumeRole-first)
 ```
+
+Hinweis: Dieses Beispiel ist **synthetisch** und dient nur als vollständige Referenz für die Pflichtfelder und Evidenzpfade.
 
 ---
 

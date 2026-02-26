@@ -149,11 +149,73 @@ OIDC-only Guard (konsolidierter Runtime+CloudTrail-Nachweis, BL-17.wp7):
 
 ---
 
+## Break-glass Runbook (Legacy-Fallback, BL-17.wp8)
+
+Ziel: Der Legacy-IAM-User bleibt nur ein **zeitlich begrenzter Notfallpfad**. Jede Nutzung ist evidenzpflichtig und muss auf den AssumeRole/OIDC-Primärpfad zurückgeführt werden.
+
+### Trigger (erlaubte Fälle)
+
+Legacy-Fallback ist nur zulässig, wenn **alle** Bedingungen erfüllt sind:
+
+1. Ein relevanter Betriebsablauf ist blockiert (z. B. Incident, kritischer Deploy-/Ops-Blocker).
+2. OIDC- oder AssumeRole-Primärpfad ist für den konkreten Ablauf aktuell nicht nutzbar.
+3. Scope ist auf das notwendige Minimum eingegrenzt (kein "Convenience-Fallback").
+
+Nicht zulässig: Routinearbeiten, reine Bequemlichkeit oder fehlende Vorprüfung des Primärpfads.
+
+### Ablauf (verbindlich)
+
+1. **Fallback-ID vergeben** (z. B. `legacy-fallback-YYYY-MM-DD-<nnn>`) und Incident-Context eröffnen.
+2. **Primärpfad-Blocker kurz belegen** (Fehlermeldung/Command-Output, read-only).
+3. **Legacy-Scope minimal ausführen** (zeitlich begrenzt, nur notwendige Kommandos).
+4. **Unmittelbar zurück auf AssumeRole-first** wechseln und Recheck fahren.
+5. **Fallback-Log vollständig dokumentieren** nach Template:
+   - `docs/LEGACY_FALLBACK_LOG_TEMPLATE.md`
+   - Ablage im Journal: `docs/LEGACY_IAM_USER_READINESS.md` (Section "Fallback-Log Entries").
+
+### Evidenz-Checkliste (Pflichtfelder)
+
+- `fallback_id`, `timestamp_utc`, `actor`
+- `reason` (konkreter Primärpfad-Blocker), `scope` (konkrete Legacy-Kommandos)
+- `started_utc`, `ended_utc`, `duration_minutes`, `outcome`, `rollback_needed`
+- `evidence.cloudtrail_window_utc`
+- `evidence.refs` (mindestens Log + CloudTrail-Beleg + Runtime/Posture-Beleg)
+- `follow_up.issue` + `follow_up.action` (bei `partial|failed` zwingend)
+
+### Mindest-Nachweise / Prüfpunkte (read-only)
+
+```bash
+# 1) CloudTrail-Fingerprint im Fallback-Fenster
+LOOKBACK_HOURS=2 ./scripts/audit_legacy_cloudtrail_consumers.sh \
+  > artifacts/legacy-fallback/<fallback_id>-cloudtrail.txt
+
+# 2) Runtime-Credential-Inventar nach Rückkehr auf AssumeRole-first
+./scripts/inventory_bl17_runtime_credential_paths.py \
+  --output-json artifacts/legacy-fallback/<fallback_id>-runtime-inventory.json
+
+# 3) OIDC/AssumeRole-Posture-Recheck
+./scripts/check_bl17_oidc_assumerole_posture.sh \
+  --report-json artifacts/legacy-fallback/<fallback_id>-posture.json
+```
+
+Optionaler Konsolidierungs-Check:
+
+```bash
+./scripts/check_bl17_oidc_only_guard.py \
+  --output-json artifacts/legacy-fallback/<fallback_id>-oidc-only-guard.json \
+  --cloudtrail-lookback-hours 24
+```
+
+### Vollständig ausgefülltes synthetisches Beispiel (read-only)
+
+Ein ausgefülltes Referenz-Event (inkl. CloudTrail-/Inventory-/Posture-Refs) steht unter:
+- `docs/LEGACY_IAM_USER_READINESS.md` → Abschnitt **"Synthetisches Vollbeispiel (BL-17.wp8)"**
+
 ## Rollback (wenn AssumeRole-Flow blockiert)
 
 1. Incident dokumentieren (`was/warum/wann`).
-2. Zeitlich begrenzt Legacy-Pfad nutzen, um Betrieb zu sichern.
-3. Nach Stabilisierung zurück auf AssumeRole-first.
+2. Zeitlich begrenzt Legacy-Pfad gemäß Break-glass-Runbook nutzen.
+3. Nach Stabilisierung zurück auf AssumeRole-first, Recheck + Evidenz sichern.
 4. Root-Cause + dauerhafte Korrektur dokumentieren.
 
 ---
