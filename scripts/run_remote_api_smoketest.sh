@@ -17,7 +17,7 @@ set -euo pipefail
 #   CURL_MAX_TIME="45"
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
-#   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen erlaubt
+#   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"
 
@@ -67,6 +67,18 @@ if any(ord(ch) < 32 or ord(ch) == 127 for ch in request_id):
 PY
 then
   echo "[BL-18.1] SMOKE_REQUEST_ID darf keine Steuerzeichen enthalten." >&2
+  exit 2
+fi
+
+if ! python3 - "${SMOKE_REQUEST_ID}" <<'PY'
+import sys
+
+request_id = sys.argv[1]
+if len(request_id) > 128:
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] SMOKE_REQUEST_ID darf maximal 128 Zeichen enthalten (aktuell: ${#SMOKE_REQUEST_ID})." >&2
   exit 2
 fi
 
