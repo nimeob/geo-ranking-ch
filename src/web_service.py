@@ -35,6 +35,16 @@ def _as_positive_finite_number(value: Any, field_name: str) -> float:
     return parsed
 
 
+def _sanitize_request_id_candidate(candidate: Any) -> str:
+    """Normalisiert Request-ID-Header robust für Echo/Response-Header."""
+    value = str(candidate).strip()
+    if not value:
+        return ""
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
+        return ""
+    return value[:128]
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
 
@@ -45,9 +55,9 @@ class Handler(BaseHTTPRequestHandler):
             self.headers.get("X-Correlation-Id", ""),
         )
         for candidate in header_candidates:
-            request_id = str(candidate).strip()
+            request_id = _sanitize_request_id_candidate(candidate)
             if request_id:
-                return request_id[:128]
+                return request_id
         return f"req-{uuid.uuid4().hex[:16]}"
 
     def _send_json(

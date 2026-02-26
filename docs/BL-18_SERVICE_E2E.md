@@ -29,8 +29,9 @@
 - **Explizites Timeout-Mapping:**
   - `TimeoutError` → `504 timeout`.
 - **Request-ID-Korrelation für API-Debugging:**
-  - `POST /analyze` übernimmt die **erste nicht-leere** ID aus `X-Request-Id` (primär) oder `X-Correlation-Id` (Fallback) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
-  - Ohne mitgelieferte ID erzeugt der Service eine interne Request-ID.
+  - `POST /analyze` übernimmt die **erste gültige** ID aus `X-Request-Id` (primär) oder `X-Correlation-Id` (Fallback) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
+  - Leere/whitespace-only IDs **und** IDs mit Steuerzeichen (z. B. Tabs) werden verworfen; ist `X-Request-Id` dadurch ungültig, wird deterministisch auf `X-Correlation-Id` zurückgefallen.
+  - Ohne mitgelieferte gültige ID erzeugt der Service eine interne Request-ID.
 - **Test-Fault-Injection (nur lokal/gezielt):**
   - via `ENABLE_E2E_FAULT_INJECTION=1`
   - Query `__timeout__` erzwingt `504`
@@ -48,7 +49,7 @@
     - Invalid mode + non-finite `timeout_seconds` / bad request (400)
     - Timeout (504)
     - Internal (500)
-    - Request-ID-Echo inkl. Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` leer/whitespace ist
+    - Request-ID-Echo inkl. Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` leer/whitespace **oder wegen Steuerzeichen ungültig** ist
 - **Dev:** `tests/test_web_e2e_dev.py`
   - läuft gegen `DEV_BASE_URL`
   - optional mit `DEV_API_AUTH_TOKEN`
@@ -105,7 +106,7 @@ Wichtige Optionen:
 - `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein und werden vor der Validierung getrimmt (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf`).
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein und werden vor der Validierung getrimmt.
 - `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche); wird vor dem Request getrimmt, muss frei von Steuerzeichen sein und darf maximal 128 Zeichen enthalten (sonst `exit 2`).
-- `SMOKE_REQUEST_ID_HEADER` (`request|correlation`, default `request`): wird vor Validierung getrimmt und case-insensitive normalisiert; wählt, ob die Request-ID via `X-Request-Id` (Standard) oder via `X-Correlation-Id` gesendet wird; `correlation` erlaubt einen reproduzierbaren Fallback-Check für Services, die `X-Request-Id` leer/unset behandeln.
+- `SMOKE_REQUEST_ID_HEADER` (`request|correlation`, default `request`): wird vor Validierung getrimmt und case-insensitive normalisiert; wählt, ob die Request-ID via `X-Request-Id` (Standard) oder via `X-Correlation-Id` gesendet wird; `correlation` erlaubt einen reproduzierbaren Fallback-Check für Services, die `X-Request-Id` leer/unset oder wegen ungültiger Zeichen verwerfen.
 - `SMOKE_ENFORCE_REQUEST_ID_ECHO` (`1|0`, default `1`): wird vor Validierung getrimmt und erzwingt Echo-Prüfung für Header + JSON (`request_id`).
 - `SMOKE_MODE`: reproduzierbarer Request-Modus (`basic|extended|risk`), wird vor der Validierung getrimmt.
 
@@ -139,6 +140,20 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker C, Request-ID-Control-Char-Fallback + 5x Stabilität, Iteration 7)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:39761/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-c-langlauf-1772098788  " SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-c-langlauf-1772098788.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:39761/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772098788.ndjson" ./scripts/run_remote_api_stability_check.sh`
+  - `python3 -c '<POST /analyze mit X-Request-Id="bl18\tbad-id" + X-Correlation-Id="bl18-correlation-fallback-1772098788"; assert fallback>'` (Artefakt: `artifacts/bl18.1-request-id-control-fallback-worker-c-1772098788.json`)
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `60 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt im getrimmten Correlation-Mode (`artifacts/bl18.1-smoke-local-worker-c-langlauf-1772098788.json`, `request_id_header_source=correlation`, `request_id_echo_enforced=true`, `started_at_utc=2026-02-26T09:39:49Z`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772098788.ndjson`).
+  - API-Guard real verifiziert: bei `X-Request-Id` mit Steuerzeichen (`"bl18\tbad-id"`) fällt `/analyze` deterministisch auf `X-Correlation-Id` zurück; Header+JSON spiegeln konsistent `bl18-correlation-fallback-1772098788` (`artifacts/bl18.1-request-id-control-fallback-worker-c-1772098788.json`, `fallback_applied=true`).
+  - Server-Log: `artifacts/bl18.1-worker-c-server-1772098788.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1, Langlauf-Recheck getrimmte Timeout-Inputs + 5x Stabilität, Iteration 6)
 

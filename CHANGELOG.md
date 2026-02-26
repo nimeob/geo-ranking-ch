@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Request-ID-Control-Char-Fallback + 5x Stabilität, Iteration 7)
+- **`tests/test_web_e2e.py`:** neuer API-E2E-Guard verifiziert reproduzierbar, dass `/analyze` bei `X-Request-Id` mit Steuerzeichen (z. B. Tab) deterministisch auf `X-Correlation-Id` zurückfällt und die Fallback-ID konsistent in Header+JSON spiegelt.
+- **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`60 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit getrimmten Timeout-/Retry-/Stability-Flags.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-c-langlauf-1772098788.json`, `artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772098788.ndjson`, `artifacts/bl18.1-request-id-control-fallback-worker-c-1772098788.json`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-c-server-1772098788.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Request-ID-Validierung auf "erste gültige ID" gehärtet)
+- **`src/web_service.py`:** Request-ID-Auswahl für `/analyze` verwirft jetzt Header-IDs mit Steuerzeichen (zusätzlich zu leer/whitespace-only) und fällt dann deterministisch auf `X-Correlation-Id` bzw. interne ID zurück; verhindert instabile Echo-Werte bei fehlerhaften Header-Inputs.
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Runbook-/Backlog-Nachweis auf den neuen Control-Char-Fallback-Guard sowie den aktuellen Worker-C-Langlauf (`60 passed`, Smoke + 5x Stabilität) synchronisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1 Trim-Recheck für Timeout-Inputs + 5x Stabilität, Iteration 6)
 - **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path verifiziert reproduzierbar, dass getrimmte Timeout-Inputs (`SMOKE_TIMEOUT_SECONDS="\t2.5\t"`, `CURL_MAX_TIME=" 15 "`) im dedizierten BL-18.1-Smoke-Runner robust akzeptiert werden.
 - **Langlauf-Real-Run (Worker 1):** `./scripts/run_webservice_e2e.sh` erfolgreich (`59 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) trotz absichtlich Space-umhüllter Timeout-/Retry-Flags.
