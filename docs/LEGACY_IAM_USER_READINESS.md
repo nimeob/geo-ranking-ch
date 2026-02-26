@@ -63,6 +63,24 @@ Verifizierte Befunde aus dem Lauf:
 
 Damit ist der Consumer-Blocker für BL-15 präziser eingegrenzt: **kein CI/CD-Deploy-Problem**, sondern primär lokale/Runner-basierte AWS-Ops-Pfade.
 
+### Runtime-Consumer Baseline (host-level, read-only, 2026-02-26)
+
+Zur risikoarmen Erfassung von Runtime-Quellen (Environment, Shell-Profile, Cron, Systemd, OpenClaw-Config) wurde ergänzt:
+
+```bash
+./scripts/audit_legacy_runtime_consumers.sh
+```
+
+Verifizierte Befunde aus dem Lauf:
+
+- Aktiver AWS-Caller bleibt `arn:aws:iam::523234426229:user/swisstopo-api-deploy`.
+- Im aktuellen Runtime-Environment sind `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` gesetzt (sanitisiert ausgegeben).
+- Keine Legacy-/Key-Treffer in Shell-/Environment-Profilen (`~/.bashrc`, `~/.profile`, `/etc/environment`).
+- Keine Treffer in prüfbaren System-Cron-/Systemd-Konfigurationen.
+- Keine Legacy-/Key-Referenzen in OpenClaw-Konfig-Dateien (`openclaw.json`, `cron/jobs.json`).
+
+Interpretation: Der aktive Legacy-Consumer ist aktuell **laufzeitgebunden** (Environment/Credential-Injection), nicht über persistierte Profile/Config auf diesem Host hinterlegt. Für „decommission-ready“ fehlt weiterhin die vollständige Inventarisierung weiterer externer Runner/Hosts.
+
 ---
 
 ## 2) Risiko-Einschätzung
@@ -82,6 +100,8 @@ Haupttreiber:
 
 - [x] Repo-scope Consumer-Inventar erstellt (Workflow/Script-Referenzen via `./scripts/audit_legacy_aws_consumer_refs.sh`)
 - [ ] Runtime-Consumer vervollständigen (OpenClaw Runner, lokale Shell-Profile, Cronjobs außerhalb des Repos)
+  - ✅ Host-Baseline via `./scripts/audit_legacy_runtime_consumers.sh` erhoben.
+  - ⏳ Externe Runner/Hosts (außerhalb dieses OpenClaw-Hosts) noch offen.
 - [ ] Für jeden Consumer Ersatzpfad definieren (bevorzugt OIDC/AssumeRole, sonst eng begrenzte Role)
 - [ ] Read-only Smoke-Tests pro Ersatzpfad dokumentieren
 

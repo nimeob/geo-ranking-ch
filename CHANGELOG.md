@@ -37,12 +37,22 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 ### Added (2026-02-26 — BL-15 Iteration: Legacy-Consumer-Inventar automatisiert)
 - **`scripts/audit_legacy_aws_consumer_refs.sh`:** Neues read-only Audit-Script zur reproduzierbaren Erfassung von Legacy-IAM-Key-Consumern (Caller-ARN, OIDC-vs-Static-Key-Check in aktiven Workflows, Repo-Referenzen, AWS-CLI-Skripte). Exit-Codes: `0` (kein harter Befund), `10` (Legacy-Caller aktiv), `20` (statische Keys in aktiven Workflows).
 
+### Added (2026-02-26 — BL-15 Iteration: Runtime-Consumer-Baseline automatisiert)
+- **`scripts/audit_legacy_runtime_consumers.sh`:** Neues read-only Audit-Script für Runtime-Quellen außerhalb des Repos (sanitisiertes Environment, Shell-/Environment-Profile, AWS Credential-Files, User/System-Cron, Systemd Units, OpenClaw-Konfig-Dateien). Exit-Codes: `0` (kein Befund), `10` (Legacy-Caller aktiv), `20` (Runtime-Referenzen), `30` (beides).
+
 ### Changed (2026-02-26 — BL-15 Fortschritt + Folge-Sequenz konsolidiert)
 - **`docs/LEGACY_IAM_USER_READINESS.md`:** Neue Section „Repo-scope Consumer-Inventar" ergänzt; Befund dokumentiert: aktive Workflow-Pipeline läuft OIDC-only, aktiver OpenClaw-Caller bleibt Legacy-User.
 - **`docs/BACKLOG.md`:** BL-15 Nachweise/Blocker/Next-Actions auf Audit-Stand aktualisiert (Repo-Inventar abgeschlossen, Runtime-Inventar offen). Folge-Sequenz um BL-17/BL-18 als nächste priorisierte Blöcke konkretisiert.
 - **`docs/AWS_INVENTORY.md`:** Legacy-IAM-Abschnitt um reproduzierbaren Repo-Consumer-Check (`./scripts/audit_legacy_aws_consumer_refs.sh`) ergänzt.
 - **`docs/DEPLOYMENT_AWS.md`:** Backlog-Referenz auf aktuelle Range (`BL-01` bis `BL-18`) aktualisiert; Hinweis auf neuen Consumer-Audit ergänzt.
 - **`docs/OPERATIONS.md`:** Agent-Autopilot-Kurzfassung um verpflichtenden Legacy-Principal-Check (`./scripts/audit_legacy_aws_consumer_refs.sh`) erweitert.
+
+### Changed (2026-02-26 — BL-15 Iteration: Runtime-Baseline dokumentiert)
+- **`docs/LEGACY_IAM_USER_READINESS.md`:** Neue Section „Runtime-Consumer Baseline (host-level)“ ergänzt, inklusive verifizierter Befunde aus `./scripts/audit_legacy_runtime_consumers.sh` und präzisierter Interpretation (aktuelle Legacy-Nutzung ist laufzeitgebunden, nicht über persistierte Host-Profile/Configs).
+- **`docs/BACKLOG.md`:** BL-15 Nachweis um Runtime-Baseline erweitert; Next Action 2 auf konkreten Restscope (externe Runner/Hosts) präzisiert.
+- **`docs/AWS_INVENTORY.md`:** Legacy-IAM-Abschnitt um reproduzierbaren Runtime-Baseline-Check (`./scripts/audit_legacy_runtime_consumers.sh`) ergänzt.
+- **`docs/DEPLOYMENT_AWS.md`:** BL-15 Statushinweis um Runtime-Baseline-Script ergänzt.
+- **`docs/OPERATIONS.md`:** Agent-Autopilot-Kurzfassung um Runtime-Audit-Check (`./scripts/audit_legacy_runtime_consumers.sh`) erweitert.
 
 ### Changed (2026-02-26 — BL-14 abgeschlossen: Terraform-Plan verifiziert, Import-Runbook präzisiert)
 - **`infra/terraform/health_probe.tf`:** Terraform-Definition für Health-Probe finalisiert (Fix `target_id` statt ungültigem `id` bei `aws_cloudwatch_event_target`; `statement_id` auf bestehenden Wert `allow-eventbridge-health-probe` abgestimmt; Beschreibungen auf Live-Setup harmonisiert).

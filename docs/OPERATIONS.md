@@ -175,6 +175,7 @@ Kurzfassung:
 - Komplexe Aufgaben via Subagents mit `openai-codex/gpt-5.3-codex` und `thinking=high`.
 - Parallelisierung nutzen, wenn Aufgaben unabhängig sind.
 - Vor AWS-Ops-Läufen Legacy-Principal prüfen: `./scripts/audit_legacy_aws_consumer_refs.sh`.
+- Für Runtime-Quellen (Env/Cron/Systemd/OpenClaw-Config) zusätzlich `./scripts/audit_legacy_runtime_consumers.sh` ausführen.
 
 ## Lokale Entwicklung
 
