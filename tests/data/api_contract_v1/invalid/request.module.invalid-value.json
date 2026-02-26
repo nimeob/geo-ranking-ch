@@ -1,0 +1,8 @@
+{
+  "request_id": "golden-bad-002",
+  "input": {
+    "mode": "address",
+    "address": "Marktgasse 10, 3000 Bern"
+  },
+  "requested_modules": ["building_profile", "non_existing_module"]
+}

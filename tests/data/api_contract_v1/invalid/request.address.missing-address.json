@@ -1,0 +1,7 @@
+{
+  "request_id": "golden-bad-001",
+  "input": {
+    "mode": "address"
+  },
+  "requested_modules": ["building_profile"]
+}

@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "api_version": "v1",
+  "request_id": "golden-res-001",
+  "result": {
+    "entity_id": "ch:egid:555",
+    "input_mode": "address",
+    "as_of": "2026-02-26T18:40:00Z",
+    "confidence": 0.75,
+    "building_profile": {},
+    "context_profile": {},
+    "suitability_light": {},
+    "explainability": {
+      "sources": [
+        {
+          "source": "geoadmin_gwr",
+          "as_of": "2026-02-20",
+          "confidence": 0.9
+        }
+      ]
+    }
+  }
+}

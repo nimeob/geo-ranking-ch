@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "api_version": "v1",
+  "request_id": "golden-bad-005",
+  "error": {
+    "code": "teapot",
+    "message": "just testing"
+  }
+}
