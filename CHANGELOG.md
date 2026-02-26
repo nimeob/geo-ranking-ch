@@ -20,6 +20,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/OPERATIONS.md`** um Hinweis auf fail-fast Input-Validation des AssumeRole-Exec-Wrappers ergänzt.
 - **`docs/BACKLOG.md`** BL-17-Fortschritt + Work-Package-Checklist um Abschluss von #136 erweitert.
 
+### Changed (2026-02-26 — BL-18.1 kritischer Deploy-Blocker: ECS-Healthcheck-Churn)
+- **`Dockerfile`** um Runtime-Dependency `curl` ergänzt (`apt-get install --no-install-recommends curl`), da die aktive ECS-Task-Definition den Container-Healthcheck via `curl -f http://localhost:8080/health || exit 1` ausführt.
+- **`tests/test_dockerfile_runtime_deps.py`** neu ergänzt: Regressionstest, der den `curl`-Install-Guard im Dockerfile erzwingt.
+- **`docs/BACKLOG.md`** BL-18.1 um den kritischen Deploy-Blocker-Fix (Freeze-Ausnahme) ergänzt.
+
 ### Added (2026-02-26 — BL-18.1.wp2 Blocker-Retry-Supervisor)
 - **`scripts/blocker_retry_supervisor.py`** neu ergänzt: überwacht `status:blocked`-Issues auf externe Timeout/Reachability-Fehler, erzwingt 3h Grace-Period + max. 3 Fehlversuche und erstellt bei 3/3 automatisch ein Follow-up-Issue inkl. Rückverlinkung.
 - **`tests/test_blocker_retry_supervisor.py`** ergänzt: reproduzierbare Unit-Tests für Fehlerklassifikation, Grace-Handling und Follow-up-Erzeugung.
