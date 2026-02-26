@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m lowercase `_`-Header-Alias-Real-Run, Iteration 36)
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`100 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) mit getrimmtem lowercase `_`-Header-Alias (`SMOKE_REQUEST_ID_HEADER="x_request_id"`) und gemischt geschriebenem `SMOKE_MODE="BaSiC"`.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772115249.json`, `artifacts/worker-1-10m/iteration-36/bl18.1-remote-stability-local-worker-1-10m-1772115249.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772115249.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-1-10m Iteration-36 + lowercase `_`-Alias-Nachweis synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Nachweisführung auf Iteration 36 angehoben (`100 passed`, Smoke + 3x Stabilität) und explizit um den real gesendeten lowercase `_`-Alias (`request_id_header_name=X_Request_Id`) ergänzt.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Primärheader-Priorität + Correlation-`_`-Real-Run, Iteration 35)
 - **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert die Request-ID-Priorität explizit: ist `X-Request-Id` ungültig, aber `X_Request_Id` gültig, wird deterministisch `X_Request_Id` gespiegelt (vor Correlation-Fallback).
 - **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`100 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) im `_`-Correlation-Header-Mode (`SMOKE_REQUEST_ID_HEADER="X_Correlation_Id"`).
