@@ -190,7 +190,7 @@ Die Methodik muss 1:1 mit dem maschinenlesbaren Feldkatalog konsistent bleiben:
 
 Verifikation:
 - `python3 scripts/validate_field_catalog.py`
-- `pytest -q tests/test_api_field_catalog.py`
+- `pytest -q tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py`
 
 ## 8) Reproduzierbare Worked Examples (WP3)
 
@@ -226,6 +226,38 @@ Level-Mapping bleibt identisch zu Abschnitt 2.1 / 3.1:
 | B | `64.6` | `65` | `medium` | `0.65` |
 | C | `34.4` | `34` | `low` | `0.34` |
 
-## 9) Open Items (Folge-Work-Packages)
+## 9) Methodik-Versionierung und Migrationsregeln
 
-- #82: Golden-Tests + Methodik-Versionierung
+Die Methodik-Version ist ein vertraglich relevantes Steuerungsfeld und muss in Doku **und** Referenzartefakten synchron geführt werden.
+
+### 9.1 Versionierungsschema
+
+Aktueller Stand: `scoring-v1-draft`
+
+Änderungsklassen:
+- **Patch** (z. B. `scoring-v1-draft.1`): rein redaktionelle Klarstellungen ohne Änderungen an Rechenlogik, Schwellen oder Referenzwerten.
+- **Minor** (z. B. `scoring-v1.1`): rückwärtskompatible methodische Erweiterungen (zusätzliche optionale Felder/Bänder), bestehende Score-Semantik bleibt stabil.
+- **Major** (z. B. `scoring-v2`): Breaking Change bei Rechenlogik, Schwellen, Feldsemantik oder Contract-Projektion.
+
+### 9.2 Verbindlicher Change-Prozess
+
+Bei jeder methodischen Änderung sind folgende Schritte Pflicht:
+1. Methodik-Version in diesem Dokument aktualisieren (`Methodik-Version: ...`).
+2. `methodology_version` in allen Worked-Example-Artefakten (`*.input.json`, `*.output.json`) synchron anpassen.
+3. Golden-Tests aktualisieren (inkl. erwarteter Referenzwerte) und lokal ausführen.
+4. Migrationshinweise für Integratoren ergänzen (Scope, Risiko, notwendige Consumer-Anpassungen).
+
+### 9.3 Migrationshinweise (Integrator-Checkliste)
+
+- **Patch:** keine Consumer-Änderung nötig; Re-Read der Doku empfohlen.
+- **Minor:** Consumer sollten neue optionale Felder defensiv behandeln (Feature-Flag/Fallback).
+- **Major:** verpflichtende Migrationsplanung inkl. Parallelbetrieb/Abnahme gegen neue Golden-Cases.
+
+Verifikation:
+- `pytest -q tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py`
+- `python3 scripts/validate_field_catalog.py`
+
+## 10) Open Items (Folge-Work-Packages)
+
+- Der Scope von BL-20.1.f.wp1–wp4 (#79, #80, #81, #82) ist abgeschlossen.
+- Folgearbeiten laufen in separaten Backlog-Issues (z. B. Explainability v2, personalisierte Scores).

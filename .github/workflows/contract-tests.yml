@@ -6,6 +6,7 @@ on:
       - "docs/api/**"
       - "tests/test_api_contract_v1.py"
       - "tests/test_api_field_catalog.py"
+      - "tests/test_scoring_methodology_golden.py"
       - "tests/data/api_contract_v1/**"
       - "scripts/validate_field_catalog.py"
       - ".github/workflows/contract-tests.yml"
@@ -14,6 +15,7 @@ on:
       - "docs/api/**"
       - "tests/test_api_contract_v1.py"
       - "tests/test_api_field_catalog.py"
+      - "tests/test_scoring_methodology_golden.py"
       - "tests/data/api_contract_v1/**"
       - "scripts/validate_field_catalog.py"
       - ".github/workflows/contract-tests.yml"
@@ -39,5 +41,5 @@ jobs:
 
       - name: Run API contract tests
         run: |
-          pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py
+          pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py
           python3 scripts/validate_field_catalog.py
