@@ -18,6 +18,8 @@ from typing import Any
 
 from src.address_intel import AddressIntelError, build_report
 
+SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
+
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
@@ -48,6 +50,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": False, "error": "not_found"}, status=HTTPStatus.NOT_FOUND)
             return
 
+        required_token = os.getenv("API_AUTH_TOKEN", "").strip()
+        if required_token:
+            auth_header = self.headers.get("Authorization", "")
+            expected = f"Bearer {required_token}"
+            if auth_header != expected:
+                self._send_json({"ok": False, "error": "unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
+                return
+
         try:
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0:
@@ -59,20 +69,42 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("query is required")
 
             mode = str(data.get("intelligence_mode", "basic")).strip() or "basic"
+            if mode not in SUPPORTED_INTELLIGENCE_MODES:
+                raise ValueError(f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}")
+
+            if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
+                if query == "__timeout__":
+                    raise TimeoutError("forced timeout for e2e")
+                if query == "__internal__":
+                    raise RuntimeError("forced internal error for e2e")
+                if query == "__ok__":
+                    self._send_json({"ok": True, "result": {"query": query, "status": "e2e_stub"}})
+                    return
+
+            default_timeout = float(os.getenv("ANALYZE_DEFAULT_TIMEOUT_SECONDS", "15"))
+            max_timeout = float(os.getenv("ANALYZE_MAX_TIMEOUT_SECONDS", "45"))
+            req_timeout_raw = data.get("timeout_seconds", default_timeout)
+            timeout = float(req_timeout_raw)
+            if timeout <= 0:
+                raise ValueError("timeout_seconds must be > 0")
+            timeout = min(timeout, max_timeout)
+
             report = build_report(
                 query,
                 include_osm=True,
                 candidate_limit=8,
                 candidate_preview=3,
-                timeout=15,
+                timeout=timeout,
                 retries=2,
                 backoff_seconds=0.6,
                 intelligence_mode=mode,
             )
             self._send_json({"ok": True, "result": report})
+        except TimeoutError as e:
+            self._send_json({"ok": False, "error": "timeout", "message": str(e)}, status=HTTPStatus.GATEWAY_TIMEOUT)
         except AddressIntelError as e:
             self._send_json({"ok": False, "error": "address_intel", "message": str(e)}, status=422)
-        except ValueError as e:
+        except (ValueError, json.JSONDecodeError) as e:
             self._send_json({"ok": False, "error": "bad_request", "message": str(e)}, status=400)
         except Exception as e:  # pragma: no cover
             self._send_json({"ok": False, "error": "internal", "message": str(e)}, status=500)

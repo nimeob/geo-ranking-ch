@@ -14,6 +14,21 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18 Iteration: Webservice-E2E + Auth/Timeout-Abdeckung)
+- **`tests/test_web_e2e.py`:** Neue lokale End-to-End-Test-Suite mit Prozessstart des Webservice und Abdeckung für Health/Version, 404, Auth (401), Bad Request (400), Timeout (504), Internal Error (500) und Happy Path für `/analyze`.
+- **`tests/test_web_e2e_dev.py`:** Neue dev-E2E-Suite gegen `DEV_BASE_URL` (optional `DEV_API_AUTH_TOKEN`) für reproduzierbare Endpoint-Checks in der laufenden Umgebung.
+- **`scripts/run_webservice_e2e.sh`:** Runner-Script für lokal + optional dev in einem Kommando.
+- **`docs/BL-18_SERVICE_E2E.md`:** Ist-Analyse, Testdesign und Runbook für BL-18 dokumentiert.
+
+### Changed (2026-02-26 — BL-18 Iteration: Service-Handling erweitert)
+- **`src/web_service.py`:**
+  - Optionales Bearer-Token-Auth-Gate für `/analyze` via `API_AUTH_TOKEN`.
+  - Validierung von `intelligence_mode` auf `basic|extended|risk`.
+  - Konfigurierbares Timeout-Handling via `ANALYZE_DEFAULT_TIMEOUT_SECONDS`, `ANALYZE_MAX_TIMEOUT_SECONDS` und Request-Feld `timeout_seconds`.
+  - Explizites Fehler-Mapping `TimeoutError -> 504`.
+  - Kontrollierte E2E-Fault-Injection für Testzwecke via `ENABLE_E2E_FAULT_INJECTION=1` (`__timeout__`, `__internal__`).
+- **`README.md`:** `/analyze`-Requestformat, optionales Auth-Handling und E2E-Test-Runner ergänzt; Doku-Index um BL-18-Dokument erweitert.
+
 ### Added (2026-02-26 — BL-17 Iteration: OIDC/AssumeRole-Posture Quick-Check)
 - **`scripts/check_bl17_oidc_assumerole_posture.sh`:** Neues Read-only Check-Script für BL-17. Prüft OIDC-Marker in aktiven Workflows (`configure-aws-credentials`, `id-token: write`), erkennt statische AWS-Key-Referenzen, klassifiziert den aktuellen AWS-Caller (AssumeRole `openclaw-ops-role` vs. Legacy-User) und führt bestehende Audit-Skripte als Kontextlauf mit aus.
 - **`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`:** Verifikationssektion um automatisierten BL-17 Quick-Check ergänzt.

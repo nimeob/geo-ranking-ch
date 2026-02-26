@@ -67,7 +67,16 @@ curl http://localhost:8080/health
 |---|---|---|
 | `GET` | `/health` | Liveness/Healthcheck |
 | `GET` | `/version` | Build/Commit-Metadaten |
-| `POST` | `/analyze` | Adressanalyse (`{"query":"..."}`) |
+| `POST` | `/analyze` | Adressanalyse (`{"query":"...","intelligence_mode":"basic|extended|risk","timeout_seconds":15}`) |
+
+**Auth (optional):** Wenn `API_AUTH_TOKEN` gesetzt ist, erfordert `POST /analyze` den Header `Authorization: Bearer <token>`.
+
+### E2E-Tests (Webservice)
+
+```bash
+# lokal (immer) + dev (optional via DEV_BASE_URL)
+./scripts/run_webservice_e2e.sh
+```
 
 ### Kernmodule (src/)
 
@@ -115,6 +124,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/LEGACY_IAM_USER_READINESS.md](docs/LEGACY_IAM_USER_READINESS.md) | Read-only Decommission-Readiness inkl. Go/No-Go für `swisstopo-api-deploy` (BL-15) |
 | [docs/LEGACY_CONSUMER_INVENTORY.md](docs/LEGACY_CONSUMER_INVENTORY.md) | Offene Legacy-Consumer-Matrix inkl. Migrationsstatus/Next Actions (BL-15) |
 | [docs/AUTONOMOUS_AGENT_MODE.md](docs/AUTONOMOUS_AGENT_MODE.md) | Verbindlicher Arbeitsmodus für Nipa (Subagents + GitHub App Auth) |
+| [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Ist-Analyse + E2E-Runbook für BL-18 |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
 
 ---

@@ -249,12 +249,18 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-17
-- **Status:** ⏳ offen
+- **Status:** 🟡 in Umsetzung (2026-02-26)
 - **Akzeptanzkriterien:**
   - Mindestens ein fachlicher Ausbau am Service ist implementiert und dokumentiert.
   - API-/Webservice-Endpunkte sind per End-to-End-Tests validiert (lokal + dev).
   - Negativfälle (4xx/5xx), Timeouts und Auth-Fälle sind in Tests abgedeckt.
   - Testergebnisse sind nachvollziehbar dokumentiert (Runbook/CI-Output).
+- **Umgesetzt (Iteration 2026-02-26):**
+  - `src/web_service.py`: optionales Bearer-Auth-Gate (`API_AUTH_TOKEN`), Timeout-Parameterisierung (`timeout_seconds`, `ANALYZE_*_TIMEOUT_SECONDS`), Mode-Validierung und `TimeoutError -> 504` Mapping ergänzt.
+  - `tests/test_web_e2e.py`: lokale E2E-Abdeckung inkl. 200/400/401/404/500/504 aufgebaut.
+  - `tests/test_web_e2e_dev.py`: dev-E2E gegen `DEV_BASE_URL` ergänzt (mit optionalem `DEV_API_AUTH_TOKEN`).
+  - `scripts/run_webservice_e2e.sh`: einheitlicher Runner für lokal + optional dev.
+  - `docs/BL-18_SERVICE_E2E.md`: Ist-Analyse + Runbook dokumentiert.
 
 ---
 
