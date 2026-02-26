@@ -20,7 +20,9 @@ Damit bleibt volle AWS-Verwaltung möglich, ohne den Legacy-Key als Primärmecha
 ### Direkter OpenClaw-Pfad (AssumeRole)
 - Ops-Rolle: `arn:aws:iam::523234426229:role/openclaw-ops-role`
 - Trust erlaubt `sts:AssumeRole` für `arn:aws:iam::523234426229:user/swisstopo-api-deploy`
-- Helper-Script vorhanden: `scripts/aws_assume_openclaw_ops.sh`
+- Helper-Scripts vorhanden:
+  - `scripts/aws_assume_openclaw_ops.sh` (interaktive Session)
+  - `scripts/openclaw_runtime_assumerole_exec.sh` (Runtime-Start ohne statische Legacy-Keys als Default)
 
 ### Legacy-User
 - User: `swisstopo-api-deploy`
@@ -41,25 +43,35 @@ Damit bleibt volle AWS-Verwaltung möglich, ohne den Legacy-Key als Primärmecha
 
 ## Runbook: Direkter Betrieb via AssumeRole
 
-### 1) Rollenwechsel
+### 1) Runtime-Default (AssumeRole-first) starten
+```bash
+cd /data/.openclaw/workspace/geo-ranking-ch
+./scripts/openclaw_runtime_assumerole_exec.sh <dein-openclaw-kommando>
+# Beispiel:
+./scripts/openclaw_runtime_assumerole_exec.sh openclaw gateway status
+```
+
+Dieser Pfad ersetzt langlebige Legacy-Keys im Prozesskontext durch temporäre STS-Session-Credentials (`ASIA...` + `AWS_SESSION_TOKEN`) und ist der neue Default für Runtime-Starts.
+
+### 2) Interaktiver Rollenwechsel (Fallback für manuelle Shell)
 ```bash
 cd /data/.openclaw/workspace/geo-ranking-ch
 source ./scripts/aws_assume_openclaw_ops.sh
 ```
 
-### 2) Identität verifizieren
+### 3) Identität verifizieren
 ```bash
 aws sts get-caller-identity
 # Erwartet: arn:aws:sts::523234426229:assumed-role/openclaw-ops-role/<session>
 ```
 
-### 3) Beispiel-Sanity-Checks
+### 4) Beispiel-Sanity-Checks
 ```bash
 aws ecs list-clusters --region eu-central-1
 aws cloudwatch describe-alarms --region eu-central-1 --max-items 5
 ```
 
-### 4) Session-Hygiene
+### 5) Session-Hygiene
 - STS-Session ist temporär.
 - Für längere Arbeitsschritte regelmäßig neu assumen.
 
@@ -101,6 +113,14 @@ Runtime-Credential-Injection-Inventar (BL-17.wp5):
 ./scripts/inventory_bl17_runtime_credential_paths.py \
   --output-json artifacts/bl17/runtime-credential-injection-inventory.json
 ```
+
+Runtime-Default-Nachweis (AssumeRole-first Startpfad):
+```bash
+./scripts/openclaw_runtime_assumerole_exec.sh \
+  ./scripts/inventory_bl17_runtime_credential_paths.py \
+  --output-json artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json
+```
+
 - Exit `0`: keine riskanten Injection-Befunde erkannt
 - Exit `10`: riskante Injection-Befunde erkannt (Legacy/Key-Injection)
 - Details/DoD: `docs/BL17_RUNTIME_CREDENTIAL_INJECTION_INVENTORY.md`

@@ -254,12 +254,14 @@
   - ✅ 2026-02-26: #138 abgeschlossen (Runtime-Caller-Evidence-Export): `scripts/check_bl17_oidc_assumerole_posture.sh` unterstützt jetzt optionalen JSON-Report via `--report-json <path>` oder `BL17_POSTURE_REPORT_JSON`, inkl. Pflichtfeldern für Timestamp, Caller-Klassifikation und relevante Exit-Codes (`workflow_check`, `caller_check`, Kontext-Audits, final). Reproduzierbare Nachweis-Tests über `tests/test_check_bl17_oidc_assumerole_posture.py` (Flag-/ENV-Export + Feldkonsistenz), Verifikation: `python3 -m pytest -q tests/test_check_bl17_oidc_assumerole_posture.py` (Exit `0`).
   - ✅ 2026-02-27: #144 abgeschlossen (Posture-Window-Aggregation): neues Aggregations-Script `scripts/summarize_bl17_posture_reports.py` bewertet mehrere BL-17-JSON-Reports über ein Zeitfenster (Klassifikationsverteilung, Legacy-Treffer, Ready/Not-ready-Empfehlung, Exitcode-Policy 0/10/2). Tests in `tests/test_summarize_bl17_posture_reports.py` decken Ready-, Legacy- und Invalid-Input-Pfade ab; Runbook ergänzt in `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`.
   - ✅ 2026-02-27: #145 abgeschlossen (Runtime-Credential-Injection-Inventar): neues Read-only Inventarisierungs-Script `scripts/inventory_bl17_runtime_credential_paths.py` mit strukturiertem JSON-Export (`--output-json`) und standardisierten Feldern für `effect`, `migration_next_step`, `owner`; deckt Runtime-Caller, statische Env-Keys, Profile/Config/Cron/Systemd-Pfade sowie verfügbaren AssumeRole-Migrationspfad ab. Neue Dokumentation in `docs/BL17_RUNTIME_CREDENTIAL_INJECTION_INVENTORY.md`, Runbook-Verlinkung in `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md` und Legacy-Readiness-Verknüpfung in `docs/LEGACY_IAM_USER_READINESS.md`. Testnachweis via `tests/test_inventory_bl17_runtime_credential_paths.py`.
+  - ✅ 2026-02-27: #148 abgeschlossen (Runtime-Default auf AssumeRole-first): neues Wrapper-Script `scripts/openclaw_runtime_assumerole_exec.sh` ersetzt beim Runtime-Start langlebige Legacy-Env-Keys durch temporäre STS-Session-Credentials; `scripts/inventory_bl17_runtime_credential_paths.py` klassifiziert temporäre Session-Credentials nun als low-risk (`runtime-env-session-credentials`) und meldet `runtime-env-static-keys` nur noch bei langlebigen/inkonsistenten Key-Pfaden; `scripts/audit_legacy_runtime_consumers.sh` auf dieselbe Klassifikation gehärtet. Verifizierter Read-only Nachweis im neuen Default-Pfad: Inventory/Audit/Posture jeweils Exit `0`. Testnachweise via `tests/test_inventory_bl17_runtime_credential_paths.py`, `tests/test_openclaw_runtime_assumerole_exec.py`, `tests/test_aws_exec_via_openclaw_ops.py`.
 - **Work-Packages (Issue #2):**
   - [x] #136
   - [x] #137
   - [x] #138
   - [x] #144
   - [x] #145
+  - [x] #148
 
 ### BL-18 — Service funktional weiterentwickeln + als Webservice E2E testen
 - **Priorität:** P1

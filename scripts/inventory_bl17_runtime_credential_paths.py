@@ -52,6 +52,33 @@ def short_key(value: str) -> str:
     return f"{value[:4]}***{value[-4:]}"
 
 
+def classify_env_credential_mode(access_key: str, secret_key_set: bool, session_token_set: bool) -> str:
+    has_access = bool(access_key)
+    has_secret = bool(secret_key_set)
+    has_session = bool(session_token_set)
+
+    if not has_access and not has_secret and not has_session:
+        return "absent"
+
+    if has_access != has_secret:
+        return "partial"
+
+    if has_access and has_secret:
+        key_upper = access_key.upper()
+        if has_session:
+            if key_upper.startswith("ASIA"):
+                return "session-temporary"
+            if key_upper.startswith("AKIA"):
+                return "long-lived-static"
+            return "session-unknown-prefix"
+        return "long-lived-static"
+
+    if has_session and not (has_access or has_secret):
+        return "session-only"
+
+    return "unknown"
+
+
 def detect_caller_arn() -> tuple[str | None, str]:
     aws_bin = shutil_which("aws")
     if not aws_bin:
@@ -176,6 +203,11 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
     env_secret_key_set = bool(os.environ.get("AWS_SECRET_ACCESS_KEY"))
     env_session_token_set = bool(os.environ.get("AWS_SESSION_TOKEN"))
     env_web_identity = os.environ.get("AWS_WEB_IDENTITY_TOKEN_FILE", "")
+    env_credential_mode = classify_env_credential_mode(
+        access_key=env_access_key,
+        secret_key_set=env_secret_key_set,
+        session_token_set=env_session_token_set,
+    )
 
     detections: list[Detection] = [
         Detection(
@@ -191,17 +223,33 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
         ),
         Detection(
             id="runtime-env-static-keys",
-            detected=bool(env_access_key and env_secret_key_set),
+            detected=env_credential_mode in {"long-lived-static", "partial", "session-unknown-prefix"},
             source_type="environment",
             source="process env",
             risk_level="high",
-            effect="Statische AWS-Keys sind im Runtime-Environment aktiv und können Legacy-Zugriffe erzwingen.",
-            migration_next_step="Statische Keys aus Runtime-Startpfaden entfernen und AWS-CLI-Aufrufe über aws_exec_via_openclaw_ops.sh routen.",
+            effect="Langlebige oder inkonsistente AWS-Key-Variablen sind im Runtime-Environment aktiv und können Legacy-Zugriffe erzwingen.",
+            migration_next_step="Runtime-Startpfade auf AssumeRole-first umstellen (temporäre Session-Credentials mit AWS_SESSION_TOKEN) und statische Keys entfernen.",
             owner="platform-ops",
             evidence={
                 "aws_access_key_id": short_key(env_access_key) if env_access_key else None,
                 "aws_secret_access_key_set": env_secret_key_set,
                 "aws_session_token_set": env_session_token_set,
+                "credential_mode": env_credential_mode,
+            },
+        ),
+        Detection(
+            id="runtime-env-session-credentials",
+            detected=env_credential_mode == "session-temporary",
+            source_type="environment",
+            source="process env",
+            risk_level="low",
+            effect="Temporäre STS-Session-Credentials sind aktiv (AssumeRole-first kompatibel).",
+            migration_next_step="Diesen Runtime-Default beibehalten und Legacy-User-Keys nicht mehr persistent injizieren.",
+            owner="platform-ops",
+            evidence={
+                "aws_access_key_id": short_key(env_access_key) if env_access_key else None,
+                "aws_session_token_set": env_session_token_set,
+                "credential_mode": env_credential_mode,
             },
         ),
         Detection(

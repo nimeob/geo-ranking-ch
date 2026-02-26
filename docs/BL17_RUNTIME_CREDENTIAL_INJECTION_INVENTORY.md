@@ -19,6 +19,14 @@ cd /data/.openclaw/workspace/geo-ranking-ch
   --output-json artifacts/bl17/runtime-credential-injection-inventory.json
 ```
 
+Default-Runtime-Nachweis (AssumeRole-first Startpfad):
+
+```bash
+./scripts/openclaw_runtime_assumerole_exec.sh \
+  ./scripts/inventory_bl17_runtime_credential_paths.py \
+  --output-json artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json
+```
+
 Exit-Code-Interpretation:
 - `0` = keine riskanten Injection-Befunde erkannt
 - `10` = mindestens ein riskanter Befund erkannt (Legacy/Key-Injection)
@@ -40,7 +48,7 @@ Pflichtfelder im Report:
 Die Inventarisierung deckt u. a. folgende Pfade ab:
 
 1. **Runtime-Caller-Klassifikation** (`aws sts get-caller-identity`)
-2. **Statische Keys im Prozess-Environment** (`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`)
+2. **Langlebige/inkonsistente Keys im Prozess-Environment** (`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` ohne belastbares STS-Session-Signal)
 3. **Web-Identity-Signal** (`AWS_WEB_IDENTITY_TOKEN_FILE`)
 4. **Persistente Profile** (Shell-/Env-Dateien)
 5. **AWS Config/Credentials Files** (`~/.aws/config`, `~/.aws/credentials`)
@@ -57,6 +65,7 @@ Für jeden `detected=true` Befund gilt:
 
 ## Verknüpfte Artefakte
 
+- Runtime-Default-Wrapper: `scripts/openclaw_runtime_assumerole_exec.sh`
 - OIDC/AssumeRole Posture-Check: `scripts/check_bl17_oidc_assumerole_posture.sh`
 - Fensteraggregation: `scripts/summarize_bl17_posture_reports.py`
 - Haupt-Runbook: `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`
