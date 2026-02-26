@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C HTTP-Scheme-Case-Härtung + Langlauf-Nachweis)
+- **`scripts/run_remote_api_smoketest.sh`:** http(s)-Schema-Check akzeptiert jetzt auch grossgeschriebene Varianten (`HTTP://`, `HTTPS://`) für robustere Runbook-Ausführung bei manuellen Copy/Paste-Inputs.
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path sichert reproduzierbar ab, dass `DEV_BASE_URL` mit `HTTP://.../health` erfolgreich normalisiert und getestet wird.
+- **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`25 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-1772091468.json` und `artifacts/bl18.1-remote-stability-local-worker-c-1772091468.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-C-Scheme-Case-Langlauf synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Command/Exit/Evidenz auf aktuellen Worker-C-Langlauf aktualisiert (`25 passed`, Smoke + 3x Stabilität) und die neue Schema-Case-Abdeckung dokumentiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Query/Fragment-Guard + Langlauf-Nachweis)
 - **`tests/test_remote_smoke_script.py`:** E2E-Happy-Path für verkettete Base-URL-Suffixe (`.../health/analyze`) ergänzt sowie Negativtest für `DEV_BASE_URL` mit Query/Fragment (`exit 2`).
 - **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`24 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-1772091225.json` und `artifacts/bl18.1-remote-stability-local-worker-b-1772091225.ndjson`.

@@ -90,7 +90,7 @@ case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
 esac
 
 RAW_BASE_URL="${DEV_BASE_URL%/}"
-if [[ ! "$RAW_BASE_URL" =~ ^https?:// ]]; then
+if [[ ! "$RAW_BASE_URL" =~ ^[Hh][Tt][Tt][Pp]([Ss])?:// ]]; then
   echo "[BL-18.1] DEV_BASE_URL muss mit http:// oder https:// beginnen (aktuell: ${DEV_BASE_URL})." >&2
   exit 2
 fi
