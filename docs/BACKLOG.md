@@ -296,6 +296,7 @@
   - Kein weiterer BL-18.1-Ausbau bis BL-19-MVP abgeschlossen ist.
   - Ausnahmen nur bei kritischem Produktions-/Deploy-Blocker oder expliziter Nico-Freigabe.
 - **Umgesetzt (Iteration 2026-02-26, historisch):**
+  - ✅ 2026-02-26: kritischer Deploy-Blocker behoben (Freeze-Ausnahme): ECS-Task-Healthcheck nutzt `curl`, Image enthielt jedoch kein `curl` → Container wurde fortlaufend als unhealthy ersetzt. Fix via `Dockerfile` (`apt-get install --no-install-recommends curl`) + Regressionstest `tests/test_dockerfile_runtime_deps.py`.
   - ✅ 2026-02-26: #134 abgeschlossen (externe Blocker-Retry-Steuerung automatisiert): `scripts/blocker_retry_supervisor.py` ergänzt (3h Grace-Period, max. 3 Fehlversuche, automatisches Follow-up-Issue), Doku in `docs/AUTONOMOUS_AGENT_MODE.md` + `docs/OPERATIONS.md` nachgezogen und durch `tests/test_blocker_retry_supervisor.py` reproduzierbar abgesichert.
   - `scripts/run_remote_api_smoketest.sh` ergänzt und gehärtet (Retry-Handling, Request-ID, optionale JSON-Artefaktausgabe via `SMOKE_OUTPUT_JSON`, default Echo-Validierung von Request-ID in Header + JSON).
   - `src/web_service.py` um Request-Korrelation für `/analyze` erweitert (erste **gültige** ID aus `X-Request-Id`/`X_Request_Id` bzw. `X-Correlation-Id`/`X_Correlation_Id` wird in Response-Header + JSON-Feld `request_id` gespiegelt; leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen, IDs mit Trennzeichen `,`/`;`, Non-ASCII-IDs oder IDs mit mehr als 128 Zeichen werden verworfen) für reproduzierbare Remote-Diagnosen.
