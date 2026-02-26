@@ -116,6 +116,23 @@ class TestApiFieldCatalog(unittest.TestCase):
                 msg=f"Scoring-Feldpfad fehlt in scoring_methodology.md: {path}",
             )
 
+    def test_scoring_methodology_documents_calculation_interpretation_and_bias(self):
+        content = SCORING_METHODOLOGY_DOC.read_text(encoding="utf-8")
+        markers = [
+            "## 2) Berechnungslogik je Score-Familie",
+            "### 2.1 Confidence-Familie",
+            "### 2.2 Matching-Familie",
+            "### 2.3 Legacy-Kontext/Suitability-Familie",
+            "## 3) Interpretationsbänder (inkl. Richtung und Grenzen)",
+            "## 4) Missing Values, Outlier und Determinismus",
+            "## 5) Unsicherheit, Bias und sichere Nutzung",
+            "match_component",
+            "required_source_health",
+            "confidence.level=low",
+        ]
+        for marker in markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt in scoring_methodology.md: {marker}")
+
     def test_grouped_partial_example_documents_missing_or_disabled_data(self):
         self.assertTrue(
             GROUPED_PARTIAL_EXAMPLE.is_file(),

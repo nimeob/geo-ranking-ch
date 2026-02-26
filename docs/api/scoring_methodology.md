@@ -1,16 +1,19 @@
-# BL-20.1.f.wp1 — Scoring Methodology Specification (v1)
+# BL-20.1.f — Scoring Methodology Specification (v1)
 
 Stand: 2026-02-26
-Status: Draft (Score-Katalog)
+Status: Draft (WP1 + WP2)
+Methodik-Version: `scoring-v1-draft`
 
-Diese Spezifikation dokumentiert alle aktuell vertraglich relevanten Bewertungs-/Risiko-/Confidence-Felder der API.
+Diese Spezifikation dokumentiert die aktuell vertraglich relevanten Bewertungs-/Risiko-/Confidence-Felder der API inkl. Berechnungslogik, Interpretationsrahmen und Integrationshinweisen.
 
 Quellen der Wahrheit:
 - Feldkatalog: [`docs/api/field_catalog.json`](./field_catalog.json)
 - API-Contract: [`docs/api/contract-v1.md`](./contract-v1.md)
 - Human-readable Feldreferenz: [`docs/api/field-reference-v1.md`](./field-reference-v1.md)
 
-> Scope dieses Work-Packages (#79): vollständiger **Score-Katalog** inkl. Feldpfad, Zielaussage, Skala, Richtung und Stabilitätsstatus.
+> Scope WP1 (#79): vollständiger **Score-Katalog**.
+>
+> Scope WP2 (#80): **Berechnungslogik + Interpretationsrahmen** inkl. Missing-/Outlier-Regeln und Bias-Hinweisen.
 
 ## 1) Score-Katalog (legacy + grouped)
 
@@ -28,28 +31,168 @@ Quellen der Wahrheit:
 | `result.data.modules.match.selected_score` | grouped | number | Score des ausgewählten Match-Kandidaten | `0.0 .. 1.0` (normiert) | höher = besser | `stable` | Matching-Modul |
 | `result.data.by_source.*.data.match.selected_score` | grouped | number | Source-spezifischer Match-Score in der by_source-Projektion | `0.0 .. 1.0` (normiert) | höher = besser | `beta` | by_source projection |
 
-## 2) Integrator-Hinweise pro Stabilitätsstatus
+## 2) Berechnungslogik je Score-Familie
+
+### 2.1 Confidence-Familie (`result.status.quality.confidence.*`, `result.confidence`)
+
+Normativer grouped Hauptscore (`score`, `max`, `level`) basiert auf vier positiven Komponenten und zwei Penalties:
+
+```text
+score_raw
+  = match_component              # 0..40
+  + data_completeness            # 0..30
+  + cross_source_consistency     # 0..20
+  + required_source_health       # 0..10
+  - mismatch_penalty             # 0..~14+
+  - ambiguity_penalty            # 0..10
+
+score = clamp(round(score_raw), 0, 100)
+max   = 100
+```
+
+Komponenten-Definition (aktuelles v1-Verhalten):
+- `match_component`: aus Match-Qualität (pre/detail), linear auf `0..40` skaliert.
+- `data_completeness`: Verfügbarkeit zentraler IDs/Attribute (EGID/EGRID, Status, Baujahr etc.), gedeckelt auf `30`.
+- `cross_source_consistency`: Konsistenz zwischen Kernquellen (u. a. GWR, PLZ-Layer, Admin-Boundary, optional OSM), gedeckelt auf `20`.
+- `required_source_health`: Anteil erfolgreich verfügbarer Pflichtquellen, skaliert auf `0..10`.
+- `mismatch_penalty`: Abzug bei harten Widersprüchen (z. B. Hausnummer-/Strassenabweichung).
+- `ambiguity_penalty`: Abzug bei geringer Distanz zum nächstbesten Match.
+
+Level-Mapping:
+- `high`: `score >= 82`
+- `medium`: `62 <= score < 82`
+- `low`: `score < 62`
+
+Legacy-Projektion:
+- `result.confidence = round(score / max, 2)` (normiert `0..1`).
+- `result.explainability.sources[*].confidence` bleibt quellenbezogen (`0..1`) und ist **kein** Ersatz für den globalen Qualitäts-Score.
+
+### 2.2 Matching-Familie (`result.data.modules.match.selected_score`, by_source-Projection)
+
+`selected_score` basiert auf einem zweistufigen Kandidatenscoring:
+
+1) **Pre-Score** (Suchtreffer-Text/Metadaten)
+- Street-/Hausnummer-/PLZ-/Ort-Matches (Bonus/Malus)
+- `origin=address` Bonus
+- Search-Rank-Bonus
+- Feature-ID-/Label-Kohärenz-Bonus
+
+2) **Detail-Score** (hydratisierte Adress-/GWR-Attribute)
+- Abgleich Strasse/Hausnummer/PLZ/Ort mit GWR-Attributen
+- Bonus für amtliche Adresse (`adr_official`)
+- Bonus für plausiblen Gebäudestatus
+
+```text
+selected_score_internal = pre_score + detail_score
+selected_score_contract = clamp(round(selected_score_internal / 100, 2), 0, 1)
+```
+
+Hinweis zur Interpretation:
+- Der Match-Score ist ein Ranking-/Vergleichsscore innerhalb des Kandidaten-Sets.
+- Der Contract-Wert wird als normierter Qualitätsindikator (`0..1`) bereitgestellt.
+- Für das Endvertrauen muss er zusammen mit `result.status.quality.confidence.*` gelesen werden.
+- `result.data.by_source.*.data.match.selected_score` ist eine projektionale Darstellung desselben Match-Ergebnisses für Source-Slices.
+
+### 2.3 Legacy-Kontext/Suitability-Familie (`context_profile.*`, `suitability_light.*`)
+
+Diese Felder bleiben als Legacy-Contract-Felder (`beta`) dokumentiert und folgen dem gleichen Richtungsverständnis wie grouped Scores:
+
+- `pt_access_score` (`0..100`, höher = besser)
+- `noise_risk` (`low|medium|high`, höher = schlechter)
+- `suitability_light.score` (`0..100`, höher = besser)
+- `suitability_light.traffic_light` (`green|yellow|red`)
+
+Normative Kopplungsregel für Integratoren:
+- Suitability darf **nicht** isoliert interpretiert werden.
+- Mindestens folgende Kontexte zusammen lesen: Match-Qualität, Confidence-Level, `noise_risk` und Explainability.
+
+## 3) Interpretationsbänder (inkl. Richtung und Grenzen)
+
+### 3.1 Confidence (`result.status.quality.confidence.score`)
+
+| Band | Range | Bedeutung |
+|---|---:|---|
+| low | `0..61` | Unsicheres Resultat; manuelle Prüfung empfohlen |
+| medium | `62..81` | Nutzbar mit Vorsicht; mögliche Ambiguitäten prüfen |
+| high | `82..100` | Gute Daten-/Konsistenzlage, regulär nutzbar |
+
+### 3.2 Legacy-Confidence (`result.confidence`)
+
+| Band | Range |
+|---|---:|
+| low | `< 0.62` |
+| medium | `0.62 .. < 0.82` |
+| high | `>= 0.82` |
+
+### 3.3 Noise-/Suitability-Ampel
+
+| Feld | Grün | Gelb | Rot |
+|---|---:|---:|---:|
+| `suitability_light.score` | `>= 72` | `52 .. < 72` | `< 52` |
+| `noise_risk` (ordinal) | `low` | `medium` | `high` |
+
+Richtungsregel (verbindlich):
+- Numerische Scores: höher = besser, **außer** explizit als Risikoindex gekennzeichnet.
+- Risiko-Ordinals (`noise_risk`): `high` ist fachlich ungünstiger als `low`.
+
+## 4) Missing Values, Outlier und Determinismus
+
+### 4.1 Missing Values
+
+- Fehlende Pflichtquellen senken `required_source_health` direkt.
+- Fehlende Kernattribute reduzieren `data_completeness`.
+- Bei unvollständigen Inputs werden betroffene Komponenten defensiv bewertet statt implizit positiv imputed.
+- Bei niedriger Gesamtqualität wird eine Warnung gesetzt (`manuelle Prüfung empfohlen`).
+
+### 4.2 Outlier-/Grenzbehandlung
+
+- Komponenten werden auf definierte Teilbereiche begrenzt (z. B. `0..40`, `0..30`, `0..20`, `0..10`).
+- Gesamtscore wird auf `0..100` geclamped und auf ganze Zahl gerundet.
+- Normierte Legacy-Werte bleiben innerhalb `0..1`.
+
+### 4.3 Determinismus
+
+- Gleiche Inputs + gleiche Upstream-Datenstände müssen zu identischen Scores führen.
+- Rounding ist explizit Teil der Methodik (reproduzierbare Vergleichbarkeit).
+- Änderungen an Schwellen/Gewichtung gelten als methodische Änderung und müssen versioniert dokumentiert werden.
+
+## 5) Unsicherheit, Bias und sichere Nutzung
+
+Typische Unsicherheitsquellen:
+- Datenlücken einzelner Quellen (Coverage, Aktualität, Teil-Ausfälle)
+- Regional unterschiedliche Datenqualität (urban/rural)
+- Ambige Adressen (kleine Score-Abstände zwischen Kandidaten)
+- Unterschiedliche Semantik zwischen offiziellen/Community-Quellen
+
+Bias-Hinweise:
+- Quellen mit hoher Verfügbarkeit können in Randregionen überrepräsentieren/unterrepräsentieren.
+- Risiko-/Eignungsindikatoren sind heuristisch und keine behördliche Einzelbewilligungsentscheidung.
+
+Integrationsregel:
+- Für automatisierte Entscheidungen immer mindestens Confidence-Level + Explainability + Source-Status gemeinsam auswerten.
+- Bei `confidence.level=low` oder Ambiguitätswarnungen Fallback/Manual-Review vorsehen.
+
+## 6) Integrator-Hinweise pro Stabilitätsstatus
 
 - `stable`: kann als vertraglich belastbarer Integrationspunkt genutzt werden.
-- `beta`: nur defensiv konsumieren (Fallbacks/Feature-Flags einplanen).
+- `beta`: defensiv konsumieren (Fallbacks/Feature-Flags einplanen).
 - `internal`: nicht Teil des externen Integrationsvertrags (im Score-Katalog aktuell kein Feld mit `internal`).
 
 Details zur Stabilitäts- und Change-Policy:
 - [`docs/api/contract-stability-policy.md`](./contract-stability-policy.md)
 
-## 3) Konsistenzregel zum Feldkatalog
+## 7) Konsistenzregel zum Feldkatalog
 
-Der Score-Katalog muss 1:1 mit dem maschinenlesbaren Feldkatalog konsistent bleiben:
-- Neue Score-/Risk-/Rating-/Confidence-Felder zuerst in `docs/api/field_catalog.json` ergänzen
-- Danach `docs/api/scoring_methodology.md` synchronisieren
-- Anschließend Contract-Checks laufen lassen
+Die Methodik muss 1:1 mit dem maschinenlesbaren Feldkatalog konsistent bleiben:
+- Neue Score-/Risk-/Rating-/Confidence-Felder zuerst in `docs/api/field_catalog.json` ergänzen.
+- Danach `docs/api/scoring_methodology.md` synchronisieren.
+- Anschließend Contract-Checks laufen lassen.
 
 Verifikation:
 - `python3 scripts/validate_field_catalog.py`
 - `pytest -q tests/test_api_field_catalog.py`
 
-## 4) Open Items (Folge-Work-Packages)
+## 8) Open Items (Folge-Work-Packages)
 
-- #80: Berechnungslogik, Normalisierung, Gewichtung und Interpretationsbänder vertiefen
 - #81: Reproduzierbare Worked Examples (Input -> Rechenschritte -> Endscore)
 - #82: Golden-Tests + Methodik-Versionierung
