@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Kombi-Normalisierung + Validierungsabdeckung)
+- **`tests/test_remote_smoke_script.py`:** neuer Happy-Path für kombinierte Base-URL-Normalisierung (`"  HTTP://.../HeAlTh/AnAlYzE/  "`) ergänzt; zusätzliche Negativtests für `CURL_RETRY_DELAY=-1` und ungültiges `SMOKE_ENFORCE_REQUEST_ID_ECHO=2` sichern Fail-fast-Verhalten reproduzierbar ab.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`31 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-1772092447.json` und `artifacts/bl18.1-remote-stability-local-worker-a-1772092447.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-A-Kombi-Recheck synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Nachweisführung und E2E-Abdeckung auf den aktuellen Worker-A-Langlauf mit kombinierter URL-Normalisierung (`HTTP://.../HeAlTh/AnAlYzE/`, Whitespace, trailing Slash) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Langlauf-Recheck `HTTP://.../HeAlTh`)
 - **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`28 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-1772092067.json` und `artifacts/bl18.1-remote-stability-local-worker-c-1772092067.ndjson`.
 

@@ -199,6 +199,19 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
 
+    def test_smoke_script_handles_combined_scheme_case_suffix_chain_slash_and_whitespace(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            base_url=f"  HTTP://127.0.0.1:{self.port}/HeAlTh/AnAlYzE/  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertEqual(data.get("http_status"), 200)
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+
     def test_smoke_script_rejects_whitespace_only_base_url(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"
@@ -388,6 +401,62 @@ class TestRemoteSmokeScript(unittest.TestCase):
 
             self.assertEqual(cp.returncode, 2)
             self.assertIn("CURL_RETRY_COUNT muss eine Ganzzahl >= 0 sein", cp.stderr)
+            self.assertFalse(out_json.exists())
+
+    def test_smoke_script_rejects_invalid_retry_delay(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "CURL_RETRY_DELAY": "-1",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("CURL_RETRY_DELAY muss eine Ganzzahl >= 0 sein", cp.stderr)
+            self.assertFalse(out_json.exists())
+
+    def test_smoke_script_rejects_invalid_request_id_echo_flag(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_ENFORCE_REQUEST_ID_ECHO": "2",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("Ungültiger SMOKE_ENFORCE_REQUEST_ID_ECHO='2'", cp.stderr)
             self.assertFalse(out_json.exists())
 
 
