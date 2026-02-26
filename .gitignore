@@ -40,6 +40,7 @@ cdk.out/
 # Logs
 *.log
 logs/
+artifacts/
 
 # Test
 .pytest_cache/

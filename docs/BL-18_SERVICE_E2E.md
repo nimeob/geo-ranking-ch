@@ -97,7 +97,7 @@ SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json" \
 
 Wichtige Optionen:
 - `DEV_BASE_URL`: muss mit `http://` oder `https://` starten; Suffixe `/health` oder `/analyze` werden automatisch auf die Service-Basis normalisiert.
-- `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen Zahlen `> 0` sein (früher, klarer `exit 2` bei Fehlwerten).
+- `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf`).
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein.
 - `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche)
 - `SMOKE_ENFORCE_REQUEST_ID_ECHO` (`1|0`, default `1`): erzwingt Echo-Prüfung für Header + JSON (`request_id`)

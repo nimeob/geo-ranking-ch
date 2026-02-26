@@ -281,7 +281,7 @@
   - `scripts/run_remote_api_stability_check.sh` ergänzt (Mehrfachlauf mit NDJSON-Report + Fail-Threshold für kurze Stabilitäts-/Abnahmeläufe).
   - `tests/test_remote_smoke_script.py` ergänzt (lokale E2E-Validierung des Smoke-Skripts inkl. Auth-Pfad/Fehlpfad + Request-ID-Echo-Nachweis).
   - `scripts/run_remote_api_smoketest.sh` URL-Normalisierung ergänzt (`/health`/`/analyze`-Suffixe) + harte http(s)-Schema-Validierung zur robusten Runbook-Reproduzierbarkeit.
-  - `scripts/run_remote_api_smoketest.sh` validiert Eingabeparameter strikt (`SMOKE_TIMEOUT_SECONDS`/`CURL_MAX_TIME` > 0, `CURL_RETRY_COUNT`/`CURL_RETRY_DELAY` Ganzzahl >= 0) und bricht bei Fehlwerten reproduzierbar mit `exit 2` ab.
+  - `scripts/run_remote_api_smoketest.sh` validiert Eingabeparameter strikt (`SMOKE_TIMEOUT_SECONDS`/`CURL_MAX_TIME` = endliche Zahl > 0, `CURL_RETRY_COUNT`/`CURL_RETRY_DELAY` Ganzzahl >= 0) und bricht bei Fehlwerten reproduzierbar mit `exit 2` ab.
   - `tests/test_remote_smoke_script.py` um Negativfälle für ungültige Timeout-/Retry-Parameter erweitert (früher Blocker/Traceback → jetzt klare CLI-Fehlermeldung).
   - `tests/test_remote_stability_script.py` ergänzt (lokale E2E-Validierung des Stabilitätsrunners inkl. Stop-on-first-fail-, NDJSON- und Request-ID-Korrelationsnachweis).
   - `scripts/run_remote_api_stability_check.sh` validiert `STABILITY_STOP_ON_FIRST_FAIL` strikt (`0|1`) für reproduzierbare CLI-Konfiguration; Negativfall ist über `tests/test_remote_stability_script.py` abgedeckt.

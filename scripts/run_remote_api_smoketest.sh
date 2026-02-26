@@ -40,6 +40,7 @@ export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQU
 
 is_positive_number() {
   python3 - "$1" <<'PY'
+import math
 import sys
 
 try:
@@ -47,7 +48,7 @@ try:
 except ValueError:
     raise SystemExit(1)
 
-if value <= 0:
+if not math.isfinite(value) or value <= 0:
     raise SystemExit(1)
 PY
 }

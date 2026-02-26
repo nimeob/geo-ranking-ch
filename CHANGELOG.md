@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Non-finite Numerik-Guards + Worker-B-Nachweis)
+- **`tests/test_remote_smoke_script.py`:** Negativtests für non-finite Timeouts ergänzt (`SMOKE_TIMEOUT_SECONDS=nan`, `CURL_MAX_TIME=inf`) mit reproduzierbarem `exit 2`.
+- **Lokaler Real-Run (Worker B):** `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` gegen lokale Webservice-Instanz erfolgreich ausgeführt (`pass=2`, `fail=0`, Request-ID-Echo Header+JSON konsistent), Evidenz in `artifacts/bl18.1-smoke-local-worker-b.json` und `artifacts/bl18.1-remote-stability-local-worker-b.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Striktere Numerik-Validierung + sauberer Workspace)
+- **`scripts/run_remote_api_smoketest.sh`:** Numerische Eingabeprüfung auf endliche positive Zahlen gehärtet (`nan`/`inf` werden nun früh mit `exit 2` abgewiesen).
+- **`.gitignore`:** Laufzeit-/Smoke-Artefakte (`artifacts/`) explizit ignoriert, damit wiederholte BL-18.1-Runs den Git-Status nicht verschmutzen.
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Runbook-/Backlog-Doku auf endliche Numerik-Validierung synchronisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Input-Validierung für Remote-Smoke-Runner)
 - **`tests/test_remote_smoke_script.py`:** Negativfälle für ungültige numerische Smoke-Parameter ergänzt (`SMOKE_TIMEOUT_SECONDS`, `CURL_RETRY_COUNT`) und auf reproduzierbaren `exit 2` abgesichert.
 
