@@ -29,47 +29,69 @@ jobs:
               per_page: 100,
             });
 
-            const candidates = all
+            const backlogWithPriority = all
               .filter((i) => !i.pull_request)
               .map((i) => {
                 const labels = (i.labels || []).map((l) => (typeof l === 'string' ? l : l.name));
                 const priority = labels.find((l) => Object.keys(rank).includes(l));
                 return { issue: i, labels, priority };
               })
-              .filter((x) => x.labels.includes('status:todo'))
               .filter((x) => x.priority)
               .filter((x) => x.labels.includes('backlog'));
 
-            if (candidates.length === 0) {
-              core.info('No backlog issues in status:todo with priority label. Nothing to enforce.');
+            if (backlogWithPriority.length === 0) {
+              core.info('No backlog issues with priority label. Nothing to enforce.');
               return;
             }
 
-            const activeTier = Math.min(...candidates.map((x) => rank[x.priority]));
+            const openByTier = backlogWithPriority.filter((x) => x.issue.state === 'open');
+            const activeTier = Math.min(...openByTier.map((x) => rank[x.priority]));
             core.info(`Active claim tier: ${activeTier}`);
 
-            for (const c of candidates) {
+            for (const c of openByTier) {
               const currentTier = rank[c.priority];
-              if (currentTier <= activeTier) continue;
+              const hasTodo = c.labels.includes('status:todo');
+              const hasBlocked = c.labels.includes('status:blocked');
 
-              const newLabels = Array.from(new Set([
-                ...c.labels.filter((l) => l !== 'status:todo'),
-                'status:blocked',
-              ]));
+              if (currentTier === activeTier) {
+                if (!hasTodo || hasBlocked) {
+                  const newLabels = Array.from(new Set([
+                    ...c.labels.filter((l) => l !== 'status:blocked'),
+                    'status:todo',
+                  ]));
 
-              await github.rest.issues.setLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: c.issue.number,
-                labels: newLabels,
-              });
+                  await github.rest.issues.setLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: c.issue.number,
+                    labels: newLabels,
+                  });
 
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: c.issue.number,
-                body: `⏸️ Claim-Priorität aktiv: Es gibt aktuell höher priorisierte TODO-Issues (P${activeTier}). Dieses Issue wurde daher temporär auf \`status:blocked\` gesetzt.`,
-              });
+                  core.info(`Issue #${c.issue.number} promoted to todo (priority ${c.priority}).`);
+                }
+                continue;
+              }
 
-              core.info(`Issue #${c.issue.number} demoted to blocked (priority ${c.priority}).`);
+              if (currentTier > activeTier && hasTodo) {
+                const newLabels = Array.from(new Set([
+                  ...c.labels.filter((l) => l !== 'status:todo'),
+                  'status:blocked',
+                ]));
+
+                await github.rest.issues.setLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: c.issue.number,
+                  labels: newLabels,
+                });
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: c.issue.number,
+                  body: `⏸️ Claim-Priorität aktiv: Es gibt aktuell höher priorisierte TODO-Issues (P${activeTier}). Dieses Issue wurde daher temporär auf \`status:blocked\` gesetzt.`,
+                });
+
+                core.info(`Issue #${c.issue.number} demoted to blocked (priority ${c.priority}).`);
+              }
             }
