@@ -41,13 +41,39 @@ Bei komplexen/mehrstufigen Aufgaben gilt:
 2. **Parallelisieren**, wenn Teilaufgaben unabhängig sind (z. B. Analyse + Doku + Testplan).
 3. Hauptsession bleibt Koordinator (Plan, Integration, finale Commits).
 
+## Job-Framework (verbindlich) — Drei Säulen pro Feature
+
+Ab sofort wird jede Weiterentwicklung entlang von **3 Säulen** geplant und umgesetzt:
+
+1. **Programmierung** (Feature/Code)
+2. **Dokumentation** (User- und Betriebsdoku)
+3. **Testing** (Regression + Erweiterung auf neue Features)
+
+Regel: Neue Features gelten erst als „integriert“, wenn alle drei Säulen aktualisiert sind.
+
+### Reihenfolge-Entscheid (Nico-Vorgabe)
+
+- **BL-19 zuerst** auf arbeitsfähigen Stand bringen (Doku-Säule aufholen).
+- **BL-20 erst danach** starten.
+- Während BL-20 laufen alle 3 Säulen pro Iteration parallel mit.
+
+### BL-19 Gate vor BL-20 (harte Eintrittsbedingung)
+
+BL-20 startet erst, wenn mindestens folgende BL-19-Teile umgesetzt sind:
+- BL-19.1 Informationsarchitektur
+- BL-19.2 Getting Started
+- BL-19.4 API Usage Guide
+- BL-19.3 Konfiguration/ENV
+- BL-19.7 README-Integration
+
 ## „Weiterarbeit“-Default (wenn Nico sagt „mach weiter“)
 
 Priorisierte Reihenfolge:
 
 1. Offene `P0`-Items aus `docs/BACKLOG.md`
-2. Danach `P1` mit maximalem Risikoabbau bei minimalem Eingriff
-3. Doku und Betriebsrunbooks immer mitziehen (keine stillen Architekturänderungen)
+2. Dann aktive Prioritätsgates aus dem Job-Framework (aktuell: **BL-19 vor BL-20**)
+3. Danach `P1` mit maximalem Produktnutzen bei minimalem Risiko
+4. Doku und Betriebsrunbooks immer mitziehen (keine stillen Architekturänderungen)
 
 ## Definition of Done pro Iteration
 

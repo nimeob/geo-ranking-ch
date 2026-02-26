@@ -313,7 +313,7 @@
   - Reproduzierbarkeits-Check erneuert: `./scripts/run_webservice_e2e.sh` erfolgreich (`100 passed`, Exit `0`) direkt vor dem dedizierten Worker-1-10m-Langlauf (Smoke + 3x Stabilität).
 
 ### BL-19 — Userdokumentation
-- **Priorität:** P2
+- **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-18 (API-Verhalten stabil dokumentierbar)
 - **Status:** 🟡 neu / in Planung (Issue #5)
@@ -341,7 +341,7 @@
 - **Priorität:** P1
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-18, BL-19
-- **Status:** 🟡 neu (2026-02-26)
+- **Status:** ⛔ blockiert bis BL-19-MVP steht (Nico-Vorgabe, 2026-02-26)
 - **Quelle/Vision:** [`docs/VISION_PRODUCT.md`](docs/VISION_PRODUCT.md)
 - **Zielbild:** Adresse oder Kartenpunkt in der Schweiz analysieren und als kombinierte Standort-/Gebäudeauskunft bereitstellen; Webservice und GUI separat nutzbar/vermarktbar.
 - **Akzeptanzkriterien (Phase 1):**
@@ -360,6 +360,9 @@
 - **Prioritätsregel (ab sofort):**
   - Webservice-Feature-Entwicklung hat Vorrang vor Testscript-Hardening.
   - Test-Skripte laufen im Maintenance-Mode (Regression + Stabilität), außer bei neuen Risiken/Anforderungen.
+- **Job-Framework-Regel (verbindlich):**
+  - Für BL-20 gilt pro Iteration das 3-Säulen-Modell: **Programmierung + Dokumentation + Testing**.
+  - BL-20 startet erst nach BL-19-MVP (BL-19.1, 19.2, 19.4, 19.3, 19.7).
 
 ---
 
