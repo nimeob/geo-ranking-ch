@@ -14,6 +14,7 @@ set -euo pipefail
 #   STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability.ndjson"  # wird getrimmt; whitespace-only -> fail-fast
 #   STABILITY_STOP_ON_FIRST_FAIL="0"
 #   STABILITY_SMOKE_SCRIPT="/path/to/run_remote_api_smoketest.sh"  # optionales Override (Tests/Debug), wird getrimmt/validiert
+#                                                               # relative Pfade werden gegen REPO_ROOT aufgelöst; Ziel muss ausführbare Datei sein
 #   + alle Variablen aus run_remote_api_smoketest.sh (SMOKE_QUERY, DEV_API_AUTH_TOKEN, ...)
 
 if [[ -z "${DEV_BASE_URL:-}" ]]; then
@@ -80,10 +81,21 @@ then
   exit 2
 fi
 
-SMOKE_SCRIPT="${STABILITY_SMOKE_SCRIPT}"
+SMOKE_SCRIPT="$(python3 - "${REPO_ROOT}" "${STABILITY_SMOKE_SCRIPT}" <<'PY'
+import os
+import sys
 
-if [[ ! -x "$SMOKE_SCRIPT" ]]; then
-  echo "[BL-18.1] Smoke-Script nicht ausführbar/gefunden: ${SMOKE_SCRIPT}" >&2
+repo_root = sys.argv[1]
+raw_path = sys.argv[2]
+if os.path.isabs(raw_path):
+    print(raw_path)
+else:
+    print(os.path.normpath(os.path.join(repo_root, raw_path)))
+PY
+)"
+
+if [[ ! -f "$SMOKE_SCRIPT" || ! -x "$SMOKE_SCRIPT" ]]; then
+  echo "[BL-18.1] Smoke-Script muss als ausführbare Datei vorhanden sein: ${SMOKE_SCRIPT}" >&2
   exit 2
 fi
 

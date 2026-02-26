@@ -75,6 +75,7 @@ class TestRemoteStabilityScript(unittest.TestCase):
         base_url: str | None = None,
         smoke_script: str | None = None,
         report_path_env: str | None = None,
+        run_cwd: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], list[dict]]:
         with tempfile.TemporaryDirectory() as tmpdir:
             report_path = Path(tmpdir) / "stability.ndjson"
@@ -107,7 +108,7 @@ class TestRemoteStabilityScript(unittest.TestCase):
 
             cp = subprocess.run(
                 [str(STABILITY_SCRIPT)],
-                cwd=str(REPO_ROOT),
+                cwd=run_cwd or str(REPO_ROOT),
                 env=env,
                 capture_output=True,
                 text=True,
@@ -242,6 +243,34 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].get("status"), "pass")
+
+    def test_stability_runner_resolves_relative_smoke_script_override_from_foreign_cwd(self):
+        with tempfile.TemporaryDirectory() as foreign_cwd:
+            cp, entries = self._run_stability(
+                include_token=True,
+                runs=1,
+                max_failures=0,
+                stop_on_first_fail=0,
+                smoke_script="./scripts/run_remote_api_smoketest.sh",
+                run_cwd=foreign_cwd,
+            )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].get("status"), "pass")
+
+    def test_stability_runner_rejects_smoke_script_override_when_path_is_directory(self):
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs=1,
+            max_failures=0,
+            stop_on_first_fail=0,
+            smoke_script=str(REPO_ROOT / "scripts"),
+        )
+
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("Smoke-Script muss als ausführbare Datei vorhanden sein", cp.stderr)
+        self.assertEqual(entries, [])
 
     def test_stability_runner_rejects_whitespace_only_smoke_script_override(self):
         cp, entries = self._run_stability(

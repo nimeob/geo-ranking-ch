@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m REPO_ROOT-Resolve + File-Guard für `STABILITY_SMOKE_SCRIPT` + 5x Stabilität, Iteration 22)
+- **`scripts/run_remote_api_stability_check.sh`:** `STABILITY_SMOKE_SCRIPT` wird nach Trim jetzt robust aufgelöst (relative Overrides werden gegen `REPO_ROOT` normalisiert) und strikt als **ausführbare Datei** validiert (`-f` + `-x`), damit Starts aus fremdem `cwd` reproduzierbar funktionieren und Verzeichnis-Pfade fail-fast mit `exit 2` scheitern.
+- **`tests/test_remote_stability_script.py`:** zwei neue Guard-/Happy-Path-Tests decken reproduzierbar ab: (1) relativer Override `./scripts/run_remote_api_smoketest.sh` funktioniert auch bei Lauf aus fremdem `cwd`, (2) Override auf ein Verzeichnis wird klar mit `exit 2` abgewiesen.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`81 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit tab-umhülltem, relativem `STABILITY_SMOKE_SCRIPT`-Override aus fremdem `cwd`.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772106342.json`, `artifacts/bl18.1-remote-stability-local-worker-1-10m-1772106342.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-10m-server-1772106342.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-22 + `STABILITY_SMOKE_SCRIPT`-Resolve/File-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md`:** Stabilitäts-Runbook, Bedienhinweise und BL-18.1-Nachweisführung auf REPO_ROOT-Resolve + File-Guard für `STABILITY_SMOKE_SCRIPT` sowie den aktuellen Worker-1-10m-Langlauf (`81 passed`, Smoke + 5x Stabilität aus fremdem `cwd`) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Trim-/Guard für `STABILITY_SMOKE_SCRIPT` + 5x Stabilität, Iteration 21)
 - **`scripts/run_remote_api_stability_check.sh`:** optionales Script-Override `STABILITY_SMOKE_SCRIPT` wird jetzt vor Nutzung getrimmt und auf Steuerzeichen geprüft; whitespace-only oder Control-Char-Overrides brechen fail-fast mit `exit 2` ab, bevor ein fehlerhafter Runner-Pfad ausgeführt wird.
 - **`tests/test_remote_stability_script.py`:** drei neue Guard-Tests decken reproduzierbar ab: (1) getrimmtes `STABILITY_SMOKE_SCRIPT`-Override läuft erfolgreich, (2) whitespace-only Override scheitert mit `exit 2`, (3) Control-Char-Override scheitert mit `exit 2`.

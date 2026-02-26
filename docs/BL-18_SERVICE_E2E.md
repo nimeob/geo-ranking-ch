@@ -135,7 +135,7 @@ Der Runner:
 - unterstützt optionales Fail-Fast via `STABILITY_STOP_ON_FIRST_FAIL=1` (nur `0|1` erlaubt; Wert wird vor Validierung getrimmt),
 - trimmt numerische Runner-Flags (`STABILITY_RUNS`, `STABILITY_INTERVAL_SECONDS`, `STABILITY_MAX_FAILURES`) vor der Validierung für robuste Env-Inputs,
 - trimmt `STABILITY_REPORT_PATH` vor der Nutzung und weist whitespace-only bzw. Control-Char-Pfade fail-fast mit `exit 2` zurück,
-- erlaubt für Tests/Debug ein optionales Script-Override via `STABILITY_SMOKE_SCRIPT=/pfad/zu/run_remote_api_smoketest.sh`, trimmt diesen Pfad vor Nutzung und weist whitespace-only bzw. Control-Char-Overrides fail-fast mit `exit 2` zurück,
+- erlaubt für Tests/Debug ein optionales Script-Override via `STABILITY_SMOKE_SCRIPT=/pfad/zu/run_remote_api_smoketest.sh`, trimmt diesen Pfad vor Nutzung, löst relative Overrides robust gegen `REPO_ROOT` auf und weist whitespace-only/Control-Char-Overrides sowie Nicht-Datei-Pfade (z. B. Verzeichnisse) fail-fast mit `exit 2` zurück,
 - zählt fehlende/leer gebliebene Smoke-JSON-Artefakte **und** Reports mit `status!=pass` als Fehlrun (auch wenn das Smoke-Script `rc=0` liefert),
 - bricht mit Exit `1` ab, wenn `fail_count > STABILITY_MAX_FAILURES`.
 
@@ -147,6 +147,19 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, REPO_ROOT-Resolve + File-Guard für `STABILITY_SMOKE_SCRIPT` + 5x Stabilität, Iteration 22)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="46943" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:46943/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772106342  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772106342.json" ./scripts/run_remote_api_smoketest.sh`
+  - `(cd /tmp/bl18-foreign-1772106342 && DEV_BASE_URL="  HTTP://127.0.0.1:46943/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  request  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_SMOKE_SCRIPT="$(printf '  ./scripts/run_remote_api_smoketest.sh\t')" STABILITY_REPORT_PATH="$PWD/artifacts/bl18.1-remote-stability-local-worker-1-10m-1772106342.ndjson" /data/.openclaw/workspace/geo-ranking-ch/scripts/run_remote_api_stability_check.sh)`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `81 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-1-10m-1772106342.json`, `request_id_header_source=request`, `request_id_echo_enforced=true`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-1-10m-1772106342.ndjson`; Runs 1..5 alle `status=pass`) trotz tab-umhülltem, relativem `STABILITY_SMOKE_SCRIPT`-Override aus fremdem `cwd`.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772106342.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Trim-/Guard für `STABILITY_SMOKE_SCRIPT` + 5x Stabilität, Iteration 21)
 
