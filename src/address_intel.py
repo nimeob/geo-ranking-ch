@@ -26,6 +26,7 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
 import random
 import re
 import sys
@@ -54,6 +55,8 @@ DEFAULT_TIMEOUT = 15
 DEFAULT_RETRIES = 3
 DEFAULT_BACKOFF = 0.6
 DEFAULT_CACHE_TTL = 120.0
+DEFAULT_MIN_REQUEST_INTERVAL = float(os.getenv("ADDRESS_INTEL_MIN_REQUEST_INTERVAL", "0.25"))
+MAX_RETRY_AFTER_SECONDS = float(os.getenv("ADDRESS_INTEL_MAX_RETRY_AFTER", "30"))
 HTTP_DISK_CACHE_SUBDIR = ".cache/http_json"
 HTTP_DISK_CACHE_MAX_AGE = 7 * 24 * 3600.0
 
@@ -359,10 +362,12 @@ class HttpClient:
     timeout: int = DEFAULT_TIMEOUT
     retries: int = DEFAULT_RETRIES
     backoff_seconds: float = DEFAULT_BACKOFF
+    min_request_interval_seconds: float = DEFAULT_MIN_REQUEST_INTERVAL
     user_agent: str = UA
     cache_ttl_seconds: float = DEFAULT_CACHE_TTL
     enable_disk_cache: bool = True
     _cache: Dict[str, Tuple[float, Dict[str, Any]]] = field(default_factory=dict)
+    _last_request_started_at: float = 0.0
 
     def _disk_cache_file(self, url: str) -> Path:
         digest = hashlib.sha1(url.encode("utf-8", errors="ignore")).hexdigest()
@@ -415,6 +420,7 @@ class HttpClient:
 
         for attempt in range(1, self.retries + 2):
             try:
+                self._enforce_min_interval()
                 req = urllib.request.Request(url, headers=headers)
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     raw = resp.read()
@@ -442,7 +448,8 @@ class HttpClient:
                 )
                 if not self._should_retry(attempt, retryable):
                     raise last_error
-                self._sleep_backoff(attempt)
+                retry_after_raw = exc.headers.get("Retry-After") if getattr(exc, "headers", None) else None
+                self._sleep_retry_after_or_backoff(attempt, retry_after_raw)
             except (urllib.error.URLError, TimeoutError) as exc:
                 msg = f"Netzwerkfehler: {exc}"
                 last_error = ExternalRequestError(
@@ -477,6 +484,51 @@ class HttpClient:
         delay = self.backoff_seconds * (2 ** (attempt - 1))
         jitter = random.uniform(0, max(self.backoff_seconds / 3, 0.001))
         time.sleep(delay + jitter)
+
+    def _enforce_min_interval(self) -> None:
+        interval = max(0.0, float(self.min_request_interval_seconds))
+        if interval <= 0:
+            self._last_request_started_at = time.time()
+            return
+        now = time.time()
+        wait = (self._last_request_started_at + interval) - now
+        if wait > 0:
+            time.sleep(wait)
+            now = time.time()
+        self._last_request_started_at = now
+
+    def _sleep_retry_after_or_backoff(self, attempt: int, retry_after_raw: Optional[str]) -> None:
+        retry_after_seconds = self._parse_retry_after_seconds(retry_after_raw)
+        if retry_after_seconds is None:
+            self._sleep_backoff(attempt)
+            return
+        retry_after_seconds = min(max(0.0, retry_after_seconds), MAX_RETRY_AFTER_SECONDS)
+        # Niemals aggressiver als unser exponentieller Backoff.
+        fallback = self.backoff_seconds * (2 ** (attempt - 1))
+        wait = max(retry_after_seconds, fallback)
+        jitter = random.uniform(0, max(self.backoff_seconds / 3, 0.001))
+        time.sleep(wait + jitter)
+
+    def _parse_retry_after_seconds(self, raw: Optional[str]) -> Optional[float]:
+        if not raw:
+            return None
+        s = str(raw).strip()
+        if not s:
+            return None
+        try:
+            v = float(s)
+            if v >= 0:
+                return v
+        except ValueError:
+            pass
+        try:
+            dt = parsedate_to_datetime(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            delta = (dt - datetime.now(timezone.utc)).total_seconds()
+            return max(0.0, delta)
+        except Exception:
+            return None
 
 
 def normalize_text(text: Optional[str]) -> str:
@@ -3389,6 +3441,7 @@ def build_city_ranking_report(
     timeout: int,
     retries: int,
     backoff_seconds: float,
+    min_request_interval_seconds: float,
     cache_ttl_seconds: float,
     intelligence_mode: str,
     area_weights: Dict[str, float],
@@ -3413,6 +3466,7 @@ def build_city_ranking_report(
         timeout=timeout,
         retries=retries,
         backoff_seconds=backoff_seconds,
+        min_request_interval_seconds=max(0.0, min_request_interval_seconds),
         cache_ttl_seconds=max(0.0, cache_ttl_seconds),
     )
     sources = SourceRegistry()
@@ -5358,6 +5412,7 @@ def build_report(
     timeout: int = DEFAULT_TIMEOUT,
     retries: int = DEFAULT_RETRIES,
     backoff_seconds: float = DEFAULT_BACKOFF,
+    min_request_interval_seconds: float = DEFAULT_MIN_REQUEST_INTERVAL,
     osm_min_delay: float = 1.0,
     cache_ttl_seconds: float = DEFAULT_CACHE_TTL,
     intelligence_mode: str = "basic",
@@ -5370,6 +5425,7 @@ def build_report(
         timeout=timeout,
         retries=retries,
         backoff_seconds=backoff_seconds,
+        min_request_interval_seconds=max(0.0, min_request_interval_seconds),
         cache_ttl_seconds=max(0.0, cache_ttl_seconds),
     )
     sources = SourceRegistry()
@@ -5996,6 +6052,7 @@ def run_batch(
     timeout: int,
     retries: int,
     backoff_seconds: float,
+    min_request_interval_seconds: float,
     osm_min_delay: float,
     cache_ttl_seconds: float,
     intelligence_mode: str,
@@ -6012,6 +6069,7 @@ def run_batch(
         timeout=timeout,
         retries=retries,
         backoff_seconds=backoff_seconds,
+        min_request_interval_seconds=max(0.0, min_request_interval_seconds),
         cache_ttl_seconds=max(0.0, cache_ttl_seconds),
     )
 
@@ -6287,6 +6345,12 @@ Beispiele:
     ap.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help=f"HTTP-Timeout in Sekunden (default: {DEFAULT_TIMEOUT})")
     ap.add_argument("--retries", type=int, default=DEFAULT_RETRIES, help=f"Anzahl Retries pro Request (default: {DEFAULT_RETRIES})")
     ap.add_argument("--backoff", type=float, default=DEFAULT_BACKOFF, help=f"Backoff-Basis in Sekunden (default: {DEFAULT_BACKOFF})")
+    ap.add_argument(
+        "--min-request-interval",
+        type=float,
+        default=DEFAULT_MIN_REQUEST_INTERVAL,
+        help=f"Mindestabstand zwischen API-Requests in Sekunden (default: {DEFAULT_MIN_REQUEST_INTERVAL})",
+    )
     ap.add_argument("--cache-ttl", type=float, default=DEFAULT_CACHE_TTL, help=f"Kurzlebiger HTTP-Cache in Sekunden (default: {DEFAULT_CACHE_TTL})")
 
     ap.add_argument("--batch-csv", help="Batchmodus: CSV-Datei mit Adressen")
@@ -6350,6 +6414,7 @@ def main() -> int:
                 timeout=args.timeout,
                 retries=args.retries,
                 backoff_seconds=args.backoff,
+                min_request_interval_seconds=max(0.0, args.min_request_interval),
                 cache_ttl_seconds=max(0.0, args.cache_ttl),
                 intelligence_mode=args.intelligence_mode,
                 area_weights=area_weights,
@@ -6380,6 +6445,7 @@ def main() -> int:
                     timeout=args.timeout,
                     retries=args.retries,
                     backoff_seconds=args.backoff,
+                    min_request_interval_seconds=max(0.0, args.min_request_interval),
                     osm_min_delay=max(0.0, args.osm_min_delay),
                     cache_ttl_seconds=max(0.0, args.cache_ttl),
                     intelligence_mode=args.intelligence_mode,
@@ -6426,6 +6492,7 @@ def main() -> int:
                 timeout=args.timeout,
                 retries=args.retries,
                 backoff_seconds=args.backoff,
+                min_request_interval_seconds=max(0.0, args.min_request_interval),
                 osm_min_delay=max(0.0, args.osm_min_delay),
                 cache_ttl_seconds=max(0.0, args.cache_ttl),
                 intelligence_mode=args.intelligence_mode,
