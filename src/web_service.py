@@ -212,6 +212,22 @@ def _sanitize_request_id_candidate(candidate: Any) -> str:
     return value
 
 
+def _extract_request_options(data: dict[str, Any]) -> dict[str, Any]:
+    """Liest den optionalen options-Envelope robust und rückwärtskompatibel.
+
+    Policy:
+    - fehlt `options`, bleibt das Laufzeitverhalten unverändert
+    - `options` muss ein JSON-Objekt sein (sonst 400 bad_request)
+    - unbekannte optionale Keys sind additive No-Op-Felder (Forward-Compatibility)
+    """
+    raw_options = data.get("options")
+    if raw_options is None:
+        return {}
+    if not isinstance(raw_options, dict):
+        raise ValueError("options must be an object when provided")
+    return raw_options
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
 
@@ -341,6 +357,10 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError(
                     f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}"
                 )
+
+            # Forward-Compatibility: optionaler, additiver Namespace für spätere
+            # Request-Erweiterungen (z. B. Deep-Mode) ohne Breaking Changes.
+            _extract_request_options(data)
 
             if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
                 if query == "__timeout__":

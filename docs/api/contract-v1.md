@@ -180,3 +180,17 @@ Inhalt (inkrementell):
 - Vollständiger Score-Katalog (Pfad, Skala, Richtung, Stabilitätsstatus)
 - Methodik-/Interpretationsregeln (inkl. Missing/Outlier-Handling)
 - Worked Examples und Golden-Checks (in Folgeschritten)
+
+## 13) BL-18.fc2 Forward-Compatible `options`-Envelope (`/analyze`)
+
+Bezug: [#3](https://github.com/nimeob/geo-ranking-ch/issues/3), [#107](https://github.com/nimeob/geo-ranking-ch/issues/107), [#127](https://github.com/nimeob/geo-ranking-ch/issues/127)
+
+Für den bestehenden `/analyze`-Endpoint gilt ergänzend (rückwärtskompatibel):
+
+- Optionaler Request-Namespace `options` ist für additive Erweiterungen reserviert.
+- Default bleibt unverändert, wenn `options` fehlt.
+- `options` muss (falls vorhanden) ein JSON-Objekt sein, sonst `400 bad_request`.
+- Unbekannte optionale Keys werden als No-Op ignoriert (keine 500/Crash-Pfade).
+
+Die übergreifende Policy dazu ist im Stability-Guide dokumentiert:
+- [`docs/api/contract-stability-policy.md`](./contract-stability-policy.md)
