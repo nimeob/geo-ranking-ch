@@ -188,6 +188,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/user/README.md](docs/user/README.md) | User-Doku Einstieg (BL-19.1) |
 | [docs/user/getting-started.md](docs/user/getting-started.md) | Schnellstart bis zum ersten erfolgreichen `/analyze`-Call (BL-19.2) |
 | [docs/user/api-usage.md](docs/user/api-usage.md) | API-Referenz mit Auth, Headern, Inputs/Outputs und Statuscodes (BL-19.4) |
+| [docs/user/troubleshooting.md](docs/user/troubleshooting.md) | Häufige Fehlerbilder (401/400/504/404), Diagnose-Checks und Eskalationspfad (BL-19.5) |
 | [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Ist-Analyse + E2E-Runbook für BL-18 |
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
