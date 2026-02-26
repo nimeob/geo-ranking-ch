@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Input-Validierung für Remote-Smoke-Runner)
+- **`tests/test_remote_smoke_script.py`:** Negativfälle für ungültige numerische Smoke-Parameter ergänzt (`SMOKE_TIMEOUT_SECONDS`, `CURL_RETRY_COUNT`) und auf reproduzierbaren `exit 2` abgesichert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Fail-fast bei fehlerhaften Smoke-Parametern)
+- **`scripts/run_remote_api_smoketest.sh`:** Harte Eingabevalidierung ergänzt (`SMOKE_TIMEOUT_SECONDS`/`CURL_MAX_TIME` > 0, `CURL_RETRY_COUNT`/`CURL_RETRY_DELAY` Ganzzahl >= 0) statt später Python-Tracebacks.
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Runbook-/Backlog-Doku auf neue Parameter-Validierung + Real-Run-Nachweis synchronisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: URL-Normalisierung im Remote-Smoke abgesichert)
 - **`tests/test_remote_smoke_script.py`:** Zusätzliche E2E-Checks für normalisierte Base-URLs (`.../analyze`) und harten Negativfall für ungültiges URL-Schema (`exit 2`).
 - **`tests/test_remote_stability_script.py`:** E2E-Check ergänzt, dass der Stabilitätsrunner auch mit `DEV_BASE_URL`-Suffix `.../health` reproduzierbar erfolgreich läuft.

@@ -281,10 +281,13 @@
   - `scripts/run_remote_api_stability_check.sh` ergänzt (Mehrfachlauf mit NDJSON-Report + Fail-Threshold für kurze Stabilitäts-/Abnahmeläufe).
   - `tests/test_remote_smoke_script.py` ergänzt (lokale E2E-Validierung des Smoke-Skripts inkl. Auth-Pfad/Fehlpfad + Request-ID-Echo-Nachweis).
   - `scripts/run_remote_api_smoketest.sh` URL-Normalisierung ergänzt (`/health`/`/analyze`-Suffixe) + harte http(s)-Schema-Validierung zur robusten Runbook-Reproduzierbarkeit.
+  - `scripts/run_remote_api_smoketest.sh` validiert Eingabeparameter strikt (`SMOKE_TIMEOUT_SECONDS`/`CURL_MAX_TIME` > 0, `CURL_RETRY_COUNT`/`CURL_RETRY_DELAY` Ganzzahl >= 0) und bricht bei Fehlwerten reproduzierbar mit `exit 2` ab.
+  - `tests/test_remote_smoke_script.py` um Negativfälle für ungültige Timeout-/Retry-Parameter erweitert (früher Blocker/Traceback → jetzt klare CLI-Fehlermeldung).
   - `tests/test_remote_stability_script.py` ergänzt (lokale E2E-Validierung des Stabilitätsrunners inkl. Stop-on-first-fail-, NDJSON- und Request-ID-Korrelationsnachweis).
   - `scripts/run_remote_api_stability_check.sh` validiert `STABILITY_STOP_ON_FIRST_FAIL` strikt (`0|1`) für reproduzierbare CLI-Konfiguration; Negativfall ist über `tests/test_remote_stability_script.py` abgedeckt.
   - `.github/workflows/deploy.yml` um optionalen `/analyze`-Smoke-Test nach Deploy erweitert (gesteuert via `SERVICE_BASE_URL` + optional `SERVICE_API_AUTH_TOKEN`).
   - `docs/BL-18_SERVICE_E2E.md` um Reproduzierbarkeit/Stabilitäts-Runbook erweitert (inkl. lokalem 2-Run-Nachweis: `pass=2`, `fail=0`).
+  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit `pass=2`, `fail=0`, Request-ID-Echo in Header+JSON bestätigt.
 
 ---
 

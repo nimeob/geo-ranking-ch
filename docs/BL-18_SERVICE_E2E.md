@@ -97,10 +97,11 @@ SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json" \
 
 Wichtige Optionen:
 - `DEV_BASE_URL`: muss mit `http://` oder `https://` starten; Suffixe `/health` oder `/analyze` werden automatisch auf die Service-Basis normalisiert.
-- `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern
+- `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen Zahlen `> 0` sein (früher, klarer `exit 2` bei Fehlwerten).
+- `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein.
 - `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche)
 - `SMOKE_ENFORCE_REQUEST_ID_ECHO` (`1|0`, default `1`): erzwingt Echo-Prüfung für Header + JSON (`request_id`)
-- `SMOKE_MODE`, `SMOKE_TIMEOUT_SECONDS`: reproduzierbarer Request-Input
+- `SMOKE_MODE`: reproduzierbarer Request-Modus (`basic|extended|risk`)
 
 ### Stabilitäts-/Abnahme-Lauf (mehrere Requests)
 
@@ -134,6 +135,9 @@ Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu bl
 
 - Command:
   - `DEV_BASE_URL="http://127.0.0.1:<port>" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=2 STABILITY_INTERVAL_SECONDS=1 ./scripts/run_remote_api_stability_check.sh`
+  - `DEV_BASE_URL="http://127.0.0.1:18081" SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="http://127.0.0.1:18081" STABILITY_RUNS=2 STABILITY_INTERVAL_SECONDS=1 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local.ndjson" ./scripts/run_remote_api_stability_check.sh`
 - Ergebnis:
-  - `pass=2`, `fail=0`, Exit `0`
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt.
+  - Stabilität: `pass=2`, `fail=0`, Exit `0`.
   - NDJSON-Report mit zwei erfolgreichen Runs (`status=pass`, `http_status=200`, `reason=ok`).

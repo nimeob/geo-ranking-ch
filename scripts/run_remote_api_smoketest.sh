@@ -38,6 +38,20 @@ SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
 
 export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_ENFORCE_REQUEST_ID_ECHO
 
+is_positive_number() {
+  python3 - "$1" <<'PY'
+import sys
+
+try:
+    value = float(sys.argv[1])
+except ValueError:
+    raise SystemExit(1)
+
+if value <= 0:
+    raise SystemExit(1)
+PY
+}
+
 case "$SMOKE_MODE" in
   basic|extended|risk) ;;
   *)
@@ -45,6 +59,26 @@ case "$SMOKE_MODE" in
     exit 2
     ;;
 esac
+
+if ! is_positive_number "$SMOKE_TIMEOUT_SECONDS"; then
+  echo "[BL-18.1] SMOKE_TIMEOUT_SECONDS muss eine Zahl > 0 sein (aktuell: ${SMOKE_TIMEOUT_SECONDS})." >&2
+  exit 2
+fi
+
+if ! is_positive_number "$CURL_MAX_TIME"; then
+  echo "[BL-18.1] CURL_MAX_TIME muss eine Zahl > 0 sein (aktuell: ${CURL_MAX_TIME})." >&2
+  exit 2
+fi
+
+if [[ ! "$CURL_RETRY_COUNT" =~ ^[0-9]+$ ]]; then
+  echo "[BL-18.1] CURL_RETRY_COUNT muss eine Ganzzahl >= 0 sein (aktuell: ${CURL_RETRY_COUNT})." >&2
+  exit 2
+fi
+
+if [[ ! "$CURL_RETRY_DELAY" =~ ^[0-9]+$ ]]; then
+  echo "[BL-18.1] CURL_RETRY_DELAY muss eine Ganzzahl >= 0 sein (aktuell: ${CURL_RETRY_DELAY})." >&2
+  exit 2
+fi
 
 case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
   0|1) ;;
