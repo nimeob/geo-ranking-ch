@@ -12,7 +12,7 @@ set -euo pipefail
 #
 # Optionale Env-Variablen:
 #   SMOKE_QUERY="St. Leonhard-Strasse 40, St. Gallen"
-#   SMOKE_MODE="basic"   # basic|extended|risk
+#   SMOKE_MODE="basic"   # basic|extended|risk (case-insensitive, wird auf lowercase normalisiert)
 #   SMOKE_TIMEOUT_SECONDS="20"
 #   CURL_MAX_TIME="45"
 #   CURL_RETRY_COUNT="3"
@@ -74,6 +74,7 @@ import sys
 print(sys.argv[1].strip())
 PY
 )"
+SMOKE_MODE="${SMOKE_MODE,,}"
 
 SMOKE_TIMEOUT_SECONDS="$(python3 - "${SMOKE_TIMEOUT_SECONDS}" <<'PY'
 import sys

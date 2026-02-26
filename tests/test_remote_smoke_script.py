@@ -289,6 +289,19 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
 
+    def test_smoke_script_normalizes_smoke_mode_case_before_validation(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            smoke_mode="  ExTenDeD  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertEqual(data.get("http_status"), 200)
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+
     def test_smoke_script_trims_retry_count_and_delay_before_validation(self):
         cp, data, request_id = self._run_smoke(
             include_token=True,

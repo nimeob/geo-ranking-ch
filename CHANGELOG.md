@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B case-insensitive `SMOKE_MODE` + 5x Stabilität, Iteration 8)
+- **`scripts/run_remote_api_smoketest.sh`:** normalisiert `SMOKE_MODE` nach dem Trim jetzt zusätzlich case-insensitive (`"  ExTenDeD  "` → `extended`), damit robuste Env-Inputs bei manuellen Runbook-Aufrufen reproduzierbar akzeptiert werden.
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path verifiziert reproduzierbar, dass gemischt geschriebene `SMOKE_MODE`-Werte erfolgreich verarbeitet werden.
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`61 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) trotz gemischt geschriebenem `SMOKE_MODE="  ExTenDeD  "`.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772099150.json`, `artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772099150.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-b-server-1772099150.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf case-insensitive `SMOKE_MODE` synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf case-insensitive `SMOKE_MODE`-Normalisierung sowie den aktuellen Worker-B-Langlauf (`61 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Request-ID-Control-Char-Fallback + 5x Stabilität, Iteration 7)
 - **`tests/test_web_e2e.py`:** neuer API-E2E-Guard verifiziert reproduzierbar, dass `/analyze` bei `X-Request-Id` mit Steuerzeichen (z. B. Tab) deterministisch auf `X-Correlation-Id` zurückfällt und die Fallback-ID konsistent in Header+JSON spiegelt.
 - **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`60 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit getrimmten Timeout-/Retry-/Stability-Flags.
