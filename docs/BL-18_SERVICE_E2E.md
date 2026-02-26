@@ -55,7 +55,7 @@
   - deckt mindestens Health/Version/404 + Analyze-Endpunkt ab
 - **Script-E2E (lokal):**
   - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, wiederholter Forward-Suffix-Ketten mit internem Double-Slash wie `.../health//analyze/health/analyze///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//`, getrimmter Header-/Flag-Inputs wie `SMOKE_REQUEST_ID_HEADER="  Correlation  "` und `SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "` sowie Negativfällen für `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2`, zu lange `SMOKE_REQUEST_ID` (`>128`), ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`) und `DEV_BASE_URL` mit Userinfo `user:pass@host`).
-  - `tests/test_remote_stability_script.py`: validiert den Mehrfach-Runner inkl. NDJSON-Report und `STABILITY_STOP_ON_FIRST_FAIL`.
+  - `tests/test_remote_stability_script.py`: validiert den Mehrfach-Runner inkl. NDJSON-Report, `STABILITY_STOP_ON_FIRST_FAIL` sowie getrimmter numerischer Flag-Inputs (`" 2 "`, `" 0 "`).
 - **Run-Skript:** `scripts/run_webservice_e2e.sh`
   - führt lokal immer aus (`test_web_e2e.py` + Smoke-/Stability-Script-E2E)
   - dev nur, wenn `DEV_BASE_URL` gesetzt ist
@@ -125,7 +125,8 @@ STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability.ndjson" \
 Der Runner:
 - führt den Remote-Smoke-Test mehrfach aus,
 - schreibt pro Lauf eine NDJSON-Zeile,
-- unterstützt optionales Fail-Fast via `STABILITY_STOP_ON_FIRST_FAIL=1` (nur `0|1` erlaubt),
+- unterstützt optionales Fail-Fast via `STABILITY_STOP_ON_FIRST_FAIL=1` (nur `0|1` erlaubt; Wert wird vor Validierung getrimmt),
+- trimmt numerische Runner-Flags (`STABILITY_RUNS`, `STABILITY_INTERVAL_SECONDS`, `STABILITY_MAX_FAILURES`) vor der Validierung für robuste Env-Inputs,
 - erlaubt für Tests/Debug ein optionales Script-Override via `STABILITY_SMOKE_SCRIPT=/pfad/zu/run_remote_api_smoketest.sh`,
 - zählt fehlende/leer gebliebene Smoke-JSON-Artefakte **und** Reports mit `status!=pass` als Fehlrun (auch wenn das Smoke-Script `rc=0` liefert),
 - bricht mit Exit `1` ab, wenn `fail_count > STABILITY_MAX_FAILURES`.
@@ -138,6 +139,18 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker 1, Langlauf-Recheck getrimmte Stability-Flags + 5x Stabilität)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:35179/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-1-langlauf-1772097177  " SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-langlauf-1772097177.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:35179/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID_HEADER="  Correlation  " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-1-langlauf-1772097177.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `54 passed` (inkl. neuer Stability-E2E-Abdeckung für getrimmte numerische Flag-Inputs).
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt im getrimmten Correlation-Mode (`artifacts/bl18.1-smoke-local-worker-1-langlauf-1772097177.json`, `request_id_header_source=correlation`, `started_at_utc=2026-02-26T09:12:58Z`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` trotz absichtlich getrimmter numerischer Flags (`" 5 "`, `" 0 "`) und getrimmtem Stop-Flag (`" 0 "`) (`artifacts/bl18.1-remote-stability-local-worker-1-langlauf-1772097177.ndjson`).
+  - Server-Log: `artifacts/bl18.1-worker-1-server-1772097177.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker C, Langlauf-Recheck getrimmter Correlation-Mode + 5x Stabilität)
 

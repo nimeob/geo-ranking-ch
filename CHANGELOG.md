@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1 Trim-Guards für Stability-Flags + 5x Stabilität)
+- **`scripts/run_remote_api_stability_check.sh`:** trimmt `STABILITY_RUNS`, `STABILITY_INTERVAL_SECONDS`, `STABILITY_MAX_FAILURES` und `STABILITY_STOP_ON_FIRST_FAIL` jetzt vor der Validierung, sodass robuste Env-Inputs wie `" 5 "` bzw. `" 0 "` reproduzierbar akzeptiert werden.
+- **`tests/test_remote_stability_script.py`:** neue E2E-Abdeckung sichert den Happy-Path mit getrimmten numerischen Stability-Flags (`runs/max_failures/stop_on_first_fail`) lokal gegen den gestarteten Service.
+- **Langlauf-Real-Run (Worker 1):** `./scripts/run_webservice_e2e.sh` erfolgreich (`54 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) trotz absichtlich getrimmter numerischer Stability-Flags. Evidenz in `artifacts/bl18.1-smoke-local-worker-1-langlauf-1772097177.json` und `artifacts/bl18.1-remote-stability-local-worker-1-langlauf-1772097177.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-1-server-1772097177.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf getrimmte Stability-Flags synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf getrimmte Stability-Flags (`STABILITY_*`) sowie den aktuellen Worker-1-5x-Langlauf (`54 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Recheck mit getrimmtem Correlation-Mode + 5x Stabilität)
 - **`scripts/run_remote_api_smoketest.sh`:** trimmt `SMOKE_REQUEST_ID_HEADER` und `SMOKE_ENFORCE_REQUEST_ID_ECHO` jetzt vor der Validierung, damit robuste Env-Inputs wie `"  Correlation  "` bzw. `" 1 "` reproduzierbar akzeptiert werden.
 - **`tests/test_remote_smoke_script.py`:** neue E2E-Happy-Paths sichern die getrimmten Inputs für Header-Mode und Echo-Flag ab.

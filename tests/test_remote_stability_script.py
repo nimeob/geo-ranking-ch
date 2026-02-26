@@ -160,6 +160,18 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertEqual(entries[0].get("reason"), "http_status")
         self.assertEqual(entries[0].get("http_status"), 401)
 
+    def test_stability_runner_trims_numeric_flags_before_validation(self):
+        cp, entries = self._run_stability(
+            include_token=True,
+            runs=" 2 ",
+            max_failures=" 0 ",
+            stop_on_first_fail=" 0 ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(len(entries), 2)
+        self.assertTrue(all(row.get("status") == "pass" for row in entries))
+
     def test_stability_runner_marks_missing_smoke_report_as_failure_even_with_rc_zero(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             fake_smoke = Path(tmpdir) / "fake_smoke.sh"
