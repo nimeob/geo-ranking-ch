@@ -100,7 +100,7 @@ Wichtige Optionen:
 - `DEV_BASE_URL`: darf keine Query-/Fragment-Komponenten enthalten (`?foo=bar`, `#frag`), damit der `/analyze`-Zielpfad reproduzierbar bleibt.
 - `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf`).
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein.
-- `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche)
+- `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche); wird vor dem Request getrimmt und muss frei von Steuerzeichen sein (sonst `exit 2`).
 - `SMOKE_ENFORCE_REQUEST_ID_ECHO` (`1|0`, default `1`): erzwingt Echo-Prüfung für Header + JSON (`request_id`)
 - `SMOKE_MODE`: reproduzierbarer Request-Modus (`basic|extended|risk`)
 
@@ -131,6 +131,17 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker A, Langlauf-Iteration Request-ID-Trim/Steuerzeichen-Guard)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="http://127.0.0.1:18110/health" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-a-1772093014  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-a-1772093014.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="http://127.0.0.1:18110/health" DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=3 STABILITY_INTERVAL_SECONDS=1 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-a-1772093014.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `35 passed` (inkl. neuer Smoke-E2E-Checks für getrimmte `SMOKE_REQUEST_ID` sowie Fail-fast bei Whitespace-only/Steuerzeichen).
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-a-1772093014.json`, `started_at_utc=2026-02-26T08:03:35Z`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-a-1772093014.ndjson`).
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker C, Langlauf-Recheck redundante trailing-Slash-Normalisierung)
 

@@ -17,7 +17,7 @@ set -euo pipefail
 #   CURL_MAX_TIME="45"
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
-#   SMOKE_REQUEST_ID="bl18-<id>"
+#   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen erlaubt
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"
 
@@ -46,6 +46,29 @@ CURL_RETRY_DELAY="${CURL_RETRY_DELAY:-2}"
 SMOKE_OUTPUT_JSON="${SMOKE_OUTPUT_JSON:-}"
 SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID:-bl18-$(date +%s)}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
+
+SMOKE_REQUEST_ID="$(python3 - "${SMOKE_REQUEST_ID}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+if [[ -z "${SMOKE_REQUEST_ID}" ]]; then
+  echo "[BL-18.1] SMOKE_REQUEST_ID ist leer nach Whitespace-Normalisierung." >&2
+  exit 2
+fi
+
+if ! python3 - "${SMOKE_REQUEST_ID}" <<'PY'
+import sys
+
+request_id = sys.argv[1]
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in request_id):
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] SMOKE_REQUEST_ID darf keine Steuerzeichen enthalten." >&2
+  exit 2
+fi
 
 export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_ENFORCE_REQUEST_ID_ECHO
 
