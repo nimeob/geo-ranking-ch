@@ -376,8 +376,9 @@
   - ✅ 2026-02-26: #54 abgeschlossen (BL-20.7.a.r1) mit reproduzierbarer Packaging-Baseline in [`docs/PACKAGING_BASELINE.md`](PACKAGING_BASELINE.md), README-Integration und Doku-Regressionstest.
   - ✅ 2026-02-26: #55 abgeschlossen (BL-20.7.a.r2) mit konsolidierter Packaging-/Runtime-Konfigurationsmatrix (Pflicht/Optional, Default/Beispiel) in [`docs/PACKAGING_BASELINE.md`](PACKAGING_BASELINE.md) inkl. Cross-Link auf [`docs/user/configuration-env.md`](user/configuration-env.md).
   - ✅ 2026-02-26: #56 abgeschlossen (BL-20.7.a.r3) mit API-only Basis-Release-Checkliste in [`docs/PACKAGING_BASELINE.md`](PACKAGING_BASELINE.md) und Cross-Link aus [`docs/OPERATIONS.md`](OPERATIONS.md).
+  - ✅ 2026-02-26: #34 abgeschlossen (BL-20.7.a Parent) nach Abschluss aller Work-Packages #54/#55/#56; Backlog-/Status-Sync konsolidiert.
   - ⏳ Offene GTM-Follow-ups: #37 (Demo-Datenset), #38 (Packaging/Pricing-Hypothesen).
-  - ⏳ Nächster direkter Schritt BL-20.7: Parent #34 finalisieren/abschließen, danach GTM-Follow-ups (#37/#38) priorisieren.
+  - ⏳ Nächster direkter Schritt BL-20.7: GTM-Follow-ups (#37/#38) priorisieren.
 - **Akzeptanzkriterien (Phase 1):**
   - API liefert für Adresse und Kartenpunkt ein einheitliches Ergebnisobjekt (Gebäudeprofil + Umfeldprofil).
   - Ergebnis enthält Explainability-Felder (`sources`, `as_of`, `confidence`, `derived_from`).
