@@ -180,6 +180,14 @@ base_url = sys.argv[1]
 parts = urlsplit(base_url)
 if parts.scheme not in {"http", "https"} or not parts.netloc:
     raise SystemExit(1)
+
+try:
+    _ = parts.port
+except ValueError:
+    raise SystemExit(1)
+
+if parts.hostname is None:
+    raise SystemExit(1)
 PY
 then
   echo "[BL-18.1] DEV_BASE_URL ist nach Normalisierung ungültig (aktuell: ${BASE_URL})." >&2

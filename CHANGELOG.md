@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Port-Validierung + Langlauf-Nachweis)
+- **`tests/test_remote_smoke_script.py`:** neue Negativtests decken ungültige Ports in `DEV_BASE_URL` ab (`http://127.0.0.1:abc/health` und `http://127.0.0.1:70000/health`) und sichern reproduzierbar `exit 2` mit klarer CLI-Fehlermeldung ab.
+- **Langlauf-Real-Run (Worker B):** `./scripts/run_webservice_e2e.sh` erfolgreich (`45 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772095294.json` und `artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772095294.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Smoke-URL-Validierung auf Host/Port gehärtet)
+- **`scripts/run_remote_api_smoketest.sh`:** Base-URL-Validierung prüft nach Normalisierung zusätzlich `hostname` und Port-Parsing (`parts.port`), damit nicht-numerische bzw. out-of-range Ports fail-fast mit `exit 2` abgefangen werden (statt späterem curl-Fehler).
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** BL-18.1-Runbook/Testabdeckung/Nachweisführung auf Port-Validierungs-Guard + aktuellen Worker-B-Langlauf (`45 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Userinfo-Guard + Langlauf-Nachweis)
 - **`scripts/run_remote_api_smoketest.sh`:** lehnt `DEV_BASE_URL` mit Userinfo (`user:pass@host`) jetzt fail-fast mit `exit 2` ab, um unbeabsichtigte Credential-Leaks in Shell-History/Logs zu verhindern.
 - **`tests/test_remote_smoke_script.py`:** neuer Negativtest stellt reproduzierbar sicher, dass Userinfo in `DEV_BASE_URL` mit sauberer CLI-Fehlermeldung zurückgewiesen wird.

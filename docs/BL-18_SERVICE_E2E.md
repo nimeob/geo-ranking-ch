@@ -53,7 +53,7 @@
   - optional mit `DEV_API_AUTH_TOKEN`
   - deckt mindestens Health/Version/404 + Analyze-Endpunkt ab
 - **Script-E2E (lokal):**
-  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//` sowie Negativfällen für `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2` und `DEV_BASE_URL` mit Userinfo `user:pass@host`).
+  - `tests/test_remote_smoke_script.py`: validiert den dedizierten Remote-Smoke-Runner lokal gegen den gestarteten Service (inkl. kombinierter Base-URL-Normalisierung `"  HTTP://.../HeAlTh/AnAlYzE/  "`, wiederholter Suffix-Ketten wie `.../health/analyze/health/analyze///`, wiederholter Reverse-Suffix-Ketten mit internem Double-Slash wie `.../AnAlYzE//health/analyze/health///`, redundanter trailing-Slash-Ketten wie `.../health//analyze//` sowie Negativfällen für `CURL_RETRY_DELAY=-1`, `SMOKE_ENFORCE_REQUEST_ID_ECHO=2`, ungültige Ports in `DEV_BASE_URL` (`:abc`, `:70000`) und `DEV_BASE_URL` mit Userinfo `user:pass@host`).
   - `tests/test_remote_stability_script.py`: validiert den Mehrfach-Runner inkl. NDJSON-Report und `STABILITY_STOP_ON_FIRST_FAIL`.
 - **Run-Skript:** `scripts/run_webservice_e2e.sh`
   - führt lokal immer aus (`test_web_e2e.py` + Smoke-/Stability-Script-E2E)
@@ -99,6 +99,7 @@ Wichtige Optionen:
 - `DEV_BASE_URL`: muss mit `http://` oder `https://` starten (Groß-/Kleinschreibung im Schema wird akzeptiert, z. B. `HTTP://`); führende/trailing Whitespaces sowie Suffixe `/health` oder `/analyze` (auch verkettet, case-insensitive und in gemischter Reihenfolge wie `/analyze/health`) werden automatisch auf die Service-Basis normalisiert.
 - `DEV_BASE_URL`: darf keine Query-/Fragment-Komponenten enthalten (`?foo=bar`, `#frag`), damit der `/analyze`-Zielpfad reproduzierbar bleibt.
 - `DEV_BASE_URL`: darf keine Userinfo (`user:pass@host`) enthalten, um versehentliche Credential-Leaks in Runbooks/Logs zu verhindern.
+- `DEV_BASE_URL`: muss nach Normalisierung eine gültige Host/Port-Kombination enthalten; nicht-numerische bzw. out-of-range Ports (`:abc`, `:70000`) werden fail-fast mit `exit 2` zurückgewiesen.
 - `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf`).
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein.
 - `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche); wird vor dem Request getrimmt und muss frei von Steuerzeichen sein (sonst `exit 2`).
@@ -134,6 +135,17 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Iteration Port-Validierungs-Guard)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:58269/AnAlYzE/health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-b-langlauf-1772095294  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-b-langlauf-1772095294.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:58269/AnAlYzE/health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=3 STABILITY_INTERVAL_SECONDS=1 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772095294.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `45 passed` (inkl. neuer Smoke-E2E-Negativtests für ungültige Ports `DEV_BASE_URL=:abc` und `:70000`).
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-b-langlauf-1772095294.json`, `started_at_utc=2026-02-26T08:41:35Z`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-b-langlauf-1772095294.ndjson`).
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker A, Langlauf-Iteration Userinfo-Guard + Reproduzierbarkeits-Run)
 
