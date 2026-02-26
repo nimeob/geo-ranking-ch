@@ -337,7 +337,8 @@
   - ✅ BL-19.5 Fehlerbilder & Troubleshooting umgesetzt (`docs/user/troubleshooting.md` inkl. Diagnose-Checks)
   - ✅ BL-19.7 README-Integration verfeinert (Feature-Liste + User-Doku-Links in `README.md`)
   - ✅ BL-19.8 Doku-Qualitätsgate umgesetzt (`scripts/check_docs_quality_gate.sh`, `tests/test_markdown_links.py`, `.github/workflows/docs-quality.yml`)
-  - ⏳ Nächster Schritt: BL-19.5 (Fehlerbilder & Troubleshooting)
+  - ✅ 2026-02-26: Crawler-Finding #40 in `docs/OPERATIONS.md` bereinigt (Formulierung ohne TODO/FIXME-Trigger, weiterhin Verweis auf zentralen Backlog)
+  - ⏳ Nächster Schritt: BL-19.6 (Betrieb & Runbooks)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
   2. **BL-19.2 – Getting Started:** Quickstart für lokale Inbetriebnahme inkl. Minimal-Konfiguration und erstem erfolgreichen Request.
