@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-19.8 Doku-Qualitätsgate)
+- **`tests/test_markdown_links.py`** neu angelegt: prüft für alle getrackten Markdown-Dateien interne Links (Datei-Targets, Repo-Grenzen, Verzeichnisziele) sowie Markdown-Anker auf auflösbare Überschriften-Slugs.
+- **`scripts/check_docs_quality_gate.sh`** neu angelegt: führt BL-19.8 als „frisches Setup“ in einem temporären venv aus (Install `requirements-dev.txt`, danach `pytest -q tests/test_user_docs.py tests/test_markdown_links.py`).
+- **`.github/workflows/docs-quality.yml`** neu angelegt: startet das Doku-Qualitätsgate automatisch bei Doku-relevanten Push-/PR-Änderungen.
+
+### Changed (2026-02-26 — BL-19.8 Doku-Gate-Integration)
+- **`README.md`** und **`docs/OPERATIONS.md`** um den ausführbaren Gate-Befehl `./scripts/check_docs_quality_gate.sh` ergänzt.
+- **`docs/BACKLOG.md`** Fortschritt für BL-19 aktualisiert (BL-19.3 und BL-19.8 als umgesetzt; nächster Fokus bleibt BL-19.5).
+
 ### Added (2026-02-26 — BL-19.4 API Usage Guide + README-Featurestruktur)
 - **`docs/user/api-usage.md`** neu angelegt: vollständige Endpoint-Referenz (`/health`, `/version`, `/analyze`) mit Auth-Verhalten, Request-/Response-Beispielen, Request-ID-Priorität/Sanitization, Statuscode-Matrix und API-relevanten ENV-Variablen.
 - **`tests/test_user_docs.py`** ergänzt: Regressionstests für User-Doku-Struktur (API-Guide vorhanden, korrekte Cross-Links in `docs/user/*`, thematisch gegliederte Feature-Sektion im Root-README).

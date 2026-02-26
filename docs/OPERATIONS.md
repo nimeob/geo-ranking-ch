@@ -198,6 +198,9 @@ pre-commit install
 # Lokale Checks
 pytest tests/ -v
 pre-commit run --all-files
+
+# BL-19.8 Doku-Qualitätsgate (frisches Setup + Link-/Strukturcheck)
+./scripts/check_docs_quality_gate.sh
 ```
 
 ### Empfohlene Tools
