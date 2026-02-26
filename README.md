@@ -93,7 +93,7 @@ curl http://localhost:8080/health
 # SMOKE_QUERY wird vor dem Request getrimmt, darf nicht leer sein und keine Steuerzeichen enthalten (whitespace-only/control chars -> fail-fast exit 2)
 # SMOKE_TIMEOUT_SECONDS/CURL_MAX_TIME müssen endliche Zahlen >0 sein; CURL_RETRY_COUNT/CURL_RETRY_DELAY Ganzzahlen >=0 (alle Werte werden vor Validierung getrimmt)
 # optional: SMOKE_MODE=basic|extended|risk (Wert wird vor Validierung getrimmt + case-insensitive normalisiert)
-# SMOKE_REQUEST_ID wird getrimmt, darf keine Steuerzeichen enthalten und muss <=128 Zeichen sein (Fail-fast bei Fehlwerten)
+# SMOKE_REQUEST_ID wird getrimmt, darf weder Steuerzeichen noch eingebettete Whitespaces enthalten und muss <=128 Zeichen sein (Fail-fast bei Fehlwerten)
 # optional: SMOKE_REQUEST_ID_HEADER=request|correlation (Default request; Wert wird getrimmt + case-insensitive normalisiert; correlation prüft Fallback über X-Correlation-Id)
 # optional: SMOKE_ENFORCE_REQUEST_ID_ECHO=1|0 (Wert wird vor Validierung getrimmt)
 # optional: DEV_API_AUTH_TOKEN wird vor Verwendung getrimmt; whitespace-only Werte und Steuerzeichen werden fail-fast mit exit 2 abgewiesen

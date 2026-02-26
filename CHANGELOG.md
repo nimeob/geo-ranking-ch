@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Embedded-Whitespace-Guard für `SMOKE_REQUEST_ID` + 5x Stabilität, Iteration 15)
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID` rejectet jetzt zusätzlich eingebettete Whitespaces fail-fast mit `exit 2`; dadurch bleiben Request-Header/Trace-IDs reproduzierbar ohne implizite Header-Normalisierung durch Clients/Proxies.
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass `SMOKE_REQUEST_ID` mit eingebettetem Whitespace (`"bl18 bad-request-id"`) klar mit `exit 2` und eindeutiger CLI-Fehlermeldung fehlschlägt.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`69 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit kombinierter Suffix-Kette.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-a-1772102261.json`, `artifacts/bl18.1-remote-stability-local-worker-a-1772102261.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-a-server-1772102261.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-A Iteration-15 + `SMOKE_REQUEST_ID`-Whitespace-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Negativfall-Abdeckung und Nachweisführung auf den neuen Embedded-Whitespace-Guard für `SMOKE_REQUEST_ID` sowie den aktuellen Worker-A-Langlauf (`69 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Control-Char-Guard für `SMOKE_QUERY` + 5x Stabilität, Iteration 14)
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_QUERY` wird nach dem Trim jetzt zusätzlich auf Steuerzeichen validiert; Control-Char-Queries werden fail-fast mit `exit 2` abgewiesen, bevor ein Request gesendet wird.
 - **`tests/test_remote_smoke_script.py`:** ergänzt einen neuen Negativtest für `SMOKE_QUERY` mit Steuerzeichen (z. B. Zeilenumbruch), damit Fehlkonfigurationen reproduzierbar als `exit 2` sichtbar werden.
