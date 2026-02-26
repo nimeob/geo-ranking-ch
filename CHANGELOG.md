@@ -14,6 +14,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-26 — BL-18.fc1 Contract-Compatibility-Regression)
+- **`tests/test_contract_compatibility_regression.py`** ergänzt: Guard-Tests für additive Contract-Evolution (Legacy-Minimalprojektion bleibt stabil), explizite Semantik-Trennung `result.status` vs. `result.data` und Smoke-Minimum-Kompatibilität.
+- **`docs/api/contract-stability-policy.md`** um BL-18.fc1-Abschnitt erweitert (Forward-Compatibility-Guardrails mit Referenzen auf #3 und #127).
+- **`docs/BACKLOG.md`** BL-18-Fortschritt um Abschluss von #130 inkl. Testnachweis aktualisiert.
+
 ### Changed (2026-02-26 — BL-15 CloudTrail-Audit Testhärtung)
 - **`tests/test_audit_legacy_cloudtrail_consumers.py`** neu ergänzt: reproduzierbare Script-Tests für `scripts/audit_legacy_cloudtrail_consumers.sh` (Parametervalidierung, No-Events `exit 0`, Events-Found `exit 10`, LookupEvents-Filterung via `INCLUDE_LOOKUP_EVENTS`).
 - **`docs/BACKLOG.md`** BL-15-Nachweis um den Testhärtungsstand für Issue #109 erweitert.
