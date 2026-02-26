@@ -1225,6 +1225,36 @@ class TestRemoteSmokeScript(unittest.TestCase):
             self.assertEqual(data.get("status"), "pass")
             self.assertTrue(data.get("request_id_echo_enforced"))
 
+    def test_smoke_script_accepts_boolean_request_id_echo_flag_aliases(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_ENFORCE_REQUEST_ID_ECHO": "  fAlSe  ",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+            self.assertTrue(out_json.exists())
+            data = json.loads(out_json.read_text(encoding="utf-8"))
+            self.assertEqual(data.get("status"), "pass")
+            self.assertFalse(data.get("request_id_echo_enforced"))
+
     def test_smoke_script_rejects_whitespace_only_request_id(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"

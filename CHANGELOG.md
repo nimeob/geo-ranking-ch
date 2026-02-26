@@ -14,6 +14,18 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Bool-Flag-Aliasse für Echo/Stop-on-first-fail + Real-Run, Iteration 41)
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_ENFORCE_REQUEST_ID_ECHO` akzeptiert jetzt zusätzlich boolesche Alias-Werte (`true|false|yes|no|on|off`, case-insensitive), normalisiert robust auf `1|0` und bleibt bei ungültigen Modi fail-fast (`exit 2`).
+- **`scripts/run_remote_api_stability_check.sh`:** `STABILITY_STOP_ON_FIRST_FAIL` akzeptiert jetzt ebenfalls boolesche Alias-Werte (`true|false|yes|no|on|off`), normalisiert auf `0|1` und behält den bisherigen Early-Stop-Mechanismus unverändert bei.
+- **`tests/test_remote_smoke_script.py`:** neuer Happy-Path verifiziert reproduzierbar den booleschen Echo-Flag-Alias (`SMOKE_ENFORCE_REQUEST_ID_ECHO="  fAlSe  "`) inkl. Artefaktfeld `request_id_echo_enforced=false`.
+- **`tests/test_remote_stability_script.py`:** neue E2E-Abdeckung sichert boolesche Stop-Flag-Aliasse (`"  TrUe  "`/`"  fAlSe  "`) reproduzierbar ab (Early-Stop nur bei `true`).
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`111 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) mit booleschen Alias-Flags (`SMOKE_ENFORCE_REQUEST_ID_ECHO="TrUe"` im Smoke; `SMOKE_ENFORCE_REQUEST_ID_ECHO="FaLsE"` + `STABILITY_STOP_ON_FIRST_FAIL="fAlSe"` in Stabilität).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772118464.json`, `artifacts/worker-1-10m/iteration-41/bl18.1-remote-stability-local-worker-1-10m-1772118464.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772118464.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-41 + Bool-Flag-Aliasse synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Flag-Dokumentation für `SMOKE_ENFORCE_REQUEST_ID_ECHO` und `STABILITY_STOP_ON_FIRST_FAIL` auf Alias-Support (`0|1|true|false|yes|no|on|off`) erweitert und Nachweisführung auf Iteration 41 (`111 passed`, Smoke + 3x Stabilität, `request_id_echo_enforced=true/false`) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Short-Alias-Support für `SMOKE_REQUEST_ID_HEADER` + Real-Run, Iteration 40)
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID_HEADER` akzeptiert zusätzlich kompakte Alias-Werte (`request-id`, `correlation-id`, `request_id`, `correlation_id`) und mappt diese deterministisch auf die real gesendeten Header (`X-Request-Id`/`X-Correlation-Id` bzw. `X_Request_Id`/`X_Correlation_Id`).
 - **`tests/test_remote_smoke_script.py`:** neue Happy-Path-Tests verifizieren reproduzierbar, dass `request-id` und `correlation_id` robust normalisiert werden und die erwarteten Header-Namen (`request_id_header_name`) im Smoke-Report auftauchen.

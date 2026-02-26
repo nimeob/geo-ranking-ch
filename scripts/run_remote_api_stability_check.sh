@@ -12,7 +12,7 @@ set -euo pipefail
 #   STABILITY_INTERVAL_SECONDS="15"
 #   STABILITY_MAX_FAILURES="0"
 #   STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability.ndjson"  # wird getrimmt; whitespace-only -> fail-fast
-#   STABILITY_STOP_ON_FIRST_FAIL="0"
+#   STABILITY_STOP_ON_FIRST_FAIL="0"  # 0|1|true|false|yes|no|on|off
 #   STABILITY_SMOKE_SCRIPT="/path/to/run_remote_api_smoketest.sh"  # optionales Override (Tests/Debug), wird getrimmt/validiert
 #                                                               # relative Pfade werden gegen REPO_ROOT aufgelöst; Ziel muss ausführbare Datei sein
 #   + alle Variablen aus run_remote_api_smoketest.sh (SMOKE_QUERY, DEV_API_AUTH_TOKEN, ...)
@@ -123,10 +123,16 @@ if ! [[ "$STABILITY_MAX_FAILURES" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-case "$STABILITY_STOP_ON_FIRST_FAIL" in
-  0|1) ;;
+STABILITY_STOP_ON_FIRST_FAIL_NORMALIZED="${STABILITY_STOP_ON_FIRST_FAIL,,}"
+case "$STABILITY_STOP_ON_FIRST_FAIL_NORMALIZED" in
+  1|true|yes|on)
+    STABILITY_STOP_ON_FIRST_FAIL="1"
+    ;;
+  0|false|no|off)
+    STABILITY_STOP_ON_FIRST_FAIL="0"
+    ;;
   *)
-    echo "[BL-18.1] STABILITY_STOP_ON_FIRST_FAIL muss 0 oder 1 sein (aktuell: ${STABILITY_STOP_ON_FIRST_FAIL})." >&2
+    echo "[BL-18.1] STABILITY_STOP_ON_FIRST_FAIL muss 0/1 oder true/false/yes/no/on/off sein (aktuell: ${STABILITY_STOP_ON_FIRST_FAIL})." >&2
     exit 2
     ;;
 esac

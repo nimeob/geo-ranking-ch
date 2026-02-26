@@ -71,7 +71,7 @@ class TestRemoteStabilityScript(unittest.TestCase):
         include_token: bool,
         runs: int,
         max_failures: int,
-        stop_on_first_fail: int,
+        stop_on_first_fail: int | str,
         base_url: str | None = None,
         smoke_script: str | None = None,
         report_path_env: str | None = None,
@@ -163,6 +163,35 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertEqual(entries[0].get("status"), "fail")
         self.assertEqual(entries[0].get("reason"), "http_status")
         self.assertEqual(entries[0].get("http_status"), 401)
+
+    def test_stability_runner_accepts_true_alias_for_stop_on_first_fail(self):
+        cp, entries = self._run_stability(
+            include_token=False,
+            runs=4,
+            max_failures=0,
+            stop_on_first_fail="  TrUe  ",
+        )
+
+        self.assertNotEqual(cp.returncode, 0)
+        self.assertIn("Abbruch nach erstem Fehlrun", cp.stdout)
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].get("run_no"), 1)
+        self.assertEqual(entries[0].get("status"), "fail")
+        self.assertEqual(entries[0].get("http_status"), 401)
+
+    def test_stability_runner_accepts_false_alias_for_stop_on_first_fail(self):
+        cp, entries = self._run_stability(
+            include_token=False,
+            runs=3,
+            max_failures=3,
+            stop_on_first_fail="  fAlSe  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(len(entries), 3)
+        self.assertTrue(all(row.get("status") == "fail" for row in entries))
+        self.assertTrue(all(row.get("reason") == "http_status" for row in entries))
+        self.assertIn("fail=3", cp.stdout)
 
     def test_stability_runner_trims_numeric_flags_before_validation(self):
         cp, entries = self._run_stability(
@@ -412,7 +441,10 @@ class TestRemoteStabilityScript(unittest.TestCase):
         )
 
         self.assertEqual(cp.returncode, 2)
-        self.assertIn("STABILITY_STOP_ON_FIRST_FAIL muss 0 oder 1 sein", cp.stderr)
+        self.assertIn(
+            "STABILITY_STOP_ON_FIRST_FAIL muss 0/1 oder true/false/yes/no/on/off sein",
+            cp.stderr,
+        )
         self.assertEqual(entries, [])
 
 

@@ -19,7 +19,7 @@ set -euo pipefail
 #   CURL_RETRY_DELAY="2"
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; bei _-Aliasen wird der Header explizit als X_Request_Id/X_Correlation_Id gesendet
-#   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
+#   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0|true|false|yes|no|on|off (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
 
@@ -344,10 +344,16 @@ esac
 
 export REQUEST_ID_HEADER_NAME
 
-case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
-  0|1) ;;
+SMOKE_ENFORCE_REQUEST_ID_ECHO_NORMALIZED="${SMOKE_ENFORCE_REQUEST_ID_ECHO,,}"
+case "$SMOKE_ENFORCE_REQUEST_ID_ECHO_NORMALIZED" in
+  1|true|yes|on)
+    SMOKE_ENFORCE_REQUEST_ID_ECHO="1"
+    ;;
+  0|false|no|off)
+    SMOKE_ENFORCE_REQUEST_ID_ECHO="0"
+    ;;
   *)
-    echo "[BL-18.1] Ungültiger SMOKE_ENFORCE_REQUEST_ID_ECHO='${SMOKE_ENFORCE_REQUEST_ID_ECHO}' (erlaubt: 0|1)." >&2
+    echo "[BL-18.1] Ungültiger SMOKE_ENFORCE_REQUEST_ID_ECHO='${SMOKE_ENFORCE_REQUEST_ID_ECHO}' (erlaubt: 0|1|true|false|yes|no|on|off)." >&2
     exit 2
     ;;
 esac
