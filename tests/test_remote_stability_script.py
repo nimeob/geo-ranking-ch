@@ -230,6 +230,23 @@ class TestRemoteStabilityScript(unittest.TestCase):
         self.assertIn("STABILITY_REPORT_PATH darf keine Steuerzeichen enthalten", cp.stderr)
         self.assertEqual(entries, [])
 
+    def test_stability_runner_rejects_report_path_when_target_is_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_dir = Path(tmpdir) / "reports-dir"
+            report_dir.mkdir()
+
+            cp, entries = self._run_stability(
+                include_token=True,
+                runs=1,
+                max_failures=0,
+                stop_on_first_fail=0,
+                report_path_env=str(report_dir),
+            )
+
+        self.assertEqual(cp.returncode, 2)
+        self.assertIn("STABILITY_REPORT_PATH darf kein Verzeichnis sein", cp.stderr)
+        self.assertEqual(entries, [])
+
     def test_stability_runner_trims_smoke_script_override_before_exec(self):
         smoke_script = REPO_ROOT / "scripts" / "run_remote_api_smoketest.sh"
         cp, entries = self._run_stability(

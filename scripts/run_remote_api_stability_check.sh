@@ -81,6 +81,11 @@ then
   exit 2
 fi
 
+if [[ -d "${STABILITY_REPORT_PATH}" ]]; then
+  echo "[BL-18.1] STABILITY_REPORT_PATH darf kein Verzeichnis sein: ${STABILITY_REPORT_PATH}" >&2
+  exit 2
+fi
+
 SMOKE_SCRIPT="$(python3 - "${REPO_ROOT}" "${STABILITY_SMOKE_SCRIPT}" <<'PY'
 import os
 import sys
