@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Real-Run-Nachweis, 3x Stabilität)
+- **Lokaler Real-Run (Worker A):** `run_remote_api_smoketest.sh` erfolgreich (Exit `0`, HTTP `200`, `ok=true`, Request-ID-Echo Header+JSON konsistent) sowie `run_remote_api_stability_check.sh` mit `STABILITY_RUNS=3` erfolgreich (`pass=3`, `fail=0`, Exit `0`). Evidenz in `artifacts/bl18.1-smoke-local-worker-a.json` und `artifacts/bl18.1-remote-stability-local-worker-a.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Doku auf Worker-A-Nachweis synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** BL-18.1-Runbook und Backlog-Nachweis um den aktuellen Worker-A-Real-Run ergänzt.
+
 ### Added (2026-02-26 — BL-18/BL-18.1 Iteration: API-Timeout-Guard + Worker-C-Nachweis)
 - **`tests/test_web_e2e.py`:** Negativfall für non-finite `timeout_seconds` (`nan`) ergänzt; API muss reproduzierbar mit `400 bad_request` antworten.
 - **Lokaler Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erneut erfolgreich (`21 passed`) sowie dedizierte BL-18.1-Läufe via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=2`, `fail=0`, Request-ID-Echo Header+JSON konsistent); Evidenz in `artifacts/bl18.1-smoke-local-worker-c.json` und `artifacts/bl18.1-remote-stability-local-worker-c.ndjson`.
