@@ -206,7 +206,7 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
         self.assertEqual(data.get("status"), "pass")
         self.assertEqual(data.get("request_id_header_source"), "request")
-        self.assertEqual(data.get("request_id_header_name"), "X-Request-Id")
+        self.assertEqual(data.get("request_id_header_name"), "Request-Id")
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
@@ -225,6 +225,20 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
 
+    def test_smoke_script_accepts_short_correlation_header_alias_for_request_id_mode(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            request_id_header="  correlation-id  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("request_id_header_source"), "correlation")
+        self.assertEqual(data.get("request_id_header_name"), "Correlation-Id")
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+        self.assertEqual(data.get("response_header_request_id"), request_id)
+
     def test_smoke_script_accepts_request_header_underscore_alias_for_request_id_mode(self):
         cp, data, request_id = self._run_smoke(
             include_token=True,
@@ -235,6 +249,20 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("status"), "pass")
         self.assertEqual(data.get("request_id_header_source"), "request")
         self.assertEqual(data.get("request_id_header_name"), "X_Request_Id")
+        self.assertEqual(data.get("request_id"), request_id)
+        self.assertEqual(data.get("response_request_id"), request_id)
+        self.assertEqual(data.get("response_header_request_id"), request_id)
+
+    def test_smoke_script_accepts_short_request_header_underscore_alias_for_request_id_mode(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            request_id_header="  request_id  ",
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("request_id_header_source"), "request")
+        self.assertEqual(data.get("request_id_header_name"), "Request_Id")
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
@@ -262,7 +290,7 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
         self.assertEqual(data.get("status"), "pass")
         self.assertEqual(data.get("request_id_header_source"), "correlation")
-        self.assertEqual(data.get("request_id_header_name"), "X_Correlation_Id")
+        self.assertEqual(data.get("request_id_header_name"), "Correlation_Id")
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)

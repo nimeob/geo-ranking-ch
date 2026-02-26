@@ -18,7 +18,7 @@ set -euo pipefail
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; ASCII-only, keine Steuerzeichen/Trennzeichen/Whitespaces; max. 128 Zeichen
-#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; bei _-Aliasen wird der Header explizit als X_Request_Id/X_Correlation_Id gesendet
+#   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; Short-Aliasse senden Request-Id/Correlation-Id bzw. Request_Id/Correlation_Id, X-Aliasse senden X-Request-Id/X-Correlation-Id bzw. X_Request_Id/X_Correlation_Id
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0|true|false|yes|no|on|off (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
@@ -332,21 +332,37 @@ fi
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER,,}"
 REQUEST_ID_HEADER_NAME="X-Request-Id"
 case "$SMOKE_REQUEST_ID_HEADER" in
-  request|request-id|x-request-id)
+  request|x-request-id)
     SMOKE_REQUEST_ID_HEADER="request"
     REQUEST_ID_HEADER_NAME="X-Request-Id"
     ;;
-  request_id|x_request_id)
+  request-id)
+    SMOKE_REQUEST_ID_HEADER="request"
+    REQUEST_ID_HEADER_NAME="Request-Id"
+    ;;
+  x_request_id)
     SMOKE_REQUEST_ID_HEADER="request"
     REQUEST_ID_HEADER_NAME="X_Request_Id"
     ;;
-  correlation|correlation-id|x-correlation-id)
+  request_id)
+    SMOKE_REQUEST_ID_HEADER="request"
+    REQUEST_ID_HEADER_NAME="Request_Id"
+    ;;
+  correlation|x-correlation-id)
     SMOKE_REQUEST_ID_HEADER="correlation"
     REQUEST_ID_HEADER_NAME="X-Correlation-Id"
     ;;
-  correlation_id|x_correlation_id)
+  correlation-id)
+    SMOKE_REQUEST_ID_HEADER="correlation"
+    REQUEST_ID_HEADER_NAME="Correlation-Id"
+    ;;
+  x_correlation_id)
     SMOKE_REQUEST_ID_HEADER="correlation"
     REQUEST_ID_HEADER_NAME="X_Correlation_Id"
+    ;;
+  correlation_id)
+    SMOKE_REQUEST_ID_HEADER="correlation"
+    REQUEST_ID_HEADER_NAME="Correlation_Id"
     ;;
   *)
     echo "[BL-18.1] Ungültiger SMOKE_REQUEST_ID_HEADER='${SMOKE_REQUEST_ID_HEADER}' (erlaubt: request|correlation|request-id|correlation-id|x-request-id|x-correlation-id|request_id|correlation_id|x_request_id|x_correlation_id)." >&2

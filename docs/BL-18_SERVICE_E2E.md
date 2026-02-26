@@ -112,7 +112,7 @@ Wichtige Optionen:
 - `SMOKE_TIMEOUT_SECONDS` / `CURL_MAX_TIME`: müssen endliche Zahlen `> 0` sein, werden vor der Validierung getrimmt und `CURL_MAX_TIME` muss zusätzlich `>= SMOKE_TIMEOUT_SECONDS` sein (früher, klarer `exit 2` bei Fehlwerten, inkl. Reject von `nan`/`inf` sowie inkonsistenten Timeout-Kombinationen).
 - `CURL_RETRY_COUNT` / `CURL_RETRY_DELAY`: robuste Wiederholungen bei transienten Netzwerkfehlern; müssen Ganzzahlen `>= 0` sein und werden vor der Validierung getrimmt.
 - `SMOKE_REQUEST_ID`: korrelierbare Request-ID (z. B. für Logsuche); wird vor dem Request getrimmt, muss ASCII-only sein, darf keine eingebetteten Whitespaces, keine Steuerzeichen und keine Trennzeichen (`,`/`;`) enthalten und darf maximal 128 Zeichen enthalten (sonst `exit 2`).
-- `SMOKE_REQUEST_ID_HEADER` (`request|correlation|request-id|correlation-id|x-request-id|x-correlation-id|request_id|correlation_id|x_request_id|x_correlation_id`, default `request`): wird vor Validierung getrimmt und case-insensitive normalisiert; whitespace-only Werte, eingebettete Whitespaces und Steuerzeichen werden fail-fast mit `exit 2` zurückgewiesen. Header-Namen werden als Alias akzeptiert (`request-id`/`x-request-id`→`X-Request-Id`, `request_id`/`x_request_id`→`X_Request_Id`, `correlation-id`/`x-correlation-id`→`X-Correlation-Id`, `correlation_id`/`x_correlation_id`→`X_Correlation_Id`) und steuern, über welchen Header die Request-ID gesendet wird; der JSON-Report enthält dazu `request_id_header_name`.
+- `SMOKE_REQUEST_ID_HEADER` (`request|correlation|request-id|correlation-id|x-request-id|x-correlation-id|request_id|correlation_id|x_request_id|x_correlation_id`, default `request`): wird vor Validierung getrimmt und case-insensitive normalisiert; whitespace-only Werte, eingebettete Whitespaces und Steuerzeichen werden fail-fast mit `exit 2` zurückgewiesen. Header-Namen werden als Alias akzeptiert (`request`/`x-request-id`→`X-Request-Id`, `request-id`→`Request-Id`, `request_id`→`Request_Id`, `x_request_id`→`X_Request_Id`, `correlation`/`x-correlation-id`→`X-Correlation-Id`, `correlation-id`→`Correlation-Id`, `correlation_id`→`Correlation_Id`, `x_correlation_id`→`X_Correlation_Id`) und steuern, über welchen Header die Request-ID gesendet wird; der JSON-Report enthält dazu `request_id_header_name`.
 - `SMOKE_ENFORCE_REQUEST_ID_ECHO` (`1|0|true|false|yes|no|on|off`, default `1`): wird vor Validierung getrimmt, robust auf `1|0` normalisiert und steuert die Echo-Prüfung für Header + JSON (`request_id`).
 - `SMOKE_MODE`: reproduzierbarer Request-Modus (`basic|extended|risk`), wird vor der Validierung getrimmt und case-insensitive normalisiert (z. B. `"  ExTenDeD  "` → `extended`).
 - `SMOKE_OUTPUT_JSON` (optional): wird vor der Verwendung getrimmt; whitespace-only Pfade (nach Trim leer), Pfade mit Steuerzeichen, Verzeichnisziele sowie Pfade mit Datei-Elternpfad (Parent ist kein Verzeichnis) werden fail-fast mit `exit 2` abgewiesen, damit die Artefakt-Ausgabe robust und konsistent bleibt (inkl. Curl-Fehlpfad-Report).
@@ -148,6 +148,22 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, echte Short-Alias-Header-Sendung (`Request-Id`/`Correlation_Id`) + Real-Run, Iteration 44)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="40243" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:40243/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID="  bl18-worker-1-10m-run-1772120287  " SMOKE_REQUEST_ID_HEADER="  request-id  " SMOKE_ENFORCE_REQUEST_ID_ECHO="  TrUe  " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-1-10m-1772120287.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:40243/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  RiSk  " SMOKE_REQUEST_ID_HEADER="  correlation_id  " SMOKE_ENFORCE_REQUEST_ID_ECHO="  FaLsE  " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 3 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL="  fAlSe  " STABILITY_REPORT_PATH="artifacts/worker-1-10m/iteration-44/bl18.1-remote-stability-local-worker-1-10m-1772120287.ndjson" ./scripts/run_remote_api_stability_check.sh`
+  - API-Realcheck Short-Underscore-Aliasse: Request mit `Request_Id="bl18-short-underscore-primary"` (primär) sowie Fallback-Request mit ungültigem primären Request-Alias + `Correlation_Id="bl18-short-underscore-correlation-fallback"` → Report `artifacts/bl18.1-request-id-short-underscore-alias-worker-1-10m-1772120287.json`.
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `119 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden (`request_id_header_name=Request-Id`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`request_id_header_name=Correlation_Id`).
+  - Short-Alias-API-Guard greift reproduzierbar: `Request_Id` wird primär gespiegelt; bei ungültigem primären Request-Alias gewinnt deterministisch `Correlation_Id`.
+  - Evidenz: `artifacts/bl18.1-smoke-local-worker-1-10m-1772120287.json`, `artifacts/worker-1-10m/iteration-44/bl18.1-remote-stability-local-worker-1-10m-1772120287.ndjson`, `artifacts/bl18.1-request-id-short-underscore-alias-worker-1-10m-1772120287.json`.
+  - Server-Log: `artifacts/bl18.1-worker-1-10m-server-1772120287.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Short-Request-ID-Header-Aliasse (`Request-Id`/`Correlation-Id`) + Real-Run, Iteration 43)
 

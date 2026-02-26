@@ -14,6 +14,17 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m echte Short-Alias-Header-Sendung + Real-Run, Iteration 44)
+- **`scripts/run_remote_api_smoketest.sh`:** Alias-Normalisierung für `SMOKE_REQUEST_ID_HEADER` präzisiert: `request-id`/`correlation-id` senden jetzt real `Request-Id`/`Correlation-Id`, `request_id`/`correlation_id` senden `Request_Id`/`Correlation_Id`; `x-*`-Aliasse bleiben unverändert auf `X-*`.
+- **`tests/test_remote_smoke_script.py`:** Happy-Path-Abdeckung erweitert für echte Short-Alias-Headernamen (`request-id`, `correlation-id`, `request_id`, `correlation_id`) inkl. Assert auf `request_id_header_name`.
+- **`tests/test_web_e2e.py`:** zusätzliche API-E2E-Fälle sichern `Request_Id` als primären Kurz-Alias sowie den Fallback auf `Correlation_Id` reproduzierbar ab.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`119 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) mit echten Short-Alias-Headern (`request_id_header_name=Request-Id` im Smoke, `Correlation_Id` in Stabilität).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772120287.json`, `artifacts/worker-1-10m/iteration-44/bl18.1-remote-stability-local-worker-1-10m-1772120287.ndjson`, `artifacts/bl18.1-request-id-short-underscore-alias-worker-1-10m-1772120287.json`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772120287.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-1-10m Iteration-44 + echte Short-Alias-Header synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Alias-Mapping-Doku auf echte Short-Header-Sendung aktualisiert (`Request-Id`/`Correlation-Id`, `Request_Id`/`Correlation_Id`) und Nachweisführung auf Iteration 44 (`119 passed`, Smoke + 3x Stabilität + Short-Underscore-API-Realcheck) angehoben.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Short-Request-ID-Header-Aliasse (`Request-Id`/`Correlation-Id`) + Real-Run, Iteration 43)
 - **`src/web_service.py`:** Request-ID-Korrelation akzeptiert jetzt zusätzlich kurze Header-Aliasse (`Request-Id`/`Request_Id` als primär, `Correlation-Id`/`Correlation_Id` als Fallback) und nutzt weiterhin denselben Sanitizer/Fallback-Pfad wie bei `X-*`-Headern.
 - **`tests/test_web_e2e.py`:** neue API-E2E-Fälle verifizieren reproduzierbar, dass `Request-Id` primär gespiegelt wird und bei ungültigem primären Request-Alias deterministisch `Correlation-Id` gewinnt.
