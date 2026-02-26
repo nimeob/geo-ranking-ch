@@ -29,7 +29,7 @@
 - **Explizites Timeout-Mapping:**
   - `TimeoutError` → `504 timeout`.
 - **Request-ID-Korrelation für API-Debugging:**
-  - `POST /analyze` übernimmt `X-Request-Id` (oder `X-Correlation-Id`) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
+  - `POST /analyze` übernimmt die **erste nicht-leere** ID aus `X-Request-Id` (primär) oder `X-Correlation-Id` (Fallback) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
   - Ohne mitgelieferte ID erzeugt der Service eine interne Request-ID.
 - **Test-Fault-Injection (nur lokal/gezielt):**
   - via `ENABLE_E2E_FAULT_INJECTION=1`
@@ -48,6 +48,7 @@
     - Invalid mode + non-finite `timeout_seconds` / bad request (400)
     - Timeout (504)
     - Internal (500)
+    - Request-ID-Echo inkl. Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` leer/whitespace ist
 - **Dev:** `tests/test_web_e2e_dev.py`
   - läuft gegen `DEV_BASE_URL`
   - optional mit `DEV_API_AUTH_TOKEN`
@@ -136,6 +137,17 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker C, Langlauf-Iteration Request-ID-Fallback auf `X-Correlation-Id`)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:52255/health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-c-langlauf-1772096264  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-c-langlauf-1772096264.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:52255/health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=3 STABILITY_INTERVAL_SECONDS=0 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772096264.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `49 passed` (inkl. neuem API-E2E-Guard: Fallback auf `X-Correlation-Id`, wenn `X-Request-Id` leer/whitespace ist).
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-c-langlauf-1772096264.json`, `started_at_utc=2026-02-26T08:57:50Z`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772096264.ndjson`).
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Iteration Forward-Suffix-Chain mit internem Double-Slash)
 

@@ -40,12 +40,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def _request_id(self) -> str:
         """Liefert eine korrelierbare Request-ID (Header oder Fallback)."""
-        request_id = (
-            self.headers.get("X-Request-Id", "")
-            or self.headers.get("X-Correlation-Id", "")
-        ).strip()
-        if request_id:
-            return request_id[:128]
+        header_candidates = (
+            self.headers.get("X-Request-Id", ""),
+            self.headers.get("X-Correlation-Id", ""),
+        )
+        for candidate in header_candidates:
+            request_id = str(candidate).strip()
+            if request_id:
+                return request_id[:128]
         return f"req-{uuid.uuid4().hex[:16]}"
 
     def _send_json(
