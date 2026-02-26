@@ -85,6 +85,7 @@ curl http://localhost:8080/health
 # dedizierter Remote-Smoke-Test für BL-18.1 (/analyze)
 # validiert: HTTP 200, ok=true, result vorhanden, Request-ID-Echo (Header+JSON)
 # DEV_BASE_URL muss http(s) sein (auch mit grossgeschriebenem Schema wie HTTP://); führende/trailing Whitespaces, redundante trailing Slashes sowie /health-/analyze-Suffixe (case-insensitive, auch verkettet, in gemischter Reihenfolge wie /analyze/health und auch als wiederholte Kette wie /health/analyze/health/analyze///; inkl. kombinierten Inputs wie "  HTTP://.../AnAlYzE/health//  ") werden automatisch normalisiert
+# DEV_BASE_URL darf keine eingebetteten Whitespaces/Steuerzeichen enthalten (z. B. "http://.../hea lth")
 # DEV_BASE_URL darf keine Query-/Fragment-Komponenten enthalten (z. B. ?foo=bar oder #frag)
 # DEV_BASE_URL darf keine Userinfo enthalten (z. B. user:pass@host), um Secret-Leaks in Logs zu verhindern
 # DEV_BASE_URL muss eine valide Host/Port-Kombination enthalten (nicht-numerische oder out-of-range Ports wie :abc / :70000 werden fail-fast mit exit 2 abgewiesen)

@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Embedded-Whitespace-Guard + Langlauf-Nachweis)
+- **`scripts/run_remote_api_smoketest.sh`:** validiert `DEV_BASE_URL` jetzt zusätzlich auf eingebettete Whitespaces/Steuerzeichen und bricht bei fehlerhaften URL-Inputs fail-fast mit `exit 2` ab (statt späterem, weniger präzisem curl-Fehler).
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest sichert reproduzierbar `exit 2` für `DEV_BASE_URL` mit eingebettetem Whitespace (`http://.../hea lth`).
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`47 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-a-langlauf-1772095778.json` und `artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772095778.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Embedded-Whitespace-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf den neuen `DEV_BASE_URL`-Guard für eingebettete Whitespaces/Steuerzeichen sowie den aktuellen Worker-A-Langlauf (`47 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Request-ID-Längen-Guard + Langlauf-Nachweis)
 - **`scripts/run_remote_api_smoketest.sh`:** validiert `SMOKE_REQUEST_ID` jetzt zusätzlich auf maximale Länge (`<=128` Zeichen), damit der Request-ID-Echo-Check nicht durch serverseitige Trunkierung in `src/web_service.py` fehlschlägt.
 - **`tests/test_remote_smoke_script.py`:** neuer Negativtest sichert reproduzierbar `exit 2` für `SMOKE_REQUEST_ID` mit mehr als 128 Zeichen.

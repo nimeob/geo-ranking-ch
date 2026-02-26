@@ -37,6 +37,20 @@ if [[ -z "${DEV_BASE_URL_TRIMMED}" ]]; then
   exit 2
 fi
 
+if ! python3 - "${DEV_BASE_URL_TRIMMED}" <<'PY'
+import sys
+
+value = sys.argv[1]
+if any(ch.isspace() for ch in value):
+    raise SystemExit(1)
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] DEV_BASE_URL darf keine eingebetteten Whitespaces/Steuerzeichen enthalten (aktuell: ${DEV_BASE_URL})." >&2
+  exit 2
+fi
+
 SMOKE_QUERY="${SMOKE_QUERY:-St. Leonhard-Strasse 40, St. Gallen}"
 SMOKE_MODE="${SMOKE_MODE:-basic}"
 SMOKE_TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-20}"

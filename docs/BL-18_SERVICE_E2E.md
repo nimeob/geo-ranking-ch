@@ -97,6 +97,7 @@ SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json" \
 
 Wichtige Optionen:
 - `DEV_BASE_URL`: muss mit `http://` oder `https://` starten (Groß-/Kleinschreibung im Schema wird akzeptiert, z. B. `HTTP://`); führende/trailing Whitespaces sowie Suffixe `/health` oder `/analyze` (auch verkettet, case-insensitive und in gemischter Reihenfolge wie `/analyze/health`) werden automatisch auf die Service-Basis normalisiert.
+- `DEV_BASE_URL`: darf keine eingebetteten Whitespaces/Steuerzeichen enthalten (z. B. `http://.../hea lth`), sonst fail-fast `exit 2` mit klarer CLI-Fehlermeldung.
 - `DEV_BASE_URL`: darf keine Query-/Fragment-Komponenten enthalten (`?foo=bar`, `#frag`), damit der `/analyze`-Zielpfad reproduzierbar bleibt.
 - `DEV_BASE_URL`: darf keine Userinfo (`user:pass@host`) enthalten, um versehentliche Credential-Leaks in Runbooks/Logs zu verhindern.
 - `DEV_BASE_URL`: muss nach Normalisierung eine gültige Host/Port-Kombination enthalten; nicht-numerische bzw. out-of-range Ports (`:abc`, `:70000`) werden fail-fast mit `exit 2` zurückgewiesen.
@@ -135,6 +136,17 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker A, Langlauf-Iteration Embedded-Whitespace-Guard)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:53077/AnAlYzE/health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-a-langlauf-1772095778  " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-a-langlauf-1772095778.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:53077/AnAlYzE/health/analyze/health///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" STABILITY_RUNS=3 STABILITY_INTERVAL_SECONDS=1 STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772095778.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `47 passed` (inkl. neuem Smoke-E2E-Negativtest für eingebettete Whitespaces in `DEV_BASE_URL`).
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt (`artifacts/bl18.1-smoke-local-worker-a-langlauf-1772095778.json`, `started_at_utc=2026-02-26T08:49:39Z`).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0` (`artifacts/bl18.1-remote-stability-local-worker-a-langlauf-1772095778.ndjson`).
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker C, Langlauf-Iteration Request-ID-Längen-Guard)
 
