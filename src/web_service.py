@@ -48,6 +48,8 @@ def _sanitize_request_id_candidate(candidate: Any) -> str:
         return ""
     if len(value) > 128:
         return ""
+    if not value.isascii():
+        return ""
     return value
 
 

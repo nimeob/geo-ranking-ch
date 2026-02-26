@@ -14,6 +14,18 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A-10m ASCII-Only Request-ID-Guard + Real-Run, Iteration 42)
+- **`src/web_service.py`:** Request-ID-Sanitizer verwirft jetzt zusätzlich Non-ASCII-Werte; bei ungültigem Primärheader bleibt der bestehende Correlation-Fallback deterministisch aktiv.
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_REQUEST_ID` wird fail-fast auch auf ASCII-only geprüft (`exit 2` bei Non-ASCII), damit unsichtbare/mehrdeutige Headerwerte nicht in Remote-Runs landen.
+- **`tests/test_web_e2e.py`:** neuer API-E2E-Fall verifiziert den Correlation-Fallback bei Non-ASCII `X-Request-Id`.
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest deckt fail-fast für Non-ASCII `SMOKE_REQUEST_ID` reproduzierbar ab.
+- **Langlauf-Real-Run (Worker A-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`113 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-a-10m-1772119023.json`, `artifacts/worker-a-10m/iteration-42/bl18.1-remote-stability-local-worker-a-10m-1772119023.ndjson`, `artifacts/bl18.1-request-id-nonascii-fallback-worker-a-10m-1772119039.json`.
+- **Serverlauf:** `artifacts/bl18.1-worker-a-10m-server-1772119023.log`, `artifacts/bl18.1-worker-a-10m-server-nonascii-1772119039.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-A-10m Iteration-42 + ASCII-Only Request-ID synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Request-ID-Regeln um ASCII-only-Guard erweitert und Nachweisführung auf Iteration 42 (`113 passed`, Smoke + 3x Stabilität + Non-ASCII-Fallback-Evidenz) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Bool-Flag-Aliasse für Echo/Stop-on-first-fail + Real-Run, Iteration 41)
 - **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_ENFORCE_REQUEST_ID_ECHO` akzeptiert jetzt zusätzlich boolesche Alias-Werte (`true|false|yes|no|on|off`, case-insensitive), normalisiert robust auf `1|0` und bleibt bei ungültigen Modi fail-fast (`exit 2`).
 - **`scripts/run_remote_api_stability_check.sh`:** `STABILITY_STOP_ON_FIRST_FAIL` akzeptiert jetzt ebenfalls boolesche Alias-Werte (`true|false|yes|no|on|off`), normalisiert auf `0|1` und behält den bisherigen Early-Stop-Mechanismus unverändert bei.

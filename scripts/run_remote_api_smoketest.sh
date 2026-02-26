@@ -17,7 +17,7 @@ set -euo pipefail
 #   CURL_MAX_TIME="45"
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
-#   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
+#   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; ASCII-only, keine Steuerzeichen/Trennzeichen/Whitespaces; max. 128 Zeichen
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; bei _-Aliasen wird der Header explizit als X_Request_Id/X_Correlation_Id gesendet
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0|true|false|yes|no|on|off (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
@@ -223,6 +223,18 @@ if len(request_id) > 128:
 PY
 then
   echo "[BL-18.1] SMOKE_REQUEST_ID darf maximal 128 Zeichen enthalten (aktuell: ${#SMOKE_REQUEST_ID})." >&2
+  exit 2
+fi
+
+if ! python3 - "${SMOKE_REQUEST_ID}" <<'PY'
+import sys
+
+request_id = sys.argv[1]
+if not request_id.isascii():
+    raise SystemExit(1)
+PY
+then
+  echo "[BL-18.1] SMOKE_REQUEST_ID darf nur ASCII-Zeichen enthalten." >&2
   exit 2
 fi
 
