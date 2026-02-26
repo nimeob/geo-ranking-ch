@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-17 Iteration: OIDC/AssumeRole-Posture Quick-Check)
+- **`scripts/check_bl17_oidc_assumerole_posture.sh`:** Neues Read-only Check-Script für BL-17. Prüft OIDC-Marker in aktiven Workflows (`configure-aws-credentials`, `id-token: write`), erkennt statische AWS-Key-Referenzen, klassifiziert den aktuellen AWS-Caller (AssumeRole `openclaw-ops-role` vs. Legacy-User) und führt bestehende Audit-Skripte als Kontextlauf mit aus.
+- **`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`:** Verifikationssektion um automatisierten BL-17 Quick-Check ergänzt.
+- **`docs/OPERATIONS.md`:** Agent-Autopilot-Kurzfassung auf BL-17 Quick-Check als Standard vor AWS-Ops umgestellt.
+- **`docs/BACKLOG.md`:** BL-17 Umsetzungsstand um das neue Posture-Check-Script erweitert.
+
 ### Added (2026-02-25 — BL-12 HTTP Uptime Probe aktiv)
 - **`infra/lambda/health_probe/lambda_function.py`:** Lambda-Probe (Python 3.12). Löst öffentliche IP des laufenden ECS-Tasks dynamisch auf (kein ALB/stabile Domain erforderlich), führt HTTP GET `/health` durch, publiziert CloudWatch-Metrik `HealthProbeSuccess` (1=ok, 0=fail). Kein externer Dependency-Overhead (nur stdlib + boto3).
 - **`scripts/setup_health_probe_dev.sh`:** Idempotentes Setup-Script. Erstellt IAM-Role (`swisstopo-dev-health-probe-role`, Minimal-Privilege), Lambda `swisstopo-dev-health-probe`, EventBridge Scheduled Rule (rate 5 min) und CloudWatch Alarm (`swisstopo-dev-api-health-probe-fail` → SNS → Telegram). Kein `zip`-Binary nötig (ZIP via Python stdlib). Inkl. sofortigem Lambda-Testlauf nach Deployment.

@@ -76,6 +76,16 @@ aws cloudwatch describe-alarms --region eu-central-1 --max-items 5
 ### C) Legacy nur Fallback
 - Keine Routine-Aktivität auf Principal `...:user/swisstopo-api-deploy` außerhalb definierter Fallback-Fenster.
 
+### D) Automatischer Quick-Check (BL-17)
+```bash
+cd /data/.openclaw/workspace/geo-ranking-ch
+./scripts/check_bl17_oidc_assumerole_posture.sh
+```
+- Prüft OIDC-Marker in Workflows (`id-token: write`, `configure-aws-credentials`).
+- Prüft auf statische AWS-Key-Referenzen in aktiven Workflows.
+- Klassifiziert den aktiven Runtime-Caller (AssumeRole vs. Legacy-User).
+- Führt die bestehenden Read-only Audits (`audit_legacy_aws_consumer_refs.sh`, `audit_legacy_runtime_consumers.sh`) als Kontext mit aus.
+
 ---
 
 ## Rollback (wenn AssumeRole-Flow blockiert)
