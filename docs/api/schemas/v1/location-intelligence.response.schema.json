@@ -4,11 +4,25 @@
   "title": "LocationIntelligenceResponseV1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["ok", "api_version", "request_id", "result"],
+  "required": [
+    "ok",
+    "api_version",
+    "request_id",
+    "result"
+  ],
   "properties": {
-    "ok": { "const": true },
-    "api_version": { "type": "string", "pattern": "^v[0-9]+$" },
-    "request_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "ok": {
+      "const": true
+    },
+    "api_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+$"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
     "result": {
       "type": "object",
       "additionalProperties": true,
@@ -23,27 +37,185 @@
         "explainability"
       ],
       "properties": {
-        "entity_id": { "type": "string", "minLength": 1 },
-        "input_mode": { "type": "string", "enum": ["address", "point"] },
-        "as_of": { "type": "string", "minLength": 10 },
-        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-        "building_profile": { "type": "object" },
-        "context_profile": { "type": "object" },
-        "suitability_light": { "type": "object" },
+        "entity_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_mode": {
+          "type": "string",
+          "enum": [
+            "address",
+            "point"
+          ]
+        },
+        "as_of": {
+          "type": "string",
+          "minLength": 10
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "building_profile": {
+          "type": "object"
+        },
+        "context_profile": {
+          "type": "object"
+        },
+        "suitability_light": {
+          "type": "object"
+        },
         "explainability": {
           "type": "object",
-          "required": ["sources"],
+          "required": [
+            "sources",
+            "base",
+            "personalized"
+          ],
           "properties": {
             "sources": {
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["source", "as_of", "confidence"],
+                "required": [
+                  "source",
+                  "as_of",
+                  "confidence"
+                ],
                 "properties": {
-                  "source": { "type": "string" },
-                  "as_of": { "type": "string" },
-                  "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-                  "license": { "type": "string" }
+                  "source": {
+                    "type": "string"
+                  },
+                  "as_of": {
+                    "type": "string"
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "license": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "base": {
+              "type": "object",
+              "required": [
+                "factors"
+              ],
+              "properties": {
+                "factors": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "key",
+                      "raw_value",
+                      "normalized",
+                      "weight",
+                      "contribution",
+                      "direction",
+                      "reason",
+                      "source"
+                    ],
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "raw_value": {
+                        "type": "number"
+                      },
+                      "normalized": {
+                        "type": "number"
+                      },
+                      "weight": {
+                        "type": "number"
+                      },
+                      "contribution": {
+                        "type": "number"
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "pro",
+                          "contra",
+                          "neutral"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "personalized": {
+              "type": "object",
+              "required": [
+                "factors"
+              ],
+              "properties": {
+                "factors": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "key",
+                      "raw_value",
+                      "normalized",
+                      "weight",
+                      "contribution",
+                      "direction",
+                      "reason",
+                      "source"
+                    ],
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "raw_value": {
+                        "type": "number"
+                      },
+                      "normalized": {
+                        "type": "number"
+                      },
+                      "weight": {
+                        "type": "number"
+                      },
+                      "contribution": {
+                        "type": "number"
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "pro",
+                          "contra",
+                          "neutral"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
                 }
               }
             }

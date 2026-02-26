@@ -87,6 +87,56 @@
             "plz": 8001
           }
         },
+        "explainability": {
+          "base": {
+            "factors": [
+              {
+                "key": "noise",
+                "raw_value": 61,
+                "normalized": 0.61,
+                "weight": 0.3,
+                "contribution": -0.183,
+                "direction": "contra",
+                "reason": "Lärmbelastung im Radius 500m über Referenzmedian.",
+                "source": "laermkataster_ch"
+              },
+              {
+                "key": "schools",
+                "raw_value": 4,
+                "normalized": 0.8,
+                "weight": 0.2,
+                "contribution": 0.16,
+                "direction": "pro",
+                "reason": "Mehrere Schulen/Kitas in fußläufiger Distanz.",
+                "source": "poi_school_index"
+              }
+            ]
+          },
+          "personalized": {
+            "factors": [
+              {
+                "key": "noise",
+                "raw_value": 61,
+                "normalized": 0.61,
+                "weight": 0.48,
+                "contribution": -0.2928,
+                "direction": "contra",
+                "reason": "Quiet-Profil erhöht das Gewicht für Lärmfaktoren.",
+                "source": "laermkataster_ch"
+              },
+              {
+                "key": "schools",
+                "raw_value": 4,
+                "normalized": 0.8,
+                "weight": 0.28,
+                "contribution": 0.224,
+                "direction": "pro",
+                "reason": "Family-orientierter Bias priorisiert Schulnähe stärker.",
+                "source": "poi_school_index"
+              }
+            ]
+          }
+        },
         "intelligence": {
           "tenants_businesses": {
             "entities": [

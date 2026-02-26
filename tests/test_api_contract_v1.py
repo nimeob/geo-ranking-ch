@@ -29,6 +29,7 @@ _ALLOWED_ERROR_CODES = {
     "timeout",
     "internal",
 }
+_ALLOWED_EXPLAINABILITY_DIRECTIONS = {"pro", "contra", "neutral"}
 
 
 def _is_non_empty_str(value: Any) -> bool:
@@ -194,6 +195,44 @@ def validate_success_response(payload: Any) -> list[str]:
                 if not isinstance(score, (int, float)) or not (0 <= float(score) <= 1):
                     errors.append(f"sources[{idx}].confidence invalid")
 
+        for bucket_name in ("base", "personalized"):
+            bucket = explainability.get(bucket_name)
+            if not isinstance(bucket, dict):
+                errors.append(f"result.explainability.{bucket_name} must be object")
+                continue
+
+            factors = bucket.get("factors")
+            if not isinstance(factors, list) or not factors:
+                errors.append(
+                    f"result.explainability.{bucket_name}.factors must be non-empty array"
+                )
+                continue
+
+            for idx, factor in enumerate(factors):
+                if not isinstance(factor, dict):
+                    errors.append(f"{bucket_name}.factors[{idx}] must be object")
+                    continue
+
+                if not _is_non_empty_str(factor.get("key")):
+                    errors.append(f"{bucket_name}.factors[{idx}].key invalid")
+                if not isinstance(factor.get("raw_value"), (int, float)):
+                    errors.append(f"{bucket_name}.factors[{idx}].raw_value invalid")
+                if not isinstance(factor.get("normalized"), (int, float)):
+                    errors.append(f"{bucket_name}.factors[{idx}].normalized invalid")
+                if not isinstance(factor.get("weight"), (int, float)):
+                    errors.append(f"{bucket_name}.factors[{idx}].weight invalid")
+                if not isinstance(factor.get("contribution"), (int, float)):
+                    errors.append(f"{bucket_name}.factors[{idx}].contribution invalid")
+
+                direction = factor.get("direction")
+                if direction not in _ALLOWED_EXPLAINABILITY_DIRECTIONS:
+                    errors.append(f"{bucket_name}.factors[{idx}].direction invalid")
+
+                if not _is_non_empty_str(factor.get("reason")):
+                    errors.append(f"{bucket_name}.factors[{idx}].reason invalid")
+                if not _is_non_empty_str(factor.get("source")):
+                    errors.append(f"{bucket_name}.factors[{idx}].source invalid")
+
     return errors
 
 
@@ -260,6 +299,9 @@ class TestApiContractV1(unittest.TestCase):
             "## 7) Scope-Abgrenzung BL-20.1.a / BL-20.1.b",
             "## 10) Stability Guide + Contract-Change-Policy (BL-20.1.d.wp4)",
             "docs/api/contract-stability-policy.md",
+            "result.explainability.base.factors[*]",
+            "result.explainability.personalized.factors[*]",
+            "result.data.modules.explainability.base.factors[*]",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
