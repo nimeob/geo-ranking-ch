@@ -166,35 +166,46 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 
 ## Projektstruktur
 
-```
+```text
 geo-ranking-ch/
-├── src/                    # Quellcode (Python, stdlib only)
-│   ├── address_intel.py    # Adress-Intelligence + City-Ranking
-│   ├── gwr_codes.py        # GWR-Code-Tabellen
-│   ├── geo_utils.py        # Geodaten-Utilities (Elevation, Geocoding, …)
-│   └── web_service.py      # HTTP-API (MVP für ECS)
-├── tests/                  # Unit-Tests
-│   └── test_core.py
-├── scripts/                # Deployment- und Utility-Skripte
-├── docs/                   # Projektdokumentation
-│   ├── ARCHITECTURE.md
+├── src/                              # Service- und Core-Logik
+│   ├── address_intel.py
+│   ├── geo_utils.py
+│   ├── gwr_codes.py
+│   └── web_service.py                # HTTP-API (/health, /version, /analyze)
+├── tests/                            # Unit- und E2E-Tests
+│   ├── test_core.py
+│   ├── test_web_e2e.py
+│   ├── test_web_e2e_dev.py
+│   ├── test_remote_smoke_script.py
+│   └── test_remote_stability_script.py
+├── scripts/                          # Audit-, Deploy- und E2E-/Smoke-Runner
+│   ├── run_webservice_e2e.sh
+│   ├── run_remote_api_smoketest.sh
+│   ├── run_remote_api_stability_check.sh
+│   ├── check_bl17_oidc_assumerole_posture.sh
+│   ├── audit_legacy_aws_consumer_refs.sh
+│   ├── audit_legacy_runtime_consumers.sh
+│   └── audit_legacy_cloudtrail_consumers.sh
+├── docs/                             # Architektur, Backlog, Security, Runbooks
+│   ├── BACKLOG.md
+│   ├── BL-18_SERVICE_E2E.md
 │   ├── DEPLOYMENT_AWS.md
-│   ├── NETWORK_INGRESS_DECISIONS.md
-│   ├── DATA_AND_API_SECURITY.md
-│   ├── ENV_PROMOTION_STRATEGY.md
-│   ├── AWS_INVENTORY.md
 │   ├── LEGACY_IAM_USER_READINESS.md
-│   ├── LEGACY_CONSUMER_INVENTORY.md
-│   └── OPERATIONS.md
-├── .github/
-│   └── workflows/
-│       └── deploy.yml      # CI/CD Pipeline (aktiv: push auf main + workflow_dispatch)
-├── Dockerfile              # Container-Build für ECS
-├── requirements.txt        # Runtime-Abhängigkeiten (keine)
-├── requirements-dev.txt    # Dev-Abhängigkeiten (pytest, pre-commit)
+│   └── LEGACY_CONSUMER_INVENTORY.md
+├── infra/
+│   ├── terraform/                    # IaC für AWS-Ressourcen
+│   ├── iam/                          # IAM Policies/Trusts
+│   └── lambda/                       # Lambda-Funktionen (health_probe, sns_to_telegram)
+├── .github/workflows/deploy.yml      # CI/CD (push main + manual dispatch)
+├── Dockerfile
+├── requirements.txt
+├── requirements-dev.txt
 ├── CHANGELOG.md
 └── README.md
 ```
+
+> Hinweis: `artifacts/` enthält Laufartefakte (Smoke/Stability/Evidenz) und ist hier bewusst nicht als Kernstruktur aufgeführt.
 
 ---
 
