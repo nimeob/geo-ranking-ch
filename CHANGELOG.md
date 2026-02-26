@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Whitespace-only-Guard für `SMOKE_OUTPUT_JSON` + 5x Stabilität, Iteration 19)
+- **`scripts/run_remote_api_smoketest.sh`:** `SMOKE_OUTPUT_JSON` bricht jetzt zusätzlich fail-fast mit `exit 2` ab, wenn der Wert nach Trim leer wird (whitespace-only Input), statt stillschweigend die Artefaktausgabe zu deaktivieren.
+- **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass whitespace-only `SMOKE_OUTPUT_JSON` mit klarer CLI-Fehlermeldung (`exit 2`) scheitert.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`73 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) im getrimmten `request`-Header-Mode mit kombinierter Suffix-Kette.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-a-1772104523.json`, `artifacts/bl18.1-remote-stability-local-worker-a-1772104523.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-a-server-1772104523.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-A Iteration-19 + `SMOKE_OUTPUT_JSON`-Whitespace-only-Guard synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Negativfall-Abdeckung und Nachweisführung auf den neuen whitespace-only-Guard für `SMOKE_OUTPUT_JSON` sowie den aktuellen Worker-A-Langlauf (`73 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Embedded-Whitespace-Guard für `DEV_API_AUTH_TOKEN` + 5x Stabilität, Iteration 18)
 - **`scripts/run_remote_api_smoketest.sh`:** optionales `DEV_API_AUTH_TOKEN` rejectet nach dem Trim jetzt zusätzlich eingebettete Whitespaces fail-fast mit `exit 2`; dadurch bleiben Bearer-Header robust und reproduzierbar, ohne implizite Token-Splits bei fehlerhaften Env-Inputs.
 - **`tests/test_remote_smoke_script.py`:** neuer Negativtest verifiziert reproduzierbar, dass `DEV_API_AUTH_TOKEN="bl18 token"` mit klarer CLI-Fehlermeldung (`exit 2`) scheitert.

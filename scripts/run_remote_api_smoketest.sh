@@ -20,7 +20,7 @@ set -euo pipefail
 #   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; keine Steuerzeichen; max. 128 Zeichen
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (Default: request)
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0 (Default: 1)
-#   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"
+#   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only -> fail-fast
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
 
 if [[ -z "${DEV_BASE_URL:-}" ]]; then
@@ -59,7 +59,8 @@ SMOKE_TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-20}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-45}"
 CURL_RETRY_COUNT="${CURL_RETRY_COUNT:-3}"
 CURL_RETRY_DELAY="${CURL_RETRY_DELAY:-2}"
-SMOKE_OUTPUT_JSON="${SMOKE_OUTPUT_JSON:-}"
+SMOKE_OUTPUT_JSON_RAW="${SMOKE_OUTPUT_JSON:-}"
+SMOKE_OUTPUT_JSON="${SMOKE_OUTPUT_JSON_RAW}"
 SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID:-bl18-$(date +%s)}"
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER:-request}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
@@ -69,6 +70,11 @@ import sys
 print(sys.argv[1].strip())
 PY
 )"
+
+if [[ -n "${SMOKE_OUTPUT_JSON_RAW}" && -z "${SMOKE_OUTPUT_JSON}" ]]; then
+  echo "[BL-18.1] SMOKE_OUTPUT_JSON ist leer nach Whitespace-Normalisierung." >&2
+  exit 2
+fi
 
 if [[ -n "${SMOKE_OUTPUT_JSON}" ]]; then
   if ! python3 - "${SMOKE_OUTPUT_JSON}" <<'PY'
