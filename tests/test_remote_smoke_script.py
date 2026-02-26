@@ -78,7 +78,9 @@ class TestRemoteSmokeScript(unittest.TestCase):
         curl_retry_count: str | None = None,
         curl_retry_delay: str | None = None,
         dev_api_auth_token: str | None = None,
-    ) -> tuple[subprocess.CompletedProcess[str], dict, str]:
+        use_default_request_id: bool = False,
+        extra_env: dict[str, str] | None = None,
+    ) -> tuple[subprocess.CompletedProcess[str], dict, str | None]:
         with tempfile.TemporaryDirectory() as tmpdir:
             out_json = Path(tmpdir) / "smoke.json"
             request_id = request_id or f"bl18-smoke-test-{int(time.time() * 1000)}"
@@ -92,10 +94,14 @@ class TestRemoteSmokeScript(unittest.TestCase):
                     "CURL_MAX_TIME": curl_max_time or "10",
                     "CURL_RETRY_COUNT": curl_retry_count or "1",
                     "CURL_RETRY_DELAY": curl_retry_delay or "1",
-                    "SMOKE_REQUEST_ID": request_id,
                     "SMOKE_OUTPUT_JSON": str(out_json),
                 }
             )
+            if use_default_request_id:
+                env.pop("SMOKE_REQUEST_ID", None)
+                request_id = None
+            else:
+                env["SMOKE_REQUEST_ID"] = request_id
             if request_id_header is not None:
                 env["SMOKE_REQUEST_ID_HEADER"] = request_id_header
             if dev_api_auth_token is not None:
@@ -104,6 +110,9 @@ class TestRemoteSmokeScript(unittest.TestCase):
                 env["DEV_API_AUTH_TOKEN"] = "bl18-token"
             else:
                 env.pop("DEV_API_AUTH_TOKEN", None)
+
+            if extra_env:
+                env.update(extra_env)
 
             cp = subprocess.run(
                 [str(SMOKE_SCRIPT)],
@@ -128,6 +137,47 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
+
+    def test_smoke_script_generates_unique_default_request_id_when_system_time_is_constant(self):
+        with tempfile.TemporaryDirectory() as fake_bin_dir:
+            fake_date = Path(fake_bin_dir) / "date"
+            fake_date.write_text(
+                "#!/usr/bin/env bash\n"
+                "if [[ \"${1:-}\" == \"-u\" ]]; then\n"
+                "  echo '2026-02-26T00:00:00Z'\n"
+                "else\n"
+                "  echo '1700000000'\n"
+                "fi\n",
+                encoding="utf-8",
+            )
+            fake_date.chmod(0o755)
+
+            fake_path = f"{fake_bin_dir}:{os.environ.get('PATH', '')}"
+            cp_first, data_first, _ = self._run_smoke(
+                include_token=True,
+                use_default_request_id=True,
+                extra_env={"PATH": fake_path},
+            )
+            cp_second, data_second, _ = self._run_smoke(
+                include_token=True,
+                use_default_request_id=True,
+                extra_env={"PATH": fake_path},
+            )
+
+        self.assertEqual(cp_first.returncode, 0, msg=cp_first.stdout + "\n" + cp_first.stderr)
+        self.assertEqual(cp_second.returncode, 0, msg=cp_second.stdout + "\n" + cp_second.stderr)
+
+        request_id_first = data_first.get("request_id")
+        request_id_second = data_second.get("request_id")
+        self.assertIsInstance(request_id_first, str)
+        self.assertIsInstance(request_id_second, str)
+        self.assertTrue(request_id_first.startswith("bl18-"))
+        self.assertTrue(request_id_second.startswith("bl18-"))
+        self.assertNotEqual(request_id_first, request_id_second)
+        self.assertEqual(data_first.get("response_request_id"), request_id_first)
+        self.assertEqual(data_first.get("response_header_request_id"), request_id_first)
+        self.assertEqual(data_second.get("response_request_id"), request_id_second)
+        self.assertEqual(data_second.get("response_header_request_id"), request_id_second)
 
     def test_smoke_script_trims_dev_api_auth_token_before_request(self):
         cp, data, request_id = self._run_smoke(

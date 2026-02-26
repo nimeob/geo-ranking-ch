@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m auto-generierte Default-Request-ID + Real-Run, Iteration 45)
+- **`scripts/run_remote_api_smoketest.sh`:** für leere/nicht gesetzte `SMOKE_REQUEST_ID` wird jetzt eine eindeutige Default-ID (`bl18-<epoch>-<uuid-suffix>`) erzeugt, damit enge/parallele Läufe nicht auf derselben Korrelations-ID landen.
+- **`tests/test_remote_smoke_script.py`:** E2E-Fall ergänzt, der bei eingefrorener Systemzeit (`PATH`-override auf Fake-`date`) zwei Smoke-Läufe ohne `SMOKE_REQUEST_ID` startet und die eindeutige Auto-ID-Generierung reproduzierbar absichert.
+- **Langlauf-Real-Run (Worker 1-10m):** `./scripts/run_webservice_e2e.sh` erfolgreich (`120 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) mit auto-generierter Default-Request-ID im Smoke (`SMOKE_REQUEST_ID` bewusst nicht gesetzt).
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-1-10m-1772120889.json`, `artifacts/worker-1-10m/iteration-45/bl18.1-remote-stability-local-worker-1-10m-1772120889.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-1-10m-server-1772120889.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: README/Runbook/Backlog auf Iteration-45 + Default-Request-ID synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** `SMOKE_REQUEST_ID` als optionale Variable mit auto-generierter Default-ID dokumentiert und Nachweisführung auf Iteration 45 (`120 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m echte Short-Alias-Header-Sendung + Real-Run, Iteration 44)
 - **`scripts/run_remote_api_smoketest.sh`:** Alias-Normalisierung für `SMOKE_REQUEST_ID_HEADER` präzisiert: `request-id`/`correlation-id` senden jetzt real `Request-Id`/`Correlation-Id`, `request_id`/`correlation_id` senden `Request_Id`/`Correlation_Id`; `x-*`-Aliasse bleiben unverändert auf `X-*`.
 - **`tests/test_remote_smoke_script.py`:** Happy-Path-Abdeckung erweitert für echte Short-Alias-Headernamen (`request-id`, `correlation-id`, `request_id`, `correlation_id`) inkl. Assert auf `request_id_header_name`.

@@ -17,7 +17,7 @@ set -euo pipefail
 #   CURL_MAX_TIME="45"
 #   CURL_RETRY_COUNT="3"
 #   CURL_RETRY_DELAY="2"
-#   SMOKE_REQUEST_ID="bl18-<id>"  # wird getrimmt; ASCII-only, keine Steuerzeichen/Trennzeichen/Whitespaces; max. 128 Zeichen
+#   SMOKE_REQUEST_ID="bl18-<id>"  # optional; wenn leer/nicht gesetzt wird eine eindeutige ID auto-generiert. Eigene Werte werden getrimmt; ASCII-only, keine Steuerzeichen/Trennzeichen/Whitespaces; max. 128 Zeichen
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; Short-Aliasse senden Request-Id/Correlation-Id bzw. Request_Id/Correlation_Id, X-Aliasse senden X-Request-Id/X-Correlation-Id bzw. X_Request_Id/X_Correlation_Id
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0|true|false|yes|no|on|off (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
@@ -61,7 +61,8 @@ CURL_RETRY_COUNT="${CURL_RETRY_COUNT:-3}"
 CURL_RETRY_DELAY="${CURL_RETRY_DELAY:-2}"
 SMOKE_OUTPUT_JSON_RAW="${SMOKE_OUTPUT_JSON:-}"
 SMOKE_OUTPUT_JSON="${SMOKE_OUTPUT_JSON_RAW}"
-SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID:-bl18-$(date +%s)}"
+SMOKE_REQUEST_ID_RAW="${SMOKE_REQUEST_ID-}"
+SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID_RAW}"
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER:-request}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
 
@@ -174,8 +175,18 @@ then
 fi
 
 if [[ -z "${SMOKE_REQUEST_ID}" ]]; then
-  echo "[BL-18.1] SMOKE_REQUEST_ID ist leer nach Whitespace-Normalisierung." >&2
-  exit 2
+  if [[ -n "${SMOKE_REQUEST_ID_RAW}" ]]; then
+    echo "[BL-18.1] SMOKE_REQUEST_ID ist leer nach Whitespace-Normalisierung." >&2
+    exit 2
+  fi
+
+  SMOKE_REQUEST_ID="$(python3 - <<'PY'
+import time
+import uuid
+
+print(f"bl18-{int(time.time())}-{uuid.uuid4().hex[:10]}")
+PY
+)"
 fi
 
 if ! python3 - "${SMOKE_REQUEST_ID}" <<'PY'
