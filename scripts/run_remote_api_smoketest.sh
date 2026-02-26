@@ -279,7 +279,18 @@ export ANALYZE_URL
 
 AUTH_HEADER=()
 if [[ -n "${DEV_API_AUTH_TOKEN:-}" ]]; then
-  AUTH_HEADER=(-H "Authorization: Bearer ${DEV_API_AUTH_TOKEN}")
+  DEV_API_AUTH_TOKEN_TRIMMED="$(python3 - "${DEV_API_AUTH_TOKEN}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+  if [[ -z "${DEV_API_AUTH_TOKEN_TRIMMED}" ]]; then
+    echo "[BL-18.1] DEV_API_AUTH_TOKEN ist leer nach Whitespace-Normalisierung." >&2
+    exit 2
+  fi
+
+  AUTH_HEADER=(-H "Authorization: Bearer ${DEV_API_AUTH_TOKEN_TRIMMED}")
 fi
 
 REQUEST_ID_HEADERS=()

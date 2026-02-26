@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A Trim-Guard für `DEV_API_AUTH_TOKEN` + 5x Stabilität, Iteration 11)
+- **`scripts/run_remote_api_smoketest.sh`:** trimmt optionales `DEV_API_AUTH_TOKEN` jetzt vor dem Request; whitespace-only Tokenwerte werden fail-fast mit `exit 2` zurückgewiesen, damit Auth-Checks bei Copy/Paste-Inputs reproduzierbar bleiben.
+- **`tests/test_remote_smoke_script.py`:** ergänzt E2E-Happy-Path für Space/Tab-umhülltes `DEV_API_AUTH_TOKEN` sowie Negativtest für whitespace-only Token (`exit 2`).
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`64 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=5`, `fail=0`, Exit `0`) mit getrimmtem `DEV_API_AUTH_TOKEN="  bl18-token\t"`, getrimmtem `request`-Header-Mode und kombinierter Suffix-Kette.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-a-1772100333.json`, `artifacts/bl18.1-remote-stability-local-worker-a-1772100333.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-a-server-1772100333.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-A Iteration-11 + Token-Trim synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf den neuen `DEV_API_AUTH_TOKEN`-Trim/Fast-Fail-Guard sowie den aktuellen Worker-A-Langlauf (`64 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-C WEB_PORT-Fallback + Request-Header-Mode + 5x Stabilität, Iteration 10)
 - **`src/web_service.py`:** Port-Auflösung für den lokalen Service robuster gemacht (`PORT` bleibt primär; fehlt/leer → Fallback auf `WEB_PORT`).
 - **`tests/test_web_e2e.py`:** zusätzlicher E2E-Test `TestWebServiceEnvPortFallback` sichert reproduzierbar ab, dass der Service via `WEB_PORT` startet, wenn `PORT` nicht gesetzt ist.
