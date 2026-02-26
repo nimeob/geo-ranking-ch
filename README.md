@@ -194,6 +194,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/user/troubleshooting.md](docs/user/troubleshooting.md) | Häufige Fehlerbilder (401/400/504/404), Diagnose-Checks und Eskalationspfad (BL-19.5) |
 | [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Ist-Analyse + E2E-Runbook für BL-18 |
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
+| [docs/GO_TO_MARKET_MVP.md](docs/GO_TO_MARKET_MVP.md) | GTM-MVP-Artefakte: Value Proposition, Scope, Demo-Storyline, offene Risiken (BL-20.7.b) |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
 
 ---

@@ -23,6 +23,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`README.md`** und **`docs/OPERATIONS.md`** um den ausführbaren Gate-Befehl `./scripts/check_docs_quality_gate.sh` ergänzt.
 - **`docs/BACKLOG.md`** Fortschritt für BL-19 aktualisiert (BL-19.3 und BL-19.8 als umgesetzt; nächster Fokus bleibt BL-19.5).
 
+### Added (2026-02-26 — BL-20.7.b GTM-MVP-Artefakte)
+- **`docs/GO_TO_MARKET_MVP.md`** neu angelegt: Value Proposition, Scope/Non-Scope, Packaging-Rahmen (API-only vs GUI+API), Demo-Storyline (10–12 min) und nächste Schritte für BL-20.7.
+- **`tests/test_go_to_market_mvp_docs.py`** ergänzt: Regressionstest auf Pflichtsektionen der GTM-Doku inkl. Referenzen auf die Risiko-Follow-ups (#36/#37/#38).
+
+### Changed (2026-02-26 — BL-20.7.b Backlog-/Vision-Sync)
+- **`docs/BACKLOG.md`** um Fortschrittseintrag für BL-20.7.b ergänzt (Issue #35 abgeschlossen, Follow-up-Risiken #36/#37/#38, nächster Schritt #34).
+- **`docs/VISION_PRODUCT.md`** um Verweis auf die GTM-MVP-Artefakte erweitert.
+- **`README.md`** Dokumentations-Tabelle um `docs/GO_TO_MARKET_MVP.md` ergänzt.
+
 ### Added (2026-02-26 — BL-19.4 API Usage Guide + README-Featurestruktur)
 - **`docs/user/api-usage.md`** neu angelegt: vollständige Endpoint-Referenz (`/health`, `/version`, `/analyze`) mit Auth-Verhalten, Request-/Response-Beispielen, Request-ID-Priorität/Sanitization, Statuscode-Matrix und API-relevanten ENV-Variablen.
 - **`tests/test_user_docs.py`** ergänzt: Regressionstests für User-Doku-Struktur (API-Guide vorhanden, korrekte Cross-Links in `docs/user/*`, thematisch gegliederte Feature-Sektion im Root-README).

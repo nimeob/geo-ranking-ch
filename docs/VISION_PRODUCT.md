@@ -88,6 +88,11 @@ Hinweis: Quelle, Lizenz und Nutzungsbedingungen sind je Datendomäne explizit zu
 3. GUI-MVP aufbauen (Adresseingabe + Kartenklick + Ergebnisdarstellung)
 4. Test-Skripte im Maintenance-Mode halten (kein endloses Hardening ohne neuen Nutzen)
 
+## GTM-MVP-Artefakte
+
+- Für die erste Go-to-Market-Basis siehe [`docs/GO_TO_MARKET_MVP.md`](docs/GO_TO_MARKET_MVP.md).
+- Enthält Value Proposition, Scope-Rahmen, Demo-Storyline und offene GTM-Risiken als Follow-up-Issues.
+
 ---
 
 ## Nicht-Ziele (vorerst)
