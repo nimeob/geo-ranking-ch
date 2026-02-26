@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-27 — BL-17.wp4 Posture-Window-Aggregation)
+- **`scripts/summarize_bl17_posture_reports.py`** neu ergänzt: aggregiert mehrere BL-17-Posture-Reports (`check_bl17_oidc_assumerole_posture.sh --report-json ...`) über ein Zeitfenster und liefert strukturierte Summary (Klassifikationsverteilung, Legacy-Treffer, `ready`/`not-ready`) mit klarer Exitcode-Policy (`0`/`10`/`2`).
+- **`tests/test_summarize_bl17_posture_reports.py`** ergänzt: reproduzierbare Script-Tests für Ready-Window, Legacy-Treffer und Invalid-JSON-Input.
+
+### Changed (2026-02-27 — BL-17.wp4 Doku-/Backlog-Sync)
+- **`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`** um Zeitfenster-Aggregationslauf ergänzt (`summarize_bl17_posture_reports.py` inkl. Exitcode-Interpretation).
+- **`docs/BACKLOG.md`** BL-17-Fortschritt und Work-Package-Checklist um Abschluss von #144 erweitert; Folgepaket #145 als offen dokumentiert.
+
 ### Changed (2026-02-26 — BL-17.wp1 AssumeRole-Exec Wrapper Hardening)
 - **`scripts/aws_exec_via_openclaw_ops.sh`** gehärtet: fail-fast Validierung für `OPENCLAW_OPS_ROLE_ARN`, `OPENCLAW_OPS_SESSION_SECONDS` (Integer `900..43200`) und `OPENCLAW_OPS_SESSION_NAME`; robuste Fehlerbehandlung für `aws sts assume-role` und JSON-/Credential-Parsing.
 - **`tests/test_aws_exec_via_openclaw_ops.py`** ergänzt: reproduzierbare Script-Tests für Missing-Args, Invalid-Duration, Invalid-Role-ARN, Parse-Error und Happy-Path mit gemocktem AWS-CLI-Verhalten.

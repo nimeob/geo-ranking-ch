@@ -96,6 +96,17 @@ BL17_POSTURE_REPORT_JSON=artifacts/bl17/posture-report.json ./scripts/check_bl17
 ```
 Der JSON-Report enthält mindestens Timestamp, Caller-Klassifikation und relevante Exit-Codes (`workflow_check`, `caller_check`, Kontext-Audits, final).
 
+Zeitfenster-Aggregation (z. B. für 48h Legacy-Fallback-Beobachtung):
+```bash
+./scripts/summarize_bl17_posture_reports.py \
+  --glob "artifacts/bl17/posture-*.json" \
+  --min-reports 2 \
+  --output-json artifacts/bl17/posture-window-summary.json
+```
+- Exit `0`: Window ist "ready" (kein Legacy-Caller, keine non-zero final exits).
+- Exit `10`: Window ist "not-ready" (Legacy beobachtet, non-zero Exit oder zu wenige Reports).
+- Exit `2`: ungültige Eingaben/Report-Dateien.
+
 ---
 
 ## Rollback (wenn AssumeRole-Flow blockiert)
