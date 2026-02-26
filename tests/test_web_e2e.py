@@ -18,7 +18,15 @@ def _free_port() -> int:
         return int(s.getsockname()[1])
 
 
-def _http_json(method: str, url: str, payload=None, headers=None, timeout: float = 10.0):
+def _http_json(
+    method: str,
+    url: str,
+    payload=None,
+    headers=None,
+    timeout: float = 10.0,
+    *,
+    return_headers: bool = False,
+):
     data = None
     req_headers = {"Content-Type": "application/json"}
     if headers:
@@ -30,10 +38,22 @@ def _http_json(method: str, url: str, payload=None, headers=None, timeout: float
     try:
         with request.urlopen(req, timeout=timeout) as resp:
             body = resp.read().decode("utf-8")
-            return resp.status, json.loads(body)
+            parsed = json.loads(body)
+            if return_headers:
+                return (
+                    resp.status,
+                    parsed,
+                    {k.lower(): v for k, v in resp.headers.items()},
+                )
+            return resp.status, parsed
     except error.HTTPError as e:
         body = e.read().decode("utf-8")
         parsed = json.loads(body) if body else {}
+        if return_headers:
+            header_map = {
+                k.lower(): v for k, v in (e.headers.items() if e.headers else [])
+            }
+            return e.code, parsed, header_map
         return e.code, parsed
 
 
@@ -110,7 +130,11 @@ class TestWebServiceE2E(unittest.TestCase):
         status, body = _http_json(
             "POST",
             f"{self.base_url}/analyze",
-            payload={"query": "__ok__", "intelligence_mode": "basic", "timeout_seconds": 2},
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+            },
             headers={"Authorization": "Bearer bl18-token"},
         )
         self.assertEqual(status, 200)
@@ -121,7 +145,10 @@ class TestWebServiceE2E(unittest.TestCase):
         status, body = _http_json(
             "POST",
             f"{self.base_url}/analyze",
-            payload={"query": "Bahnhofstrasse 1, 8001 Zürich", "intelligence_mode": "future-mode"},
+            payload={
+                "query": "Bahnhofstrasse 1, 8001 Zürich",
+                "intelligence_mode": "future-mode",
+            },
             headers={"Authorization": "Bearer bl18-token"},
         )
         self.assertEqual(status, 400)
@@ -132,7 +159,10 @@ class TestWebServiceE2E(unittest.TestCase):
             f"{self.base_url}/analyze",
             method="POST",
             data=b"",
-            headers={"Authorization": "Bearer bl18-token", "Content-Type": "application/json"},
+            headers={
+                "Authorization": "Bearer bl18-token",
+                "Content-Type": "application/json",
+            },
         )
         with self.assertRaises(error.HTTPError) as ctx:
             request.urlopen(req, timeout=10)
@@ -156,3 +186,32 @@ class TestWebServiceE2E(unittest.TestCase):
         )
         self.assertEqual(status, 500)
         self.assertEqual(body.get("error"), "internal")
+
+    def test_request_id_echoed_for_analyze_paths(self):
+        request_id = "bl18-e2e-request-id"
+
+        status, body, resp_headers = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={"query": "__ok__", "timeout_seconds": 2},
+            headers={
+                "Authorization": "Bearer bl18-token",
+                "X-Request-Id": request_id,
+            },
+            return_headers=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(body.get("request_id"), request_id)
+        self.assertEqual(resp_headers.get("x-request-id"), request_id)
+
+        status, body, resp_headers = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={"query": "__ok__", "timeout_seconds": 2},
+            headers={"X-Request-Id": request_id},
+            return_headers=True,
+        )
+        self.assertEqual(status, 401)
+        self.assertEqual(body.get("error"), "unauthorized")
+        self.assertEqual(body.get("request_id"), request_id)
+        self.assertEqual(resp_headers.get("x-request-id"), request_id)

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,30 +25,72 @@ SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
 
-    def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
+    def _request_id(self) -> str:
+        """Liefert eine korrelierbare Request-ID (Header oder Fallback)."""
+        request_id = (
+            self.headers.get("X-Request-Id", "")
+            or self.headers.get("X-Correlation-Id", "")
+        ).strip()
+        if request_id:
+            return request_id[:128]
+        return f"req-{uuid.uuid4().hex[:16]}"
+
+    def _send_json(
+        self,
+        payload: dict[str, Any],
+        status: int = 200,
+        *,
+        request_id: str | None = None,
+    ) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        if request_id:
+            self.send_header("X-Request-Id", request_id)
         self.end_headers()
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
+        request_id = self._request_id()
+
         if self.path == "/health":
-            self._send_json({"ok": True, "service": "geo-ranking-ch", "ts": datetime.now(timezone.utc).isoformat()})
+            self._send_json(
+                {
+                    "ok": True,
+                    "service": "geo-ranking-ch",
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "request_id": request_id,
+                },
+                request_id=request_id,
+            )
             return
         if self.path == "/version":
-            self._send_json({
-                "service": "geo-ranking-ch",
-                "version": os.getenv("APP_VERSION", "dev"),
-                "commit": os.getenv("GIT_SHA", "unknown"),
-            })
+            self._send_json(
+                {
+                    "service": "geo-ranking-ch",
+                    "version": os.getenv("APP_VERSION", "dev"),
+                    "commit": os.getenv("GIT_SHA", "unknown"),
+                    "request_id": request_id,
+                },
+                request_id=request_id,
+            )
             return
-        self._send_json({"ok": False, "error": "not_found"}, status=HTTPStatus.NOT_FOUND)
+        self._send_json(
+            {"ok": False, "error": "not_found", "request_id": request_id},
+            status=HTTPStatus.NOT_FOUND,
+            request_id=request_id,
+        )
 
     def do_POST(self) -> None:  # noqa: N802
+        request_id = self._request_id()
+
         if self.path != "/analyze":
-            self._send_json({"ok": False, "error": "not_found"}, status=HTTPStatus.NOT_FOUND)
+            self._send_json(
+                {"ok": False, "error": "not_found", "request_id": request_id},
+                status=HTTPStatus.NOT_FOUND,
+                request_id=request_id,
+            )
             return
 
         required_token = os.getenv("API_AUTH_TOKEN", "").strip()
@@ -55,7 +98,11 @@ class Handler(BaseHTTPRequestHandler):
             auth_header = self.headers.get("Authorization", "")
             expected = f"Bearer {required_token}"
             if auth_header != expected:
-                self._send_json({"ok": False, "error": "unauthorized"}, status=HTTPStatus.UNAUTHORIZED)
+                self._send_json(
+                    {"ok": False, "error": "unauthorized", "request_id": request_id},
+                    status=HTTPStatus.UNAUTHORIZED,
+                    request_id=request_id,
+                )
                 return
 
         try:
@@ -70,7 +117,9 @@ class Handler(BaseHTTPRequestHandler):
 
             mode = str(data.get("intelligence_mode", "basic")).strip() or "basic"
             if mode not in SUPPORTED_INTELLIGENCE_MODES:
-                raise ValueError(f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}")
+                raise ValueError(
+                    f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}"
+                )
 
             if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
                 if query == "__timeout__":
@@ -78,7 +127,14 @@ class Handler(BaseHTTPRequestHandler):
                 if query == "__internal__":
                     raise RuntimeError("forced internal error for e2e")
                 if query == "__ok__":
-                    self._send_json({"ok": True, "result": {"query": query, "status": "e2e_stub"}})
+                    self._send_json(
+                        {
+                            "ok": True,
+                            "result": {"query": query, "status": "e2e_stub"},
+                            "request_id": request_id,
+                        },
+                        request_id=request_id,
+                    )
                     return
 
             default_timeout = float(os.getenv("ANALYZE_DEFAULT_TIMEOUT_SECONDS", "15"))
@@ -99,15 +155,54 @@ class Handler(BaseHTTPRequestHandler):
                 backoff_seconds=0.6,
                 intelligence_mode=mode,
             )
-            self._send_json({"ok": True, "result": report})
+            self._send_json(
+                {"ok": True, "result": report, "request_id": request_id},
+                request_id=request_id,
+            )
         except TimeoutError as e:
-            self._send_json({"ok": False, "error": "timeout", "message": str(e)}, status=HTTPStatus.GATEWAY_TIMEOUT)
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "timeout",
+                    "message": str(e),
+                    "request_id": request_id,
+                },
+                status=HTTPStatus.GATEWAY_TIMEOUT,
+                request_id=request_id,
+            )
         except AddressIntelError as e:
-            self._send_json({"ok": False, "error": "address_intel", "message": str(e)}, status=422)
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "address_intel",
+                    "message": str(e),
+                    "request_id": request_id,
+                },
+                status=422,
+                request_id=request_id,
+            )
         except (ValueError, json.JSONDecodeError) as e:
-            self._send_json({"ok": False, "error": "bad_request", "message": str(e)}, status=400)
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "bad_request",
+                    "message": str(e),
+                    "request_id": request_id,
+                },
+                status=400,
+                request_id=request_id,
+            )
         except Exception as e:  # pragma: no cover
-            self._send_json({"ok": False, "error": "internal", "message": str(e)}, status=500)
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "internal",
+                    "message": str(e),
+                    "request_id": request_id,
+                },
+                status=500,
+                request_id=request_id,
+            )
 
 
 def main() -> None:

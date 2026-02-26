@@ -71,6 +71,8 @@ curl http://localhost:8080/health
 
 **Auth (optional):** Wenn `API_AUTH_TOKEN` gesetzt ist, erfordert `POST /analyze` den Header `Authorization: Bearer <token>`.
 
+**Request-Korrelation:** Für `POST /analyze` wird `X-Request-Id` (alternativ `X-Correlation-Id`) in die Antwort gespiegelt (`X-Request-Id` Header + JSON-Feld `request_id`). Ohne Header erzeugt der Service automatisch eine Request-ID.
+
 ### E2E-Tests (Webservice)
 
 ```bash

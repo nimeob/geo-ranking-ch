@@ -28,6 +28,9 @@
   - Ungültig → `400 bad_request`.
 - **Explizites Timeout-Mapping:**
   - `TimeoutError` → `504 timeout`.
+- **Request-ID-Korrelation für API-Debugging:**
+  - `POST /analyze` übernimmt `X-Request-Id` (oder `X-Correlation-Id`) und spiegelt sie in Antwort-Header `X-Request-Id` sowie JSON-Feld `request_id`.
+  - Ohne mitgelieferte ID erzeugt der Service eine interne Request-ID.
 - **Test-Fault-Injection (nur lokal/gezielt):**
   - via `ENABLE_E2E_FAULT_INJECTION=1`
   - Query `__timeout__` erzwingt `504`

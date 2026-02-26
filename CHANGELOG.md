@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: API Request-ID-Korrelation)
+- **`tests/test_web_e2e.py`:** E2E-Abdeckung für Request-ID-Echo auf `/analyze` ergänzt (Header `X-Request-Id` + JSON-Feld `request_id` in Erfolgs- und Auth-Fehlpfad).
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Endpoint-Verhalten `/analyze` observability)
+- **`src/web_service.py`:** `/analyze` antwortet jetzt konsistent mit korrelierbarer Request-ID (`X-Request-Id`/`X-Correlation-Id` Echo als Response-Header + JSON-Feld `request_id`), inklusive Fehlerpfaden (401/400/500/504).
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedien- und Nachweisdoku um Request-ID-Korrelation ergänzt.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Remote-Smoke-Härtung + Stabilitätslauf)
 - **`scripts/run_remote_api_stability_check.sh`:** Neuer Mehrfach-Runner für BL-18.1. Führt mehrere `/analyze`-Smoke-Requests aus, schreibt NDJSON-Report und erzwingt über `STABILITY_MAX_FAILURES` eine klare Pass/Fail-Abnahme.
 - **`tests/test_remote_smoke_script.py`:** Neue lokale E2E-Tests für das Remote-Smoke-Skript (Happy Path mit Token + erwarteter 401-Fehlpfad ohne Token).
