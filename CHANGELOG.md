@@ -14,6 +14,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-A case-insensitive `intelligence_mode` + 3x Stabilität, Iteration 33)
+- **`src/web_service.py`:** normalisiert `intelligence_mode` jetzt API-seitig mit `strip()+lower()`, sodass robuste Client-Eingaben wie `"  ExTenDeD  "` konsistent als `extended` verarbeitet werden.
+- **`tests/test_web_e2e.py`:** neuer E2E-Happy-Path verifiziert reproduzierbar, dass gemischter/case-insensitiver `intelligence_mode` (`"  ExTenDeD  "`) erfolgreich akzeptiert wird.
+- **Langlauf-Real-Run (Worker A):** `./scripts/run_webservice_e2e.sh` erfolgreich (`97 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) im `correlation`-Header-Mode mit `SMOKE_MODE="ExTenDeD"`.
+- **Evidenz:** `artifacts/bl18.1-smoke-local-worker-a-1772113545.json`, `artifacts/worker-a/iteration-33/bl18.1-remote-stability-local-worker-a-1772113545.ndjson`.
+- **Serverlauf:** `artifacts/bl18.1-worker-a-server-1772113545.log`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf Worker-A Iteration-33 + case-insensitive `intelligence_mode` synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** API-Verhalten für `intelligence_mode` (Trim + case-insensitive), BL-18.1-Nachweisführung und aktuelle Langlauf-Evidenz auf Worker-A Iteration 33 (`97 passed`, Smoke + 3x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1-10m Fail-fast-Guards für `SMOKE_REQUEST_ID_HEADER` (whitespace/control) + 5x Stabilität, Iteration 32)
 - **`scripts/run_remote_api_smoketest.sh`:** validiert `SMOKE_REQUEST_ID_HEADER` jetzt vor der Alias-Normalisierung zusätzlich auf whitespace-only, eingebettete Whitespaces und Steuerzeichen; Fehlwerte brechen deterministisch mit klarer CLI-Meldung + `exit 2` ab.
 - **`tests/test_remote_smoke_script.py`:** neue Negativtests sichern reproduzierbar ab, dass `SMOKE_REQUEST_ID_HEADER` bei whitespace-only, embedded-whitespace und Control-Char-Inputs fail-fast zurückgewiesen wird.

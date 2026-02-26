@@ -76,6 +76,8 @@ curl http://localhost:8080/health
 
 **Timeout-Input:** `timeout_seconds` muss eine **endliche Zahl > 0** sein (z. B. kein `nan`/`inf`), sonst antwortet die API mit `400 bad_request`.
 
+**Mode-Input:** `intelligence_mode` wird vor der Validierung getrimmt und case-insensitive normalisiert (z. B. `"  ExTenDeD  "` → `extended`); erlaubt sind `basic|extended|risk`.
+
 ### E2E-Tests (Webservice)
 
 ```bash

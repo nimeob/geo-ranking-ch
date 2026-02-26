@@ -24,6 +24,7 @@
   - `ANALYZE_MAX_TIMEOUT_SECONDS` (Default 45)
   - Request-Feld `timeout_seconds` erlaubt, validiert (endliche Zahl `> 0`, d. h. Reject von `nan`/`inf`) und auf Max gecappt.
 - **Validierung Intelligence-Mode:**
+  - Input wird vor der Prüfung getrimmt und case-insensitive normalisiert (z. B. `"  ExTenDeD  "` → `extended`).
   - Zulässig: `basic | extended | risk`
   - Ungültig → `400 bad_request`.
 - **Explizites Timeout-Mapping:**
@@ -147,6 +148,21 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 - optionales Bearer-Token via Secret `SERVICE_API_AUTH_TOKEN`
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
+
+### Kurz-Nachweis (Update 2026-02-26, Worker A, case-insensitive `intelligence_mode` + 3x Stabilität, Iteration 33)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `HOST="127.0.0.1" PORT="48855" API_AUTH_TOKEN="bl18-token" PYTHONPATH="$PWD" ENABLE_E2E_FAULT_INJECTION="1" python3 -m src.web_service` (isolierter lokaler Service-Start)
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:48855/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  ExTenDeD  " SMOKE_REQUEST_ID="  bl18-worker-a-run-1772113545  " SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-a-1772113545.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:48855/AnAlYzE//health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="$(printf '  bl18-token\t')" SMOKE_QUERY="  __ok__  " SMOKE_MODE="  ExTenDeD  " SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_TIMEOUT_SECONDS=" 2.5 " CURL_MAX_TIME=" 15 " CURL_RETRY_COUNT=" 1 " CURL_RETRY_DELAY=" 1 " STABILITY_RUNS=" 3 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/worker-a/iteration-33/bl18.1-remote-stability-local-worker-a-1772113545.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `97 passed`.
+  - API: `intelligence_mode` wird jetzt getrimmt + case-insensitive normalisiert (z. B. `"  ExTenDeD  "`), wodurch robuste Client-Inputs ohne Verhaltensbruch akzeptiert werden.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden; Header-Mode `correlation` weiterhin konsistent (`request_id_header_source=correlation`, Echo Header+JSON identisch).
+  - Stabilität: `pass=3`, `fail=0`, Exit `0`; Runs 1..3 alle `status=pass`.
+  - Evidenz: `artifacts/bl18.1-smoke-local-worker-a-1772113545.json`, `artifacts/worker-a/iteration-33/bl18.1-remote-stability-local-worker-a-1772113545.ndjson`.
+  - Server-Log: `artifacts/bl18.1-worker-a-server-1772113545.log`.
 
 ### Kurz-Nachweis (Update 2026-02-26, Worker 1-10m, Fail-fast-Guards für `SMOKE_REQUEST_ID_HEADER` (whitespace/control) + 5x Stabilität, Iteration 32)
 

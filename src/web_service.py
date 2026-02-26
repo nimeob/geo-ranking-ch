@@ -145,6 +145,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("query is required")
 
             mode = str(data.get("intelligence_mode", "basic")).strip() or "basic"
+            mode = mode.lower()
             if mode not in SUPPORTED_INTELLIGENCE_MODES:
                 raise ValueError(
                     f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}"

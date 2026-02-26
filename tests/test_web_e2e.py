@@ -141,6 +141,21 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("result", body)
 
+    def test_analyze_accepts_case_insensitive_mode_with_whitespace(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "  ExTenDeD  ",
+                "timeout_seconds": 2,
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+        self.assertIn("result", body)
+
     def test_bad_request_invalid_mode(self):
         status, body = _http_json(
             "POST",
