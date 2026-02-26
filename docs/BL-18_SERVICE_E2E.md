@@ -140,6 +140,18 @@ Der Deploy-Workflow kann nach dem ECS-Rollout zusätzlich einen optionalen `/ana
 
 Damit entstehen reproduzierbare CI-Nachweise für BL-18.1, ohne den Deploy zu blockieren, falls die Analyze-URL noch nicht konfiguriert ist.
 
+### Kurz-Nachweis (Update 2026-02-26, Worker C, Langlauf-Recheck getrimmtes Echo-Flag + 5x Stabilität, Iteration 3)
+
+- Command:
+  - `./scripts/run_webservice_e2e.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:59499/health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID="  bl18-worker-c-langlauf-1772097551  " SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke-local-worker-c-langlauf-1772097551.json" ./scripts/run_remote_api_smoketest.sh`
+  - `DEV_BASE_URL="  HTTP://127.0.0.1:59499/health/analyze/health/analyze///  " DEV_API_AUTH_TOKEN="bl18-token" SMOKE_QUERY="__ok__" SMOKE_REQUEST_ID_HEADER="  Correlation  " SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 " STABILITY_RUNS=" 5 " STABILITY_INTERVAL_SECONDS=" 0 " STABILITY_MAX_FAILURES=" 0 " STABILITY_STOP_ON_FIRST_FAIL=" 0 " STABILITY_REPORT_PATH="artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772097551.ndjson" ./scripts/run_remote_api_stability_check.sh`
+- Ergebnis:
+  - E2E-Suite: Exit `0`, `54 passed`.
+  - Smoke: Exit `0`, `HTTP 200`, `ok=true`, `result` vorhanden, Request-ID-Echo Header+JSON korrekt im getrimmten Correlation-Mode mit explizit getrimmtem Echo-Flag (`artifacts/bl18.1-smoke-local-worker-c-langlauf-1772097551.json`, `request_id_header_source=correlation`, `request_id_echo_enforced=true`, `started_at_utc=2026-02-26T09:19:11Z`).
+  - Stabilität: `pass=5`, `fail=0`, Exit `0` trotz absichtlich getrimmter numerischer Flags (`" 5 "`, `" 0 "`), getrimmtem Stop-Flag (`" 0 "`) und getrimmtem Echo-Flag (`" 1 "`) (`artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772097551.ndjson`, Run-IDs inkl. PID-Suffix wie `bl18-stability-1-1772097551-73915`).
+  - Server-Log: `artifacts/bl18.1-worker-c-server-1772097551.log`.
+
 ### Kurz-Nachweis (Update 2026-02-26, Worker B, Langlauf-Recheck getrimmter Correlation-Mode + 5x Stabilität, Iteration 2)
 
 - Command:

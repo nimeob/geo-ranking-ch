@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Iteration 3 Recheck mit getrimmtem Echo-Flag + 5x Stabilität)
+- **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`54 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`) bei explizit getrimmtem Echo-Flag (`SMOKE_ENFORCE_REQUEST_ID_ECHO=" 1 "`). Evidenz in `artifacts/bl18.1-smoke-local-worker-c-langlauf-1772097551.json` und `artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772097551.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-c-server-1772097551.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-C Iteration-3-Nachweis synchronisiert)
+- **`docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Command/Exit/Evidenz auf den aktuellen Worker-C-5x-Langlauf mit getrimmtem Correlation-Header-Mode, getrimmtem Echo-Flag und getrimmten Stability-Flags aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-1 Trim-Guards für Stability-Flags + 5x Stabilität)
 - **`scripts/run_remote_api_stability_check.sh`:** trimmt `STABILITY_RUNS`, `STABILITY_INTERVAL_SECONDS`, `STABILITY_MAX_FAILURES` und `STABILITY_STOP_ON_FIRST_FAIL` jetzt vor der Validierung, sodass robuste Env-Inputs wie `" 5 "` bzw. `" 0 "` reproduzierbar akzeptiert werden.
 - **`tests/test_remote_stability_script.py`:** neue E2E-Abdeckung sichert den Happy-Path mit getrimmten numerischen Stability-Flags (`runs/max_failures/stop_on_first_fail`) lokal gegen den gestarteten Service.
