@@ -287,7 +287,8 @@
   - `scripts/run_remote_api_stability_check.sh` validiert `STABILITY_STOP_ON_FIRST_FAIL` strikt (`0|1`) für reproduzierbare CLI-Konfiguration; Negativfall ist über `tests/test_remote_stability_script.py` abgedeckt.
   - `.github/workflows/deploy.yml` um optionalen `/analyze`-Smoke-Test nach Deploy erweitert (gesteuert via `SERVICE_BASE_URL` + optional `SERVICE_API_AUTH_TOKEN`).
   - `docs/BL-18_SERVICE_E2E.md` um Reproduzierbarkeit/Stabilitäts-Runbook erweitert (inkl. lokalem 2-Run-Nachweis: `pass=2`, `fail=0`).
-  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit Request-ID-Echo in Header+JSON bestätigt; Evidenz in `artifacts/bl18.1-smoke-local-worker-c.json` + `artifacts/bl18.1-remote-stability-local-worker-c.ndjson` (Worker C, `pass=2`, `fail=0`) sowie `artifacts/bl18.1-smoke-local-worker-a.json` + `artifacts/bl18.1-remote-stability-local-worker-a.ndjson` (Worker A, `pass=3`, `fail=0`).
+  - Real-Run-Nachweis aktualisiert (lokal, 2026-02-26): `run_remote_api_smoketest.sh` Exit `0` + `run_remote_api_stability_check.sh` Exit `0` mit Request-ID-Echo in Header+JSON bestätigt; Evidenz in `artifacts/bl18.1-smoke-local-worker-c.json` + `artifacts/bl18.1-remote-stability-local-worker-c.ndjson` (Worker C, `pass=2`, `fail=0`), `artifacts/bl18.1-smoke-local-worker-a.json` + `artifacts/bl18.1-remote-stability-local-worker-a.ndjson` (Worker A, `pass=3`, `fail=0`) sowie `artifacts/bl18.1-smoke-local-worker-b2-1772090073.json` + `artifacts/bl18.1-remote-stability-local-worker-b2-1772090073.ndjson` (Worker B2, `pass=3`, `fail=0`).
+  - Reproduzierbarkeits-Check erneuert: `./scripts/run_webservice_e2e.sh` erfolgreich (`21 passed`, Exit `0`) vor den dedizierten BL-18.1-Läufen.
 
 ---
 
