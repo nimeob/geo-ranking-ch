@@ -14,6 +14,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-17.wp8 Break-glass-Fallback-Runbook)
+- **`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`** um ein verbindliches Break-glass-Runbook erweitert (Triggerkriterien, Ablauf, Evidenz-Checkliste, CloudTrail-/Inventory-/Posture-Prüfpunkte, Rückweg auf AssumeRole-first).
+- **`docs/LEGACY_IAM_USER_READINESS.md`** um ein vollständig ausgefülltes synthetisches Fallback-Event (read-only) ergänzt, inklusive referenzierter Evidenzpfade.
+- **`docs/BACKLOG.md`** BL-17-Fortschritt/Work-Package-Checklist auf Abschluss von `#150` fortgeschrieben.
+
 ### Added (2026-02-27 — BL-17.wp4 Posture-Window-Aggregation)
 - **`scripts/summarize_bl17_posture_reports.py`** neu ergänzt: aggregiert mehrere BL-17-Posture-Reports (`check_bl17_oidc_assumerole_posture.sh --report-json ...`) über ein Zeitfenster und liefert strukturierte Summary (Klassifikationsverteilung, Legacy-Treffer, `ready`/`not-ready`) mit klarer Exitcode-Policy (`0`/`10`/`2`).
 - **`tests/test_summarize_bl17_posture_reports.py`** ergänzt: reproduzierbare Script-Tests für Ready-Window, Legacy-Treffer und Invalid-JSON-Input.
