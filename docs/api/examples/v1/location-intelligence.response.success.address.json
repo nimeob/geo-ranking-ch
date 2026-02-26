@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "api_version": "v1",
+  "request_id": "bl20-contract-req-001",
+  "result": {
+    "entity_id": "ch:egid:1029384",
+    "input_mode": "address",
+    "as_of": "2026-02-26T18:35:00Z",
+    "confidence": 0.84,
+    "building_profile": {
+      "egid": "1029384",
+      "build_year": 1998,
+      "heating_type": "Fernwärme"
+    },
+    "context_profile": {
+      "pt_access_score": 77,
+      "noise_risk": "medium"
+    },
+    "suitability_light": {
+      "traffic_light": "yellow",
+      "score": 63,
+      "reasons": [
+        "Gute ÖV-Anbindung",
+        "Mittleres Lärmrisiko"
+      ]
+    },
+    "explainability": {
+      "sources": [
+        {
+          "source": "geoadmin_gwr",
+          "as_of": "2026-02-20",
+          "confidence": 0.93,
+          "license": "Amtliche Registerdaten"
+        },
+        {
+          "source": "osm_poi_overpass",
+          "as_of": "2026-02-26T18:34:12Z",
+          "confidence": 0.64,
+          "license": "ODbL"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geo-ranking-ch.local/docs/api/schemas/v1/location-intelligence.request.schema.json",
+  "title": "LocationIntelligenceRequestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "requested_modules"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[\\x21-\\x7E]+$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["address", "point"]
+        },
+        "address": {
+          "type": "string",
+          "minLength": 3
+        },
+        "point": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lat", "lon"],
+          "properties": {
+            "lat": { "type": "number", "minimum": 45.0, "maximum": 48.5 },
+            "lon": { "type": "number", "minimum": 5.0, "maximum": 11.5 }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "address" } } },
+          "then": { "required": ["address"] }
+        },
+        {
+          "if": { "properties": { "mode": { "const": "point" } } },
+          "then": { "required": ["point"] }
+        }
+      ]
+    },
+    "requested_modules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "building_profile",
+          "context_profile",
+          "suitability_light",
+          "explainability"
+        ]
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "language": { "type": "string", "enum": ["de", "en", "fr", "it"] },
+        "timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 }
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geo-ranking-ch.local/docs/api/schemas/v1/location-intelligence.response.schema.json",
+  "title": "LocationIntelligenceResponseV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ok", "api_version", "request_id", "result"],
+  "properties": {
+    "ok": { "const": true },
+    "api_version": { "type": "string", "pattern": "^v[0-9]+$" },
+    "request_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "result": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "entity_id",
+        "input_mode",
+        "as_of",
+        "confidence",
+        "building_profile",
+        "context_profile",
+        "suitability_light",
+        "explainability"
+      ],
+      "properties": {
+        "entity_id": { "type": "string", "minLength": 1 },
+        "input_mode": { "type": "string", "enum": ["address", "point"] },
+        "as_of": { "type": "string", "minLength": 10 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "building_profile": { "type": "object" },
+        "context_profile": { "type": "object" },
+        "suitability_light": { "type": "object" },
+        "explainability": {
+          "type": "object",
+          "required": ["sources"],
+          "properties": {
+            "sources": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["source", "as_of", "confidence"],
+                "properties": {
+                  "source": { "type": "string" },
+                  "as_of": { "type": "string" },
+                  "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "license": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

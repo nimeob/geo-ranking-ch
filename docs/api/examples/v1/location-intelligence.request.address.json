@@ -1,0 +1,17 @@
+{
+  "request_id": "bl20-contract-req-001",
+  "input": {
+    "mode": "address",
+    "address": "Bahnhofstrasse 1, 8001 Zürich"
+  },
+  "requested_modules": [
+    "building_profile",
+    "context_profile",
+    "suitability_light",
+    "explainability"
+  ],
+  "options": {
+    "language": "de",
+    "timeout_seconds": 15
+  }
+}

@@ -196,6 +196,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/user/operations-runbooks.md](docs/user/operations-runbooks.md) | Tagesbetrieb-Runbook (Quick-Checks, Smoke/Stability, Deploy-Checks, Incident-Minirunbook) (BL-19.6) |
 | [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Ist-Analyse + E2E-Runbook für BL-18 |
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
+| [docs/api/contract-v1.md](docs/api/contract-v1.md) | Versionierter API-Vertrag v1 für BL-20 (`/api/v1`, Schemas, Fehlercodes, Beispielpayloads) |
 | [docs/GO_TO_MARKET_MVP.md](docs/GO_TO_MARKET_MVP.md) | GTM-MVP-Artefakte: Value Proposition, Scope, Demo-Storyline, offene Risiken (BL-20.7.b) |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
 

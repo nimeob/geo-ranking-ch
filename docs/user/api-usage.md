@@ -24,6 +24,8 @@ https://<dein-endpoint>
 | `GET` | `/version` | Build-/Version-Metadaten | nein |
 | `POST` | `/analyze` | Adressanalyse und Standort-Resultat | optional (`API_AUTH_TOKEN`) |
 
+> BL-20 Vertragsarbeit: Der versionierte Produktvertrag liegt unter [`docs/api/contract-v1.md`](../api/contract-v1.md) (Namespace `/api/v1`).
+
 ### Routing-Verhalten (wichtig)
 
 Der Service normalisiert eingehende Pfade robust:

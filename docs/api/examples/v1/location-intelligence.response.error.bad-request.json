@@ -1,0 +1,15 @@
+{
+  "ok": false,
+  "api_version": "v1",
+  "request_id": "bl20-contract-req-003",
+  "error": {
+    "code": "bad_request",
+    "message": "input.address is required when input.mode=address",
+    "details": [
+      {
+        "field": "input.address",
+        "issue": "missing"
+      }
+    ]
+  }
+}
