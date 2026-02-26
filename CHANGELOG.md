@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C trailing-Slash-Härtung + Langlauf-Nachweis)
+- **`scripts/run_remote_api_smoketest.sh`:** Base-URL-Normalisierung trimmt nach jedem Schritt jetzt **alle** trailing Slashes, sodass auch Inputs wie `.../health//analyze//` reproduzierbar zu `/analyze` normalisiert werden.
+- **`tests/test_remote_smoke_script.py`:** neuer E2E-Happy-Path deckt redundante trailing-Slash-Ketten (`.../health//analyze//`) ab und schützt vor Regressionen.
+- **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`32 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-c-1772092769.json` und `artifacts/bl18.1-remote-stability-local-worker-c-1772092769.ndjson`.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog auf Worker-C trailing-Slash-Recheck synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Hinweise und Nachweise auf redundante trailing-Slash-Normalisierung aktualisiert; Reproduzierbarkeits-Status auf den aktuellen Worker-C-Langlauf (`32 passed`, Smoke + 3x Stabilität) gehoben.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-B2 Langlauf-Recheck kombinierte Base-URL-Normalisierung)
 - **Langlauf-Real-Run (Worker B2):** `./scripts/run_webservice_e2e.sh` erfolgreich (`31 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` erfolgreich (`pass=3`, `fail=0`, Exit `0`) inkl. Request-ID-Echo Header+JSON. Evidenz in `artifacts/bl18.1-smoke-local-worker-b2-1772092596.json` und `artifacts/bl18.1-remote-stability-local-worker-b2-1772092596.ndjson`.
 

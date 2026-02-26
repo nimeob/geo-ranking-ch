@@ -100,7 +100,15 @@ case "$SMOKE_ENFORCE_REQUEST_ID_ECHO" in
     ;;
 esac
 
-RAW_BASE_URL="${DEV_BASE_URL_TRIMMED%/}"
+strip_trailing_slashes() {
+  local value="$1"
+  while [[ "$value" == */ ]]; do
+    value="${value%/}"
+  done
+  printf '%s' "$value"
+}
+
+RAW_BASE_URL="$(strip_trailing_slashes "${DEV_BASE_URL_TRIMMED}")"
 if [[ ! "$RAW_BASE_URL" =~ ^[Hh][Tt][Tt][Pp]([Ss])?:// ]]; then
   echo "[BL-18.1] DEV_BASE_URL muss mit http:// oder https:// beginnen (aktuell: ${DEV_BASE_URL})." >&2
   exit 2
@@ -111,12 +119,12 @@ while true; do
   base_url_lower="${BASE_URL,,}"
   if [[ "$base_url_lower" == */health ]]; then
     BASE_URL="${BASE_URL:0:${#BASE_URL}-7}"
-    BASE_URL="${BASE_URL%/}"
+    BASE_URL="$(strip_trailing_slashes "${BASE_URL}")"
     continue
   fi
   if [[ "$base_url_lower" == */analyze ]]; then
     BASE_URL="${BASE_URL:0:${#BASE_URL}-8}"
-    BASE_URL="${BASE_URL%/}"
+    BASE_URL="$(strip_trailing_slashes "${BASE_URL}")"
     continue
   fi
   break
