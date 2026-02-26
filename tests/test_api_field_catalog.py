@@ -10,6 +10,9 @@ VALIDATOR = REPO_ROOT / "scripts" / "validate_field_catalog.py"
 CONTRACT_DOC = REPO_ROOT / "docs" / "api" / "contract-v1.md"
 FIELD_REFERENCE_DOC = REPO_ROOT / "docs" / "api" / "field-reference-v1.md"
 FIELD_CATALOG = REPO_ROOT / "docs" / "api" / "field_catalog.json"
+GROUPED_PARTIAL_EXAMPLE = (
+    REPO_ROOT / "docs" / "api" / "examples" / "current" / "analyze.response.grouped.partial-disabled.json"
+)
 
 
 class TestApiFieldCatalog(unittest.TestCase):
@@ -35,6 +38,7 @@ class TestApiFieldCatalog(unittest.TestCase):
             "docs/api/field-reference-v1.md",
             "scripts/validate_field_catalog.py",
             "analyze.response.grouped.success.json",
+            "analyze.response.grouped.partial-disabled.json",
             "location-intelligence.response.success.address.json",
         ]
         for marker in markers:
@@ -62,9 +66,65 @@ class TestApiFieldCatalog(unittest.TestCase):
             "result.data.entity.query",
             "intelligence_mode=extended|risk",
             "docs/api/field_catalog.json",
+            "analyze.response.grouped.partial-disabled.json",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in field-reference-v1.md: {marker}")
+
+    def test_grouped_partial_example_documents_missing_or_disabled_data(self):
+        self.assertTrue(
+            GROUPED_PARTIAL_EXAMPLE.is_file(),
+            msg="Edge-Case-Beispiel fehlt: analyze.response.grouped.partial-disabled.json",
+        )
+        payload = json.loads(GROUPED_PARTIAL_EXAMPLE.read_text(encoding="utf-8"))
+
+        self.assertIs(payload.get("ok"), True)
+        self.assertIsInstance(payload.get("request_id"), str)
+
+        result = payload.get("result")
+        self.assertIsInstance(result, dict)
+
+        source_health = result.get("status", {}).get("source_health", {})
+        self.assertIsInstance(source_health, dict)
+        self.assertGreaterEqual(len(source_health), 2)
+
+        source_states = {
+            meta.get("status") for meta in source_health.values() if isinstance(meta, dict)
+        }
+        self.assertTrue(
+            {"disabled", "missing"}.intersection(source_states),
+            msg="Edge-Case-Beispiel muss mindestens eine deaktivierte oder fehlende Quelle ausweisen",
+        )
+
+        modules = result.get("data", {}).get("modules", {})
+        self.assertIsInstance(modules, dict)
+        self.assertNotIn(
+            "intelligence",
+            modules,
+            msg="Edge-Case-Beispiel soll fehlendes Intelligence-Modul über Abwesenheit dokumentieren",
+        )
+
+        field_provenance = modules.get("field_provenance", {})
+        self.assertIsInstance(field_provenance, dict)
+        self.assertTrue(
+            any(
+                isinstance(meta, dict) and meta.get("present") is False
+                for meta in field_provenance.values()
+            ),
+            msg="Edge-Case-Beispiel muss fehlende Felder via present=false dokumentieren",
+        )
+
+        by_source = result.get("data", {}).get("by_source", {})
+        self.assertIsInstance(by_source, dict)
+        empty_sources = [
+            name
+            for name, entry in by_source.items()
+            if isinstance(entry, dict) and entry.get("data") == {}
+        ]
+        self.assertTrue(
+            empty_sources,
+            msg="Edge-Case-Beispiel muss mindestens eine Quelle mit leerem data-Objekt enthalten",
+        )
 
 
 if __name__ == "__main__":

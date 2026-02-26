@@ -17,6 +17,16 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 ### Added (2026-02-26 — BL-20.1.d.wp2 Human-readable Field Reference)
 - **`docs/api/field-reference-v1.md`** neu angelegt: menschenlesbare Feldreferenz für `legacy` + `grouped` inkl. Feldpfad, Semantik, Typ, Pflicht/Optionalität, Stabilitätsklasse, Modusbedingungen und Beispielwert.
 
+### Added (2026-02-26 — BL-20.1.d.wp3 Contract-Examples)
+- **`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`** ergänzt: grouped Edge-Case mit fehlenden/deaktivierten Quellen/Modulen (`status=disabled|missing`, `present=false`, leere `by_source.data`-Blöcke) als Integrationsreferenz für defensive Consumer.
+
+### Changed (2026-02-26 — BL-20.1.d.wp3 Doku-/Test-Sync)
+- **`docs/api/contract-v1.md`** um explizite Contract-Example-Verweise erweitert (vollständige legacy/grouped Payloads + grouped Edge-Case).
+- **`docs/api/field-reference-v1.md`** um direkten Link auf den grouped Edge-Case ergänzt.
+- **`docs/user/api-usage.md`** um versionierte Referenzlinks zu den vollständigen und Edge-Case-Beispielpayloads erweitert.
+- **`tests/test_api_field_catalog.py`** um Guard-Checks für den grouped Edge-Case erweitert (Status `missing|disabled`, fehlendes Modul, `present=false`, leere Source-Datenblöcke).
+- **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschluss von #72 aktualisiert.
+
 ### Changed (2026-02-26 — BL-20.1.d.wp2 Doku-/Test-Sync)
 - **`docs/api/contract-v1.md`** um direkten Verweis auf die neue Feldreferenz erweitert (Abschnitt „Human-readable Feldreferenz“ + Link im Feldkatalog-Abschnitt).
 - **`README.md`** Dokumentationstabelle um `docs/api/field-reference-v1.md` ergänzt.

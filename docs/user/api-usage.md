@@ -177,6 +177,12 @@ curl -sS -X POST "http://localhost:8080/analyze" \
 }
 ```
 
+Weitere versionierte Beispielpayloads:
+
+- Legacy (vollständig): [`docs/api/examples/v1/location-intelligence.response.success.address.json`](../api/examples/v1/location-intelligence.response.success.address.json)
+- Grouped (vollständig): [`docs/api/examples/current/analyze.response.grouped.success.json`](../api/examples/current/analyze.response.grouped.success.json)
+- Grouped Edge-Case (fehlende/deaktivierte Daten): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](../api/examples/current/analyze.response.grouped.partial-disabled.json)
+
 ---
 
 ## Authentifizierung

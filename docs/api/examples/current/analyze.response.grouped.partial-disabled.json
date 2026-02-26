@@ -1,0 +1,163 @@
+{
+  "ok": true,
+  "request_id": "bl20-field-catalog-partial-001",
+  "result": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 64,
+          "max": 100,
+          "level": "medium"
+        },
+        "executive_summary": {
+          "verdict": "partial"
+        }
+      },
+      "source_health": {
+        "geoadmin_search": {
+          "status": "ok",
+          "records": 1
+        },
+        "osm_reverse": {
+          "status": "disabled",
+          "records": 0
+        },
+        "noise_model": {
+          "status": "missing",
+          "records": 0
+        }
+      },
+      "source_meta": {
+        "source_classification": {
+          "building.baujahr": {
+            "primary_source": "geoadmin_search"
+          },
+          "context.noise": {
+            "primary_source": "noise_model"
+          }
+        },
+        "source_attribution": {
+          "match": [
+            "geoadmin_search"
+          ],
+          "building_energy": [
+            "geoadmin_search"
+          ],
+          "intelligence": [
+            "osm_reverse"
+          ]
+        },
+        "field_provenance": {
+          "building.baujahr": {
+            "primary_source": "geoadmin_search",
+            "present": true
+          },
+          "intelligence.tenants_businesses": {
+            "primary_source": "osm_reverse",
+            "present": false
+          },
+          "context.noise": {
+            "primary_source": "noise_model",
+            "present": false
+          }
+        }
+      }
+    },
+    "data": {
+      "entity": {
+        "query": "Musterweg 10, 9000 St. Gallen",
+        "matched_address": "Musterweg 10, 9000 St. Gallen",
+        "ids": {
+          "egid": "900010"
+        },
+        "coordinates": {
+          "lat": 47.4245,
+          "lon": 9.3767
+        },
+        "administrative": {
+          "gemeinde": "St. Gallen"
+        }
+      },
+      "modules": {
+        "match": {
+          "selected_score": 0.87,
+          "candidate_count": 2
+        },
+        "building": {
+          "baujahr": 1972,
+          "decoded": {
+            "heizung": [
+              {
+                "label": "Öl"
+              }
+            ]
+          }
+        },
+        "energy": {
+          "decoded_summary": {
+            "heizung": [
+              "Öl"
+            ]
+          }
+        },
+        "cross_source": {
+          "plz_layer": {
+            "plz": 9000
+          }
+        },
+        "field_provenance": {
+          "building.baujahr": {
+            "primary_source": "geoadmin_search",
+            "present": true
+          },
+          "intelligence.tenants_businesses": {
+            "primary_source": "osm_reverse",
+            "present": false
+          },
+          "context.noise": {
+            "primary_source": "noise_model",
+            "present": false
+          }
+        }
+      },
+      "by_source": {
+        "geoadmin_search": {
+          "source": "geoadmin_search",
+          "data": {
+            "match": {
+              "selected_score": 0.87,
+              "candidate_count": 2
+            },
+            "building_energy": {
+              "building": {
+                "baujahr": 1972,
+                "decoded": {
+                  "heizung": [
+                    {
+                      "label": "Öl"
+                    }
+                  ]
+                }
+              },
+              "energy": {
+                "decoded_summary": {
+                  "heizung": [
+                    "Öl"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "osm_reverse": {
+          "source": "osm_reverse",
+          "data": {}
+        },
+        "noise_model": {
+          "source": "noise_model",
+          "data": {}
+        }
+      }
+    }
+  }
+}
