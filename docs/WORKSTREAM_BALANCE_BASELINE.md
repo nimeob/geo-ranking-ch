@@ -2,7 +2,7 @@
 
 - Parent: #98
 - Work-Package: #99
-- Stand: 2026-02-26T21:11:00+00:00 (UTC)
+- Stand: 2026-02-26T22:26:00+00:00 (UTC)
 
 ## Reproduzierbare Ermittlung
 
@@ -38,8 +38,20 @@ Wenn der Gap künftig wieder >2 wird:
 3. Innerhalb der nächsten Iteration mindestens ein Catch-up-Issue abschließen.
 4. Baseline-Report aktualisieren und Delta transparent nachführen.
 
+## CI-/Smokepfad für Crawler-Regressionscheck (WP3)
+
+```bash
+# lokaler/CI-kompatibler Check-Command
+./scripts/check_crawler_regression.sh
+```
+
+Der Command wird in GitHub Actions über den Workflow
+`.github/workflows/crawler-regression.yml` ausgeführt.
+
 ## Referenzen
 
 - Crawler-Script: `scripts/github_repo_crawler.py`
+- Crawler-Regression-Check: `scripts/check_crawler_regression.sh`
+- CI-Workflow: `.github/workflows/crawler-regression.yml`
 - Parent-Issue: #98
-- Related Testing-WP: #100
+- Related Testing-WPs: #100, #101
