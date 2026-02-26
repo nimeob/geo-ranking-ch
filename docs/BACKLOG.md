@@ -371,8 +371,9 @@
   - ✅ 2026-02-26: #22 abgeschlossen (BL-20.1.a API-Contract v1) mit versioniertem Vertrag unter [`docs/api/contract-v1.md`](api/contract-v1.md) inkl. Schemas, Fehlercode-Matrix und Beispielpayloads.
   - ✅ 2026-02-26: #23 abgeschlossen (BL-20.1.b Contract-Validierung) mit Golden-Case-Tests (`tests/test_api_contract_v1.py`), Testdaten (`tests/data/api_contract_v1/*`) und CI-Workflow (`.github/workflows/contract-tests.yml`).
   - ✅ 2026-02-26: #54 abgeschlossen (BL-20.7.a.r1) mit reproduzierbarer Packaging-Baseline in [`docs/PACKAGING_BASELINE.md`](PACKAGING_BASELINE.md), README-Integration und Doku-Regressionstest.
+  - ✅ 2026-02-26: #56 abgeschlossen (BL-20.7.a.r3) mit API-only Basis-Release-Checkliste in [`docs/PACKAGING_BASELINE.md`](PACKAGING_BASELINE.md) und Cross-Link aus [`docs/OPERATIONS.md`](OPERATIONS.md).
   - ⏳ Offene GTM-Follow-ups: #37 (Demo-Datenset), #38 (Packaging/Pricing-Hypothesen).
-  - ⏳ Nächster direkter Schritt BL-20.7.a: #55 (Konfigurationsmatrix Packaging/Runtime), danach #56 (Release-Checkliste).
+  - ⏳ Nächster direkter Schritt BL-20.7.a: #55 (Konfigurationsmatrix Packaging/Runtime).
 - **Akzeptanzkriterien (Phase 1):**
   - API liefert für Adresse und Kartenpunkt ein einheitliches Ergebnisobjekt (Gebäudeprofil + Umfeldprofil).
   - Ergebnis enthält Explainability-Felder (`sources`, `as_of`, `confidence`, `derived_from`).

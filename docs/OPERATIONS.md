@@ -130,6 +130,8 @@ Das Projekt folgt [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH
 
 ### Release-Checkliste
 
+Für API-only Releases zuerst die Packaging-Baseline-Checks ausführen: [`docs/PACKAGING_BASELINE.md`](./PACKAGING_BASELINE.md#basis-release-checkliste-api-only-packaging).
+
 ```bash
 # 1. Release-Branch erstellen
 git checkout -b release/v<x.y.z>
