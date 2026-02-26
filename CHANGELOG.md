@@ -41,6 +41,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`README.md`** Dokumentationstabelle um den Stability-Policy-Leitfaden ergänzt.
 - **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschluss von #73 aktualisiert.
 
+### Added (2026-02-26 — BL-20.1.f.wp1 Score-Katalog)
+- **`docs/api/scoring_methodology.md`** neu angelegt: dedizierte Methodik-Spezifikation mit vollständigem Score-Katalog (legacy + grouped), Richtung/Skala/Stabilitätsstatus je Feld und Konsistenzregeln zum Feldkatalog.
+
+### Changed (2026-02-26 — BL-20.1.f.wp1 Doku-/Test-Sync)
+- **`docs/api/contract-v1.md`** um Abschnitt „Scoring Methodology Specification“ inkl. Cross-Link erweitert.
+- **`tests/test_api_field_catalog.py`** um Guard-Checks ergänzt, die die Abdeckung aller scoring-relevanten Feldpfade in `docs/api/scoring_methodology.md` erzwingen.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschluss von #79 aktualisiert.
+
 ### Added (2026-02-26 — BL-20.2.b Feld-Mapping Quelle -> Domain)
 - **`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`** neu angelegt: quellenweises Feld-Mapping auf Domainpfade (`build_report`/`result.data.*`) inkl. verbindlicher Transform-/Normalisierungsregeln und Source->Module-Zuordnung für `by_source`.
 - **`tests/test_data_source_field_mapping_docs.py`** ergänzt: Regressionstest auf Pflichtsektionen der Mapping-Doku inkl. Follow-up-Verweisen (#63/#64/#65).
