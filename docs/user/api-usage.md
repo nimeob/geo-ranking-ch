@@ -233,5 +233,5 @@ curl -sS -X POST "http://localhost:8080/analyze" \
 
 Nächste Seiten:
 
-- Configuration / ENV *(folgt in BL-19.3)*
+- [Configuration / ENV](./configuration-env.md)
 - [Troubleshooting](./troubleshooting.md)

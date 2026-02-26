@@ -111,6 +111,7 @@ Erwartung: Exit `0`, `pass`-Runs ohne unerwartete 5xx/Timeout-Spitzen.
 
 Weiterführend:
 - [Getting Started](./getting-started.md)
+- [Configuration / ENV](./configuration-env.md)
 - [API Usage Guide](./api-usage.md)
 - [Troubleshooting](./troubleshooting.md)
 - [Operations (Infra/Team)](../OPERATIONS.md)
