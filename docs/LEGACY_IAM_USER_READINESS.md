@@ -117,6 +117,19 @@ Verifizierte Befunde aus dem Lauf:
 
 Interpretation: Der aktive Legacy-Consumer ist aktuell **laufzeitgebunden** (Environment/Credential-Injection), nicht über persistierte Profile/Config auf diesem Host hinterlegt. Für „decommission-ready“ fehlt weiterhin die vollständige Inventarisierung weiterer externer Runner/Hosts.
 
+### Runtime-Credential-Injection-Inventar (BL-17.wp5, read-only)
+
+Für die strukturierte Erfassung von Injection-Pfaden inkl. Migrationsschritten:
+
+```bash
+./scripts/inventory_bl17_runtime_credential_paths.py \
+  --output-json artifacts/bl17/runtime-credential-injection-inventory.json
+```
+
+- Der Report liefert pro Befund `effect`, `migration_next_step` und `owner`.
+- Exit `10` signalisiert erkannte riskante Injection-Pfade (Legacy/Key-Injection).
+- Detaildoku: `docs/BL17_RUNTIME_CREDENTIAL_INJECTION_INVENTORY.md`.
+
 ### CloudTrail-Fingerprint Audit (read-only, 2026-02-26)
 
 Zur schnelleren Attribution von aktiven Consumern wurde ergänzt:
