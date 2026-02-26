@@ -96,6 +96,15 @@ BL17_POSTURE_REPORT_JSON=artifacts/bl17/posture-report.json ./scripts/check_bl17
 ```
 Der JSON-Report enthält mindestens Timestamp, Caller-Klassifikation und relevante Exit-Codes (`workflow_check`, `caller_check`, Kontext-Audits, final).
 
+Runtime-Credential-Injection-Inventar (BL-17.wp5):
+```bash
+./scripts/inventory_bl17_runtime_credential_paths.py \
+  --output-json artifacts/bl17/runtime-credential-injection-inventory.json
+```
+- Exit `0`: keine riskanten Injection-Befunde erkannt
+- Exit `10`: riskante Injection-Befunde erkannt (Legacy/Key-Injection)
+- Details/DoD: `docs/BL17_RUNTIME_CREDENTIAL_INJECTION_INVENTORY.md`
+
 Zeitfenster-Aggregation (z. B. für 48h Legacy-Fallback-Beobachtung):
 ```bash
 ./scripts/summarize_bl17_posture_reports.py \

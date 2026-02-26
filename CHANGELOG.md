@@ -18,9 +18,19 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`scripts/summarize_bl17_posture_reports.py`** neu ergänzt: aggregiert mehrere BL-17-Posture-Reports (`check_bl17_oidc_assumerole_posture.sh --report-json ...`) über ein Zeitfenster und liefert strukturierte Summary (Klassifikationsverteilung, Legacy-Treffer, `ready`/`not-ready`) mit klarer Exitcode-Policy (`0`/`10`/`2`).
 - **`tests/test_summarize_bl17_posture_reports.py`** ergänzt: reproduzierbare Script-Tests für Ready-Window, Legacy-Treffer und Invalid-JSON-Input.
 
+### Added (2026-02-27 — BL-17.wp5 Runtime-Credential-Injection-Inventar)
+- **`scripts/inventory_bl17_runtime_credential_paths.py`** neu ergänzt: read-only Inventarisierung von Runtime-Credential-Injection-Pfaden inkl. strukturiertem JSON-Export (`--output-json`) und standardisierten Befundfeldern (`effect`, `migration_next_step`, `owner`).
+- **`tests/test_inventory_bl17_runtime_credential_paths.py`** ergänzt: reproduzierbare Script-Tests für Legacy-Caller + statische Env-Keys (`exit 10`) sowie cleanen AssumeRole-Pfad (`exit 0`).
+- **`docs/BL17_RUNTIME_CREDENTIAL_INJECTION_INVENTORY.md`** neu angelegt: Runbook/DoD für BL-17.wp5 inkl. Befundkategorien und Exitcode-Interpretation.
+
 ### Changed (2026-02-27 — BL-17.wp4 Doku-/Backlog-Sync)
 - **`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`** um Zeitfenster-Aggregationslauf ergänzt (`summarize_bl17_posture_reports.py` inkl. Exitcode-Interpretation).
 - **`docs/BACKLOG.md`** BL-17-Fortschritt und Work-Package-Checklist um Abschluss von #144 erweitert; Folgepaket #145 als offen dokumentiert.
+
+### Changed (2026-02-27 — BL-17.wp5 Doku-/Backlog-Sync)
+- **`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`** um den Runtime-Injection-Inventory-Lauf (`inventory_bl17_runtime_credential_paths.py`) inkl. Exitcode-Policy erweitert.
+- **`docs/LEGACY_IAM_USER_READINESS.md`** um den neuen BL-17.wp5-Evidence-Pfad ergänzt (strukturierter Inventory-Report als Read-only-Nachweis).
+- **`docs/BACKLOG.md`** BL-17-Work-Package-Checklist auf `#145` abgeschlossen fortgeschrieben.
 
 ### Changed (2026-02-26 — BL-17.wp1 AssumeRole-Exec Wrapper Hardening)
 - **`scripts/aws_exec_via_openclaw_ops.sh`** gehärtet: fail-fast Validierung für `OPENCLAW_OPS_ROLE_ARN`, `OPENCLAW_OPS_SESSION_SECONDS` (Integer `900..43200`) und `OPENCLAW_OPS_SESSION_NAME`; robuste Fehlerbehandlung für `aws sts assume-role` und JSON-/Credential-Parsing.
