@@ -22,14 +22,31 @@ class TestUserDocumentation(unittest.TestCase):
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt im API-Guide: {marker}")
 
-    def test_user_docs_index_links_to_api_usage(self):
+    def test_user_docs_index_links_to_api_usage_and_troubleshooting(self):
         user_index = (REPO_ROOT / "docs" / "user" / "README.md").read_text(encoding="utf-8")
         self.assertIn("[API Usage Guide](./api-usage.md)", user_index)
+        self.assertIn("[Troubleshooting](./troubleshooting.md)", user_index)
 
         getting_started = (REPO_ROOT / "docs" / "user" / "getting-started.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("[API Usage Guide](./api-usage.md)", getting_started)
+        self.assertIn("[Troubleshooting](./troubleshooting.md)", getting_started)
+
+    def test_troubleshooting_guide_exists_with_core_sections(self):
+        troubleshooting_path = REPO_ROOT / "docs" / "user" / "troubleshooting.md"
+        self.assertTrue(troubleshooting_path.is_file(), msg="docs/user/troubleshooting.md fehlt")
+
+        content = troubleshooting_path.read_text(encoding="utf-8")
+        required_markers = [
+            "# Troubleshooting",
+            "## 401 `unauthorized`",
+            "## 400 `bad_request`",
+            "## 504 `timeout`",
+            "## Smoke/Stability-Checks für reproduzierbare Diagnose",
+        ]
+        for marker in required_markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt im Troubleshooting-Guide: {marker}")
 
     def test_root_readme_contains_thematic_webservice_feature_list(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")

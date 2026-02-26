@@ -19,8 +19,8 @@ Ziel dieser Doku: den Service schnell nutzbar machen — für lokale Entwicklung
   - Endpoints, Header, Request/Response-Schema, Beispiele.
 - **(folgt) Configuration / ENV**
   - Alle relevanten Umgebungsvariablen inkl. Defaults/Validierung.
-- **(folgt) Troubleshooting**
-  - Häufige Fehlerbilder (401/400/504, URL/Auth/Timeout).
+- **[Troubleshooting](./troubleshooting.md)**
+  - Häufige Fehlerbilder (401/400/504, URL/Auth/Timeout) inkl. Diagnose-Checks.
 - **(folgt) Operations Quick Guide**
   - Smoke/Stability/Deploy-Checks für den Tagesbetrieb.
 

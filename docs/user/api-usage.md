@@ -231,7 +231,7 @@ curl -sS -X POST "http://localhost:8080/analyze" \
   -d '{"query":"St. Gallen"}'
 ```
 
-Nächste Seiten (in Arbeit):
+Nächste Seiten:
 
 - Configuration / ENV *(folgt in BL-19.3)*
-- Troubleshooting *(folgt in BL-19.5)*
+- [Troubleshooting](./troubleshooting.md)

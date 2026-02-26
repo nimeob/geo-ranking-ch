@@ -333,6 +333,7 @@
   - ✅ BL-19.1 Informationsarchitektur umgesetzt (`docs/user/README.md`)
   - ✅ BL-19.2 Getting Started umgesetzt (`docs/user/getting-started.md`)
   - ✅ BL-19.4 API Usage Guide umgesetzt (`docs/user/api-usage.md`)
+  - ✅ BL-19.5 Fehlerbilder & Troubleshooting umgesetzt (`docs/user/troubleshooting.md` inkl. Diagnose-Checks)
   - ✅ BL-19.7 README-Integration verfeinert (Feature-Liste + User-Doku-Links in `README.md`)
   - ⏳ Nächster Schritt: BL-19.3 (Configuration/ENV)
 - **Teilaufgaben (vorgeschlagen):**
