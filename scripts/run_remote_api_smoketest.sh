@@ -69,6 +69,18 @@ print(sys.argv[1].strip())
 PY
 )"
 
+SMOKE_REQUEST_ID_HEADER="$(python3 - "${SMOKE_REQUEST_ID_HEADER}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+SMOKE_ENFORCE_REQUEST_ID_ECHO="$(python3 - "${SMOKE_ENFORCE_REQUEST_ID_ECHO}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
 if [[ -z "${SMOKE_REQUEST_ID}" ]]; then
   echo "[BL-18.1] SMOKE_REQUEST_ID ist leer nach Whitespace-Normalisierung." >&2
   exit 2

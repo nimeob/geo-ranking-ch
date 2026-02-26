@@ -14,6 +14,15 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Added (2026-02-26 — BL-18.1 Iteration: Worker-C Recheck mit getrimmtem Correlation-Mode + 5x Stabilität)
+- **`scripts/run_remote_api_smoketest.sh`:** trimmt `SMOKE_REQUEST_ID_HEADER` und `SMOKE_ENFORCE_REQUEST_ID_ECHO` jetzt vor der Validierung, damit robuste Env-Inputs wie `"  Correlation  "` bzw. `" 1 "` reproduzierbar akzeptiert werden.
+- **`tests/test_remote_smoke_script.py`:** neue E2E-Happy-Paths sichern die getrimmten Inputs für Header-Mode und Echo-Flag ab.
+- **Langlauf-Real-Run (Worker C):** `./scripts/run_webservice_e2e.sh` erfolgreich (`53 passed`, Exit `0`) sowie dedizierter BL-18.1-Lauf via `run_remote_api_smoketest.sh` + `run_remote_api_stability_check.sh` im getrimmten Correlation-Mode erfolgreich (`pass=5`, `fail=0`, Exit `0`). Evidenz in `artifacts/bl18.1-smoke-local-worker-c-langlauf-1772096909.json` und `artifacts/bl18.1-remote-stability-local-worker-c-langlauf-1772096909.ndjson`.
+- **Serverlauf:** isolierter lokaler Service-Log für denselben Lauf unter `artifacts/bl18.1-worker-c-server-1772096909.log` dokumentiert.
+
+### Changed (2026-02-26 — BL-18.1 Iteration: Runbook/Backlog/README auf getrimmte Correlation-Inputs synchronisiert)
+- **`README.md` / `docs/BL-18_SERVICE_E2E.md` / `docs/BACKLOG.md`:** Bedienhinweise, Testabdeckung und Nachweisführung auf getrimmte Header-/Echo-Inputs sowie den aktuellen Worker-C-5x-Langlauf (`53 passed`, Smoke + 5x Stabilität) aktualisiert.
+
 ### Added (2026-02-26 — BL-18.1 Iteration: Worker-B Langlauf-Recheck im Correlation-Mode, 5x Stabilität)
 - **Langlauf-Real-Run (Worker B):** dedizierter BL-18.1-Lauf im Correlation-Header-Mode mit robuster Suffix-Kette (`DEV_BASE_URL="  HTTP://127.0.0.1:45757/analyze//health/analyze/health///  "`) erfolgreich ausgeführt.
 - **Smoke:** `run_remote_api_smoketest.sh` Exit `0`, `HTTP 200`, `ok=true`, Request-ID-Echo konsistent in Header+JSON (`request_id_header_source=correlation`), Evidenz: `artifacts/bl18.1-smoke-local-worker-b-langlauf-1772096678.json`.

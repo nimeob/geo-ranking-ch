@@ -91,7 +91,8 @@ curl http://localhost:8080/health
 # DEV_BASE_URL muss eine valide Host/Port-Kombination enthalten (nicht-numerische oder out-of-range Ports wie :abc / :70000 werden fail-fast mit exit 2 abgewiesen)
 # SMOKE_TIMEOUT_SECONDS/CURL_MAX_TIME müssen endliche Zahlen >0 sein; CURL_RETRY_COUNT/CURL_RETRY_DELAY Ganzzahlen >=0
 # SMOKE_REQUEST_ID wird getrimmt, darf keine Steuerzeichen enthalten und muss <=128 Zeichen sein (Fail-fast bei Fehlwerten)
-# optional: SMOKE_REQUEST_ID_HEADER=request|correlation (Default request; correlation prüft Fallback über X-Correlation-Id)
+# optional: SMOKE_REQUEST_ID_HEADER=request|correlation (Default request; Wert wird getrimmt + case-insensitive normalisiert; correlation prüft Fallback über X-Correlation-Id)
+# optional: SMOKE_ENFORCE_REQUEST_ID_ECHO=1|0 (Wert wird vor Validierung getrimmt)
 DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_smoketest.sh
 
 # kurzer Stabilitätslauf (mehrere Remote-Smokes, mit NDJSON-Report)
