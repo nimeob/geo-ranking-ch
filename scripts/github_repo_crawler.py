@@ -174,7 +174,11 @@ def scan_repo_for_findings(dry_run: bool):
             f"Automatisch vom Repository-Crawler erkannt ({now_iso()}).\n\n"
             f"Fundstelle: `{rel}:{line_no}`\n"
             f"Inhalt: `{snippet}`\n\n"
-            "Bitte prüfen, ob der Punkt bereits abgedeckt ist. Falls nicht, sauber umsetzen und Nachweis im Abschlusskommentar liefern."
+            "Bitte prüfen, ob der Punkt bereits abgedeckt ist. Falls nicht, sauber umsetzen und Nachweis im Abschlusskommentar liefern.\n\n"
+            "## Worker-Auswahlregel (ohne Label-Automatik)\n"
+            "- Innerhalb derselben Priorität sollen Worker bevorzugt mit den älteren offenen Issues beginnen (oldest-first).\n"
+            "- Neuere gleichrangige Issues bleiben trotzdem bearbeitbar (keine künstliche Blockierung über Labels).\n"
+            "- Abhängigkeiten gehen vor Alter: Wenn ein älteres Issue blockiert ist, darf ein jüngeres gleichrangiges Issue vorgezogen werden."
         )
         create_issue(title, body, dry_run=dry_run)
 
@@ -312,6 +316,10 @@ def audit_workstream_balance(dry_run: bool):
         "1. Rückstandskategorie identifizieren\n"
         "2. Konkrete Catch-up-Tasks sofort freigeben\n"
         "3. Abschluss erst, wenn die Lücke sichtbar reduziert ist\n\n"
+        "## Worker-Auswahlregel (ohne Label-Automatik)\n"
+        "- Innerhalb derselben Priorität sollen Worker bevorzugt mit den älteren offenen Issues beginnen (oldest-first).\n"
+        "- Neuere gleichrangige Issues bleiben trotzdem bearbeitbar (keine künstliche Blockierung über Labels).\n"
+        "- Abhängigkeiten gehen vor Alter: Wenn ein älteres Issue blockiert ist, darf ein jüngeres gleichrangiges Issue vorgezogen werden.\n\n"
         "Hinweis: P0 ist hier ausschließlich für das Aufholen liegengebliebener, kritischer Arbeit reserviert."
     )
     create_issue(WORKSTREAM_BALANCE_ISSUE_TITLE, body, dry_run=dry_run, priority="priority:P0")
