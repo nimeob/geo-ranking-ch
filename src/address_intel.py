@@ -5498,6 +5498,11 @@ def build_building_core_profile(
         "flaeche_m2": flaeche,
         "geschosse": geschosse,
         "wohnungen": wohnungen,
+        "codes": {
+            "gstat": gwr.get("gstat"),
+            "gkat": gwr.get("gkat"),
+            "gklas": gwr.get("gklas"),
+        },
         "decoded": decoded,
     }
 
@@ -5545,7 +5550,9 @@ def build_field_provenance(report: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         "cross_source.plz_layer.plz": ["plz_layer_identify"],
         "cross_source.admin_boundary.gemeinde": ["swissboundaries_identify"],
         "cross_source.elevation.height_m": ["swisstopo_height"],
+        "building.codes": ["geoadmin_gwr"],
         "building.decoded": ["geoadmin_gwr", "gwr_codes"],
+        "energy.raw_codes": ["geoadmin_gwr"],
         "energy.heating_layer": ["bfs_heating_layer"],
         "cross_source.osm_reverse": ["osm_reverse"],
         "intelligence.tenants_businesses.entities": ["osm_poi_overpass"],

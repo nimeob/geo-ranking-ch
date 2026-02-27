@@ -178,6 +178,83 @@ class TestGroupedApiResult(unittest.TestCase):
             msg="compact by_source muss kleiner als verbose by_source sein",
         )
 
+    def test_code_first_projection_removes_decoded_labels_and_emits_dictionary_status(self):
+        report = {
+            "query": "Espenmoosstrasse 18, 9008 St. Gallen",
+            "matched_address": "Espenmoosstrasse 18, 9008 St. Gallen",
+            "building": {
+                "codes": {"gstat": 1004, "gkat": 1020, "gklas": "1122"},
+                "decoded": {
+                    "status": "Bestehend",
+                    "kategorie": "Gebäude mit Wohnnutzung und anderen Nutzungen",
+                },
+            },
+            "energy": {
+                "raw_codes": {"gwaerzh1": 7410, "genh1": 7501},
+                "decoded_summary": {"heizung": ["Wärmepumpe (Luft)"]},
+            },
+            "sources": {"geoadmin_search": {"status": "ok"}},
+        }
+
+        grouped = _grouped_api_result(report)
+        status = grouped["status"]
+        modules = grouped["data"]["modules"]
+
+        dictionary = status.get("dictionary")
+        self.assertIsInstance(dictionary, dict)
+        self.assertIn("version", dictionary)
+        self.assertIn("etag", dictionary)
+        self.assertIn("domains", dictionary)
+
+        self.assertNotIn("decoded", modules["building"])
+        self.assertEqual(modules["building"]["codes"]["gstat"], "1004")
+        self.assertNotIn("decoded_summary", modules["energy"])
+        self.assertEqual(modules["energy"]["codes"]["gwaerzh1"], "7410")
+
+    def test_code_first_projection_reduces_payload_vs_legacy_label_projection(self):
+        report = {
+            "query": "Espenmoosstrasse 18, 9008 St. Gallen",
+            "matched_address": "Espenmoosstrasse 18, 9008 St. Gallen",
+            "building": {
+                "codes": {"gstat": 1004, "gkat": 1020, "gklas": 1122},
+                "decoded": {
+                    "status": "Bestehend",
+                    "kategorie": "Gebäude mit Wohnnutzung und anderen Nutzungen",
+                    "klasse": "Gebäude mit drei oder mehr Wohnungen",
+                    "heizung": [
+                        {"label": "Wärmepumpe für ein Gebäude (Luft)", "status": "ok"},
+                        {"label": "Wärmepumpe für ein Gebäude (Luft)", "status": "ok"},
+                    ],
+                },
+            },
+            "energy": {
+                "raw_codes": {"gwaerzh1": 7410, "genh1": 7501, "gwaerzw1": 7610, "genw1": 7501},
+                "decoded_summary": {
+                    "heizung": ["Wärmepumpe für ein Gebäude (Luft)"] * 2,
+                    "warmwasser": ["Wärmepumpe für ein Gebäude (Luft)"] * 2,
+                },
+            },
+            "sources": {"geoadmin_search": {"status": "ok"}},
+            "source_attribution": {
+                "building_energy": ["geoadmin_search"],
+            },
+        }
+
+        legacy_payload = _grouped_api_result(report, response_mode="verbose", include_legacy_labels=True)
+        code_first_payload = _grouped_api_result(report, response_mode="verbose")
+
+        legacy_size = len(json.dumps(legacy_payload, ensure_ascii=False))
+        code_first_size = len(json.dumps(code_first_payload, ensure_ascii=False))
+
+        self.assertLess(
+            code_first_size,
+            legacy_size,
+            msg=(
+                "Code-first Payload muss kleiner als Label-Projection sein "
+                f"(legacy={legacy_size}, code_first={code_first_size})"
+            ),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

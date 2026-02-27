@@ -177,6 +177,15 @@ def _build_dictionary_payloads() -> tuple[dict[str, Any], dict[str, dict[str, An
 _DICTIONARY_INDEX_PAYLOAD, _DICTIONARY_DOMAIN_PAYLOADS = _build_dictionary_payloads()
 
 
+def _dictionary_status_payload() -> dict[str, Any]:
+    """Liefert den additiven Dictionary-Envelope für Analyze-Responses."""
+    return {
+        "version": _DICTIONARY_INDEX_PAYLOAD.get("version"),
+        "etag": _DICTIONARY_INDEX_PAYLOAD.get("etag"),
+        "domains": deepcopy(_DICTIONARY_INDEX_PAYLOAD.get("domains") or {}),
+    }
+
+
 def _is_status_like_key(key: str) -> bool:
     normalized = key.strip().lower()
     if normalized in {"status", "source_health", "source_meta"}:
@@ -226,6 +235,7 @@ def _build_status_block(report: dict[str, Any]) -> dict[str, Any]:
         "quality": quality,
         "source_health": source_health,
         "source_meta": source_meta,
+        "dictionary": _dictionary_status_payload(),
     }
 
     personalization_status = report.get("personalization_status")
@@ -327,10 +337,67 @@ def _build_by_source_payload(
     return by_source
 
 
+def _normalize_code_scalar(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        if not math.isfinite(float(value)):
+            return None
+        if float(value).is_integer():
+            return str(int(value))
+        return str(value)
+
+    as_text = str(value).strip()
+    return as_text or None
+
+
+def _normalize_code_mapping(payload: Any) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        return {}
+
+    normalized: dict[str, str] = {}
+    for key, value in payload.items():
+        normalized_value = _normalize_code_scalar(value)
+        if normalized_value is None:
+            continue
+        normalized[str(key)] = normalized_value
+    return normalized
+
+
+def _to_code_first_modules(modules: dict[str, Any]) -> dict[str, Any]:
+    projected = deepcopy(modules)
+
+    building = projected.get("building")
+    if isinstance(building, dict):
+        building.pop("decoded", None)
+        normalized_building_codes = _normalize_code_mapping(building.get("codes"))
+        if normalized_building_codes:
+            building["codes"] = normalized_building_codes
+        else:
+            building.pop("codes", None)
+
+    energy = projected.get("energy")
+    if isinstance(energy, dict):
+        raw_codes = energy.pop("raw_codes", None)
+        existing_codes = _normalize_code_mapping(energy.get("codes"))
+        raw_codes_normalized = _normalize_code_mapping(raw_codes)
+        merged_codes = {**existing_codes, **raw_codes_normalized}
+        if merged_codes:
+            energy["codes"] = merged_codes
+        else:
+            energy.pop("codes", None)
+        energy.pop("decoded_summary", None)
+
+    return projected
+
+
 def _grouped_api_result(
     report: dict[str, Any],
     *,
     response_mode: str = "compact",
+    include_legacy_labels: bool = False,
 ) -> dict[str, Any]:
     normalized_response_mode = response_mode if response_mode in _RESPONSE_MODES else "compact"
 
@@ -347,6 +414,8 @@ def _grouped_api_result(
         if key in cleaned:
             entity[key] = cleaned.pop(key)
 
+    modules = cleaned if include_legacy_labels else _to_code_first_modules(cleaned)
+
     source_meta = status.get("source_meta")
     source_attribution = source_meta.get("source_attribution") if isinstance(source_meta, dict) else {}
     if not isinstance(source_attribution, dict):
@@ -360,9 +429,9 @@ def _grouped_api_result(
         "status": status,
         "data": {
             "entity": entity,
-            "modules": cleaned,
+            "modules": modules,
             "by_source": _build_by_source_payload(
-                cleaned,
+                modules,
                 source_attribution=source_attribution,
                 source_health=source_health,
                 response_mode=normalized_response_mode,

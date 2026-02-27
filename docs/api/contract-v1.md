@@ -368,3 +368,17 @@ Caching-Vertrag (beide Endpunkte):
 Kompatibilität:
 - Endpunkte sind additiv und verändern bestehendes `/analyze`-Routing nicht.
 - Dictionary-Versionierung und ETag sind entkoppelt von Request-Parametern und stabil reproduzierbar.
+
+## 21) BL-20.1.k.wp3 Runtime: Code-first Analyze-Projection (ohne Label-Duplikate)
+
+Bezug: [#286](https://github.com/nimeob/geo-ranking-ch/issues/286), [#289](https://github.com/nimeob/geo-ranking-ch/issues/289)
+
+Runtime-Regeln für `POST /analyze` (grouped):
+- `result.status.dictionary` wird standardmäßig mit `version`, `etag`, `domains` ausgeliefert.
+- In `result.data.modules.building` wird `decoded` entfernt; stattdessen bleiben/werden `codes` genutzt.
+- In `result.data.modules.energy` werden `raw_codes` zu `codes` normalisiert, `decoded_summary` entfällt.
+- `by_source` referenziert weiterhin deterministisch auf `result.data.modules` (compact/verbose gemäß `options.response_mode`).
+
+Payload-/Dedupe-Guard:
+- Testseitiger Größenvergleich (`legacy labels` vs. `code-first`) ist in
+  `tests/test_web_service_grouped_response.py` verankert und muss eine Reduktion zeigen.
