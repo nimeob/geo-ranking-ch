@@ -91,6 +91,26 @@ class TestScoringMethodologyGolden(unittest.TestCase):
         for marker in markers:
             self.assertIn(marker, self.doc_content, msg=f"Marker fehlt in scoring_methodology.md: {marker}")
 
+    def test_two_stage_scoring_matrix_and_fallback_are_documented(self):
+        markers = [
+            "### 2.3.2 Zweistufiges Scoring + Präferenzmatrix (BL-20.4.d)",
+            "compute_two_stage_scores",
+            "personalized_score == base_score",
+            "fallback_applied = true",
+            "weights.base",
+            "weights.personalized",
+            "weights.delta",
+            "signal_strength",
+            "lifestyle_density",
+            "noise_tolerance",
+            "nightlife_preference",
+            "school_proximity",
+            "family_friendly_focus",
+            "commute_priority",
+        ]
+        for marker in markers:
+            self.assertIn(marker, self.doc_content, msg=f"Marker fehlt in scoring_methodology.md: {marker}")
+
     def test_worked_examples_are_version_pinned_to_methodology(self):
         self.assertTrue(EXPECTED_GOLDEN, msg="Keine Golden-Referenzfälle definiert")
 
