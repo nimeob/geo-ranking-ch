@@ -92,7 +92,10 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('Status: idle', body)
         self.assertIn('idle -> loading -> success/error', body)
         self.assertIn('id="error-box"', body)
-        self.assertIn("Kartenklick ist in <strong>BL-20.6.b</strong>", body)
+        self.assertIn('id="map-click-surface"', body)
+        self.assertIn('id="map-click-marker"', body)
+        self.assertIn('id="core-factors"', body)
+        self.assertIn('coordinates.lat/lon', body)
 
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
         status, body, _ = _http_text(f"{self.base_url}//gui///?probe=1")
