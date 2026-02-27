@@ -134,6 +134,11 @@ Das Projekt folgt [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH
 
 Für API-only Releases zuerst die Packaging-Baseline-Checks ausführen: [`docs/PACKAGING_BASELINE.md`](./PACKAGING_BASELINE.md#basis-release-checkliste-api-only-packaging).
 
+Zusatz für BL-20.1.k-Migration (code-first + Dictionary):
+- [ ] Consumer-Status für `options.include_labels=true` dokumentiert (wer nutzt den Legacy-Pfad noch?)
+- [ ] Release Notes enthalten expliziten Migrationshinweis auf Dictionary-Endpoints (`/api/v1/dictionaries*`)
+- [ ] Sunset-Fortschritt im Backlog/Issue-Tracking nachgeführt (kein stilles Dauer-Feature)
+
 ```bash
 # 1. Release-Branch erstellen
 git checkout -b release/v<x.y.z>

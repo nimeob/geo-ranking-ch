@@ -38,6 +38,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/user/api-usage.md`** um Endpoint-Referenz + Curl-Beispiele für Dictionary-Endpoints inkl. Conditional-GET ergänzt.
 - **`tests/test_api_contract_v1.py`** um Marker-Guards für die neue Contract-Sektion erweitert; **`docs/BACKLOG.md`** mit Abschlussnachweis #288 fortgeschrieben.
 
+### Changed (2026-02-27 — BL-20.1.k.wp4 Migration/Kompatibilitätsmodus/Doku/Tests, Issue #290)
+- **`src/web_service.py`** um optionalen Legacy-Migrationspfad erweitert: `options.include_labels` (boolean, Default `false`) steuert, ob Inline-Label-Felder (`building.decoded`, `energy.decoded_summary`) temporär weiter ausgeliefert werden.
+- Nicht-boolsche Werte für `options.include_labels` liefern jetzt deterministisch `400 bad_request` (`options.include_labels must be a boolean when provided`).
+- **`tests/test_web_e2e.py`** ergänzt um End-to-End-Nachweise für Default-code-first, Legacy-Opt-in und Input-Validierung des Flags.
+- **`tests/test_web_service_grouped_response.py`** ergänzt um expliziten Guard für Legacy-Label-Projektion bei aktivem Kompatibilitätsmodus.
+- **Contract-/User-/Ops-Doku** synchronisiert (`docs/api/contract-v1.md`, `docs/api/contract-stability-policy.md`, `docs/api/grouped-response-schema-v1.md`, `docs/user/api-usage.md`, `docs/OPERATIONS.md`) inkl. Sunset-Strategie und Release-Hinweisen.
+- **`docs/api/schemas/v1/location-intelligence.request.schema.json`** und **`tests/test_api_contract_v1.py`** um `options.response_mode` + `options.include_labels` als additive Request-Optionen fortgeschrieben.
+
 ### Changed (2026-02-27 — BL-20.4.d.wp2 Two-Stage Suitability Response Fields, Issue #181)
 - **`src/suitability_light.py`** erweitert um explizites Response-Paar `base_score` + `personalized_score`; solange kein aktives Präferenzsignal verarbeitet wird, liefert der Fallback deterministisch `personalized_score == base_score`.
 - **`docs/api/contract-v1.md`**, **`docs/api/schemas/v1/location-intelligence.response.schema.json`**, **`docs/api/scoring_methodology.md`** und **`docs/api/field_catalog.json`** auf die neuen Two-Stage-Suitability-Felder synchronisiert.

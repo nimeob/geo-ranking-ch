@@ -52,12 +52,14 @@ Für die Migration auf code-only Responses ist ein additiver Referenzpfad dokume
 - before (label-lastig): [`docs/api/examples/current/analyze.response.grouped.code-only-before.json`](./examples/current/analyze.response.grouped.code-only-before.json)
 - after (code-first + dictionary refs): [`docs/api/examples/current/analyze.response.grouped.code-only-after.json`](./examples/current/analyze.response.grouped.code-only-after.json)
 
-Runtime-Stand (WP3):
+Runtime-Stand (WP3/WP4):
 - `result.status.dictionary` wird standardmäßig mitgeliefert.
-- `result.data.modules.building.decoded` entfällt zugunsten von `building.codes`.
-- `result.data.modules.energy.decoded_summary` entfällt zugunsten von `energy.codes`.
+- Default (code-first): `result.data.modules.building.decoded` entfällt zugunsten von `building.codes`.
+- Default (code-first): `result.data.modules.energy.decoded_summary` entfällt zugunsten von `energy.codes`.
+- Temporärer Migrationsmodus: `options.include_labels=true` hält Legacy-Label-Felder in `modules` aktiv (opt-in, kein Default).
 
 Die Beispiele zeigen denselben Case einmal mit inline-Labels und einmal mit `result.status.dictionary` + Codefeldern in `result.data.modules`.
+Für die gesteuerte Migration gilt der Sunset-Pfad aus [`docs/api/contract-v1.md`](./contract-v1.md) (Abschnitt „BL-20.1.k.wp4 Migration/Kompatibilitätsmodus + Sunset-Strategie“).
 
 ## 7) Regression-Tests
 

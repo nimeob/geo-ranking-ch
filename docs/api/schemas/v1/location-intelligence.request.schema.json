@@ -117,6 +117,16 @@
           "exclusiveMinimum": 0,
           "maximum": 60
         },
+        "response_mode": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "verbose"
+          ]
+        },
+        "include_labels": {
+          "type": "boolean"
+        },
         "capabilities": {
           "type": "object",
           "additionalProperties": true

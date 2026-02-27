@@ -128,6 +128,7 @@ curl -i -sS "http://localhost:8080/api/v1/dictionaries/heating" \
 | `query` | `string` | ja | – | Adresse/Suchtext; wird getrimmt; leer/whitespace-only ist ungültig |
 | `intelligence_mode` | `string` | nein | `basic` | Erlaubt: `basic`, `extended`, `risk` (trim + case-insensitive normalisiert) |
 | `timeout_seconds` | `number` | nein | `ANALYZE_DEFAULT_TIMEOUT_SECONDS` (15) | Muss endliche Zahl > 0 sein; wird auf `ANALYZE_MAX_TIMEOUT_SECONDS` gecappt |
+| `options` | `object` | nein | `{}` | Additiver Feature-Namespace. Relevante Keys: `response_mode=compact|verbose` (Default `compact`) und `include_labels` (`boolean`, Default `false`, temporärer Legacy-Kompatibilitätsmodus). Unbekannte Keys bleiben No-Op. |
 | `preferences` | `object` | nein | Contract-Defaults | Optionales Präferenzprofil (`lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`, optional `weights` mit `0..1`; nur endliche Zahlen, keine Booleans/`NaN`/`Inf`) |
 
 Vollständige Profilbeispiele: [`docs/api/preference-profiles.md`](../api/preference-profiles.md)
@@ -241,6 +242,27 @@ Weitere versionierte Beispielpayloads:
 - Legacy (vollständig): [`docs/api/examples/v1/location-intelligence.response.success.address.json`](../api/examples/v1/location-intelligence.response.success.address.json)
 - Grouped (vollständig): [`docs/api/examples/current/analyze.response.grouped.success.json`](../api/examples/current/analyze.response.grouped.success.json)
 - Grouped Edge-Case (fehlende/deaktivierte Daten): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](../api/examples/current/analyze.response.grouped.partial-disabled.json)
+
+### Migration: temporärer Legacy-Kompatibilitätsmodus (`options.include_labels`)
+
+Default-Verhalten ist code-first (`include_labels=false`): `building.decoded`/`energy.decoded_summary` entfallen,
+Klartextauflösung läuft über `GET /api/v1/dictionaries*`.
+
+Falls ein bestehender Consumer kurzfristig noch Inline-Labels benötigt:
+
+```bash
+curl -sS -X POST "http://localhost:8080/analyze" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <API_AUTH_TOKEN>" \
+  -d '{
+    "query": "Espenmoosstrasse 18, 9008 St. Gallen",
+    "options": {
+      "include_labels": true
+    }
+  }'
+```
+
+Hinweis: `include_labels` ist eine Migrationsbrücke und kein Zielzustand. Für neue Integrationen immer code-first + Dictionary-Caching verwenden.
 
 ## Mapping-/Transform-Regeln richtig lesen (Kurzfassung)
 

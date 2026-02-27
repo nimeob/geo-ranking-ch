@@ -482,6 +482,68 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(body.get("error"), "bad_request")
         self.assertIn("options.response_mode", body.get("message", ""))
 
+    def test_analyze_code_first_is_default_without_include_labels(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        modules = body.get("result", {}).get("data", {}).get("modules", {})
+
+        building = modules.get("building", {})
+        self.assertNotIn("decoded", building)
+        self.assertEqual(building.get("codes", {}).get("gstat"), "1004")
+
+        energy = modules.get("energy", {})
+        self.assertNotIn("decoded_summary", energy)
+        self.assertEqual(energy.get("codes", {}).get("gwaerzh1"), "7410")
+
+    def test_analyze_include_labels_true_enables_legacy_label_projection(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "options": {"include_labels": True},
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        modules = body.get("result", {}).get("data", {}).get("modules", {})
+
+        building = modules.get("building", {})
+        self.assertIn("decoded", building)
+
+        energy = modules.get("energy", {})
+        self.assertIn("decoded_summary", energy)
+        self.assertIn("raw_codes", energy)
+
+    def test_bad_request_include_labels_rejects_non_boolean_values(self):
+        for value in ("true", 1, [], {"enabled": True}):
+            with self.subTest(include_labels=value):
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload={
+                        "query": "__ok__",
+                        "intelligence_mode": "basic",
+                        "timeout_seconds": 2,
+                        "options": {"include_labels": value},
+                    },
+                    headers={"Authorization": "Bearer bl18-token"},
+                )
+                self.assertEqual(status, 400)
+                self.assertEqual(body.get("error"), "bad_request")
+                self.assertIn("options.include_labels", body.get("message", ""))
+
     def test_bad_request_options_must_be_object_when_provided(self):
         invalid_options = (
             [],

@@ -201,6 +201,10 @@ Für den bestehenden `/analyze`-Endpoint gilt ergänzend (rückwärtskompatibel)
 - `options.response_mode` (optional): `compact|verbose`
   - `compact` (Default): deduplizierte `result.data.by_source`-Projektion mit `module_ref`/`module_refs`
   - `verbose`: vollständige (redundanzreiche) `by_source`-Projektion für Legacy-Integratoren
+- `options.include_labels` (optional, `boolean`, Default `false`)
+  - `false` (Default): code-first Projektion (`building.decoded`/`energy.decoded_summary` entfallen)
+  - `true` (temporärer Kompatibilitätsmodus): Legacy-Labels bleiben in `result.data.modules` erhalten
+  - Sunset-Plan: Flag ist als Migrationsbrücke vorgesehen und soll nach abgeschlossener Consumer-Migration entfernt werden (siehe Abschnitt 22 / BL-20.1.k.wp4)
 
 Die übergreifende Policy dazu ist im Stability-Guide dokumentiert:
 - [`docs/api/contract-stability-policy.md`](./contract-stability-policy.md)
@@ -382,3 +386,29 @@ Runtime-Regeln für `POST /analyze` (grouped):
 Payload-/Dedupe-Guard:
 - Testseitiger Größenvergleich (`legacy labels` vs. `code-first`) ist in
   `tests/test_web_service_grouped_response.py` verankert und muss eine Reduktion zeigen.
+
+## 22) BL-20.1.k.wp4 Migration/Kompatibilitätsmodus + Sunset-Strategie
+
+Bezug: [#286](https://github.com/nimeob/geo-ranking-ch/issues/286), [#290](https://github.com/nimeob/geo-ranking-ch/issues/290)
+
+Ziel: Bestehende Consumer kontrolliert vom Label-pfadbasierten Verhalten auf code-first migrieren,
+ohne sofortigen Breaking Change in `/api/v1`.
+
+Migrationsmodus (`POST /analyze`):
+- `options.include_labels = false` (Default): code-first Ausgabe (schlanker Payload, Dictionary-Referenzen via `result.status.dictionary`)
+- `options.include_labels = true` (temporär): Legacy-Label-Projektion in `result.data.modules` bleibt aktiv
+
+Kompatibilitätsregeln:
+- Das Flag ist additiv und optional (ohne Flag bleibt Default-Verhalten stabil).
+- `options.include_labels` muss boolean sein; nicht-boolsche Werte führen deterministisch zu `400 bad_request`.
+- Dictionary-Referenzen bleiben in beiden Modi vorhanden, damit Client-Caching gegen `/api/v1/dictionaries*` parallel aufgebaut werden kann.
+
+Sunset-/Deprecation-Pfad (verbindlich):
+1. **Phase A (jetzt):** `include_labels` als Opt-in verfügbar, Default bleibt code-first.
+2. **Phase B (nach erfolgreicher Consumer-Inventur):** Release-Hinweise markieren `include_labels=true` als deprecating usage.
+3. **Phase C (nächste Hauptversion):** Entfernung des Flags und Legacy-Label-Projektion nur noch über versionierten Breaking-Change-Pfad.
+
+Nachweis im Repo:
+- Runtime-/Validierungs-Checks: `tests/test_web_e2e.py`
+- Projektions-/Payload-Checks: `tests/test_web_service_grouped_response.py`
+- Backlog-/Rollout-Sync: `docs/BACKLOG.md`, `docs/OPERATIONS.md`
