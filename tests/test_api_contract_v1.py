@@ -756,6 +756,20 @@ class TestApiContractV1(unittest.TestCase):
                     msg=f"Unerwartete Fehler für {case_name}: {errors}",
                 )
 
+    def test_contract_validator_rejects_legacy_include_labels_option(self):
+        payload = _read_json(GOLDEN_DIR / "valid" / "request.address.minimal.json")
+        payload["options"] = {
+            "response_mode": "compact",
+            "include_labels": True,
+        }
+
+        errors = validate_request(payload)
+        self.assertTrue(errors, msg="Legacy-Flag include_labels muss im v1-Contract ungültig sein")
+        self.assertTrue(
+            any("options contains unknown keys" in err and "include_labels" in err for err in errors),
+            msg=f"Erwarteter include_labels-Vertragsfehler fehlt: {errors}",
+        )
+
     def test_two_stage_suitability_scores_are_explicit_in_success_response(self):
         resp_baseline = _read_json(GOLDEN_DIR / "valid" / "response.success.minimal.json")
         suitability = resp_baseline.get("result", {}).get("suitability_light", {})

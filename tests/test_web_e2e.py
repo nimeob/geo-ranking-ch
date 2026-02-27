@@ -522,6 +522,26 @@ class TestWebServiceE2E(unittest.TestCase):
                 self.assertEqual(body.get("error"), "bad_request")
                 self.assertIn("options.include_labels", body.get("message", ""))
 
+    def test_bad_request_include_labels_rejects_even_with_other_valid_options(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "options": {
+                    "response_mode": "verbose",
+                    "include_labels": False,
+                    "future_flag": {"beta": True},
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("options.include_labels", body.get("message", ""))
+
     def test_bad_request_options_must_be_object_when_provided(self):
         invalid_options = (
             [],

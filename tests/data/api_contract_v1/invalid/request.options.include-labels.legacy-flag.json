@@ -1,0 +1,11 @@
+{
+  "request_id": "golden-req-invalid-legacy-include-labels",
+  "input": {
+    "mode": "address",
+    "address": "St. Leonhard-Strasse 39, 9000 St. Gallen"
+  },
+  "requested_modules": ["building_profile"],
+  "options": {
+    "include_labels": true
+  }
+}
