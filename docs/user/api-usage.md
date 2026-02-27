@@ -200,6 +200,21 @@ Weitere versionierte Beispielpayloads:
 - Grouped (vollständig): [`docs/api/examples/current/analyze.response.grouped.success.json`](../api/examples/current/analyze.response.grouped.success.json)
 - Grouped Edge-Case (fehlende/deaktivierte Daten): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](../api/examples/current/analyze.response.grouped.partial-disabled.json)
 
+## Mapping-/Transform-Regeln richtig lesen (Kurzfassung)
+
+Für Integratoren wichtig: Die API liefert **normalisierte Domain-Daten**, nicht rohe Quellpayloads.
+
+- **Trim + Null-Handling:** Leere/whitespace-only Quellwerte werden zu `null` normalisiert. `null` bedeutet daher oft „nicht belastbar verfügbar“, nicht automatisch „technischer Fehler“.
+- **Numerik + Grenzen:** Numerische Felder werden robust geparst; unklare Werte fallen auf `null`. Scores/Konfidenzen werden auf gültige Bereiche begrenzt (z. B. `0..1` oder `0..100`).
+- **Status-Vokabular:** Quellenstatus wird auf ein kontrolliertes Set gemappt (`ok`, `partial`, `error`, `disabled`, `not_used`) und ist deshalb über Sources hinweg konsistent interpretierbar.
+- **Zeitstempel:** Beobachtungszeitpunkte werden als ISO-8601 UTC normalisiert, damit Event-Reihenfolgen vergleichbar bleiben.
+- **`modules` vs. `by_source`:** `modules` zeigt fachlich zusammengeführte Resultate; `by_source` zeigt denselben Kontext aus Quellensicht zur Nachvollziehbarkeit.
+
+Technische Tiefendoku (vollständige Regelmatrix + Rule-IDs `TR-01` bis `TR-08`):
+
+- [`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`](../DATA_SOURCE_FIELD_MAPPING_CH.md)
+- [`src/mapping_transform_rules.py`](../../src/mapping_transform_rules.py)
+
 ---
 
 ## Authentifizierung

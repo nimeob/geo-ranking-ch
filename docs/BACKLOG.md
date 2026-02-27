@@ -544,7 +544,7 @@
   - [x] #265 — Dokumentationslücken priorisieren + Umsetzungsplan (abgeschlossen 2026-02-27)
   - [ ] #266 — Fehlende Dokumentation ergänzen (in atomare Child-Issues #272/#273/#274 zerlegt)
     - [x] #272 — Address-Intel-Flow-Deep-Dive dokumentieren (abgeschlossen 2026-02-27)
-    - [ ] #273 — Mapping-/Transform-Regeln user-nah ergänzen
+    - [x] #273 — Mapping-/Transform-Regeln user-nah ergänzen (abgeschlossen 2026-02-27)
     - [ ] #274 — Modul-Docstrings für Kernmodule nachziehen
   - [x] #267 — Webservice-Test Espenmoosstrasse 18, 9008 St. Gallen dokumentieren (abgeschlossen 2026-02-27)
 - **Fortschritt:**
@@ -553,6 +553,7 @@
   - ✅ 2026-02-27: #267 abgeschlossen (reproduzierter Analyze-Testlauf für `Espenmoosstrasse 18, 9008 St. Gallen` inkl. Header-/Response-Artefakten unter `reports/manual/` und Testprotokoll in [`docs/testing/WEB_SERVICE_TEST_ESPENMOOSSTRASSE_18_9008_ST_GALLEN.md`](testing/WEB_SERVICE_TEST_ESPENMOOSSTRASSE_18_9008_ST_GALLEN.md)).
   - ✅ 2026-02-27: #265 abgeschlossen (Priorisierung + Umsetzungsreihenfolge der Doku-Gaps in [`docs/DOCUMENTATION_GAP_PRIORITIZATION_PLAN.md`](DOCUMENTATION_GAP_PRIORITIZATION_PLAN.md), inkl. verbindlichem Plan für #266).
   - ✅ 2026-02-27: #266 in Child-Issues #272/#273/#274 atomisiert; #272 abgeschlossen mit neuer Deep-Dive-Doku [`docs/api/address-intel-flow-deep-dive.md`](api/address-intel-flow-deep-dive.md) und Contract-Querverweis in [`docs/api/contract-v1.md`](api/contract-v1.md).
+  - ✅ 2026-02-27: #273 abgeschlossen (kompakte user-nahe Mapping-/Transform-Interpretation in [`docs/user/api-usage.md`](user/api-usage.md) ergänzt, inkl. Verweis auf [`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`](DATA_SOURCE_FIELD_MAPPING_CH.md), Docs-Quality-Gate grün).
 
 ---
 

@@ -15,12 +15,19 @@ class TestUserDocumentation(unittest.TestCase):
             "# API Usage Guide",
             "## Endpoint-Referenz",
             "## `POST /analyze`",
+            "## Mapping-/Transform-Regeln richtig lesen (Kurzfassung)",
             "## Authentifizierung",
             "## Request-ID-Korrelation",
             "## Statuscodes und Fehlerbilder",
         ]
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt im API-Guide: {marker}")
+
+        self.assertIn(
+            "[`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`](../DATA_SOURCE_FIELD_MAPPING_CH.md)",
+            content,
+            msg="API-Guide muss auf die technische Mapping-/Transform-Tiefendoku verlinken",
+        )
 
     def test_configuration_env_guide_exists_with_core_sections(self):
         configuration_path = REPO_ROOT / "docs" / "user" / "configuration-env.md"
