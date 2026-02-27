@@ -14,6 +14,10 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-15 Parent-Sync Work-Packages, Issue #8)
+- **`docs/BACKLOG.md`** BL-15 um eine explizite Work-Package-Checklist erweitert (abgeschlossen: `#109`, `#111`, `#112`; offen: `#151`, `#152`, `#187`, `#188`) zur sauberen Parent/Child-Fortschrittsführung.
+- **GitHub Issue `#8`** Work-Package-Checklist auf den aktuellen Child-Scope synchronisiert und Zerlegungsbegründung auf die offenen Folgepakete erweitert.
+
 ### Changed (2026-02-27 — BL-15.wp2 Fingerprint-Evidence-Export, Issue #111)
 - **`scripts/audit_legacy_cloudtrail_consumers.sh`** um strukturierten Export erweitert: pro Lauf wird ein reproduzierbarer JSON-Report (`FINGERPRINT_REPORT_JSON`, Default `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`) mit Zeitfenster, Event-Counts, Top-Fingerprints und letzten Events geschrieben.
 - **`tests/test_audit_legacy_cloudtrail_consumers.py`** erweitert um Pfadvalidierung für `FINGERPRINT_REPORT_JSON` sowie Nachweise für Exportdatei-Inhalte in No-Event- und Event-Found-Pfaden.
