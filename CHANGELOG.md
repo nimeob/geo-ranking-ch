@@ -37,6 +37,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`tests/test_github_repo_crawler.py`** um Regressionsfälle für Report-Sortierung/-Schema und Datei-Output erweitert.
 - **`README.md`** um den reproduzierbaren Dry-Run zur Report-Erzeugung ergänzt.
 
+### Changed (2026-02-27 — BL-20.x.wp4 Code↔Doku-Drift-Check, Issue #205)
+- **`scripts/github_repo_crawler.py`** um einen read-only Drift-Audit erweitert: extrahiert Code-Indikatoren (Flask-Routen + `os.getenv`-Flags), gleicht sie gegen zentrale Doku (`README.md`, `docs/OPERATIONS.md`, `docs/api/*`) ab und erzeugt evidenzbasierte Findings für undokumentierte Features sowie stale Routen-Referenzen.
+- Drift-Findings sind begrenzt (`CODE_DOCS_MAX_FINDINGS`), um Finding-Fluten im Standardlauf zu vermeiden.
+- **`tests/test_github_repo_crawler.py`** um Regressionsfälle für Drift-Erkennung (undokumentierter Flag, stale Route, Finding-Cap) erweitert.
+- **`README.md`** Crawler-Regressionshinweis um den neuen Code↔Doku-Drift-Check ergänzt.
+
 ### Changed (2026-02-27 — BL-15 Parent-Sync Work-Packages, Issue #8)
 - **`docs/BACKLOG.md`** BL-15 um eine explizite Work-Package-Checklist erweitert (abgeschlossen: `#109`, `#111`, `#112`; offen: `#151`, `#152`, `#187`, `#188`) zur sauberen Parent/Child-Fortschrittsführung.
 - **GitHub Issue `#8`** Work-Package-Checklist auf den aktuellen Child-Scope synchronisiert und Zerlegungsbegründung auf die offenen Folgepakete erweitert.

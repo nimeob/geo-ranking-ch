@@ -44,6 +44,15 @@ MATCH_STOPWORDS = {
     "inkl", "inklusive", "ohne", "sowie", "mehr", "mvp", "modul", "module", "profil", "punkt", "ch",
     "the", "and", "for", "with", "from", "into", "via", "read", "only", "check",
 }
+CODE_DOCS_PRIMARY_PATHS = [
+    Path("README.md"),
+    Path("docs/OPERATIONS.md"),
+]
+CODE_DOCS_API_DOCS_DIR = Path("docs/api")
+CODE_ROUTE_RE = re.compile(r"@app\.(?:route|get|post|put|delete|patch)\(\s*['\"]([^'\"]+)['\"]")
+DOC_ROUTE_RE = re.compile(r"`(/[^`\s]+)`")
+ENV_FLAG_RE = re.compile(r"getenv\(\s*['\"]([A-Z][A-Z0-9_]{2,})['\"]")
+CODE_DOCS_MAX_FINDINGS = 12
 
 
 def run(args):
@@ -523,6 +532,196 @@ def audit_vision_issue_coverage() -> tuple[list[dict[str, Any]], dict[str, Any] 
     return findings, coverage
 
 
+def normalize_route(route: str) -> str:
+    normalized = (route or "").strip()
+    if not normalized:
+        return normalized
+    normalized = normalized.split("?", 1)[0]
+    normalized = normalized.rstrip(").,;:")
+    if len(normalized) > 1 and normalized.endswith("/"):
+        normalized = normalized[:-1]
+    return normalized
+
+
+def extract_code_route_indicators(repo_root: Path = REPO_ROOT) -> list[dict[str, Any]]:
+    indicators: list[dict[str, Any]] = []
+    src_root = repo_root / "src"
+    if not src_root.exists():
+        return indicators
+
+    for file_path in src_root.rglob("*.py"):
+        rel_path = file_path.relative_to(repo_root).as_posix()
+        text = file_path.read_text(encoding="utf-8", errors="ignore")
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            for match in CODE_ROUTE_RE.finditer(line):
+                route = normalize_route(match.group(1))
+                if not route.startswith("/"):
+                    continue
+                indicators.append(
+                    {
+                        "route": route,
+                        "path": rel_path,
+                        "line": line_no,
+                    }
+                )
+
+    return indicators
+
+
+def extract_code_env_flags(repo_root: Path = REPO_ROOT) -> list[dict[str, Any]]:
+    indicators: list[dict[str, Any]] = []
+    src_root = repo_root / "src"
+    if not src_root.exists():
+        return indicators
+
+    for file_path in src_root.rglob("*.py"):
+        rel_path = file_path.relative_to(repo_root).as_posix()
+        text = file_path.read_text(encoding="utf-8", errors="ignore")
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            for match in ENV_FLAG_RE.finditer(line):
+                indicators.append(
+                    {
+                        "flag": match.group(1),
+                        "path": rel_path,
+                        "line": line_no,
+                    }
+                )
+
+    return indicators
+
+
+def load_docs_snapshot(repo_root: Path = REPO_ROOT) -> tuple[str, list[dict[str, Any]]]:
+    docs_paths: list[Path] = []
+    for rel_path in CODE_DOCS_PRIMARY_PATHS:
+        abs_path = repo_root / rel_path
+        if abs_path.exists():
+            docs_paths.append(abs_path)
+
+    api_docs_dir = repo_root / CODE_DOCS_API_DOCS_DIR
+    if api_docs_dir.exists():
+        docs_paths.extend(sorted(api_docs_dir.rglob("*.md")))
+
+    combined_text_parts: list[str] = []
+    documented_routes: list[dict[str, Any]] = []
+
+    for doc_path in docs_paths:
+        text = doc_path.read_text(encoding="utf-8", errors="ignore")
+        combined_text_parts.append(text.lower())
+        rel_path = doc_path.relative_to(repo_root).as_posix()
+
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            line_upper = line.upper()
+            if not any(verb in line_upper for verb in ("GET", "POST", "PUT", "DELETE", "PATCH", "ENDPOINT")):
+                continue
+            for match in DOC_ROUTE_RE.finditer(line):
+                route = normalize_route(match.group(1))
+                if not route.startswith("/") or "//" in route:
+                    continue
+                documented_routes.append(
+                    {
+                        "route": route,
+                        "path": rel_path,
+                        "line": line_no,
+                    }
+                )
+
+    return "\n".join(combined_text_parts), documented_routes
+
+
+def audit_code_docs_drift(max_findings: int = CODE_DOCS_MAX_FINDINGS) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+    docs_text, documented_route_refs = load_docs_snapshot(REPO_ROOT)
+
+    code_routes = extract_code_route_indicators(REPO_ROOT)
+    code_env_flags = extract_code_env_flags(REPO_ROOT)
+
+    route_first_seen: dict[str, dict[str, Any]] = {}
+    for route_ref in code_routes:
+        route = route_ref.get("route")
+        if route and route not in route_first_seen:
+            route_first_seen[route] = route_ref
+
+    for route, route_ref in sorted(route_first_seen.items()):
+        if len(findings) >= max_findings:
+            return findings
+        if route.lower() in docs_text:
+            continue
+        findings.append(
+            build_finding(
+                finding_type="code_docs_drift_undocumented_feature",
+                severity="medium",
+                summary=f"Code-Route {route} ist in zentraler Doku nicht referenziert",
+                evidence=[
+                    {
+                        "kind": "file_line",
+                        "path": route_ref.get("path"),
+                        "line": route_ref.get("line"),
+                    }
+                ],
+                source={"kind": "code_docs_drift", "component": "route_coverage"},
+            )
+        )
+
+    flag_first_seen: dict[str, dict[str, Any]] = {}
+    for flag_ref in code_env_flags:
+        flag = flag_ref.get("flag")
+        if flag and flag not in flag_first_seen:
+            flag_first_seen[flag] = flag_ref
+
+    for flag, flag_ref in sorted(flag_first_seen.items()):
+        if len(findings) >= max_findings:
+            return findings
+        if flag.lower() in docs_text:
+            continue
+        findings.append(
+            build_finding(
+                finding_type="code_docs_drift_undocumented_feature",
+                severity="low",
+                summary=f"Code-Flag {flag} ist in zentraler Doku nicht referenziert",
+                evidence=[
+                    {
+                        "kind": "file_line",
+                        "path": flag_ref.get("path"),
+                        "line": flag_ref.get("line"),
+                    }
+                ],
+                source={"kind": "code_docs_drift", "component": "flag_coverage"},
+            )
+        )
+
+    known_code_routes = set(route_first_seen.keys())
+    stale_route_refs: dict[str, dict[str, Any]] = {}
+    for doc_ref in documented_route_refs:
+        route = doc_ref.get("route")
+        if not route:
+            continue
+        if route in known_code_routes:
+            continue
+        if route not in stale_route_refs:
+            stale_route_refs[route] = doc_ref
+
+    for route, doc_ref in sorted(stale_route_refs.items()):
+        if len(findings) >= max_findings:
+            return findings
+        findings.append(
+            build_finding(
+                finding_type="code_docs_drift_stale_reference",
+                severity="medium",
+                summary=f"Doku referenziert Route {route}, die im Code nicht gefunden wurde",
+                evidence=[
+                    {
+                        "kind": "file_line",
+                        "path": doc_ref.get("path"),
+                        "line": doc_ref.get("line"),
+                    }
+                ],
+                source={"kind": "code_docs_drift", "component": "stale_route_reference"},
+            )
+        )
+
+    return findings
+
+
 def is_actionable_todo_line(line: str) -> bool:
     if not TODO_RE.search(line):
         return False
@@ -851,6 +1050,7 @@ def main():
     findings.extend(scan_repo_for_findings(dry_run=args.dry_run))
     coverage_findings, coverage = audit_vision_issue_coverage()
     findings.extend(coverage_findings)
+    findings.extend(audit_code_docs_drift(max_findings=CODE_DOCS_MAX_FINDINGS))
     findings.extend(audit_workstream_balance(dry_run=args.dry_run))
 
     report = build_consistency_report(findings, coverage=coverage)

@@ -269,6 +269,91 @@ class TestGithubRepoCrawlerVisionIssueCoverage(unittest.TestCase):
         self.assertEqual(findings[1]["type"], "vision_issue_coverage_unclear")
 
 
+class TestGithubRepoCrawlerCodeDocsDrift(unittest.TestCase):
+    def test_audit_code_docs_drift_detects_undocumented_flag_and_stale_route(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "src").mkdir(parents=True, exist_ok=True)
+            (root / "docs" / "api").mkdir(parents=True, exist_ok=True)
+
+            (root / "src" / "web_service.py").write_text(
+                """
+from flask import Flask
+import os
+
+app = Flask(__name__)
+
+@app.get('/health')
+def health():
+    return {'ok': True}
+
+@app.post('/analyze')
+def analyze():
+    return {'ok': True}
+
+API_AUTH_TOKEN = os.getenv('API_AUTH_TOKEN')
+INTERNAL_SUPER_FLAG = os.getenv('INTERNAL_SUPER_FLAG')
+""".strip(),
+                encoding="utf-8",
+            )
+
+            (root / "README.md").write_text(
+                """
+| Methode | Pfad |
+|---|---|
+| `GET` | `/health` |
+| `POST` | `/analyze` |
+| `GET` | `/legacy` |
+
+Auth via API_AUTH_TOKEN.
+""".strip(),
+                encoding="utf-8",
+            )
+            (root / "docs" / "OPERATIONS.md").write_text("Runbook", encoding="utf-8")
+            (root / "docs" / "api" / "contract-v1.md").write_text("Endpoint `/analyze`", encoding="utf-8")
+
+            with patch.object(crawler, "REPO_ROOT", root):
+                findings = crawler.audit_code_docs_drift(max_findings=10)
+
+        summaries = [f["summary"] for f in findings]
+        finding_types = {f["type"] for f in findings}
+
+        self.assertIn("code_docs_drift_undocumented_feature", finding_types)
+        self.assertIn("code_docs_drift_stale_reference", finding_types)
+        self.assertTrue(any("INTERNAL_SUPER_FLAG" in summary for summary in summaries))
+        self.assertTrue(any("/legacy" in summary for summary in summaries))
+
+    def test_audit_code_docs_drift_respects_max_findings(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "src").mkdir(parents=True, exist_ok=True)
+            (root / "docs" / "api").mkdir(parents=True, exist_ok=True)
+
+            (root / "src" / "web_service.py").write_text(
+                """
+from flask import Flask
+app = Flask(__name__)
+@app.get('/r1')
+def r1():
+    return {}
+@app.get('/r2')
+def r2():
+    return {}
+@app.get('/r3')
+def r3():
+    return {}
+""".strip(),
+                encoding="utf-8",
+            )
+            (root / "README.md").write_text("No endpoint docs", encoding="utf-8")
+            (root / "docs" / "OPERATIONS.md").write_text("", encoding="utf-8")
+
+            with patch.object(crawler, "REPO_ROOT", root):
+                findings = crawler.audit_code_docs_drift(max_findings=2)
+
+        self.assertEqual(len(findings), 2)
+
+
 class TestGithubRepoCrawlerConsistencyReport(unittest.TestCase):
     def test_build_consistency_report_prioritizes_by_severity(self):
         findings = [

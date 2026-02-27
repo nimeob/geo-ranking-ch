@@ -66,7 +66,7 @@ pre-commit install
 
 # Checks ausführen
 pytest tests/ -v
-# fokussierter Crawler-Regressionscheck (Workstream-Balance + TODO-Filter + Vision↔Issue-Coverage)
+# fokussierter Crawler-Regressionscheck (Workstream-Balance + TODO-Filter + Vision↔Issue-Coverage + Code↔Doku-Drift)
 pytest tests/test_github_repo_crawler.py -v
 
 # reproduzierbarer Crawler-Regressionscheck (lokal + CI-Workflow)
