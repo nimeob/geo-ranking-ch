@@ -87,8 +87,13 @@ python -m src.web_service
 # Healthcheck: http://localhost:8080/health
 
 # Optional: Dev-TLS mit self-signed Zertifikat
+# (bevorzugt reproduzierbar via Helper-Script)
+./scripts/generate_dev_tls_cert.sh
+
+# oder manuell via openssl
 openssl req -x509 -newkey rsa:2048 -nodes -days 7 \
   -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
   -keyout /tmp/geo-dev.key \
   -out /tmp/geo-dev.crt
 TLS_CERT_FILE=/tmp/geo-dev.crt \
@@ -162,6 +167,7 @@ python3 -m pytest -q tests/test_web_e2e.py tests/test_remote_stability_script.py
 # optional: SMOKE_REQUEST_ID (wenn leer/nicht gesetzt wird eine eindeutige ID auto-generiert); eigene Werte werden getrimmt, müssen ASCII-only sein, dürfen weder Steuerzeichen, Trennzeichen (`,`/`;`) noch eingebettete Whitespaces enthalten und müssen <=128 Zeichen sein (Fail-fast bei Fehlwerten)
 # optional: SMOKE_REQUEST_ID_HEADER=request|correlation|request-id|correlation-id|x-request-id|x-correlation-id|request_id|correlation_id|x_request_id|x_correlation_id (Default request; Wert wird getrimmt + case-insensitive normalisiert; Short-Aliasse senden Request-Id/Correlation-Id bzw. Request_Id/Correlation_Id, X-Aliasse senden X-Request-Id/X-Correlation-Id bzw. X_Request_Id/X_Correlation_Id; embedded Whitespaces/Steuerzeichen sind nicht erlaubt)
 # optional: SMOKE_ENFORCE_REQUEST_ID_ECHO=1|0|true|false|yes|no|on|off (Wert wird vor Validierung getrimmt + normalisiert)
+# optional: DEV_TLS_CA_CERT=/pfad/zu/dev-self-signed.crt (nur Datei, lesbar, keine Steuerzeichen; wird als Trust-Anchor via `curl --cacert` genutzt — kein globales `-k`)
 # optional: DEV_API_AUTH_TOKEN wird vor Verwendung getrimmt; whitespace-only Werte, eingebettete Whitespaces und Steuerzeichen werden fail-fast mit exit 2 abgewiesen
 # optional: SMOKE_OUTPUT_JSON wird vor der Nutzung getrimmt; whitespace-only Pfade, Pfade mit Steuerzeichen, Verzeichnisziele und Pfade mit Datei-Elternpfad (Parent ist kein Verzeichnis) werden fail-fast mit exit 2 abgewiesen (robuste/sichere Artefaktausgabe auch bei whitespace-umhüllten Pfaden)
 DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_smoketest.sh
@@ -232,6 +238,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/user/troubleshooting.md](docs/user/troubleshooting.md) | Häufige Fehlerbilder (401/400/504/404), Diagnose-Checks und Eskalationspfad (BL-19.5) |
 | [docs/user/operations-runbooks.md](docs/user/operations-runbooks.md) | Tagesbetrieb-Runbook (Quick-Checks, Smoke/Stability, Deploy-Checks, Incident-Minirunbook) (BL-19.6) |
 | [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Ist-Analyse + E2E-Runbook für BL-18 |
+| [docs/testing/dev-self-signed-tls-smoke.md](docs/testing/dev-self-signed-tls-smoke.md) | Dev-Runbook für self-signed TLS + verifizierten HTTPS-Smoke ohne globales `-k` |
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
 | [docs/DATA_SOURCE_FIELD_MAPPING_CH.md](docs/DATA_SOURCE_FIELD_MAPPING_CH.md) | Technisches Feld-Mapping Quelle -> Domain inkl. Transform-Regeln und Follow-up-Gaps (BL-20.2.b) |
 | [docs/api/contract-v1.md](docs/api/contract-v1.md) | Versionierter API-Vertrag v1 für BL-20 (`/api/v1`, Schemas, Fehlercodes, Beispielpayloads) |

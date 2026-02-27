@@ -1,6 +1,7 @@
 import json
 import os
 import socket
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -12,6 +13,7 @@ from urllib import request
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SMOKE_SCRIPT = REPO_ROOT / "scripts" / "run_remote_api_smoketest.sh"
+GENERATE_DEV_TLS_CERT_SCRIPT = REPO_ROOT / "scripts" / "generate_dev_tls_cert.sh"
 
 
 def _free_port() -> int:
@@ -138,6 +140,126 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
+
+    def test_smoke_script_passes_against_self_signed_https_with_ca_cert(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cert_dir = Path(tmpdir) / "certs"
+            cert_dir.mkdir(parents=True, exist_ok=True)
+            cert_base = "tls-dev"
+
+            gen_env = os.environ.copy()
+            gen_env.update(
+                {
+                    "DEV_TLS_CERT_DIR": str(cert_dir),
+                    "DEV_TLS_CERT_BASENAME": cert_base,
+                    "DEV_TLS_CERT_DAYS": "2",
+                }
+            )
+            gen_cp = subprocess.run(
+                [str(GENERATE_DEV_TLS_CERT_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=gen_env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(gen_cp.returncode, 0, msg=gen_cp.stdout + "\n" + gen_cp.stderr)
+
+            cert_path = cert_dir / f"{cert_base}.crt"
+            key_path = cert_dir / f"{cert_base}.key"
+            self.assertTrue(cert_path.is_file())
+            self.assertTrue(key_path.is_file())
+
+            tls_port = _free_port()
+            tls_base_url = f"https://localhost:{tls_port}"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "HOST": "127.0.0.1",
+                    "PORT": str(tls_port),
+                    "API_AUTH_TOKEN": "bl18-token",
+                    "ENABLE_E2E_FAULT_INJECTION": "1",
+                    "PYTHONPATH": str(REPO_ROOT),
+                    "TLS_CERT_FILE": str(cert_path),
+                    "TLS_KEY_FILE": str(key_path),
+                }
+            )
+
+            tls_proc = subprocess.Popen(
+                [sys.executable, "-m", "src.web_service"],
+                cwd=str(REPO_ROOT),
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+            try:
+                deadline = time.time() + 12
+                ssl_context = ssl.create_default_context(cafile=str(cert_path))
+                while time.time() < deadline:
+                    try:
+                        with request.urlopen(
+                            f"{tls_base_url}/health",
+                            timeout=2,
+                            context=ssl_context,
+                        ) as resp:
+                            if resp.status == 200:
+                                break
+                    except Exception:
+                        time.sleep(0.2)
+                else:
+                    self.fail("TLS-web_service wurde lokal nicht rechtzeitig erreichbar")
+
+                cp, data, request_id = self._run_smoke(
+                    include_token=True,
+                    base_url=tls_base_url,
+                    extra_env={"DEV_TLS_CA_CERT": str(cert_path)},
+                )
+                self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+                self.assertEqual(data.get("status"), "pass")
+                self.assertEqual(data.get("reason"), "ok")
+                self.assertEqual(data.get("http_status"), 200)
+                self.assertEqual(data.get("request_id"), request_id)
+                self.assertEqual(data.get("response_request_id"), request_id)
+                self.assertEqual(data.get("response_header_request_id"), request_id)
+            finally:
+                tls_proc.terminate()
+                try:
+                    tls_proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    tls_proc.kill()
+
+    def test_smoke_script_rejects_missing_dev_tls_ca_cert_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            missing_ca = Path(tmpdir) / "does-not-exist.crt"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "CURL_MAX_TIME": "10",
+                    "CURL_RETRY_COUNT": "1",
+                    "CURL_RETRY_DELAY": "1",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "SMOKE_REQUEST_ID": "bl18-smoke-missing-ca",
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                    "DEV_TLS_CA_CERT": str(missing_ca),
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2, msg=cp.stdout + "\n" + cp.stderr)
+            self.assertIn("DEV_TLS_CA_CERT muss auf eine existierende Datei zeigen", cp.stderr)
 
     def test_smoke_script_generates_unique_default_request_id_when_system_time_is_constant(self):
         with tempfile.TemporaryDirectory() as fake_bin_dir:
