@@ -37,6 +37,9 @@ Versionierungsprinzip:
   - `context_profile`
   - `suitability_light`
   - `explainability`
+- `preferences` (optional): Preference-Profile für personalisierte Bewertung
+  - erlaubt sind nur bekannte Dimensionen (siehe Abschnitt „BL-20.4.c Preference-Profile Envelope“)
+  - wenn `preferences` fehlt, greifen definierte Defaults (non-breaking)
 
 ### Success Response
 
@@ -220,3 +223,38 @@ Einführungsstrategie (non-breaking):
 1. Zuerst Envelope leer/optional ausrollen (keine Pflichtfelder).
 2. Danach additive Schlüssel innerhalb des Envelopes ergänzen.
 3. Legacy-Clients ohne Envelope-Unterstützung bleiben lauffähig; Minimalprojektion darf sich nicht ändern.
+
+## 15) BL-20.4.c Preference-Profile Envelope
+
+Bezug: [#85](https://github.com/nimeob/geo-ranking-ch/issues/85)
+
+Ziel: Optionales, klar validierbares Request-Profil für personalisierte Umfeldauswertung bereitstellen,
+ohne den bestehenden Request-Contract zu brechen.
+
+Request (optional, additiv):
+- `preferences` (Objekt, optional)
+- Erlaubte Enum-Felder:
+  - `lifestyle_density`: `rural|suburban|urban`
+  - `noise_tolerance`: `low|medium|high`
+  - `nightlife_preference`: `avoid|neutral|prefer`
+  - `school_proximity`: `avoid|neutral|prefer`
+  - `family_friendly_focus`: `low|medium|high`
+  - `commute_priority`: `car|pt|bike|mixed`
+- Optionale Gewichte unter `preferences.weights` (Objekt, Wertebereich je Key `0..1`)
+
+Default-Verhalten (wenn `preferences` fehlt):
+- `lifestyle_density=suburban`
+- `noise_tolerance=medium`
+- `nightlife_preference=neutral`
+- `school_proximity=neutral`
+- `family_friendly_focus=medium`
+- `commute_priority=mixed`
+- `weights={}`
+
+Validierung:
+- `preferences` muss (falls vorhanden) ein JSON-Objekt sein, sonst `400 bad_request`.
+- Unbekannte Keys unter `preferences` oder `preferences.weights` werden als Vertragsfehler behandelt (`400 bad_request`).
+- Gewichte müssen numerisch und im Bereich `0..1` liegen.
+
+Dokumentierte Beispielprofile (3-5 reale Integrationsmuster):
+- [`docs/api/preference-profiles.md`](./preference-profiles.md)

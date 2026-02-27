@@ -1,0 +1,14 @@
+{
+  "request_id": "golden-req-004",
+  "input": {
+    "mode": "address",
+    "address": "Limmatquai 10, 8001 Zürich"
+  },
+  "requested_modules": ["building_profile", "context_profile"],
+  "preferences": {
+    "lifestyle_density": "rural",
+    "weights": {
+      "noise_tolerance": 0.5
+    }
+  }
+}

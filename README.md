@@ -30,6 +30,7 @@
 - **Robuste API-Eingänge**
   - `intelligence_mode` mit Trim + case-insensitive Normalisierung (`basic|extended|risk`)
   - `timeout_seconds` als endliche Zahl `> 0` (inkl. serverseitigem Max-Cap)
+  - optionales `preferences`-Profil mit Enum-/Range-Validierung (`weights` im Bereich `0..1`)
   - tolerantes Routing (trailing slash, double slash, Query/Fragment-ignorant)
 - **Betrieb & Nachvollziehbarkeit**
   - konsistente Request-Korrelation über Header + JSON-Feld `request_id`
@@ -97,7 +98,7 @@ curl http://localhost:8080/health
 |---|---|---|
 | `GET` | `/health` | Liveness/Healthcheck |
 | `GET` | `/version` | Build/Commit-Metadaten |
-| `POST` | `/analyze` | Adressanalyse (`{"query":"...","intelligence_mode":"basic|extended|risk","timeout_seconds":15}`) |
+| `POST` | `/analyze` | Adressanalyse (`{"query":"...","intelligence_mode":"basic|extended|risk","timeout_seconds":15,"preferences":{...}}`) |
 
 **Auth (optional):** Wenn `API_AUTH_TOKEN` gesetzt ist, erfordert `POST /analyze` den Header `Authorization: Bearer <token>`.
 
@@ -106,6 +107,8 @@ curl http://localhost:8080/health
 **Timeout-Input:** `timeout_seconds` muss eine **endliche Zahl > 0** sein (z. B. kein `nan`/`inf`), sonst antwortet die API mit `400 bad_request`.
 
 **Mode-Input:** `intelligence_mode` wird vor der Validierung getrimmt und case-insensitive normalisiert (z. B. `"  ExTenDeD  "` → `extended`); erlaubt sind `basic|extended|risk`.
+
+**Preferences-Input (optional):** `preferences` muss ein Objekt sein; erlaubte Enum-Dimensionen sind `lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`. Optionale Gewichte liegen unter `preferences.weights` und müssen numerisch im Bereich `0..1` liegen. Ungültige oder unbekannte Keys führen zu `400 bad_request`.
 
 **Routing-Kompatibilität:** Die Endpunkte tolerieren optionale trailing Slashes, kollabieren doppelte Slash-Segmente (`//`) auf einen Slash und ignorieren Query/Fragment-Teile bei der Routenauflösung (z. B. `/health/?probe=1`, `//version///?ts=1`, `//analyze//?trace=1`).
 

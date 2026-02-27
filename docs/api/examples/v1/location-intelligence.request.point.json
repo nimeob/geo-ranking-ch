@@ -12,6 +12,12 @@
     "suitability_light",
     "explainability"
   ],
+  "preferences": {
+    "lifestyle_density": "suburban",
+    "weights": {
+      "school_proximity": 0.6
+    }
+  },
   "options": {
     "language": "de",
     "timeout_seconds": 20

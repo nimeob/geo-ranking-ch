@@ -1,0 +1,11 @@
+{
+  "request_id": "golden-req-invalid-006",
+  "input": {
+    "mode": "address",
+    "address": "Bahnhofplatz 2, 3011 Bern"
+  },
+  "requested_modules": ["context_profile"],
+  "preferences": {
+    "lifestyle_density": "village"
+  }
+}

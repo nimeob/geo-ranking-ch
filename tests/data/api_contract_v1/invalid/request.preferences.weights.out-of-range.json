@@ -1,0 +1,16 @@
+{
+  "request_id": "golden-req-invalid-007",
+  "input": {
+    "mode": "point",
+    "point": {
+      "lat": 47.3769,
+      "lon": 8.5417
+    }
+  },
+  "requested_modules": ["suitability_light"],
+  "preferences": {
+    "weights": {
+      "commute_priority": 1.25
+    }
+  }
+}
