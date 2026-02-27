@@ -365,6 +365,67 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("result", body)
 
+    def test_analyze_response_mode_compact_default_and_verbose_opt_in(self):
+        compact_status, compact_body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(compact_status, 200)
+        compact_match = (
+            compact_body.get("result", {})
+            .get("data", {})
+            .get("by_source", {})
+            .get("e2e_fault_injection", {})
+            .get("data", {})
+            .get("match", {})
+        )
+        self.assertEqual(compact_match.get("module_ref"), "#/result/data/modules/match")
+
+        verbose_status, verbose_body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "options": {"response_mode": "verbose"},
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(verbose_status, 200)
+        verbose_match = (
+            verbose_body.get("result", {})
+            .get("data", {})
+            .get("by_source", {})
+            .get("e2e_fault_injection", {})
+            .get("data", {})
+            .get("match", {})
+        )
+        self.assertEqual(verbose_match.get("mode"), "e2e_stub")
+        self.assertNotIn("module_ref", verbose_match)
+
+    def test_bad_request_response_mode_rejects_invalid_values(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "options": {"response_mode": "ultra"},
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("options.response_mode", body.get("message", ""))
+
     def test_bad_request_options_must_be_object_when_provided(self):
         invalid_options = (
             [],

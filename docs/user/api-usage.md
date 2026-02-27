@@ -182,6 +182,7 @@ curl -sS -X POST "http://localhost:8080/analyze" \
           "source": "geoadmin_search",
           "data": {
             "match": {
+              "module_ref": "#/result/data/modules/match",
               "selected_score": 0.99,
               "candidate_count": 3
             }
@@ -208,7 +209,7 @@ Für Integratoren wichtig: Die API liefert **normalisierte Domain-Daten**, nicht
 - **Numerik + Grenzen:** Numerische Felder werden robust geparst; unklare Werte fallen auf `null`. Scores/Konfidenzen werden auf gültige Bereiche begrenzt (z. B. `0..1` oder `0..100`).
 - **Status-Vokabular:** Quellenstatus wird auf ein kontrolliertes Set gemappt (`ok`, `partial`, `error`, `disabled`, `not_used`) und ist deshalb über Sources hinweg konsistent interpretierbar.
 - **Zeitstempel:** Beobachtungszeitpunkte werden als ISO-8601 UTC normalisiert, damit Event-Reihenfolgen vergleichbar bleiben.
-- **`modules` vs. `by_source`:** `modules` zeigt fachlich zusammengeführte Resultate; `by_source` zeigt denselben Kontext aus Quellensicht zur Nachvollziehbarkeit.
+- **`modules` vs. `by_source`:** `modules` ist die fachliche Single-Source-of-Truth; `by_source` ist standardmäßig (`options.response_mode=compact`) eine schlanke Quellenprojektion mit Referenzen (`module_ref`/`module_refs`). Für volle Inline-Projektion kann `options.response_mode=verbose` gesetzt werden.
 
 Technische Tiefendoku (vollständige Regelmatrix + Rule-IDs `TR-01` bis `TR-08`):
 

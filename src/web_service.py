@@ -42,6 +42,7 @@ _SOURCE_GROUP_MODULE_MAP = {
     "elevation_context": ("cross_source",),
     "intelligence": ("intelligence",),
 }
+_RESPONSE_MODES = {"compact", "verbose"}
 
 _PREFERENCE_ENUMS = {
     "lifestyle_density": {"rural", "suburban", "urban"},
@@ -120,11 +121,61 @@ def _build_status_block(report: dict[str, Any]) -> dict[str, Any]:
     return status_block
 
 
+def _module_ref(module_key: str) -> str:
+    return f"#/result/data/modules/{module_key}"
+
+
+def _compact_projection_for_group(
+    group_name: str,
+    module_keys: list[str],
+    modules: dict[str, Any],
+) -> dict[str, Any]:
+    refs = [_module_ref(key) for key in module_keys]
+    if not refs:
+        return {}
+
+    projection: dict[str, Any] = {}
+    if len(refs) == 1:
+        projection["module_ref"] = refs[0]
+    else:
+        projection["module_refs"] = refs
+
+    # Kleiner Kompatibilitäts-/Convenience-Slice für Integratoren:
+    # by_source bleibt nutzbar, ohne komplette Module erneut zu serialisieren.
+    if len(module_keys) == 1:
+        module_key = module_keys[0]
+        module_payload = modules.get(module_key)
+
+        if group_name == "match" and isinstance(module_payload, dict):
+            selected_score = module_payload.get("selected_score")
+            candidate_count = module_payload.get("candidate_count")
+            if selected_score is not None:
+                projection["selected_score"] = deepcopy(selected_score)
+            if candidate_count is not None:
+                projection["candidate_count"] = deepcopy(candidate_count)
+
+        if group_name == "intelligence" and isinstance(module_payload, dict):
+            tenants_businesses = module_payload.get("tenants_businesses")
+            if isinstance(tenants_businesses, dict):
+                entities = tenants_businesses.get("entities")
+                if isinstance(entities, list):
+                    compact_entities = [
+                        {"name": entry.get("name")}
+                        for entry in entities
+                        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+                    ]
+                    if compact_entities:
+                        projection["tenants_businesses"] = {"entities": compact_entities}
+
+    return projection
+
+
 def _build_by_source_payload(
     modules: dict[str, Any],
     *,
     source_attribution: dict[str, Any],
     source_health: dict[str, Any],
+    response_mode: str,
 ) -> dict[str, dict[str, Any]]:
     by_source: dict[str, dict[str, Any]] = {}
 
@@ -132,16 +183,20 @@ def _build_by_source_payload(
         return by_source.setdefault(name, {"source": name, "data": {}})
 
     for group_name, group_sources in source_attribution.items():
-        module_keys = _SOURCE_GROUP_MODULE_MAP.get(group_name, (group_name,))
-        grouped_data = {key: deepcopy(modules[key]) for key in module_keys if key in modules}
-        if not grouped_data:
+        module_keys = [key for key in _SOURCE_GROUP_MODULE_MAP.get(group_name, (group_name,)) if key in modules]
+        if not module_keys:
             continue
 
-        group_value: Any
-        if len(grouped_data) == 1:
-            group_value = next(iter(grouped_data.values()))
+        if response_mode == "verbose":
+            grouped_data = {key: deepcopy(modules[key]) for key in module_keys}
+            if len(grouped_data) == 1:
+                group_value: Any = next(iter(grouped_data.values()))
+            else:
+                group_value = grouped_data
         else:
-            group_value = grouped_data
+            group_value = _compact_projection_for_group(group_name, module_keys, modules)
+            if not group_value:
+                continue
 
         if not isinstance(group_sources, list):
             continue
@@ -158,7 +213,13 @@ def _build_by_source_payload(
     return by_source
 
 
-def _grouped_api_result(report: dict[str, Any]) -> dict[str, Any]:
+def _grouped_api_result(
+    report: dict[str, Any],
+    *,
+    response_mode: str = "compact",
+) -> dict[str, Any]:
+    normalized_response_mode = response_mode if response_mode in _RESPONSE_MODES else "compact"
+
     status = _build_status_block(report)
 
     cleaned = _strip_status_fields(deepcopy(report))
@@ -190,6 +251,7 @@ def _grouped_api_result(report: dict[str, Any]) -> dict[str, Any]:
                 cleaned,
                 source_attribution=source_attribution,
                 source_health=source_health,
+                response_mode=normalized_response_mode,
             ),
         },
     }
@@ -252,6 +314,18 @@ def _extract_request_options(data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(raw_options, dict):
         raise ValueError("options must be an object when provided")
     return raw_options
+
+
+def _extract_response_mode(options: dict[str, Any]) -> str:
+    """Liest den optionalen Response-Modus (compact|verbose)."""
+    raw_mode = options.get("response_mode", "compact")
+    if not isinstance(raw_mode, str):
+        raise ValueError("options.response_mode must be a string when provided")
+
+    mode = raw_mode.strip().lower() or "compact"
+    if mode not in _RESPONSE_MODES:
+        raise ValueError("options.response_mode must be one of ['compact', 'verbose']")
+    return mode
 
 
 def _as_unit_interval_number(value: Any, field_name: str) -> float:
@@ -553,7 +627,8 @@ class Handler(BaseHTTPRequestHandler):
 
             # Forward-Compatibility: optionaler, additiver Namespace für spätere
             # Request-Erweiterungen (z. B. Deep-Mode) ohne Breaking Changes.
-            _extract_request_options(data)
+            request_options = _extract_request_options(data)
+            response_mode = _extract_response_mode(request_options)
 
             # Optionales Preference-Profil für BL-20.4-Personalisierung.
             # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
@@ -619,7 +694,10 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json(
                         {
                             "ok": True,
-                            "result": _grouped_api_result(stub_report),
+                            "result": _grouped_api_result(
+                                stub_report,
+                                response_mode=response_mode,
+                            ),
                             "request_id": request_id,
                         },
                         request_id=request_id,
@@ -656,7 +734,10 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(
                 {
                     "ok": True,
-                    "result": _grouped_api_result(report),
+                    "result": _grouped_api_result(
+                        report,
+                        response_mode=response_mode,
+                    ),
                     "request_id": request_id,
                 },
                 request_id=request_id,

@@ -195,9 +195,11 @@ Bezug: [#3](https://github.com/nimeob/geo-ranking-ch/issues/3), [#107](https://g
 Für den bestehenden `/analyze`-Endpoint gilt ergänzend (rückwärtskompatibel):
 
 - Optionaler Request-Namespace `options` ist für additive Erweiterungen reserviert.
-- Default bleibt unverändert, wenn `options` fehlt.
 - `options` muss (falls vorhanden) ein JSON-Objekt sein, sonst `400 bad_request`.
 - Unbekannte optionale Keys werden als No-Op ignoriert (keine 500/Crash-Pfade).
+- `options.response_mode` (optional): `compact|verbose`
+  - `compact` (Default): deduplizierte `result.data.by_source`-Projektion mit `module_ref`/`module_refs`
+  - `verbose`: vollständige (redundanzreiche) `by_source`-Projektion für Legacy-Integratoren
 
 Die übergreifende Policy dazu ist im Stability-Guide dokumentiert:
 - [`docs/api/contract-stability-policy.md`](./contract-stability-policy.md)

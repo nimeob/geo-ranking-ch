@@ -27,12 +27,25 @@ Diese Liste ist der verbindliche Anker für zentrale Integrationsinformationen (
 - Breaking Changes erfordern neue Hauptversion (siehe Contract-Policy):
   - [`docs/api/contract-stability-policy.md`](./contract-stability-policy.md)
 
-## 4) Vorher/Nachher-Beispiele (additive Erweiterung ohne Strukturbruch)
+## 4) Response-Dedupe-Modi (`compact` default, `verbose` opt-in)
+
+Ab BL-20.1.i kann die `by_source`-Darstellung in zwei Modi geliefert werden:
+
+- `options.response_mode = "compact"` (Default)
+  - `result.data.by_source.*.data` enthält primär Referenzen auf `result.data.modules` (`module_ref`/`module_refs`)
+  - nur kleine Kompatibilitäts-Slices bleiben inline (z. B. `match.selected_score`, `match.candidate_count`)
+  - Ziel: redundante Serialisierung deutlich reduzieren
+- `options.response_mode = "verbose"` (opt-in)
+  - liefert die bisherige vollständige `by_source`-Projektion (höhere Payload-Größe)
+
+Die Kernpfade der grouped-Struktur bleiben stabil (`result.status`, `result.data.entity`, `result.data.modules`, `result.data.by_source`).
+
+## 5) Vorher/Nachher-Beispiele (additive Erweiterung ohne Strukturbruch)
 
 - Before: [`docs/api/examples/current/analyze.response.grouped.additive-before.json`](./examples/current/analyze.response.grouped.additive-before.json)
 - After (nur additive Felder): [`docs/api/examples/current/analyze.response.grouped.additive-after.json`](./examples/current/analyze.response.grouped.additive-after.json)
 
-## 5) Regression-Tests
+## 6) Regression-Tests
 
 - Schema-/Kernpfad-Guard: `tests/test_grouped_response_schema_v1.py`
 - Semantik-/Separations-Guard: `tests/test_contract_compatibility_regression.py`, `tests/test_web_service_grouped_response.py`
