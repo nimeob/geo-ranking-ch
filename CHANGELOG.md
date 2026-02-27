@@ -22,6 +22,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`tests/test_grouped_response_schema_v1.py`** neu ergänzt: Guard-Tests für Kernstruktur, Kernpfad-Stabilität, additive Evolution und Runtime-Pfadkonsistenz.
 - **`docs/api/contract-v1.md`** und **`docs/api/contract-stability-policy.md`** um BL-20.1.j-Verweise/Regeln fortgeschrieben.
 
+### Changed (2026-02-27 — BL-20.1.k.wp1 Contract: Code-only Response + Dictionary-Referenzfelder, Issue #287)
+- **`docs/api/contract-v1.md`** um den BL-20.1.k.wp1-Abschnitt erweitert: normativer Contract-Diff für `result.status.dictionary.{version,etag,domains?}` inkl. Code-first-Regeln und Referenzierung der neuen before/after-Beispiele.
+- **`docs/api/schemas/v1/analyze.grouped.response.schema.json`** und **`docs/api/schemas/v1/location-intelligence.response.schema.json`** additiv um den Dictionary-Envelope ergänzt (required bei vorhandenem Envelope: `version` + `etag`; optionale `domains` pro Domain mit `version`/`etag` + `path`).
+- **`docs/api/examples/current/analyze.response.grouped.code-only-before.json`** und **`docs/api/examples/current/analyze.response.grouped.code-only-after.json`** neu ergänzt, um denselben Fall vor/nach Code-only-Migration mit Dictionary-Referenzen reproduzierbar zu zeigen.
+- **`docs/api/grouped-response-schema-v1.md`** um die Dictionary-Envelope-Notiz und den Code-first-Beispielpfad fortgeschrieben.
+- **`tests/test_api_contract_v1.py`** und **`tests/test_grouped_response_schema_v1.py`** um Guard-Checks für den neuen Dictionary-Envelope und die neuen before/after-Artefakte erweitert.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschlussnachweis für Issue #287 ergänzt.
+
 ### Changed (2026-02-27 — BL-20.4.d.wp2 Two-Stage Suitability Response Fields, Issue #181)
 - **`src/suitability_light.py`** erweitert um explizites Response-Paar `base_score` + `personalized_score`; solange kein aktives Präferenzsignal verarbeitet wird, liefert der Fallback deterministisch `personalized_score == base_score`.
 - **`docs/api/contract-v1.md`**, **`docs/api/schemas/v1/location-intelligence.response.schema.json`**, **`docs/api/scoring_methodology.md`** und **`docs/api/field_catalog.json`** auf die neuen Two-Stage-Suitability-Felder synchronisiert.

@@ -71,6 +71,11 @@ class TestGroupedResponseSchemaV1(unittest.TestCase):
         self.assertIn("source_meta", status.get("required", []))
         self.assertTrue(status.get("additionalProperties"), msg="status muss additiv erweiterbar bleiben")
 
+        dictionary = status.get("properties", {}).get("dictionary")
+        self.assertIsInstance(dictionary, dict, msg="status.dictionary muss als additiver Envelope spezifiziert sein")
+        self.assertEqual(set(dictionary.get("required", [])), {"version", "etag"})
+        self.assertIn("domains", dictionary.get("properties", {}))
+
         data = result["properties"]["data"]
         self.assertIn("entity", data.get("required", []))
         self.assertIn("modules", data.get("required", []))

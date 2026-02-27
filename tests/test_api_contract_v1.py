@@ -423,6 +423,13 @@ class TestApiContractV1(unittest.TestCase):
             "BL-20.4.d.wp2 Zweistufige Suitability-Score-Felder",
             "result.suitability_light.base_score",
             "result.suitability_light.personalized_score",
+            "BL-20.1.k.wp1 Contract: Code-only Response + Dictionary-Referenzfelder",
+            "result.status.dictionary.version",
+            "result.status.dictionary.etag",
+            "analyze.response.grouped.code-only-before.json",
+            "analyze.response.grouped.code-only-after.json",
+            "#286",
+            "#287",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
@@ -461,6 +468,62 @@ class TestApiContractV1(unittest.TestCase):
             self.assertEqual(payload.get("type"), "object")
             self.assertIn("title", payload)
             self.assertIn("$schema", payload)
+
+    def test_response_schemas_define_dictionary_envelope_contract(self):
+        grouped_schema = _read_json(SCHEMA_DIR / "analyze.grouped.response.schema.json")
+        legacy_schema = _read_json(SCHEMA_DIR / "location-intelligence.response.schema.json")
+
+        for schema_name, schema_payload in (
+            ("grouped", grouped_schema),
+            ("legacy", legacy_schema),
+        ):
+            dictionary = (
+                schema_payload["properties"]["result"]["properties"]["status"]["properties"].get("dictionary")
+            )
+            self.assertIsInstance(dictionary, dict, msg=f"dictionary-Envelope fehlt im {schema_name}-Schema")
+            self.assertEqual(
+                set(dictionary.get("required", [])),
+                {"version", "etag"},
+                msg=f"dictionary.required im {schema_name}-Schema muss version+etag erzwingen",
+            )
+            self.assertEqual(dictionary.get("type"), "object")
+            self.assertFalse(dictionary.get("additionalProperties", True))
+
+            domains = dictionary.get("properties", {}).get("domains")
+            self.assertIsInstance(domains, dict, msg=f"dictionary.domains fehlt im {schema_name}-Schema")
+            domain_item = domains.get("additionalProperties", {})
+            self.assertEqual(
+                set(domain_item.get("required", [])),
+                {"version", "etag"},
+                msg=f"dictionary.domains[*] muss im {schema_name}-Schema version+etag erzwingen",
+            )
+
+    def test_code_only_before_after_examples_capture_contract_diff(self):
+        before = _read_json(
+            REPO_ROOT
+            / "docs"
+            / "api"
+            / "examples"
+            / "current"
+            / "analyze.response.grouped.code-only-before.json"
+        )
+        after = _read_json(
+            REPO_ROOT
+            / "docs"
+            / "api"
+            / "examples"
+            / "current"
+            / "analyze.response.grouped.code-only-after.json"
+        )
+
+        self.assertEqual(before.get("request_id"), after.get("request_id"))
+        self.assertNotIn("dictionary", before["result"]["status"])
+        self.assertIn("dictionary", after["result"]["status"])
+
+        after_dictionary = after["result"]["status"]["dictionary"]
+        self.assertIn("version", after_dictionary)
+        self.assertIn("etag", after_dictionary)
+        self.assertIn("domains", after_dictionary)
 
     def test_examples_validate_as_positive_cases(self):
         req_address = _read_json(EXAMPLE_DIR / "location-intelligence.request.address.json")

@@ -1,0 +1,83 @@
+{
+  "ok": true,
+  "request_id": "grouped-code-only-before-001",
+  "result": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 88,
+          "max": 100,
+          "level": "high"
+        }
+      },
+      "source_health": {
+        "geoadmin_search": {
+          "status": "ok",
+          "records": 1
+        }
+      },
+      "source_meta": {
+        "source_attribution": {
+          "building": [
+            "geoadmin_search"
+          ]
+        }
+      }
+    },
+    "data": {
+      "entity": {
+        "query": "Espenmoosstrasse 18, 9008 St. Gallen",
+        "matched_address": "Espenmoosstrasse 18, 9008 St. Gallen",
+        "ids": {
+          "egid": "432100"
+        },
+        "coordinates": {
+          "lat": 47.424,
+          "lon": 9.376
+        }
+      },
+      "modules": {
+        "match": {
+          "selected_score": 0.98,
+          "candidate_count": 1
+        },
+        "building": {
+          "decoded": {
+            "heizung": [
+              {
+                "label": "Wärmepumpe"
+              }
+            ]
+          }
+        },
+        "energy": {
+          "decoded_summary": {
+            "heizung": [
+              "Wärmepumpe"
+            ]
+          }
+        }
+      },
+      "by_source": {
+        "geoadmin_search": {
+          "source": "geoadmin_search",
+          "data": {
+            "match": {
+              "selected_score": 0.98,
+              "candidate_count": 1
+            },
+            "building": {
+              "decoded": {
+                "heizung": [
+                  {
+                    "label": "Wärmepumpe"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -99,6 +99,54 @@
                   "type": "object"
                 }
               }
+            },
+            "dictionary": {
+              "type": "object",
+              "required": [
+                "version",
+                "etag"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "etag": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "domains": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "version",
+                      "etag"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "etag": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         },

@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "request_id": "grouped-code-only-before-001",
+  "result": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 88,
+          "max": 100,
+          "level": "high"
+        }
+      },
+      "source_health": {
+        "geoadmin_search": {
+          "status": "ok",
+          "records": 1
+        }
+      },
+      "source_meta": {
+        "source_attribution": {
+          "building": [
+            "geoadmin_search"
+          ]
+        }
+      },
+      "dictionary": {
+        "version": "2026-02-27",
+        "etag": "W/\"dict-2026-02-27\"",
+        "domains": {
+          "heating": {
+            "version": "gwr-heating-v1",
+            "etag": "\"gwr-heating-v1-3f2a\"",
+            "path": "/api/v1/dictionaries/heating"
+          }
+        }
+      }
+    },
+    "data": {
+      "entity": {
+        "query": "Espenmoosstrasse 18, 9008 St. Gallen",
+        "matched_address": "Espenmoosstrasse 18, 9008 St. Gallen",
+        "ids": {
+          "egid": "432100"
+        },
+        "coordinates": {
+          "lat": 47.424,
+          "lon": 9.376
+        }
+      },
+      "modules": {
+        "match": {
+          "selected_score": 0.98,
+          "candidate_count": 1
+        },
+        "building": {
+          "codes": {
+            "heizung": [
+              "7410"
+            ]
+          }
+        },
+        "energy": {
+          "codes": {
+            "heizung": [
+              "7410"
+            ]
+          }
+        }
+      },
+      "by_source": {
+        "geoadmin_search": {
+          "source": "geoadmin_search",
+          "data": {
+            "match": {
+              "selected_score": 0.98,
+              "candidate_count": 1
+            },
+            "building": {
+              "codes": {
+                "heizung": [
+                  "7410"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
