@@ -537,17 +537,17 @@
 - **Priorität:** P1
 - **Aufwand:** L
 - **Abhängigkeiten:** keine
-- **Status:** 🟡 in Umsetzung (Issue #309, gestartet 2026-02-27)
+- **Status:** ✅ abgeschlossen (2026-02-27, Issue #309)
 - **Ziel:** Legacy-Übergangslogik konsequent entfernen und den v1-Zielcontract als einzigen aktiven Pfad absichern.
 - **Work-Packages (Issue #309):**
   - [x] #310 — Runtime-Legacy-Path `options.include_labels` entfernt (2026-02-27)
   - [x] #311 — Contract/Schema/Doku auf code-first-only konsolidieren (2026-02-27)
-  - [ ] #312 — Test-Suite auf Legacy-Flag-Removal härten
+  - [x] #312 — Test-Suite auf Legacy-Flag-Removal gehärtet (2026-02-27)
 - **Fortschritt (2026-02-27):**
   - ✅ #310 abgeschlossen: `src/web_service.py` lehnt `options.include_labels` nun deterministisch mit `400 bad_request` ab und nutzt im grouped Response ausschließlich code-first-Projektion.
   - ✅ #311 abgeschlossen: Contract-/Stability-/User-Doku und Request-Schema auf code-first-only synchronisiert (`include_labels` entfernt, Sunset dokumentiert, Dictionary-Migrationspfad klargestellt).
-  - ✅ Relevante Checks grün: `python3 scripts/validate_field_catalog.py` und `python3 -m pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py` (`22 passed`, `9 subtests passed`).
-  - ⏳ Nächster Schritt: #312 (Legacy-Flag-Removal-Testsuite) claimen und umsetzen.
+  - ✅ #312 abgeschlossen: Legacy-Flag-Regressionen in `tests/test_web_e2e.py` erweitert (inkl. Mischfall mit gültigen Optionen), Contract-Validator-Test für `include_labels` ergänzt und negativer Golden-Case hinzugefügt (`tests/data/api_contract_v1/invalid/request.options.include-labels.legacy-flag.json`).
+  - ✅ Relevante Checks grün: `pytest -q tests/test_web_e2e.py tests/test_web_service_grouped_response.py tests/test_api_contract_v1.py` (`73 passed`, `45 subtests passed`).
 
 ### BL-XX — Webservice-Testabdeckung über alle Resultpfade (OK/NOK)
 - **Priorität:** P1
