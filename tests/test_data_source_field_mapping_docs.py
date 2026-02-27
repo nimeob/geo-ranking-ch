@@ -21,6 +21,10 @@ class TestDataSourceFieldMappingDocs(unittest.TestCase):
             "#63",
             "#64",
             "#65",
+            "## 6) Machine-readable Spezifikation (Issue #63)",
+            "docs/mapping/source-field-mapping.schema.json",
+            "docs/mapping/source-field-mapping.ch.v1.json",
+            "scripts/validate_source_field_mapping_spec.py",
         ]
 
         for marker in required_markers:

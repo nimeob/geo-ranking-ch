@@ -1,0 +1,227 @@
+{
+  "spec_version": "v1.0",
+  "spec_name": "bl-20.2.b-source-field-mapping-ch",
+  "generated_from": "docs/DATA_SOURCE_FIELD_MAPPING_CH.md",
+  "updated_at": "2026-02-27T11:36:00Z",
+  "transform_rules": [
+    {
+      "id": "TR-01",
+      "name": "trim_to_null",
+      "description": "Strings trimmen; leere Werte als null behandeln."
+    },
+    {
+      "id": "TR-02",
+      "name": "html_strip",
+      "description": "HTML-Markup aus Label-/Description-Feldern entfernen."
+    },
+    {
+      "id": "TR-03",
+      "name": "numeric_parse",
+      "description": "Numerische Felder robust in float/int parsen."
+    },
+    {
+      "id": "TR-04",
+      "name": "code_decode_gwr",
+      "description": "GWR-Codes in Klartext zusammenführen."
+    },
+    {
+      "id": "TR-05",
+      "name": "enum_status_normalize",
+      "description": "Quellenstatus auf kontrolliertes Set normalisieren."
+    },
+    {
+      "id": "TR-06",
+      "name": "confidence_clamp",
+      "description": "Konfidenz-/Score-Werte auf gültige Bereiche begrenzen."
+    },
+    {
+      "id": "TR-07",
+      "name": "policy_rank_map",
+      "description": "Quellenautorität in Policy-Rang überführen."
+    },
+    {
+      "id": "TR-08",
+      "name": "observed_at_iso",
+      "description": "Zeitstempel auf ISO-8601 UTC normalisieren."
+    }
+  ],
+  "sources": [
+    {
+      "source": "geoadmin_search",
+      "description": "swisstopo SearchServer",
+      "mappings": [
+        {
+          "source_field": "results[].attrs.featureId",
+          "target_paths": [
+            "ids.feature_id",
+            "match.selected_feature_id"
+          ],
+          "transforms": [
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "results[].attrs.label",
+          "target_paths": [
+            "matched_address",
+            "match.candidates_preview[].label"
+          ],
+          "transforms": [
+            "TR-02",
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "results[].attrs.detail",
+          "target_paths": [
+            "match.candidates_preview[].detail"
+          ],
+          "transforms": [
+            "TR-02",
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "results[].attrs.lat",
+          "target_paths": [
+            "coordinates.lat"
+          ],
+          "transforms": [
+            "TR-03"
+          ]
+        },
+        {
+          "source_field": "results[].attrs.lon",
+          "target_paths": [
+            "coordinates.lon"
+          ],
+          "transforms": [
+            "TR-03"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "geoadmin_gwr",
+      "description": "BFS GWR über geo.admin",
+      "mappings": [
+        {
+          "source_field": "egid",
+          "target_paths": [
+            "ids.egid"
+          ],
+          "transforms": [
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "egaid",
+          "target_paths": [
+            "ids.egaid"
+          ],
+          "transforms": [
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "gkode",
+          "target_paths": [
+            "coordinates.lv95_e"
+          ],
+          "transforms": [
+            "TR-03"
+          ]
+        },
+        {
+          "source_field": "gkodn",
+          "target_paths": [
+            "coordinates.lv95_n"
+          ],
+          "transforms": [
+            "TR-03"
+          ]
+        },
+        {
+          "source_field": "strname_deinr",
+          "target_paths": [
+            "administrative.street_line"
+          ],
+          "transforms": [
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "gbauj",
+          "target_paths": [
+            "building.baujahr"
+          ],
+          "transforms": [
+            "TR-03"
+          ]
+        },
+        {
+          "source_field": "gwaerzh1/genh1/gwaerzh2/genh2/gwaerzw1/genw1/gwaerzw2/genw2",
+          "target_paths": [
+            "energy.raw_codes"
+          ],
+          "transforms": [
+            "TR-01"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "bfs_heating_layer",
+      "description": "BFS Heizungs-Layer",
+      "mappings": [
+        {
+          "source_field": "gwaerzh1_de",
+          "target_paths": [
+            "energy.heating_layer.gwaerzh1_de"
+          ],
+          "transforms": [
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "genh1_de",
+          "target_paths": [
+            "energy.heating_layer.genh1_de"
+          ],
+          "transforms": [
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "gwaersceh1_de",
+          "target_paths": [
+            "energy.heating_layer.gwaersceh1_de"
+          ],
+          "transforms": [
+            "TR-01"
+          ]
+        },
+        {
+          "source_field": "gwaerdath1",
+          "target_paths": [
+            "energy.heating_layer.gwaerdath1"
+          ],
+          "transforms": [
+            "TR-01",
+            "TR-08"
+          ]
+        },
+        {
+          "source_field": "gexpdat",
+          "target_paths": [
+            "energy.heating_layer.gexpdat"
+          ],
+          "transforms": [
+            "TR-01",
+            "TR-08"
+          ]
+        }
+      ]
+    }
+  ]
+}
