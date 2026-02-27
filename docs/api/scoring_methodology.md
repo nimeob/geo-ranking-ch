@@ -310,4 +310,5 @@ Guard:
 ## 11) Open Items (Folge-Work-Packages)
 
 - Der Scope von BL-20.1.f.wp1–wp4 (#79, #80, #81, #82) ist abgeschlossen.
-- Folgearbeiten laufen in separaten Backlog-Issues (z. B. Explainability v2, personalisierte Scores).
+- ✅ 2026-02-27: BL-20.4.d.wp1 (#180) liefert den deterministischen Engine-Core für zweistufiges Scoring (`src/personalized_scoring.py`) inkl. harter Fallback-Regel (`personalized_score == base_score` ohne Präferenzsignal) und Unit-Tests (`tests/test_personalized_scoring_engine.py`).
+- Folgearbeiten laufen in separaten Backlog-Issues (z. B. API-Projection, Methodik/Contract-Sync, Golden-Test-Ausbau für personalisierte Scores).
