@@ -261,7 +261,7 @@ geo-ranking-ch/
 │   ├── iam/                          # IAM Policies/Trusts
 │   └── lambda/                       # Lambda-Funktionen (health_probe, sns_to_telegram)
 ├── .github/workflows/deploy.yml      # CI/CD Deploy (push main + manual dispatch)
-├── .github/workflows/docs-quality.yml# Doku-Qualitätsgate bei Doku-Änderungen
+├── .github/workflows/docs-quality.yml# Manual-Fallback für Doku-Gate (OpenClaw ist Primärpfad)
 ├── Dockerfile
 ├── requirements.txt
 ├── requirements-dev.txt
@@ -277,7 +277,7 @@ geo-ranking-ch/
 
 Der Workflow `.github/workflows/deploy.yml` ist auf **ECS/Fargate (dev)** ausgerichtet und läuft bei **Push auf `main`** sowie manuell via **GitHub Actions → Run workflow**.
 
-Zusätzlich sichert `.github/workflows/docs-quality.yml` bei Doku-Änderungen automatisch das **BL-19.8 Doku-Qualitätsgate** ab (`./scripts/check_docs_quality_gate.sh` mit frischem venv, Struktur- und Markdown-Linkchecks).
+Für `contract-tests`, `crawler-regression` und `docs-quality` ist OpenClaw der Primärpfad (siehe [`docs/OPERATIONS.md`](docs/OPERATIONS.md#github-actions-cleanup-required-checks-bl-20ywp4)); die gleichnamigen GitHub-Workflows bleiben als `workflow_dispatch`-Fallback erhalten.
 
 Nach dem ECS-Rollout wartet der Deploy-Workflow auf `services-stable` und führt anschliessend einen Smoke-Test auf `/health` aus (konfiguriert über `SERVICE_HEALTH_URL`).
 

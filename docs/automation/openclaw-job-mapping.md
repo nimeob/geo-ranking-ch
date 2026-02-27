@@ -67,4 +67,5 @@ Der Runner beendet sich mit dem Exit-Code des fehlgeschlagenen Schritts und kann
 ## Nächste Schritte
 
 1. ✅ #223 — Mindestens drei Jobs technisch migriert und mit realer Evidenz unter `reports/automation/*` nachgewiesen.
-2. #224 — Nicht mehr benötigte Actions + Required-Checks + Runbook final bereinigen.
+2. ✅ #224 — Nicht mehr benötigte Actions bereinigt/deaktiviert, Required-Checks-/Recovery-Runbook in `docs/OPERATIONS.md` ergänzt.
+3. ⏳ #227 — Event-Surrogate/Webhook-Relay für schnellere Issue/PR-Reaktionspfade konkretisieren.

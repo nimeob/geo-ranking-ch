@@ -1,20 +1,6 @@
-name: crawler-regression
+name: crawler-regression (manual-fallback)
 
 on:
-  pull_request:
-    paths:
-      - "scripts/github_repo_crawler.py"
-      - "tests/test_github_repo_crawler.py"
-      - "scripts/check_crawler_regression.sh"
-      - ".github/workflows/crawler-regression.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "scripts/github_repo_crawler.py"
-      - "tests/test_github_repo_crawler.py"
-      - "scripts/check_crawler_regression.sh"
-      - ".github/workflows/crawler-regression.yml"
   workflow_dispatch:
 
 jobs:

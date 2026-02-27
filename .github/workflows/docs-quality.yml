@@ -1,28 +1,7 @@
-name: docs-quality
+name: docs-quality (manual-fallback)
 
 on:
-  pull_request:
-    paths:
-      - "README.md"
-      - "CHANGELOG.md"
-      - "docs/**/*.md"
-      - "scripts/check_docs_quality_gate.sh"
-      - "tests/test_user_docs.py"
-      - "tests/test_markdown_links.py"
-      - "requirements-dev.txt"
-      - ".github/workflows/docs-quality.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "README.md"
-      - "CHANGELOG.md"
-      - "docs/**/*.md"
-      - "scripts/check_docs_quality_gate.sh"
-      - "tests/test_user_docs.py"
-      - "tests/test_markdown_links.py"
-      - "requirements-dev.txt"
-      - ".github/workflows/docs-quality.yml"
+  workflow_dispatch:
 
 jobs:
   docs-quality-gate:

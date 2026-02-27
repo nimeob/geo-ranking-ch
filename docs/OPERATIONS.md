@@ -231,6 +231,42 @@ Hinweise:
 - `--command-override` ist nur für lokale Tests gedacht.
 - Mapping/Trigger-Design bleibt in [`docs/automation/openclaw-job-mapping.md`](automation/openclaw-job-mapping.md) dokumentiert.
 
+## GitHub-Actions-Cleanup + Required-Checks (BL-20.y.wp4)
+
+Stand nach WP4:
+- **Automatisch aktiv auf GitHub bleibt nur** `.github/workflows/deploy.yml`.
+- Ehemalige Kosten-/Qualitäts-Workflows wurden auf **manual fallback (`workflow_dispatch`)** umgestellt:
+  - `.github/workflows/contract-tests.yml`
+  - `.github/workflows/crawler-regression.yml`
+  - `.github/workflows/docs-quality.yml`
+  - `.github/workflows/bl20-sequencer.yml` (retired/manual placeholder)
+- `.github/workflows/worker-claim-priority.yml` bleibt bis zur vollständigen Event-Surrogate-Ablösung (`#227`) aktiv.
+
+### Required-Checks Zielzustand (Branch Protection `main`)
+
+Für den OpenClaw-Migrationsbetrieb dürfen nur Checks als **required** gesetzt sein, die tatsächlich noch automatisch auf PRs laufen.
+
+Empfohlener Minimalzustand:
+- optional/required nach Teamentscheid: `deploy / Build & Test` (oder äquivalenter Deploy-Check)
+- **nicht required**: `contract-tests`, `crawler-regression`, `docs-quality`, `bl20-sequencer`
+
+### Administrative Anpassung (Repo-Owner)
+
+Die GitHub-App des Workers hat keinen Admin-Zugriff auf Branch-Protection. Deshalb gilt:
+
+1. `Settings` → `Branches` → Branch protection rule für `main`
+2. Unter **Require status checks to pass** alle nicht mehr auto-triggernden Checks entfernen
+3. Regel speichern und kurz mit Test-PR verifizieren (kein „Expected — Waiting for status to be reported“ auf retired/manual Checks)
+
+### Recovery/Fallback bei OpenClaw-Störung
+
+Wenn OpenClaw-Jobs temporär ausfallen, können die migrierten Checks manuell gestartet werden:
+
+1. GitHub → `Actions` → gewünschter Workflow (`contract-tests`, `crawler-regression`, `docs-quality`)
+2. `Run workflow` ausführen
+3. Ergebnis in Issue/PR als temporären Fallback-Nachweis dokumentieren
+4. Nach Stabilisierung wieder auf OpenClaw-Evidenzpfade (`reports/automation/...`) zurückgehen
+
 ## Consistency-Crawler (read-only) — Runbook
 
 Zweck: Drift zwischen Vision, Backlog/Issues, Code und Doku früh erkennen, ohne automatische Mutationen als Default.
