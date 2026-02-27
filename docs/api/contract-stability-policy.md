@@ -121,6 +121,27 @@ Automatisierter Nachweis im Repo:
 - `tests/test_web_e2e.py::TestWebServiceE2E::test_bad_request_preferences_reject_invalid_enums_and_weights`
 - `tests/test_api_contract_v1.py::TestApiContractV1::test_preference_profile_is_additive_with_defined_defaults`
 
+### 4.4 BL-20.1.j Grouped Response-Schema v1 (Pfadstabilität + additive Erweiterung)
+
+Bezug:
+- Work-Package: [#279](https://github.com/nimeob/geo-ranking-ch/issues/279)
+- Folgeabhängigkeit: [#278](https://github.com/nimeob/geo-ranking-ch/issues/278)
+
+Regelset:
+- Der grouped Response-Shape hat eine feste Grundstruktur (`result.status` + `result.data`) mit stabilen Kernpfaden.
+- Kernpfade sind als Single-Source-of-Truth explizit versioniert und maschinenlesbar.
+- Neue Informationen werden ausschließlich additiv ergänzt (neue Felder/Zweige), ohne bestehende Kernpfade zu verschieben/umzubenennen.
+- Feldpfad-/Semantikänderungen bestehender Kernpfade gelten als Breaking und erfordern eine neue Hauptversion.
+
+Normative Artefakte:
+- Schema: `docs/api/schemas/v1/analyze.grouped.response.schema.json`
+- Kernpfade: `docs/api/schemas/v1/analyze.grouped.core-paths.v1.json`
+- Human-readable Referenz: `docs/api/grouped-response-schema-v1.md`
+
+Automatisierter Nachweis im Repo:
+- `tests/test_grouped_response_schema_v1.py`
+- `tests/test_contract_compatibility_regression.py`
+
 ## 5) Changelog-/Release-Hinweisprozess
 
 Bei jeder Contract-Änderung:

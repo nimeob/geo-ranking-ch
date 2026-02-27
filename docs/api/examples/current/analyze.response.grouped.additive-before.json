@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "request_id": "grouped-additive-before-001",
+  "result": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 81,
+          "max": 100,
+          "level": "high"
+        }
+      },
+      "source_health": {
+        "geoadmin_search": {
+          "status": "ok",
+          "records": 1
+        }
+      },
+      "source_meta": {
+        "source_attribution": {
+          "match": [
+            "geoadmin_search"
+          ]
+        }
+      }
+    },
+    "data": {
+      "entity": {
+        "query": "Bahnhofstrasse 1, 8001 Zürich",
+        "matched_address": "Bahnhofstrasse 1, 8001 Zürich",
+        "ids": {
+          "egid": "123"
+        },
+        "coordinates": {
+          "lat": 47.3769,
+          "lon": 8.5417
+        }
+      },
+      "modules": {
+        "match": {
+          "selected_score": 0.95,
+          "candidate_count": 2
+        }
+      },
+      "by_source": {
+        "geoadmin_search": {
+          "source": "geoadmin_search",
+          "data": {
+            "match": {
+              "selected_score": 0.95,
+              "candidate_count": 2
+            }
+          }
+        }
+      }
+    }
+  }
+}

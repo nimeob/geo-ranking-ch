@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-20.1.j Stabiles grouped Response-Schema v1, Issue #279)
+- **`docs/api/schemas/v1/analyze.grouped.response.schema.json`** neu ergänzt: normatives grouped Response-Schema mit fester Grundstruktur (`result.status` + `result.data`) und additiven Erweiterungspunkten (`additionalProperties`).
+- **`docs/api/schemas/v1/analyze.grouped.core-paths.v1.json`** neu ergänzt: versionierte Single-Source-of-Truth-Liste für stabile Kernpfade (u. a. Confidence-, Entity- und Match-Score-Pfade).
+- **`docs/api/grouped-response-schema-v1.md`** neu ergänzt: Human-readable Referenz inkl. Evolutionsregeln und Verlinkung der Kernpfad-/Schema-Artefakte.
+- **`docs/api/examples/current/analyze.response.grouped.additive-before.json`** und **`docs/api/examples/current/analyze.response.grouped.additive-after.json`** ergänzt: reproduzierbare before/after-Beispiele für additive Erweiterung ohne Strukturbruch.
+- **`tests/test_grouped_response_schema_v1.py`** neu ergänzt: Guard-Tests für Kernstruktur, Kernpfad-Stabilität, additive Evolution und Runtime-Pfadkonsistenz.
+- **`docs/api/contract-v1.md`** und **`docs/api/contract-stability-policy.md`** um BL-20.1.j-Verweise/Regeln fortgeschrieben.
+
 ### Changed (2026-02-27 — BL-20.4.d.wp2 Two-Stage Suitability Response Fields, Issue #181)
 - **`src/suitability_light.py`** erweitert um explizites Response-Paar `base_score` + `personalized_score`; solange kein aktives Präferenzsignal verarbeitet wird, liefert der Fallback deterministisch `personalized_score == base_score`.
 - **`docs/api/contract-v1.md`**, **`docs/api/schemas/v1/location-intelligence.response.schema.json`**, **`docs/api/scoring_methodology.md`** und **`docs/api/field_catalog.json`** auf die neuen Two-Stage-Suitability-Felder synchronisiert.

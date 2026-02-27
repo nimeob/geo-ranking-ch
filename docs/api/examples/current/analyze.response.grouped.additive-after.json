@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "request_id": "grouped-additive-before-001",
+  "result": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 81,
+          "max": 100,
+          "level": "high"
+        }
+      },
+      "source_health": {
+        "geoadmin_search": {
+          "status": "ok",
+          "records": 1
+        },
+        "mobility_api": {
+          "status": "ok",
+          "records": 1
+        }
+      },
+      "source_meta": {
+        "source_attribution": {
+          "match": [
+            "geoadmin_search"
+          ],
+          "future_context": [
+            "mobility_api"
+          ]
+        }
+      },
+      "capabilities": {
+        "deep_mode": {
+          "state": "beta",
+          "available": false
+        }
+      },
+      "entitlements": {
+        "plan": {
+          "value": "starter",
+          "state": "stable"
+        }
+      }
+    },
+    "data": {
+      "entity": {
+        "query": "Bahnhofstrasse 1, 8001 Zürich",
+        "matched_address": "Bahnhofstrasse 1, 8001 Zürich",
+        "ids": {
+          "egid": "123"
+        },
+        "coordinates": {
+          "lat": 47.3769,
+          "lon": 8.5417
+        }
+      },
+      "modules": {
+        "match": {
+          "selected_score": 0.95,
+          "candidate_count": 2
+        },
+        "future_context": {
+          "walk_score": 71,
+          "coverage": "beta"
+        }
+      },
+      "by_source": {
+        "geoadmin_search": {
+          "source": "geoadmin_search",
+          "data": {
+            "match": {
+              "selected_score": 0.95,
+              "candidate_count": 2
+            }
+          }
+        },
+        "mobility_api": {
+          "source": "mobility_api",
+          "data": {
+            "future_context": {
+              "walk_score": 71,
+              "coverage": "beta"
+            }
+          }
+        }
+      }
+    }
+  }
+}

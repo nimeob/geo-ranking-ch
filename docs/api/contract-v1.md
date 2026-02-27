@@ -104,6 +104,7 @@ Responses:
 - Vollständig (legacy): [`docs/api/examples/v1/location-intelligence.response.success.address.json`](./examples/v1/location-intelligence.response.success.address.json)
 - Vollständig (grouped): [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
 - Edge-Case (fehlende/deaktivierte Daten, grouped): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](./examples/current/analyze.response.grouped.partial-disabled.json)
+- Additive Evolution (before/after, grouped): [`docs/api/examples/current/analyze.response.grouped.additive-before.json`](./examples/current/analyze.response.grouped.additive-before.json) / [`docs/api/examples/current/analyze.response.grouped.additive-after.json`](./examples/current/analyze.response.grouped.additive-after.json)
 - Fehler-Envelope: [`docs/api/examples/v1/location-intelligence.response.error.bad-request.json`](./examples/v1/location-intelligence.response.error.bad-request.json)
 
 ## 6) CI-Check (verdrahtet)
@@ -300,3 +301,20 @@ Semantik:
 Kompatibilität:
 - `result.status.personalization` ist additiv/optional.
 - Legacy-Clients ohne Auswertung dieses Statuspfads bleiben vollständig lauffähig.
+
+## 18) BL-20.1.j Stabiles grouped Response-Schema v1 (für `/analyze`)
+
+Bezug: [#279](https://github.com/nimeob/geo-ranking-ch/issues/279), [#278](https://github.com/nimeob/geo-ranking-ch/issues/278)
+
+Für den produktionsnahen grouped Response-Shape ist ein eigenes, versioniertes Stabilitätspaket definiert:
+
+- Normatives Schema: [`docs/api/schemas/v1/analyze.grouped.response.schema.json`](./schemas/v1/analyze.grouped.response.schema.json)
+- Kernpfad-SSOT: [`docs/api/schemas/v1/analyze.grouped.core-paths.v1.json`](./schemas/v1/analyze.grouped.core-paths.v1.json)
+- Human-readable Guide: [`docs/api/grouped-response-schema-v1.md`](./grouped-response-schema-v1.md)
+
+Kompatibilitätsprinzip:
+- Feste Grundstruktur bleibt stabil (`result.status` + `result.data`).
+- Erweiterungen sind additiv (neue Felder/Zweige), bestehende Kernpfade bleiben unverändert.
+- Vorher/Nachher-Beispiele für additive Erweiterung ohne Strukturbruch:
+  - [`docs/api/examples/current/analyze.response.grouped.additive-before.json`](./examples/current/analyze.response.grouped.additive-before.json)
+  - [`docs/api/examples/current/analyze.response.grouped.additive-after.json`](./examples/current/analyze.response.grouped.additive-after.json)
