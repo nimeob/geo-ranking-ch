@@ -346,3 +346,25 @@ Schema-Stand (WP1):
 Referenzbeispiele (before/after, gleiches Request-Szenario):
 - before (label-lastig): [`docs/api/examples/current/analyze.response.grouped.code-only-before.json`](./examples/current/analyze.response.grouped.code-only-before.json)
 - after (code-first + dictionary refs): [`docs/api/examples/current/analyze.response.grouped.code-only-after.json`](./examples/current/analyze.response.grouped.code-only-after.json)
+
+## 20) BL-20.1.k.wp2 Dictionary-Endpoints (versioniert + cachebar)
+
+Bezug: [#286](https://github.com/nimeob/geo-ranking-ch/issues/286), [#288](https://github.com/nimeob/geo-ranking-ch/issues/288)
+
+Ziel: Klartext-Mappings über dedizierte Endpoints ausliefern, damit `POST /analyze` code-first bleiben kann.
+
+Normative GET-Endpunkte:
+- `GET /api/v1/dictionaries`
+  - liefert globalen Dictionary-Index mit `version`, `etag`, `domains`
+  - `domains.<name>` enthält mindestens `version`, `etag`, `path`
+- `GET /api/v1/dictionaries/<domain>`
+  - liefert pro Domain vollständige Mapping-Tabellen (`tables`) inkl. Domain-`version` und Domain-`etag`
+
+Caching-Vertrag (beide Endpunkte):
+- Response enthält `ETag` Header (stark, zitierter Token)
+- Response enthält `Cache-Control` für clientseitiges Caching
+- Bei `If-None-Match` Treffer wird `304 Not Modified` ohne Body zurückgegeben (inkl. `ETag` + `Cache-Control`)
+
+Kompatibilität:
+- Endpunkte sind additiv und verändern bestehendes `/analyze`-Routing nicht.
+- Dictionary-Versionierung und ETag sind entkoppelt von Request-Parametern und stabil reproduzierbar.

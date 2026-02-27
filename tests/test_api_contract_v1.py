@@ -428,8 +428,13 @@ class TestApiContractV1(unittest.TestCase):
             "result.status.dictionary.etag",
             "analyze.response.grouped.code-only-before.json",
             "analyze.response.grouped.code-only-after.json",
+            "BL-20.1.k.wp2 Dictionary-Endpoints (versioniert + cachebar)",
+            "GET /api/v1/dictionaries",
+            "If-None-Match",
+            "304 Not Modified",
             "#286",
             "#287",
+            "#288",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
