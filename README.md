@@ -222,6 +222,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Systemarchitektur und Komponentenübersicht |
 | [docs/DEPLOYMENT_AWS.md](docs/DEPLOYMENT_AWS.md) | AWS-Deployment: Ist-Stand, Runbook, Rollback |
+| [docs/TLS_CERTIFICATE_MIGRATION_RUNBOOK.md](docs/TLS_CERTIFICATE_MIGRATION_RUNBOOK.md) | Migrationspfad Dev self-signed → offizielles Zertifikat (TLS-Baseline, Rotation, Rollback) |
 | [docs/NETWORK_INGRESS_DECISIONS.md](docs/NETWORK_INGRESS_DECISIONS.md) | Beschlossenes Netzwerk-/Ingress-Zielbild (BL-05) |
 | [docs/DATA_AND_API_SECURITY.md](docs/DATA_AND_API_SECURITY.md) | Datenhaltungsentscheidung + API-Sicherheitskonzept (BL-06/BL-07) |
 | [docs/ENV_PROMOTION_STRATEGY.md](docs/ENV_PROMOTION_STRATEGY.md) | Zielbild für staging/prod + Promotion-Gates (BL-09) |
