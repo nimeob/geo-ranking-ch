@@ -384,6 +384,79 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("result", body)
 
+    def test_analyze_runtime_personalization_changes_personalized_score(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "preferences": {
+                    "lifestyle_density": "urban",
+                    "noise_tolerance": "low",
+                    "nightlife_preference": "prefer",
+                    "school_proximity": "avoid",
+                    "family_friendly_focus": "low",
+                    "commute_priority": "pt",
+                    "weights": {
+                        "noise_tolerance": 0.8,
+                        "nightlife_preference": 0.6,
+                        "commute_priority": 0.9,
+                    },
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+
+        suitability = (
+            body.get("result", {})
+            .get("data", {})
+            .get("modules", {})
+            .get("suitability_light", {})
+        )
+        self.assertIn("base_score", suitability)
+        self.assertIn("personalized_score", suitability)
+        self.assertNotEqual(
+            suitability.get("personalized_score"),
+            suitability.get("base_score"),
+            msg="Bei wirksamen Präferenzen muss personalisierte Bewertung vom Basisscore abweichen",
+        )
+
+        personalization = suitability.get("personalization") or {}
+        self.assertFalse(personalization.get("fallback_applied", True))
+
+    def test_analyze_runtime_personalization_fallback_without_preferences(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+
+        suitability = (
+            body.get("result", {})
+            .get("data", {})
+            .get("modules", {})
+            .get("suitability_light", {})
+        )
+        self.assertEqual(
+            suitability.get("personalized_score"),
+            suitability.get("base_score"),
+            msg="Ohne Präferenzsignal muss fallback-konform personalized_score == base_score gelten",
+        )
+
+        personalization = suitability.get("personalization") or {}
+        self.assertTrue(personalization.get("fallback_applied"))
+
     def test_bad_request_preferences_must_be_object_when_provided(self):
         invalid_preferences = (
             [],

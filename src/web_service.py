@@ -22,6 +22,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from src.address_intel import AddressIntelError, build_report
+from src.personalized_scoring import compute_two_stage_scores
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -304,6 +305,69 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
     return effective
 
 
+def _apply_personalized_suitability_scores(
+    report: dict[str, Any], preferences: dict[str, Any] | None
+) -> None:
+    """Integriert zweistufiges Scoring deterministisch in den Analyze-Report."""
+    suitability = report.get("suitability_light")
+    if not isinstance(suitability, dict):
+        return
+
+    raw_factors = suitability.get("factors")
+    if not isinstance(raw_factors, list) or not raw_factors:
+        return
+
+    factors: list[dict[str, Any]] = []
+    for row in raw_factors:
+        if not isinstance(row, dict):
+            continue
+        key = row.get("key")
+        if not isinstance(key, str) or not key.strip():
+            continue
+        factors.append(
+            {
+                "key": key,
+                "score": row.get("score"),
+                "weight": row.get("weight"),
+            }
+        )
+
+    if not factors:
+        return
+
+    two_stage = compute_two_stage_scores(factors, preferences=preferences)
+
+    base_score = suitability.get("base_score")
+    if not isinstance(base_score, (int, float)) or not math.isfinite(float(base_score)):
+        base_score = float(two_stage.get("base_score", 0.0))
+        suitability["base_score"] = round(base_score, 4)
+    else:
+        base_score = float(base_score)
+
+    personalized_score = float(two_stage.get("personalized_score", base_score))
+    if bool(two_stage.get("fallback_applied")):
+        personalized_score = base_score
+
+    suitability["personalized_score"] = round(personalized_score, 4)
+    suitability["personalization"] = {
+        "fallback_applied": bool(two_stage.get("fallback_applied")),
+        "signal_strength": round(float(two_stage.get("signal_strength", 0.0)), 4),
+        "weights": deepcopy(two_stage.get("weights") or {}),
+    }
+
+    summary_compact = report.get("summary_compact")
+    if not isinstance(summary_compact, dict):
+        return
+
+    compact_suitability = summary_compact.get("suitability_light")
+    if not isinstance(compact_suitability, dict):
+        return
+
+    compact_suitability["base_score"] = round(base_score, 4)
+    compact_suitability["personalized_score"] = round(personalized_score, 4)
+    compact_suitability["personalization"] = deepcopy(suitability["personalization"])
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
 
@@ -439,9 +503,8 @@ class Handler(BaseHTTPRequestHandler):
             _extract_request_options(data)
 
             # Optionales Preference-Profil für BL-20.4-Personalisierung.
-            # Die effektiven Defaults sind bereits festgelegt, auch wenn
-            # die Werte im aktuellen MVP noch nicht ins Scoring einfließen.
-            _extract_preferences(data)
+            # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
+            preferences_profile = _extract_preferences(data)
 
             if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
                 if query == "__timeout__":
@@ -456,6 +519,31 @@ class Handler(BaseHTTPRequestHandler):
                         "coordinates": {},
                         "administrative": {},
                         "match": {"mode": "e2e_stub"},
+                        "suitability_light": {
+                            "status": "ok",
+                            "heuristic_version": "e2e-stub-v1",
+                            "score": 80,
+                            "traffic_light": "green",
+                            "classification": "geeignet",
+                            "base_score": 80.1,
+                            "personalized_score": 80.1,
+                            "factors": [
+                                {"key": "topography", "score": 82.0, "weight": 0.34},
+                                {"key": "access", "score": 76.0, "weight": 0.29},
+                                {"key": "building_state", "score": 74.0, "weight": 0.17},
+                                {"key": "data_quality", "score": 88.0, "weight": 0.20},
+                            ],
+                        },
+                        "summary_compact": {
+                            "suitability_light": {
+                                "status": "ok",
+                                "score": 80,
+                                "traffic_light": "green",
+                                "classification": "geeignet",
+                                "base_score": 80.1,
+                                "personalized_score": 80.1,
+                            }
+                        },
                         "sources": {"e2e_fault_injection": {"status": "ok"}},
                         "source_classification": {
                             "e2e_fault_injection": {
@@ -467,6 +555,7 @@ class Handler(BaseHTTPRequestHandler):
                         "source_attribution": {"match": ["e2e_fault_injection"]},
                         "confidence": {"score": 100, "max": 100, "level": "high"},
                     }
+                    _apply_personalized_suitability_scores(stub_report, preferences_profile)
                     self._send_json(
                         {
                             "ok": True,
@@ -499,6 +588,7 @@ class Handler(BaseHTTPRequestHandler):
                 backoff_seconds=0.6,
                 intelligence_mode=mode,
             )
+            _apply_personalized_suitability_scores(report, preferences_profile)
             self._send_json(
                 {
                     "ok": True,
