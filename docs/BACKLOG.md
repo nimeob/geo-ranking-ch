@@ -511,6 +511,22 @@
   - Für BL-20 gilt pro Iteration das 3-Säulen-Modell: **Programmierung + Dokumentation + Testing**.
   - BL-20 startet erst nach BL-19-MVP (BL-19.1, 19.2, 19.4, 19.3, 19.7).
 
+
+### BL-XX — Webservice-Testabdeckung über alle Resultpfade (OK/NOK)
+- **Priorität:** P1
+- **Aufwand:** M
+- **Abhängigkeiten:** BL-18
+- **Status:** 🟡 in Umsetzung (2026-02-27, Issue #248)
+- **Akzeptanzkriterien:**
+  - Für alle relevanten Webservice-Funktionen ist die Resultpfad-Abdeckung (OK/NOK/Edge) inventarisiert.
+  - Fehlende Testcases sind implementiert und reproduzierbar ausführbar.
+  - Vollständiger Testlauf inkl. Outcome-Dokumentation ist im Repo nachweisbar.
+- **Work-Packages (Issue #248):**
+  - [x] #249 — Parent in Standardformat + DoD/Scope (abgeschlossen 2026-02-27)
+  - [ ] #250 — Test-Coverage-Inventar
+  - [ ] #251 — Fehlende Testcases implementieren
+  - [ ] #252 — Volltest + Outcome-Dokumentation
+
 ---
 
 ## Nacht-Plan (abgeschlossen)
