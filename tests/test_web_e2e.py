@@ -427,6 +427,16 @@ class TestWebServiceE2E(unittest.TestCase):
 
         personalization = suitability.get("personalization") or {}
         self.assertFalse(personalization.get("fallback_applied", True))
+        self.assertEqual(personalization.get("state"), "active")
+        self.assertEqual(personalization.get("source"), "personalized_reweighting")
+
+        status_personalization = (
+            body.get("result", {})
+            .get("status", {})
+            .get("personalization", {})
+        )
+        self.assertEqual(status_personalization.get("state"), "active")
+        self.assertEqual(status_personalization.get("source"), "personalized_reweighting")
 
     def test_analyze_runtime_personalization_fallback_without_preferences(self):
         status, body = _http_json(
@@ -456,6 +466,59 @@ class TestWebServiceE2E(unittest.TestCase):
 
         personalization = suitability.get("personalization") or {}
         self.assertTrue(personalization.get("fallback_applied"))
+        self.assertEqual(personalization.get("state"), "deactivated")
+        self.assertEqual(personalization.get("source"), "base_score_default")
+
+        status_personalization = (
+            body.get("result", {})
+            .get("status", {})
+            .get("personalization", {})
+        )
+        self.assertEqual(status_personalization.get("state"), "deactivated")
+        self.assertEqual(status_personalization.get("source"), "base_score_default")
+
+    def test_analyze_runtime_personalization_partial_when_zero_intensity(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "preferences": {
+                    "lifestyle_density": "urban",
+                    "noise_tolerance": "low",
+                    "weights": {
+                        "lifestyle_density": 0.0,
+                        "noise_tolerance": 0.0,
+                    },
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+
+        suitability = (
+            body.get("result", {})
+            .get("data", {})
+            .get("modules", {})
+            .get("suitability_light", {})
+        )
+        self.assertEqual(suitability.get("personalized_score"), suitability.get("base_score"))
+
+        personalization = suitability.get("personalization") or {}
+        self.assertTrue(personalization.get("fallback_applied"))
+        self.assertEqual(personalization.get("state"), "partial")
+        self.assertEqual(personalization.get("source"), "base_score_fallback")
+
+        status_personalization = (
+            body.get("result", {})
+            .get("status", {})
+            .get("personalization", {})
+        )
+        self.assertEqual(status_personalization.get("state"), "partial")
+        self.assertEqual(status_personalization.get("source"), "base_score_fallback")
 
     def test_bad_request_preferences_must_be_object_when_provided(self):
         invalid_preferences = (
