@@ -51,22 +51,36 @@ Bewertung:
 
 ---
 
-## 3) Inventarisierung externer Targets (offen)
+## 3) Inventarisierung externer Targets (BL-15.wp3)
 
-Diese Liste muss für Decommission-Readiness vollständig gefüllt werden:
+### 3.1) Verbindliches Evidence-Schema je Target
 
-- [ ] Externer CI/Runner #1: `<hostname/system>`
-- [ ] Externer CI/Runner #2: `<hostname/system>`
-- [ ] Sonstige Cron-/Automation-Hosts: `<hostname/system>`
-- [ ] Entwickler-Laptop-Profile mit AWS-Creds: `<owner/system>`
+Für jedes externe Target wird ein eigener Evidence-Record mit stabiler `target_id` geführt.
+Pflichtfelder (DoD):
 
-Pro Target erfassen:
+1. `caller_arn` (letzte verifizierte `aws sts get-caller-identity`-Antwort)
+2. `credential_injection` (Env / Shared Credentials / Role / SSO + Fundstelle)
+3. `aws_jobs_or_scripts` (konkrete Jobs, Skripte oder User-Agents)
+4. `migration_path` (OIDC-/AssumeRole-Zielpfad inkl. Owner)
+5. `cutover_target_date` (geplantes Umschaltdatum oder klarer Blocker)
+6. `evidence_refs` (Artefakte/Logs/Runbook-Referenzen)
 
-1. `aws sts get-caller-identity` Ergebnis (ARN)
-2. Wie werden Credentials injiziert? (Env/Shared Credentials/Role/SSO)
-3. Welche Jobs/Skripte nutzen AWS dort?
-4. Migrationspfad auf OIDC/AssumeRole
-5. Geplantes Cutover-Datum
+### 3.2) Externe Target-Registry (initial befüllt)
+
+| target_id | Host/System | caller_arn (last verified) | credential_injection | aws_jobs_or_scripts | migration_path | cutover_target_date | evidence_refs | Status |
+|---|---|---|---|---|---|---|---|---|
+| `ext-ci-runner-fingerprint-76-13-144-185` | Externer Runner/Host (noch nicht namentlich zugeordnet) | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | Unbekannt; Kandidat ist runtime-injizierter Legacy-Key auf externem Host | `aws-cli/2.33.29` (`sts:GetCallerIdentity`, `logs:FilterLogEvents`), `aws-sdk-js/3.996.0` (`bedrock:ListFoundationModels`), `HashiCorp Terraform/1.11.4` | Host eindeutig zuordnen → Credential-Injection entfernen → Standardpfad auf `openclaw-ops-role`/OIDC umstellen | `TBD` (abhängig von Host-Identifikation) | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `docs/LEGACY_IAM_USER_READINESS.md` | 🟡 in Analyse |
+| `ext-ci-runner-secondary` | Externer CI/Runner #2 (unbestätigt) | `TBD` | `TBD` | `TBD` | Nach Identifikation gleiche OIDC/AssumeRole-Migration wie Primär-Runner | `TBD` | Fingerprint-Rechecks via `LOOKBACK_HOURS=6|8 ./scripts/audit_legacy_cloudtrail_consumers.sh` | ⏳ offen |
+| `ext-cron-automation-hosts` | Sonstige externe Cron-/Automation-Hosts (unbestätigt) | `TBD` | `TBD` | `TBD` | Inventar je Host erstellen, dann auf kurzlebige Role-Credentials umstellen | `TBD` | Runtime-/CloudTrail-Quervergleich in `docs/LEGACY_IAM_USER_READINESS.md` | ⏳ offen |
+| `dev-laptop-aws-profiles` | Entwickler-Laptop-Profile mit AWS-Credentials | `TBD` | `TBD` (Profil/SSO/Env je Gerät erfassen) | `TBD` | Lokale Profile auf Role/SSO ohne Legacy-Key umstellen, danach Key-Nutzung verifizieren | `TBD` | Konsolidierte Target-Liste in diesem Abschnitt + BL-15-Go/No-Go-Checkliste | ⏳ offen |
+
+### 3.3) Offene Verifikations-Checkliste
+
+- [x] Evidence-Schema mit Pflichtfeldern und stabilen `target_id`s dokumentiert.
+- [x] Initiale externe Target-Registry mit vier prüfbaren Records angelegt.
+- [ ] Für alle Targets `caller_arn` per direktem Nachweis (`aws sts get-caller-identity`) ergänzt.
+- [ ] Für alle Targets `credential_injection` und konkrete Job-/Script-Bezüge vervollständigt.
+- [ ] Für alle Targets `cutover_target_date` mit Termin oder explizitem Blocker gesetzt.
 
 ---
 

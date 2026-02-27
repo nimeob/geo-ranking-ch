@@ -220,17 +220,19 @@ Verifizierter Nachweislauf im neuen Default-Pfad:
 
 Interpretation: Der neue Runtime-Default eliminiert den statischen Env-Key-Befund im aktiven Prozesskontext (temporäre STS-Session-Credentials statt Legacy-User-Key als Startzustand).
 
-### Externe Consumer-Matrix (BL-15 Iteration, 2026-02-26)
+### Externe Consumer-Matrix (BL-15 Iteration, aktualisiert 2026-02-27)
 
 Zur strukturierten Abarbeitung der offenen Consumer wurde ein dediziertes Tracking ergänzt:
 
 - `docs/LEGACY_CONSUMER_INVENTORY.md`
+  - Abschnitt `3.1`: verbindliches Evidence-Schema pro Target (`caller_arn`, `credential_injection`, `aws_jobs_or_scripts`, `migration_path`, `cutover_target_date`, `evidence_refs`)
+  - Abschnitt `3.2`: initial befüllte Target-Registry mit stabilen `target_id`s für externe Runner/Cron/Laptop-Profile
 
 Aktueller Kurzbefund daraus:
 
 - GitHub Actions Deploy ist bereits OIDC-migriert.
 - OpenClaw Runtime auf diesem Host nutzt weiterhin runtime-injizierte Legacy-Umgebungsvariablen.
-- Externe Runner/Hosts sind noch nicht vollständig inventarisiert (Hauptblocker für Decommission-Freigabe).
+- Externe Targets sind jetzt strukturiert erfasst, aber inhaltlich noch nicht vollständig verifiziert (`caller_arn`/Injection/Cutover je Target teils `TBD`).
 
 ---
 
@@ -254,6 +256,7 @@ Haupttreiber:
   - ✅ Host-Baseline via `./scripts/audit_legacy_runtime_consumers.sh` erhoben.
   - ✅ CloudTrail-Fingerprint-Audit via `LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh` erhoben (Recheck zusätzlich mit 8h-Fenster verifiziert).
   - ✅ Consumer-Matrix für offene Targets angelegt: `docs/LEGACY_CONSUMER_INVENTORY.md`.
+  - ✅ Externe Target-Registry auf Evidence-Schema konkretisiert (`docs/LEGACY_CONSUMER_INVENTORY.md`, Abschnitt 3.1/3.2; BL-15.wp3).
   - ✅ BL-17 Posture-Quick-Check (`./scripts/check_bl17_oidc_assumerole_posture.sh`) als Cross-Check eingebunden (OIDC Workflows ok, Runtime-Caller weiterhin Legacy).
   - ⏳ Externe Runner/Hosts (außerhalb dieses OpenClaw-Hosts) noch offen.
 - [ ] Für jeden Consumer Ersatzpfad definieren (bevorzugt OIDC/AssumeRole, sonst eng begrenzte Role)
