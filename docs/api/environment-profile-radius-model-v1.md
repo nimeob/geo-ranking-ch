@@ -50,3 +50,8 @@ Zusätzlich:
 - Explainability bleibt faktor-/domain-basiert (`counts`, `signals`, `model`).
 - Künftige Presets/Personalisierung können auf `metrics.*` und `counts.by_domain` aufsetzen,
   ohne den Envelope zu brechen.
+
+## Verwandte Spezifikation
+
+- Für die Scoring-Formel, faktorweise Explainability (`score_model`) und Kalibrierungsfälle siehe:
+  [`docs/api/environment-profile-scoring-v1.md`](environment-profile-scoring-v1.md)

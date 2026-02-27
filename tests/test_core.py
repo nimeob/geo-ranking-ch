@@ -444,6 +444,64 @@ class TestCoreFunctions(unittest.TestCase):
         self.assertGreaterEqual(profile["metrics"]["overall_score"], 1)
         self.assertTrue(profile["signals"])
 
+        score_model = profile.get("score_model") or {}
+        factors = score_model.get("factors") or []
+        self.assertEqual(score_model.get("id"), "environment-profile-scoring-v1")
+        self.assertEqual(len(factors), 6)
+        self.assertTrue(all("key" in row and "score" in row and "weight" in row for row in factors))
+        weighted_sum = sum(float(row.get("weighted_points") or 0.0) for row in factors)
+        self.assertAlmostEqual(weighted_sum, float(score_model.get("overall_score_raw") or 0.0), places=2)
+
+    def test_environment_profile_scoring_calibration_archetypes(self):
+        def profile_for(pois):
+            return address_intel.build_environment_profile_layer(
+                pois=pois,
+                source_url="https://overpass-api.de/api/interpreter?data=calibration",
+                radius_m=260,
+                mode="extended",
+            )
+
+        urban = profile_for(
+            [
+                {"name": "HB", "category": "amenity", "subcategory": "bus_station", "distance_m": 40},
+                {"name": "Tram", "category": "amenity", "subcategory": "bus_station", "distance_m": 70},
+                {"name": "Food 1", "category": "amenity", "subcategory": "restaurant", "distance_m": 55},
+                {"name": "Food 2", "category": "amenity", "subcategory": "cafe", "distance_m": 110},
+                {"name": "Shop 1", "category": "shop", "subcategory": "supermarket", "distance_m": 90},
+                {"name": "Shop 2", "category": "shop", "subcategory": "convenience", "distance_m": 120},
+                {"name": "Bar 1", "category": "amenity", "subcategory": "bar", "distance_m": 95},
+                {"name": "Club", "category": "amenity", "subcategory": "nightclub", "distance_m": 150},
+                {"name": "Pharmacy", "category": "amenity", "subcategory": "pharmacy", "distance_m": 160},
+            ]
+        )
+        family = profile_for(
+            [
+                {"name": "Bus", "category": "amenity", "subcategory": "bus_station", "distance_m": 90},
+                {"name": "School", "category": "amenity", "subcategory": "school", "distance_m": 80},
+                {"name": "Kindergarten", "category": "amenity", "subcategory": "kindergarten", "distance_m": 95},
+                {"name": "Clinic", "category": "amenity", "subcategory": "clinic", "distance_m": 120},
+                {"name": "Park", "category": "leisure", "subcategory": "park", "distance_m": 70},
+                {"name": "Playground", "category": "leisure", "subcategory": "playground", "distance_m": 60},
+                {"name": "Supermarket", "category": "shop", "subcategory": "supermarket", "distance_m": 130},
+                {"name": "Library", "category": "amenity", "subcategory": "library", "distance_m": 150},
+            ]
+        )
+        quiet = profile_for(
+            [
+                {"name": "Park", "category": "leisure", "subcategory": "park", "distance_m": 40},
+                {"name": "Forest", "category": "leisure", "subcategory": "nature_reserve", "distance_m": 110},
+                {"name": "Playground", "category": "leisure", "subcategory": "playground", "distance_m": 125},
+                {"name": "School", "category": "amenity", "subcategory": "school", "distance_m": 155},
+                {"name": "Pharmacy", "category": "amenity", "subcategory": "pharmacy", "distance_m": 180},
+            ]
+        )
+
+        self.assertGreater(urban["metrics"]["vitality_score"], quiet["metrics"]["vitality_score"])
+        self.assertGreater(quiet["metrics"]["quietness_score"], urban["metrics"]["quietness_score"])
+        self.assertGreater(family["metrics"]["family_support_score"], urban["metrics"]["family_support_score"])
+        self.assertGreater(urban["metrics"]["overall_score"], 25)
+        self.assertGreater(quiet["metrics"]["overall_score"], 20)
+
     def test_area_weight_parsing_with_aliases(self):
         weights = address_intel.parse_area_weights("ruhe=1.3,ov=0.9,shopping=0.8,green=1.1,safety=1.7,nightlife=0.4")
         self.assertEqual(weights["ruhe"], 1.3)
