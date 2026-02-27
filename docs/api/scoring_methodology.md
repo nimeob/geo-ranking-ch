@@ -106,6 +106,38 @@ Normative Kopplungsregel für Integratoren:
 - Suitability darf **nicht** isoliert interpretiert werden.
 - Mindestens folgende Kontexte zusammen lesen: Match-Qualität, Confidence-Level, `noise_risk` und Explainability.
 
+### 2.3.1 Bau-Eignung light Heuristik (BL-20.5.b)
+
+Stand der ersten produktionsnahen Light-Heuristik: `bl-20.5.b-v1`.
+
+Deterministische Faktoren (je `0..100`, höher = besser):
+
+| Faktor | Gewicht | Eingänge (Proxy) | Zweck |
+|---|---:|---|---|
+| `topography` | `0.34` | Höhenlage (`cross_source.elevation.height_m`) | konservativer Topografie-Proxy ohne Hangmodell |
+| `access` | `0.29` | Straßenbezug + PLZ/Admin-Verortung | grobe Erschliessungsnähe/Adressierbarkeit |
+| `building_state` | `0.17` | GWR-Gebäudestatus (`building.decoded.status`) | Kontextsignal zum Bestands-/Planungszustand |
+| `data_quality` | `0.20` | Confidence (`confidence.score`) | Robustheit der Eingangsdaten |
+
+Berechnung:
+
+```text
+base_score = Σ(factor_score * weight)
+uncertainty_penalty = uncertainty_score * 0.18
+suitability_light.score = clamp(base_score - uncertainty_penalty, 0, 100)
+traffic_light = green (>=72) | yellow (>=52) | red (<52)
+```
+
+Unsicherheiten werden explizit im Payload geführt (`suitability_light.uncertainty.*`), inklusive Gründen (z. B. fehlende Hangneigung, lückenhafte Erschliessung, niedrige Confidence).
+
+Wichtige Limitierungen (verbindlich):
+- Kein Ersatz für baurechtliche Bewilligungsprüfung.
+- Kein geotechnisches Gutachten (Boden/Altlasten/Tragfähigkeit).
+- Keine statische/brandschutztechnische Fachplanung.
+
+Forward-Compatibility (BL-30):
+- Faktorstruktur ist additiv gehalten (`factors[*]`), sodass spätere Deep-Mode-Signale (z. B. Hangneigung, Zufahrtsklassifikation) ohne Breaking Change ergänzt werden können.
+
 ## 3) Interpretationsbänder (inkl. Richtung und Grenzen)
 
 ### 3.1 Confidence (`result.status.quality.confidence.score`)

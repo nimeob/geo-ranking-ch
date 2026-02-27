@@ -50,6 +50,11 @@ except Exception:
     cairo = None  # type: ignore[assignment]
     CAIRO_AVAILABLE = False
 
+try:
+    from src.suitability_light import evaluate_suitability_light
+except ModuleNotFoundError:
+    from suitability_light import evaluate_suitability_light  # type: ignore[no-redef]
+
 UA = "openclaw-swisstopo-address-intel/2.2"
 DEFAULT_TIMEOUT = 15
 DEFAULT_RETRIES = 3
@@ -5371,6 +5376,8 @@ def build_field_provenance(report: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         "intelligence.environment_noise_risk.score": ["osm_poi_overpass"],
         "intelligence.consistency_checks": ["geoadmin_gwr", "geoadmin_address", "google_news_rss"],
         "intelligence.executive_risk_summary": ["geoadmin_gwr", "osm_poi_overpass", "google_news_rss"],
+        "suitability_light.score": ["swisstopo_height", "plz_layer_identify", "swissboundaries_identify", "geoadmin_gwr", "osm_reverse"],
+        "suitability_light.traffic_light": ["swisstopo_height", "plz_layer_identify", "swissboundaries_identify", "geoadmin_gwr", "osm_reverse"],
     }
     out: Dict[str, Dict[str, Any]] = {}
     for field_path, source_names in mapping.items():
@@ -5485,6 +5492,15 @@ def build_report(
         osm=osm,
     )
 
+    suitability_light = evaluate_suitability_light(
+        elevation_m=elevation.get("height_m"),
+        has_road_access=bool((osm.get("address") or {}).get("road") or gwr.get("strname_deinr")),
+        confidence_score=confidence.get("score"),
+        building_status=decoded.get("status"),
+        has_plz=bool(plz_layer.get("plz") or gwr.get("plz_plz6")),
+        has_admin_boundary=bool(admin_boundary.get("gemname") or gwr.get("ggdename")),
+    )
+
     candidate_preview_count = max(1, min(candidate_preview, len(candidates))) if candidates else 0
     candidate_preview_data = [c.to_preview() for c in candidates[:candidate_preview_count]]
     candidate_preview_data.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -5546,6 +5562,12 @@ def build_report(
                 "risk_score": executive_risk.get("risk_score"),
                 "summary": executive_risk.get("summary"),
             },
+        },
+        "suitability_light": {
+            "status": suitability_light.get("status"),
+            "score": suitability_light.get("score"),
+            "traffic_light": suitability_light.get("traffic_light"),
+            "classification": suitability_light.get("classification"),
         },
         "map": f"https://map.geo.admin.ch/?lang=de&topic=ech&bgLayer=ch.swisstopo.pixelkarte-farbe&layers=ch.bfs.gebaeude_wohnungs_register&E={gwr.get('gkode')}&N={gwr.get('gkodn')}&zoom=10",
     }
@@ -5649,6 +5671,7 @@ def build_report(
             "intelligence": ["osm_poi_overpass", "google_news_rss"],
         },
         "intelligence": intelligence,
+        "suitability_light": suitability_light,
         "summary_compact": compact_summary,
         "links": {
             "map_geo_admin": compact_summary["map"],
