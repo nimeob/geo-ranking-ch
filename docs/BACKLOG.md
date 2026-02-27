@@ -522,7 +522,7 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-18
-- **Status:** 🟡 in Umsetzung (2026-02-27, Issue #248)
+- **Status:** ✅ abgeschlossen (2026-02-27, Issue #248)
 - **Akzeptanzkriterien:**
   - Für alle relevanten Webservice-Funktionen ist die Resultpfad-Abdeckung (OK/NOK/Edge) inventarisiert.
   - Fehlende Testcases sind implementiert und reproduzierbar ausführbar.
