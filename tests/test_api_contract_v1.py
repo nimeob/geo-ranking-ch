@@ -39,6 +39,14 @@ _ALLOWED_PREFERENCE_ENUMS = {
     "family_friendly_focus": {"low", "medium", "high"},
     "commute_priority": {"car", "pt", "bike", "mixed"},
 }
+_ALLOWED_PREFERENCE_PRESETS = {
+    "urban_lifestyle",
+    "family_friendly",
+    "quiet_residential",
+    "car_commuter",
+    "pt_commuter",
+}
+_ALLOWED_PREFERENCE_PRESET_VERSIONS = {"v1"}
 
 
 def _is_non_empty_str(value: Any) -> bool:
@@ -165,10 +173,26 @@ def validate_request(payload: Any) -> list[str]:
         if not isinstance(preferences, dict):
             errors.append("preferences must be object")
         else:
-            allowed_pref = set(_ALLOWED_PREFERENCE_ENUMS) | {"weights"}
+            allowed_pref = set(_ALLOWED_PREFERENCE_ENUMS) | {"weights", "preset", "preset_version"}
             unknown_pref = set(preferences.keys()) - allowed_pref
             if unknown_pref:
                 errors.append(f"preferences contains unknown keys: {sorted(unknown_pref)}")
+
+            preset = preferences.get("preset")
+            if preset is not None and preset not in _ALLOWED_PREFERENCE_PRESETS:
+                errors.append(
+                    f"preferences.preset invalid (allowed={sorted(_ALLOWED_PREFERENCE_PRESETS)})"
+                )
+
+            preset_version = preferences.get("preset_version")
+            if preset_version is not None:
+                if preset is None:
+                    errors.append("preferences.preset_version requires preferences.preset")
+                elif preset_version not in _ALLOWED_PREFERENCE_PRESET_VERSIONS:
+                    errors.append(
+                        "preferences.preset_version invalid "
+                        f"(allowed={sorted(_ALLOWED_PREFERENCE_PRESET_VERSIONS)})"
+                    )
 
             for field_name, allowed_values in _ALLOWED_PREFERENCE_ENUMS.items():
                 value = preferences.get(field_name)
@@ -659,6 +683,55 @@ class TestApiContractV1(unittest.TestCase):
             [],
             msg="Partielle Preference-Profile müssen valide sein (Defaults greifen implizit)",
         )
+
+    def test_preference_preset_is_additive_with_version_and_overrides(self):
+        req_baseline = _read_json(GOLDEN_DIR / "valid" / "request.address.minimal.json")
+        req_with_preset = json.loads(json.dumps(req_baseline))
+        req_with_preset["preferences"] = {
+            "preset": "pt_commuter",
+            "preset_version": "v1",
+            "weights": {
+                "commute_priority": 0.7,
+            },
+        }
+
+        self.assertEqual(
+            validate_request(req_with_preset),
+            [],
+            msg="Preset-basierte Preference-Requests müssen additiv valide bleiben",
+        )
+
+    def test_invalid_preference_preset_contract_rules_are_rejected(self):
+        req_baseline = _read_json(GOLDEN_DIR / "valid" / "request.address.minimal.json")
+
+        invalid_cases = [
+            (
+                "unknown_preset",
+                {"preset": "rocket_mode"},
+                "preferences.preset invalid",
+            ),
+            (
+                "invalid_preset_version",
+                {"preset": "pt_commuter", "preset_version": "v2"},
+                "preferences.preset_version invalid",
+            ),
+            (
+                "version_without_preset",
+                {"preset_version": "v1"},
+                "requires preferences.preset",
+            ),
+        ]
+
+        for case_name, pref_payload, expected in invalid_cases:
+            with self.subTest(case=case_name):
+                payload = json.loads(json.dumps(req_baseline))
+                payload["preferences"] = pref_payload
+                errors = validate_request(payload)
+                self.assertTrue(errors, msg=f"Erwarteter Vertragsfehler fehlt für {case_name}")
+                self.assertTrue(
+                    any(expected in err for err in errors),
+                    msg=f"Unerwartete Fehler für {case_name}: {errors}",
+                )
 
     def test_invalid_preference_weights_are_rejected_by_contract_validator(self):
         req_baseline = _read_json(GOLDEN_DIR / "valid" / "request.address.minimal.json")

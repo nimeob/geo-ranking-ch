@@ -66,6 +66,75 @@ _DEFAULT_PREFERENCES = {
     "weights": {},
 }
 
+_PREFERENCE_PRESET_VERSION = "v1"
+_PREFERENCE_PRESETS: dict[str, dict[str, Any]] = {
+    "urban_lifestyle": {
+        "lifestyle_density": "urban",
+        "noise_tolerance": "medium",
+        "nightlife_preference": "prefer",
+        "school_proximity": "neutral",
+        "family_friendly_focus": "low",
+        "commute_priority": "pt",
+        "weights": {
+            "nightlife_preference": 0.85,
+            "commute_priority": 0.9,
+            "noise_tolerance": 0.45,
+        },
+    },
+    "family_friendly": {
+        "lifestyle_density": "suburban",
+        "noise_tolerance": "low",
+        "nightlife_preference": "avoid",
+        "school_proximity": "prefer",
+        "family_friendly_focus": "high",
+        "commute_priority": "mixed",
+        "weights": {
+            "school_proximity": 0.95,
+            "family_friendly_focus": 0.95,
+            "noise_tolerance": 0.75,
+        },
+    },
+    "quiet_residential": {
+        "lifestyle_density": "suburban",
+        "noise_tolerance": "low",
+        "nightlife_preference": "avoid",
+        "school_proximity": "neutral",
+        "family_friendly_focus": "medium",
+        "commute_priority": "mixed",
+        "weights": {
+            "noise_tolerance": 0.95,
+            "nightlife_preference": 0.7,
+            "lifestyle_density": 0.6,
+        },
+    },
+    "car_commuter": {
+        "lifestyle_density": "suburban",
+        "noise_tolerance": "medium",
+        "nightlife_preference": "neutral",
+        "school_proximity": "neutral",
+        "family_friendly_focus": "medium",
+        "commute_priority": "car",
+        "weights": {
+            "commute_priority": 0.95,
+            "lifestyle_density": 0.55,
+            "noise_tolerance": 0.4,
+        },
+    },
+    "pt_commuter": {
+        "lifestyle_density": "urban",
+        "noise_tolerance": "medium",
+        "nightlife_preference": "neutral",
+        "school_proximity": "neutral",
+        "family_friendly_focus": "medium",
+        "commute_priority": "pt",
+        "weights": {
+            "commute_priority": 0.95,
+            "lifestyle_density": 0.55,
+            "noise_tolerance": 0.4,
+        },
+    },
+}
+
 _DICTIONARY_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=3600"
 _DICTIONARY_GLOBAL_VERSION = os.getenv("DICTIONARY_VERSION", "2026-02-27")
 _DICTIONARY_DOMAIN_VERSIONS = {
@@ -543,7 +612,14 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
     - fehlt `preferences`, werden explizite Defaults verwendet
     - `preferences` muss ein JSON-Objekt sein (sonst 400 bad_request)
     - nur bekannte Preference-Dimensionen sind erlaubt
+    - `preferences.preset` bietet vordefinierte Profile (versioniert über `preset_version`)
     - `weights` ist optional und auf bekannte Keys mit Werten im Bereich 0..1 begrenzt
+
+    Konfliktregel (deterministisch):
+    1) Defaults
+    2) Preset (falls gesetzt)
+    3) explizite Feld-Overrides aus dem Request
+    4) explizite `weights`-Overrides aus dem Request
     """
     raw_preferences = data.get("preferences")
     effective = deepcopy(_DEFAULT_PREFERENCES)
@@ -553,10 +629,39 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(raw_preferences, dict):
         raise ValueError("preferences must be an object when provided")
 
-    allowed_keys = set(_PREFERENCE_ENUMS) | {"weights"}
+    allowed_keys = set(_PREFERENCE_ENUMS) | {"weights", "preset", "preset_version"}
     unknown_keys = set(raw_preferences) - allowed_keys
     if unknown_keys:
         raise ValueError(f"preferences contains unknown keys: {sorted(unknown_keys)}")
+
+    raw_preset = raw_preferences.get("preset")
+    has_preset = raw_preset is not None
+    if has_preset:
+        if not isinstance(raw_preset, str) or not raw_preset.strip():
+            raise ValueError("preferences.preset must be a non-empty string")
+        preset_name = raw_preset.strip().lower()
+        preset = _PREFERENCE_PRESETS.get(preset_name)
+        if preset is None:
+            raise ValueError(
+                "preferences.preset must be one of "
+                f"{sorted(_PREFERENCE_PRESETS)}"
+            )
+
+        raw_preset_version = raw_preferences.get("preset_version", _PREFERENCE_PRESET_VERSION)
+        if not isinstance(raw_preset_version, str) or not raw_preset_version.strip():
+            raise ValueError("preferences.preset_version must be a non-empty string")
+        preset_version = raw_preset_version.strip().lower()
+        if preset_version != _PREFERENCE_PRESET_VERSION:
+            raise ValueError(
+                "preferences.preset_version must be "
+                f"{_PREFERENCE_PRESET_VERSION}"
+            )
+
+        effective.update(deepcopy(preset))
+        effective["preset"] = preset_name
+        effective["preset_version"] = preset_version
+    elif raw_preferences.get("preset_version") is not None:
+        raise ValueError("preferences.preset_version requires preferences.preset")
 
     for field_name, allowed_values in _PREFERENCE_ENUMS.items():
         if field_name not in raw_preferences:
@@ -588,7 +693,9 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
             f"preferences.weights.{key}",
         )
 
-    effective["weights"] = normalized_weights
+    merged_weights = deepcopy(effective.get("weights") or {})
+    merged_weights.update(normalized_weights)
+    effective["weights"] = merged_weights
     return effective
 
 

@@ -109,22 +109,28 @@ Automatisierter Nachweis im Repo:
 - `tests/test_api_contract_v1.py::TestApiContractV1::test_capability_entitlement_envelope_is_additive_for_legacy_clients`
 - `tests/test_contract_compatibility_regression.py::TestContractCompatibilityRegression::test_legacy_minimal_projection_survives_additive_optional_fields`
 
-### 4.3 BL-20.4.c Preference-Profile Envelope (additiv, default-stabil)
+### 4.3 BL-20.4.c/.e Preference-Profile Envelope + Presets (additiv, default-stabil)
 
 Bezug:
 - Work-Package: [#85](https://github.com/nimeob/geo-ranking-ch/issues/85)
+- Follow-up: [#88](https://github.com/nimeob/geo-ranking-ch/issues/88)
 
 Regelset:
 - Request-Feld `preferences` ist optional und additiv.
 - Fehlt `preferences`, gilt der dokumentierte Default-Satz (non-breaking Verhalten).
 - Bei Presence muss `preferences` ein Objekt sein und darf nur bekannte Dimensionen enthalten.
+- `preferences.preset` ist optional und auf den dokumentierten Preset-Katalog begrenzt.
+- `preferences.preset_version` ist optional, aktuell auf `v1` begrenzt und nur mit `preferences.preset` zulässig.
 - `preferences.weights` ist optional; erlaubte Keymenge entspricht den bekannten Dimensionen; Werte müssen numerisch im Bereich `0..1` liegen.
+- Konfliktauflösung ist deterministisch: Defaults → Preset → explizite Enum-Overrides → explizite Weight-Overrides.
 - Ungültige Enum-/Range-/Unknown-Key-Kombinationen führen deterministisch zu `400 bad_request`.
 
 Automatisierter Nachweis im Repo:
 - `tests/test_web_e2e.py::TestWebServiceE2E::test_analyze_accepts_valid_preferences_profile`
+- `tests/test_web_e2e.py::TestWebServiceE2E::test_analyze_accepts_preferences_preset_profile`
 - `tests/test_web_e2e.py::TestWebServiceE2E::test_bad_request_preferences_reject_invalid_enums_and_weights`
 - `tests/test_api_contract_v1.py::TestApiContractV1::test_preference_profile_is_additive_with_defined_defaults`
+- `tests/test_api_contract_v1.py::TestApiContractV1::test_preference_preset_is_additive_with_version_and_overrides`
 
 ### 4.4 BL-20.1.j Grouped Response-Schema v1 (Pfadstabilität + additive Erweiterung)
 
