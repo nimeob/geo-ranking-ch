@@ -170,7 +170,36 @@ Versionierungsregel:
 - Jede inhaltliche Mapping-Änderung aktualisiert `updated_at` in `source-field-mapping.ch.v1.json`.
 - Breaking Changes im Format erfordern eine neue `spec_version` + Folgedatei (z. B. `...ch.v2.json`).
 
-## 7) Referenzen
+## 7) Implementierte Rule-Functions (Issue #64)
+
+Die wiederverwendbaren Transform-/Normalisierungsfunktionen liegen in:
+
+- [`src/mapping_transform_rules.py`](../src/mapping_transform_rules.py)
+
+Abdeckung:
+
+- `TR-01` `trim_to_null`
+- `TR-02` `html_strip`
+- `TR-03` `numeric_parse`
+- `TR-05` `normalize_source_status`
+- `TR-06` `confidence_clamp`
+- `TR-07` `policy_rank_map`
+- `TR-08` `normalize_observed_at_iso`
+
+`TR-04` (`code_decode_gwr`) bleibt bewusst domänenspezifisch und läuft weiterhin über `src/gwr_codes.py` + Address-Flow.
+
+Golden-Tests (inkl. Edge-Cases) liegen in:
+
+- [`tests/data/mapping/transform_rules_golden.json`](../tests/data/mapping/transform_rules_golden.json)
+- [`tests/test_mapping_transform_rules.py`](../tests/test_mapping_transform_rules.py)
+
+Einsatzgrenzen/Hinweise:
+
+- `numeric_parse` ist absichtlich konservativ und liefert bei uneindeutigen Formaten `null` statt stiller Fehlinterpretation.
+- `normalize_observed_at_iso` akzeptiert ISO-Strings, RFC2822-Strings und Epoch-Timestamps; unklare Werte werden zu `null` normalisiert.
+- `normalize_source_status` mappt nur auf das kontrollierte Set (`ok`, `partial`, `error`, `disabled`, `not_used`).
+
+## 8) Referenzen
 
 - Quelleninventar/Lizenzmatrix: [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md)
 - Produktvision: [`docs/VISION_PRODUCT.md`](VISION_PRODUCT.md)
