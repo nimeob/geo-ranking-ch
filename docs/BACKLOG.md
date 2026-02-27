@@ -540,12 +540,13 @@
 - **Ziel:** Dokumentationsabdeckung strukturiert erfassen, Lücken priorisieren, fehlende Inhalte ergänzen und einen reproduzierbaren Service-Testlauf dokumentieren.
 - **Work-Packages (Issue #261):**
   - [x] #263 — Parent-Issue in Standardformat + atomare Zerlegung (abgeschlossen 2026-02-27)
-  - [ ] #264 — Dokumentationsabdeckung inventarisieren (Code + intern + User)
+  - [x] #264 — Dokumentationsabdeckung inventarisieren (Code + intern + User) (abgeschlossen 2026-02-27)
   - [ ] #265 — Dokumentationslücken priorisieren + Umsetzungsplan
   - [ ] #266 — Fehlende Dokumentation ergänzen
   - [ ] #267 — Webservice-Test Espenmoosstrasse 18, 9008 St. Gallen dokumentieren
 - **Fortschritt:**
   - ✅ 2026-02-27: #263 abgeschlossen (Issue #261 auf Standardformat umgestellt, Parent-Work-Package-Checklist ergänzt, Child-Issues #264/#265/#266/#267 erstellt).
+  - ✅ 2026-02-27: #264 abgeschlossen (Inventar der Doku-Abdeckung erstellt: [`docs/DOCUMENTATION_COVERAGE_INVENTORY.md`](DOCUMENTATION_COVERAGE_INVENTORY.md), inkl. Mapping Code ↔ interne/User-Doku und offensichtlicher Gaps als Input für #265).
 
 ---
 
