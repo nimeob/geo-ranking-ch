@@ -416,7 +416,8 @@
 - **Quelle/Vision:** [`docs/VISION_PRODUCT.md`](./VISION_PRODUCT.md)
 - **Zielbild:** Adresse oder Kartenpunkt in der Schweiz analysieren und als kombinierte Standort-/Gebäudeauskunft bereitstellen; Webservice und GUI separat nutzbar/vermarktbar.
 - **Fortschritt (2026-02-26):**
-  - ✅ BL-20.7.b abgeschlossen (Issue #35): GTM-MVP-Artefakte dokumentiert in [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md) (Value Proposition, Scope, Demo-Flow).
+  - ✅ 2026-02-27: #221 abgeschlossen (BL-20.y.wp1 Workflow-Inventar + Klassifikationsmatrix) mit vollständiger Ist-Aufnahme der sechs aktuellen GitHub-Workflows, Zielklassifikation (`keep-on-github`/`migrate-to-openclaw`/`retire`) in [`docs/automation/github-actions-migration-matrix.md`](automation/github-actions-migration-matrix.md) und Verlinkung aus [`docs/OPERATIONS.md`](OPERATIONS.md).
+- ✅ BL-20.7.b abgeschlossen (Issue #35): GTM-MVP-Artefakte dokumentiert in [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md) (Value Proposition, Scope, Demo-Flow).
   - ✅ 2026-02-26: #36 abgeschlossen (Lizenzgrenzen/GTM-Claims) mit Claim-Gate in [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md) inkl. Verweis auf #24 (BL-20.2.a).
   - ✅ 2026-02-27: #36 Issue-/Backlog-Sync nachgezogen (Issue war trotz Merge #49 noch offen) und administrativ geschlossen.
   - ✅ 2026-02-26: #24 abgeschlossen (BL-20.2.a Quelleninventar CH + Lizenzmatrix) mit Quellen-/Lizenzinventar in [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md) inkl. markierter offener Rechts-/Betriebsfragen.
