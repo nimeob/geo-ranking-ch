@@ -228,11 +228,12 @@
   - ✅ Testabdeckung für CloudTrail-Fingerprint-Audit ergänzt (2026-02-26, Issue #109): `tests/test_audit_legacy_cloudtrail_consumers.py` deckt Parametervalidierung, No-Events-Pfad (Exit `0`), Events-Found-Pfad (Exit `10`) und LookupEvents-Filter-Toggle (`INCLUDE_LOOKUP_EVENTS`) reproduzierbar ab.
   - ✅ 2026-02-27: #111 abgeschlossen (strukturierter Fingerprint-Evidence-Export): `scripts/audit_legacy_cloudtrail_consumers.sh` schreibt nun einen reproduzierbaren JSON-Report (`FINGERPRINT_REPORT_JSON`, Default `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`) mit Zeitfenster, Event-Counts und Top-Fingerprints; Runbook in `docs/LEGACY_IAM_USER_READINESS.md` ergänzt, Tests in `tests/test_audit_legacy_cloudtrail_consumers.py` um Export-/Pfadvalidierung erweitert.
   - ✅ 2026-02-27: #112 abgeschlossen (externe Consumer-Targets konkretisiert): `docs/LEGACY_CONSUMER_INVENTORY.md` Abschnitt 3 auf verbindliches Evidence-Schema je Target (`caller_arn`, Injection, Jobs/Skripte, Migration, Cutover, Evidence-Refs) umgestellt und initiale Registry mit stabilen `target_id`s für externe Runner/Cron/Laptop-Profile ergänzt; Cross-Refs in `docs/LEGACY_IAM_USER_READINESS.md` nachgezogen.
+  - ✅ 2026-02-27: #151 abgeschlossen (standardisiertes Evidence-Bundle): neues read-only Export-Skript `scripts/export_bl15_readiness_bundle.py` erstellt versionierte Bundles unter `reports/bl15_readiness/<timestamp>/` und sammelt vorhandene BL-15/BL-17 Evidenzartefakte inkl. Manifest (`inventory.json`), Consumer-Targets-Hinweis (`consumer_targets_hint.md`) und README-Kurzinterpretation; ergänzt durch neue Testabdeckung `tests/test_export_bl15_readiness_bundle.py`.
 - **Work-Packages (Issue #8):**
   - [x] #109 — Testabdeckung CloudTrail-Audit
   - [x] #111 — Strukturierter Fingerprint-Evidence-Export
   - [x] #112 — Externe Consumer-Targets mit Evidence-Schema
-  - [ ] #151 — Standardisiertes Decommission-Evidence-Bundle
+  - [x] #151 — Standardisiertes Decommission-Evidence-Bundle
   - [ ] #152 — GO/NO-GO Decision-Matrix + Sign-off-Template
   - [ ] #187 — CLI-Collector für Readiness-Evidence
   - [ ] #188 — Fingerprint-Korrelation als wiederverwendbares Modul
