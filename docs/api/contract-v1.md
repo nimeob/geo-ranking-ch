@@ -183,6 +183,7 @@ Die dedizierte Methodik-Spezifikation für Bewertungs-/Risiko-/Confidence-Felder
 
 - [`docs/api/scoring_methodology.md`](./scoring_methodology.md)
 - [`docs/api/address-intel-flow-deep-dive.md`](./address-intel-flow-deep-dive.md) (End-to-End Flow inkl. Source-Policy je `intelligence_mode` und Fehler-Mapping)
+- [`docs/api/environment-profile-radius-model-v1.md`](./environment-profile-radius-model-v1.md) (BL-20.4.a Radiusmodell + Kernkennzahlen)
 
 Inhalt (inkrementell):
 - Vollständiger Score-Katalog (Pfad, Skala, Richtung, Stabilitätsstatus)

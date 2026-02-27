@@ -4497,6 +4497,249 @@ def build_incidents_timeline_layer(
     }
 
 
+def build_environment_profile_layer(
+    *,
+    pois: Sequence[Dict[str, Any]],
+    source_url: Optional[str],
+    radius_m: int,
+    mode: str,
+) -> Dict[str, Any]:
+    """Berechnet ein robustes Umfeldprofil auf Basis eines radialen POI-Modells."""
+    radius = int(clamp(float(radius_m or 0), 120.0, 900.0))
+    ring_1 = max(70, int(round(radius * 0.33)))
+    ring_2 = max(ring_1 + 45, int(round(radius * 0.66)))
+    ring_3 = radius
+
+    ring_defs = [
+        {"id": "inner", "max_distance_m": ring_1, "weight": 1.0},
+        {"id": "mid", "max_distance_m": ring_2, "weight": 0.7},
+        {"id": "outer", "max_distance_m": ring_3, "weight": 0.45},
+    ]
+    ring_weights = {entry["id"]: float(entry["weight"]) for entry in ring_defs}
+
+    core_domains = (
+        "transit",
+        "daily_needs",
+        "education_family",
+        "health_care",
+        "leisure_green",
+        "nightlife",
+    )
+
+    def classify_domain(category: str, subcategory: str) -> str:
+        cat = str(category or "").strip().lower()
+        sub = str(subcategory or "").strip().lower()
+
+        if cat == "amenity":
+            if sub in {"bus_station", "ferry_terminal", "taxi", "parking", "parking_entrance", "charging_station"}:
+                return "transit"
+            if sub in {"school", "kindergarten", "childcare", "college", "university", "library"}:
+                return "education_family"
+            if sub in {"hospital", "clinic", "doctors", "pharmacy", "dentist", "social_facility", "nursing_home"}:
+                return "health_care"
+            if sub in {"bar", "pub", "nightclub", "casino"}:
+                return "nightlife"
+            if sub in {
+                "restaurant",
+                "cafe",
+                "fast_food",
+                "marketplace",
+                "bank",
+                "post_office",
+                "atm",
+                "fuel",
+                "car_rental",
+            }:
+                return "daily_needs"
+
+        if cat == "shop":
+            return "daily_needs"
+
+        if cat == "leisure":
+            if sub in {"park", "garden", "nature_reserve", "playground", "dog_park", "recreation_ground"}:
+                return "leisure_green"
+            if sub in {"nightclub", "adult_gaming_centre", "dance"}:
+                return "nightlife"
+            return "leisure_green"
+
+        if cat == "tourism":
+            return "nightlife"
+
+        if cat in {"office", "craft"}:
+            return "daily_needs"
+
+        return "other"
+
+    def assign_ring(distance_m: float) -> str:
+        if distance_m <= ring_1:
+            return "inner"
+        if distance_m <= ring_2:
+            return "mid"
+        return "outer"
+
+    counts_by_ring = {entry["id"]: 0 for entry in ring_defs}
+    counts_by_domain = {domain: 0 for domain in (*core_domains, "other")}
+    weighted_domain_signals = {domain: 0.0 for domain in (*core_domains, "other")}
+    weighted_samples: List[Dict[str, Any]] = []
+
+    for poi in pois:
+        distance_raw = poi.get("distance_m")
+        try:
+            distance = float(distance_raw)
+        except (TypeError, ValueError):
+            distance = float(radius)
+
+        domain = classify_domain(str(poi.get("category") or ""), str(poi.get("subcategory") or ""))
+        ring_id = assign_ring(distance)
+
+        counts_by_ring[ring_id] += 1
+        counts_by_domain[domain] += 1
+
+        proximity = clamp(1.0 - (distance / max(float(radius), 1.0)), 0.0, 1.0)
+        weighted_signal = float(ring_weights.get(ring_id, 0.45)) * (0.4 + 0.6 * proximity)
+        weighted_domain_signals[domain] += weighted_signal
+
+        weighted_samples.append(
+            {
+                "name": poi.get("name"),
+                "domain": domain,
+                "ring": ring_id,
+                "distance_m": round(distance, 1),
+                "weight": round(weighted_signal, 4),
+            }
+        )
+
+    def norm_domain(domain: str, scale: float = 3.0) -> float:
+        return clamp(float(weighted_domain_signals.get(domain) or 0.0) / scale, 0.0, 1.0)
+
+    area_km2 = math.pi * ((float(radius) / 1000.0) ** 2)
+    poi_total = sum(counts_by_domain.values())
+    density_per_km2 = float(poi_total) / max(area_km2, 1e-6)
+
+    density_score = clamp((density_per_km2 / 220.0) * 100.0, 0.0, 100.0)
+    diversity_score = (
+        sum(1 for domain in core_domains if int(counts_by_domain.get(domain) or 0) > 0)
+        / float(len(core_domains))
+        * 100.0
+    )
+
+    transit_n = norm_domain("transit")
+    daily_n = norm_domain("daily_needs")
+    edu_n = norm_domain("education_family")
+    health_n = norm_domain("health_care")
+    green_n = norm_domain("leisure_green")
+    nightlife_n = norm_domain("nightlife")
+
+    accessibility_score = clamp((transit_n * 0.4 + daily_n * 0.3 + health_n * 0.2 + edu_n * 0.1) * 100.0, 0.0, 100.0)
+    family_support_score = clamp((edu_n * 0.4 + health_n * 0.25 + green_n * 0.35) * 100.0, 0.0, 100.0)
+    vitality_score = clamp((daily_n * 0.5 + nightlife_n * 0.3 + transit_n * 0.2) * 100.0, 0.0, 100.0)
+    quietness_score = clamp(((1.0 - nightlife_n) * 0.55 + green_n * 0.45) * 100.0, 0.0, 100.0)
+
+    overall_score = clamp(
+        (
+            accessibility_score
+            + family_support_score
+            + vitality_score
+            + quietness_score
+            + diversity_score
+            + density_score
+        )
+        / 6.0,
+        0.0,
+        100.0,
+    )
+
+    weighted_samples.sort(key=lambda row: float(row.get("weight") or 0.0), reverse=True)
+    top_signals = weighted_samples[:8]
+    layer_conf = clamp(0.44 + min(float(poi_total), 36.0) / 120.0, 0.42, 0.82)
+
+    if poi_total <= 0:
+        return {
+            "status": "no_data",
+            "model": {
+                "id": "radius-v1",
+                "mode": mode,
+                "radius_m": radius,
+                "rings": ring_defs,
+                "distance_weighting": "ring_weight * (0.4 + 0.6 * proximity)",
+            },
+            "counts": {
+                "poi_total": 0,
+                "by_domain": counts_by_domain,
+                "by_ring": counts_by_ring,
+            },
+            "metrics": {
+                "density_score": 0,
+                "diversity_score": 0,
+                "accessibility_score": 0,
+                "family_support_score": 0,
+                "vitality_score": 0,
+                "quietness_score": 0,
+                "overall_score": 0,
+            },
+            "signals": [],
+            "statements": [
+                statement(
+                    "Keine POI-Signale im Radiusmodell verfügbar; Umfeldprofil bleibt unbestimmt.",
+                    confidence=0.4,
+                    evidence=[
+                        evidence_item(
+                            source="osm_poi_overpass",
+                            confidence=0.4,
+                            url=source_url,
+                            snippet="environment_profile:no_data",
+                            field_path="intelligence.environment_profile",
+                        )
+                    ],
+                    field_path="intelligence.environment_profile",
+                )
+            ],
+        }
+
+    return {
+        "status": "ok",
+        "model": {
+            "id": "radius-v1",
+            "mode": mode,
+            "radius_m": radius,
+            "rings": ring_defs,
+            "distance_weighting": "ring_weight * (0.4 + 0.6 * proximity)",
+        },
+        "counts": {
+            "poi_total": poi_total,
+            "by_domain": counts_by_domain,
+            "by_ring": counts_by_ring,
+            "density_per_km2": round(density_per_km2, 2),
+        },
+        "metrics": {
+            "density_score": int(round(density_score)),
+            "diversity_score": int(round(diversity_score)),
+            "accessibility_score": int(round(accessibility_score)),
+            "family_support_score": int(round(family_support_score)),
+            "vitality_score": int(round(vitality_score)),
+            "quietness_score": int(round(quietness_score)),
+            "overall_score": int(round(overall_score)),
+        },
+        "signals": top_signals,
+        "statements": [
+            statement(
+                "Umfeldprofil aus radialem 3-Ring-POI-Modell berechnet (Kernkennzahlen + Explainability).",
+                confidence=layer_conf,
+                evidence=[
+                    evidence_item(
+                        source="osm_poi_overpass",
+                        confidence=layer_conf,
+                        url=source_url,
+                        snippet=f"environment_profile:poi={poi_total},overall={overall_score:.1f}",
+                        field_path="intelligence.environment_profile.metrics.overall_score",
+                    )
+                ],
+                field_path="intelligence.environment_profile",
+            )
+        ],
+    }
+
+
 def build_environment_noise_risk_layer(
     *,
     pois: Sequence[Dict[str, Any]],
@@ -4922,6 +5165,7 @@ def build_intelligence_layers(
     tenants_businesses: Dict[str, Any]
     incidents_timeline: Dict[str, Any]
     environment_noise_risk: Dict[str, Any]
+    environment_profile: Dict[str, Any]
 
     poi_payload = {"source_url": None, "pois": []}
     if settings.get("enable_external"):
@@ -4999,6 +5243,56 @@ def build_intelligence_layers(
                             )
                         ],
                         field_path="intelligence.environment_noise_risk",
+                    )
+                ],
+            }
+
+        try:
+            environment_profile = build_environment_profile_layer(
+                pois=pois,
+                source_url=source_url,
+                radius_m=int(settings.get("poi_radius_m") or 180),
+                mode=mode,
+            )
+        except Exception as ex:
+            environment_profile = {
+                "status": "error",
+                "model": {
+                    "id": "radius-v1",
+                    "mode": mode,
+                    "radius_m": int(settings.get("poi_radius_m") or 180),
+                    "rings": [],
+                    "distance_weighting": "ring_weight * (0.4 + 0.6 * proximity)",
+                },
+                "counts": {
+                    "poi_total": 0,
+                    "by_domain": {},
+                    "by_ring": {},
+                },
+                "metrics": {
+                    "density_score": 0,
+                    "diversity_score": 0,
+                    "accessibility_score": 0,
+                    "family_support_score": 0,
+                    "vitality_score": 0,
+                    "quietness_score": 0,
+                    "overall_score": 0,
+                },
+                "signals": [],
+                "statements": [
+                    statement(
+                        "Umfeldprofil konnte nicht berechnet werden.",
+                        confidence=0.3,
+                        evidence=[
+                            evidence_item(
+                                source="osm_poi_overpass",
+                                confidence=0.3,
+                                url=source_url,
+                                snippet=str(ex),
+                                field_path="intelligence.environment_profile",
+                            )
+                        ],
+                        field_path="intelligence.environment_profile",
                     )
                 ],
             }
@@ -5105,6 +5399,46 @@ def build_intelligence_layers(
                 )
             ],
         }
+        environment_profile = {
+            "status": "disabled_by_mode",
+            "model": {
+                "id": "radius-v1",
+                "mode": mode,
+                "radius_m": int(settings.get("poi_radius_m") or 180),
+                "rings": [],
+                "distance_weighting": "ring_weight * (0.4 + 0.6 * proximity)",
+            },
+            "counts": {
+                "poi_total": 0,
+                "by_domain": {},
+                "by_ring": {},
+            },
+            "metrics": {
+                "density_score": 0,
+                "diversity_score": 0,
+                "accessibility_score": 0,
+                "family_support_score": 0,
+                "vitality_score": 0,
+                "quietness_score": 0,
+                "overall_score": 0,
+            },
+            "signals": [],
+            "statements": [
+                statement(
+                    "Umfeldprofil ist im basic-Modus deaktiviert.",
+                    confidence=0.6,
+                    evidence=[
+                        evidence_item(
+                            source="osm_poi_overpass",
+                            confidence=0.6,
+                            snippet="Mode basic",
+                            field_path="intelligence.environment_profile",
+                        )
+                    ],
+                    field_path="intelligence.environment_profile",
+                )
+            ],
+        }
 
     consistency_checks = build_consistency_checks_layer(
         query=query,
@@ -5132,6 +5466,7 @@ def build_intelligence_layers(
         },
         "tenants_businesses": tenants_businesses,
         "incidents_timeline": incidents_timeline,
+        "environment_profile": environment_profile,
         "environment_noise_risk": environment_noise_risk,
         "consistency_checks": consistency_checks,
         "executive_risk_summary": executive_risk_summary,
@@ -5735,6 +6070,11 @@ def build_report(
                 "status": (intelligence.get("incidents_timeline") or {}).get("status"),
                 "events": len((intelligence.get("incidents_timeline") or {}).get("events") or []),
                 "relevant_events": (intelligence.get("incidents_timeline") or {}).get("relevant_event_count", 0),
+            },
+            "environment_profile": {
+                "status": (intelligence.get("environment_profile") or {}).get("status"),
+                "overall_score": ((intelligence.get("environment_profile") or {}).get("metrics") or {}).get("overall_score"),
+                "poi_total": ((intelligence.get("environment_profile") or {}).get("counts") or {}).get("poi_total"),
             },
             "environment_noise_risk": {
                 "status": (intelligence.get("environment_noise_risk") or {}).get("status"),

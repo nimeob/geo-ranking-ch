@@ -414,8 +414,35 @@ class TestCoreFunctions(unittest.TestCase):
 
         self.assertEqual(intel["tenants_businesses"]["status"], "disabled_by_mode")
         self.assertEqual(intel["incidents_timeline"]["status"], "disabled_by_mode")
+        self.assertEqual(intel["environment_profile"]["status"], "disabled_by_mode")
         self.assertEqual(intel["environment_noise_risk"]["status"], "disabled_by_mode")
         self.assertEqual(intel["mode"], "basic")
+
+    def test_environment_profile_layer_calculates_radius_metrics(self):
+        profile = address_intel.build_environment_profile_layer(
+            pois=[
+                {"name": "Bahnhof", "category": "amenity", "subcategory": "bus_station", "distance_m": 55},
+                {"name": "Migros", "category": "shop", "subcategory": "supermarket", "distance_m": 95},
+                {"name": "Primarschule", "category": "amenity", "subcategory": "school", "distance_m": 130},
+                {"name": "Apotheke", "category": "amenity", "subcategory": "pharmacy", "distance_m": 170},
+                {"name": "Stadtpark", "category": "leisure", "subcategory": "park", "distance_m": 140},
+                {"name": "Bar Central", "category": "amenity", "subcategory": "bar", "distance_m": 215},
+            ],
+            source_url="https://overpass-api.de/api/interpreter?data=test",
+            radius_m=240,
+            mode="extended",
+        )
+
+        self.assertEqual(profile["status"], "ok")
+        self.assertEqual(profile["model"]["id"], "radius-v1")
+        self.assertEqual(profile["model"]["radius_m"], 240)
+        self.assertEqual(profile["counts"]["poi_total"], 6)
+        self.assertGreater(profile["counts"]["by_ring"]["inner"], 0)
+        self.assertGreater(profile["counts"]["by_ring"]["mid"], 0)
+        self.assertGreaterEqual(profile["metrics"]["accessibility_score"], 1)
+        self.assertGreaterEqual(profile["metrics"]["diversity_score"], 50)
+        self.assertGreaterEqual(profile["metrics"]["overall_score"], 1)
+        self.assertTrue(profile["signals"])
 
     def test_area_weight_parsing_with_aliases(self):
         weights = address_intel.parse_area_weights("ruhe=1.3,ov=0.9,shopping=0.8,green=1.1,safety=1.7,nightlife=0.4")

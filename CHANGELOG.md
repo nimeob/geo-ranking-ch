@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-20.4.a Umfelddaten-Radiusmodell + Kernkennzahlen, Issue #28)
+- **`src/address_intel.py`** um ein neues Layer `intelligence.environment_profile` erweitert: radialer 3-Ring-Ansatz (`inner/mid/outer`) mit transparenter Distanzgewichtung, Domain-/Ring-Counts, Dichtewerten und Kernmetriken (`density`, `diversity`, `accessibility`, `family_support`, `vitality`, `quietness`, `overall`).
+- **`summary_compact.intelligence.environment_profile`** ergänzt (Status, `overall_score`, `poi_total`) für schnelle operative Einordnung.
+- **`tests/test_core.py`** um Regressionstests für das Radiusmodell und den Basic-Mode-Disable-Pfad erweitert.
+- **`docs/api/environment-profile-radius-model-v1.md`** neu ergänzt und in **`docs/api/contract-v1.md`** verlinkt.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschlussnachweis für #28 fortgeschrieben.
+
 ### Changed (2026-02-27 — BL-20.1.j Stabiles grouped Response-Schema v1, Issue #279)
 - **`docs/api/schemas/v1/analyze.grouped.response.schema.json`** neu ergänzt: normatives grouped Response-Schema mit fester Grundstruktur (`result.status` + `result.data`) und additiven Erweiterungspunkten (`additionalProperties`).
 - **`docs/api/schemas/v1/analyze.grouped.core-paths.v1.json`** neu ergänzt: versionierte Single-Source-of-Truth-Liste für stabile Kernpfade (u. a. Confidence-, Entity- und Match-Score-Pfade).
