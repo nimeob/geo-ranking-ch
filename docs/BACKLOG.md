@@ -208,7 +208,7 @@
 - **Priorität:** P2
 - **Aufwand:** S
 - **Abhängigkeiten:** BL-03
-- **Status:** 🟡 in Umsetzung (2026-02-26)
+- **Status:** 🟡 in Umsetzung (2026-02-27)
 - **Akzeptanzkriterien:**
   - Read-only Evidenz zu aktueller Nutzung des Legacy-Users `swisstopo-api-deploy` dokumentiert. ✅
   - Risikoarme Decommission-Checkliste (ohne direkte Abschaltung) liegt vor. ✅
@@ -224,6 +224,7 @@
   - ✅ Read-only Recheck ausgeführt (2026-02-26): `audit_legacy_aws_consumer_refs.sh` => Exit `10`; `audit_legacy_runtime_consumers.sh` => Exit `30`; `LOOKBACK_HOURS=6 audit_legacy_cloudtrail_consumers.sh` => Exit `10` (Legacy-Aktivität weiter aktiv, primärer Non-AWS-Fingerprint `76.13.144.185`, zusätzlich AWS-Service-Delegation via `lambda.amazonaws.com`).
   - ✅ Recheck vertieft (2026-02-26, 8h): `LOOKBACK_HOURS=8 audit_legacy_cloudtrail_consumers.sh` => Exit `10` (404 ausgewertete Events; Fingerprints stabil), `check_bl17_oidc_assumerole_posture.sh` => Exit `30` (OIDC-Workflow korrekt, Runtime-Caller weiterhin Legacy); zusätzlich `sts:AssumeRole`-Events auf demselben Fingerprint sichtbar.
   - ✅ Worker-Recheck (2026-02-26, 6h): `audit_legacy_aws_consumer_refs.sh` => Exit `10`, `audit_legacy_runtime_consumers.sh` => Exit `30`, `LOOKBACK_HOURS=6 audit_legacy_cloudtrail_consumers.sh` => Exit `10` (10 ausgewertete Legacy-Events, dominanter Fingerprint weiter `76.13.144.185`), `check_bl17_oidc_assumerole_posture.sh` => Exit `30`; außerdem Repo-Scan in `audit_legacy_aws_consumer_refs.sh` auf `git grep` mit Excludes (`artifacts/`, `.venv/`, `.terraform/`) gehärtet.
+  - ✅ Worker-A-Recheck (2026-02-27, 6h): `audit_legacy_aws_consumer_refs.sh` => Exit `10`, `audit_legacy_runtime_consumers.sh` => Exit `30`, `LOOKBACK_HOURS=6 audit_legacy_cloudtrail_consumers.sh` => Exit `10` (98 Raw-Events / 90 ausgewertete Events; dominanter Fingerprint weiterhin `76.13.144.185` inkl. `logs:FilterLogEvents` und `bedrock:ListFoundationModels` Aktivität), `check_bl17_oidc_assumerole_posture.sh` => Exit `30`.
   - ✅ Testabdeckung für CloudTrail-Fingerprint-Audit ergänzt (2026-02-26, Issue #109): `tests/test_audit_legacy_cloudtrail_consumers.py` deckt Parametervalidierung, No-Events-Pfad (Exit `0`), Events-Found-Pfad (Exit `10`) und LookupEvents-Filter-Toggle (`INCLUDE_LOOKUP_EVENTS`) reproduzierbar ab.
 - **Blocker:**
   - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed + aktueller Caller-ARN), daher noch keine sichere Abschaltfreigabe.
