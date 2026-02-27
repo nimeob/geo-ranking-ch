@@ -10,6 +10,8 @@ REGION="${AWS_REGION:-eu-central-1}"
 MAX_RESULTS="${MAX_RESULTS:-50}"
 MAX_PAGES="${MAX_PAGES:-20}"
 INCLUDE_LOOKUP_EVENTS="${INCLUDE_LOOKUP_EVENTS:-0}"
+FINGERPRINT_REPORT_JSON_RAW="${FINGERPRINT_REPORT_JSON:-artifacts/bl15/legacy-cloudtrail-fingerprint-report.json}"
+FINGERPRINT_REPORT_JSON="$(printf '%s' "$FINGERPRINT_REPORT_JSON_RAW" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
 
 if ! [[ "$LOOKBACK_HOURS" =~ ^[0-9]+$ ]] || [[ "$LOOKBACK_HOURS" -lt 1 ]]; then
   echo "ERROR: LOOKBACK_HOURS muss eine positive Ganzzahl sein (aktuell: $LOOKBACK_HOURS)." >&2
@@ -28,6 +30,11 @@ fi
 
 if [[ "$INCLUDE_LOOKUP_EVENTS" != "0" && "$INCLUDE_LOOKUP_EVENTS" != "1" ]]; then
   echo "ERROR: INCLUDE_LOOKUP_EVENTS muss 0 oder 1 sein (aktuell: $INCLUDE_LOOKUP_EVENTS)." >&2
+  exit 20
+fi
+
+if [[ -z "$FINGERPRINT_REPORT_JSON" ]]; then
+  echo "ERROR: FINGERPRINT_REPORT_JSON darf nicht leer sein." >&2
   exit 20
 fi
 
@@ -137,47 +144,30 @@ echo "Seiten gelesen: $pages"
 echo "LookupEvents in Auswertung: $([[ "$INCLUDE_LOOKUP_EVENTS" == "1" ]] && echo "inkludiert" || echo "exkludiert")"
 echo
 
-summary_status="$(
-python3 - "$tmp_events" <<'PY'
+summary_status="$({
+  START_TIME="$start_time" \
+  END_TIME="$end_time" \
+  LOOKBACK_HOURS="$LOOKBACK_HOURS" \
+  REGION="$REGION" \
+  LEGACY_USER="$LEGACY_USER" \
+  INCLUDE_LOOKUP_EVENTS="$INCLUDE_LOOKUP_EVENTS" \
+  MAX_RESULTS="$MAX_RESULTS" \
+  MAX_PAGES="$MAX_PAGES" \
+  READ_PAGES="$pages" \
+  FINGERPRINT_REPORT_JSON="$FINGERPRINT_REPORT_JSON" \
+  python3 - "$tmp_events" <<'PY'
 import collections
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 
-path = sys.argv[1]
-records = []
-with open(path, "r", encoding="utf-8") as f:
-    for line in f:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            records.append(json.loads(line))
-        except Exception:
-            pass
+path = Path(sys.argv[1])
+report_path = Path(os.environ["FINGERPRINT_REPORT_JSON"])
+if not report_path.is_absolute():
+    report_path = Path.cwd() / report_path
 
-if not records:
-    print("NO_EVENTS")
-    sys.exit(0)
-
-raw_count = len(records)
-include_lookup_events = os.environ.get("INCLUDE_LOOKUP_EVENTS", "0") == "1"
-if not include_lookup_events:
-    records = [
-        rec
-        for rec in records
-        if not (
-            (rec.get("event_source") or "") == "cloudtrail.amazonaws.com"
-            and (rec.get("event_name") or "") == "LookupEvents"
-        )
-    ]
-
-if not records:
-    print(f"Events im Fenster (raw): {raw_count}")
-    print("Events in Auswertung: 0 (nach Filter)")
-    print("NO_EVENTS")
-    sys.exit(0)
 
 def parse_ts(value: str):
     if not value:
@@ -189,67 +179,164 @@ def parse_ts(value: str):
     except Exception:
         return None
 
+
+def normalize_ts(value: str) -> str:
+    parsed = parse_ts(value)
+    if parsed is None:
+        return "unknown"
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+records = []
+with path.open("r", encoding="utf-8") as f:
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            records.append(json.loads(line))
+        except Exception:
+            pass
+
+raw_count = len(records)
+include_lookup_events = os.environ.get("INCLUDE_LOOKUP_EVENTS", "0") == "1"
+if include_lookup_events:
+    analyzed = list(records)
+else:
+    analyzed = [
+        rec
+        for rec in records
+        if not (
+            (rec.get("event_source") or "") == "cloudtrail.amazonaws.com"
+            and (rec.get("event_name") or "") == "LookupEvents"
+        )
+    ]
+
+filtered_lookup_count = raw_count - len(analyzed)
 records_sorted = sorted(
-    records,
+    analyzed,
     key=lambda r: parse_ts(r.get("event_time") or "") or datetime.min,
     reverse=True,
 )
 
-print(f"Events im Fenster (raw): {raw_count}")
-print(f"Events in Auswertung: {len(records_sorted)}")
-
-combo = collections.defaultdict(lambda: {
-    "count": 0,
-    "latest": None,
-    "sources": set(),
-    "names": set(),
-})
+combo = collections.defaultdict(
+    lambda: {
+        "count": 0,
+        "latest": None,
+        "event_sources": set(),
+        "event_names": set(),
+    }
+)
 
 for rec in records_sorted:
     key = (rec.get("source_ip", "unknown"), rec.get("user_agent", "unknown"))
     entry = combo[key]
     entry["count"] += 1
-    entry["sources"].add(rec.get("event_source", "unknown"))
-    entry["names"].add(rec.get("event_name", "unknown"))
+    entry["event_sources"].add(rec.get("event_source", "unknown"))
+    entry["event_names"].add(rec.get("event_name", "unknown"))
 
     ts = parse_ts(rec.get("event_time") or "")
     if ts is not None and (entry["latest"] is None or ts > entry["latest"]):
         entry["latest"] = ts
 
+ranked = sorted(combo.items(), key=lambda item: item[1]["count"], reverse=True)[:10]
+top_fingerprints = []
+for idx, ((source_ip, user_agent), data) in enumerate(ranked, start=1):
+    latest = data["latest"].astimezone(timezone.utc).isoformat().replace("+00:00", "Z") if data["latest"] else "unknown"
+    top_fingerprints.append(
+        {
+            "rank": idx,
+            "source_ip": source_ip,
+            "user_agent": user_agent,
+            "event_count": data["count"],
+            "latest_event_time": latest,
+            "event_sources": sorted(data["event_sources"]),
+            "event_names": sorted(data["event_names"]),
+        }
+    )
+
+recent_events = [
+    {
+        "event_time": rec.get("event_time") or "unknown",
+        "event_source": rec.get("event_source") or "unknown",
+        "event_name": rec.get("event_name") or "unknown",
+        "source_ip": rec.get("source_ip") or "unknown",
+        "user_agent": rec.get("user_agent") or "unknown",
+        "recipient_account": rec.get("recipient_account") or "unknown",
+        "username": rec.get("username") or "unknown",
+    }
+    for rec in records_sorted[:10]
+]
+
+status = "found_events" if records_sorted else "no_events"
+report = {
+    "summary": "Legacy CloudTrail Consumer Fingerprint Audit (read-only)",
+    "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "window_utc": {
+        "start": os.environ.get("START_TIME"),
+        "end": os.environ.get("END_TIME"),
+        "lookback_hours": int(os.environ.get("LOOKBACK_HOURS", "0")),
+    },
+    "config": {
+        "legacy_user": os.environ.get("LEGACY_USER"),
+        "region": os.environ.get("REGION"),
+        "max_results": int(os.environ.get("MAX_RESULTS", "0")),
+        "max_pages": int(os.environ.get("MAX_PAGES", "0")),
+        "pages_read": int(os.environ.get("READ_PAGES", "0")),
+        "include_lookup_events": include_lookup_events,
+    },
+    "counts": {
+        "events_raw": raw_count,
+        "events_analyzed": len(records_sorted),
+        "lookup_events_filtered": filtered_lookup_count,
+    },
+    "top_fingerprints": top_fingerprints,
+    "latest_events": recent_events,
+    "status": status,
+    "expected_exit_code": 10 if status == "found_events" else 0,
+}
+
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+if not records_sorted:
+    if raw_count and not include_lookup_events:
+        print(f"Events im Fenster (raw): {raw_count}")
+        print("Events in Auswertung: 0 (nach Filter)")
+    print("__NO_EVENTS__")
+    sys.exit(0)
+
+print(f"Events im Fenster (raw): {raw_count}")
+print(f"Events in Auswertung: {len(records_sorted)}")
 print()
 print("Top Fingerprints (source_ip + user_agent):")
-for idx, ((source_ip, user_agent), data) in enumerate(
-    sorted(combo.items(), key=lambda item: item[1]["count"], reverse=True)[:10],
-    start=1,
-):
-    latest = data["latest"].isoformat().replace("+00:00", "Z") if data["latest"] else "unknown"
-    event_sources = ",".join(sorted(data["sources"]))
-    event_names = ",".join(sorted(data["names"]))
-    print(f"{idx:>2}. count={data['count']:<3} latest={latest}")
-    print(f"    source_ip={source_ip}")
-    print(f"    user_agent={user_agent}")
-    print(f"    event_sources={event_sources}")
-    print(f"    event_names={event_names}")
+for fp in top_fingerprints:
+    print(f"{fp['rank']:>2}. count={fp['event_count']:<3} latest={fp['latest_event_time']}")
+    print(f"    source_ip={fp['source_ip']}")
+    print(f"    user_agent={fp['user_agent']}")
+    print(f"    event_sources={','.join(fp['event_sources'])}")
+    print(f"    event_names={','.join(fp['event_names'])}")
 
 print()
 print("Letzte 10 Events:")
-for rec in records_sorted[:10]:
+for rec in recent_events:
     print(
         "- {event_time} | {event_source}:{event_name} | ip={source_ip} | ua={user_agent}".format(
-            event_time=rec.get("event_time") or "unknown",
-            event_source=rec.get("event_source") or "unknown",
-            event_name=rec.get("event_name") or "unknown",
-            source_ip=rec.get("source_ip") or "unknown",
-            user_agent=rec.get("user_agent") or "unknown",
+            event_time=normalize_ts(rec["event_time"]),
+            event_source=rec["event_source"],
+            event_name=rec["event_name"],
+            source_ip=rec["source_ip"],
+            user_agent=rec["user_agent"],
         )
     )
 
-print("FOUND_EVENTS")
+print("__FOUND_EVENTS__")
 PY
-)"
+})"
 
-if [[ "$summary_status" == *"NO_EVENTS"* ]]; then
+if [[ "$summary_status" == *"__NO_EVENTS__"* ]]; then
   echo "Keine Legacy-CloudTrail-Events im gewählten Zeitfenster gefunden."
+  echo "Strukturierter Report: $FINGERPRINT_REPORT_JSON"
   echo
   echo "Exit-Code-Interpretation:"
   echo "  0  = kein Legacy-Event im Fenster"
@@ -258,7 +345,8 @@ if [[ "$summary_status" == *"NO_EVENTS"* ]]; then
   exit 0
 fi
 
-echo "$summary_status" | sed '/^FOUND_EVENTS$/d'
+echo "$summary_status" | sed '/^__FOUND_EVENTS__$/d;/^__NO_EVENTS__$/d'
+echo "Strukturierter Report: $FINGERPRINT_REPORT_JSON"
 echo
 echo "Exit-Code-Interpretation:"
 echo "  0  = kein Legacy-Event im Fenster"

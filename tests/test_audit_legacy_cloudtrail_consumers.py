@@ -68,11 +68,31 @@ class TestAuditLegacyCloudTrailConsumersScript(unittest.TestCase):
         self.assertEqual(result.returncode, 20)
         self.assertIn("LOOKBACK_HOURS", result.stderr)
 
-    def test_returns_zero_when_no_events_found(self) -> None:
-        result = self._run_with_mocked_aws({"Events": []})
+    def test_rejects_blank_report_path(self) -> None:
+        result = self._run_with_mocked_aws(
+            {"Events": []},
+            env_overrides={"FINGERPRINT_REPORT_JSON": "   "},
+        )
 
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("Keine Legacy-CloudTrail-Events", result.stdout)
+        self.assertEqual(result.returncode, 20)
+        self.assertIn("FINGERPRINT_REPORT_JSON", result.stderr)
+
+    def test_returns_zero_when_no_events_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report_path = Path(tmp) / "bl15" / "cloudtrail-report.json"
+            result = self._run_with_mocked_aws(
+                {"Events": []},
+                env_overrides={"FINGERPRINT_REPORT_JSON": str(report_path)},
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("Keine Legacy-CloudTrail-Events", result.stdout)
+            self.assertTrue(report_path.exists())
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "no_events")
+            self.assertEqual(report["counts"]["events_raw"], 0)
+            self.assertEqual(report["counts"]["events_analyzed"], 0)
 
     def test_returns_ten_and_prints_fingerprint_when_events_exist(self) -> None:
         cloudtrail_event = {
@@ -99,11 +119,25 @@ class TestAuditLegacyCloudTrailConsumersScript(unittest.TestCase):
             ]
         }
 
-        result = self._run_with_mocked_aws(payload)
+        with tempfile.TemporaryDirectory() as tmp:
+            report_path = Path(tmp) / "bl15" / "cloudtrail-report.json"
+            result = self._run_with_mocked_aws(
+                payload,
+                env_overrides={"FINGERPRINT_REPORT_JSON": str(report_path)},
+            )
 
-        self.assertEqual(result.returncode, 10)
-        self.assertIn("Top Fingerprints", result.stdout)
-        self.assertIn("source_ip=76.13.144.185", result.stdout)
+            self.assertEqual(result.returncode, 10)
+            self.assertIn("Top Fingerprints", result.stdout)
+            self.assertIn("source_ip=76.13.144.185", result.stdout)
+            self.assertIn(f"Strukturierter Report: {report_path}", result.stdout)
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "found_events")
+            self.assertEqual(report["counts"]["events_raw"], 1)
+            self.assertEqual(report["counts"]["events_analyzed"], 1)
+            self.assertEqual(report["window_utc"]["lookback_hours"], 6)
+            self.assertTrue(report["top_fingerprints"])
+            self.assertEqual(report["top_fingerprints"][0]["source_ip"], "76.13.144.185")
 
     def test_lookup_events_are_filtered_by_default_but_includable(self) -> None:
         lookup_detail = {

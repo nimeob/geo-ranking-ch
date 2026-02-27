@@ -139,8 +139,16 @@ Für die strukturierte Erfassung von Injection-Pfaden inkl. Migrationsschritten:
 Zur schnelleren Attribution von aktiven Consumern wurde ergänzt:
 
 ```bash
-LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh
+LOOKBACK_HOURS=6 \
+FINGERPRINT_REPORT_JSON=artifacts/bl15/legacy-cloudtrail-fingerprint-report.json \
+./scripts/audit_legacy_cloudtrail_consumers.sh
 ```
+
+Der Lauf schreibt einen strukturierten JSON-Report (standardmäßig `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`) mit:
+- Zeitfenster (`window_utc.start/end`, `lookback_hours`)
+- Event-Counts (`events_raw`, `events_analyzed`, `lookup_events_filtered`)
+- Top-Fingerprints (`source_ip`, `user_agent`, Event-Sets, letzter Event-Zeitpunkt)
+- Letzten 10 Events als read-only Evidenz ohne Secret-Werte
 
 Verifizierter Lauf (`Exit 10`):
 
