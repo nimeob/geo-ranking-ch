@@ -399,6 +399,7 @@
 - **Fortschritt (2026-02-26):**
   - ✅ BL-20.7.b abgeschlossen (Issue #35): GTM-MVP-Artefakte dokumentiert in [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md) (Value Proposition, Scope, Demo-Flow).
   - ✅ 2026-02-26: #36 abgeschlossen (Lizenzgrenzen/GTM-Claims) mit Claim-Gate in [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md) inkl. Verweis auf #24 (BL-20.2.a).
+  - ✅ 2026-02-27: #36 Issue-/Backlog-Sync nachgezogen (Issue war trotz Merge #49 noch offen) und administrativ geschlossen.
   - ✅ 2026-02-26: #24 abgeschlossen (BL-20.2.a Quelleninventar CH + Lizenzmatrix) mit Quellen-/Lizenzinventar in [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md) inkl. markierter offener Rechts-/Betriebsfragen.
   - ✅ 2026-02-26: #25 abgeschlossen (BL-20.2.b Feld-Mapping Quelle -> Domain) mit technischer Mapping-Spezifikation in [`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`](DATA_SOURCE_FIELD_MAPPING_CH.md), verbindlichen Transform-Regeln und angelegten Folge-Issues #63/#64/#65.
   - ✅ 2026-02-26: #22 abgeschlossen (BL-20.1.a API-Contract v1) mit versioniertem Vertrag unter [`docs/api/contract-v1.md`](api/contract-v1.md) inkl. Schemas, Fehlercode-Matrix und Beispielpayloads.
