@@ -1,0 +1,35 @@
+{
+  "example_id": "personalized-golden-01-quiet-first",
+  "methodology_version": "scoring-v1-draft",
+  "profile": "quiet-first",
+  "engine_output": {
+    "base_score": 80.1,
+    "personalized_score": 80.1349,
+    "fallback_applied": false,
+    "weights": {
+      "base": {
+        "topography": 0.34,
+        "access": 0.29,
+        "building_state": 0.17,
+        "data_quality": 0.2
+      },
+      "personalized": {
+        "topography": 0.384672,
+        "access": 0.251369,
+        "building_state": 0.181478,
+        "data_quality": 0.182482
+      },
+      "delta": {
+        "topography": 0.24,
+        "access": -0.05,
+        "building_state": 0.17,
+        "data_quality": 0.0
+      }
+    },
+    "signal_strength": 0.46
+  },
+  "annotations": {
+    "personalized_minus_base": 0.0349,
+    "reproducibility_note": "Werte müssen bei identischem Input deterministisch stabil bleiben."
+  }
+}

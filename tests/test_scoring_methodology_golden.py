@@ -3,6 +3,8 @@ import re
 import unittest
 from pathlib import Path
 
+from src.personalized_scoring import compute_two_stage_scores
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCORING_METHODOLOGY_DOC = REPO_ROOT / "docs" / "api" / "scoring_methodology.md"
@@ -40,6 +42,17 @@ EXPLAINABILITY_E2E_CASES = {
     },
     "explainability-e2e-02-urban-first": {
         "delta_sign": 1,
+        "profile": "urban-first",
+    },
+}
+
+PERSONALIZED_RUNTIME_GOLDEN_CASES = {
+    "personalized-golden-01-quiet-first": {
+        "delta_sign": 1,
+        "profile": "quiet-first",
+    },
+    "personalized-golden-02-urban-first": {
+        "delta_sign": -1,
         "profile": "urban-first",
     },
 }
@@ -246,6 +259,67 @@ class TestScoringMethodologyGolden(unittest.TestCase):
                 direction_flips,
                 msg=f"Mindestens ein Richtungswechsel pro Beispiel erwartet (pro/contra): {case}",
             )
+
+    def test_personalized_runtime_golden_examples_are_linked_from_methodology(self):
+        for case in PERSONALIZED_RUNTIME_GOLDEN_CASES:
+            input_rel = f"./examples/scoring/{case}.input.json"
+            output_rel = f"./examples/scoring/{case}.output.json"
+            self.assertIn(input_rel, self.doc_content, msg=f"Input-Link fehlt in Methodik-Doku: {input_rel}")
+            self.assertIn(output_rel, self.doc_content, msg=f"Output-Link fehlt in Methodik-Doku: {output_rel}")
+
+    def test_personalized_runtime_golden_examples_are_deterministic_and_stable(self):
+        deltas: list[float] = []
+
+        for case, meta in PERSONALIZED_RUNTIME_GOLDEN_CASES.items():
+            input_path = SCORING_WORKED_EXAMPLES_DIR / f"{case}.input.json"
+            output_path = SCORING_WORKED_EXAMPLES_DIR / f"{case}.output.json"
+
+            self.assertTrue(input_path.is_file(), msg=f"Fehlendes Input-Artefakt: {input_path}")
+            self.assertTrue(output_path.is_file(), msg=f"Fehlendes Output-Artefakt: {output_path}")
+
+            input_payload = json.loads(input_path.read_text(encoding="utf-8"))
+            output_payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(
+                input_payload.get("methodology_version"),
+                self.methodology_version,
+                msg=f"Input-Version stimmt nicht mit Methodik-Version überein: {case}",
+            )
+            self.assertEqual(
+                output_payload.get("methodology_version"),
+                self.methodology_version,
+                msg=f"Output-Version stimmt nicht mit Methodik-Version überein: {case}",
+            )
+            self.assertEqual(
+                output_payload.get("profile"),
+                meta["profile"],
+                msg=f"Unerwartetes Profil im Output-Artefakt: {case}",
+            )
+
+            factors = input_payload.get("factors", [])
+            preferences = input_payload.get("preferences", {})
+            first = compute_two_stage_scores(factors, preferences)
+            second = compute_two_stage_scores(factors, preferences)
+            self.assertEqual(first, second, msg=f"Nicht-deterministischer Runtime-Output in {case}")
+
+            expected_engine_output = output_payload.get("engine_output")
+            self.assertEqual(first, expected_engine_output, msg=f"Golden-Drift erkannt für {case}")
+
+            delta = round(first["personalized_score"] - first["base_score"], 4)
+            deltas.append(delta)
+            self.assertEqual(
+                delta,
+                output_payload.get("annotations", {}).get("personalized_minus_base"),
+                msg=f"Delta-Artefakt stimmt nicht mit Runtime-Berechnung überein: {case}",
+            )
+
+            if meta["delta_sign"] < 0:
+                self.assertLess(delta, 0, msg=f"Erwarteter negativer Profil-Effekt fehlt in {case}")
+            else:
+                self.assertGreater(delta, 0, msg=f"Erwarteter positiver Profil-Effekt fehlt in {case}")
+
+        self.assertTrue(any(delta > 0 for delta in deltas), msg="Mindestens ein positiver Delta-Effekt erwartet")
+        self.assertTrue(any(delta < 0 for delta in deltas), msg="Mindestens ein negativer Delta-Effekt erwartet")
 
 
 if __name__ == "__main__":

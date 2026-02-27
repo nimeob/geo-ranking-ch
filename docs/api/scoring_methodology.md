@@ -315,8 +315,26 @@ Verbindliche Lesart dieser Beispiele:
 Guard:
 - `pytest -q tests/test_scoring_methodology_golden.py`
 
+### 10.1 Runtime-Golden-Testset für konträre Präferenzprofile (BL-20.4.d.wp4)
+
+Zusätzlich zu den Explainability-v2-E2E-Artefakten sind für die deterministische Runtime-Engine zwei konträre Präferenzprofile als Golden-Referenzfälle versioniert:
+
+| Beispiel | Profil | Input-Artefakt | Output-Artefakt |
+|---|---|---|---|
+| Runtime-G1 | `quiet-first` | [`docs/api/examples/scoring/personalized-golden-01-quiet-first.input.json`](./examples/scoring/personalized-golden-01-quiet-first.input.json) | [`docs/api/examples/scoring/personalized-golden-01-quiet-first.output.json`](./examples/scoring/personalized-golden-01-quiet-first.output.json) |
+| Runtime-G2 | `urban-first` | [`docs/api/examples/scoring/personalized-golden-02-urban-first.input.json`](./examples/scoring/personalized-golden-02-urban-first.input.json) | [`docs/api/examples/scoring/personalized-golden-02-urban-first.output.json`](./examples/scoring/personalized-golden-02-urban-first.output.json) |
+
+Verbindliche Lesart:
+- Beide Fälle nutzen identische Faktorbasis (`topography`, `access`, `building_state`, `data_quality`) und unterscheiden sich ausschließlich über Präferenzprofile.
+- Die Artefakte pinnen den vollständigen `engine_output` inklusive `weights.base`, `weights.personalized`, `weights.delta`.
+- `annotations.personalized_minus_base` muss reproduzierbar stabil bleiben und zwischen den Profilen gegensätzliche Wirkung zeigen.
+
+Guard:
+- `pytest -q tests/test_personalized_scoring_engine.py tests/test_scoring_methodology_golden.py`
+
 ## 11) Open Items (Folge-Work-Packages)
 
 - Der Scope von BL-20.1.f.wp1–wp4 (#79, #80, #81, #82) ist abgeschlossen.
 - ✅ 2026-02-27: BL-20.4.d.wp1 (#180) liefert den deterministischen Engine-Core für zweistufiges Scoring (`src/personalized_scoring.py`) inkl. harter Fallback-Regel (`personalized_score == base_score` ohne Präferenzsignal) und Unit-Tests (`tests/test_personalized_scoring_engine.py`).
-- Folgearbeiten laufen in separaten Backlog-Issues (z. B. API-Projection, Methodik/Contract-Sync, Golden-Test-Ausbau für personalisierte Scores).
+- ✅ 2026-02-27: BL-20.4.d.wp4 (#183) ergänzt ein runtime-nahes Golden-Testset mit konträren Präferenzprofilen (Artefakte unter `docs/api/examples/scoring/personalized-golden-*.json`) sowie Drift-/Determinismus-Guards in `tests/test_scoring_methodology_golden.py`.
+- Folgearbeiten laufen in separaten Backlog-Issues (z. B. API-Projection/Methodik-Sync für weitere Präferenzdimensionen).

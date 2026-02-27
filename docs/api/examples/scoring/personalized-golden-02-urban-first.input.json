@@ -1,0 +1,35 @@
+{
+  "example_id": "personalized-golden-02-urban-first",
+  "methodology_version": "scoring-v1-draft",
+  "profile": "urban-first",
+  "factors": [
+    {
+      "key": "topography",
+      "score": 82.0,
+      "weight": 0.34
+    },
+    {
+      "key": "access",
+      "score": 76.0,
+      "weight": 0.29
+    },
+    {
+      "key": "building_state",
+      "score": 74.0,
+      "weight": 0.17
+    },
+    {
+      "key": "data_quality",
+      "score": 88.0,
+      "weight": 0.2
+    }
+  ],
+  "preferences": {
+    "lifestyle_density": "urban",
+    "noise_tolerance": "high",
+    "nightlife_preference": "prefer",
+    "school_proximity": "avoid",
+    "family_friendly_focus": "low",
+    "commute_priority": "pt"
+  }
+}
