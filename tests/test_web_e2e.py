@@ -173,6 +173,59 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("version", version)
 
+    def test_dictionary_index_endpoint_exposes_versioned_domains_and_cache_headers(self):
+        status, body, headers = _http_json(
+            "GET",
+            f"{self.base_url}/api/v1/dictionaries",
+            return_headers=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("version", body)
+        self.assertIn("etag", body)
+        self.assertIn("domains", body)
+        self.assertIn("heating", body.get("domains", {}))
+
+        heating_meta = body["domains"]["heating"]
+        self.assertIn("version", heating_meta)
+        self.assertIn("etag", heating_meta)
+        self.assertEqual(heating_meta.get("path"), "/api/v1/dictionaries/heating")
+
+        self.assertEqual(headers.get("etag"), body.get("etag"))
+        self.assertIn("max-age", headers.get("cache-control", ""))
+
+    def test_dictionary_domain_endpoint_supports_if_none_match_304(self):
+        status, body, headers = _http_json(
+            "GET",
+            f"{self.base_url}/api/v1/dictionaries/heating",
+            return_headers=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(body.get("domain"), "heating")
+        self.assertIn("tables", body)
+        self.assertIn("gwaerzh", body.get("tables", {}))
+        self.assertEqual(headers.get("etag"), body.get("etag"))
+
+        etag = body.get("etag")
+        status_304, body_304, headers_304 = _http_json(
+            "GET",
+            f"{self.base_url}/api/v1/dictionaries/heating",
+            headers={"If-None-Match": etag},
+            return_headers=True,
+        )
+        self.assertEqual(status_304, 304)
+        self.assertEqual(body_304, {})
+        self.assertEqual(headers_304.get("etag"), etag)
+        self.assertIn("max-age", headers_304.get("cache-control", ""))
+
+    def test_dictionary_endpoint_reports_not_found_for_unknown_domain(self):
+        status, body = _http_json(
+            "GET",
+            f"{self.base_url}/api/v1/dictionaries/unknown-domain",
+        )
+        self.assertEqual(status, 404)
+        self.assertEqual(body.get("error"), "not_found")
+        self.assertIn("unknown dictionary domain", body.get("message", ""))
+
     def test_get_endpoints_echo_request_id(self):
         request_id = "bl18-e2e-get-request-id"
 

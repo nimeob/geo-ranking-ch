@@ -30,6 +30,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`tests/test_api_contract_v1.py`** und **`tests/test_grouped_response_schema_v1.py`** um Guard-Checks für den neuen Dictionary-Envelope und die neuen before/after-Artefakte erweitert.
 - **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschlussnachweis für Issue #287 ergänzt.
 
+### Changed (2026-02-27 — BL-20.1.k.wp2 Dictionary-Endpoints (versioniert + cachebar), Issue #288)
+- **`src/web_service.py`** erweitert um Dictionary-Routing (`GET /api/v1/dictionaries`, `GET /api/v1/dictionaries/<domain>`) mit Domain-Tabellen für `building`/`heating`, stabilen ETags (Hash-basiert) und `Cache-Control`.
+- Conditional-GET für Dictionaries implementiert: `If-None-Match` führt bei Match auf `304 Not Modified` inkl. `ETag` + `Cache-Control`, ohne Response-Body.
+- **`tests/test_web_e2e.py`** um End-to-End-Guards für Dictionary-Index, Domain-Payloads, Unknown-Domain-404 und `304`-Cachepfad ergänzt.
+- **`docs/api/contract-v1.md`** um BL-20.1.k.wp2-Sektion erweitert (normative Endpoint-/Caching-Regeln inkl. `If-None-Match`).
+- **`docs/user/api-usage.md`** um Endpoint-Referenz + Curl-Beispiele für Dictionary-Endpoints inkl. Conditional-GET ergänzt.
+- **`tests/test_api_contract_v1.py`** um Marker-Guards für die neue Contract-Sektion erweitert; **`docs/BACKLOG.md`** mit Abschlussnachweis #288 fortgeschrieben.
+
 ### Changed (2026-02-27 — BL-20.4.d.wp2 Two-Stage Suitability Response Fields, Issue #181)
 - **`src/suitability_light.py`** erweitert um explizites Response-Paar `base_score` + `personalized_score`; solange kein aktives Präferenzsignal verarbeitet wird, liefert der Fallback deterministisch `personalized_score == base_score`.
 - **`docs/api/contract-v1.md`**, **`docs/api/schemas/v1/location-intelligence.response.schema.json`**, **`docs/api/scoring_methodology.md`** und **`docs/api/field_catalog.json`** auf die neuen Two-Stage-Suitability-Felder synchronisiert.

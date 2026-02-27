@@ -22,6 +22,8 @@ https://<dein-endpoint>
 |---|---|---|---|
 | `GET` | `/health` | Liveness/Service-Erreichbarkeit | nein |
 | `GET` | `/version` | Build-/Version-Metadaten | nein |
+| `GET` | `/api/v1/dictionaries` | Dictionary-Index (Versionen/ETags/Domain-Pfade) | nein |
+| `GET` | `/api/v1/dictionaries/<domain>` | Domain-spezifisches Dictionary (z. B. `heating`) | nein |
 | `POST` | `/analyze` | Adressanalyse und Standort-Resultat | optional (`API_AUTH_TOKEN`) |
 
 > BL-20 Vertragsarbeit: Der versionierte Produktvertrag liegt unter [`docs/api/contract-v1.md`](../api/contract-v1.md) (Namespace `/api/v1`).
@@ -80,6 +82,39 @@ curl -sS "http://localhost:8080/version"
   "commit": "unknown",
   "request_id": "req-5ac7d9c5f2b74835"
 }
+```
+
+---
+
+## `GET /api/v1/dictionaries`
+
+Liefert den Dictionary-Index für code-first Integrationen (BL-20.1.k):
+
+- globale `version` + `etag`
+- Domain-Metadaten unter `domains.<name>` mit `version`, `etag`, `path`
+- Cache-fähig via `ETag` + `If-None-Match` (`304 Not Modified` bei Treffer)
+
+### Beispiel
+
+```bash
+curl -i -sS "http://localhost:8080/api/v1/dictionaries"
+```
+
+## `GET /api/v1/dictionaries/<domain>`
+
+Liefert die vollständigen Mapping-Tabellen einer Domain (aktuell u. a. `heating`, `building`).
+
+### Beispiel (`heating`)
+
+```bash
+curl -i -sS "http://localhost:8080/api/v1/dictionaries/heating"
+```
+
+Conditional-GET mit Cache-Reuse:
+
+```bash
+curl -i -sS "http://localhost:8080/api/v1/dictionaries/heating" \
+  -H 'If-None-Match: "dict-heating-..."'
 ```
 
 ---

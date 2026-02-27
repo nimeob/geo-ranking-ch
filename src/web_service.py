@@ -4,11 +4,14 @@
 Endpoints:
 - GET /health
 - GET /version
+- GET /api/v1/dictionaries
+- GET /api/v1/dictionaries/<domain>
 - POST /analyze {"query": "...", "intelligence_mode": "basic|extended|risk"}
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -22,6 +25,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from src.address_intel import AddressIntelError, build_report
+from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
 from src.personalized_scoring import compute_two_stage_scores
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
@@ -61,6 +65,116 @@ _DEFAULT_PREFERENCES = {
     "commute_priority": "mixed",
     "weights": {},
 }
+
+_DICTIONARY_CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=3600"
+_DICTIONARY_GLOBAL_VERSION = os.getenv("DICTIONARY_VERSION", "2026-02-27")
+_DICTIONARY_DOMAIN_VERSIONS = {
+    "building": "gwr-building-v1",
+    "heating": "gwr-heating-v1",
+}
+_DICTIONARY_DOMAIN_TABLES: dict[str, dict[str, dict[int, str]]] = {
+    "building": {
+        "gklas": GKLAS,
+        "gkat": GKAT,
+        "gstat": GSTAT,
+        "dwst": DWST,
+    },
+    "heating": {
+        "gwaerzh": GWAERZH,
+        "gwaerzw": GWAERZW,
+        "genh": GENH,
+    },
+}
+
+
+def _normalize_dictionary_table(table: dict[int, str]) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+    for key in sorted(table):
+        normalized[str(int(key))] = str(table[key])
+    return normalized
+
+
+def _stable_etag(payload: dict[str, Any], *, prefix: str) -> str:
+    serialized = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    digest = hashlib.sha256(serialized).hexdigest()[:16]
+    return f'"{prefix}-{digest}"'
+
+
+def _normalize_etag_for_compare(tag: Any) -> str:
+    value = str(tag).strip()
+    if value.lower().startswith("w/"):
+        value = value[2:].strip()
+    return value
+
+
+def _if_none_match_matches(header_value: Any, current_etag: str) -> bool:
+    if not header_value:
+        return False
+
+    normalized_current = _normalize_etag_for_compare(current_etag)
+    for raw_part in str(header_value).split(","):
+        candidate = raw_part.strip()
+        if not candidate:
+            continue
+        if candidate == "*":
+            return True
+        if _normalize_etag_for_compare(candidate) == normalized_current:
+            return True
+    return False
+
+
+def _build_dictionary_payloads() -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    domains: dict[str, dict[str, Any]] = {}
+    domain_payloads: dict[str, dict[str, Any]] = {}
+
+    for domain_name in sorted(_DICTIONARY_DOMAIN_TABLES):
+        domain_version = _DICTIONARY_DOMAIN_VERSIONS[domain_name]
+        tables = {
+            table_name: _normalize_dictionary_table(table)
+            for table_name, table in _DICTIONARY_DOMAIN_TABLES[domain_name].items()
+        }
+        domain_payload: dict[str, Any] = {
+            "domain": domain_name,
+            "version": domain_version,
+            "tables": tables,
+        }
+        domain_payload["etag"] = _stable_etag(
+            {
+                "domain": domain_name,
+                "version": domain_version,
+                "tables": tables,
+            },
+            prefix=f"dict-{domain_name}",
+        )
+        domain_payloads[domain_name] = domain_payload
+
+        domains[domain_name] = {
+            "version": domain_version,
+            "etag": domain_payload["etag"],
+            "path": f"/api/v1/dictionaries/{domain_name}",
+        }
+
+    index_payload = {
+        "version": _DICTIONARY_GLOBAL_VERSION,
+        "domains": domains,
+    }
+    index_payload["etag"] = _stable_etag(
+        {
+            "version": _DICTIONARY_GLOBAL_VERSION,
+            "domains": domains,
+        },
+        prefix="dict-index",
+    )
+
+    return index_payload, domain_payloads
+
+
+_DICTIONARY_INDEX_PAYLOAD, _DICTIONARY_DOMAIN_PAYLOADS = _build_dictionary_payloads()
 
 
 def _is_status_like_key(key: str) -> bool:
@@ -535,6 +649,7 @@ class Handler(BaseHTTPRequestHandler):
         status: int = 200,
         *,
         request_id: str | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -542,8 +657,46 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         if request_id:
             self.send_header("X-Request-Id", request_id)
+        if extra_headers:
+            for key, value in extra_headers.items():
+                self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_not_modified(
+        self,
+        *,
+        request_id: str,
+        etag: str,
+        cache_control: str = _DICTIONARY_CACHE_CONTROL,
+    ) -> None:
+        self.send_response(HTTPStatus.NOT_MODIFIED)
+        self.send_header("ETag", etag)
+        self.send_header("Cache-Control", cache_control)
+        if request_id:
+            self.send_header("X-Request-Id", request_id)
+        self.end_headers()
+
+    def _send_dictionary_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        request_id: str,
+    ) -> None:
+        etag = str(payload.get("etag", "")).strip()
+        if etag and _if_none_match_matches(self.headers.get("If-None-Match"), etag):
+            self._send_not_modified(request_id=request_id, etag=etag)
+            return
+
+        extra_headers: dict[str, str] = {"Cache-Control": _DICTIONARY_CACHE_CONTROL}
+        if etag:
+            extra_headers["ETag"] = etag
+
+        self._send_json(
+            payload,
+            request_id=request_id,
+            extra_headers=extra_headers,
+        )
 
     def do_GET(self) -> None:  # noqa: N802
         request_id = self._request_id()
@@ -568,6 +721,32 @@ class Handler(BaseHTTPRequestHandler):
                     "commit": os.getenv("GIT_SHA", "unknown"),
                     "request_id": request_id,
                 },
+                request_id=request_id,
+            )
+            return
+        if request_path == "/api/v1/dictionaries":
+            self._send_dictionary_payload(
+                deepcopy(_DICTIONARY_INDEX_PAYLOAD),
+                request_id=request_id,
+            )
+            return
+        if request_path.startswith("/api/v1/dictionaries/"):
+            domain_name = request_path.rsplit("/", 1)[-1].strip().lower()
+            domain_payload = _DICTIONARY_DOMAIN_PAYLOADS.get(domain_name)
+            if domain_payload is None:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "not_found",
+                        "message": f"unknown dictionary domain: {domain_name}",
+                        "request_id": request_id,
+                    },
+                    status=HTTPStatus.NOT_FOUND,
+                    request_id=request_id,
+                )
+                return
+            self._send_dictionary_payload(
+                deepcopy(domain_payload),
                 request_id=request_id,
             )
             return
