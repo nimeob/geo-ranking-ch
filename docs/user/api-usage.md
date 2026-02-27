@@ -128,7 +128,7 @@ curl -i -sS "http://localhost:8080/api/v1/dictionaries/heating" \
 | `query` | `string` | ja | – | Adresse/Suchtext; wird getrimmt; leer/whitespace-only ist ungültig |
 | `intelligence_mode` | `string` | nein | `basic` | Erlaubt: `basic`, `extended`, `risk` (trim + case-insensitive normalisiert) |
 | `timeout_seconds` | `number` | nein | `ANALYZE_DEFAULT_TIMEOUT_SECONDS` (15) | Muss endliche Zahl > 0 sein; wird auf `ANALYZE_MAX_TIMEOUT_SECONDS` gecappt |
-| `options` | `object` | nein | `{}` | Additiver Feature-Namespace. Relevante Keys: `response_mode=compact|verbose` (Default `compact`) und `include_labels` (`boolean`, Default `false`, temporärer Legacy-Kompatibilitätsmodus). Unbekannte Keys bleiben No-Op. |
+| `options` | `object` | nein | `{}` | Additiver Feature-Namespace. Aktiver Key: `response_mode=compact|verbose` (Default `compact`). Unbekannte Keys bleiben No-Op; das Legacy-Flag `include_labels` wird explizit mit `400 bad_request` abgelehnt. |
 | `preferences` | `object` | nein | Contract-Defaults | Optionales Präferenzprofil: entweder direkt über Enum-Felder (`lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`) oder über `preset` + `preset_version` (`v1`). Optional `weights` mit `0..1`; nur endliche Zahlen, keine Booleans/`NaN`/`Inf`. |
 
 Preset-Schnellstart: `preferences.preset` + `preferences.preset_version` (`v1`) reicht für einen validen Start.
@@ -246,12 +246,11 @@ Weitere versionierte Beispielpayloads:
 - Grouped (vollständig): [`docs/api/examples/current/analyze.response.grouped.success.json`](../api/examples/current/analyze.response.grouped.success.json)
 - Grouped Edge-Case (fehlende/deaktivierte Daten): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](../api/examples/current/analyze.response.grouped.partial-disabled.json)
 
-### Migration: temporärer Legacy-Kompatibilitätsmodus (`options.include_labels`)
+### Sunset-Hinweis: Legacy-Flag `options.include_labels` entfernt
 
-Default-Verhalten ist code-first (`include_labels=false`): `building.decoded`/`energy.decoded_summary` entfallen,
-Klartextauflösung läuft über `GET /api/v1/dictionaries*`.
+Code-first ist der einzige unterstützte Runtime-Pfad. Klartextauflösung läuft über `GET /api/v1/dictionaries*`.
 
-Falls ein bestehender Consumer kurzfristig noch Inline-Labels benötigt:
+Requests mit `options.include_labels` werden deterministisch mit `400 bad_request` abgewiesen:
 
 ```bash
 curl -sS -X POST "http://localhost:8080/analyze" \
@@ -265,7 +264,7 @@ curl -sS -X POST "http://localhost:8080/analyze" \
   }'
 ```
 
-Hinweis: `include_labels` ist eine Migrationsbrücke und kein Zielzustand. Für neue Integrationen immer code-first + Dictionary-Caching verwenden.
+Migrationsempfehlung: Legacy-Consumer auf code-first + Dictionary-Caching umstellen (`result.status.dictionary`, `GET /api/v1/dictionaries*`).
 
 ## Mapping-/Transform-Regeln richtig lesen (Kurzfassung)
 
