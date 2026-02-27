@@ -279,3 +279,23 @@ Semantik (WP2-Stand):
 Kompatibilität:
 - Felder sind additiv im bestehenden `suitability_light`-Objekt.
 - Vorhandene Clients bleiben kompatibel; neue Clients können bereits auf die separaten Felder migrieren.
+
+## 17) BL-20.4.d.wp7 Runtime-Fallback-Status für Personalisierung
+
+Bezug: [#191](https://github.com/nimeob/geo-ranking-ch/issues/191)
+
+Für transparente Laufzeit-Herkunft wird optionaler Status unter `result.status.personalization` geführt:
+
+- `result.status.personalization.state` (`active|partial|deactivated`)
+- `result.status.personalization.source` (z. B. `personalized_reweighting`, `base_score_fallback`, `base_score_default`)
+- `result.status.personalization.fallback_applied` (`boolean`)
+- `result.status.personalization.signal_strength` (`number >= 0`)
+
+Semantik:
+- `active`: wirksames Präferenzsignal wurde angewendet.
+- `partial`: Präferenzprofil vorhanden, aber kein wirksames Signal (Fallback auf Basisscore).
+- `deactivated`: kein Präferenzprofil im Request; Basisscore-Pfad aktiv.
+
+Kompatibilität:
+- `result.status.personalization` ist additiv/optional.
+- Legacy-Clients ohne Auswertung dieses Statuspfads bleiben vollständig lauffähig.

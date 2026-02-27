@@ -134,6 +134,8 @@ curl -sS -X POST "http://localhost:8080/analyze" \
 ### Erfolgsantwort (200, verkürzt)
 
 > Contract-Hinweis (BL-20.1.c): Der Webservice trennt Antwortdaten strikt in `result.status` (Qualität/Source-Health/Meta) und `result.data` (fachliche Daten).
+>
+> Runtime-Personalisierung (BL-20.4.d.wp7): `result.status.personalization` kennzeichnet den Laufzeitpfad als `active`, `partial` oder `deactivated` inkl. Herkunft (`source`).
 
 ```json
 {

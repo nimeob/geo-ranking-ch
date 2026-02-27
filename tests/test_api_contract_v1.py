@@ -261,6 +261,26 @@ def validate_success_response(payload: Any) -> list[str]:
             if entitlements is not None and not isinstance(entitlements, dict):
                 errors.append("result.status.entitlements must be object")
 
+            personalization = status.get("personalization")
+            if personalization is not None:
+                if not isinstance(personalization, dict):
+                    errors.append("result.status.personalization must be object")
+                else:
+                    if personalization.get("state") not in {"active", "partial", "deactivated"}:
+                        errors.append("result.status.personalization.state invalid")
+                    source = personalization.get("source")
+                    if source is not None and not _is_non_empty_str(source):
+                        errors.append("result.status.personalization.source invalid")
+                    fallback_applied = personalization.get("fallback_applied")
+                    if fallback_applied is not None and not isinstance(fallback_applied, bool):
+                        errors.append("result.status.personalization.fallback_applied must be boolean")
+                    signal_strength = personalization.get("signal_strength")
+                    if signal_strength is not None:
+                        if isinstance(signal_strength, bool) or not isinstance(signal_strength, (int, float)):
+                            errors.append("result.status.personalization.signal_strength must be number")
+                        elif not math.isfinite(float(signal_strength)) or float(signal_strength) < 0:
+                            errors.append("result.status.personalization.signal_strength out of range")
+
     explainability = result.get("explainability")
     if not isinstance(explainability, dict):
         errors.append("result.explainability must be object")
@@ -391,6 +411,7 @@ class TestApiContractV1(unittest.TestCase):
             "## 14) BL-20.1.h Capability-/Entitlement-Envelope (BL-30-ready)",
             "options.capabilities",
             "result.status.entitlements",
+            "result.status.personalization",
             "#105",
             "#106",
             "#107",
@@ -488,13 +509,19 @@ class TestApiContractV1(unittest.TestCase):
                     "requests_per_day": 500,
                 },
             },
+            "personalization": {
+                "state": "partial",
+                "source": "base_score_fallback",
+                "fallback_applied": True,
+                "signal_strength": 0.0,
+            },
         }
 
         self.assertEqual(validate_success_response(resp_baseline), [], msg="Baseline-Response muss valide bleiben")
         self.assertEqual(
             validate_success_response(resp_with_meta),
             [],
-            msg="Additive status.capabilities/status.entitlements dürfen Legacy-Response nicht brechen",
+            msg="Additive status.capabilities/status.entitlements/status.personalization dürfen Legacy-Response nicht brechen",
         )
 
         baseline_projection = {

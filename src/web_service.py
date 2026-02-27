@@ -32,6 +32,7 @@ _TOP_LEVEL_STATUS_KEYS = {
     "source_classification",
     "source_attribution",
     "executive_summary",
+    "personalization_status",
 }
 _ENTITY_KEYS = ("query", "matched_address", "ids", "coordinates", "administrative")
 _SOURCE_GROUP_MODULE_MAP = {
@@ -106,11 +107,17 @@ def _build_status_block(report: dict[str, Any]) -> dict[str, Any]:
     if field_provenance:
         source_meta["field_provenance"] = deepcopy(field_provenance)
 
-    return {
+    status_block = {
         "quality": quality,
         "source_health": source_health,
         "source_meta": source_meta,
     }
+
+    personalization_status = report.get("personalization_status")
+    if isinstance(personalization_status, dict):
+        status_block["personalization"] = deepcopy(personalization_status)
+
+    return status_block
 
 
 def _build_by_source_payload(
@@ -316,8 +323,35 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
     return effective
 
 
+def _derive_personalization_status(
+    *,
+    preferences_supplied: bool,
+    fallback_applied: bool,
+    signal_strength: float,
+) -> dict[str, Any]:
+    if not preferences_supplied:
+        state = "deactivated"
+        source = "base_score_default"
+    elif fallback_applied or signal_strength <= 0:
+        state = "partial"
+        source = "base_score_fallback"
+    else:
+        state = "active"
+        source = "personalized_reweighting"
+
+    return {
+        "state": state,
+        "source": source,
+        "fallback_applied": fallback_applied,
+        "signal_strength": round(signal_strength, 4),
+    }
+
+
 def _apply_personalized_suitability_scores(
-    report: dict[str, Any], preferences: dict[str, Any] | None
+    report: dict[str, Any],
+    preferences: dict[str, Any] | None,
+    *,
+    preferences_supplied: bool = False,
 ) -> None:
     """Integriert zweistufiges Scoring deterministisch in den Analyze-Report."""
     suitability = report.get("suitability_light")
@@ -347,6 +381,8 @@ def _apply_personalized_suitability_scores(
         return
 
     two_stage = compute_two_stage_scores(factors, preferences=preferences)
+    fallback_applied = bool(two_stage.get("fallback_applied"))
+    signal_strength = float(two_stage.get("signal_strength", 0.0))
 
     base_score = suitability.get("base_score")
     if not isinstance(base_score, (int, float)) or not math.isfinite(float(base_score)):
@@ -356,15 +392,21 @@ def _apply_personalized_suitability_scores(
         base_score = float(base_score)
 
     personalized_score = float(two_stage.get("personalized_score", base_score))
-    if bool(two_stage.get("fallback_applied")):
+    if fallback_applied:
         personalized_score = base_score
+
+    personalization_status = _derive_personalization_status(
+        preferences_supplied=preferences_supplied,
+        fallback_applied=fallback_applied,
+        signal_strength=signal_strength,
+    )
 
     suitability["personalized_score"] = round(personalized_score, 4)
     suitability["personalization"] = {
-        "fallback_applied": bool(two_stage.get("fallback_applied")),
-        "signal_strength": round(float(two_stage.get("signal_strength", 0.0)), 4),
+        **personalization_status,
         "weights": deepcopy(two_stage.get("weights") or {}),
     }
+    report["personalization_status"] = deepcopy(personalization_status)
 
     summary_compact = report.get("summary_compact")
     if not isinstance(summary_compact, dict):
@@ -515,6 +557,7 @@ class Handler(BaseHTTPRequestHandler):
 
             # Optionales Preference-Profil für BL-20.4-Personalisierung.
             # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
+            preferences_supplied = "preferences" in data and data.get("preferences") is not None
             preferences_profile = _extract_preferences(data)
 
             if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
@@ -566,7 +609,11 @@ class Handler(BaseHTTPRequestHandler):
                         "source_attribution": {"match": ["e2e_fault_injection"]},
                         "confidence": {"score": 100, "max": 100, "level": "high"},
                     }
-                    _apply_personalized_suitability_scores(stub_report, preferences_profile)
+                    _apply_personalized_suitability_scores(
+                        stub_report,
+                        preferences_profile,
+                        preferences_supplied=preferences_supplied,
+                    )
                     self._send_json(
                         {
                             "ok": True,
@@ -599,7 +646,11 @@ class Handler(BaseHTTPRequestHandler):
                 backoff_seconds=0.6,
                 intelligence_mode=mode,
             )
-            _apply_personalized_suitability_scores(report, preferences_profile)
+            _apply_personalized_suitability_scores(
+                report,
+                preferences_profile,
+                preferences_supplied=preferences_supplied,
+            )
             self._send_json(
                 {
                     "ok": True,

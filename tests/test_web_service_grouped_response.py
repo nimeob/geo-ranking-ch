@@ -78,6 +78,12 @@ class TestGroupedApiResult(unittest.TestCase):
                     "present": True,
                 }
             },
+            "personalization_status": {
+                "state": "active",
+                "source": "personalized_reweighting",
+                "fallback_applied": False,
+                "signal_strength": 0.33,
+            },
         }
 
         grouped = _grouped_api_result(report)
@@ -89,6 +95,8 @@ class TestGroupedApiResult(unittest.TestCase):
         self.assertEqual(status_block["quality"]["confidence"]["score"], 92)
         self.assertEqual(status_block["source_health"]["geoadmin_search"]["status"], "ok")
         self.assertIn("source_attribution", status_block["source_meta"])
+        self.assertEqual(status_block["personalization"]["state"], "active")
+        self.assertEqual(status_block["personalization"]["source"], "personalized_reweighting")
 
         data_block = grouped["data"]
         self.assertEqual(data_block["entity"]["ids"]["egid"], "123")

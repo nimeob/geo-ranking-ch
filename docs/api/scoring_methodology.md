@@ -137,10 +137,11 @@ suitability_light.score = clamp(base_score - uncertainty_penalty, 0, 100)
 traffic_light = green (>=72) | yellow (>=52) | red (<52)
 ```
 
-Runtime-Hinweis (BL-20.4.d.wp5):
+Runtime-Hinweis (BL-20.4.d.wp5/wp7):
 - `/analyze` integriert den zweistufigen Engine-Pfad deterministisch über `src/personalized_scoring.py`.
 - Bei neutralem/fehlendem Präferenzsignal bleibt das Verhalten rückwärtskompatibel (`personalized_score == base_score`).
-- Zusätzlich wird im Payload ein additiver Block `suitability_light.personalization` mit `fallback_applied`, `signal_strength` und `weights` ausgegeben.
+- Zusätzlich wird im Payload ein additiver Block `suitability_light.personalization` mit `state`, `source`, `fallback_applied`, `signal_strength` und `weights` ausgegeben.
+- Für Integrator-Transparenz wird der Laufzeitstatus parallel unter `result.status.personalization` gespiegelt (`active|partial|deactivated`).
 
 Unsicherheiten werden explizit im Payload geführt (`suitability_light.uncertainty.*`), inklusive Gründen (z. B. fehlende Hangneigung, lückenhafte Erschliessung, niedrige Confidence).
 

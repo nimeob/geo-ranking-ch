@@ -68,6 +68,37 @@
             "entitlements": {
               "type": "object",
               "additionalProperties": true
+            },
+            "personalization": {
+              "type": "object",
+              "required": [
+                "state",
+                "source",
+                "fallback_applied",
+                "signal_strength"
+              ],
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "partial",
+                    "deactivated"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fallback_applied": {
+                  "type": "boolean"
+                },
+                "signal_strength": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": true
             }
           }
         },
