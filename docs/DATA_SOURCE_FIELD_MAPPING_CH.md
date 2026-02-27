@@ -199,7 +199,35 @@ Einsatzgrenzen/Hinweise:
 - `normalize_observed_at_iso` akzeptiert ISO-Strings, RFC2822-Strings und Epoch-Timestamps; unklare Werte werden zu `null` normalisiert.
 - `normalize_source_status` mappt nur auf das kontrollierte Set (`ok`, `partial`, `error`, `disabled`, `not_used`).
 
-## 8) Referenzen
+## 8) Source-Schema-Drift-Check (Issue #65)
+
+Für reproduzierbare Drift-Erkennung liegt ein read-only Check vor:
+
+- Script: [`scripts/check_source_field_mapping_drift.py`](../scripts/check_source_field_mapping_drift.py)
+- Referenz-Samples: [`tests/data/mapping/source_schema_samples.ch.v1.json`](../tests/data/mapping/source_schema_samples.ch.v1.json)
+
+Ausführung (lokal/CI):
+
+```bash
+python3 scripts/check_source_field_mapping_drift.py
+```
+
+Optional gezielt pro Source:
+
+```bash
+python3 scripts/check_source_field_mapping_drift.py --source geoadmin_search --source geoadmin_gwr --source bfs_heating_layer
+```
+
+Interpretation/Behebung (Runbook-Hinweis):
+
+1. **Fehlermeldung lesen**: Der Check meldet Source + erwartetes Feld (z. B. `results[].attrs.lon`).
+2. **Drift verifizieren**: Gegen aktuelle Upstream-Response prüfen, ob Feld entfernt/umbenannt/verschachtelt wurde.
+3. **Entscheiden**:
+   - Mapping-Spec anpassen, wenn Upstream-Änderung korrekt und gewollt ist.
+   - Ingestion/Parser korrigieren, wenn nur unser Zugriffspfad falsch ist.
+4. **Absichern**: Samples + Tests aktualisieren und Check erneut grün laufen lassen.
+
+## 9) Referenzen
 
 - Quelleninventar/Lizenzmatrix: [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md)
 - Produktvision: [`docs/VISION_PRODUCT.md`](VISION_PRODUCT.md)

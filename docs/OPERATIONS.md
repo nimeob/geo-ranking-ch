@@ -425,7 +425,16 @@ pre-commit run --all-files
 
 # BL-19.8 Doku-Qualitätsgate (frisches Setup + Link-/Strukturcheck)
 ./scripts/check_docs_quality_gate.sh
+
+# BL-20.2.b.r3 Schema-Drift-Check (read-only)
+python3 scripts/check_source_field_mapping_drift.py
 ```
+
+Schema-Drift-Check Kurz-Runbook:
+- **FAILED + missing/renamed field**: Upstream-Response gegen `docs/mapping/source-field-mapping.ch.v1.json` abgleichen.
+- **Wenn Upstream geändert**: Mapping-Spec + Referenz-Samples aktualisieren.
+- **Wenn nur Parser/Extraction falsch**: Codepfad korrigieren, Spec unverändert lassen.
+- Danach Check + relevante Tests erneut ausführen.
 
 ### Empfohlene Tools
 
