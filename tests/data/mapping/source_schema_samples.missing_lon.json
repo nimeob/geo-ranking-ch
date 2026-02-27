@@ -1,0 +1,37 @@
+{
+  "geoadmin_search": {
+    "results": [
+      {
+        "attrs": {
+          "featureId": "ch.123",
+          "label": "Musterstrasse 1",
+          "detail": "9000 St. Gallen",
+          "lat": "47.4245"
+        }
+      }
+    ]
+  },
+  "geoadmin_gwr": {
+    "egid": "1000001",
+    "egaid": "2000002",
+    "gkode": 2748550.0,
+    "gkodn": 1257050.0,
+    "strname_deinr": "Musterstrasse 1",
+    "gbauj": 1997,
+    "gwaerzh1": "7430",
+    "genh1": "Waermepumpe",
+    "gwaerzh2": "",
+    "genh2": "",
+    "gwaerzw1": "7430",
+    "genw1": "Waermepumpe",
+    "gwaerzw2": "",
+    "genw2": ""
+  },
+  "bfs_heating_layer": {
+    "gwaerzh1_de": "Wärmepumpe",
+    "genh1_de": "Luft/Wasser",
+    "gwaersceh1_de": "Hauptheizung",
+    "gwaerdath1": "2023-01-15",
+    "gexpdat": "2024-12-31"
+  }
+}
