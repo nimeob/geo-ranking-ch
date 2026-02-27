@@ -8,7 +8,7 @@ Arbeitsmodus, Branching-Strategie, Commit-Regeln und Release-Checkliste.
 
 > **Offene Umsetzungs-/Operations-Themen:** zentral in [`docs/BACKLOG.md`](BACKLOG.md) pflegen (hier keine separaten Nebenlisten).
 >
-> **Automation-Migration (GitHub Actions → OpenClaw):** aktuelle Ist-Aufnahme + Klassifikation siehe [`docs/automation/github-actions-migration-matrix.md`](automation/github-actions-migration-matrix.md).
+> **Automation-Migration (GitHub Actions → OpenClaw):** Ist-Aufnahme + Klassifikation siehe [`docs/automation/github-actions-migration-matrix.md`](automation/github-actions-migration-matrix.md), konkretes Job-Mapping v1 in [`docs/automation/openclaw-job-mapping.md`](automation/openclaw-job-mapping.md).
 
 > **Sicherheits-/Datenhaltungsentscheidungen für API-Betrieb:** siehe [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md).
 
