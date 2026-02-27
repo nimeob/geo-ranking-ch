@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import unittest
 from pathlib import Path
@@ -175,10 +176,14 @@ def validate_request(payload: Any) -> list[str]:
                             f"{sorted(unknown_weights)}"
                         )
                     for key, weight in weights.items():
-                        if not isinstance(weight, (int, float)):
-                            errors.append(f"preferences.weights.{key} must be number")
+                        if isinstance(weight, bool) or not isinstance(weight, (int, float)):
+                            errors.append(f"preferences.weights.{key} must be finite number")
                             continue
-                        if not (0 <= float(weight) <= 1):
+                        weight_num = float(weight)
+                        if not math.isfinite(weight_num):
+                            errors.append(f"preferences.weights.{key} must be finite number")
+                            continue
+                        if not (0 <= weight_num <= 1):
                             errors.append(f"preferences.weights.{key} out of range")
 
     return errors
@@ -539,6 +544,34 @@ class TestApiContractV1(unittest.TestCase):
             [],
             msg="Partielle Preference-Profile müssen valide sein (Defaults greifen implizit)",
         )
+
+    def test_invalid_preference_weights_are_rejected_by_contract_validator(self):
+        req_baseline = _read_json(GOLDEN_DIR / "valid" / "request.address.minimal.json")
+
+        invalid_weights = [
+            ("string", "0.5", "must be finite number"),
+            ("bool", True, "must be finite number"),
+            ("nan", float("nan"), "must be finite number"),
+            ("inf", float("inf"), "must be finite number"),
+            ("negative", -0.1, "out of range"),
+            ("gt_one", 1.1, "out of range"),
+        ]
+
+        for case_name, value, expected in invalid_weights:
+            with self.subTest(case=case_name):
+                payload = json.loads(json.dumps(req_baseline))
+                payload["preferences"] = {
+                    "lifestyle_density": "urban",
+                    "weights": {
+                        "noise_tolerance": value,
+                    },
+                }
+                errors = validate_request(payload)
+                self.assertTrue(errors, msg=f"Erwarteter Vertragsfehler fehlt für {case_name}")
+                self.assertTrue(
+                    any(expected in err for err in errors),
+                    msg=f"Unerwartete Fehler für {case_name}: {errors}",
+                )
 
     def test_two_stage_suitability_scores_are_explicit_in_success_response(self):
         resp_baseline = _read_json(GOLDEN_DIR / "valid" / "response.success.minimal.json")

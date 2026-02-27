@@ -508,6 +508,31 @@ class TestWebServiceE2E(unittest.TestCase):
                 {"preferences": {"weights": {"noise_tolerance": 1.5}}},
                 "preferences.weights.noise_tolerance must be between 0 and 1",
             ),
+            (
+                "weights_negative",
+                {"preferences": {"weights": {"noise_tolerance": -0.1}}},
+                "preferences.weights.noise_tolerance must be between 0 and 1",
+            ),
+            (
+                "weights_type_error",
+                {"preferences": {"weights": {"noise_tolerance": "0.5"}}},
+                "preferences.weights.noise_tolerance must be a number between 0 and 1",
+            ),
+            (
+                "weights_bool_rejected",
+                {"preferences": {"weights": {"noise_tolerance": True}}},
+                "preferences.weights.noise_tolerance must be a number between 0 and 1",
+            ),
+            (
+                "weights_nan_rejected",
+                {"preferences": {"weights": {"noise_tolerance": float('nan')}}},
+                "preferences.weights.noise_tolerance must be a finite number between 0 and 1",
+            ),
+            (
+                "weights_inf_rejected",
+                {"preferences": {"weights": {"noise_tolerance": float('inf')}}},
+                "preferences.weights.noise_tolerance must be a finite number between 0 and 1",
+            ),
         ]
 
         for case_name, patch_payload, expected_message in invalid_cases:

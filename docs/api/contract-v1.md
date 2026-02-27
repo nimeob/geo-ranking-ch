@@ -256,7 +256,7 @@ Default-Verhalten (wenn `preferences` fehlt):
 Validierung:
 - `preferences` muss (falls vorhanden) ein JSON-Objekt sein, sonst `400 bad_request`.
 - Unbekannte Keys unter `preferences` oder `preferences.weights` werden als Vertragsfehler behandelt (`400 bad_request`).
-- Gewichte müssen numerisch und im Bereich `0..1` liegen.
+- Gewichte müssen endliche Zahlen (keine Booleans) im Bereich `0..1` sein.
 
 Dokumentierte Beispielprofile (3-5 reale Integrationsmuster):
 - [`docs/api/preference-profiles.md`](./preference-profiles.md)

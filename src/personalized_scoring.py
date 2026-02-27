@@ -116,14 +116,19 @@ def _compute_personalization_delta(
         if not per_factor:
             continue
 
-        has_signal = True
         intensity = _finite(custom_weights.get(dimension), 1.0)
         intensity = _clamp(intensity, 0.0, 1.0)
+        if intensity <= 0:
+            continue
 
         for factor_key, delta in per_factor.items():
             if factor_key not in deltas:
                 continue
-            deltas[factor_key] += float(delta) * intensity
+            applied_delta = float(delta) * intensity
+            if abs(applied_delta) <= 1e-12:
+                continue
+            deltas[factor_key] += applied_delta
+            has_signal = True
 
     return deltas, has_signal
 

@@ -247,6 +247,19 @@ def _extract_request_options(data: dict[str, Any]) -> dict[str, Any]:
     return raw_options
 
 
+def _as_unit_interval_number(value: Any, field_name: str) -> float:
+    """Validiert und normalisiert Präferenzgewichte robust auf den Bereich 0..1."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field_name} must be a number between 0 and 1")
+
+    as_float = float(value)
+    if not math.isfinite(as_float):
+        raise ValueError(f"{field_name} must be a finite number between 0 and 1")
+    if not (0 <= as_float <= 1):
+        raise ValueError(f"{field_name} must be between 0 and 1")
+    return as_float
+
+
 def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
     """Validiert optionale Präferenzprofile für personalisierte Auswertung.
 
@@ -294,12 +307,10 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
 
     normalized_weights: dict[str, float] = {}
     for key, value in raw_weights.items():
-        if not isinstance(value, (int, float)):
-            raise ValueError(f"preferences.weights.{key} must be a number between 0 and 1")
-        as_float = float(value)
-        if not math.isfinite(as_float) or not (0 <= as_float <= 1):
-            raise ValueError(f"preferences.weights.{key} must be between 0 and 1")
-        normalized_weights[key] = as_float
+        normalized_weights[key] = _as_unit_interval_number(
+            value,
+            f"preferences.weights.{key}",
+        )
 
     effective["weights"] = normalized_weights
     return effective
