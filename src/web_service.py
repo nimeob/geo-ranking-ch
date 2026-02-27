@@ -24,7 +24,8 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
+from urllib.request import urlopen
 
 from src.address_intel import AddressIntelError, build_report
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
@@ -49,6 +50,16 @@ _SOURCE_GROUP_MODULE_MAP = {
     "intelligence": ("intelligence",),
 }
 _RESPONSE_MODES = {"compact", "verbose"}
+_COORDINATE_SNAP_MODES = {"strict", "ch_bounds"}
+_CH_WGS84_BOUNDS = {
+    "lat_min": 45.8179,
+    "lat_max": 47.8084,
+    "lon_min": 5.9559,
+    "lon_max": 10.4921,
+}
+_COORDINATE_SNAP_TOLERANCE_DEG = 0.02
+_COORDINATE_IDENTIFY_TOLERANCE_M = 180.0
+_COORDINATE_MAX_SNAP_DISTANCE_M = 120.0
 
 _PREFERENCE_ENUMS = {
     "lifestyle_density": {"rural", "suburban", "urban"},
@@ -522,6 +533,275 @@ def _as_positive_finite_number(value: Any, field_name: str) -> float:
     return parsed
 
 
+def _as_finite_number(value: Any, field_name: str) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be a finite number") from exc
+    if not math.isfinite(parsed):
+        raise ValueError(f"{field_name} must be a finite number")
+    return parsed
+
+
+def _normalize_coordinate_snap_mode(raw_value: Any) -> str:
+    if raw_value is None:
+        return "ch_bounds"
+
+    if isinstance(raw_value, bool):
+        return "ch_bounds" if raw_value else "strict"
+
+    if not isinstance(raw_value, str):
+        raise ValueError("coordinates.snap_mode must be one of ['strict', 'ch_bounds']")
+
+    mode = raw_value.strip().lower() or "ch_bounds"
+    if mode not in _COORDINATE_SNAP_MODES:
+        raise ValueError("coordinates.snap_mode must be one of ['strict', 'ch_bounds']")
+    return mode
+
+
+def _clamp_number(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def _extract_postal_prefix(value: Any) -> str:
+    text = str(value or "")
+    match = re.search(r"\b(\d{4})\b", text)
+    return match.group(1) if match else ""
+
+
+def _fetch_json_url(url: str, *, timeout_seconds: float, source: str) -> dict[str, Any]:
+    try:
+        with urlopen(url, timeout=max(1.0, float(timeout_seconds))) as response:
+            body = response.read().decode("utf-8")
+    except Exception as exc:
+        raise ValueError(f"coordinate resolution failed at {source}") from exc
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"coordinate resolution returned invalid JSON at {source}") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError(f"coordinate resolution returned invalid payload at {source}")
+    return payload
+
+
+def _wgs84_to_lv95(*, lat: float, lon: float, timeout_seconds: float) -> tuple[float, float]:
+    params = urlencode(
+        {
+            "easting": f"{lon:.8f}",
+            "northing": f"{lat:.8f}",
+            "format": "json",
+        }
+    )
+    url = f"https://geodesy.geo.admin.ch/reframe/wgs84tolv95?{params}"
+    payload = _fetch_json_url(url, timeout_seconds=timeout_seconds, source="wgs84tolv95")
+
+    lv95_e = _as_finite_number(payload.get("easting"), "coordinates.lv95_e")
+    lv95_n = _as_finite_number(payload.get("northing"), "coordinates.lv95_n")
+    return lv95_e, lv95_n
+
+
+def _identify_gwr_candidates(*, lat: float, lon: float, timeout_seconds: float) -> list[dict[str, Any]]:
+    cos_lat = max(math.cos(math.radians(lat)), 0.2)
+    margin_lat = max(_COORDINATE_IDENTIFY_TOLERANCE_M / 111320.0, 0.0015)
+    margin_lon = max(_COORDINATE_IDENTIFY_TOLERANCE_M / (111320.0 * cos_lat), 0.0015)
+
+    params = {
+        "geometry": f"{lon:.8f},{lat:.8f}",
+        "geometryType": "esriGeometryPoint",
+        "imageDisplay": "500,500,96",
+        "mapExtent": (
+            f"{lon-margin_lon:.8f},{lat-margin_lat:.8f},"
+            f"{lon+margin_lon:.8f},{lat+margin_lat:.8f}"
+        ),
+        "tolerance": "10",
+        "layers": "all:ch.bfs.gebaeude_wohnungs_register",
+        "sr": "4326",
+        "lang": "de",
+        "returnGeometry": "false",
+        "f": "json",
+    }
+    url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify?" + urlencode(params)
+    payload = _fetch_json_url(url, timeout_seconds=timeout_seconds, source="gwr_identify")
+
+    results = payload.get("results")
+    if not isinstance(results, list):
+        return []
+
+    candidates: list[dict[str, Any]] = []
+    for row in results:
+        if not isinstance(row, dict):
+            continue
+        attrs = row.get("attributes")
+        if not isinstance(attrs, dict):
+            continue
+
+        feature_id = str(row.get("featureId") or attrs.get("featureId") or "").strip()
+        if not feature_id:
+            continue
+
+        street = str(attrs.get("strname_deinr") or "").strip()
+        city = str(attrs.get("dplzname") or attrs.get("ggdename") or "").strip()
+        postal_code = _extract_postal_prefix(attrs.get("plz_plz6"))
+
+        lv95_e = None
+        lv95_n = None
+        try:
+            lv95_e = _as_finite_number(attrs.get("gkode"), "coordinates.lv95_e")
+            lv95_n = _as_finite_number(attrs.get("gkodn"), "coordinates.lv95_n")
+        except ValueError:
+            lv95_e = None
+            lv95_n = None
+
+        if not street or not postal_code:
+            continue
+
+        city_fallback = city or str(attrs.get("ggdename") or "").strip()
+        candidates.append(
+            {
+                "feature_id": feature_id,
+                "street": street,
+                "postal_code": postal_code,
+                "city": city_fallback,
+                "lv95_e": lv95_e,
+                "lv95_n": lv95_n,
+            }
+        )
+
+    return candidates
+
+
+def _resolve_query_from_coordinates(*, lat: float, lon: float, timeout_seconds: float = 8.0) -> tuple[str, dict[str, Any]]:
+    click_lv95_e, click_lv95_n = _wgs84_to_lv95(lat=lat, lon=lon, timeout_seconds=timeout_seconds)
+    candidates = _identify_gwr_candidates(lat=lat, lon=lon, timeout_seconds=timeout_seconds)
+
+    if not candidates:
+        raise ValueError("coordinates could not be resolved to a Swiss building candidate")
+
+    ranked: list[tuple[float, dict[str, Any]]] = []
+    for candidate in candidates:
+        c_e = candidate.get("lv95_e")
+        c_n = candidate.get("lv95_n")
+        if isinstance(c_e, (int, float)) and isinstance(c_n, (int, float)):
+            distance_m = math.hypot(float(c_e) - click_lv95_e, float(c_n) - click_lv95_n)
+        else:
+            distance_m = float("inf")
+        ranked.append((distance_m, candidate))
+
+    ranked.sort(key=lambda row: row[0])
+    best_distance_m, best = ranked[0]
+
+    if math.isfinite(best_distance_m) and best_distance_m > _COORDINATE_MAX_SNAP_DISTANCE_M:
+        raise ValueError(
+            "no building candidate found within "
+            f"{int(_COORDINATE_MAX_SNAP_DISTANCE_M)}m of the clicked coordinates"
+        )
+
+    city_part = str(best.get("city") or "").strip()
+    resolved_query = f"{best['street']}, {best['postal_code']} {city_part}".strip()
+
+    return resolved_query, {
+        "provider": "ch.bfs.gebaeude_wohnungs_register",
+        "feature_id": best.get("feature_id"),
+        "distance_m": None if not math.isfinite(best_distance_m) else round(best_distance_m, 2),
+        "resolved_query": resolved_query,
+        "clickpoint_wgs84": {
+            "lat": round(lat, 6),
+            "lon": round(lon, 6),
+        },
+    }
+
+
+def _extract_query_and_coordinate_context(data: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+    query = str(data.get("query", "")).strip()
+    if query:
+        return query, None
+
+    raw_coordinates = data.get("coordinates")
+    if raw_coordinates is None:
+        raise ValueError("query is required")
+    if not isinstance(raw_coordinates, dict):
+        raise ValueError("coordinates must be an object when provided")
+
+    raw_lat = raw_coordinates.get("lat")
+    raw_lon = raw_coordinates.get("lon")
+    if raw_lon is None:
+        raw_lon = raw_coordinates.get("lng")
+    if raw_lon is None:
+        raw_lon = raw_coordinates.get("longitude")
+
+    if raw_lat is None or raw_lon is None:
+        raise ValueError("coordinates.lat and coordinates.lon are required when query is missing")
+
+    lat = _as_finite_number(raw_lat, "coordinates.lat")
+    lon = _as_finite_number(raw_lon, "coordinates.lon")
+
+    if lat < -90 or lat > 90:
+        raise ValueError("coordinates.lat must be between -90 and 90")
+    if lon < -180 or lon > 180:
+        raise ValueError("coordinates.lon must be between -180 and 180")
+
+    snap_mode = _normalize_coordinate_snap_mode(raw_coordinates.get("snap_mode"))
+
+    lat_min = float(_CH_WGS84_BOUNDS["lat_min"])
+    lat_max = float(_CH_WGS84_BOUNDS["lat_max"])
+    lon_min = float(_CH_WGS84_BOUNDS["lon_min"])
+    lon_max = float(_CH_WGS84_BOUNDS["lon_max"])
+
+    inside_ch = lat_min <= lat <= lat_max and lon_min <= lon <= lon_max
+    snap_applied = False
+
+    if not inside_ch:
+        if snap_mode == "strict":
+            raise ValueError("coordinates are outside Swiss coverage bounds")
+
+        snapped_lat = _clamp_number(lat, lat_min, lat_max)
+        snapped_lon = _clamp_number(lon, lon_min, lon_max)
+
+        if (
+            abs(snapped_lat - lat) > _COORDINATE_SNAP_TOLERANCE_DEG
+            or abs(snapped_lon - lon) > _COORDINATE_SNAP_TOLERANCE_DEG
+        ):
+            raise ValueError(
+                "coordinates are outside Swiss coverage bounds "
+                f"(snap tolerance ±{_COORDINATE_SNAP_TOLERANCE_DEG:.2f}° exceeded)"
+            )
+
+        lat = snapped_lat
+        lon = snapped_lon
+        snap_applied = True
+
+    resolved_query, resolution_context = _resolve_query_from_coordinates(lat=lat, lon=lon)
+
+    coordinate_context = {
+        "input_mode": "coordinates",
+        "snap_mode": snap_mode,
+        "snap_applied": snap_applied,
+        "snap_tolerance_deg": _COORDINATE_SNAP_TOLERANCE_DEG,
+        "resolved": resolution_context,
+    }
+    return resolved_query, coordinate_context
+
+
+def _attach_coordinate_resolution_context(report: dict[str, Any], context: dict[str, Any]) -> None:
+    if not context:
+        return
+
+    match_block = report.get("match")
+    if not isinstance(match_block, dict):
+        match_block = {}
+        report["match"] = match_block
+
+    resolution_block = match_block.get("resolution")
+    if not isinstance(resolution_block, dict):
+        resolution_block = {}
+        match_block["resolution"] = resolution_block
+
+    resolution_block["input_mode"] = "coordinates"
+    resolution_block["coordinate_input"] = deepcopy(context)
+
+
 def _extract_bearer_token(auth_header: Any) -> str:
     """Extrahiert Bearer-Token robust aus Authorization-Headern.
 
@@ -978,9 +1258,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(data, dict):
                 raise ValueError("json body must be an object")
 
-            query = str(data.get("query", "")).strip()
-            if not query:
-                raise ValueError("query is required")
+            query, coordinate_context = _extract_query_and_coordinate_context(data)
 
             mode = str(data.get("intelligence_mode", "basic")).strip() or "basic"
             mode = mode.lower()
@@ -1107,6 +1385,8 @@ class Handler(BaseHTTPRequestHandler):
                 preferences_profile,
                 preferences_supplied=preferences_supplied,
             )
+            if coordinate_context:
+                _attach_coordinate_resolution_context(report, coordinate_context)
             self._send_json(
                 {
                     "ok": True,

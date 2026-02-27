@@ -125,7 +125,8 @@ curl -i -sS "http://localhost:8080/api/v1/dictionaries/heating" \
 
 | Feld | Typ | Pflicht | Default | Beschreibung |
 |---|---|---|---|---|
-| `query` | `string` | ja | – | Adresse/Suchtext; wird getrimmt; leer/whitespace-only ist ungültig |
+| `query` | `string` | bedingt | – | Adresse/Suchtext; wird getrimmt; leer/whitespace-only ist ungültig. Pflicht, wenn kein `coordinates`-Objekt geliefert wird. |
+| `coordinates` | `object` | bedingt | – | Alternative zu `query` für Kartenklick-Inputs: erwartet `lat` + `lon` (WGS84). Optional `snap_mode`: `ch_bounds` (Default, Near-Border-Snap) oder `strict` (kein Snap). |
 | `intelligence_mode` | `string` | nein | `basic` | Erlaubt: `basic`, `extended`, `risk` (trim + case-insensitive normalisiert) |
 | `timeout_seconds` | `number` | nein | `ANALYZE_DEFAULT_TIMEOUT_SECONDS` (15) | Muss endliche Zahl > 0 sein; wird auf `ANALYZE_MAX_TIMEOUT_SECONDS` gecappt |
 | `options` | `object` | nein | `{}` | Additiver Feature-Namespace. Aktiver Key: `response_mode=compact|verbose` (Default `compact`). Unbekannte Keys bleiben No-Op; das Legacy-Flag `include_labels` wird explizit mit `400 bad_request` abgelehnt. |
@@ -168,6 +169,22 @@ curl -sS -X POST "http://localhost:8080/analyze" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <API_AUTH_TOKEN>" \
   -d '{"query":"St. Gallen"}'
+```
+
+### Beispiel (Kartenklick / Koordinaten)
+
+```bash
+curl -sS -X POST "http://localhost:8080/analyze" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <API_AUTH_TOKEN>" \
+  -d '{
+    "coordinates": {
+      "lat": 47.4245,
+      "lon": 9.3767,
+      "snap_mode": "ch_bounds"
+    },
+    "intelligence_mode": "basic"
+  }'
 ```
 
 ### Erfolgsantwort (200, verkürzt)
