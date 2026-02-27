@@ -378,6 +378,7 @@
   - ✅ 2026-02-26: BL-19.x abgeschlossen (Issue #47) – `docs/user/configuration-env.md` ergänzt, User-Navigation/Querverweise aktualisiert und Doku-Regressionstests erweitert.
   - ✅ 2026-02-27: Crawler-Finding #96 bereinigt (`docs/BACKLOG.md` ohne die bisher auslösenden Trigger-Schlüsselwörter, damit kein False-Positive mehr entsteht).
   - ✅ 2026-02-27: Crawler-Finding #97 verifiziert und geschlossen (gleiche Ursache wie #96; Formulierung bleibt ohne Trigger-Schlüsselwörter).
+  - ✅ 2026-02-27: Crawler-Finding #115 verifiziert und geschlossen (historische Fundstelle `docs/BACKLOG.md:344` inzwischen durch Fachfortschritt überschrieben; aktueller Check ohne auslösende Marker in `docs/BACKLOG.md`).
   - ⏳ Nächster Schritt: Parent-Issue #5 finalisieren (Sub-Issue-Checklist sync + Abschluss)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
