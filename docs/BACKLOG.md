@@ -231,6 +231,7 @@
   - ✅ 2026-02-27: #151 abgeschlossen (standardisiertes Evidence-Bundle): neues read-only Export-Skript `scripts/export_bl15_readiness_bundle.py` erstellt versionierte Bundles unter `reports/bl15_readiness/<timestamp>/` und sammelt vorhandene BL-15/BL-17 Evidenzartefakte inkl. Manifest (`inventory.json`), Consumer-Targets-Hinweis (`consumer_targets_hint.md`) und README-Kurzinterpretation; ergänzt durch neue Testabdeckung `tests/test_export_bl15_readiness_bundle.py`.
   - ✅ 2026-02-27: #152 abgeschlossen (GO/NO-GO Decision-Matrix + Sign-off): `docs/LEGACY_IAM_USER_READINESS.md` um harte Gates (G1–G5), Entscheidungslogik (`GO`/`GO with timebox`/`NO-GO`), verlinkte BL-15-Evidenzartefakte, Sign-off-Template und synthetisch ausgefülltes Entscheidungsbeispiel ergänzt; zusätzlicher 5-Schritte-Entscheidungsablauf dokumentiert.
   - ✅ 2026-02-27: #187 abgeschlossen (CLI-Collector für Readiness-Evidence): neues Script `scripts/collect_bl15_readiness_evidence.py` führt Repo-/Runtime-/CloudTrail-Audits in einem Lauf zusammen, schreibt strukturierte JSON/MD-Berichte inkl. Log-Artefakte und liefert deterministische Exit-Codes (`0/10/20`); ergänzt durch Testabdeckung in `tests/test_collect_bl15_readiness_evidence.py`.
+  - ✅ 2026-02-27: #188 abgeschlossen (Fingerprint-Korrelation als Modul): neues Shared-Modul `src/legacy_consumer_fingerprint.py` kapselt Event-Normalisierung, deterministische Fingerprint-Aggregation und Report-Rendering; `scripts/audit_legacy_cloudtrail_consumers.sh` nutzt das Modul über einen klaren Integrationspfad (inkl. optionaler Fingerprint-Dimensionen `region`/`recipient_account`), abgesichert durch `tests/test_legacy_consumer_fingerprint.py` und bestehende Script-Regressionstests.
 - **Work-Packages (Issue #8):**
   - [x] #109 — Testabdeckung CloudTrail-Audit
   - [x] #111 — Strukturierter Fingerprint-Evidence-Export
@@ -238,7 +239,7 @@
   - [x] #151 — Standardisiertes Decommission-Evidence-Bundle
   - [x] #152 — GO/NO-GO Decision-Matrix + Sign-off-Template (2026-02-27)
   - [x] #187 — CLI-Collector für Readiness-Evidence (2026-02-27)
-  - [ ] #188 — Fingerprint-Korrelation als wiederverwendbares Modul
+  - [x] #188 — Fingerprint-Korrelation als wiederverwendbares Modul (2026-02-27)
 - **Blocker:**
   - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed + aktueller Caller-ARN), daher noch keine sichere Abschaltfreigabe.
   - Runtime-Audit zeigt weiterhin gesetzte AWS-Key-Variablen im laufenden Kontext; Quelle der Injection ist noch nicht final eliminiert.
