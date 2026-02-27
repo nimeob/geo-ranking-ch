@@ -524,7 +524,7 @@
 - **Work-Packages (Issue #248):**
   - [x] #249 — Parent in Standardformat + DoD/Scope (abgeschlossen 2026-02-27)
   - [x] #250 — Test-Coverage-Inventar (abgeschlossen 2026-02-27)
-  - [ ] #251 — Fehlende Testcases implementieren
+  - [x] #251 — Fehlende Testcases implementieren (abgeschlossen 2026-02-27)
   - [ ] #252 — Volltest + Outcome-Dokumentation
 
 ---
