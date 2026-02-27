@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geo-ranking-ch.local/docs/api/schemas/v1/analyze.grouped.response.schema.json",
+  "title": "AnalyzeGroupedResponseV1",
+  "description": "Stabiles grouped Response-Schema (v1) für /analyze mit additiver Erweiterbarkeit.",
+  "type": "object",
+  "required": [
+    "ok",
+    "request_id",
+    "result"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "ok": {
+      "const": true
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "status",
+        "data"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "status": {
+          "type": "object",
+          "required": [
+            "quality",
+            "source_health",
+            "source_meta"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "quality": {
+              "type": "object",
+              "required": [
+                "confidence"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "confidence": {
+                  "type": "object",
+                  "required": [
+                    "score",
+                    "max",
+                    "level"
+                  ],
+                  "additionalProperties": true,
+                  "properties": {
+                    "score": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "max": {
+                      "type": "number",
+                      "minimum": 1
+                    },
+                    "level": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "source_health": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "source_meta": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "source_classification": {
+                  "type": "object"
+                },
+                "source_attribution": {
+                  "type": "object"
+                },
+                "field_provenance": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "entity",
+            "modules",
+            "by_source"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "entity": {
+              "type": "object",
+              "required": [
+                "query",
+                "matched_address",
+                "ids",
+                "coordinates"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "matched_address": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "ids": {
+                  "type": "object"
+                },
+                "coordinates": {
+                  "type": "object",
+                  "required": [
+                    "lat",
+                    "lon"
+                  ],
+                  "additionalProperties": true,
+                  "properties": {
+                    "lat": {
+                      "type": "number"
+                    },
+                    "lon": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            },
+            "modules": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "by_source": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "source",
+                  "data"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "data": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

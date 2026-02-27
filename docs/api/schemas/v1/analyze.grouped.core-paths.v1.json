@@ -1,0 +1,47 @@
+{
+  "version": "v1",
+  "schema": "docs/api/schemas/v1/analyze.grouped.response.schema.json",
+  "description": "Single-Source-of-Truth für stabile Kerninformationen im grouped Response-Shape.",
+  "core_paths": [
+    {
+      "name": "request_id",
+      "path": "request_id",
+      "type": "string"
+    },
+    {
+      "name": "confidence_score",
+      "path": "result.status.quality.confidence.score",
+      "type": "number"
+    },
+    {
+      "name": "confidence_level",
+      "path": "result.status.quality.confidence.level",
+      "type": "string"
+    },
+    {
+      "name": "entity_query",
+      "path": "result.data.entity.query",
+      "type": "string"
+    },
+    {
+      "name": "entity_matched_address",
+      "path": "result.data.entity.matched_address",
+      "type": "string"
+    },
+    {
+      "name": "entity_coordinates_lat",
+      "path": "result.data.entity.coordinates.lat",
+      "type": "number"
+    },
+    {
+      "name": "entity_coordinates_lon",
+      "path": "result.data.entity.coordinates.lon",
+      "type": "number"
+    },
+    {
+      "name": "module_match_selected_score",
+      "path": "result.data.modules.match.selected_score",
+      "type": "number"
+    }
+  ]
+}
