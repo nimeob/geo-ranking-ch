@@ -123,7 +123,14 @@ def validate_request(payload: Any) -> list[str]:
         if not isinstance(options, dict):
             errors.append("options must be object")
         else:
-            allowed_opt = {"language", "timeout_seconds", "capabilities", "entitlements"}
+            allowed_opt = {
+                "language",
+                "timeout_seconds",
+                "response_mode",
+                "include_labels",
+                "capabilities",
+                "entitlements",
+            }
             unknown_opt = set(options.keys()) - allowed_opt
             if unknown_opt:
                 errors.append(f"options contains unknown keys: {sorted(unknown_opt)}")
@@ -136,6 +143,14 @@ def validate_request(payload: Any) -> list[str]:
                     errors.append("options.timeout_seconds must be number")
                 elif not (float(timeout) > 0 and float(timeout) <= 60):
                     errors.append("options.timeout_seconds out of range")
+
+            response_mode = options.get("response_mode")
+            if response_mode is not None and response_mode not in {"compact", "verbose"}:
+                errors.append("options.response_mode invalid")
+
+            include_labels = options.get("include_labels")
+            if include_labels is not None and not isinstance(include_labels, bool):
+                errors.append("options.include_labels must be boolean")
 
             capabilities = options.get("capabilities")
             if capabilities is not None and not isinstance(capabilities, dict):
@@ -432,9 +447,12 @@ class TestApiContractV1(unittest.TestCase):
             "GET /api/v1/dictionaries",
             "If-None-Match",
             "304 Not Modified",
+            "options.include_labels",
+            "BL-20.1.k.wp4 Migration/Kompatibilitätsmodus + Sunset-Strategie",
             "#286",
             "#287",
             "#288",
+            "#290",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
@@ -456,6 +474,8 @@ class TestApiContractV1(unittest.TestCase):
             "BL-20.1.h Capability-/Entitlement-Envelope",
             "result.status.capabilities",
             "options.entitlements",
+            "include_labels",
+            "sunset",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-stability-policy.md: {marker}")

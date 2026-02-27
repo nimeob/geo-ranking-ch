@@ -511,6 +511,18 @@ def _extract_response_mode(options: dict[str, Any]) -> str:
     return mode
 
 
+def _extract_include_legacy_labels(options: dict[str, Any]) -> bool:
+    """Liest den optionalen Legacy-Label-Modus für Migrationspfade.
+
+    Default ist code-first (`False`). Wird das Flag explizit gesetzt,
+    muss es ein boolescher Wert sein.
+    """
+    raw_value = options.get("include_labels", False)
+    if isinstance(raw_value, bool):
+        return raw_value
+    raise ValueError("options.include_labels must be a boolean when provided")
+
+
 def _as_unit_interval_number(value: Any, field_name: str) -> float:
     """Validiert und normalisiert Präferenzgewichte robust auf den Bereich 0..1."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -877,6 +889,7 @@ class Handler(BaseHTTPRequestHandler):
             # Request-Erweiterungen (z. B. Deep-Mode) ohne Breaking Changes.
             request_options = _extract_request_options(data)
             response_mode = _extract_response_mode(request_options)
+            include_legacy_labels = _extract_include_legacy_labels(request_options)
 
             # Optionales Preference-Profil für BL-20.4-Personalisierung.
             # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
@@ -898,6 +911,17 @@ class Handler(BaseHTTPRequestHandler):
                         "coordinates": {},
                         "administrative": {},
                         "match": {"mode": "e2e_stub"},
+                        "building": {
+                            "codes": {"gstat": 1004, "gkat": 1020},
+                            "decoded": {
+                                "status": "Bestehend",
+                                "kategorie": "Wohngebäude",
+                            },
+                        },
+                        "energy": {
+                            "raw_codes": {"gwaerzh1": 7410, "genh1": 7501},
+                            "decoded_summary": {"heizung": ["Wärmepumpe (Luft)"]},
+                        },
                         "suitability_light": {
                             "status": "ok",
                             "heuristic_version": "e2e-stub-v1",
@@ -945,6 +969,7 @@ class Handler(BaseHTTPRequestHandler):
                             "result": _grouped_api_result(
                                 stub_report,
                                 response_mode=response_mode,
+                                include_legacy_labels=include_legacy_labels,
                             ),
                             "request_id": request_id,
                         },
@@ -985,6 +1010,7 @@ class Handler(BaseHTTPRequestHandler):
                     "result": _grouped_api_result(
                         report,
                         response_mode=response_mode,
+                        include_legacy_labels=include_legacy_labels,
                     ),
                     "request_id": request_id,
                 },

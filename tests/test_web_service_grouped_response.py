@@ -211,6 +211,28 @@ class TestGroupedApiResult(unittest.TestCase):
         self.assertNotIn("decoded_summary", modules["energy"])
         self.assertEqual(modules["energy"]["codes"]["gwaerzh1"], "7410")
 
+    def test_legacy_label_projection_keeps_decoded_fields_when_enabled(self):
+        report = {
+            "query": "Espenmoosstrasse 18, 9008 St. Gallen",
+            "matched_address": "Espenmoosstrasse 18, 9008 St. Gallen",
+            "building": {
+                "codes": {"gstat": 1004},
+                "decoded": {"status": "Bestehend"},
+            },
+            "energy": {
+                "raw_codes": {"gwaerzh1": 7410},
+                "decoded_summary": {"heizung": ["Wärmepumpe (Luft)"]},
+            },
+            "sources": {"geoadmin_search": {"status": "ok"}},
+        }
+
+        grouped = _grouped_api_result(report, include_legacy_labels=True)
+        modules = grouped["data"]["modules"]
+
+        self.assertIn("decoded", modules["building"])
+        self.assertIn("decoded_summary", modules["energy"])
+        self.assertIn("raw_codes", modules["energy"])
+
     def test_code_first_projection_reduces_payload_vs_legacy_label_projection(self):
         report = {
             "query": "Espenmoosstrasse 18, 9008 St. Gallen",
