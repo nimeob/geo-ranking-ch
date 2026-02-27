@@ -523,7 +523,7 @@
   - Vollständiger Testlauf inkl. Outcome-Dokumentation ist im Repo nachweisbar.
 - **Work-Packages (Issue #248):**
   - [x] #249 — Parent in Standardformat + DoD/Scope (abgeschlossen 2026-02-27)
-  - [ ] #250 — Test-Coverage-Inventar
+  - [x] #250 — Test-Coverage-Inventar (abgeschlossen 2026-02-27)
   - [ ] #251 — Fehlende Testcases implementieren
   - [ ] #252 — Volltest + Outcome-Dokumentation
 
