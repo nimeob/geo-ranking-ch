@@ -53,6 +53,7 @@ Auf Basis des selektierten Kandidaten:
 
 Siehe auch:
 - [`docs/api/contract-v1.md`](contract-v1.md)
+- [`docs/api/address-resolution-strategy.md`](address-resolution-strategy.md)
 - [`docs/api/scoring_methodology.md`](scoring_methodology.md)
 - [`docs/testing/WEB_SERVICE_RESULT_PATH_COVERAGE.md`](../testing/WEB_SERVICE_RESULT_PATH_COVERAGE.md)
 
