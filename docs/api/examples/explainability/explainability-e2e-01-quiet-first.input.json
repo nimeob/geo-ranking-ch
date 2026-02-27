@@ -1,0 +1,46 @@
+{
+  "example_id": "explainability-e2e-01-quiet-first",
+  "description": "Kontrastprofil quiet-first/family-first gegen urban geprägte Rohdaten.",
+  "methodology_version": "scoring-v1-draft",
+  "request": {
+    "input": {
+      "mode": "address",
+      "address": "Bahnhofstrasse 10, 9000 St. Gallen"
+    },
+    "requested_modules": [
+      "context_profile",
+      "suitability_light",
+      "explainability"
+    ],
+    "preferences": {
+      "lifestyle_density": "suburban",
+      "noise_tolerance": "low",
+      "nightlife_preference": "avoid",
+      "school_proximity": "prefer",
+      "family_friendly_focus": "high",
+      "commute_priority": "pt"
+    }
+  },
+  "factor_observations": {
+    "noise": {
+      "raw_value": 68,
+      "normalized": 0.68,
+      "source": "laermkataster_ch"
+    },
+    "traffic": {
+      "raw_value": 62,
+      "normalized": 0.62,
+      "source": "verkehrsachsen_ch"
+    },
+    "schools": {
+      "raw_value": 4,
+      "normalized": 0.8,
+      "source": "poi_school_index"
+    },
+    "nightlife": {
+      "raw_value": 7,
+      "normalized": 0.7,
+      "source": "poi_nightlife_index"
+    }
+  }
+}

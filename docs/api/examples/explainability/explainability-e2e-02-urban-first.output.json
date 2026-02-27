@@ -1,0 +1,110 @@
+{
+  "example_id": "explainability-e2e-02-urban-first",
+  "methodology_version": "scoring-v1-draft",
+  "result_projection": {
+    "explainability": {
+      "base": {
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 55,
+            "normalized": 0.55,
+            "weight": 0.3,
+            "contribution": -0.165,
+            "direction": "contra",
+            "reason": "Messbare Lärmbelastung senkt den Basisscore.",
+            "source": "laermkataster_ch"
+          },
+          {
+            "key": "traffic",
+            "raw_value": 48,
+            "normalized": 0.48,
+            "weight": 0.25,
+            "contribution": -0.12,
+            "direction": "contra",
+            "reason": "Verkehrsdichte wirkt als allgemeiner Negativfaktor.",
+            "source": "verkehrsachsen_ch"
+          },
+          {
+            "key": "schools",
+            "raw_value": 3,
+            "normalized": 0.6,
+            "weight": 0.25,
+            "contribution": 0.15,
+            "direction": "pro",
+            "reason": "Schulnähe ist im neutralen Modell leicht positiv.",
+            "source": "poi_school_index"
+          },
+          {
+            "key": "nightlife",
+            "raw_value": 8,
+            "normalized": 0.8,
+            "weight": 0.2,
+            "contribution": 0.16,
+            "direction": "pro",
+            "reason": "Urbanes Angebot wirkt im Basisscore moderat positiv.",
+            "source": "poi_nightlife_index"
+          }
+        ]
+      },
+      "personalized": {
+        "profile": "urban-first",
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 55,
+            "normalized": 0.55,
+            "weight": 0.15,
+            "contribution": -0.0825,
+            "direction": "contra",
+            "reason": "Hohe Lärmtoleranz halbiert die negative Wirkung von Lärm.",
+            "source": "laermkataster_ch"
+          },
+          {
+            "key": "traffic",
+            "raw_value": 48,
+            "normalized": 0.48,
+            "weight": 0.3,
+            "contribution": -0.144,
+            "direction": "contra",
+            "reason": "Pendelfokus per ÖV hält Verkehrsgewicht relevant.",
+            "source": "verkehrsachsen_ch"
+          },
+          {
+            "key": "schools",
+            "raw_value": 3,
+            "normalized": 0.6,
+            "weight": 0.1,
+            "contribution": -0.06,
+            "direction": "contra",
+            "reason": "Bei school_proximity=avoid kippt der Faktor in ein Contra-Signal.",
+            "source": "poi_school_index"
+          },
+          {
+            "key": "nightlife",
+            "raw_value": 8,
+            "normalized": 0.8,
+            "weight": 0.45,
+            "contribution": 0.36,
+            "direction": "pro",
+            "reason": "Nightlife bekommt als Urban-Präferenz den stärksten positiven Hebel.",
+            "source": "poi_nightlife_index"
+          }
+        ]
+      }
+    }
+  },
+  "annotations": {
+    "base_total_contribution": 0.025,
+    "personalized_total_contribution": 0.0735,
+    "personalized_minus_base": 0.0485,
+    "score_index_note": "Illustrativer Vergleichsindex, kein normatives Contract-Feld.",
+    "base_score_index": 53,
+    "personalized_score_index": 57,
+    "why_score_changed": [
+      "Nightlife-Gewicht steigt von 0.20 auf 0.45 und dominiert die positive Seite.",
+      "Lärm-Penalty wird wegen hoher Toleranz deutlich abgeschwächt.",
+      "Schulnähe kippt zwar zu contra, bleibt aber gegenüber Nightlife sekundär." 
+    ]
+  }
+}

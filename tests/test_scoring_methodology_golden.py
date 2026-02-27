@@ -7,6 +7,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCORING_METHODOLOGY_DOC = REPO_ROOT / "docs" / "api" / "scoring_methodology.md"
 SCORING_WORKED_EXAMPLES_DIR = REPO_ROOT / "docs" / "api" / "examples" / "scoring"
+EXPLAINABILITY_E2E_EXAMPLES_DIR = REPO_ROOT / "docs" / "api" / "examples" / "explainability"
 
 EXPECTED_GOLDEN = {
     "worked-example-01-high-confidence": {
@@ -30,6 +31,28 @@ EXPECTED_GOLDEN = {
         "selected_score": 0.51,
         "noise_risk": "high",
     },
+}
+
+EXPLAINABILITY_E2E_CASES = {
+    "explainability-e2e-01-quiet-first": {
+        "delta_sign": -1,
+        "profile": "quiet-first",
+    },
+    "explainability-e2e-02-urban-first": {
+        "delta_sign": 1,
+        "profile": "urban-first",
+    },
+}
+
+REQUIRED_EXPLAINABILITY_FACTOR_KEYS = {
+    "key",
+    "raw_value",
+    "normalized",
+    "weight",
+    "contribution",
+    "direction",
+    "reason",
+    "source",
 }
 
 
@@ -119,6 +142,109 @@ class TestScoringMethodologyGolden(unittest.TestCase):
                 noise_risk,
                 expected["noise_risk"],
                 msg=f"Noise-Risk-Drift erkannt für {case}",
+            )
+
+    def test_explainability_e2e_examples_are_linked_from_methodology(self):
+        for case in EXPLAINABILITY_E2E_CASES:
+            input_rel = f"./examples/explainability/{case}.input.json"
+            output_rel = f"./examples/explainability/{case}.output.json"
+            self.assertIn(input_rel, self.doc_content, msg=f"Input-Link fehlt in Methodik-Doku: {input_rel}")
+            self.assertIn(output_rel, self.doc_content, msg=f"Output-Link fehlt in Methodik-Doku: {output_rel}")
+
+    def test_explainability_e2e_examples_have_required_factors(self):
+        for case, meta in EXPLAINABILITY_E2E_CASES.items():
+            input_path = EXPLAINABILITY_E2E_EXAMPLES_DIR / f"{case}.input.json"
+            output_path = EXPLAINABILITY_E2E_EXAMPLES_DIR / f"{case}.output.json"
+
+            self.assertTrue(input_path.is_file(), msg=f"Fehlendes Input-Artefakt: {input_path}")
+            self.assertTrue(output_path.is_file(), msg=f"Fehlendes Output-Artefakt: {output_path}")
+
+            input_payload = json.loads(input_path.read_text(encoding="utf-8"))
+            output_payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(
+                input_payload.get("methodology_version"),
+                self.methodology_version,
+                msg=f"Input-Version stimmt nicht mit Methodik-Version überein: {case}",
+            )
+            self.assertEqual(
+                output_payload.get("methodology_version"),
+                self.methodology_version,
+                msg=f"Output-Version stimmt nicht mit Methodik-Version überein: {case}",
+            )
+
+            personalized_profile = (
+                output_payload.get("result_projection", {})
+                .get("explainability", {})
+                .get("personalized", {})
+                .get("profile")
+            )
+            self.assertEqual(
+                personalized_profile,
+                meta["profile"],
+                msg=f"Unerwartetes Personalized-Profil in {case}",
+            )
+
+            base_factors = (
+                output_payload.get("result_projection", {})
+                .get("explainability", {})
+                .get("base", {})
+                .get("factors", [])
+            )
+            personalized_factors = (
+                output_payload.get("result_projection", {})
+                .get("explainability", {})
+                .get("personalized", {})
+                .get("factors", [])
+            )
+
+            self.assertGreaterEqual(len(base_factors), 4, msg=f"Zu wenige Base-Faktoren in {case}")
+            self.assertGreaterEqual(
+                len(personalized_factors),
+                4,
+                msg=f"Zu wenige Personalized-Faktoren in {case}",
+            )
+
+            for factor in base_factors + personalized_factors:
+                missing = REQUIRED_EXPLAINABILITY_FACTOR_KEYS - set(factor.keys())
+                self.assertFalse(missing, msg=f"Faktor in {case} unvollständig, fehlend: {sorted(missing)}")
+
+    def test_explainability_e2e_examples_show_personalization_delta(self):
+        for case, meta in EXPLAINABILITY_E2E_CASES.items():
+            output_path = EXPLAINABILITY_E2E_EXAMPLES_DIR / f"{case}.output.json"
+            output_payload = json.loads(output_path.read_text(encoding="utf-8"))
+
+            delta = output_payload.get("annotations", {}).get("personalized_minus_base")
+            self.assertIsInstance(delta, (int, float), msg=f"Delta fehlt oder ungültig in {case}")
+
+            if meta["delta_sign"] < 0:
+                self.assertLess(delta, 0, msg=f"Erwarteter negativer Profil-Effekt fehlt in {case}")
+            else:
+                self.assertGreater(delta, 0, msg=f"Erwarteter positiver Profil-Effekt fehlt in {case}")
+
+            base_by_key = {
+                item["key"]: item
+                for item in output_payload.get("result_projection", {})
+                .get("explainability", {})
+                .get("base", {})
+                .get("factors", [])
+            }
+            personalized_by_key = {
+                item["key"]: item
+                for item in output_payload.get("result_projection", {})
+                .get("explainability", {})
+                .get("personalized", {})
+                .get("factors", [])
+            }
+            shared_keys = set(base_by_key) & set(personalized_by_key)
+            direction_flips = [
+                key
+                for key in shared_keys
+                if base_by_key[key].get("direction") != personalized_by_key[key].get("direction")
+            ]
+            self.assertTrue(
+                direction_flips,
+                msg=f"Mindestens ein Richtungswechsel pro Beispiel erwartet (pro/contra): {case}",
             )
 
 
