@@ -22,6 +22,9 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`tests/test_contract_compatibility_regression.py`** um Entitlement-Meta im Additivitäts-Regressionstest ergänzt.
 - **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschluss von #127 aktualisiert.
 
+### Changed (2026-02-27 — BL-20.1.f.wp1 Checklist-/Issue-Sync, Issue #79)
+- **`docs/BACKLOG.md`** BL-20-Fortschritt um den Checklist-/Issue-Sync für #79 ergänzt (Crawler-Reopen bereinigt, Re-Validation mit `validate_field_catalog.py` + `tests/test_api_field_catalog.py`/`tests/test_scoring_methodology_golden.py` dokumentiert).
+
 ### Changed (2026-02-27 — BL-17.wp8 Break-glass-Fallback-Runbook)
 - **`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`** um ein verbindliches Break-glass-Runbook erweitert (Triggerkriterien, Ablauf, Evidenz-Checkliste, CloudTrail-/Inventory-/Posture-Prüfpunkte, Rückweg auf AssumeRole-first).
 - **`docs/LEGACY_IAM_USER_READINESS.md`** um ein vollständig ausgefülltes synthetisches Fallback-Event (read-only) ergänzt, inklusive referenzierter Evidenzpfade.
