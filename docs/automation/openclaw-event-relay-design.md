@@ -33,10 +33,12 @@ Ein webhook-/relay-gestützter Triggerpfad soll die Reaktionszeit für ausgewäh
 
 3. **Relay Queue/Store (durable)**
    - Validierte Events werden in eine durable Queue/Inbox geschrieben.
+   - Event-Envelope folgt einem minimalen, maschinenlesbaren Schema: `docs/automation/event-relay-envelope.schema.json`.
    - Consumer-seitige Ack- oder Lease-Semantik, damit keine Event-Verluste bei Retry/Crash entstehen.
 
 4. **OpenClaw Consumer (outbound pull)**
    - OpenClaw pollt die Queue aktiv outbound (z. B. jede Minute) und verarbeitet neue Events.
+   - Repo-seitiger Consumer-Entrypoint: `scripts/run_event_relay_consumer.py`.
    - Kein externer Inbound-Zugriff auf den Container nötig.
 
 5. **Dispatch in bestehende Jobs**
@@ -77,5 +79,8 @@ Für Relay-/Consumer-Läufe sollen konsistente Artefakte unter `reports/automati
 
 ## Follow-up
 
-- **Implementierungsfolge:** #233 (Relay-Receiver + Queue + OpenClaw-Consumer + Runbook-Sync).
-- Bis #233 abgeschlossen ist, bleibt der Cron-basierte Surrogate-Pfad produktiv maßgeblich.
+- **Implementierungsfolge (Parent):** #233
+  - ✅ #236: Event-Envelope + Queue-Consumer-Fundament
+  - ⏳ #237: Issue-/Label-Dispatch in Worker-Claim-Reconcile
+  - ⏳ #238: Shadow-/Hybrid-Rollout + Security-Runbook
+- Bis #233 vollständig abgeschlossen ist, bleibt der Cron-basierte Surrogate-Pfad produktiv maßgeblich.

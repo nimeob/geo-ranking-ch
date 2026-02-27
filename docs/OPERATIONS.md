@@ -276,6 +276,20 @@ Wesentliche Betriebsannahmen:
 - Relay nimmt Events extern entgegen, validiert/signiert, schreibt in Queue.
 - OpenClaw verarbeitet Events outbound per Pull-Consumer; Cron bleibt degradierbarer Safety-Net bis #233.
 
+Repo-seitiger Consumer-Check (WP1-Prototyp):
+
+```bash
+python3 scripts/run_event_relay_consumer.py \
+  --queue-file /tmp/event-relay-queue.ndjson \
+  --mode dry-run
+```
+
+Artefakte:
+- `reports/automation/event-relay/latest.json`
+- `reports/automation/event-relay/latest.md`
+- `reports/automation/event-relay/history/<timestamp>.json`
+- `reports/automation/event-relay/history/<timestamp>.md`
+
 ## Consistency-Crawler (read-only) — Runbook
 
 Zweck: Drift zwischen Vision, Backlog/Issues, Code und Doku früh erkennen, ohne automatische Mutationen als Default.

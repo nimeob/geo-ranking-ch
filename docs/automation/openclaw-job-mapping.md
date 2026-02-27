@@ -31,7 +31,7 @@ Für alle in #221 als `migrate-to-openclaw` klassifizierten Workflows wird ein k
 | contract-tests | `.github/workflows/contract-tests.yml` | `geo-ranking-contract-tests-surrogate` | `cron: */30 * * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/contract-tests/` | `python3 scripts/validate_field_catalog.py` + `pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py` |
 | crawler-regression | `.github/workflows/crawler-regression.yml` | `geo-ranking-crawler-regression-surrogate` | `cron: 15 * * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/crawler-regression/` | `./scripts/check_crawler_regression.sh` |
 | docs-quality | `.github/workflows/docs-quality.yml` | `geo-ranking-docs-quality-surrogate` | `cron: 45 */2 * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/docs-quality/` | `./scripts/check_docs_quality_gate.sh` |
-| worker-claim-priority | `.github/workflows/worker-claim-priority.yml` | `geo-ranking-worker-claim-reconciler` | event-surrogate via `cron: */10 * * * *` (Ist) + Relay-Hybrid-Zielpfad gemäß #227/#233 | isolated/run | `openai/gpt-5-mini`, `low` | summary (nur bei Mutationen) | 2x (5m/15m), 20m | `reports/automation/worker-claim-priority/` | Reconcile-Script für Label-/Claim-Order (WP4) + Event-Relay-Design in `docs/automation/openclaw-event-relay-design.md` |
+| worker-claim-priority | `.github/workflows/worker-claim-priority.yml` | `geo-ranking-worker-claim-reconciler` | event-surrogate via `cron: */10 * * * *` (Ist) + Relay-Hybrid-Zielpfad gemäß #227/#233 | isolated/run | `openai/gpt-5-mini`, `low` | summary (nur bei Mutationen) | 2x (5m/15m), 20m | `reports/automation/worker-claim-priority/` | Reconcile-Script für Label-/Claim-Order (WP4) + Event-Relay-Design (`docs/automation/openclaw-event-relay-design.md`) + Consumer-Prototyp (`scripts/run_event_relay_consumer.py`) |
 
 ## Umsetzung in #223 (technischer Migrationsanker)
 
@@ -61,7 +61,7 @@ Der Runner beendet sich mit dem Exit-Code des fehlgeschlagenen Schritts und kann
 
 - **R1: Event-Parität (Issue/PR-nahe Trigger) ist dokumentiert, aber technisch noch nicht produktiv umgesetzt.**
   - ✅ Design/Target-State in **#227** und `docs/automation/openclaw-event-relay-design.md` festgelegt.
-  - ⏳ Implementierungsfolge: **#233** (Relay-Receiver, Queue, OpenClaw-Consumer, Runbook-Sync).
+  - ⏳ Implementierungsfolge: **#233** (Relay-Receiver, Queue, OpenClaw-Consumer, Runbook-Sync), inkl. ✅ WP1 #236 (Consumer-Fundament).
 - **R2: Worker-Claim-Reconciliation ist operativ noch cron-dominiert.**
   - Bis Abschluss von #233 bleibt der periodische Reconciler der maßgebliche Fallback-/Safety-Pfad.
 

@@ -57,3 +57,6 @@ output/
 
 # Node (falls JS/CDK verwendet wird)
 node_modules/
+
+# Runtime-State (Automation-Consumer)
+reports/automation/**/state/

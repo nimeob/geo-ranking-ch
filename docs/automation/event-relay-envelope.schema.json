@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/nimeob/geo-ranking-ch/docs/automation/event-relay-envelope.schema.json",
+  "title": "OpenClaw Event Relay Envelope",
+  "description": "Minimales Event-Envelope für GitHub->Relay->OpenClaw Consumer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "delivery_id",
+    "event",
+    "action",
+    "repository",
+    "target_type",
+    "target_number",
+    "labels",
+    "received_at"
+  ],
+  "properties": {
+    "delivery_id": {
+      "type": "string",
+      "minLength": 8,
+      "description": "GitHub delivery identifier (X-GitHub-Delivery)"
+    },
+    "event": {
+      "type": "string",
+      "enum": [
+        "issues",
+        "pull_request",
+        "workflow_dispatch"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[^/]+/[^/]+$",
+      "description": "owner/repo"
+    },
+    "target_type": {
+      "type": "string",
+      "enum": [
+        "issue",
+        "pull_request"
+      ]
+    },
+    "target_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string",
+      "default": "github-webhook"
+    }
+  }
+}
