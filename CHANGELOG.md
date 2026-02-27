@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-15.wp2 Fingerprint-Evidence-Export, Issue #111)
+- **`scripts/audit_legacy_cloudtrail_consumers.sh`** um strukturierten Export erweitert: pro Lauf wird ein reproduzierbarer JSON-Report (`FINGERPRINT_REPORT_JSON`, Default `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`) mit Zeitfenster, Event-Counts, Top-Fingerprints und letzten Events geschrieben.
+- **`tests/test_audit_legacy_cloudtrail_consumers.py`** erweitert um Pfadvalidierung für `FINGERPRINT_REPORT_JSON` sowie Nachweise für Exportdatei-Inhalte in No-Event- und Event-Found-Pfaden.
+- **`docs/LEGACY_IAM_USER_READINESS.md`** um Runbook-Nutzung und Report-Feldübersicht ergänzt.
+- **`docs/BACKLOG.md`** BL-15-Nachweis um Abschluss von #111 fortgeschrieben.
+
 ### Changed (2026-02-27 — BL-20.1.h Capability-/Entitlement-Envelope, Issue #127)
 - **`docs/api/contract-v1.md`** um BL-20.1.h-Abschnitt erweitert: additive Request-/Response-Envelopes (`options.capabilities`, `options.entitlements`, `result.status.capabilities`, `result.status.entitlements`) inkl. Stabilitäts-/Einführungsregeln und Verweisen auf #105/#106/#107/#18.
 - **`docs/api/contract-stability-policy.md`** um dedizierte Policy-Sektion für den Capability-/Entitlement-Envelope erweitert (stable Envelope, beta/internal für innere Feature-Keys, Legacy-Kompatibilität als Muss).
