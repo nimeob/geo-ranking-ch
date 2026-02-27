@@ -387,6 +387,7 @@
   - ✅ 2026-02-27: Crawler-Finding #96 bereinigt (`docs/BACKLOG.md` ohne die bisher auslösenden Trigger-Schlüsselwörter, damit kein False-Positive mehr entsteht).
   - ✅ 2026-02-27: Crawler-Finding #97 verifiziert und geschlossen (gleiche Ursache wie #96; Formulierung bleibt ohne Trigger-Schlüsselwörter).
   - ✅ 2026-02-27: Crawler-Finding #115 verifiziert und geschlossen (historische Fundstelle `docs/BACKLOG.md:344` inzwischen durch Fachfortschritt überschrieben; aktueller Check ohne auslösende Marker in `docs/BACKLOG.md`).
+  - ✅ 2026-02-27: Crawler-Finding #116 verifiziert und geschlossen (Fundstelle `docs/BACKLOG.md:345` enthält keine Trigger-Schlüsselwörter; Gegencheck auf Crawler-Marker bleibt leer).
   - ⏳ Nächster Schritt: Parent-Issue #5 finalisieren (Sub-Issue-Checklist sync + Abschluss)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
