@@ -148,7 +148,10 @@ Der Lauf schreibt einen strukturierten JSON-Report (standardmäßig `artifacts/b
 - Zeitfenster (`window_utc.start/end`, `lookback_hours`)
 - Event-Counts (`events_raw`, `events_analyzed`, `lookup_events_filtered`)
 - Top-Fingerprints (`source_ip`, `user_agent`, Event-Sets, letzter Event-Zeitpunkt)
+- Optional erweiterten Fingerprint-Dimensionen via `FINGERPRINT_INCLUDE_REGION=1` und/oder `FINGERPRINT_INCLUDE_ACCOUNT=1`
 - Letzten 10 Events als read-only Evidenz ohne Secret-Werte
+
+Die Normalisierung/Aggregation der Fingerprints ist in `src/legacy_consumer_fingerprint.py` gekapselt und wird vom Audit-Skript wiederverwendet.
 
 Verifizierter Lauf (`Exit 10`):
 

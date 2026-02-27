@@ -20,6 +20,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`docs/api/examples/v1/location-intelligence.response.success.address.json`** sowie Golden-Contract-Payloads unter `tests/data/api_contract_v1/valid/` um die neuen Felder ergänzt.
 - **`tests/test_suitability_light.py`** und **`tests/test_api_contract_v1.py`** um Guards für die neuen Felder erweitert; zusätzlicher Negativfall unter `tests/data/api_contract_v1/invalid/response.success.missing-two-stage-scores.json`.
 
+### Changed (2026-02-27 — BL-15.wp7 Fingerprint-Korrelation als wiederverwendbares Modul, Issue #188)
+- **`src/legacy_consumer_fingerprint.py`** neu ergänzt: kapselt CloudTrail-Event-Normalisierung, deterministische Fingerprint-Aggregation (`source_ip` + `user_agent`, optional `region`/`recipient_account`) sowie Report-Rendering.
+- **`scripts/audit_legacy_cloudtrail_consumers.sh`** refaktoriert: nutzt das Shared-Modul für Page-Normalisierung und Auswertung, behält Exit-Code-Verhalten (`0/10/20`) bei und bietet optionale Dimensionen über `FINGERPRINT_INCLUDE_REGION`/`FINGERPRINT_INCLUDE_ACCOUNT`.
+- **`tests/test_legacy_consumer_fingerprint.py`** ergänzt: deckt Mischquellen-/Tie-Sortierung, NDJSON-Robustheit und optionale Fingerprint-Dimensionen ab; bestehende Script-Regressionen bleiben grün.
+- **`docs/LEGACY_IAM_USER_READINESS.md`** und **`docs/BACKLOG.md`** um Integrationshinweise + Abschlussnachweis für #188 fortgeschrieben.
+
 ### Changed (2026-02-27 — BL-20.x.wp1 Actionable TODO/FIXME-Filter, Issue #202)
 - **`scripts/github_repo_crawler.py`** um `is_actionable_todo_line(...)` erweitert: TODO/FIXME-Treffer mit erledigt-/historisch-Markern (`✅`, `erledigt`, `abgeschlossen`, `closed`, `changelog`) werden nicht mehr als neue Finding-Issues erzeugt.
 - **`tests/test_github_repo_crawler.py`** um gezielte Regressionsfälle ergänzt (Marker-Filter + End-to-End-Scan mit gemischten TODO-Zeilen), damit nur actionable Treffer in `scan_repo_for_findings` verbleiben.
