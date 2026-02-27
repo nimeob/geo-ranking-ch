@@ -128,13 +128,19 @@ Berechnung:
 ```text
 base_score = Σ(factor_score * weight)
 personalized_score = personalization(base_score, preferences)
-# WP2-Fallback solange kein Präferenzsignal im Runtime-Pfad aktiv ist:
+# Runtime-Regel: liegt kein wirksames Präferenzsignal vor,
+# bleibt personalized_score strikt auf dem Basisscore.
 personalized_score = base_score
 
 uncertainty_penalty = uncertainty_score * 0.18
 suitability_light.score = clamp(base_score - uncertainty_penalty, 0, 100)
 traffic_light = green (>=72) | yellow (>=52) | red (<52)
 ```
+
+Runtime-Hinweis (BL-20.4.d.wp5):
+- `/analyze` integriert den zweistufigen Engine-Pfad deterministisch über `src/personalized_scoring.py`.
+- Bei neutralem/fehlendem Präferenzsignal bleibt das Verhalten rückwärtskompatibel (`personalized_score == base_score`).
+- Zusätzlich wird im Payload ein additiver Block `suitability_light.personalization` mit `fallback_applied`, `signal_strength` und `weights` ausgegeben.
 
 Unsicherheiten werden explizit im Payload geführt (`suitability_light.uncertainty.*`), inklusive Gründen (z. B. fehlende Hangneigung, lückenhafte Erschliessung, niedrige Confidence).
 
@@ -408,4 +414,5 @@ Guard:
 - ✅ 2026-02-27: BL-20.4.d.wp1 (#180) liefert den deterministischen Engine-Core für zweistufiges Scoring (`src/personalized_scoring.py`) inkl. harter Fallback-Regel (`personalized_score == base_score` ohne Präferenzsignal) und Unit-Tests (`tests/test_personalized_scoring_engine.py`).
 - ✅ 2026-02-27: BL-20.4.d.wp3 (#182) erweitert die Methodik-Doku um normativen Rechenweg + Präferenzmatrix (Defaults, Delta-Matrix, Vergleichbarkeitsregeln) und ergänzt Doku-Regressionen in `tests/test_scoring_methodology_golden.py`.
 - ✅ 2026-02-27: BL-20.4.d.wp4 (#183) ergänzt ein runtime-nahes Golden-Testset mit konträren Präferenzprofilen (Artefakte unter `docs/api/examples/scoring/personalized-golden-*.json`) sowie Drift-/Determinismus-Guards in `tests/test_scoring_methodology_golden.py`.
+- ✅ 2026-02-27: BL-20.4.d.wp5 (#189) integriert den Engine-Output deterministisch in den `/analyze`-Runtime-Flow (`src/web_service.py`) inkl. additivem `suitability_light.personalization`-Block und E2E-Nachweisen für Präferenz-/Fallback-Pfad (`tests/test_web_e2e.py`).
 - Folgearbeiten laufen in separaten Backlog-Issues (z. B. API-Projection/Methodik-Sync für weitere Präferenzdimensionen).
