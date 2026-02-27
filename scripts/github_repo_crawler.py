@@ -12,7 +12,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 GHA = str(REPO_ROOT / "scripts" / "gha")
 
 EVIDENCE_RE = re.compile(r"\b(commit|pr\s*#|#\d+|pytest|test[s]?|merged|fixes)\b", re.IGNORECASE)
-TODO_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b")
+TODO_TOKEN_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b", re.IGNORECASE)
+TODO_PREFIX_CONTEXT_RE = re.compile(
+    r"^\s*(?:(?:#|//|/\*|<!--)\s*)?(?:[-*]\s+)?(?:\[[ xX]\]\s+)?(TODO|FIXME|HACK|XXX)\b",
+    re.IGNORECASE,
+)
+TODO_INLINE_COMMENT_CONTEXT_RE = re.compile(r"(?:#|//|/\*|<!--)\s*(TODO|FIXME|HACK|XXX)\b", re.IGNORECASE)
 NON_ACTIONABLE_TODO_RE = re.compile(
     r"(✅|\berledigt\b|\babgeschlossen\b|\bclosed\b|\bhistorisch\b|\bchangelog\b)",
     re.IGNORECASE,
@@ -723,11 +728,15 @@ def audit_code_docs_drift(max_findings: int = CODE_DOCS_MAX_FINDINGS) -> list[di
 
 
 def is_actionable_todo_line(line: str) -> bool:
-    if not TODO_RE.search(line):
+    if not TODO_TOKEN_RE.search(line):
         return False
     if NON_ACTIONABLE_TODO_RE.search(line):
         return False
-    return True
+    if TODO_PREFIX_CONTEXT_RE.search(line):
+        return True
+    if TODO_INLINE_COMMENT_CONTEXT_RE.search(line):
+        return True
+    return False
 
 
 def audit_closed_issues(dry_run: bool) -> list[dict[str, Any]]:
