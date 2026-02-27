@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-28 — BL-20.6.b Karteninteraktion + Result-Panel, Issue #33)
+- **`src/gui_mvp.py`** erweitert: klickbare Kartenfläche mit CH-WGS84-Bounds-Projektion, sofortigem `/analyze`-Trigger über `coordinates.lat/lon` (+ `snap_mode=ch_bounds`), Marker-Visualisierung, Keyboard-Fallback und Input-Metadaten im Result-Panel.
+- Kernfaktoren-Panel ergänzt: Top-Faktoren werden aus Explainability (grouped/legacy-kompatible Pfade) extrahiert und im GUI-MVP verständlich angezeigt.
+- **`docs/gui/GUI_MVP_STATE_FLOW.md`** auf BL-20.6-Endzustand fortgeschrieben (Adresse + Kartenklick + Result-Panel inkl. manueller E2E-Notiz).
+- **`README.md`** Endpoint-/Dokuindex-Sync für den erweiterten GUI-MVP-Scope.
+- **`tests/test_web_service_gui_mvp.py`** um Marker-Guards für Karteninteraktion und Kernfaktoren-Panel aktualisiert.
+
 ### Changed (2026-02-27 — BL-21.wp1 include_labels Runtime-Legacy-Cut, Issue #310)
 - **`src/web_service.py`**: Legacy-Flag `options.include_labels` wird nicht mehr unterstützt; Requests mit diesem Flag liefern jetzt deterministisch `400 bad_request` mit klarer Fehlermeldung.
 - Der grouped Response-Pfad erzwingt nun immer code-first Projektion (`building.decoded`/`energy.decoded_summary`/`energy.raw_codes` werden nicht mehr über einen Legacy-Branch ausgeliefert).
