@@ -234,6 +234,25 @@ Aktueller Kurzbefund daraus:
 - OpenClaw Runtime auf diesem Host nutzt weiterhin runtime-injizierte Legacy-Umgebungsvariablen.
 - Externe Targets sind jetzt strukturiert erfasst, aber inhaltlich noch nicht vollständig verifiziert (`caller_arn`/Injection/Cutover je Target teils `TBD`).
 
+### Standardisiertes Evidence-Bundle exportieren (BL-15.wp4)
+
+Für externe Reviews kann aus vorhandener Read-only-Evidenz ein versioniertes Bundle erzeugt werden:
+
+```bash
+./scripts/export_bl15_readiness_bundle.py
+```
+
+Standardziel: `reports/bl15_readiness/<UTC-Timestamp>/`
+
+Bundle-Inhalt (Minimum):
+
+- `evidence/fingerprint/legacy-cloudtrail-fingerprint-report.json`
+- `consumer_targets_hint.md` (extrahierte `target_id`s aus der Consumer-Matrix)
+- `inventory.json` (Manifest + SHA256-Checksums)
+- `README.md` (Kurzinterpretation je Artefakt)
+
+Optional können zusätzliche Artefakte über `--optional-glob` eingebunden werden.
+
 ---
 
 ## 2) Risiko-Einschätzung
