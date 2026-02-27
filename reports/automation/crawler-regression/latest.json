@@ -1,0 +1,24 @@
+{
+  "job_id": "crawler-regression",
+  "description": "Crawler-Regression (ehemals crawler-regression.yml)",
+  "run_id": "20260227T072935Z",
+  "started_at": "2026-02-27T07:29:35Z",
+  "finished_at": "2026-02-27T07:29:35Z",
+  "duration_seconds": 0.2102830410003662,
+  "status": "pass",
+  "exit_code": 0,
+  "command_override": [],
+  "steps": [
+    {
+      "started_at": "2026-02-27T07:29:35Z",
+      "finished_at": "2026-02-27T07:29:35Z",
+      "duration_seconds": 0.2102041244506836,
+      "command": "./scripts/check_crawler_regression.sh",
+      "exit_code": 0,
+      "status": "pass",
+      "stdout": "...................                                                      [100%]\n19 passed in 0.05s\ncrawler regression check: PASS\n",
+      "stderr": "",
+      "step_index": 1
+    }
+  ]
+}

@@ -203,6 +203,34 @@ cd /data/.openclaw/workspace/geo-ranking-ch
 python3 scripts/blocker_retry_supervisor.py
 ```
 
+## OpenClaw-Automation-Jobs (MVP-Migration aus GitHub Actions)
+
+Technischer Entry-Point für migrierte Jobs:
+
+```bash
+python3 scripts/run_openclaw_migrated_job.py --job <contract-tests|crawler-regression|docs-quality>
+```
+
+Beispiel (alle drei MVP-Jobs nacheinander):
+
+```bash
+python3 scripts/run_openclaw_migrated_job.py --job contract-tests
+python3 scripts/run_openclaw_migrated_job.py --job crawler-regression
+python3 scripts/run_openclaw_migrated_job.py --job docs-quality
+```
+
+Erzeugte Evidenz pro Lauf:
+
+- `reports/automation/<job-id>/latest.json`
+- `reports/automation/<job-id>/latest.md`
+- `reports/automation/<job-id>/history/<timestamp>.json`
+- `reports/automation/<job-id>/history/<timestamp>.md`
+
+Hinweise:
+- Exit-Code ist fail-fast (erster fehlgeschlagener Step).
+- `--command-override` ist nur für lokale Tests gedacht.
+- Mapping/Trigger-Design bleibt in [`docs/automation/openclaw-job-mapping.md`](automation/openclaw-job-mapping.md) dokumentiert.
+
 ## Consistency-Crawler (read-only) — Runbook
 
 Zweck: Drift zwischen Vision, Backlog/Issues, Code und Doku früh erkennen, ohne automatische Mutationen als Default.

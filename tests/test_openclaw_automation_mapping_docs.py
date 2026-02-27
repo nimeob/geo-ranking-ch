@@ -22,6 +22,7 @@ class TestOpenClawAutomationMappingDocs(unittest.TestCase):
             "reports/automation/crawler-regression/",
             "reports/automation/docs-quality/",
             "reports/automation/worker-claim-priority/",
+            "scripts/run_openclaw_migrated_job.py",
             "#223",
             "#224",
         ]
@@ -38,6 +39,11 @@ class TestOpenClawAutomationMappingDocs(unittest.TestCase):
             "docs/automation/openclaw-job-mapping.md",
             content,
             msg="OPERATIONS.md verweist nicht auf das OpenClaw-Mapping",
+        )
+        self.assertIn(
+            "scripts/run_openclaw_migrated_job.py",
+            content,
+            msg="OPERATIONS.md dokumentiert den OpenClaw-Migrationsrunner nicht",
         )
 
 

@@ -31,7 +31,21 @@ Für alle in #221 als `migrate-to-openclaw` klassifizierten Workflows wird ein k
 | contract-tests | `.github/workflows/contract-tests.yml` | `geo-ranking-contract-tests-surrogate` | `cron: */30 * * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/contract-tests/` | `python3 scripts/validate_field_catalog.py` + `pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py` |
 | crawler-regression | `.github/workflows/crawler-regression.yml` | `geo-ranking-crawler-regression-surrogate` | `cron: 15 * * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/crawler-regression/` | `./scripts/check_crawler_regression.sh` |
 | docs-quality | `.github/workflows/docs-quality.yml` | `geo-ranking-docs-quality-surrogate` | `cron: 45 */2 * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/docs-quality/` | `./scripts/check_docs_quality_gate.sh` |
-| worker-claim-priority | `.github/workflows/worker-claim-priority.yml` | `geo-ranking-worker-claim-reconciler` | event-surrogate via `cron: */10 * * * *` (Issue/Label-Reconcile) | isolated/run | `openai/gpt-5-mini`, `low` | summary (nur bei Mutationen) | 2x (5m/15m), 20m | `reports/automation/worker-claim-priority/` | Reconcile-Script für Label-/Claim-Order (Implementierung in #223) |
+| worker-claim-priority | `.github/workflows/worker-claim-priority.yml` | `geo-ranking-worker-claim-reconciler` | event-surrogate via `cron: */10 * * * *` (Issue/Label-Reconcile) | isolated/run | `openai/gpt-5-mini`, `low` | summary (nur bei Mutationen) | 2x (5m/15m), 20m | `reports/automation/worker-claim-priority/` | Reconcile-Script für Label-/Claim-Order (Implementierung in #224/#227) |
+
+## Umsetzung in #223 (technischer Migrationsanker)
+
+Für die drei MVP-Jobs aus #223 wurde ein gemeinsamer Runner eingeführt:
+
+- Script: `scripts/run_openclaw_migrated_job.py`
+- Unterstützte Job-IDs: `contract-tests`, `crawler-regression`, `docs-quality`
+- Report-Schema pro Lauf:
+  - `reports/automation/<job-id>/latest.json`
+  - `reports/automation/<job-id>/latest.md`
+  - `reports/automation/<job-id>/history/<timestamp>.json`
+  - `reports/automation/<job-id>/history/<timestamp>.md`
+
+Der Runner beendet sich mit dem Exit-Code des fehlgeschlagenen Schritts und kann damit direkt als OpenClaw-Cron-/Subagent-Entry genutzt werden.
 
 ## Trigger-/Delivery-Entscheidungen (Kurzbegründung)
 
@@ -47,10 +61,10 @@ Für alle in #221 als `migrate-to-openclaw` klassifizierten Workflows wird ein k
 
 - **R1: Event-Parität (Issue/PR-nahe Trigger) nur surrogate-basiert.**
   - Follow-up-Issue: **#227** (Webhook/Relay für schnellere Reaktionszeiten ohne Polling).
-- **R2: Einheitliches Report-Schema für Automation-Artefakte fehlt noch.**
-  - Umsetzung in #223, falls dort nicht vollständig: separates Follow-up anlegen.
+- **R2: Worker-Claim-Reconciliation läuft noch nicht event-nativ.**
+  - Folgearbeit in #224/#227 (Cron-Reconciler + optionales Webhook-Relay).
 
 ## Nächste Schritte
 
-1. #223 — Mindestens drei Jobs technisch migrieren und mit realer Evidenz laufen lassen.
+1. ✅ #223 — Mindestens drei Jobs technisch migriert und mit realer Evidenz unter `reports/automation/*` nachgewiesen.
 2. #224 — Nicht mehr benötigte Actions + Required-Checks + Runbook final bereinigen.
