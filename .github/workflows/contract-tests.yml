@@ -1,24 +1,6 @@
-name: contract-tests
+name: contract-tests (manual-fallback)
 
 on:
-  push:
-    paths:
-      - "docs/api/**"
-      - "tests/test_api_contract_v1.py"
-      - "tests/test_api_field_catalog.py"
-      - "tests/test_scoring_methodology_golden.py"
-      - "tests/data/api_contract_v1/**"
-      - "scripts/validate_field_catalog.py"
-      - ".github/workflows/contract-tests.yml"
-  pull_request:
-    paths:
-      - "docs/api/**"
-      - "tests/test_api_contract_v1.py"
-      - "tests/test_api_field_catalog.py"
-      - "tests/test_scoring_methodology_golden.py"
-      - "tests/data/api_contract_v1/**"
-      - "scripts/validate_field_catalog.py"
-      - ".github/workflows/contract-tests.yml"
   workflow_dispatch:
 
 jobs:

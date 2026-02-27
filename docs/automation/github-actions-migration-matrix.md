@@ -32,5 +32,12 @@ Reproduzierbare Ist-Aufnahme aller aktuellen Workflows unter `.github/workflows/
 ## Folgepfad
 
 1. ✅ #222: OpenClaw-Mapping v1 spezifiziert in [`docs/automation/openclaw-job-mapping.md`](openclaw-job-mapping.md) (Trigger, Session-Typ, Modell/Thinking, Delivery, Retry/Timeout).
-2. #223: Mindestens drei Workflows technisch migrieren und Evidenzpfade standardisieren.
-3. #224: Bereinigung verbliebener Actions + Required-Checks/Runbook-Sync.
+2. ✅ #223: Mindestens drei Workflows technisch migriert und Evidenzpfade standardisiert.
+3. ✅ #224: Bereinigung verbliebener Actions + Required-Checks/Runbook-Sync.
+
+## WP4-Resultat (2026-02-27)
+
+- `deploy.yml`: bleibt automatischer GitHub-Pfad (`push main` + `workflow_dispatch`).
+- `contract-tests.yml`, `crawler-regression.yml`, `docs-quality.yml`: auf `workflow_dispatch` als manueller Fallback reduziert (Primärpfad OpenClaw).
+- `bl20-sequencer.yml`: retired, nur noch manueller Placeholder.
+- `worker-claim-priority.yml`: bis zur Event-Surrogate-Ablösung (#227) weiterhin aktiv.

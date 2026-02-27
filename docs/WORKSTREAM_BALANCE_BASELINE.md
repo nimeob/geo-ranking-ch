@@ -47,13 +47,14 @@ Wenn der Gap künftig wieder >2 wird:
 ./scripts/check_crawler_regression.sh
 ```
 
-Der Command wird in GitHub Actions über den Workflow
-`.github/workflows/crawler-regression.yml` ausgeführt.
+Der Command läuft im Migrationsmodus primär über OpenClaw (siehe `scripts/run_openclaw_migrated_job.py --job crawler-regression`).
+Der GitHub-Workflow `.github/workflows/crawler-regression.yml` bleibt als manueller Fallback (`workflow_dispatch`) erhalten.
 
 ## Referenzen
 
 - Crawler-Script: `scripts/github_repo_crawler.py`
 - Crawler-Regression-Check: `scripts/check_crawler_regression.sh`
-- CI-Workflow: `.github/workflows/crawler-regression.yml`
+- OpenClaw-Runner: `scripts/run_openclaw_migrated_job.py`
+- Manual-Fallback-Workflow: `.github/workflows/crawler-regression.yml`
 - Parent-Issue: #98
 - Related Testing-WPs: #100, #101
