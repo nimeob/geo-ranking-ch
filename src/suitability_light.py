@@ -1,3 +1,10 @@
+"""Leichtgewichtige Standort-Eignungsbewertung für den API-MVP.
+
+Das Modul kapselt robuste Scoring-Heuristiken (Topografie, Erschliessung,
+Gebäudezustand) inkl. defensiver Normalisierung und liefert konsistente
+Teil- sowie Gesamtscores für `address_intel`.
+"""
+
 from __future__ import annotations
 
 import math

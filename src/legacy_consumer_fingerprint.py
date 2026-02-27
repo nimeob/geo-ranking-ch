@@ -1,3 +1,10 @@
+"""Fingerprinting für Legacy-Consumer-Nachweise in OIDC-Migrationspfaden.
+
+Erzeugt reproduzierbare Fingerprints aus Runtime-Ereignissen/Artefakten,
+normalisiert Zeitstempel robust und unterstützt damit Readiness-Reports
+sowie Drift-/Bestandsanalysen ohne Laufzeitnebenwirkungen.
+"""
+
 from __future__ import annotations
 
 import json

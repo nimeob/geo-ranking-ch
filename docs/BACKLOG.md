@@ -536,16 +536,16 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-20
-- **Status:** 🟡 in Umsetzung (2026-02-27, Issue #261)
+- **Status:** ✅ abgeschlossen (2026-02-27, Issue #261)
 - **Ziel:** Dokumentationsabdeckung strukturiert erfassen, Lücken priorisieren, fehlende Inhalte ergänzen und einen reproduzierbaren Service-Testlauf dokumentieren.
 - **Work-Packages (Issue #261):**
   - [x] #263 — Parent-Issue in Standardformat + atomare Zerlegung (abgeschlossen 2026-02-27)
   - [x] #264 — Dokumentationsabdeckung inventarisieren (Code + intern + User) (abgeschlossen 2026-02-27)
   - [x] #265 — Dokumentationslücken priorisieren + Umsetzungsplan (abgeschlossen 2026-02-27)
-  - [ ] #266 — Fehlende Dokumentation ergänzen (in atomare Child-Issues #272/#273/#274 zerlegt)
+  - [x] #266 — Fehlende Dokumentation ergänzen (in atomare Child-Issues #272/#273/#274 zerlegt; abgeschlossen 2026-02-27)
     - [x] #272 — Address-Intel-Flow-Deep-Dive dokumentieren (abgeschlossen 2026-02-27)
     - [x] #273 — Mapping-/Transform-Regeln user-nah ergänzen (abgeschlossen 2026-02-27)
-    - [ ] #274 — Modul-Docstrings für Kernmodule nachziehen
+    - [x] #274 — Modul-Docstrings für Kernmodule nachziehen (abgeschlossen 2026-02-27)
   - [x] #267 — Webservice-Test Espenmoosstrasse 18, 9008 St. Gallen dokumentieren (abgeschlossen 2026-02-27)
 - **Fortschritt:**
   - ✅ 2026-02-27: #263 abgeschlossen (Issue #261 auf Standardformat umgestellt, Parent-Work-Package-Checklist ergänzt, Child-Issues #264/#265/#266/#267 erstellt).
@@ -554,6 +554,8 @@
   - ✅ 2026-02-27: #265 abgeschlossen (Priorisierung + Umsetzungsreihenfolge der Doku-Gaps in [`docs/DOCUMENTATION_GAP_PRIORITIZATION_PLAN.md`](DOCUMENTATION_GAP_PRIORITIZATION_PLAN.md), inkl. verbindlichem Plan für #266).
   - ✅ 2026-02-27: #266 in Child-Issues #272/#273/#274 atomisiert; #272 abgeschlossen mit neuer Deep-Dive-Doku [`docs/api/address-intel-flow-deep-dive.md`](api/address-intel-flow-deep-dive.md) und Contract-Querverweis in [`docs/api/contract-v1.md`](api/contract-v1.md).
   - ✅ 2026-02-27: #273 abgeschlossen (kompakte user-nahe Mapping-/Transform-Interpretation in [`docs/user/api-usage.md`](user/api-usage.md) ergänzt, inkl. Verweis auf [`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`](DATA_SOURCE_FIELD_MAPPING_CH.md), Docs-Quality-Gate grün).
+  - ✅ 2026-02-27: #274 abgeschlossen (prägnante Modul-Docstrings in `src/personalized_scoring.py`, `src/suitability_light.py`, `src/legacy_consumer_fingerprint.py` ergänzt; bestehende Docstrings in `src/web_service.py`/`src/address_intel.py` bestätigt; relevante Tests grün).
+  - ✅ 2026-02-27: #266 abgeschlossen (alle Child-Work-Packages #272/#273/#274 erledigt).
 
 ---
 
