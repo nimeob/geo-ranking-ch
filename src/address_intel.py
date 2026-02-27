@@ -553,6 +553,103 @@ def tokenize(text: str) -> List[str]:
     return re.findall(r"[a-z0-9]+", normalize_text(text))
 
 
+def normalize_address_query_input(query: str) -> str:
+    """Normalisiert Roh-Adressstrings robust für provider-neutrale Weiterverarbeitung."""
+    text = str(query or "")
+    text = text.replace("\u00a0", " ")
+    text = re.sub(r"[;|\n\r]+", ",", text)
+    text = re.sub(r"\s*,\s*", ", ", text)
+    text = re.sub(r"\s+", " ", text).strip(" ,")
+    return text
+
+
+def _normalize_street_fragment(fragment: str) -> str:
+    street = normalize_text(fragment)
+    if not street:
+        return ""
+    # Provider-neutrale Vereinheitlichung typischer Abkürzungen.
+    street = re.sub(r"\bstr\.?\b", "strasse", street)
+    street = re.sub(r"\s+", " ", street).strip(" ,.-")
+    return street
+
+
+def _clean_id(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    raw = str(value).strip()
+    return raw or None
+
+
+def _as_int_coordinate(value: Any) -> Optional[int]:
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(num):
+        return None
+    return int(round(num))
+
+
+def _as_wgs84_coordinate(value: Any) -> Optional[float]:
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(num):
+        return None
+    return num
+
+
+def derive_resolution_identifiers(
+    *,
+    feature_id: Any,
+    gwr_attrs: Dict[str, Any],
+    lat: Any,
+    lon: Any,
+) -> Dict[str, Optional[str]]:
+    """Leitet stabile, provider-neutrale Entity-/Location-IDs additiv ab."""
+    egid = _clean_id(gwr_attrs.get("egid"))
+    egrid = _clean_id(gwr_attrs.get("egrid"))
+    feature = _clean_id(feature_id)
+
+    if egid:
+        entity_id = f"ch:egid:{egid}"
+    elif egrid:
+        entity_id = f"ch:egrid:{egrid.upper()}"
+    elif feature:
+        entity_id = f"ch:feature:{feature}"
+    else:
+        entity_id = None
+
+    lv95_e = _as_int_coordinate(gwr_attrs.get("gkode"))
+    lv95_n = _as_int_coordinate(gwr_attrs.get("gkodn"))
+    if lv95_e is not None and lv95_n is not None:
+        location_id = f"ch:lv95:{lv95_e}:{lv95_n}"
+    else:
+        lat_num = _as_wgs84_coordinate(lat)
+        lon_num = _as_wgs84_coordinate(lon)
+        if lat_num is not None and lon_num is not None:
+            location_id = f"ch:wgs84:{lat_num:.6f}:{lon_num:.6f}"
+        else:
+            location_id = None
+
+    seed = "|".join(
+        [
+            entity_id or "",
+            location_id or "",
+            feature or "",
+        ]
+    )
+    resolution_hash = hashlib.sha1(seed.encode("utf-8")).hexdigest()[:16] if seed else None
+    resolution_id = f"ch:resolution:v1:{resolution_hash}" if resolution_hash else None
+
+    return {
+        "entity_id": entity_id,
+        "location_id": location_id,
+        "resolution_id": resolution_id,
+    }
+
+
 def canonical_area_weight_key(raw: str) -> Optional[str]:
     key = normalize_text(raw or "")
     key = key.replace("ö", "oe").replace("ä", "ae").replace("ü", "ue")
@@ -814,7 +911,8 @@ def load_gwr_codes(module_path: Path):
 
 
 def parse_query_parts(query: str) -> QueryParts:
-    norm = normalize_text(query)
+    normalized_input = normalize_address_query_input(query)
+    norm = normalize_text(normalized_input)
     tokens = tokenize(norm)
 
     postal_match = re.search(r"\b(\d{4})\b", norm)
@@ -824,19 +922,22 @@ def parse_query_parts(query: str) -> QueryParts:
     house_number = None
     city = None
 
-    parts = [p.strip() for p in re.split(r",", query) if p.strip()]
-    first = parts[0] if parts else query
+    parts = [p.strip() for p in re.split(r",", normalized_input) if p.strip()]
+    first = parts[0] if parts else normalized_input
     first_norm = normalize_text(first)
 
-    m = re.match(r"^(.*?)(\d+[a-zA-Z]?)\s*$", first_norm)
+    m = re.match(
+        r"^(?P<street>.+?)\s+(?P<number>\d+[a-zA-Z]?(?:[/-]\d+[a-zA-Z]?)?)\s*$",
+        first_norm,
+    )
     if m:
-        street = m.group(1).strip(" ,") or None
-        house_number = m.group(2).lower()
+        street = _normalize_street_fragment(m.group("street")) or None
+        house_number = m.group("number").lower()
     else:
-        street = first_norm or None
+        street = _normalize_street_fragment(first_norm) or None
 
     if postal_code:
-        m_city = re.search(rf"\b{postal_code}\b\s*([a-z\-\.\s]+)$", norm)
+        m_city = re.search(rf"\b{postal_code}\b\s*([a-z0-9\-\.\s'/]+)$", norm)
         if m_city:
             city = m_city.group(1).strip(" ,")
     if not city and len(parts) >= 2:
@@ -5572,6 +5673,13 @@ def build_report(
         "map": f"https://map.geo.admin.ch/?lang=de&topic=ech&bgLayer=ch.swisstopo.pixelkarte-farbe&layers=ch.bfs.gebaeude_wohnungs_register&E={gwr.get('gkode')}&N={gwr.get('gkodn')}&zoom=10",
     }
 
+    resolution_ids = derive_resolution_identifiers(
+        feature_id=selected.feature_id,
+        gwr_attrs=gwr,
+        lat=selected.lat,
+        lon=selected.lon,
+    )
+
     report = {
         "query": address_query,
         "matched_address": selected.label,
@@ -5585,6 +5693,17 @@ def build_report(
                 "house_number": query.house_number,
                 "postal_code": query.postal_code,
                 "city": query.city,
+            },
+            "resolution": {
+                "pipeline_version": "v1",
+                "strategy": "provider_neutral_address_resolution",
+                "provider_path": [
+                    "candidate_search",
+                    "candidate_hydration",
+                    "cross_source_enrichment",
+                ],
+                "selected_origin": selected.origin,
+                "selected_feature_id": selected.feature_id,
             },
         },
         "confidence": confidence,
@@ -5601,6 +5720,9 @@ def build_report(
             "egrid": gwr.get("egrid"),
             "esid": gwr.get("esid"),
             "edid": gwr.get("edid"),
+            "entity_id": resolution_ids.get("entity_id"),
+            "location_id": resolution_ids.get("location_id"),
+            "resolution_id": resolution_ids.get("resolution_id"),
         },
         "administrative": {
             "strasse_nummer": gwr.get("strname_deinr"),

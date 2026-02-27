@@ -26,6 +26,42 @@ class TestCoreFunctions(unittest.TestCase):
         self.assertEqual(qp.postal_code, "9000")
         self.assertIn("gallen", qp.city)
 
+    def test_parse_query_parts_normalizes_separators_and_street_abbrev(self):
+        qp = address_intel.parse_query_parts("  St. Leonhard-Str. 39 ; 9000 St. Gallen  ")
+        self.assertEqual(qp.street, "st. leonhard-strasse")
+        self.assertEqual(qp.house_number, "39")
+        self.assertEqual(qp.postal_code, "9000")
+        self.assertEqual(qp.city, "st. gallen")
+
+    def test_parse_query_parts_supports_house_number_suffix_ranges(self):
+        qp = address_intel.parse_query_parts("Seestrasse 10A/2, 8640 Rapperswil")
+        self.assertEqual(qp.street, "seestrasse")
+        self.assertEqual(qp.house_number, "10a/2")
+        self.assertEqual(qp.postal_code, "8640")
+        self.assertEqual(qp.city, "rapperswil")
+
+    def test_derive_resolution_identifiers_prefers_egid_and_lv95(self):
+        ids = address_intel.derive_resolution_identifiers(
+            feature_id="123_0",
+            gwr_attrs={"egid": 555, "gkode": 2745000.4, "gkodn": 1256000.6},
+            lat=47.1,
+            lon=8.5,
+        )
+        self.assertEqual(ids["entity_id"], "ch:egid:555")
+        self.assertEqual(ids["location_id"], "ch:lv95:2745000:1256001")
+        self.assertTrue(str(ids["resolution_id"]).startswith("ch:resolution:v1:"))
+
+    def test_derive_resolution_identifiers_fallback_to_feature_and_wgs84(self):
+        ids = address_intel.derive_resolution_identifiers(
+            feature_id="abc_7",
+            gwr_attrs={},
+            lat=47.3769123,
+            lon=8.5417234,
+        )
+        self.assertEqual(ids["entity_id"], "ch:feature:abc_7")
+        self.assertEqual(ids["location_id"], "ch:wgs84:47.376912:8.541723")
+        self.assertTrue(str(ids["resolution_id"]).startswith("ch:resolution:v1:"))
+
     def test_candidate_scoring_prefers_exact(self):
         qp = address_intel.parse_query_parts("Wassergasse 24, 9000 St. Gallen")
 
