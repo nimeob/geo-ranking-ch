@@ -71,7 +71,7 @@ Ein webhook-/relay-gestützter Triggerpfad soll die Reaktionszeit für ausgewäh
 
 ### Phase 3 — Event-first (stabilisiert)
 - Event-Pfad ist Standard, Cron dient nur noch als degradierbarer Safety-Net.
-- GitHub-Workflow `worker-claim-priority.yml` kann nach stabiler Verifikation stillgelegt werden.
+- GitHub-Workflow `worker-claim-priority.yml` darf erst nach erfülltem Deaktivierungsmarker stillgelegt werden (mind. 2 saubere Live-Hybrid-Runs ohne Dispatch-Fehler + dokumentierter Drift-Abgleich + benannter Rollback-Owner).
 
 ## Betriebs-/Evidenzanforderungen
 
@@ -82,5 +82,5 @@ Für Relay-/Consumer-Läufe sollen konsistente Artefakte unter `reports/automati
 - **Implementierungsfolge (Parent):** #233
   - ✅ #236: Event-Envelope + Queue-Consumer-Fundament
   - ✅ #237: Issue-/Label-Dispatch in Worker-Claim-Reconcile (inkl. Sequenztests `labeled`/`unlabeled`/`reopened`)
-  - ⏳ #238: Shadow-/Hybrid-Rollout + Security-Runbook
-- Bis #233 vollständig abgeschlossen ist, bleibt der Cron-basierte Surrogate-Pfad produktiv maßgeblich.
+  - ✅ #238: Shadow-/Hybrid-Rollout + Security-Runbook + Evidenzläufe (`20260227T090700Z`, `20260227T090900Z`)
+- Bis der Deaktivierungsmarker erfüllt ist, bleibt der Cron-basierte Surrogate-Pfad produktiv maßgeblich.

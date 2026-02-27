@@ -1,0 +1,42 @@
+{
+  "job_id": "event-relay-consumer",
+  "run_id": "20260227T090700Z",
+  "mode": "dry-run",
+  "queue_file": "/tmp/issue238_shadow_queue.ndjson",
+  "schema_path": "/data/.openclaw/workspace/geo-ranking-ch/docs/automation/event-relay-envelope.schema.json",
+  "issues_snapshot": null,
+  "state_file": "/tmp/issue238_shadow_state.json",
+  "started_at": "2026-02-27T08:10:58Z",
+  "finished_at": "2026-02-27T08:10:58Z",
+  "duration_seconds": 0.0009462833404541016,
+  "status": "pass",
+  "exit_code": 0,
+  "summary": {
+    "total": 2,
+    "accepted": 2,
+    "duplicates": 0,
+    "invalid": 0,
+    "pruned_state_entries": 0,
+    "reconcile_dispatch_requested": 0,
+    "reconcile_dispatch_runs": 0,
+    "reconcile_dispatch_failed": 0,
+    "reconcile_mutations": 0
+  },
+  "events": [
+    {
+      "line_no": 1,
+      "delivery_id": "issue238-shadow-001",
+      "status": "accepted",
+      "route": "issues.labeled:issue#238",
+      "dispatch": "would-queue:worker-claim-reconcile"
+    },
+    {
+      "line_no": 2,
+      "delivery_id": "issue238-shadow-002",
+      "status": "accepted",
+      "route": "pull_request.opened:pull_request#240",
+      "dispatch": "dry-run"
+    }
+  ],
+  "dispatches": []
+}
