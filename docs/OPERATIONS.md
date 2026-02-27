@@ -267,44 +267,88 @@ Wenn OpenClaw-Jobs temporär ausfallen, können die migrierten Checks manuell ge
 3. Ergebnis in Issue/PR als temporären Fallback-Nachweis dokumentieren
 4. Nach Stabilisierung wieder auf OpenClaw-Evidenzpfade (`reports/automation/...`) zurückgehen
 
-## Event-Relay Zielpfad (Designstand)
+## Event-Relay Zielpfad (Rollout-Stand #238)
 
-Das Zielbild für schnellere Issue/PR-nahe Trigger ist in [`docs/automation/openclaw-event-relay-design.md`](automation/openclaw-event-relay-design.md) dokumentiert (Issue #227).
+Das Zielbild für schnellere Issue/PR-nahe Trigger ist in [`docs/automation/openclaw-event-relay-design.md`](automation/openclaw-event-relay-design.md) dokumentiert (Issue #227). Der technische Consumer-Pfad aus #236/#237 ist produktiv nutzbar; mit #238 ist der Shadow-/Hybrid-Betrieb inkl. Security-Runbook und Evidenzpfad konkretisiert.
 
 Wesentliche Betriebsannahmen:
 - Kein direkter Webhook auf den OpenClaw-Container (kein Inbound erreichbar).
 - Relay nimmt Events extern entgegen, validiert/signiert, schreibt in Queue.
-- OpenClaw verarbeitet Events outbound per Pull-Consumer; Cron bleibt degradierbarer Safety-Net bis #233.
+- OpenClaw verarbeitet Events outbound per Pull-Consumer.
+- Cron-Reconcile bleibt als degradierbarer Safety-Net aktiv, bis der Deaktivierungsmarker erfüllt ist (siehe unten).
 
-Repo-seitiger Consumer-Check (WP1/WP2):
+### Shadow-Run (read-only)
 
 ```bash
-# Shadow: Envelope-Validierung + Dedup + Dispatch-Preview
 python3 scripts/run_event_relay_consumer.py \
-  --queue-file /tmp/event-relay-queue.ndjson \
-  --mode dry-run
+  --queue-file /tmp/issue238_shadow_queue.ndjson \
+  --mode dry-run \
+  --state-file /tmp/issue238_shadow_state.json
+```
 
-# Apply: issues.* Events triggern Worker-Claim-Reconcile (einmal pro Run/Repo, dedup-batched)
+Erwartung: Event-Routing + Dedup + Dispatch-Preview ohne GitHub-Mutationen.
+
+### Hybrid-Run (Event-Apply + Cron-Fallback bleibt aktiv)
+
+Produktionsnaher Apply-Pfad (mutierend gegen GitHub-API):
+
+```bash
 export GH_TOKEN="$(./scripts/gh_app_token.sh)"
 python3 scripts/run_event_relay_consumer.py \
   --queue-file /tmp/event-relay-queue.ndjson \
   --mode apply
 ```
 
-Für lokale Integrationstests ohne GitHub-Mutationen kann ein Snapshot genutzt werden:
+Sicherer Integrationslauf ohne Live-Mutation (für Verifikation/Drills):
 
 ```bash
 python3 scripts/run_event_relay_consumer.py \
-  --queue-file /tmp/event-relay-queue.ndjson \
-  --issues-snapshot /tmp/open-issues.snapshot.json \
-  --mode apply
+  --queue-file /tmp/issue238_hybrid_queue.ndjson \
+  --issues-snapshot /tmp/issue238_hybrid_snapshot.json \
+  --mode apply \
+  --state-file /tmp/issue238_hybrid_state.json
 ```
 
-Artefakte:
-- `reports/automation/event-relay/latest.json`
-- `reports/automation/event-relay/latest.md`
-- `reports/automation/event-relay/history/<timestamp>.json`
-- `reports/automation/event-relay/history/<timestamp>.md`
+### Security-Runbook (operativer Ablauf)
+
+1. **Signaturprüfung**
+   - Relay MUSS `X-Hub-Signature-256` gegen das aktuelle Webhook-Secret validieren.
+   - Invalid Signature ⇒ Event verwerfen, `invalid-signature` zählen, keine Queue-Schreiboperation.
+2. **Secret-Rotation**
+   - Rotation mindestens quartalsweise oder sofort nach Incident.
+   - Während Rotation kurze Dual-Secret-Phase erlauben (active + previous), danach old secret entfernen.
+3. **Allowlist + Scope-Minimierung**
+   - Nur freigegebene Event-Typen (`issues`, `pull_request`, `workflow_dispatch`) annehmen.
+   - Nur freigegebene Repositories/Owner annehmen.
+4. **Dedup/Replay-Schutz**
+   - `delivery_id` mit TTL in dedizierter State-Store/Keyspace führen.
+   - Doppelte Delivery IDs als `duplicate` markieren und nicht erneut dispatchen.
+5. **Rate-Limit + Backpressure**
+   - Ingress-Limits am Relay setzen (pro Quelle + global).
+   - Bei Überlast: Queue-first, konsumierende Seite mit Backoff; keine ungebremsten Retry-Loops.
+6. **Dead-Letter/Recovery**
+   - Parsing-/Schema-/Dispatch-Fehler mit Grund codiert ablegen (`reports/automation/event-relay/` + ggf. DLQ).
+   - Reprocess nur nach Fehlerklassifikation und dokumentiertem Freigabeschritt.
+
+### Evidenz (WP3)
+
+- Shadow-Run: `reports/automation/event-relay/history/20260227T090700Z.{json,md}`
+- Hybrid-Run (Snapshot-Apply): `reports/automation/event-relay/history/20260227T090900Z.{json,md}`
+- Laufende Artefakte:
+  - `reports/automation/event-relay/latest.json`
+  - `reports/automation/event-relay/latest.md`
+  - `reports/automation/event-relay/history/<timestamp>.json`
+  - `reports/automation/event-relay/history/<timestamp>.md`
+
+### Decision Marker für Abschaltung von `.github/workflows/worker-claim-priority.yml`
+
+`DISABLE_WORKER_CLAIM_PRIORITY_ACTION = false` solange mindestens eines der Kriterien offen ist:
+
+- weniger als 2 aufeinanderfolgende **Live-Hybrid-Runs** (`--mode apply` gegen GitHub API) ohne `reconcile_dispatch_failed`
+- nicht validierte Drift-Kontrolle zwischen Event-Path und Cron-Fallback
+- kein dokumentierter Rollback-Owner für Incident-Fälle
+
+Wenn alle Kriterien erfüllt sind, Marker auf `true` setzen, Workflow deaktivieren und Datum/Beleg in `docs/BACKLOG.md` + Migration-Matrix nachziehen.
 
 Hinweis zur Cron-Koexistenz: Der Dispatch mutiert nur bei tatsächlichem Label-Delta (idempotente Reconcile-Regeln). Damit bleibt der periodische Cron-Fallback parallel betreibbar, ohne dauerhaftes Double-Mutation-Risiko.
 
