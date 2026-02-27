@@ -1,0 +1,29 @@
+{
+  "job_id": "event-relay-consumer",
+  "run_id": "20260227T082000Z",
+  "mode": "apply",
+  "queue_file": "tests/data/event_relay/sample_queue.ndjson",
+  "schema_path": "/data/.openclaw/workspace/geo-ranking-ch/docs/automation/event-relay-envelope.schema.json",
+  "state_file": "/data/.openclaw/workspace/geo-ranking-ch/reports/automation/event-relay/state/delivery_ids.json",
+  "started_at": "2026-02-27T07:53:40Z",
+  "finished_at": "2026-02-27T07:53:40Z",
+  "duration_seconds": 0.0003256797790527344,
+  "status": "pass",
+  "exit_code": 0,
+  "summary": {
+    "total": 1,
+    "accepted": 1,
+    "duplicates": 0,
+    "invalid": 0,
+    "pruned_state_entries": 0
+  },
+  "events": [
+    {
+      "line_no": 1,
+      "delivery_id": "demo-delivery-002",
+      "status": "accepted",
+      "dispatch": "deferred-for-wp2",
+      "route": "issues.labeled:issue#236"
+    }
+  ]
+}
