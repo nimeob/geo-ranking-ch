@@ -532,6 +532,21 @@
   - [x] #251 — Fehlende Testcases implementieren (abgeschlossen 2026-02-27)
   - [x] #252 — Volltest + Outcome-Dokumentation (abgeschlossen 2026-02-27)
 
+### BL-YY — Dokumentations-Programm (intern + User + Service-Output)
+- **Priorität:** P1
+- **Aufwand:** M
+- **Abhängigkeiten:** BL-20
+- **Status:** 🟡 in Umsetzung (2026-02-27, Issue #261)
+- **Ziel:** Dokumentationsabdeckung strukturiert erfassen, Lücken priorisieren, fehlende Inhalte ergänzen und einen reproduzierbaren Service-Testlauf dokumentieren.
+- **Work-Packages (Issue #261):**
+  - [x] #263 — Parent-Issue in Standardformat + atomare Zerlegung (abgeschlossen 2026-02-27)
+  - [ ] #264 — Dokumentationsabdeckung inventarisieren (Code + intern + User)
+  - [ ] #265 — Dokumentationslücken priorisieren + Umsetzungsplan
+  - [ ] #266 — Fehlende Dokumentation ergänzen
+  - [ ] #267 — Webservice-Test Espenmoosstrasse 18, 9008 St. Gallen dokumentieren
+- **Fortschritt:**
+  - ✅ 2026-02-27: #263 abgeschlossen (Issue #261 auf Standardformat umgestellt, Parent-Work-Package-Checklist ergänzt, Child-Issues #264/#265/#266/#267 erstellt).
+
 ---
 
 ## Nacht-Plan (abgeschlossen)
