@@ -4649,6 +4649,43 @@ def build_environment_profile_layer(
         100.0,
     )
 
+    score_factor_order = (
+        "density_score",
+        "diversity_score",
+        "accessibility_score",
+        "family_support_score",
+        "vitality_score",
+        "quietness_score",
+    )
+    score_factor_values = {
+        "density_score": density_score,
+        "diversity_score": diversity_score,
+        "accessibility_score": accessibility_score,
+        "family_support_score": family_support_score,
+        "vitality_score": vitality_score,
+        "quietness_score": quietness_score,
+    }
+    factor_weight = 1.0 / float(len(score_factor_order))
+    score_factors: List[Dict[str, Any]] = []
+    for factor_key in score_factor_order:
+        raw_score = clamp(float(score_factor_values.get(factor_key, 0.0)), 0.0, 100.0)
+        score_factors.append(
+            {
+                "key": factor_key,
+                "score": round(raw_score, 2),
+                "weight": round(factor_weight, 6),
+                "weighted_points": round(raw_score * factor_weight, 2),
+            }
+        )
+
+    score_model = {
+        "id": "environment-profile-scoring-v1",
+        "formula": "overall_score = Σ(factor_score * factor_weight), factor_weight = 1/6",
+        "factors": score_factors,
+        "overall_score_raw": round(sum(float(row.get("weighted_points") or 0.0) for row in score_factors), 2),
+        "calibration_reference": "docs/api/environment-profile-scoring-v1.md",
+    }
+
     weighted_samples.sort(key=lambda row: float(row.get("weight") or 0.0), reverse=True)
     top_signals = weighted_samples[:8]
     layer_conf = clamp(0.44 + min(float(poi_total), 36.0) / 120.0, 0.42, 0.82)
@@ -4677,6 +4714,7 @@ def build_environment_profile_layer(
                 "quietness_score": 0,
                 "overall_score": 0,
             },
+            "score_model": score_model,
             "signals": [],
             "statements": [
                 statement(
@@ -4720,6 +4758,7 @@ def build_environment_profile_layer(
             "quietness_score": int(round(quietness_score)),
             "overall_score": int(round(overall_score)),
         },
+        "score_model": score_model,
         "signals": top_signals,
         "statements": [
             statement(
