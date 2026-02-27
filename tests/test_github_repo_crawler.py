@@ -197,6 +197,78 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
         self.assertFalse(payload["needs_catchup"])
 
 
+class TestGithubRepoCrawlerVisionIssueCoverage(unittest.TestCase):
+    def test_parse_vision_requirements_extracts_scope_modules(self):
+        markdown = """
+# Vision
+## Scope-Module (fachlich)
+### M1 — Gebäudeprofil
+- Adress-Geocoding
+- Energieträger
+
+### M2 — Umfeldprofil
+- ÖV-Erreichbarkeit
+
+## Andere Sektion
+### M3 — ignorieren
+- sollte nicht mehr mitlaufen
+""".strip()
+
+        requirements = crawler.parse_vision_requirements(markdown)
+
+        self.assertEqual([item["id"] for item in requirements], ["M1", "M2"])
+        self.assertEqual(requirements[0]["title"], "Gebäudeprofil")
+        self.assertIn("adress", " ".join(requirements[0]["tokens"]))
+
+    def test_assess_vision_issue_coverage_marks_covered_unclear_missing(self):
+        requirements = [
+            {"id": "M1", "title": "Gebäudeprofil", "line": 10, "tokens": ["gebäude", "baujahr"]},
+            {"id": "M2", "title": "Umfeldprofil", "line": 14, "tokens": ["umfeld", "lärm"]},
+            {"id": "M3", "title": "Bau-Eignung", "line": 20, "tokens": ["hangneigung", "zugänglichkeit"]},
+        ]
+        issues = [
+            {"number": 21, "title": "Gebäude Baujahr ergänzen", "body": "Gebäudeprofil ausbauen", "state": "open", "url": "https://example/21"},
+            {"number": 22, "title": "Lärmindikatoren dokumentieren", "body": "", "state": "closed", "url": "https://example/22"},
+        ]
+
+        coverage = crawler.assess_vision_issue_coverage(requirements, issues)
+
+        self.assertEqual(coverage["total_requirements"], 3)
+        self.assertEqual(coverage["covered"], 1)
+        self.assertEqual(coverage["unclear"], 1)
+        self.assertEqual(coverage["missing"], 1)
+        status_by_id = {row["id"]: row["status"] for row in coverage["requirements"]}
+        self.assertEqual(status_by_id["M1"], "covered")
+        self.assertEqual(status_by_id["M2"], "unclear")
+        self.assertEqual(status_by_id["M3"], "missing")
+
+    def test_collect_vision_issue_coverage_findings_creates_gap_and_unclear(self):
+        coverage = {
+            "requirements": [
+                {
+                    "id": "M1",
+                    "title": "Gebäudeprofil",
+                    "line": 33,
+                    "status": "missing",
+                    "best_match": None,
+                },
+                {
+                    "id": "M2",
+                    "title": "Umfeldprofil",
+                    "line": 40,
+                    "status": "unclear",
+                    "best_match": {"number": 55, "url": "https://example/55"},
+                },
+            ]
+        }
+
+        findings = crawler.collect_vision_issue_coverage_findings(coverage)
+
+        self.assertEqual(len(findings), 2)
+        self.assertEqual(findings[0]["type"], "vision_issue_coverage_gap")
+        self.assertEqual(findings[1]["type"], "vision_issue_coverage_unclear")
+
+
 class TestGithubRepoCrawlerConsistencyReport(unittest.TestCase):
     def test_build_consistency_report_prioritizes_by_severity(self):
         findings = [
@@ -224,6 +296,42 @@ class TestGithubRepoCrawlerConsistencyReport(unittest.TestCase):
         self.assertEqual(report["summary"]["by_severity"]["low"], 1)
         self.assertEqual(report["findings"][0]["severity"], "critical")
         self.assertEqual(report["findings"][0]["type"], "issue_closure_consistency")
+
+    def test_render_consistency_report_markdown_includes_coverage_block(self):
+        report = crawler.build_consistency_report(
+            [],
+            generated_at="2026-02-27T06:08:00+00:00",
+            coverage={
+                "vision_source": "docs/VISION_PRODUCT.md",
+                "total_requirements": 2,
+                "covered": 1,
+                "unclear": 1,
+                "missing": 0,
+                "requirements": [
+                    {
+                        "id": "M1",
+                        "title": "Gebäudeprofil",
+                        "status": "covered",
+                        "matched_keywords": ["gebäude", "baujahr"],
+                        "best_match": {"number": 21, "state": "open", "score": 2},
+                    },
+                    {
+                        "id": "M2",
+                        "title": "Umfeldprofil",
+                        "status": "unclear",
+                        "matched_keywords": ["lärm"],
+                        "best_match": {"number": 22, "state": "closed", "score": 1},
+                    },
+                ],
+            },
+        )
+
+        markdown = crawler.render_consistency_report_markdown(report)
+
+        self.assertIn("Vision ↔ Issue Coverage (MVP)", markdown)
+        self.assertIn("Anforderungen: **2**", markdown)
+        self.assertIn("M2 — Umfeldprofil", markdown)
+        self.assertIn("#22 (closed, score=1)", markdown)
 
     def test_write_consistency_reports_writes_json_and_markdown(self):
         report = crawler.build_consistency_report(

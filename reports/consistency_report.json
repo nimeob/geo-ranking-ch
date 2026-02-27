@@ -1,111 +1,145 @@
 {
+  "coverage": {
+    "covered": 5,
+    "missing": 0,
+    "requirements": [
+      {
+        "best_match": {
+          "number": 6,
+          "score": 2,
+          "state": "OPEN",
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/6"
+        },
+        "id": "M1",
+        "line": 40,
+        "matched_keywords": [
+          "gebäudeprofil",
+          "adress"
+        ],
+        "status": "covered",
+        "title": "Gebäudeprofil"
+      },
+      {
+        "best_match": {
+          "number": 6,
+          "score": 2,
+          "state": "OPEN",
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/6"
+        },
+        "id": "M2",
+        "line": 44,
+        "matched_keywords": [
+          "umfeldprofil",
+          "lärm"
+        ],
+        "status": "covered",
+        "title": "Umfeldprofil"
+      },
+      {
+        "best_match": {
+          "number": 110,
+          "score": 5,
+          "state": "OPEN",
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/110"
+        },
+        "id": "M3",
+        "line": 49,
+        "matched_keywords": [
+          "bau",
+          "eignung",
+          "standortanalyse",
+          "hangneigung",
+          "distanz"
+        ],
+        "status": "covered",
+        "title": "Bau-Eignung am Punkt"
+      },
+      {
+        "best_match": {
+          "number": 14,
+          "score": 4,
+          "state": "OPEN",
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/14"
+        },
+        "id": "M4",
+        "line": 54,
+        "matched_keywords": [
+          "ergebnis",
+          "quelle",
+          "harte",
+          "ableitungen"
+        ],
+        "status": "covered",
+        "title": "Explainability"
+      },
+      {
+        "best_match": {
+          "number": 17,
+          "score": 7,
+          "state": "OPEN",
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/17"
+        },
+        "id": "M5",
+        "line": 58,
+        "matched_keywords": [
+          "api",
+          "first",
+          "gui",
+          "karten",
+          "interaktion",
+          "ergebnis",
+          "panel"
+        ],
+        "status": "covered",
+        "title": "Produktoberflächen"
+      }
+    ],
+    "total_requirements": 5,
+    "unclear": 0,
+    "vision_source": "docs/VISION_PRODUCT.md"
+  },
   "findings": [
     {
       "evidence": [
         {
-          "kind": "issue",
-          "number": 181,
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/181"
+          "kind": "metric",
+          "name": "development",
+          "value": 2
         },
         {
           "kind": "metric",
-          "name": "reason_count",
-          "value": 1
+          "name": "documentation",
+          "value": 5
+        },
+        {
+          "kind": "metric",
+          "name": "testing",
+          "value": 5
+        },
+        {
+          "kind": "metric",
+          "name": "gap",
+          "value": 3
         }
       ],
       "severity": "medium",
       "source": {
-        "component": "closed_issue_review",
-        "kind": "github_issue_audit",
-        "reasons": [
-          "Issue-Body enthält offene Checklist-Items"
-        ]
+        "component": "heuristic_counts",
+        "kind": "workstream_balance"
       },
-      "summary": "Geschlossenes Issue #181 hat inkonsistente Abschlusssignale",
-      "type": "issue_closure_consistency"
-    },
-    {
-      "evidence": [
-        {
-          "kind": "issue",
-          "number": 182,
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/182"
-        },
-        {
-          "kind": "metric",
-          "name": "reason_count",
-          "value": 1
-        }
-      ],
-      "severity": "medium",
-      "source": {
-        "component": "closed_issue_review",
-        "kind": "github_issue_audit",
-        "reasons": [
-          "Issue-Body enthält offene Checklist-Items"
-        ]
-      },
-      "summary": "Geschlossenes Issue #182 hat inkonsistente Abschlusssignale",
-      "type": "issue_closure_consistency"
-    },
-    {
-      "evidence": [
-        {
-          "kind": "issue",
-          "number": 183,
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/183"
-        },
-        {
-          "kind": "metric",
-          "name": "reason_count",
-          "value": 1
-        }
-      ],
-      "severity": "medium",
-      "source": {
-        "component": "closed_issue_review",
-        "kind": "github_issue_audit",
-        "reasons": [
-          "Issue-Body enthält offene Checklist-Items"
-        ]
-      },
-      "summary": "Geschlossenes Issue #183 hat inkonsistente Abschlusssignale",
-      "type": "issue_closure_consistency"
-    },
-    {
-      "evidence": [
-        {
-          "kind": "issue",
-          "number": 202,
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/202"
-        },
-        {
-          "kind": "metric",
-          "name": "reason_count",
-          "value": 1
-        }
-      ],
-      "severity": "medium",
-      "source": {
-        "component": "closed_issue_review",
-        "kind": "github_issue_audit",
-        "reasons": [
-          "Issue-Body enthält offene Checklist-Items"
-        ]
-      },
-      "summary": "Geschlossenes Issue #202 hat inkonsistente Abschlusssignale",
-      "type": "issue_closure_consistency"
+      "summary": "Workstream-Balance außerhalb Zielkorridor (gap=3, ziel<=2)",
+      "type": "workstream_balance_gap"
     }
   ],
-  "generated_at": "2026-02-27T05:57:42+00:00",
+  "generated_at": "2026-02-27T06:13:32+00:00",
   "schema_version": "1.0",
   "summary": {
     "by_severity": {
-      "medium": 4
+      "medium": 1
     },
     "by_type": {
-      "issue_closure_consistency": 4
+      "workstream_balance_gap": 1
     },
-    "total_findings": 4
+    "total_findings": 1
   }
 }
