@@ -240,7 +240,7 @@ Stand nach WP4:
   - `.github/workflows/crawler-regression.yml`
   - `.github/workflows/docs-quality.yml`
   - `.github/workflows/bl20-sequencer.yml` (retired/manual placeholder)
-- `.github/workflows/worker-claim-priority.yml` bleibt bis zur technischen Event-Relay-Umsetzung (`#233`) aktiv (Designgrundlage in `docs/automation/openclaw-event-relay-design.md`, abgeschlossen in `#227`).
+- `.github/workflows/worker-claim-priority.yml` bleibt trotz umgesetztem Event-Relay-Pfad (`#233`) bis zum dokumentierten Deaktivierungsmarker aktiv (2 saubere Live-Hybrid-Runs + Drift-Nachweis; Designgrundlage in `docs/automation/openclaw-event-relay-design.md`, #227).
 
 ### Required-Checks Zielzustand (Branch Protection `main`)
 
@@ -267,15 +267,35 @@ Wenn OpenClaw-Jobs temporär ausfallen, können die migrierten Checks manuell ge
 3. Ergebnis in Issue/PR als temporären Fallback-Nachweis dokumentieren
 4. Nach Stabilisierung wieder auf OpenClaw-Evidenzpfade (`reports/automation/...`) zurückgehen
 
-## Event-Relay Zielpfad (Rollout-Stand #238)
+## Event-Relay Zielpfad (Rollout-Stand #233)
 
-Das Zielbild für schnellere Issue/PR-nahe Trigger ist in [`docs/automation/openclaw-event-relay-design.md`](automation/openclaw-event-relay-design.md) dokumentiert (Issue #227). Der technische Consumer-Pfad aus #236/#237 ist produktiv nutzbar; mit #238 ist der Shadow-/Hybrid-Betrieb inkl. Security-Runbook und Evidenzpfad konkretisiert.
+Das Zielbild für schnellere Issue/PR-nahe Trigger ist in [`docs/automation/openclaw-event-relay-design.md`](automation/openclaw-event-relay-design.md) dokumentiert (Issue #227). Mit #233 ist der Repo-seitige Relay-Pfad vollständig umgesetzt: Receiver (`scripts/run_event_relay_receiver.py`) übernimmt Signatur-/Allowlist-/Dedup-Gates am Ingress, Consumer (`scripts/run_event_relay_consumer.py`) verarbeitet Queue-Events outbound in den Reconcile-Flow.
 
 Wesentliche Betriebsannahmen:
 - Kein direkter Webhook auf den OpenClaw-Container (kein Inbound erreichbar).
 - Relay nimmt Events extern entgegen, validiert/signiert, schreibt in Queue.
 - OpenClaw verarbeitet Events outbound per Pull-Consumer.
 - Cron-Reconcile bleibt als degradierbarer Safety-Net aktiv, bis der Deaktivierungsmarker erfüllt ist (siehe unten).
+
+### Receiver-Ingress (Webhook → Queue)
+
+Lokaler/Container-naher Receiver-Lauf (für den externen Relay-Endpoint oder Integrationstests):
+
+```bash
+export GITHUB_WEBHOOK_SECRET="<active-secret>"
+export GITHUB_WEBHOOK_SECRET_PREVIOUS="<old-secret-optional>"
+export EVENT_RELAY_ALLOWED_REPOSITORIES="nimeob/geo-ranking-ch"
+
+python3 scripts/run_event_relay_receiver.py \
+  --headers-file /tmp/github_webhook_headers.json \
+  --payload-file /tmp/github_webhook_payload.json \
+  --queue-file /tmp/event-relay-queue.ndjson
+```
+
+Erwartung:
+- ungültige Signatur/Allowlist-Verstoß ⇒ `status=rejected`, **kein** Queue-Write
+- bekannte `delivery_id` innerhalb TTL ⇒ `status=duplicate`, **kein** zweiter Queue-Write
+- gültiges Event ⇒ `status=accepted` + minimiertes Envelope im Queue-File
 
 ### Shadow-Run (read-only)
 
