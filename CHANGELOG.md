@@ -14,6 +14,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-20.4.e Preference-Presets v1, Issue #88)
+- **`src/web_service.py`** um einen versionierten Preset-Katalog (`urban_lifestyle`, `family_friendly`, `quiet_residential`, `car_commuter`, `pt_commuter`) erweitert; neue Request-Felder `preferences.preset` + `preferences.preset_version` (`v1`) sowie deterministische Override-Reihenfolge (Defaults → Preset → Enum-Overrides → Weight-Overrides).
+- **`docs/api/schemas/v1/location-intelligence.request.schema.json`** additiv um `preferences.preset`/`preferences.preset_version` ergänzt (inkl. `dependentRequired` für `preset_version` → `preset`).
+- **`docs/api/preference-profiles.md`**, **`docs/api/contract-v1.md`**, **`docs/api/contract-stability-policy.md`**, **`docs/user/api-usage.md`** und **`README.md`** auf Preset-Contract, Konfliktregeln und v1-Beispiele synchronisiert.
+- **`tests/test_web_e2e.py`** um Preset-Happy-Path, Override-Verhalten und neue Validierungsfehler erweitert.
+- **`tests/test_api_contract_v1.py`** um Contract-Validator-Regeln für Presets inkl. positiver/negativer Fälle erweitert.
+
 ### Changed (2026-02-27 — BL-20.4.a Umfelddaten-Radiusmodell + Kernkennzahlen, Issue #28)
 - **`src/address_intel.py`** um ein neues Layer `intelligence.environment_profile` erweitert: radialer 3-Ring-Ansatz (`inner/mid/outer`) mit transparenter Distanzgewichtung, Domain-/Ring-Counts, Dichtewerten und Kernmetriken (`density`, `diversity`, `accessibility`, `family_support`, `vitality`, `quietness`, `overall`).
 - **`summary_compact.intelligence.environment_profile`** ergänzt (Status, `overall_score`, `poi_total`) für schnelle operative Einordnung.

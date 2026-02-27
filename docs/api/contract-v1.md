@@ -38,7 +38,7 @@ Versionierungsprinzip:
   - `suitability_light`
   - `explainability`
 - `preferences` (optional): Preference-Profile für personalisierte Bewertung
-  - erlaubt sind nur bekannte Dimensionen (siehe Abschnitt „BL-20.4.c Preference-Profile Envelope“)
+  - erlaubt sind bekannte Dimensionen sowie Preset-Felder (`preset`, `preset_version`; siehe Abschnitt „BL-20.4.c Preference-Profile Envelope“)
   - wenn `preferences` fehlt, greifen definierte Defaults (non-breaking)
 
 ### Success Response
@@ -238,7 +238,7 @@ Einführungsstrategie (non-breaking):
 
 ## 15) BL-20.4.c Preference-Profile Envelope
 
-Bezug: [#85](https://github.com/nimeob/geo-ranking-ch/issues/85)
+Bezug: [#85](https://github.com/nimeob/geo-ranking-ch/issues/85), [#88](https://github.com/nimeob/geo-ranking-ch/issues/88)
 
 Ziel: Optionales, klar validierbares Request-Profil für personalisierte Umfeldauswertung bereitstellen,
 ohne den bestehenden Request-Contract zu brechen.
@@ -252,6 +252,9 @@ Request (optional, additiv):
   - `school_proximity`: `avoid|neutral|prefer`
   - `family_friendly_focus`: `low|medium|high`
   - `commute_priority`: `car|pt|bike|mixed`
+- Preset-Felder (BL-20.4.e):
+  - `preferences.preset`: `urban_lifestyle|family_friendly|quiet_residential|car_commuter|pt_commuter`
+  - `preferences.preset_version`: aktuell `v1`
 - Optionale Gewichte unter `preferences.weights` (Objekt, Wertebereich je Key `0..1`)
 
 Default-Verhalten (wenn `preferences` fehlt):
@@ -266,9 +269,17 @@ Default-Verhalten (wenn `preferences` fehlt):
 Validierung:
 - `preferences` muss (falls vorhanden) ein JSON-Objekt sein, sonst `400 bad_request`.
 - Unbekannte Keys unter `preferences` oder `preferences.weights` werden als Vertragsfehler behandelt (`400 bad_request`).
+- `preferences.preset` ist auf den dokumentierten Katalog begrenzt.
+- `preferences.preset_version` ist aktuell auf `v1` begrenzt und darf nur zusammen mit `preferences.preset` genutzt werden.
 - Gewichte müssen endliche Zahlen (keine Booleans) im Bereich `0..1` sein.
 
-Dokumentierte Beispielprofile (3-5 reale Integrationsmuster):
+Konfliktregeln (deterministisch):
+1. Contract-Defaults
+2. Preset-Werte
+3. Explizite Enum-Felder im Request überschreiben Preset-Werte
+4. Explizite `preferences.weights` überschreiben Preset-Gewichte pro Key
+
+Dokumentierte Beispielprofile (inkl. Preset-Katalog v1):
 - [`docs/api/preference-profiles.md`](./preference-profiles.md)
 
 ## 16) BL-20.4.d.wp2 Zweistufige Suitability-Score-Felder

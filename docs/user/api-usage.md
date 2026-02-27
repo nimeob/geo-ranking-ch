@@ -129,9 +129,12 @@ curl -i -sS "http://localhost:8080/api/v1/dictionaries/heating" \
 | `intelligence_mode` | `string` | nein | `basic` | Erlaubt: `basic`, `extended`, `risk` (trim + case-insensitive normalisiert) |
 | `timeout_seconds` | `number` | nein | `ANALYZE_DEFAULT_TIMEOUT_SECONDS` (15) | Muss endliche Zahl > 0 sein; wird auf `ANALYZE_MAX_TIMEOUT_SECONDS` gecappt |
 | `options` | `object` | nein | `{}` | Additiver Feature-Namespace. Relevante Keys: `response_mode=compact|verbose` (Default `compact`) und `include_labels` (`boolean`, Default `false`, temporärer Legacy-Kompatibilitätsmodus). Unbekannte Keys bleiben No-Op. |
-| `preferences` | `object` | nein | Contract-Defaults | Optionales Präferenzprofil (`lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`, optional `weights` mit `0..1`; nur endliche Zahlen, keine Booleans/`NaN`/`Inf`) |
+| `preferences` | `object` | nein | Contract-Defaults | Optionales Präferenzprofil: entweder direkt über Enum-Felder (`lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`) oder über `preset` + `preset_version` (`v1`). Optional `weights` mit `0..1`; nur endliche Zahlen, keine Booleans/`NaN`/`Inf`. |
 
-Vollständige Profilbeispiele: [`docs/api/preference-profiles.md`](../api/preference-profiles.md)
+Preset-Schnellstart: `preferences.preset` + `preferences.preset_version` (`v1`) reicht für einen validen Start.
+Wenn zusätzlich Enum-Felder oder `weights` gesetzt sind, gelten diese deterministisch als Overrides.
+
+Vollständige Profilbeispiele inkl. Preset-Katalog: [`docs/api/preference-profiles.md`](../api/preference-profiles.md)
 
 ### Beispiel (ohne Auth)
 

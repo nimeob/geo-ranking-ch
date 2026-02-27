@@ -141,6 +141,23 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "preset": {
+          "type": "string",
+          "enum": [
+            "urban_lifestyle",
+            "family_friendly",
+            "quiet_residential",
+            "car_commuter",
+            "pt_commuter"
+          ]
+        },
+        "preset_version": {
+          "type": "string",
+          "enum": [
+            "v1"
+          ],
+          "default": "v1"
+        },
         "lifestyle_density": {
           "type": "string",
           "enum": [
@@ -232,6 +249,11 @@
             }
           }
         }
+      },
+      "dependentRequired": {
+        "preset_version": [
+          "preset"
+        ]
       }
     }
   }

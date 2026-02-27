@@ -596,6 +596,70 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("result", body)
 
+    def test_analyze_accepts_preferences_preset_profile(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "preferences": {
+                    "preset": "pt_commuter",
+                    "preset_version": "v1",
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+
+        suitability = (
+            body.get("result", {})
+            .get("data", {})
+            .get("modules", {})
+            .get("suitability_light", {})
+        )
+        self.assertNotEqual(
+            suitability.get("personalized_score"),
+            suitability.get("base_score"),
+            msg="Preset mit wirksamem Signal muss personalisierte Bewertung beeinflussen",
+        )
+
+    def test_analyze_preferences_preset_allows_weight_overrides(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "preferences": {
+                    "preset": "pt_commuter",
+                    "preset_version": "v1",
+                    "weights": {
+                        "lifestyle_density": 0.0,
+                        "commute_priority": 0.0,
+                    },
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+
+        suitability = (
+            body.get("result", {})
+            .get("data", {})
+            .get("modules", {})
+            .get("suitability_light", {})
+        )
+        self.assertEqual(suitability.get("personalized_score"), suitability.get("base_score"))
+
+        personalization = suitability.get("personalization") or {}
+        self.assertTrue(personalization.get("fallback_applied"))
+        self.assertEqual(personalization.get("state"), "partial")
+
     def test_analyze_runtime_personalization_changes_personalized_score(self):
         status, body = _http_json(
             "POST",
@@ -767,6 +831,21 @@ class TestWebServiceE2E(unittest.TestCase):
                 "unknown_dimension",
                 {"preferences": {"sunshine_focus": "high"}},
                 "preferences contains unknown keys",
+            ),
+            (
+                "preset_unknown",
+                {"preferences": {"preset": "rocket_mode"}},
+                "preferences.preset must be one of",
+            ),
+            (
+                "preset_version_invalid",
+                {"preferences": {"preset": "pt_commuter", "preset_version": "v2"}},
+                "preferences.preset_version must be v1",
+            ),
+            (
+                "preset_version_without_preset",
+                {"preferences": {"preset_version": "v1"}},
+                "preferences.preset_version requires preferences.preset",
             ),
             (
                 "weights_not_object",
