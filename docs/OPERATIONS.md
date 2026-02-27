@@ -201,6 +201,35 @@ cd /data/.openclaw/workspace/geo-ranking-ch
 python3 scripts/blocker_retry_supervisor.py
 ```
 
+## Consistency-Crawler (read-only) — Runbook
+
+Zweck: Drift zwischen Vision, Backlog/Issues, Code und Doku früh erkennen, ohne automatische Mutationen als Default.
+
+### Standardlauf (ohne GitHub-Mutationen)
+
+```bash
+cd /data/.openclaw/workspace/geo-ranking-ch
+python3 scripts/github_repo_crawler.py --dry-run
+```
+
+Erwartete Artefakte:
+- `reports/consistency_report.json`
+- `reports/consistency_report.md`
+
+### Regressionscheck vor/bei Crawler-Änderungen
+
+```bash
+./scripts/check_crawler_regression.sh
+```
+
+Scope des Regressionschecks (MVP):
+- Workstream-Balance
+- todo/fixme-Actionable-Filter
+- Vision↔Issue-Coverage
+- Code↔Doku-Drift
+
+Hinweis: Der Crawler bleibt im MVP read-only-orientiert. Auto-Issue/Auto-Open bleibt optional und wird nur über explizite Flags/Workflow-Governance aktiviert.
+
 ## Lokale Entwicklung
 
 ### Setup
