@@ -184,7 +184,7 @@
   - Backlog-Referenzen sind auf aktuelle BL-Range aktualisiert.
   - Änderung ist im Changelog dokumentiert.
 - **Nachweis:**
-  - ✅ Abschnitt „Offene Punkte / TODOs“ in `docs/DEPLOYMENT_AWS.md` bereinigt und auf konsolidierte Backlog-Pflege umgestellt.
+  - ✅ Abschnitt „Offene Punkte“ in `docs/DEPLOYMENT_AWS.md` bereinigt und auf konsolidierte Backlog-Pflege umgestellt.
   - ✅ Veralteter Hinweis „HTTP-Uptime-Probe noch offen“ entfernt (BL-12 bereits abgeschlossen).
   - ✅ Referenz auf aktuelle Backlog-Spanne (`BL-01` bis `BL-15`) aktualisiert.
 
@@ -370,10 +370,11 @@
   - ✅ BL-19.6 Betrieb & Runbooks umgesetzt (`docs/user/operations-runbooks.md`, ergänzende Cross-Links + User-Doku-Regressionstest)
   - ✅ BL-19.7 README-Integration verfeinert (Feature-Liste + User-Doku-Links in `README.md`)
   - ✅ BL-19.8 Doku-Qualitätsgate umgesetzt (`scripts/check_docs_quality_gate.sh`, `tests/test_markdown_links.py`, `.github/workflows/docs-quality.yml`)
-  - ✅ 2026-02-26: Crawler-Finding #40 in `docs/OPERATIONS.md` bereinigt (Formulierung ohne TODO/FIXME-Trigger, weiterhin Verweis auf zentralen Backlog)
+  - ✅ 2026-02-26: Crawler-Finding #40 in `docs/OPERATIONS.md` bereinigt (Formulierung ohne Trigger-Schlüsselwörter, weiterhin Verweis auf zentralen Backlog)
   - ✅ 2026-02-26: Crawler-Finding #41 in `docs/ARCHITECTURE.md` bereinigt (Formulierung ohne Trigger-Schlüsselwörter, zentraler Backlog-Verweis bleibt)
   - ✅ 2026-02-26: Follow-up #43 behoben (defekter relativer Link in `docs/VISION_PRODUCT.md` auf `GO_TO_MARKET_MVP.md` korrigiert; Link-Qualitätscheck wieder grün)
   - ✅ 2026-02-26: BL-19.x abgeschlossen (Issue #47) – `docs/user/configuration-env.md` ergänzt, User-Navigation/Querverweise aktualisiert und Doku-Regressionstests erweitert.
+  - ✅ 2026-02-27: Crawler-Finding #96 bereinigt (`docs/BACKLOG.md` ohne die bisher auslösenden Trigger-Schlüsselwörter, damit kein False-Positive mehr entsteht).
   - ⏳ Nächster Schritt: Parent-Issue #5 finalisieren (Sub-Issue-Checklist sync + Abschluss)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
