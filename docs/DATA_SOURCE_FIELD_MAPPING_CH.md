@@ -151,7 +151,26 @@ Die folgenden Gaps wurden aus BL-20.2.b abgeleitet und als eigenständige Backlo
 
 Diese Follow-ups sind im Parent-/Issue-Kontext von #25 zu verlinken und priorisiert weiterzuführen.
 
-## 6) Referenzen
+## 6) Machine-readable Spezifikation (Issue #63)
+
+Für Pipeline-/Service-Checks liegt die Spezifikation zusätzlich maschinenlesbar vor:
+
+- JSON-Schema: [`docs/mapping/source-field-mapping.schema.json`](mapping/source-field-mapping.schema.json)
+- Konkrete CH-v1-Spezifikation: [`docs/mapping/source-field-mapping.ch.v1.json`](mapping/source-field-mapping.ch.v1.json)
+- Struktureller Validator: [`scripts/validate_source_field_mapping_spec.py`](../scripts/validate_source_field_mapping_spec.py)
+
+Validierung (lokal/CI):
+
+```bash
+python3 scripts/validate_source_field_mapping_spec.py
+```
+
+Versionierungsregel:
+
+- Jede inhaltliche Mapping-Änderung aktualisiert `updated_at` in `source-field-mapping.ch.v1.json`.
+- Breaking Changes im Format erfordern eine neue `spec_version` + Folgedatei (z. B. `...ch.v2.json`).
+
+## 7) Referenzen
 
 - Quelleninventar/Lizenzmatrix: [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md)
 - Produktvision: [`docs/VISION_PRODUCT.md`](VISION_PRODUCT.md)
