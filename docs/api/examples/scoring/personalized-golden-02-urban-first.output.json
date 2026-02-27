@@ -1,0 +1,35 @@
+{
+  "example_id": "personalized-golden-02-urban-first",
+  "methodology_version": "scoring-v1-draft",
+  "profile": "urban-first",
+  "engine_output": {
+    "base_score": 80.1,
+    "personalized_score": 79.9453,
+    "fallback_applied": false,
+    "weights": {
+      "base": {
+        "topography": 0.34,
+        "access": 0.29,
+        "building_state": 0.17,
+        "data_quality": 0.2
+      },
+      "personalized": {
+        "topography": 0.309734,
+        "access": 0.34746,
+        "building_state": 0.144767,
+        "data_quality": 0.198039
+      },
+      "delta": {
+        "topography": -0.08,
+        "access": 0.21,
+        "building_state": -0.14,
+        "data_quality": 0.0
+      }
+    },
+    "signal_strength": 0.43
+  },
+  "annotations": {
+    "personalized_minus_base": -0.1547,
+    "reproducibility_note": "Werte müssen bei identischem Input deterministisch stabil bleiben."
+  }
+}

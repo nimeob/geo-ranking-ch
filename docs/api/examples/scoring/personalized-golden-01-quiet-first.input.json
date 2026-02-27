@@ -1,0 +1,35 @@
+{
+  "example_id": "personalized-golden-01-quiet-first",
+  "methodology_version": "scoring-v1-draft",
+  "profile": "quiet-first",
+  "factors": [
+    {
+      "key": "topography",
+      "score": 82.0,
+      "weight": 0.34
+    },
+    {
+      "key": "access",
+      "score": 76.0,
+      "weight": 0.29
+    },
+    {
+      "key": "building_state",
+      "score": 74.0,
+      "weight": 0.17
+    },
+    {
+      "key": "data_quality",
+      "score": 88.0,
+      "weight": 0.2
+    }
+  ],
+  "preferences": {
+    "lifestyle_density": "rural",
+    "noise_tolerance": "low",
+    "nightlife_preference": "avoid",
+    "school_proximity": "prefer",
+    "family_friendly_focus": "high",
+    "commute_priority": "car"
+  }
+}
