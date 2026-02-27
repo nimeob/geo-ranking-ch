@@ -78,6 +78,22 @@ class TestPersonalizedScoringEngine(unittest.TestCase):
 
         self.assertAlmostEqual(base_sum, personalized_sum, places=6)
 
+    def test_zero_intensity_weights_trigger_fallback(self):
+        preferences = {
+            "lifestyle_density": "urban",
+            "noise_tolerance": "low",
+            "weights": {
+                "lifestyle_density": 0.0,
+                "noise_tolerance": 0.0,
+            },
+        }
+
+        result = compute_two_stage_scores(self.factors, preferences=preferences)
+
+        self.assertTrue(result["fallback_applied"])
+        self.assertEqual(result["base_score"], result["personalized_score"])
+        self.assertEqual(result["signal_strength"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

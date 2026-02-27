@@ -187,7 +187,8 @@ Fallback-Regel (verbindlich):
 
 Hinweise:
 - Unbekannte/fehlende Werte werden auf das jeweilige Default-Profil zurückgeführt.
-- `weights.*` außerhalb `0..1` werden verworfen (defensive Normalisierung).
+- API-Request-Guardrail: `preferences.weights.*` muss eine **endliche Zahl** in `0..1` sein; Typfehler, `NaN`/`Inf` und Out-of-Range-Werte führen zu `400 bad_request`.
+- Engine-Guardrail (direkter Funktionsaufruf): Nicht verwertbare Gewichtswerte werden defensiv ignoriert, damit der Rechenweg deterministisch bleibt.
 - Eine leere Präferenzstruktur (`preferences` fehlt/leer) darf den Basisscore nicht verändern.
 
 #### Delta-Matrix (v1 Draft)

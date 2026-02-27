@@ -93,7 +93,7 @@ curl -sS "http://localhost:8080/version"
 | `query` | `string` | ja | – | Adresse/Suchtext; wird getrimmt; leer/whitespace-only ist ungültig |
 | `intelligence_mode` | `string` | nein | `basic` | Erlaubt: `basic`, `extended`, `risk` (trim + case-insensitive normalisiert) |
 | `timeout_seconds` | `number` | nein | `ANALYZE_DEFAULT_TIMEOUT_SECONDS` (15) | Muss endliche Zahl > 0 sein; wird auf `ANALYZE_MAX_TIMEOUT_SECONDS` gecappt |
-| `preferences` | `object` | nein | Contract-Defaults | Optionales Präferenzprofil (`lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`, optional `weights` mit `0..1`) |
+| `preferences` | `object` | nein | Contract-Defaults | Optionales Präferenzprofil (`lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`, optional `weights` mit `0..1`; nur endliche Zahlen, keine Booleans/`NaN`/`Inf`) |
 
 Vollständige Profilbeispiele: [`docs/api/preference-profiles.md`](../api/preference-profiles.md)
 
