@@ -352,6 +352,8 @@ Wenn alle Kriterien erfüllt sind, Marker auf `true` setzen, Workflow deaktivier
 
 Hinweis zur Cron-Koexistenz: Der Dispatch mutiert nur bei tatsächlichem Label-Delta (idempotente Reconcile-Regeln). Damit bleibt der periodische Cron-Fallback parallel betreibbar, ohne dauerhaftes Double-Mutation-Risiko.
 
+Zusatzregel aus Follow-up #241: `status:in-progress` gilt als aktiver Zustand und wird im Reconcile-Pfad nicht mehr zusätzlich mit `status:todo` kombiniert.
+
 ## Consistency-Crawler (read-only) — Runbook
 
 Zweck: Drift zwischen Vision, Backlog/Issues, Code und Doku früh erkennen, ohne automatische Mutationen als Default.

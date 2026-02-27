@@ -350,8 +350,26 @@ def compute_reconcile_mutations(open_issues: list[dict[str, Any]]) -> tuple[str 
         current_labels = sorted_labels(list(labels_set))
         has_todo = "status:todo" in labels_set
         has_blocked = "status:blocked" in labels_set
+        has_in_progress = "status:in-progress" in labels_set
 
         if priority == active_priority:
+            if has_in_progress:
+                target_labels = replace_label_set(
+                    current_labels,
+                    remove={"status:blocked", "status:todo"},
+                    add={"status:in-progress"},
+                )
+                if target_labels != current_labels:
+                    mutations.append(
+                        ReconcileMutation(
+                            issue_number=issue_number,
+                            action="normalize_in_progress",
+                            before_labels=current_labels,
+                            after_labels=target_labels,
+                        )
+                    )
+                continue
+
             if not has_todo or has_blocked:
                 target_labels = replace_label_set(
                     current_labels,
