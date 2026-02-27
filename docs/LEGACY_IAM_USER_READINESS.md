@@ -300,18 +300,81 @@ Haupttreiber:
 
 ---
 
-## 4) Entscheidungs-Template (für Nico)
+## 4) GO/NO-GO Decision-Matrix (BL-15.wp5)
 
-**Frage:** Können wir `swisstopo-api-deploy` jetzt dekommissionieren?
+### 4.1 Harte Gates (entscheidungsrelevant)
 
-- **Go**, wenn:
-  1) alle Consumer migriert sind,
-  2) 24h ohne Legacy-Key stabil,
-  3) CI/CD via OIDC weiterhin grün.
+| Gate | Muss erfüllt sein für **GO** | Primäre Evidenz | Status 2026-02-27 | Bewertung |
+|---|---|---|---|---|
+| G1: Aktive Legacy-Consumer | Kein aktiver Legacy-Caller mehr in Runtime/CloudTrail | `./scripts/audit_legacy_runtime_consumers.sh`, `./scripts/audit_legacy_cloudtrail_consumers.sh` | Legacy-Caller weiterhin nachweisbar | 🔴 |
+| G2: Runtime-Default auf AssumeRole/OIDC | Default-Startpfad nutzt temporäre STS-Credentials statt statischer Keys | `./scripts/openclaw_runtime_assumerole_exec.sh ...`, `artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json` | Auf diesem Host verifiziert, externe Targets offen | 🟡 |
+| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | Teilweise `TBD`, nicht vollständig verifiziert | 🔴 |
+| G4: Monitoring + Rollback vorbereitet | Cutover-Monitoring + dokumentierter Reaktivierungsweg vorhanden | Abschnitt 3 (Phase B), Fallback-Template | Basis vorhanden, Dry-Run/Abnahme offen | 🟡 |
+| G5: 24h Cutover-Stabilität | Nach Deaktivierung des Legacy-Keys keine Auth-Fehler über 24h | Geplanter Controlled-Cutover-Nachweis | Noch nicht durchgeführt | 🔴 |
 
-- **No-Go**, wenn:
-  1) irgendein aktiver Consumer offen ist,
-  2) Access-Denied-Fehler nach Deaktivierung auftreten,
-  3) Notfall-Rollback nicht vorbereitet ist.
+### 4.2 Entscheidungslogik
 
-Empfohlene Default-Entscheidung aktuell: **No-Go (noch nicht bereit)**, da aktive Nutzung des Legacy-Users verifiziert ist.
+- **GO**: Alle harten Gates (G1–G5) sind grün.
+- **GO with timebox**: Kein rotes Gate; maximal 2 gelbe Gates mit klarer Restmaßnahme, Owner und fester Frist (≤14 Tage).
+- **NO-GO**: Mindestens ein rotes Gate oder fehlender Sign-off eines Pflicht-Owners.
+
+### 4.3 Aktueller Entscheid (Snapshot)
+
+**Aktuell: NO-GO.**
+
+Begründung (kurz):
+- Aktive Legacy-Nutzung ist weiterhin nachweisbar (G1 rot).
+- Externe Consumer-Inventarisierung ist noch nicht vollständig (G3 rot).
+- Der 24h-Deaktivierungsnachweis fehlt naturgemäß noch (G5 rot).
+
+### 4.4 Verlinkte BL-15-Evidenzartefakte
+
+- Consumer-Inventar + Target-Registry: `docs/LEGACY_CONSUMER_INVENTORY.md`
+- CloudTrail-Fingerprint-Report: `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`
+- Runtime-Credential-Injection-Inventar: `artifacts/bl17/runtime-credential-injection-inventory.json`
+- AssumeRole-Default-Nachweis (Host-Lauf): `artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json`
+- Standardisiertes Review-Bundle: `reports/bl15_readiness/<timestamp>/`
+
+---
+
+## 5) Sign-off-Template + synthetisches Beispiel
+
+### 5.1 Sign-off-Template (auszufüllen pro Entscheidung)
+
+| Feld | Inhalt |
+|---|---|
+| Decision-ID | `bl15-decommission-<YYYYMMDD>-<nn>` |
+| Entscheidung | `GO` \| `GO with timebox` \| `NO-GO` |
+| Scope | z. B. `swisstopo-api-deploy Legacy IAM User` |
+| Bewertungszeitpunkt (UTC) | `<timestamp>` |
+| Gate-Status G1..G5 | `G1=...; G2=...; G3=...; G4=...; G5=...` |
+| Timebox-Ende (falls relevant) | `<YYYY-MM-DD>` oder `n/a` |
+| Pflicht-Evidenz | Links auf BL-15-Artefakte |
+| Risiken (Top 3) | Stichpunkte mit Gegenmaßnahme |
+| Freigaben | Security Owner, Platform Owner, Service Owner |
+| Next Review | Datum/Zeit oder Trigger |
+
+### 5.2 Synthetisch ausgefülltes Beispiel
+
+| Feld | Beispielwert |
+|---|---|
+| Decision-ID | `bl15-decommission-20260227-01` |
+| Entscheidung | `NO-GO` |
+| Scope | `swisstopo-api-deploy Legacy IAM User` |
+| Bewertungszeitpunkt (UTC) | `2026-02-27T04:25:00Z` |
+| Gate-Status G1..G5 | `G1=🔴; G2=🟡; G3=🔴; G4=🟡; G5=🔴` |
+| Timebox-Ende | `n/a` |
+| Pflicht-Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md`, `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json` |
+| Risiken (Top 3) | `1) Externer Runtime-Consumer unbekannt; 2) Fehlender 24h-Cutover-Beleg; 3) Incident-Rollback ohne Dry-Run` |
+| Freigaben | `Security: pending`, `Platform: pending`, `Service: pending` |
+| Next Review | `nach Abschluss externer Target-Verifikation + geplantem Cutover-Dry-Run` |
+
+---
+
+## 6) Vorgeschlagener Entscheidungsablauf (max. 5 Schritte)
+
+1. **Evidenz aktualisieren** (Runtime-, CloudTrail- und Consumer-Inventar-Checks aus Abschnitt 1/3).
+2. **Gates G1–G5 bewerten** und Ampelstatus dokumentieren.
+3. **Entscheidung klassifizieren** (`GO`, `GO with timebox`, `NO-GO`) nach Abschnitt 4.2.
+4. **Sign-off einholen** (Security/Platform/Service) mit Template aus Abschnitt 5.1.
+5. **Nächsten operativen Schritt terminieren** (Cutover starten oder konkrete Blocker-Maßnahmen mit Termin/Owner).
