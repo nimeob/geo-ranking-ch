@@ -66,11 +66,15 @@ pre-commit install
 
 # Checks ausführen
 pytest tests/ -v
-# fokussierter Crawler-Regressionscheck (Workstream-Balance + TODO/FIXME-Actionable-Filter)
+# fokussierter Crawler-Regressionscheck (Workstream-Balance + Actionable-Comment-Filter)
 pytest tests/test_github_repo_crawler.py -v
 
 # reproduzierbarer Crawler-Regressionscheck (lokal + CI-Workflow)
 ./scripts/check_crawler_regression.sh
+
+# Consistency-Reports (JSON + Markdown) ohne GitHub-Mutationen erzeugen
+python3 scripts/github_repo_crawler.py --dry-run
+# Output: reports/consistency_report.json + reports/consistency_report.md
 
 pre-commit run --all-files
 

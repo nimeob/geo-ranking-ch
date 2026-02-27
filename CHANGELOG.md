@@ -31,6 +31,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`tests/test_github_repo_crawler.py`** um gezielte Regressionsfälle ergänzt (Marker-Filter + End-to-End-Scan mit gemischten TODO-Zeilen), damit nur actionable Treffer in `scan_repo_for_findings` verbleiben.
 - **`docs/WORKSTREAM_BALANCE_BASELINE.md`** und **`README.md`** um den Actionable-Filter-Hinweis im Crawler-Regressionskontext ergänzt.
 
+### Changed (2026-02-27 — BL-20.x.wp2 Finding-Schema + Consistency-Reports, Issue #203)
+- **`scripts/github_repo_crawler.py`** um ein konsistentes Finding-Schema (`type`, `severity`, `summary`, `evidence`, `source`) und stabile Report-Generierung erweitert (`reports/consistency_report.json` + `reports/consistency_report.md` in einem Lauf).
+- Crawler-Audits (`audit_closed_issues`, `scan_repo_for_findings`, `audit_workstream_balance`) liefern nun strukturierte Findings zurück; Reports enthalten priorisierte Summary (Severity/Typ) plus evidenzbasierte Referenzen.
+- **`tests/test_github_repo_crawler.py`** um Regressionsfälle für Report-Sortierung/-Schema und Datei-Output erweitert.
+- **`README.md`** um den reproduzierbaren Dry-Run zur Report-Erzeugung ergänzt.
+
 ### Changed (2026-02-27 — BL-15 Parent-Sync Work-Packages, Issue #8)
 - **`docs/BACKLOG.md`** BL-15 um eine explizite Work-Package-Checklist erweitert (abgeschlossen: `#109`, `#111`, `#112`; offen: `#151`, `#152`, `#187`, `#188`) zur sauberen Parent/Child-Fortschrittsführung.
 - **GitHub Issue `#8`** Work-Package-Checklist auf den aktuellen Child-Scope synchronisiert und Zerlegungsbegründung auf die offenen Folgepakete erweitert.

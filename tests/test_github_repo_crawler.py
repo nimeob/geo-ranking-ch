@@ -197,21 +197,81 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
         self.assertFalse(payload["needs_catchup"])
 
 
+class TestGithubRepoCrawlerConsistencyReport(unittest.TestCase):
+    def test_build_consistency_report_prioritizes_by_severity(self):
+        findings = [
+            crawler.build_finding(
+                finding_type="todo_actionable",
+                severity="low",
+                summary="Low severity finding",
+                evidence=[{"kind": "file_line", "path": "src/a.py", "line": 1}],
+                source={"kind": "repository_scan", "component": "todo_fixme"},
+            ),
+            crawler.build_finding(
+                finding_type="issue_closure_consistency",
+                severity="critical",
+                summary="Critical closure inconsistency",
+                evidence=[{"kind": "issue", "number": 123}],
+                source={"kind": "github_issue_audit", "component": "closed_issue_review"},
+            ),
+        ]
+
+        report = crawler.build_consistency_report(findings, generated_at="2026-02-27T06:00:00+00:00")
+
+        self.assertEqual(report["schema_version"], "1.0")
+        self.assertEqual(report["summary"]["total_findings"], 2)
+        self.assertEqual(report["summary"]["by_severity"]["critical"], 1)
+        self.assertEqual(report["summary"]["by_severity"]["low"], 1)
+        self.assertEqual(report["findings"][0]["severity"], "critical")
+        self.assertEqual(report["findings"][0]["type"], "issue_closure_consistency")
+
+    def test_write_consistency_reports_writes_json_and_markdown(self):
+        report = crawler.build_consistency_report(
+            [
+                crawler.build_finding(
+                    finding_type="workstream_balance_gap",
+                    severity="medium",
+                    summary="Gap > Zielwert",
+                    evidence=[{"kind": "metric", "name": "gap", "value": 3}],
+                    source={"kind": "workstream_balance", "component": "heuristic_counts"},
+                )
+            ],
+            generated_at="2026-02-27T06:05:00+00:00",
+        )
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            with patch.object(crawler, "REPO_ROOT", root):
+                json_path, md_path = crawler.write_consistency_reports(
+                    report,
+                    json_path=Path("reports/consistency_report.json"),
+                    markdown_path=Path("reports/consistency_report.md"),
+                )
+
+            payload = json.loads(json_path.read_text(encoding="utf-8"))
+            markdown = md_path.read_text(encoding="utf-8")
+
+        self.assertEqual(payload["schema_version"], "1.0")
+        self.assertEqual(payload["findings"][0]["type"], "workstream_balance_gap")
+        self.assertIn("Priorisierte Zusammenfassung", markdown)
+        self.assertIn("workstream_balance_gap", markdown)
+
+
 class TestGithubRepoCrawlerTodoFiltering(unittest.TestCase):
     def test_is_actionable_todo_line_filters_done_markers(self):
-        self.assertTrue(crawler.is_actionable_todo_line("# TODO: implement parser"))
-        self.assertFalse(crawler.is_actionable_todo_line("# TODO ✅ bereits erledigt"))
-        self.assertFalse(crawler.is_actionable_todo_line("# FIXME closed via PR #123"))
-        self.assertFalse(crawler.is_actionable_todo_line("# TODO changelog note for historical release"))
+        self.assertTrue(crawler.is_actionable_todo_line("# TODO: implement parser"))  # crawler:ignore
+        self.assertFalse(crawler.is_actionable_todo_line("# TODO ✅ bereits erledigt"))  # crawler:ignore
+        self.assertFalse(crawler.is_actionable_todo_line("# FIXME closed via PR #123"))  # crawler:ignore
+        self.assertFalse(crawler.is_actionable_todo_line("# TODO changelog note for historical release"))  # crawler:ignore
 
     def test_scan_repo_for_findings_only_creates_actionable_todo_issues(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             (root / "src").mkdir(parents=True, exist_ok=True)
             (root / "src" / "sample.py").write_text(
-                "# TODO: implement source mapping\n"
-                "# TODO ✅ abgeschlossen nach Merge\n"
-                "# FIXME closed in changelog\n",
+                "# TODO: implement source mapping\n"  # crawler:ignore
+                "# TODO ✅ abgeschlossen nach Merge\n"  # crawler:ignore
+                "# FIXME closed in changelog\n",  # crawler:ignore
                 encoding="utf-8",
             )
 
