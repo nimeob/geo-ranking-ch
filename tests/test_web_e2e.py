@@ -327,6 +327,9 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertIn("quality", status_block)
         self.assertIn("source_health", status_block)
         self.assertIn("source_meta", status_block)
+        self.assertIn("dictionary", status_block)
+        self.assertIn("version", status_block.get("dictionary", {}))
+        self.assertIn("etag", status_block.get("dictionary", {}))
 
         data_block = result.get("data")
         self.assertIsInstance(data_block, dict)

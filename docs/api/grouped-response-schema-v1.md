@@ -46,11 +46,16 @@ Die Kernpfade der grouped-Struktur bleiben stabil (`result.status`, `result.data
 - Before: [`docs/api/examples/current/analyze.response.grouped.additive-before.json`](./examples/current/analyze.response.grouped.additive-before.json)
 - After (nur additive Felder): [`docs/api/examples/current/analyze.response.grouped.additive-after.json`](./examples/current/analyze.response.grouped.additive-after.json)
 
-## 6) Code-first/Dictionaries (WP1 Contract-Diff)
+## 6) Code-first/Dictionaries (WP1/WP3)
 
 Für die Migration auf code-only Responses ist ein additiver Referenzpfad dokumentiert:
 - before (label-lastig): [`docs/api/examples/current/analyze.response.grouped.code-only-before.json`](./examples/current/analyze.response.grouped.code-only-before.json)
 - after (code-first + dictionary refs): [`docs/api/examples/current/analyze.response.grouped.code-only-after.json`](./examples/current/analyze.response.grouped.code-only-after.json)
+
+Runtime-Stand (WP3):
+- `result.status.dictionary` wird standardmäßig mitgeliefert.
+- `result.data.modules.building.decoded` entfällt zugunsten von `building.codes`.
+- `result.data.modules.energy.decoded_summary` entfällt zugunsten von `energy.codes`.
 
 Die Beispiele zeigen denselben Case einmal mit inline-Labels und einmal mit `result.status.dictionary` + Codefeldern in `result.data.modules`.
 

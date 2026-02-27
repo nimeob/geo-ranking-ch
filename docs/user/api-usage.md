@@ -171,6 +171,8 @@ curl -sS -X POST "http://localhost:8080/analyze" \
 > Contract-Hinweis (BL-20.1.c): Der Webservice trennt Antwortdaten strikt in `result.status` (Qualität/Source-Health/Meta) und `result.data` (fachliche Daten).
 >
 > Runtime-Personalisierung (BL-20.4.d.wp7): `result.status.personalization` kennzeichnet den Laufzeitpfad als `active`, `partial` oder `deactivated` inkl. Herkunft (`source`).
+>
+> Code-first Runtime (BL-20.1.k.wp3): `result.status.dictionary` liefert die Dictionary-Referenzen; label-lastige Felder wie `building.decoded` und `energy.decoded_summary` sind im grouped-Result standardmäßig nicht mehr enthalten.
 
 ```json
 {
@@ -199,6 +201,10 @@ curl -sS -X POST "http://localhost:8080/analyze" \
             "geoadmin_search"
           ]
         }
+      },
+      "dictionary": {
+        "version": "2026-02-27",
+        "etag": "\"dict-index-a1b2c3d4\""
       }
     },
     "data": {
