@@ -453,6 +453,8 @@ class TestGithubRepoCrawlerConsistencyReport(unittest.TestCase):
 class TestGithubRepoCrawlerTodoFiltering(unittest.TestCase):
     def test_is_actionable_todo_line_filters_done_markers(self):
         self.assertTrue(crawler.is_actionable_todo_line("# TODO: implement parser"))  # crawler:ignore
+        self.assertTrue(crawler.is_actionable_todo_line("value = compute()  # TODO inline hardening"))  # crawler:ignore
+        self.assertFalse(crawler.is_actionable_todo_line("# fokussierter Crawler-Regressionscheck (Workstream-Balance + TODO-Filter + Vision↔Issue-Coverage)"))  # crawler:ignore
         self.assertFalse(crawler.is_actionable_todo_line("# TODO ✅ bereits erledigt"))  # crawler:ignore
         self.assertFalse(crawler.is_actionable_todo_line("# FIXME closed via PR #123"))  # crawler:ignore
         self.assertFalse(crawler.is_actionable_todo_line("# TODO changelog note for historical release"))  # crawler:ignore
@@ -462,6 +464,7 @@ class TestGithubRepoCrawlerTodoFiltering(unittest.TestCase):
             root = Path(tmpdir)
             (root / "src").mkdir(parents=True, exist_ok=True)
             (root / "src" / "sample.py").write_text(
+                "# fokussierter Crawler-Regressionscheck (Workstream-Balance + TODO-Filter + Vision↔Issue-Coverage)\n"  # crawler:ignore
                 "# TODO: implement source mapping\n"  # crawler:ignore
                 "# TODO ✅ abgeschlossen nach Merge\n"  # crawler:ignore
                 "# FIXME closed in changelog\n",  # crawler:ignore
@@ -480,7 +483,7 @@ class TestGithubRepoCrawlerTodoFiltering(unittest.TestCase):
                             crawler.scan_repo_for_findings(dry_run=False)
 
             self.assertEqual(len(created_titles), 1)
-            self.assertIn("src/sample.py:1", created_titles[0])
+            self.assertIn("src/sample.py:2", created_titles[0])
 
 
 if __name__ == "__main__":

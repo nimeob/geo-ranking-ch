@@ -393,6 +393,7 @@
   - ✅ 2026-02-27: Crawler-Finding #115 verifiziert und geschlossen (historische Fundstelle `docs/BACKLOG.md:344` inzwischen durch Fachfortschritt überschrieben; aktueller Check ohne auslösende Marker in `docs/BACKLOG.md`).
   - ✅ 2026-02-27: Crawler-Finding #116 verifiziert und geschlossen (Fundstelle `docs/BACKLOG.md:345` enthält keine Trigger-Schlüsselwörter; Gegencheck auf Crawler-Marker bleibt leer).
   - ✅ 2026-02-27: Crawler-Finding #156 verifiziert und geschlossen (Fundstelle `docs/BACKLOG.md:371` enthält keine auslösenden Marker; `python3 scripts/github_repo_crawler.py --dry-run` erzeugt hierfür keinen neuen Finding-Case).
+  - ✅ 2026-02-27: #219 abgeschlossen (Crawler-False-Positive auf `README.md:69` eliminiert) durch strengeren TODO-Kontext-Filter in `scripts/github_repo_crawler.py` (nur Prefix-/Inline-Kommentar-Kontext), Regressionserweiterung in `tests/test_github_repo_crawler.py` und Methodik-Sync in [`docs/WORKSTREAM_BALANCE_BASELINE.md`](WORKSTREAM_BALANCE_BASELINE.md).
   - ⏳ Nächster Schritt: Parent-Issue #5 finalisieren (Sub-Issue-Checklist sync + Abschluss)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).

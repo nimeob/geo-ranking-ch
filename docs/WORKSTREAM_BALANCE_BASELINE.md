@@ -18,7 +18,7 @@ Methodik (aus `scripts/github_repo_crawler.py`):
 - Grundlage sind offene Issues (`gh issue list --state open`)
 - ausgeschlossen werden `status:blocked` und `crawler:auto`
 - Workstream-Zuordnung erfolgt heuristisch über Keywords in Titel/Body
-- TODO/FIXME-Findings werden nur als **actionable** gewertet; erledigte/historische Marker (`✅`, `erledigt`, `abgeschlossen`, `closed`, `changelog`) werden gefiltert.
+- TODO/FIXME-Findings werden nur als **actionable** gewertet; erledigte/historische Marker (`✅`, `erledigt`, `abgeschlossen`, `closed`, `changelog`) werden gefiltert. Reine Erwähnungen innerhalb von Überschriften/Freitext (z. B. `TODO-Filter`) lösen keine Finding-Issues aus.
 - Ein offenes P0-Catch-up-Issue (`[Crawler][P0] Workstream-Balance ...`) wird automatisch geschlossen, sobald der Gap wieder im Zielkorridor (`<= 2`) liegt.
 
 ## Baseline-Werte
