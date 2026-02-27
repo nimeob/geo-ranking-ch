@@ -1,0 +1,104 @@
+{
+  "generated_from": "Issue #64",
+  "cases": [
+    {
+      "name": "TR-01 trims string",
+      "rule": "TR-01",
+      "input": "  Bahnhofstrasse 1  ",
+      "expected": "Bahnhofstrasse 1"
+    },
+    {
+      "name": "TR-01 maps whitespace to null",
+      "rule": "TR-01",
+      "input": "   ",
+      "expected": null
+    },
+    {
+      "name": "TR-02 strips html",
+      "rule": "TR-02",
+      "input": "<b> Zürich </b>",
+      "expected": "Zürich"
+    },
+    {
+      "name": "TR-02 empty html becomes null",
+      "rule": "TR-02",
+      "input": "<div>   </div>",
+      "expected": null
+    },
+    {
+      "name": "TR-03 parses comma decimal",
+      "rule": "TR-03",
+      "input": "12,5",
+      "expected": 12.5
+    },
+    {
+      "name": "TR-03 parses integer from number",
+      "rule": "TR-03",
+      "input": 42,
+      "kwargs": {"as_int": true},
+      "expected": 42
+    },
+    {
+      "name": "TR-03 rejects fractional for as_int",
+      "rule": "TR-03",
+      "input": "42.4",
+      "kwargs": {"as_int": true},
+      "expected": null
+    },
+    {
+      "name": "TR-05 alias warning to partial",
+      "rule": "TR-05",
+      "input": "warning",
+      "expected": "partial"
+    },
+    {
+      "name": "TR-05 unknown defaults to not_used",
+      "rule": "TR-05",
+      "input": "mystery",
+      "expected": "not_used"
+    },
+    {
+      "name": "TR-06 clamps to one",
+      "rule": "TR-06",
+      "input": 1.8,
+      "expected": 1.0
+    },
+    {
+      "name": "TR-06 rounds with decimals",
+      "rule": "TR-06",
+      "input": "0.4567",
+      "kwargs": {"decimals": 2},
+      "expected": 0.46
+    },
+    {
+      "name": "TR-07 maps official",
+      "rule": "TR-07",
+      "input": "official",
+      "expected": 0
+    },
+    {
+      "name": "TR-07 unknown fallback",
+      "rule": "TR-07",
+      "input": "partner",
+      "expected": 5
+    },
+    {
+      "name": "TR-08 keeps iso and normalizes to Z",
+      "rule": "TR-08",
+      "input": "2026-02-26T19:01:00+01:00",
+      "expected": "2026-02-26T18:01:00Z"
+    },
+    {
+      "name": "TR-08 parses RFC2822 date",
+      "rule": "TR-08",
+      "input": "Wed, 27 Feb 2026 10:20:00 +0100",
+      "expected": "2026-02-27T09:20:00Z"
+    },
+    {
+      "name": "TR-08 invalid timestamp",
+      "rule": "TR-08",
+      "input": "not-a-date",
+      "expected": null
+    }
+  ]
+}
