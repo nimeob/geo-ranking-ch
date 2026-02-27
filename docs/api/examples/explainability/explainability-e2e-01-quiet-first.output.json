@@ -1,0 +1,110 @@
+{
+  "example_id": "explainability-e2e-01-quiet-first",
+  "methodology_version": "scoring-v1-draft",
+  "result_projection": {
+    "explainability": {
+      "base": {
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 68,
+            "normalized": 0.68,
+            "weight": 0.3,
+            "contribution": -0.204,
+            "direction": "contra",
+            "reason": "Lärmbelastung liegt über Referenzmedian.",
+            "source": "laermkataster_ch"
+          },
+          {
+            "key": "traffic",
+            "raw_value": 62,
+            "normalized": 0.62,
+            "weight": 0.25,
+            "contribution": -0.155,
+            "direction": "contra",
+            "reason": "Überdurchschnittliche Verkehrsbelastung im 500m-Radius.",
+            "source": "verkehrsachsen_ch"
+          },
+          {
+            "key": "schools",
+            "raw_value": 4,
+            "normalized": 0.8,
+            "weight": 0.25,
+            "contribution": 0.2,
+            "direction": "pro",
+            "reason": "Mehrere Schulen/Kitas in kurzer Distanz.",
+            "source": "poi_school_index"
+          },
+          {
+            "key": "nightlife",
+            "raw_value": 7,
+            "normalized": 0.7,
+            "weight": 0.2,
+            "contribution": 0.14,
+            "direction": "pro",
+            "reason": "Gute Verfügbarkeit von Abendangeboten im Umfeld.",
+            "source": "poi_nightlife_index"
+          }
+        ]
+      },
+      "personalized": {
+        "profile": "quiet-first",
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 68,
+            "normalized": 0.68,
+            "weight": 0.42,
+            "contribution": -0.2856,
+            "direction": "contra",
+            "reason": "Quiet-Profil erhöht die negative Wirkung von Lärm deutlich.",
+            "source": "laermkataster_ch"
+          },
+          {
+            "key": "traffic",
+            "raw_value": 62,
+            "normalized": 0.62,
+            "weight": 0.22,
+            "contribution": -0.1364,
+            "direction": "contra",
+            "reason": "Verkehr bleibt negativ, jedoch sekundär zu Lärm.",
+            "source": "verkehrsachsen_ch"
+          },
+          {
+            "key": "schools",
+            "raw_value": 4,
+            "normalized": 0.8,
+            "weight": 0.28,
+            "contribution": 0.224,
+            "direction": "pro",
+            "reason": "Family-Fokus priorisiert Schulnähe stärker als im Basismodell.",
+            "source": "poi_school_index"
+          },
+          {
+            "key": "nightlife",
+            "raw_value": 7,
+            "normalized": 0.7,
+            "weight": 0.08,
+            "contribution": -0.056,
+            "direction": "contra",
+            "reason": "Nightlife wird bei \"avoid\" von einem Pro- zu einem Contra-Faktor.",
+            "source": "poi_nightlife_index"
+          }
+        ]
+      }
+    }
+  },
+  "annotations": {
+    "base_total_contribution": -0.019,
+    "personalized_total_contribution": -0.254,
+    "personalized_minus_base": -0.235,
+    "score_index_note": "Illustrativer Vergleichsindex, kein normatives Contract-Feld.",
+    "base_score_index": 48,
+    "personalized_score_index": 25,
+    "why_score_changed": [
+      "Lärmgewicht steigt von 0.30 auf 0.42 und verschiebt den Gesamttrend deutlich ins Negative.",
+      "Nightlife kippt wegen Präferenz \"avoid\" von pro zu contra.",
+      "Schulnähe kompensiert teilweise, reicht aber nicht gegen Lärm+Traffic." 
+    ]
+  }
+}

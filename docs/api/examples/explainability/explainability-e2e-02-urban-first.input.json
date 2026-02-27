@@ -1,0 +1,46 @@
+{
+  "example_id": "explainability-e2e-02-urban-first",
+  "description": "Kontrastprofil urban-first mit hoher Nightlife-Affinität und hoher Lärmtoleranz.",
+  "methodology_version": "scoring-v1-draft",
+  "request": {
+    "input": {
+      "mode": "address",
+      "address": "Limmatquai 58, 8001 Zürich"
+    },
+    "requested_modules": [
+      "context_profile",
+      "suitability_light",
+      "explainability"
+    ],
+    "preferences": {
+      "lifestyle_density": "urban",
+      "noise_tolerance": "high",
+      "nightlife_preference": "prefer",
+      "school_proximity": "avoid",
+      "family_friendly_focus": "low",
+      "commute_priority": "pt"
+    }
+  },
+  "factor_observations": {
+    "noise": {
+      "raw_value": 55,
+      "normalized": 0.55,
+      "source": "laermkataster_ch"
+    },
+    "traffic": {
+      "raw_value": 48,
+      "normalized": 0.48,
+      "source": "verkehrsachsen_ch"
+    },
+    "schools": {
+      "raw_value": 3,
+      "normalized": 0.6,
+      "source": "poi_school_index"
+    },
+    "nightlife": {
+      "raw_value": 8,
+      "normalized": 0.8,
+      "source": "poi_nightlife_index"
+    }
+  }
+}

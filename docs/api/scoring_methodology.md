@@ -289,7 +289,25 @@ Verifikation:
 - `pytest -q tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py`
 - `python3 scripts/validate_field_catalog.py`
 
-## 10) Open Items (Folge-Work-Packages)
+## 10) Explainability v2 — annotierte E2E-Präferenzbeispiele (BL-20.1.g.wp2)
+
+Für Explainability v2 sind zwei konträre Referenzprofile als reproduzierbare Input/Output-Artefakte versioniert.
+Ziel: nachvollziehbar zeigen, warum `base` und `personalized` trotz gleicher Rohdaten unterschiedlich ausfallen.
+
+| Beispiel | Profil | Input-Artefakt | Output-Artefakt |
+|---|---|---|---|
+| E2E-1 | `quiet-first` (noise low tolerance, nightlife avoid, family high) | [`docs/api/examples/explainability/explainability-e2e-01-quiet-first.input.json`](./examples/explainability/explainability-e2e-01-quiet-first.input.json) | [`docs/api/examples/explainability/explainability-e2e-01-quiet-first.output.json`](./examples/explainability/explainability-e2e-01-quiet-first.output.json) |
+| E2E-2 | `urban-first` (noise high tolerance, nightlife prefer, family low) | [`docs/api/examples/explainability/explainability-e2e-02-urban-first.input.json`](./examples/explainability/explainability-e2e-02-urban-first.input.json) | [`docs/api/examples/explainability/explainability-e2e-02-urban-first.output.json`](./examples/explainability/explainability-e2e-02-urban-first.output.json) |
+
+Verbindliche Lesart dieser Beispiele:
+- Beide Fälle enthalten je Bucket (`base`, `personalized`) mindestens 4 Faktoren (`noise`, `traffic`, `schools`, `nightlife`).
+- Die Output-Artefakte enthalten einen expliziten `annotations.personalized_minus_base`-Deltawert.
+- Mindestens ein Faktor wechselt zwischen `base` und `personalized` die Richtung (`pro` ↔ `contra`) und macht den Profil-Effekt transparent.
+
+Guard:
+- `pytest -q tests/test_scoring_methodology_golden.py`
+
+## 11) Open Items (Folge-Work-Packages)
 
 - Der Scope von BL-20.1.f.wp1–wp4 (#79, #80, #81, #82) ist abgeschlossen.
 - Folgearbeiten laufen in separaten Backlog-Issues (z. B. Explainability v2, personalisierte Scores).
