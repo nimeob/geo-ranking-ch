@@ -2,7 +2,7 @@
 
 - Parent: #98
 - Work-Package: #99
-- Stand: 2026-02-26T22:26:00+00:00 (UTC)
+- Stand: 2026-02-27T11:52:42+00:00 (UTC)
 
 ## Reproduzierbare Ermittlung
 
@@ -23,12 +23,14 @@ Methodik (aus `scripts/github_repo_crawler.py`):
 
 ## Baseline-Werte
 
-- Development: **4**
-- Dokumentation: **4**
-- Testing: **4**
+- Development: **1**
+- Dokumentation: **1**
+- Testing: **1**
 - Gap (max-min): **0**
 - Ziel-Gap: **<= 2**
 - Catch-up nötig: **nein**
+
+Hinweis (2026-02-27): Die aktuelle offene, nicht-blockierte Catch-up-Referenz (#261) wird heuristisch allen drei Workstreams zugeordnet; der Gap bleibt dennoch im Zielkorridor, daher ist kein zusätzlicher P0-Catch-up nötig.
 
 ## Catch-up-Plan (Ziel-Delta)
 
@@ -57,4 +59,5 @@ Der GitHub-Workflow `.github/workflows/crawler-regression.yml` bleibt als manuel
 - OpenClaw-Runner: `scripts/run_openclaw_migrated_job.py`
 - Manual-Fallback-Workflow: `.github/workflows/crawler-regression.yml`
 - Parent-Issue: #98
+- Recovery-Issue (auto-closed): #217
 - Related Testing-WPs: #100, #101
