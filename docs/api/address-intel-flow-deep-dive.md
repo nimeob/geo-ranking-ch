@@ -40,6 +40,7 @@ Auf Basis des selektierten Kandidaten:
 - Höhenwert (`swisstopo_height`)
 - Reverse-Geocoding (`osm_reverse`, sofern nicht deaktiviert)
 - Lokales Mapping (`gwr_codes`)
+- Gebäudekernfeld-Aggregation (`build_building_core_profile`): priorisiert GWR-Kernwerte, nutzt bei Lücken robuste Fallbacks aus dekodierten Feldern und bereinigt Placeholder-/Invalid-Werte auf `null`.
 
 ### 3) Scoring & Intelligenz
 - `compute_confidence(...)`: Match-/Konsistenz-/Quellen-Confidence

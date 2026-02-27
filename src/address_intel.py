@@ -5426,6 +5426,82 @@ def compute_confidence(
     }
 
 
+def _is_present_value(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        return normalized not in {"", "null", "none", "n/a", "nan", "-"}
+    if isinstance(value, (list, tuple, dict, set)):
+        return len(value) > 0
+    if isinstance(value, float):
+        return math.isfinite(value)
+    return True
+
+
+def _first_present(*values: Any) -> Any:
+    for value in values:
+        if _is_present_value(value):
+            return value
+    return None
+
+
+def _to_optional_int(value: Any) -> Optional[int]:
+    if not _is_present_value(value):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number):
+        return None
+    rounded = int(round(number))
+    return rounded if rounded >= 0 else None
+
+
+def _to_optional_float(value: Any) -> Optional[float]:
+    if not _is_present_value(value):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number):
+        return None
+    return number if number >= 0 else None
+
+
+def build_building_core_profile(
+    *,
+    gwr: Dict[str, Any],
+    decoded: Dict[str, Any],
+    address_registry: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Aggregiert Gebäude-Kernfelder robust mit klarer Priorisierungslogik."""
+    name = _first_present(
+        gwr.get("gbez"),
+        gwr.get("strname_deinr"),
+        address_registry.get("adr_street"),
+    )
+    baujahr = _to_optional_int(_first_present(gwr.get("gbauj"), decoded.get("baujahr")))
+    flaeche = _to_optional_float(_first_present(gwr.get("garea"), decoded.get("grundflaeche_m2")))
+    geschosse = _to_optional_int(_first_present(gwr.get("gastw"), decoded.get("stockwerke")))
+    wohnungen = _to_optional_int(gwr.get("ganzwhg"))
+
+    if isinstance(name, str):
+        name = name.strip() or None
+
+    return {
+        "name": name,
+        "baujahr": baujahr,
+        "bauperiode": _first_present(gwr.get("gbaup")),
+        "flaeche_m2": flaeche,
+        "geschosse": geschosse,
+        "wohnungen": wohnungen,
+        "decoded": decoded,
+    }
+
+
 def compact_energy_summary(decoded: Dict[str, Any]) -> Dict[str, str]:
     hz = decoded.get("heizung") or []
     ww = decoded.get("warmwasser") or []
@@ -5617,6 +5693,11 @@ def build_report(
         admin_boundary=admin_boundary,
     )
     executive_risk = intelligence.get("executive_risk_summary") or {}
+    building_profile = build_building_core_profile(
+        gwr=gwr,
+        decoded=decoded,
+        address_registry=addr,
+    )
 
     compact_summary = {
         "query": address_query,
@@ -5626,7 +5707,7 @@ def build_report(
         "egrid": gwr.get("egrid"),
         "gemeinde": gwr.get("ggdename"),
         "kanton": gwr.get("gdekt"),
-        "baujahr": gwr.get("gbauj"),
+        "baujahr": building_profile.get("baujahr"),
         "elevation_m": elevation.get("height_m"),
         "energie": compact_energy_summary(decoded),
         "sources": {k: v["status"] for k, v in sources.as_dict().items()},
@@ -5732,15 +5813,7 @@ def build_report(
             "gemeinde_bfs": gwr.get("ggdenr"),
             "kanton": gwr.get("gdekt"),
         },
-        "building": {
-            "name": gwr.get("gbez"),
-            "baujahr": gwr.get("gbauj"),
-            "bauperiode": gwr.get("gbaup"),
-            "flaeche_m2": gwr.get("garea"),
-            "geschosse": gwr.get("gastw"),
-            "wohnungen": gwr.get("ganzwhg"),
-            "decoded": decoded,
-        },
+        "building": building_profile,
         "energy": {
             "raw_codes": {
                 "gwaerzh1": gwr.get("gwaerzh1"),

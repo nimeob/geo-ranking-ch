@@ -62,6 +62,83 @@ class TestCoreFunctions(unittest.TestCase):
         self.assertEqual(ids["location_id"], "ch:wgs84:47.376912:8.541723")
         self.assertTrue(str(ids["resolution_id"]).startswith("ch:resolution:v1:"))
 
+    def test_building_core_profile_prefers_gwr_values(self):
+        profile = address_intel.build_building_core_profile(
+            gwr={
+                "gbez": "Haus Alpha",
+                "strname_deinr": "Fallbackstrasse 7",
+                "gbauj": "1990",
+                "gbaup": "1990-1999",
+                "garea": "123.4",
+                "gastw": "4",
+                "ganzwhg": "8",
+            },
+            decoded={
+                "baujahr": 1988,
+                "grundflaeche_m2": 111,
+                "stockwerke": 3,
+            },
+            address_registry={},
+        )
+
+        self.assertEqual(profile["name"], "Haus Alpha")
+        self.assertEqual(profile["baujahr"], 1990)
+        self.assertEqual(profile["bauperiode"], "1990-1999")
+        self.assertEqual(profile["flaeche_m2"], 123.4)
+        self.assertEqual(profile["geschosse"], 4)
+        self.assertEqual(profile["wohnungen"], 8)
+
+    def test_building_core_profile_falls_back_to_decoded_and_address(self):
+        profile = address_intel.build_building_core_profile(
+            gwr={
+                "gbez": "  ",
+                "strname_deinr": "Bahnhofstrasse 1",
+                "gbauj": "",
+                "gbaup": None,
+                "garea": "nan",
+                "gastw": None,
+                "ganzwhg": "",
+            },
+            decoded={
+                "baujahr": "1985",
+                "grundflaeche_m2": "88.0",
+                "stockwerke": "3",
+            },
+            address_registry={"adr_street": "Alternative Strasse 9"},
+        )
+
+        self.assertEqual(profile["name"], "Bahnhofstrasse 1")
+        self.assertEqual(profile["baujahr"], 1985)
+        self.assertEqual(profile["flaeche_m2"], 88.0)
+        self.assertEqual(profile["geschosse"], 3)
+        self.assertIsNone(profile["wohnungen"])
+
+    def test_building_core_profile_handles_invalid_values_robustly(self):
+        profile = address_intel.build_building_core_profile(
+            gwr={
+                "gbez": None,
+                "strname_deinr": None,
+                "gbauj": "kein_jahr",
+                "gbaup": "",
+                "garea": "-15",
+                "gastw": float("nan"),
+                "ganzwhg": "-2",
+            },
+            decoded={
+                "baujahr": None,
+                "grundflaeche_m2": None,
+                "stockwerke": None,
+            },
+            address_registry={"adr_street": "Testweg 4"},
+        )
+
+        self.assertEqual(profile["name"], "Testweg 4")
+        self.assertIsNone(profile["baujahr"])
+        self.assertIsNone(profile["bauperiode"])
+        self.assertIsNone(profile["flaeche_m2"])
+        self.assertIsNone(profile["geschosse"])
+        self.assertIsNone(profile["wohnungen"])
+
     def test_candidate_scoring_prefers_exact(self):
         qp = address_intel.parse_query_parts("Wassergasse 24, 9000 St. Gallen")
 
