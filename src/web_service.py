@@ -16,6 +16,8 @@ import json
 import math
 import os
 import re
+import ssl
+import threading
 import uuid
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -1182,11 +1184,190 @@ def _resolve_port() -> int:
     return int(str(port_raw).strip())
 
 
+def _env_flag_is_enabled(raw_value: Any) -> bool:
+    return str(raw_value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve_tls_settings() -> dict[str, Any] | None:
+    """Liest optionale TLS-Konfiguration für Dev-Setups.
+
+    TLS ist aktiv, wenn beide Variablen gesetzt sind:
+    - TLS_CERT_FILE
+    - TLS_KEY_FILE
+
+    Optional kann parallel ein HTTP->HTTPS-Redirect-Listener aktiviert werden:
+    - TLS_ENABLE_HTTP_REDIRECT=1
+    - TLS_REDIRECT_HTTP_PORT=<port>
+    - TLS_REDIRECT_HOST=<optional host override>
+    """
+
+    cert_file = os.getenv("TLS_CERT_FILE", "").strip()
+    key_file = os.getenv("TLS_KEY_FILE", "").strip()
+    redirect_enabled = _env_flag_is_enabled(os.getenv("TLS_ENABLE_HTTP_REDIRECT", "0"))
+    redirect_port_raw = os.getenv("TLS_REDIRECT_HTTP_PORT", "8080").strip() or "8080"
+    redirect_host = os.getenv("TLS_REDIRECT_HOST", "").strip()
+
+    if bool(cert_file) ^ bool(key_file):
+        raise ValueError("TLS_CERT_FILE and TLS_KEY_FILE must be set together")
+
+    if not cert_file:
+        if redirect_enabled:
+            raise ValueError(
+                "TLS_ENABLE_HTTP_REDIRECT requires TLS_CERT_FILE and TLS_KEY_FILE"
+            )
+        return None
+
+    if not os.path.isfile(cert_file):
+        raise ValueError(f"TLS_CERT_FILE does not exist: {cert_file}")
+    if not os.path.isfile(key_file):
+        raise ValueError(f"TLS_KEY_FILE does not exist: {key_file}")
+
+    redirect_http_port: int | None = None
+    if redirect_enabled:
+        try:
+            redirect_http_port = int(redirect_port_raw)
+        except ValueError as exc:
+            raise ValueError(
+                "TLS_REDIRECT_HTTP_PORT must be a valid TCP port (1-65535)"
+            ) from exc
+        if not 1 <= redirect_http_port <= 65535:
+            raise ValueError("TLS_REDIRECT_HTTP_PORT must be within 1..65535")
+
+    return {
+        "cert_file": cert_file,
+        "key_file": key_file,
+        "redirect_enabled": redirect_enabled,
+        "redirect_http_port": redirect_http_port,
+        "redirect_host": redirect_host,
+    }
+
+
+def _extract_host_without_port(host_header: str) -> str:
+    value = str(host_header or "").strip()
+    if not value:
+        return ""
+
+    if value.startswith("["):
+        closing = value.find("]")
+        if closing != -1:
+            return value[: closing + 1]
+
+    if ":" in value:
+        return value.rsplit(":", 1)[0]
+    return value
+
+
+def _build_https_redirect_location(
+    request_path: str,
+    *,
+    host_header: str,
+    https_port: int,
+    explicit_host: str = "",
+) -> str:
+    normalized_path = str(request_path or "/")
+    if not normalized_path.startswith("/"):
+        normalized_path = f"/{normalized_path}"
+
+    target_host = explicit_host.strip() or _extract_host_without_port(host_header)
+    if not target_host:
+        target_host = "localhost"
+
+    authority = target_host if https_port == 443 else f"{target_host}:{https_port}"
+    return f"https://{authority}{normalized_path}"
+
+
+class RedirectToHttpsHandler(BaseHTTPRequestHandler):
+    server_version = "geo-ranking-ch-redirect/0.1"
+
+    def _send_redirect(self) -> None:
+        https_port = int(getattr(self.server, "redirect_https_port", 443))
+        explicit_host = str(getattr(self.server, "redirect_https_host", "") or "")
+        location = _build_https_redirect_location(
+            self.path,
+            host_header=self.headers.get("Host", ""),
+            https_port=https_port,
+            explicit_host=explicit_host,
+        )
+        self.send_response(HTTPStatus.PERMANENT_REDIRECT)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_GET(self) -> None:  # noqa: N802
+        self._send_redirect()
+
+    def do_POST(self) -> None:  # noqa: N802
+        self._send_redirect()
+
+    def do_PUT(self) -> None:  # noqa: N802
+        self._send_redirect()
+
+    def do_PATCH(self) -> None:  # noqa: N802
+        self._send_redirect()
+
+    def do_DELETE(self) -> None:  # noqa: N802
+        self._send_redirect()
+
+    def do_OPTIONS(self) -> None:  # noqa: N802
+        self._send_redirect()
+
+    def do_HEAD(self) -> None:  # noqa: N802
+        self._send_redirect()
+
+
+def _build_tls_context(*, cert_file: str, key_file: str) -> ssl.SSLContext:
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(certfile=cert_file, keyfile=key_file)
+    return context
+
+
+def _start_http_redirect_server(
+    *,
+    host: str,
+    http_port: int,
+    https_port: int,
+    https_host_override: str = "",
+) -> ThreadingHTTPServer:
+    redirect_server = ThreadingHTTPServer((host, http_port), RedirectToHttpsHandler)
+    setattr(redirect_server, "redirect_https_port", https_port)
+    setattr(redirect_server, "redirect_https_host", https_host_override)
+
+    thread = threading.Thread(target=redirect_server.serve_forever, daemon=True)
+    thread.start()
+    return redirect_server
+
+
 def main() -> None:
     host = os.getenv("HOST", "0.0.0.0")
     port = _resolve_port()
+    tls_settings = _resolve_tls_settings()
+
     httpd = ThreadingHTTPServer((host, port), Handler)
-    print(f"geo-ranking-ch web service listening on {host}:{port}")
+    scheme = "http"
+
+    if tls_settings:
+        tls_context = _build_tls_context(
+            cert_file=str(tls_settings["cert_file"]),
+            key_file=str(tls_settings["key_file"]),
+        )
+        httpd.socket = tls_context.wrap_socket(httpd.socket, server_side=True)
+        scheme = "https"
+
+        if tls_settings.get("redirect_enabled"):
+            redirect_server = _start_http_redirect_server(
+                host=host,
+                http_port=int(tls_settings["redirect_http_port"]),
+                https_port=port,
+                https_host_override=str(tls_settings.get("redirect_host") or ""),
+            )
+            setattr(httpd, "redirect_server", redirect_server)
+            print(
+                "geo-ranking-ch redirect listener active on "
+                f"http://{host}:{tls_settings['redirect_http_port']} -> https://{host}:{port}"
+            )
+
+    print(f"geo-ranking-ch web service listening on {scheme}://{host}:{port}")
     httpd.serve_forever()
 
 
