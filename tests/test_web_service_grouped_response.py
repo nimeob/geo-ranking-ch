@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from src.web_service import _grouped_api_result
@@ -112,6 +113,70 @@ class TestGroupedApiResult(unittest.TestCase):
         self.assertEqual(by_source["geoadmin_search"]["source"], "geoadmin_search")
         self.assertIn("match", by_source["geoadmin_search"]["data"])
         self.assertIn("intelligence", by_source["osm_reverse"]["data"])
+        self.assertEqual(
+            by_source["geoadmin_search"]["data"]["match"]["module_ref"],
+            "#/result/data/modules/match",
+        )
+
+    def test_compact_default_reduces_by_source_payload_vs_verbose_mode(self):
+        report = {
+            "query": "Bahnhofstrasse 1, 8001 Zürich",
+            "matched_address": "Bahnhofstrasse 1, 8001 Zürich",
+            "ids": {"egid": "123"},
+            "coordinates": {"lat": 47.3769, "lon": 8.5417},
+            "match": {
+                "selected_score": 0.99,
+                "candidate_count": 3,
+                "candidates": [
+                    {"id": "A", "score": 0.99, "meta": {"distance_m": 2.1, "quality": "high"}},
+                    {"id": "B", "score": 0.82, "meta": {"distance_m": 12.4, "quality": "medium"}},
+                    {"id": "C", "score": 0.71, "meta": {"distance_m": 27.2, "quality": "medium"}},
+                ],
+            },
+            "building": {
+                "baujahr": 1999,
+                "decoded": {
+                    "heizung": [{"label": "Wärmepumpe"}],
+                },
+            },
+            "energy": {
+                "decoded_summary": {"heizung": ["Wärmepumpe"]},
+            },
+            "intelligence": {
+                "tenants_businesses": {
+                    "entities": [{"name": "Muster AG"}],
+                }
+            },
+            "sources": {
+                "geoadmin_search": {"status": "ok", "records": 1},
+                "osm_reverse": {"status": "partial", "records": 1},
+            },
+            "source_attribution": {
+                "match": ["geoadmin_search"],
+                "building_energy": ["geoadmin_search"],
+                "intelligence": ["osm_reverse"],
+            },
+        }
+
+        compact = _grouped_api_result(report)
+        verbose = _grouped_api_result(report, response_mode="verbose")
+
+        compact_match = compact["data"]["by_source"]["geoadmin_search"]["data"]["match"]
+        self.assertEqual(compact_match["module_ref"], "#/result/data/modules/match")
+        self.assertEqual(compact_match["selected_score"], 0.99)
+        self.assertEqual(compact_match["candidate_count"], 3)
+
+        verbose_match = verbose["data"]["by_source"]["geoadmin_search"]["data"]["match"]
+        self.assertNotIn("module_ref", verbose_match)
+        self.assertEqual(verbose_match["selected_score"], 0.99)
+
+        compact_size = len(json.dumps(compact["data"]["by_source"], ensure_ascii=False))
+        verbose_size = len(json.dumps(verbose["data"]["by_source"], ensure_ascii=False))
+        self.assertLess(
+            compact_size,
+            verbose_size,
+            msg="compact by_source muss kleiner als verbose by_source sein",
+        )
 
 
 if __name__ == "__main__":
