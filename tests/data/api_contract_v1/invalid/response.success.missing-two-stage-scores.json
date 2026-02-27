@@ -1,19 +1,17 @@
 {
   "ok": true,
   "api_version": "v1",
-  "request_id": "golden-res-001",
+  "request_id": "golden-res-invalid-001",
   "result": {
-    "entity_id": "ch:egid:555",
+    "entity_id": "ch:egid:999",
     "input_mode": "address",
-    "as_of": "2026-02-26T18:40:00Z",
-    "confidence": 0.75,
+    "as_of": "2026-02-27T06:00:00Z",
+    "confidence": 0.73,
     "building_profile": {},
     "context_profile": {},
     "suitability_light": {
       "traffic_light": "yellow",
-      "score": 63,
-      "base_score": 63,
-      "personalized_score": 63
+      "score": 62
     },
     "explainability": {
       "sources": [
@@ -27,12 +25,12 @@
         "factors": [
           {
             "key": "noise",
-            "raw_value": 62,
-            "normalized": 0.62,
+            "raw_value": 60,
+            "normalized": 0.6,
             "weight": 0.4,
-            "contribution": -0.248,
+            "contribution": -0.24,
             "direction": "contra",
-            "reason": "Lärm ist moderat erhöht.",
+            "reason": "Verkehrslärm leicht erhöht.",
             "source": "laermkataster_ch"
           }
         ]
@@ -41,12 +39,12 @@
         "factors": [
           {
             "key": "noise",
-            "raw_value": 62,
-            "normalized": 0.62,
-            "weight": 0.55,
-            "contribution": -0.341,
+            "raw_value": 60,
+            "normalized": 0.6,
+            "weight": 0.4,
+            "contribution": -0.24,
             "direction": "contra",
-            "reason": "Quiet-Profil erhöht die Negativwirkung von Lärm.",
+            "reason": "Fallback auf Basisscore ohne Präferenzsignal.",
             "source": "laermkataster_ch"
           }
         ]

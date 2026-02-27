@@ -19,6 +19,8 @@
     "suitability_light": {
       "traffic_light": "yellow",
       "score": 63,
+      "base_score": 63,
+      "personalized_score": 63,
       "reasons": [
         "Gute ÖV-Anbindung",
         "Mittleres Lärmrisiko"

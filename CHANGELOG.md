@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-20.4.d.wp2 Two-Stage Suitability Response Fields, Issue #181)
+- **`src/suitability_light.py`** erweitert um explizites Response-Paar `base_score` + `personalized_score`; solange kein aktives Präferenzsignal verarbeitet wird, liefert der Fallback deterministisch `personalized_score == base_score`.
+- **`docs/api/contract-v1.md`**, **`docs/api/schemas/v1/location-intelligence.response.schema.json`**, **`docs/api/scoring_methodology.md`** und **`docs/api/field_catalog.json`** auf die neuen Two-Stage-Suitability-Felder synchronisiert.
+- **`docs/api/examples/v1/location-intelligence.response.success.address.json`** sowie Golden-Contract-Payloads unter `tests/data/api_contract_v1/valid/` um die neuen Felder ergänzt.
+- **`tests/test_suitability_light.py`** und **`tests/test_api_contract_v1.py`** um Guards für die neuen Felder erweitert; zusätzlicher Negativfall unter `tests/data/api_contract_v1/invalid/response.success.missing-two-stage-scores.json`.
+
 ### Changed (2026-02-27 — BL-20.x.wp1 Actionable TODO/FIXME-Filter, Issue #202)
 - **`scripts/github_repo_crawler.py`** um `is_actionable_todo_line(...)` erweitert: TODO/FIXME-Treffer mit erledigt-/historisch-Markern (`✅`, `erledigt`, `abgeschlossen`, `closed`, `changelog`) werden nicht mehr als neue Finding-Issues erzeugt.
 - **`tests/test_github_repo_crawler.py`** um gezielte Regressionsfälle ergänzt (Marker-Filter + End-to-End-Scan mit gemischten TODO-Zeilen), damit nur actionable Treffer in `scan_repo_for_findings` verbleiben.

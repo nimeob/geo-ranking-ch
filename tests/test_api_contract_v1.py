@@ -228,6 +228,21 @@ def validate_success_response(payload: Any) -> list[str]:
     elif not (0 <= float(confidence) <= 1):
         errors.append("result.confidence out of range")
 
+    suitability = result.get("suitability_light")
+    if not isinstance(suitability, dict):
+        errors.append("result.suitability_light must be object")
+    else:
+        for field_name in ("score", "base_score", "personalized_score"):
+            value = suitability.get(field_name)
+            if not isinstance(value, (int, float)):
+                errors.append(f"result.suitability_light.{field_name} must be number")
+                continue
+            if not (0 <= float(value) <= 100):
+                errors.append(f"result.suitability_light.{field_name} out of range")
+
+        if suitability.get("traffic_light") not in {"green", "yellow", "red"}:
+            errors.append("result.suitability_light.traffic_light invalid")
+
     status = result.get("status")
     if status is not None:
         if not isinstance(status, dict):
@@ -379,6 +394,9 @@ class TestApiContractV1(unittest.TestCase):
             "preferences.weights",
             "lifestyle_density",
             "commute_priority",
+            "BL-20.4.d.wp2 Zweistufige Suitability-Score-Felder",
+            "result.suitability_light.base_score",
+            "result.suitability_light.personalized_score",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
@@ -520,6 +538,18 @@ class TestApiContractV1(unittest.TestCase):
             validate_request(req_with_partial_preferences),
             [],
             msg="Partielle Preference-Profile müssen valide sein (Defaults greifen implizit)",
+        )
+
+    def test_two_stage_suitability_scores_are_explicit_in_success_response(self):
+        resp_baseline = _read_json(GOLDEN_DIR / "valid" / "response.success.minimal.json")
+        suitability = resp_baseline.get("result", {}).get("suitability_light", {})
+
+        self.assertIn("base_score", suitability)
+        self.assertIn("personalized_score", suitability)
+        self.assertEqual(
+            suitability.get("base_score"),
+            suitability.get("personalized_score"),
+            msg="Ohne Präferenzkontext muss fallback-konform personalized_score==base_score sein",
         )
 
     def test_golden_positive_payloads(self):

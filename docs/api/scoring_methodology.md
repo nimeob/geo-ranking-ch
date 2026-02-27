@@ -23,7 +23,9 @@ Quellen der Wahrheit:
 | `result.explainability.sources[*].confidence` | legacy | number | Vertrauenswert je Datenquelle im Explainability-Block | `0.0 .. 1.0` (normiert) | höher = besser | `stable` | Source Attribution |
 | `result.context_profile.pt_access_score` | legacy | number | Zugänglichkeit ÖV aus Sicht des Umfeldprofils | `0 .. 100` (Index) | höher = besser | `beta` | Context Scoring |
 | `result.context_profile.noise_risk` | legacy | string | Kategorisiertes Lärmrisiko am Standort | `low \| medium \| high` (ordinal) | höheres Risiko = schlechter | `beta` | Context Scoring |
-| `result.suitability_light.score` | legacy | number | Verdichteter Eignungswert des Standorts | `0 .. 100` (Index) | höher = besser | `beta` | Suitability-Modul |
+| `result.suitability_light.score` | legacy | number | Verdichteter Eignungswert des Standorts (inkl. Unsicherheitsabschlag) | `0 .. 100` (Index) | höher = besser | `beta` | Suitability-Modul |
+| `result.suitability_light.base_score` | legacy | number | Neutraler Basiswert der Suitability-Faktoren vor Personalisierung | `0 .. 100` (Index) | höher = besser | `beta` | Suitability-Modul |
+| `result.suitability_light.personalized_score` | legacy | number | Personalisierter Suitability-Wert auf derselben Faktorbasis | `0 .. 100` (Index) | höher = besser | `beta` | Suitability-Modul |
 | `result.suitability_light.traffic_light` | legacy | string | Ampelklassifikation zur schnellen Eignungsbeurteilung | `green \| yellow \| red` (ordinal) | grüner = besser | `beta` | Suitability-Modul |
 | `result.status.quality.confidence.score` | grouped | number | Qualitäts-Confidence als Score im grouped status-Block | `0 .. max` (aktuell `0 .. 100`) | höher = besser | `stable` | Scoring |
 | `result.status.quality.confidence.max` | grouped | number | Obergrenze/Skalenmaximum für den grouped Confidence-Score | positive Zahl (aktuell `100`) | n/a (Skalenanker) | `stable` | Scoring |
@@ -100,6 +102,8 @@ Diese Felder bleiben als Legacy-Contract-Felder (`beta`) dokumentiert und folgen
 - `pt_access_score` (`0..100`, höher = besser)
 - `noise_risk` (`low|medium|high`, höher = schlechter)
 - `suitability_light.score` (`0..100`, höher = besser)
+- `suitability_light.base_score` (`0..100`, höher = besser)
+- `suitability_light.personalized_score` (`0..100`, höher = besser)
 - `suitability_light.traffic_light` (`green|yellow|red`)
 
 Normative Kopplungsregel für Integratoren:
@@ -123,6 +127,10 @@ Berechnung:
 
 ```text
 base_score = Σ(factor_score * weight)
+personalized_score = personalization(base_score, preferences)
+# WP2-Fallback solange kein Präferenzsignal im Runtime-Pfad aktiv ist:
+personalized_score = base_score
+
 uncertainty_penalty = uncertainty_score * 0.18
 suitability_light.score = clamp(base_score - uncertainty_penalty, 0, 100)
 traffic_light = green (>=72) | yellow (>=52) | red (<52)
