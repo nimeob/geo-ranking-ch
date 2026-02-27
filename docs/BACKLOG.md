@@ -522,7 +522,7 @@
   - Fehlende Testcases sind implementiert und reproduzierbar ausführbar.
   - Vollständiger Testlauf inkl. Outcome-Dokumentation ist im Repo nachweisbar.
 - **Work-Packages (Issue #248):**
-  - [ ] #249 — Parent in Standardformat + DoD/Scope
+  - [x] #249 — Parent in Standardformat + DoD/Scope (abgeschlossen 2026-02-27)
   - [ ] #250 — Test-Coverage-Inventar
   - [ ] #251 — Fehlende Testcases implementieren
   - [ ] #252 — Volltest + Outcome-Dokumentation
