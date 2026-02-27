@@ -239,13 +239,13 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-03, BL-15
-- **Status:** 🟡 in Umsetzung (2026-02-26)
+- **Status:** ✅ abgeschlossen (2026-02-27, Issue #2)
 - **Akzeptanzkriterien:**
   - Primärpfad für AWS-Operationen läuft über GitHub Actions OIDC.
   - Legacy-Key wird nur als dokumentierter Fallback genutzt.
   - Fallback-Nutzung wird protokolliert und schrittweise auf 0 reduziert.
   - OIDC-first/Fallback-Runbook ist dokumentiert (Pfad wird bei BL-17-Start final fixiert).
-- **Umgesetzt (laufend):**
+- **Umgesetzt:**
   - `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md` auf Hybrid-Standard präzisiert (OIDC für CI/CD + AssumeRole-first für direkte OpenClaw-Ops).
   - `scripts/aws_exec_via_openclaw_ops.sh` ergänzt (führt beliebige AWS-CLI-Subcommands in temporärer `openclaw-ops-role` Session aus).
   - `scripts/check_bl17_oidc_assumerole_posture.sh` ergänzt (OIDC-Workflow-Marker, statische-Key-Checks, Caller-Klassifikation + Kontext-Audits in einem Lauf).
@@ -257,6 +257,7 @@
   - ✅ 2026-02-27: #148 abgeschlossen (Runtime-Default auf AssumeRole-first): neues Wrapper-Script `scripts/openclaw_runtime_assumerole_exec.sh` ersetzt beim Runtime-Start langlebige Legacy-Env-Keys durch temporäre STS-Session-Credentials; `scripts/inventory_bl17_runtime_credential_paths.py` klassifiziert temporäre Session-Credentials nun als low-risk (`runtime-env-session-credentials`) und meldet `runtime-env-static-keys` nur noch bei langlebigen/inkonsistenten Key-Pfaden; `scripts/audit_legacy_runtime_consumers.sh` auf dieselbe Klassifikation gehärtet. Verifizierter Read-only Nachweis im neuen Default-Pfad: Inventory/Audit/Posture jeweils Exit `0`. Testnachweise via `tests/test_inventory_bl17_runtime_credential_paths.py`, `tests/test_openclaw_runtime_assumerole_exec.py`, `tests/test_aws_exec_via_openclaw_ops.py`.
   - ✅ 2026-02-27: #149 abgeschlossen (OIDC-only Guard): neues Konsolidierungs-Script `scripts/check_bl17_oidc_only_guard.py` führt Posture-Check, Runtime-Credential-Inventory und CloudTrail-Legacy-Audit in einem Guard zusammen und liefert ein einheitliches `ok|warn|fail`-Schema mit `evidence_paths`; Exitcodes sind auf `0/10/20` normalisiert (`ok/fail/warn`). Runbook um Guard-Aufruf + Interpretation ergänzt (`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`), Testfälle für clean/fail-Pfade in `tests/test_check_bl17_oidc_only_guard.py` abgesichert.
   - ✅ 2026-02-27: #150 abgeschlossen (Break-glass-Fallback-Runbook): `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md` um verbindliches Break-glass-Runbook (Triggerkriterien, Ablauf, Evidenz-Checkliste, CloudTrail-/Inventory-/Posture-Prüfpunkte und Rückweg auf AssumeRole-first) erweitert; `docs/LEGACY_IAM_USER_READINESS.md` um ein vollständig ausgefülltes synthetisches Fallback-Event (read-only) mit referenzierten Evidenzpfaden ergänzt.
+  - ✅ 2026-02-27: Parent #2 finalisiert und geschlossen (alle definierten Work-Packages gemerged, Status-Sync in Backlog + Issue).
 - **Work-Packages (Issue #2):**
   - [x] #136
   - [x] #137
@@ -468,7 +469,7 @@
 1. **BL-13** (Doku-Konsistenz) ✅
 2. **BL-14** (Health-Probe IaC-Parität) ✅
 3. **BL-15** (Legacy-IAM-Readiness) 🟡
-4. **BL-17** (OpenClaw OIDC-first + Legacy-Fallback) ⏳
+4. **BL-17** (OpenClaw OIDC-first + Legacy-Fallback) ✅
 5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ✅
 6. **BL-19** (Userdokumentation) ⏳
 7. **BL-20** (Produktvision API+GUI umsetzen) ⏳
