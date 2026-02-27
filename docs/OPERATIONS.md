@@ -299,7 +299,7 @@ Erwartete Artefakte:
 
 Scope des Regressionschecks (MVP):
 - Workstream-Balance
-- todo/fixme-Actionable-Filter
+- Actionable-Taskmarker-Filter (Kommentar-/Inline-Hinweise)
 - Vision↔Issue-Coverage
 - Code↔Doku-Drift
 
