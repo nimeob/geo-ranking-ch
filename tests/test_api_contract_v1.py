@@ -135,7 +135,6 @@ def validate_request(payload: Any) -> list[str]:
                 "language",
                 "timeout_seconds",
                 "response_mode",
-                "include_labels",
                 "capabilities",
                 "entitlements",
             }
@@ -155,10 +154,6 @@ def validate_request(payload: Any) -> list[str]:
             response_mode = options.get("response_mode")
             if response_mode is not None and response_mode not in {"compact", "verbose"}:
                 errors.append("options.response_mode invalid")
-
-            include_labels = options.get("include_labels")
-            if include_labels is not None and not isinstance(include_labels, bool):
-                errors.append("options.include_labels must be boolean")
 
             capabilities = options.get("capabilities")
             if capabilities is not None and not isinstance(capabilities, dict):

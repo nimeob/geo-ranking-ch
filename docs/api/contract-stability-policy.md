@@ -84,14 +84,13 @@ Regel für den aktuellen `/analyze`-Request-Contract:
 - Ist `options` vorhanden, muss es ein JSON-Objekt sein; sonst `400 bad_request`.
 - Aktive Standard-Keys im Envelope:
   - `response_mode` (`compact|verbose`, Default `compact`)
-  - `include_labels` (`boolean`, Default `false`, temporäre Legacy-Migrationsbrücke)
 - Unbekannte Keys unter `options` werden als **No-Op** behandelt (ignoriert statt Crash/500), um spätere Deep-Mode-Felder ohne Breaking Change ergänzen zu können.
-- Der `include_labels`-Pfad ist explizit sunset-gebunden und darf nur als Übergangsmodus bestehen (siehe Contract Abschnitt 22).
+- Legacy-Flag `include_labels` ist sunset-abgeschlossen und wird deterministisch mit `400 bad_request` zurückgewiesen (siehe Contract Abschnitt 22).
 
 Automatisierter Nachweis im Repo:
 - `tests/test_web_e2e.py::TestWebServiceE2E::test_analyze_ignores_unknown_options_keys_as_additive_noop`
 - `tests/test_web_e2e.py::TestWebServiceE2E::test_bad_request_options_must_be_object_when_provided`
-- `tests/test_web_e2e.py::TestWebServiceE2E::test_bad_request_include_labels_rejects_non_boolean_values`
+- `tests/test_web_e2e.py::TestWebServiceE2E::test_bad_request_include_labels_rejects_legacy_flag_usage`
 
 ### 4.2 BL-20.1.h Capability-/Entitlement-Envelope (BL-30-ready, additiv)
 

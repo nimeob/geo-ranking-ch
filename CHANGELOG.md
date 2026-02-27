@@ -20,6 +20,13 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`tests/test_web_e2e.py`**: Legacy-Flag-Nutzung wird explizit als Fehlerfall abgesichert (inkl. boolescher und nicht-boolescher Werte).
 - **`tests/test_web_service_grouped_response.py`**: Guard-Tests auf code-first-only Verhalten in compact/verbose Pfaden angepasst.
 
+### Changed (2026-02-27 — BL-21.wp2 Contract/Schema/Doku code-first-only, Issue #311)
+- **`docs/api/contract-v1.md`** aktualisiert: `options.include_labels` ist aus dem aktiven v1-Contract entfernt; Abschnitt 22 dokumentiert den abgeschlossenen Sunset-Status und die verpflichtende Dictionary-Migration.
+- **`docs/api/contract-stability-policy.md`** synchronisiert: aktive `options`-Keys auf `response_mode` reduziert, Legacy-Flag-Ablehnung (`400 bad_request`) explizit festgehalten.
+- **`docs/user/api-usage.md`** auf den neuen Betriebszustand umgestellt (kein Legacy-Opt-in mehr, stattdessen Sunset-Hinweis + Migrationspfad über `GET /api/v1/dictionaries*`).
+- **`docs/api/schemas/v1/location-intelligence.request.schema.json`** bereinigt: `options.include_labels` entfernt.
+- **`tests/test_api_contract_v1.py`** angepasst, damit Contract-Validator und Doku-Marker den code-first-only Request-Contract abbilden.
+
 ### Changed (2026-02-27 — BL-20.4.e Preference-Presets v1, Issue #88)
 - **`src/web_service.py`** um einen versionierten Preset-Katalog (`urban_lifestyle`, `family_friendly`, `quiet_residential`, `car_commuter`, `pt_commuter`) erweitert; neue Request-Felder `preferences.preset` + `preferences.preset_version` (`v1`) sowie deterministische Override-Reihenfolge (Defaults → Preset → Enum-Overrides → Weight-Overrides).
 - **`docs/api/schemas/v1/location-intelligence.request.schema.json`** additiv um `preferences.preset`/`preferences.preset_version` ergänzt (inkl. `dependentRequired` für `preset_version` → `preset`).
