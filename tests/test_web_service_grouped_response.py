@@ -211,7 +211,7 @@ class TestGroupedApiResult(unittest.TestCase):
         self.assertNotIn("decoded_summary", modules["energy"])
         self.assertEqual(modules["energy"]["codes"]["gwaerzh1"], "7410")
 
-    def test_legacy_label_projection_keeps_decoded_fields_when_enabled(self):
+    def test_code_first_projection_is_enforced_in_verbose_mode(self):
         report = {
             "query": "Espenmoosstrasse 18, 9008 St. Gallen",
             "matched_address": "Espenmoosstrasse 18, 9008 St. Gallen",
@@ -224,16 +224,17 @@ class TestGroupedApiResult(unittest.TestCase):
                 "decoded_summary": {"heizung": ["Wärmepumpe (Luft)"]},
             },
             "sources": {"geoadmin_search": {"status": "ok"}},
+            "source_attribution": {"building_energy": ["geoadmin_search"]},
         }
 
-        grouped = _grouped_api_result(report, include_legacy_labels=True)
+        grouped = _grouped_api_result(report, response_mode="verbose")
         modules = grouped["data"]["modules"]
 
-        self.assertIn("decoded", modules["building"])
-        self.assertIn("decoded_summary", modules["energy"])
-        self.assertIn("raw_codes", modules["energy"])
+        self.assertNotIn("decoded", modules["building"])
+        self.assertNotIn("decoded_summary", modules["energy"])
+        self.assertNotIn("raw_codes", modules["energy"])
 
-    def test_code_first_projection_reduces_payload_vs_legacy_label_projection(self):
+    def test_code_first_projection_reduces_payload_vs_raw_input_projection(self):
         report = {
             "query": "Espenmoosstrasse 18, 9008 St. Gallen",
             "matched_address": "Espenmoosstrasse 18, 9008 St. Gallen",
@@ -262,18 +263,21 @@ class TestGroupedApiResult(unittest.TestCase):
             },
         }
 
-        legacy_payload = _grouped_api_result(report, response_mode="verbose", include_legacy_labels=True)
         code_first_payload = _grouped_api_result(report, response_mode="verbose")
 
-        legacy_size = len(json.dumps(legacy_payload, ensure_ascii=False))
-        code_first_size = len(json.dumps(code_first_payload, ensure_ascii=False))
+        raw_module_projection = {
+            "building": report["building"],
+            "energy": report["energy"],
+        }
+        raw_size = len(json.dumps(raw_module_projection, ensure_ascii=False))
+        code_first_size = len(json.dumps(code_first_payload["data"]["modules"], ensure_ascii=False))
 
         self.assertLess(
             code_first_size,
-            legacy_size,
+            raw_size,
             msg=(
-                "Code-first Payload muss kleiner als Label-Projection sein "
-                f"(legacy={legacy_size}, code_first={code_first_size})"
+                "Code-first Module-Payload muss kleiner als die Rohprojektion sein "
+                f"(raw={raw_size}, code_first={code_first_size})"
             ),
         )
 

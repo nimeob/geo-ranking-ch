@@ -14,6 +14,12 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-21.wp1 include_labels Runtime-Legacy-Cut, Issue #310)
+- **`src/web_service.py`**: Legacy-Flag `options.include_labels` wird nicht mehr unterstützt; Requests mit diesem Flag liefern jetzt deterministisch `400 bad_request` mit klarer Fehlermeldung.
+- Der grouped Response-Pfad erzwingt nun immer code-first Projektion (`building.decoded`/`energy.decoded_summary`/`energy.raw_codes` werden nicht mehr über einen Legacy-Branch ausgeliefert).
+- **`tests/test_web_e2e.py`**: Legacy-Flag-Nutzung wird explizit als Fehlerfall abgesichert (inkl. boolescher und nicht-boolescher Werte).
+- **`tests/test_web_service_grouped_response.py`**: Guard-Tests auf code-first-only Verhalten in compact/verbose Pfaden angepasst.
+
 ### Changed (2026-02-27 — BL-20.4.e Preference-Presets v1, Issue #88)
 - **`src/web_service.py`** um einen versionierten Preset-Katalog (`urban_lifestyle`, `family_friendly`, `quiet_residential`, `car_commuter`, `pt_commuter`) erweitert; neue Request-Felder `preferences.preset` + `preferences.preset_version` (`v1`) sowie deterministische Override-Reihenfolge (Defaults → Preset → Enum-Overrides → Weight-Overrides).
 - **`docs/api/schemas/v1/location-intelligence.request.schema.json`** additiv um `preferences.preset`/`preferences.preset_version` ergänzt (inkl. `dependentRequired` für `preset_version` → `preset`).

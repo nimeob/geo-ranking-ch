@@ -533,6 +533,21 @@
   - BL-20 startet erst nach BL-19-MVP (BL-19.1, 19.2, 19.4, 19.3, 19.7).
 
 
+### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
+- **Priorität:** P1
+- **Aufwand:** L
+- **Abhängigkeiten:** keine
+- **Status:** 🟡 in Umsetzung (Issue #309, gestartet 2026-02-27)
+- **Ziel:** Legacy-Übergangslogik konsequent entfernen und den v1-Zielcontract als einzigen aktiven Pfad absichern.
+- **Work-Packages (Issue #309):**
+  - [x] #310 — Runtime-Legacy-Path `options.include_labels` entfernt (2026-02-27)
+  - [ ] #311 — Contract/Schema/Doku auf code-first-only konsolidieren
+  - [ ] #312 — Test-Suite auf Legacy-Flag-Removal härten
+- **Fortschritt (2026-02-27):**
+  - ✅ #310 abgeschlossen: `src/web_service.py` lehnt `options.include_labels` nun deterministisch mit `400 bad_request` ab und nutzt im grouped Response ausschließlich code-first-Projektion.
+  - ✅ Regressionen grün: `python3 -m pytest -q tests/test_web_service_grouped_response.py tests/test_web_e2e.py` (`57 passed`, `36 subtests passed`).
+  - ⏳ Nächster Schritt: #311 (Contract-/Schema-/Doku-Sync) claimen und umsetzen.
+
 ### BL-XX — Webservice-Testabdeckung über alle Resultpfade (OK/NOK)
 - **Priorität:** P1
 - **Aufwand:** M
