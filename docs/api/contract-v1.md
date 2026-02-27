@@ -105,6 +105,7 @@ Responses:
 - Vollständig (grouped): [`docs/api/examples/current/analyze.response.grouped.success.json`](./examples/current/analyze.response.grouped.success.json)
 - Edge-Case (fehlende/deaktivierte Daten, grouped): [`docs/api/examples/current/analyze.response.grouped.partial-disabled.json`](./examples/current/analyze.response.grouped.partial-disabled.json)
 - Additive Evolution (before/after, grouped): [`docs/api/examples/current/analyze.response.grouped.additive-before.json`](./examples/current/analyze.response.grouped.additive-before.json) / [`docs/api/examples/current/analyze.response.grouped.additive-after.json`](./examples/current/analyze.response.grouped.additive-after.json)
+- Code-only Migration (before/after, grouped): [`docs/api/examples/current/analyze.response.grouped.code-only-before.json`](./examples/current/analyze.response.grouped.code-only-before.json) / [`docs/api/examples/current/analyze.response.grouped.code-only-after.json`](./examples/current/analyze.response.grouped.code-only-after.json)
 - Fehler-Envelope: [`docs/api/examples/v1/location-intelligence.response.error.bad-request.json`](./examples/v1/location-intelligence.response.error.bad-request.json)
 
 ## 6) CI-Check (verdrahtet)
@@ -320,3 +321,28 @@ Kompatibilitätsprinzip:
 - Vorher/Nachher-Beispiele für additive Erweiterung ohne Strukturbruch:
   - [`docs/api/examples/current/analyze.response.grouped.additive-before.json`](./examples/current/analyze.response.grouped.additive-before.json)
   - [`docs/api/examples/current/analyze.response.grouped.additive-after.json`](./examples/current/analyze.response.grouped.additive-after.json)
+
+## 19) BL-20.1.k.wp1 Contract: Code-only Response + Dictionary-Referenzfelder
+
+Bezug: [#286](https://github.com/nimeob/geo-ranking-ch/issues/286), [#287](https://github.com/nimeob/geo-ranking-ch/issues/287)
+
+Ziel dieses Work-Packages ist ein **additiver Contract-Diff** für den Übergang auf code-first Antworten.
+
+Normative Contract-Felder (optional/additiv in beiden Response-Shapes unter `result.status.dictionary`):
+- `result.status.dictionary.version` (`string`, required wenn `dictionary` vorhanden ist)
+- `result.status.dictionary.etag` (`string`, required wenn `dictionary` vorhanden ist)
+- `result.status.dictionary.domains` (`object`, optional)
+  - pro Domain: `version` + `etag` (required), optional `path` für den Dictionary-Endpoint
+
+Regelwerk code-first:
+- Fachliche Werte in `result.data.modules` dürfen als **codes/raw values** geliefert werden.
+- Redundante Klartext-Labels im Result werden perspektivisch abgebaut; Auflösung erfolgt über Dictionary-Endpoints.
+- Der neue Dictionary-Envelope ist additiv und bricht bestehende Integrationen nicht.
+
+Schema-Stand (WP1):
+- grouped: [`docs/api/schemas/v1/analyze.grouped.response.schema.json`](./schemas/v1/analyze.grouped.response.schema.json)
+- legacy v1: [`docs/api/schemas/v1/location-intelligence.response.schema.json`](./schemas/v1/location-intelligence.response.schema.json)
+
+Referenzbeispiele (before/after, gleiches Request-Szenario):
+- before (label-lastig): [`docs/api/examples/current/analyze.response.grouped.code-only-before.json`](./examples/current/analyze.response.grouped.code-only-before.json)
+- after (code-first + dictionary refs): [`docs/api/examples/current/analyze.response.grouped.code-only-after.json`](./examples/current/analyze.response.grouped.code-only-after.json)
