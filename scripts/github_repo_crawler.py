@@ -35,6 +35,15 @@ WORKSTREAM_BALANCE_ISSUE_TITLE = "[Crawler][P0] Workstream-Balance: Development/
 CONSISTENCY_REPORT_JSON = Path("reports/consistency_report.json")
 CONSISTENCY_REPORT_MD = Path("reports/consistency_report.md")
 SEVERITY_PRIORITY = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+VISION_DOC_PATH = Path("docs/VISION_PRODUCT.md")
+VISION_SCOPE_HEADING = "## Scope-Module"
+VISION_REQUIREMENT_HEADING_RE = re.compile(r"^###\s*(M\d+)\s+—\s+(.+?)\s*$")
+TOKEN_RE = re.compile(r"[a-z0-9äöüß]{3,}", re.IGNORECASE)
+MATCH_STOPWORDS = {
+    "und", "oder", "der", "die", "das", "mit", "von", "für", "ein", "eine", "einer", "eines",
+    "inkl", "inklusive", "ohne", "sowie", "mehr", "mvp", "modul", "module", "profil", "punkt", "ch",
+    "the", "and", "for", "with", "from", "into", "via", "read", "only", "check",
+}
 
 
 def run(args):
@@ -129,12 +138,16 @@ def sort_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     )
 
 
-def build_consistency_report(findings: list[dict[str, Any]], generated_at: str | None = None) -> dict[str, Any]:
+def build_consistency_report(
+    findings: list[dict[str, Any]],
+    generated_at: str | None = None,
+    coverage: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     ordered_findings = sort_findings(findings)
     by_severity = Counter(f.get("severity", "medium") for f in ordered_findings)
     by_type = Counter(f.get("type", "unknown") for f in ordered_findings)
 
-    return {
+    report = {
         "schema_version": "1.0",
         "generated_at": generated_at or now_iso(),
         "summary": {
@@ -144,6 +157,11 @@ def build_consistency_report(findings: list[dict[str, Any]], generated_at: str |
         },
         "findings": ordered_findings,
     }
+
+    if coverage:
+        report["coverage"] = coverage
+
+    return report
 
 
 def _render_evidence_refs(evidence: list[dict[str, Any]]) -> str:
@@ -184,6 +202,45 @@ def render_consistency_report_markdown(report: dict[str, Any]) -> str:
         lines.append("- Findings nach Typ: " + ", ".join(f"{key}={value}" for key, value in by_type.items()))
     else:
         lines.append("- Findings nach Typ: none")
+
+    coverage = report.get("coverage") or {}
+    if coverage:
+        lines.extend(["", "## Vision ↔ Issue Coverage (MVP)", ""])
+        lines.append(f"- Vision source: `{coverage.get('vision_source', VISION_DOC_PATH.as_posix())}`")
+        lines.append(
+            "- Anforderungen: **{total}** (covered={covered}, unclear={unclear}, missing={missing})".format(
+                total=coverage.get("total_requirements", 0),
+                covered=coverage.get("covered", 0),
+                unclear=coverage.get("unclear", 0),
+                missing=coverage.get("missing", 0),
+            )
+        )
+
+        requirement_rows = coverage.get("requirements") or []
+        if requirement_rows:
+            lines.extend([
+                "",
+                "| Requirement | Status | Best Match | Matched keywords |",
+                "|---|---|---|---|",
+            ])
+            for req in requirement_rows:
+                best_match = req.get("best_match") or {}
+                best_match_ref = "--"
+                if best_match.get("number") is not None:
+                    best_match_ref = "#{number} ({state}, score={score})".format(
+                        number=best_match.get("number"),
+                        state=best_match.get("state", "unknown"),
+                        score=best_match.get("score", 0),
+                    )
+                matched_keywords = ", ".join(req.get("matched_keywords") or []) or "--"
+                lines.append(
+                    "| {requirement} | {status} | {best_match} | {keywords} |".format(
+                        requirement=f"{req.get('id', '?')} — {req.get('title', '')}".strip(),
+                        status=req.get("status", "unknown"),
+                        best_match=best_match_ref,
+                        keywords=matched_keywords.replace("|", "\\|"),
+                    )
+                )
 
     lines.extend(["", "## Findings", ""])
 
@@ -229,6 +286,241 @@ def write_consistency_reports(
     json_abs.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     md_abs.write_text(render_consistency_report_markdown(report), encoding="utf-8")
     return json_abs, md_abs
+
+
+def tokenize_text(text: str) -> list[str]:
+    seen = set()
+    tokens: list[str] = []
+    for token in TOKEN_RE.findall((text or "").lower()):
+        if token in MATCH_STOPWORDS:
+            continue
+        if token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return tokens
+
+
+def parse_vision_requirements(markdown: str, source_path: Path = VISION_DOC_PATH) -> list[dict[str, Any]]:
+    lines = markdown.splitlines()
+    in_scope = False
+    current: dict[str, Any] | None = None
+    requirements: list[dict[str, Any]] = []
+
+    for idx, raw_line in enumerate(lines, start=1):
+        line = raw_line.rstrip()
+
+        if line.startswith("## "):
+            if line.startswith(VISION_SCOPE_HEADING):
+                in_scope = True
+                continue
+            if in_scope:
+                break
+
+        if not in_scope:
+            continue
+
+        header_match = VISION_REQUIREMENT_HEADING_RE.match(line)
+        if header_match:
+            if current is not None:
+                scope_text = " ".join(current["bullets"])
+                current["tokens"] = tokenize_text(f"{current['title']} {scope_text}")
+                requirements.append(current)
+
+            current = {
+                "id": header_match.group(1),
+                "title": header_match.group(2),
+                "line": idx,
+                "source": source_path.as_posix(),
+                "bullets": [],
+            }
+            continue
+
+        if current is not None and line.strip().startswith("-"):
+            current["bullets"].append(line.strip().lstrip("-").strip())
+
+    if current is not None:
+        scope_text = " ".join(current["bullets"])
+        current["tokens"] = tokenize_text(f"{current['title']} {scope_text}")
+        requirements.append(current)
+
+    return requirements
+
+
+def get_issues_for_coverage(limit: int = 300) -> list[dict[str, Any]]:
+    open_issues = run_json([
+        "issue", "list", "--state", "open", "--limit", str(limit),
+        "--json", "number,title,body,state,url"
+    ])
+    closed_issues = run_json([
+        "issue", "list", "--state", "closed", "--limit", str(limit),
+        "--json", "number,title,body,state,url"
+    ])
+
+    merged: dict[int, dict[str, Any]] = {}
+    for issue in [*open_issues, *closed_issues]:
+        merged[issue.get("number")] = issue
+    return list(merged.values())
+
+
+def match_requirement_to_issues(requirement: dict[str, Any], issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    tokens = requirement.get("tokens") or []
+    if not tokens:
+        return []
+
+    matches: list[dict[str, Any]] = []
+    for issue in issues:
+        haystack = f"{issue.get('title', '')}\n{issue.get('body', '')}".lower()
+        matched_keywords = [token for token in tokens if keyword_matches(haystack, token)]
+        score = len(matched_keywords)
+        if score == 0:
+            continue
+
+        matches.append(
+            {
+                "number": issue.get("number"),
+                "title": issue.get("title"),
+                "state": issue.get("state", "open"),
+                "url": issue.get("url"),
+                "score": score,
+                "matched_keywords": matched_keywords,
+            }
+        )
+
+    return sorted(
+        matches,
+        key=lambda item: (
+            -item.get("score", 0),
+            0 if item.get("state") == "open" else 1,
+            item.get("number", 0),
+        ),
+    )
+
+
+def assess_vision_issue_coverage(requirements: list[dict[str, Any]], issues: list[dict[str, Any]]) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    covered = 0
+    unclear = 0
+    missing = 0
+
+    for req in requirements:
+        matches = match_requirement_to_issues(req, issues)
+        best_match = matches[0] if matches else None
+        status = "missing"
+        matched_keywords: list[str] = []
+
+        if best_match is not None:
+            matched_keywords = best_match.get("matched_keywords", [])
+            if best_match.get("score", 0) >= 2:
+                status = "covered"
+                covered += 1
+            else:
+                status = "unclear"
+                unclear += 1
+        else:
+            missing += 1
+
+        if status == "missing":
+            matched_keywords = []
+
+        rows.append(
+            {
+                "id": req.get("id"),
+                "title": req.get("title"),
+                "line": req.get("line"),
+                "status": status,
+                "matched_keywords": matched_keywords,
+                "best_match": (
+                    {
+                        "number": best_match.get("number"),
+                        "state": best_match.get("state"),
+                        "score": best_match.get("score"),
+                        "url": best_match.get("url"),
+                    }
+                    if best_match
+                    else None
+                ),
+            }
+        )
+
+    return {
+        "vision_source": VISION_DOC_PATH.as_posix(),
+        "total_requirements": len(requirements),
+        "covered": covered,
+        "unclear": unclear,
+        "missing": missing,
+        "requirements": rows,
+    }
+
+
+def collect_vision_issue_coverage_findings(coverage: dict[str, Any]) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+
+    for req in coverage.get("requirements", []):
+        requirement_ref = f"{req.get('id')} ({req.get('title')})"
+        evidence = [
+            {
+                "kind": "file_line",
+                "path": VISION_DOC_PATH.as_posix(),
+                "line": req.get("line"),
+            }
+        ]
+
+        best_match = req.get("best_match") or {}
+        if best_match.get("number") is not None:
+            evidence.append(
+                {
+                    "kind": "issue",
+                    "number": best_match.get("number"),
+                    "url": best_match.get("url"),
+                }
+            )
+
+        if req.get("status") == "missing":
+            findings.append(
+                build_finding(
+                    finding_type="vision_issue_coverage_gap",
+                    severity="high",
+                    summary=f"Vision-Anforderung {requirement_ref} hat keine Issue-Zuordnung",
+                    evidence=evidence,
+                    source={"kind": "vision_issue_coverage", "component": "module_matcher", "requirement_id": req.get("id")},
+                )
+            )
+        elif req.get("status") == "unclear":
+            findings.append(
+                build_finding(
+                    finding_type="vision_issue_coverage_unclear",
+                    severity="medium",
+                    summary=f"Vision-Anforderung {requirement_ref} ist nur schwach mit Issues verknüpft",
+                    evidence=evidence,
+                    source={"kind": "vision_issue_coverage", "component": "module_matcher", "requirement_id": req.get("id")},
+                )
+            )
+
+    return findings
+
+
+def audit_vision_issue_coverage() -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    vision_abs = (REPO_ROOT / VISION_DOC_PATH).resolve()
+    if not vision_abs.exists():
+        return [], None
+
+    markdown = vision_abs.read_text(encoding="utf-8", errors="ignore")
+    requirements = parse_vision_requirements(markdown)
+    if not requirements:
+        return [], {
+            "vision_source": VISION_DOC_PATH.as_posix(),
+            "total_requirements": 0,
+            "covered": 0,
+            "unclear": 0,
+            "missing": 0,
+            "requirements": [],
+        }
+
+    issues = get_issues_for_coverage(limit=300)
+    coverage = assess_vision_issue_coverage(requirements, issues)
+    findings = collect_vision_issue_coverage_findings(coverage)
+    return findings, coverage
 
 
 def is_actionable_todo_line(line: str) -> bool:
@@ -557,9 +849,11 @@ def main():
     findings: list[dict[str, Any]] = []
     findings.extend(audit_closed_issues(dry_run=args.dry_run))
     findings.extend(scan_repo_for_findings(dry_run=args.dry_run))
+    coverage_findings, coverage = audit_vision_issue_coverage()
+    findings.extend(coverage_findings)
     findings.extend(audit_workstream_balance(dry_run=args.dry_run))
 
-    report = build_consistency_report(findings)
+    report = build_consistency_report(findings, coverage=coverage)
     json_path, md_path = write_consistency_reports(report)
     print(f"consistency reports written: {json_path.relative_to(REPO_ROOT)}, {md_path.relative_to(REPO_ROOT)}")
     print("crawler run complete")
