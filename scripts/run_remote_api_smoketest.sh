@@ -21,6 +21,7 @@ set -euo pipefail
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; Short-Aliasse senden Request-Id/Correlation-Id bzw. Request_Id/Correlation_Id, X-Aliasse senden X-Request-Id/X-Correlation-Id bzw. X_Request_Id/X_Correlation_Id
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0|true|false|yes|no|on|off (Default: 1)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
+#   DEV_TLS_CA_CERT="/pfad/zu/dev-self-signed.crt"  # optional: zusätzlicher Trust-Anchor für HTTPS-Smoke (nutzt curl --cacert, kein globales -k)
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
 
 if [[ -z "${DEV_BASE_URL:-}" ]]; then
@@ -65,6 +66,8 @@ SMOKE_REQUEST_ID_RAW="${SMOKE_REQUEST_ID-}"
 SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID_RAW}"
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER:-request}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
+DEV_TLS_CA_CERT_RAW="${DEV_TLS_CA_CERT:-}"
+DEV_TLS_CA_CERT="${DEV_TLS_CA_CERT_RAW}"
 
 SMOKE_OUTPUT_JSON="$(python3 - "${SMOKE_OUTPUT_JSON}" <<'PY'
 import sys
@@ -152,6 +155,12 @@ PY
 )"
 
 SMOKE_ENFORCE_REQUEST_ID_ECHO="$(python3 - "${SMOKE_ENFORCE_REQUEST_ID_ECHO}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+DEV_TLS_CA_CERT="$(python3 - "${DEV_TLS_CA_CERT}" <<'PY'
 import sys
 print(sys.argv[1].strip())
 PY
@@ -468,6 +477,35 @@ then
   exit 2
 fi
 
+if [[ -n "${DEV_TLS_CA_CERT_RAW}" && -z "${DEV_TLS_CA_CERT}" ]]; then
+  echo "[BL-18.1] DEV_TLS_CA_CERT ist leer nach Whitespace-Normalisierung." >&2
+  exit 2
+fi
+
+if [[ -n "${DEV_TLS_CA_CERT}" ]]; then
+  if ! python3 - "${DEV_TLS_CA_CERT}" <<'PY'
+import sys
+
+value = sys.argv[1]
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
+    raise SystemExit(1)
+PY
+  then
+    echo "[BL-18.1] DEV_TLS_CA_CERT darf keine Steuerzeichen enthalten." >&2
+    exit 2
+  fi
+
+  if [[ ! -f "${DEV_TLS_CA_CERT}" ]]; then
+    echo "[BL-18.1] DEV_TLS_CA_CERT muss auf eine existierende Datei zeigen (aktuell: ${DEV_TLS_CA_CERT})." >&2
+    exit 2
+  fi
+
+  if [[ ! -r "${DEV_TLS_CA_CERT}" ]]; then
+    echo "[BL-18.1] DEV_TLS_CA_CERT ist nicht lesbar (aktuell: ${DEV_TLS_CA_CERT})." >&2
+    exit 2
+  fi
+fi
+
 ANALYZE_URL="${BASE_URL}/analyze"
 export ANALYZE_URL
 
@@ -513,6 +551,11 @@ fi
 
 REQUEST_ID_HEADERS=(-H "${REQUEST_ID_HEADER_NAME}: ${SMOKE_REQUEST_ID}")
 
+CURL_TLS_ARGS=()
+if [[ -n "${DEV_TLS_CA_CERT}" ]]; then
+  CURL_TLS_ARGS=(--cacert "${DEV_TLS_CA_CERT}")
+fi
+
 REQUEST_BODY=$(python3 - <<'PY'
 import json
 import os
@@ -544,6 +587,7 @@ HTTP_CODE=$(curl -sS -m "${CURL_MAX_TIME}" \
   -o "$TMP_BODY" -w "%{http_code}" \
   -X POST "${ANALYZE_URL}" \
   -H "Content-Type: application/json" \
+  "${CURL_TLS_ARGS[@]}" \
   "${REQUEST_ID_HEADERS[@]}" \
   "${AUTH_HEADER[@]}" \
   -d "$REQUEST_BODY")
