@@ -180,6 +180,7 @@ Inhalt der Referenz:
 Die dedizierte Methodik-Spezifikation für Bewertungs-/Risiko-/Confidence-Felder ist hier dokumentiert:
 
 - [`docs/api/scoring_methodology.md`](./scoring_methodology.md)
+- [`docs/api/address-intel-flow-deep-dive.md`](./address-intel-flow-deep-dive.md) (End-to-End Flow inkl. Source-Policy je `intelligence_mode` und Fehler-Mapping)
 
 Inhalt (inkrementell):
 - Vollständiger Score-Katalog (Pfad, Skala, Richtung, Stabilitätsstatus)
