@@ -1,0 +1,7 @@
+HTTP/1.0 200 OK
+Server: geo-ranking-ch/0.1 Python/3.13.5
+Date: Fri, 27 Feb 2026 12:07:20 GMT
+Content-Type: application/json; charset=utf-8
+Content-Length: 59784
+X-Request-Id: manual-espenmoos-20260227T120718Z
+
