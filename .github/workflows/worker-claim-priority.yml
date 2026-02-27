@@ -46,14 +46,22 @@ jobs:
 
             const openByTier = backlogWithPriority.filter((x) => x.issue.state === 'open');
             const activeTier = Math.min(...openByTier.map((x) => rank[x.priority]));
-            core.info(`Active claim tier: ${activeTier}`);
+
+            const activeTierIssues = openByTier
+              .filter((x) => rank[x.priority] === activeTier)
+              .sort((a, b) => new Date(a.issue.created_at) - new Date(b.issue.created_at));
+
+            const oldestActiveTierIssue = activeTierIssues[0];
+            core.info(`Active claim tier: ${activeTier}; oldest issue in tier: #${oldestActiveTierIssue.issue.number}`);
 
             for (const c of openByTier) {
               const currentTier = rank[c.priority];
               const hasTodo = c.labels.includes('status:todo');
               const hasBlocked = c.labels.includes('status:blocked');
 
-              if (currentTier === activeTier) {
+              const shouldBeTodo = currentTier === activeTier && c.issue.number === oldestActiveTierIssue.issue.number;
+
+              if (shouldBeTodo) {
                 if (!hasTodo || hasBlocked) {
                   const newLabels = Array.from(new Set([
                     ...c.labels.filter((l) => l !== 'status:blocked'),
@@ -67,12 +75,12 @@ jobs:
                     labels: newLabels,
                   });
 
-                  core.info(`Issue #${c.issue.number} promoted to todo (priority ${c.priority}).`);
+                  core.info(`Issue #${c.issue.number} promoted to todo (active tier oldest-first).`);
                 }
                 continue;
               }
 
-              if (currentTier > activeTier && hasTodo) {
+              if (hasTodo) {
                 const newLabels = Array.from(new Set([
                   ...c.labels.filter((l) => l !== 'status:todo'),
                   'status:blocked',
@@ -85,13 +93,15 @@ jobs:
                   labels: newLabels,
                 });
 
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: c.issue.number,
-                  body: `⏸️ Claim-Priorität aktiv: Es gibt aktuell höher priorisierte TODO-Issues (P${activeTier}). Dieses Issue wurde daher temporär auf \`status:blocked\` gesetzt.`,
-                });
+                if (currentTier > activeTier) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: c.issue.number,
+                    body: `⏸️ Claim-Priorität aktiv: Es gibt aktuell höher priorisierte TODO-Issues (P${activeTier}). Dieses Issue wurde daher temporär auf \`status:blocked\` gesetzt.`,
+                  });
+                }
 
-                core.info(`Issue #${c.issue.number} demoted to blocked (priority ${c.priority}).`);
+                core.info(`Issue #${c.issue.number} set to blocked (priority ${c.priority}, oldest-first ordering enforced).`);
               }
             }
