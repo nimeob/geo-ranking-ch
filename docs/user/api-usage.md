@@ -93,6 +93,9 @@ curl -sS "http://localhost:8080/version"
 | `query` | `string` | ja | – | Adresse/Suchtext; wird getrimmt; leer/whitespace-only ist ungültig |
 | `intelligence_mode` | `string` | nein | `basic` | Erlaubt: `basic`, `extended`, `risk` (trim + case-insensitive normalisiert) |
 | `timeout_seconds` | `number` | nein | `ANALYZE_DEFAULT_TIMEOUT_SECONDS` (15) | Muss endliche Zahl > 0 sein; wird auf `ANALYZE_MAX_TIMEOUT_SECONDS` gecappt |
+| `preferences` | `object` | nein | Contract-Defaults | Optionales Präferenzprofil (`lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`, optional `weights` mit `0..1`) |
+
+Vollständige Profilbeispiele: [`docs/api/preference-profiles.md`](../api/preference-profiles.md)
 
 ### Beispiel (ohne Auth)
 
@@ -103,7 +106,19 @@ curl -sS -X POST "http://localhost:8080/analyze" \
   -d '{
     "query":"Bahnhofstrasse 1, 8001 Zürich",
     "intelligence_mode":"extended",
-    "timeout_seconds": 15
+    "timeout_seconds": 15,
+    "preferences": {
+      "lifestyle_density": "urban",
+      "noise_tolerance": "low",
+      "nightlife_preference": "prefer",
+      "school_proximity": "neutral",
+      "family_friendly_focus": "medium",
+      "commute_priority": "pt",
+      "weights": {
+        "noise_tolerance": 0.8,
+        "commute_priority": 0.7
+      }
+    }
   }'
 ```
 

@@ -30,6 +30,14 @@ _ALLOWED_ERROR_CODES = {
     "internal",
 }
 _ALLOWED_EXPLAINABILITY_DIRECTIONS = {"pro", "contra", "neutral"}
+_ALLOWED_PREFERENCE_ENUMS = {
+    "lifestyle_density": {"rural", "suburban", "urban"},
+    "noise_tolerance": {"low", "medium", "high"},
+    "nightlife_preference": {"avoid", "neutral", "prefer"},
+    "school_proximity": {"avoid", "neutral", "prefer"},
+    "family_friendly_focus": {"low", "medium", "high"},
+    "commute_priority": {"car", "pt", "bike", "mixed"},
+}
 
 
 def _is_non_empty_str(value: Any) -> bool:
@@ -57,7 +65,7 @@ def validate_request(payload: Any) -> list[str]:
     if not isinstance(payload, dict):
         return ["payload must be object"]
 
-    allowed_top = {"request_id", "input", "requested_modules", "options"}
+    allowed_top = {"request_id", "input", "requested_modules", "preferences", "options"}
     unknown_top = set(payload.keys()) - allowed_top
     if unknown_top:
         errors.append(f"unknown top-level keys: {sorted(unknown_top)}")
@@ -135,6 +143,43 @@ def validate_request(payload: Any) -> list[str]:
             entitlements = options.get("entitlements")
             if entitlements is not None and not isinstance(entitlements, dict):
                 errors.append("options.entitlements must be object")
+
+    preferences = payload.get("preferences")
+    if preferences is not None:
+        if not isinstance(preferences, dict):
+            errors.append("preferences must be object")
+        else:
+            allowed_pref = set(_ALLOWED_PREFERENCE_ENUMS) | {"weights"}
+            unknown_pref = set(preferences.keys()) - allowed_pref
+            if unknown_pref:
+                errors.append(f"preferences contains unknown keys: {sorted(unknown_pref)}")
+
+            for field_name, allowed_values in _ALLOWED_PREFERENCE_ENUMS.items():
+                value = preferences.get(field_name)
+                if value is None:
+                    continue
+                if value not in allowed_values:
+                    errors.append(
+                        f"preferences.{field_name} invalid (allowed={sorted(allowed_values)})"
+                    )
+
+            weights = preferences.get("weights")
+            if weights is not None:
+                if not isinstance(weights, dict):
+                    errors.append("preferences.weights must be object")
+                else:
+                    unknown_weights = set(weights.keys()) - set(_ALLOWED_PREFERENCE_ENUMS)
+                    if unknown_weights:
+                        errors.append(
+                            "preferences.weights contains unknown keys: "
+                            f"{sorted(unknown_weights)}"
+                        )
+                    for key, weight in weights.items():
+                        if not isinstance(weight, (int, float)):
+                            errors.append(f"preferences.weights.{key} must be number")
+                            continue
+                        if not (0 <= float(weight) <= 1):
+                            errors.append(f"preferences.weights.{key} out of range")
 
     return errors
 
@@ -330,6 +375,10 @@ class TestApiContractV1(unittest.TestCase):
             "#106",
             "#107",
             "#18",
+            "BL-20.4.c Preference-Profile Envelope",
+            "preferences.weights",
+            "lifestyle_density",
+            "commute_priority",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
@@ -437,6 +486,40 @@ class TestApiContractV1(unittest.TestCase):
             additive_projection,
             baseline_projection,
             msg="Legacy-Projektion muss trotz Capability-/Entitlement-Meta unverändert bleiben",
+        )
+
+    def test_preference_profile_is_additive_with_defined_defaults(self):
+        req_baseline = _read_json(GOLDEN_DIR / "valid" / "request.address.minimal.json")
+        req_with_preferences = json.loads(json.dumps(req_baseline))
+        req_with_preferences["preferences"] = {
+            "lifestyle_density": "urban",
+            "noise_tolerance": "low",
+            "nightlife_preference": "prefer",
+            "school_proximity": "neutral",
+            "family_friendly_focus": "medium",
+            "commute_priority": "pt",
+            "weights": {
+                "noise_tolerance": 0.8,
+                "commute_priority": 0.7,
+            },
+        }
+
+        req_with_partial_preferences = json.loads(json.dumps(req_baseline))
+        req_with_partial_preferences["preferences"] = {
+            "lifestyle_density": "rural",
+            "weights": {"school_proximity": 0.6},
+        }
+
+        self.assertEqual(validate_request(req_baseline), [], msg="Baseline-Request muss valide bleiben")
+        self.assertEqual(
+            validate_request(req_with_preferences),
+            [],
+            msg="Vollständiges Preference-Profil muss als additive Erweiterung valide sein",
+        )
+        self.assertEqual(
+            validate_request(req_with_partial_preferences),
+            [],
+            msg="Partielle Preference-Profile müssen valide sein (Defaults greifen implizit)",
         )
 
     def test_golden_positive_payloads(self):

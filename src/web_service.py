@@ -41,6 +41,24 @@ _SOURCE_GROUP_MODULE_MAP = {
     "intelligence": ("intelligence",),
 }
 
+_PREFERENCE_ENUMS = {
+    "lifestyle_density": {"rural", "suburban", "urban"},
+    "noise_tolerance": {"low", "medium", "high"},
+    "nightlife_preference": {"avoid", "neutral", "prefer"},
+    "school_proximity": {"avoid", "neutral", "prefer"},
+    "family_friendly_focus": {"low", "medium", "high"},
+    "commute_priority": {"car", "pt", "bike", "mixed"},
+}
+_DEFAULT_PREFERENCES = {
+    "lifestyle_density": "suburban",
+    "noise_tolerance": "medium",
+    "nightlife_preference": "neutral",
+    "school_proximity": "neutral",
+    "family_friendly_focus": "medium",
+    "commute_priority": "mixed",
+    "weights": {},
+}
+
 
 def _is_status_like_key(key: str) -> bool:
     normalized = key.strip().lower()
@@ -228,6 +246,64 @@ def _extract_request_options(data: dict[str, Any]) -> dict[str, Any]:
     return raw_options
 
 
+def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
+    """Validiert optionale Präferenzprofile für personalisierte Auswertung.
+
+    Policy:
+    - fehlt `preferences`, werden explizite Defaults verwendet
+    - `preferences` muss ein JSON-Objekt sein (sonst 400 bad_request)
+    - nur bekannte Preference-Dimensionen sind erlaubt
+    - `weights` ist optional und auf bekannte Keys mit Werten im Bereich 0..1 begrenzt
+    """
+    raw_preferences = data.get("preferences")
+    effective = deepcopy(_DEFAULT_PREFERENCES)
+
+    if raw_preferences is None:
+        return effective
+    if not isinstance(raw_preferences, dict):
+        raise ValueError("preferences must be an object when provided")
+
+    allowed_keys = set(_PREFERENCE_ENUMS) | {"weights"}
+    unknown_keys = set(raw_preferences) - allowed_keys
+    if unknown_keys:
+        raise ValueError(f"preferences contains unknown keys: {sorted(unknown_keys)}")
+
+    for field_name, allowed_values in _PREFERENCE_ENUMS.items():
+        if field_name not in raw_preferences:
+            continue
+        normalized = str(raw_preferences.get(field_name, "")).strip().lower()
+        if normalized not in allowed_values:
+            raise ValueError(
+                f"preferences.{field_name} must be one of {sorted(allowed_values)}"
+            )
+        effective[field_name] = normalized
+
+    raw_weights = raw_preferences.get("weights")
+    if raw_weights is None:
+        return effective
+    if not isinstance(raw_weights, dict):
+        raise ValueError("preferences.weights must be an object")
+
+    unknown_weights = set(raw_weights) - set(_PREFERENCE_ENUMS)
+    if unknown_weights:
+        raise ValueError(
+            "preferences.weights contains unknown keys: "
+            f"{sorted(unknown_weights)}"
+        )
+
+    normalized_weights: dict[str, float] = {}
+    for key, value in raw_weights.items():
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"preferences.weights.{key} must be a number between 0 and 1")
+        as_float = float(value)
+        if not math.isfinite(as_float) or not (0 <= as_float <= 1):
+            raise ValueError(f"preferences.weights.{key} must be between 0 and 1")
+        normalized_weights[key] = as_float
+
+    effective["weights"] = normalized_weights
+    return effective
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
 
@@ -361,6 +437,11 @@ class Handler(BaseHTTPRequestHandler):
             # Forward-Compatibility: optionaler, additiver Namespace für spätere
             # Request-Erweiterungen (z. B. Deep-Mode) ohne Breaking Changes.
             _extract_request_options(data)
+
+            # Optionales Preference-Profil für BL-20.4-Personalisierung.
+            # Die effektiven Defaults sind bereits festgelegt, auch wenn
+            # die Werte im aktuellen MVP noch nicht ins Scoring einfließen.
+            _extract_preferences(data)
 
             if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
                 if query == "__timeout__":

@@ -356,6 +356,105 @@ class TestWebServiceE2E(unittest.TestCase):
                 self.assertEqual(body.get("error"), "bad_request")
                 self.assertIn("options must be an object", body.get("message", ""))
 
+    def test_analyze_accepts_valid_preferences_profile(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "preferences": {
+                    "lifestyle_density": "urban",
+                    "noise_tolerance": "low",
+                    "nightlife_preference": "prefer",
+                    "school_proximity": "avoid",
+                    "family_friendly_focus": "medium",
+                    "commute_priority": "pt",
+                    "weights": {
+                        "noise_tolerance": 0.8,
+                        "nightlife_preference": 0.4,
+                        "commute_priority": 1,
+                    },
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+        self.assertIn("result", body)
+
+    def test_bad_request_preferences_must_be_object_when_provided(self):
+        invalid_preferences = (
+            [],
+            "urban",
+            1,
+            True,
+        )
+        for value in invalid_preferences:
+            with self.subTest(preferences=value):
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload={
+                        "query": "__ok__",
+                        "intelligence_mode": "basic",
+                        "timeout_seconds": 2,
+                        "preferences": value,
+                    },
+                    headers={"Authorization": "Bearer bl18-token"},
+                )
+                self.assertEqual(status, 400)
+                self.assertEqual(body.get("error"), "bad_request")
+                self.assertIn("preferences must be an object", body.get("message", ""))
+
+    def test_bad_request_preferences_reject_invalid_enums_and_weights(self):
+        invalid_cases = [
+            (
+                "invalid_enum",
+                {"preferences": {"lifestyle_density": "village"}},
+                "preferences.lifestyle_density",
+            ),
+            (
+                "unknown_dimension",
+                {"preferences": {"sunshine_focus": "high"}},
+                "preferences contains unknown keys",
+            ),
+            (
+                "weights_not_object",
+                {"preferences": {"weights": "high"}},
+                "preferences.weights must be an object",
+            ),
+            (
+                "weights_unknown_key",
+                {"preferences": {"weights": {"sunshine_focus": 0.6}}},
+                "preferences.weights contains unknown keys",
+            ),
+            (
+                "weights_out_of_range",
+                {"preferences": {"weights": {"noise_tolerance": 1.5}}},
+                "preferences.weights.noise_tolerance must be between 0 and 1",
+            ),
+        ]
+
+        for case_name, patch_payload, expected_message in invalid_cases:
+            with self.subTest(case=case_name):
+                payload = {
+                    "query": "__ok__",
+                    "intelligence_mode": "basic",
+                    "timeout_seconds": 2,
+                }
+                payload.update(patch_payload)
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload=payload,
+                    headers={"Authorization": "Bearer bl18-token"},
+                )
+                self.assertEqual(status, 400)
+                self.assertEqual(body.get("error"), "bad_request")
+                self.assertIn(expected_message, body.get("message", ""))
+
     def test_bad_request_invalid_mode(self):
         status, body = _http_json(
             "POST",

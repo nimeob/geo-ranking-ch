@@ -4,7 +4,10 @@
   "title": "LocationIntelligenceRequestV1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["input", "requested_modules"],
+  "required": [
+    "input",
+    "requested_modules"
+  ],
   "properties": {
     "request_id": {
       "type": "string",
@@ -15,11 +18,16 @@
     "input": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode"],
+      "required": [
+        "mode"
+      ],
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["address", "point"]
+          "enum": [
+            "address",
+            "point"
+          ]
         },
         "address": {
           "type": "string",
@@ -28,21 +36,52 @@
         "point": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["lat", "lon"],
+          "required": [
+            "lat",
+            "lon"
+          ],
           "properties": {
-            "lat": { "type": "number", "minimum": 45.0, "maximum": 48.5 },
-            "lon": { "type": "number", "minimum": 5.0, "maximum": 11.5 }
+            "lat": {
+              "type": "number",
+              "minimum": 45.0,
+              "maximum": 48.5
+            },
+            "lon": {
+              "type": "number",
+              "minimum": 5.0,
+              "maximum": 11.5
+            }
           }
         }
       },
       "allOf": [
         {
-          "if": { "properties": { "mode": { "const": "address" } } },
-          "then": { "required": ["address"] }
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "address"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "address"
+            ]
+          }
         },
         {
-          "if": { "properties": { "mode": { "const": "point" } } },
-          "then": { "required": ["point"] }
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "point"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "point"
+            ]
+          }
         }
       ]
     },
@@ -64,8 +103,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "language": { "type": "string", "enum": ["de", "en", "fr", "it"] },
-        "timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 },
+        "language": {
+          "type": "string",
+          "enum": [
+            "de",
+            "en",
+            "fr",
+            "it"
+          ]
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 60
+        },
         "capabilities": {
           "type": "object",
           "additionalProperties": true
@@ -73,6 +124,103 @@
         "entitlements": {
           "type": "object",
           "additionalProperties": true
+        }
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lifestyle_density": {
+          "type": "string",
+          "enum": [
+            "rural",
+            "suburban",
+            "urban"
+          ],
+          "default": "suburban"
+        },
+        "noise_tolerance": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "medium"
+        },
+        "nightlife_preference": {
+          "type": "string",
+          "enum": [
+            "avoid",
+            "neutral",
+            "prefer"
+          ],
+          "default": "neutral"
+        },
+        "school_proximity": {
+          "type": "string",
+          "enum": [
+            "avoid",
+            "neutral",
+            "prefer"
+          ],
+          "default": "neutral"
+        },
+        "family_friendly_focus": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "default": "medium"
+        },
+        "commute_priority": {
+          "type": "string",
+          "enum": [
+            "car",
+            "pt",
+            "bike",
+            "mixed"
+          ],
+          "default": "mixed"
+        },
+        "weights": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lifestyle_density": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "noise_tolerance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "nightlife_preference": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "school_proximity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "family_friendly_focus": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "commute_priority": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
         }
       }
     }

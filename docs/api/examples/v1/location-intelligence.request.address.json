@@ -10,6 +10,18 @@
     "suitability_light",
     "explainability"
   ],
+  "preferences": {
+    "lifestyle_density": "urban",
+    "noise_tolerance": "low",
+    "nightlife_preference": "prefer",
+    "school_proximity": "neutral",
+    "family_friendly_focus": "medium",
+    "commute_priority": "pt",
+    "weights": {
+      "noise_tolerance": 0.8,
+      "commute_priority": 0.7
+    }
+  },
   "options": {
     "language": "de",
     "timeout_seconds": 15

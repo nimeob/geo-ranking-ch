@@ -8,6 +8,18 @@
     }
   },
   "requested_modules": ["context_profile", "suitability_light", "explainability"],
+  "preferences": {
+    "lifestyle_density": "suburban",
+    "noise_tolerance": "medium",
+    "nightlife_preference": "neutral",
+    "school_proximity": "prefer",
+    "family_friendly_focus": "high",
+    "commute_priority": "mixed",
+    "weights": {
+      "school_proximity": 0.75,
+      "family_friendly_focus": 0.6
+    }
+  },
   "options": {
     "language": "de",
     "timeout_seconds": 12
