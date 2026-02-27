@@ -468,7 +468,6 @@ def _grouped_api_result(
     report: dict[str, Any],
     *,
     response_mode: str = "compact",
-    include_legacy_labels: bool = False,
 ) -> dict[str, Any]:
     normalized_response_mode = response_mode if response_mode in _RESPONSE_MODES else "compact"
 
@@ -485,7 +484,7 @@ def _grouped_api_result(
         if key in cleaned:
             entity[key] = cleaned.pop(key)
 
-    modules = cleaned if include_legacy_labels else _to_code_first_modules(cleaned)
+    modules = _to_code_first_modules(cleaned)
 
     source_meta = status.get("source_meta")
     source_attribution = source_meta.get("source_attribution") if isinstance(source_meta, dict) else {}
@@ -582,16 +581,12 @@ def _extract_response_mode(options: dict[str, Any]) -> str:
     return mode
 
 
-def _extract_include_legacy_labels(options: dict[str, Any]) -> bool:
-    """Liest den optionalen Legacy-Label-Modus für Migrationspfade.
-
-    Default ist code-first (`False`). Wird das Flag explizit gesetzt,
-    muss es ein boolescher Wert sein.
-    """
-    raw_value = options.get("include_labels", False)
-    if isinstance(raw_value, bool):
-        return raw_value
-    raise ValueError("options.include_labels must be a boolean when provided")
+def _reject_legacy_options(options: dict[str, Any]) -> None:
+    """Lehnt explizite Legacy-Flags im öffentlichen Request-Surface ab."""
+    if "include_labels" in options:
+        raise ValueError(
+            "options.include_labels is no longer supported; use code-first responses via result.status.dictionary"
+        )
 
 
 def _as_unit_interval_number(value: Any, field_name: str) -> float:
@@ -997,8 +992,8 @@ class Handler(BaseHTTPRequestHandler):
             # Forward-Compatibility: optionaler, additiver Namespace für spätere
             # Request-Erweiterungen (z. B. Deep-Mode) ohne Breaking Changes.
             request_options = _extract_request_options(data)
+            _reject_legacy_options(request_options)
             response_mode = _extract_response_mode(request_options)
-            include_legacy_labels = _extract_include_legacy_labels(request_options)
 
             # Optionales Preference-Profil für BL-20.4-Personalisierung.
             # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
@@ -1078,7 +1073,6 @@ class Handler(BaseHTTPRequestHandler):
                             "result": _grouped_api_result(
                                 stub_report,
                                 response_mode=response_mode,
-                                include_legacy_labels=include_legacy_labels,
                             ),
                             "request_id": request_id,
                         },
@@ -1119,7 +1113,6 @@ class Handler(BaseHTTPRequestHandler):
                     "result": _grouped_api_result(
                         report,
                         response_mode=response_mode,
-                        include_legacy_labels=include_legacy_labels,
                     ),
                     "request_id": request_id,
                 },
