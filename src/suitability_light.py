@@ -203,13 +203,18 @@ def evaluate_suitability_light(
     if uncertainty_reasons:
         limitations.extend(uncertainty_reasons)
 
+    base_score_value = round(base_score, 2)
+
     return {
         "status": "ok" if uncertainty_level != "high" else "partial",
         "heuristic_version": "bl-20.5.b-v1",
         "score": int(round(final_score)),
         "traffic_light": traffic_light,
         "classification": classification,
-        "base_score": round(base_score, 2),
+        "base_score": base_score_value,
+        # BL-20.4.d.wp2: Contract-Feld bereits ausliefern;
+        # echte Präferenz-Reweighting-Integration folgt in späterem Work-Package.
+        "personalized_score": base_score_value,
         "uncertainty": {
             "score": int(round(uncertainty_score)),
             "level": uncertainty_level,

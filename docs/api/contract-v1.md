@@ -52,6 +52,8 @@ Top-Level:
   - `building_profile`
   - `context_profile`
   - `suitability_light`
+    - inkl. `result.suitability_light.base_score`
+    - inkl. `result.suitability_light.personalized_score`
   - `explainability.sources[]`
   - `explainability.base.factors[]`
   - `explainability.personalized.factors[]`
@@ -258,3 +260,22 @@ Validierung:
 
 Dokumentierte Beispielprofile (3-5 reale Integrationsmuster):
 - [`docs/api/preference-profiles.md`](./preference-profiles.md)
+
+## 16) BL-20.4.d.wp2 Zweistufige Suitability-Score-Felder
+
+Bezug: [#181](https://github.com/nimeob/geo-ranking-ch/issues/181)
+
+Für Legacy-Responses unter `result.suitability_light` sind zwei klar getrennte Score-Felder vorgesehen:
+
+- `result.suitability_light.base_score`
+- `result.suitability_light.personalized_score`
+
+Semantik (WP2-Stand):
+- `base_score`: neutraler, datengetriebener Basiswert.
+- `personalized_score`: personalisierte Sicht auf denselben Faktorenraum.
+- Solange kein Präferenzsignal im Laufzeitpfad aktiv angewendet wird, gilt explizit der Fallback:
+  - `personalized_score == base_score`
+
+Kompatibilität:
+- Felder sind additiv im bestehenden `suitability_light`-Objekt.
+- Vorhandene Clients bleiben kompatibel; neue Clients können bereits auf die separaten Felder migrieren.

@@ -78,7 +78,45 @@
           "type": "object"
         },
         "suitability_light": {
-          "type": "object"
+          "type": "object",
+          "required": [
+            "traffic_light",
+            "score",
+            "base_score",
+            "personalized_score"
+          ],
+          "properties": {
+            "traffic_light": {
+              "type": "string",
+              "enum": [
+                "green",
+                "yellow",
+                "red"
+              ]
+            },
+            "score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "base_score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "personalized_score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": true
         },
         "explainability": {
           "type": "object",

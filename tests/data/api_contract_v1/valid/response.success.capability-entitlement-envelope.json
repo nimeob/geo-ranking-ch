@@ -19,7 +19,12 @@
     },
     "building_profile": {},
     "context_profile": {},
-    "suitability_light": {},
+    "suitability_light": {
+      "traffic_light": "yellow",
+      "score": 64,
+      "base_score": 64,
+      "personalized_score": 64
+    },
     "explainability": {
       "sources": [
         {

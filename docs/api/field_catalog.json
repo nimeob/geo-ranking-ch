@@ -222,6 +222,36 @@
       "example": 63
     },
     {
+      "path": "result.suitability_light.personalized_score",
+      "response_shapes": [
+        "legacy"
+      ],
+      "type": "number",
+      "required": true,
+      "stability": "beta",
+      "description": "Personalisierter Suitability-Wert auf derselben Faktorbasis.",
+      "provenance_hint": "Suitability-Modul",
+      "mode_conditions": [
+        "all"
+      ],
+      "example": 63
+    },
+    {
+      "path": "result.suitability_light.base_score",
+      "response_shapes": [
+        "legacy"
+      ],
+      "type": "number",
+      "required": true,
+      "stability": "beta",
+      "description": "Neutraler Basiswert der Suitability-Faktoren.",
+      "provenance_hint": "Suitability-Modul",
+      "mode_conditions": [
+        "all"
+      ],
+      "example": 63
+    },
+    {
       "path": "result.suitability_light.reasons[*]",
       "response_shapes": [
         "legacy"

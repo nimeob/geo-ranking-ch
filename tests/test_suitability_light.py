@@ -18,6 +18,9 @@ class TestSuitabilityLightHeuristic(unittest.TestCase):
         self.assertGreaterEqual(result["score"], 72)
         self.assertEqual(result["uncertainty"]["level"], "low")
         self.assertEqual(result["status"], "ok")
+        self.assertIn("base_score", result)
+        self.assertIn("personalized_score", result)
+        self.assertEqual(result["personalized_score"], result["base_score"])
 
     def test_missing_access_and_low_confidence_is_not_green(self):
         result = evaluate_suitability_light(
@@ -55,6 +58,7 @@ class TestSuitabilityLightHeuristic(unittest.TestCase):
         self.assertEqual(first["heuristic_version"], "bl-20.5.b-v1")
         self.assertGreaterEqual(first["uncertainty"]["score"], 40)
         self.assertGreaterEqual(len(first["factors"]), 4)
+        self.assertEqual(first["personalized_score"], first["base_score"])
 
 
 if __name__ == "__main__":
