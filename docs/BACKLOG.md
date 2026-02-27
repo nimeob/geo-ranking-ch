@@ -375,6 +375,7 @@
   - ✅ 2026-02-26: Follow-up #43 behoben (defekter relativer Link in `docs/VISION_PRODUCT.md` auf `GO_TO_MARKET_MVP.md` korrigiert; Link-Qualitätscheck wieder grün)
   - ✅ 2026-02-26: BL-19.x abgeschlossen (Issue #47) – `docs/user/configuration-env.md` ergänzt, User-Navigation/Querverweise aktualisiert und Doku-Regressionstests erweitert.
   - ✅ 2026-02-27: Crawler-Finding #96 bereinigt (`docs/BACKLOG.md` ohne die bisher auslösenden Trigger-Schlüsselwörter, damit kein False-Positive mehr entsteht).
+  - ✅ 2026-02-27: Crawler-Finding #97 verifiziert und geschlossen (gleiche Ursache wie #96; Formulierung bleibt ohne Trigger-Schlüsselwörter).
   - ⏳ Nächster Schritt: Parent-Issue #5 finalisieren (Sub-Issue-Checklist sync + Abschluss)
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
