@@ -1,10 +1,11 @@
 {
   "generated_at": "2026-02-27",
-  "issue": 250,
   "source": "src/web_service.py",
+  "initial_issue": 250,
+  "updated_by_issue": 251,
   "test_evidence_run": {
-    "command": "python3 -m pytest -q tests/test_web_e2e.py tests/test_web_service_grouped_response.py tests/test_web_e2e_dev.py",
-    "result": "42 passed, 2 skipped, 27 subtests passed"
+    "command": "python3 -m pytest -q tests/test_web_e2e.py tests/test_web_service_grouped_response.py tests/test_web_e2e_dev.py tests/test_web_service_port_resolution.py",
+    "result": "47 passed, 2 skipped, 27 subtests passed"
   },
   "result_paths": [
     {
@@ -29,6 +30,16 @@
         "test_health_and_version",
         "test_health_and_version_accept_trailing_slash_and_query",
         "test_health_and_version_accept_double_slashes"
+      ]
+    },
+    {
+      "function": "Handler.do_GET",
+      "path": "/health|/version",
+      "outcome": "request_id_echo",
+      "http_status": 200,
+      "coverage": "covered",
+      "tests": [
+        "test_get_endpoints_echo_request_id"
       ]
     },
     {
@@ -87,7 +98,17 @@
       "http_status": 504,
       "coverage": "covered",
       "tests": [
-        "test_timeout_and_internal_are_mapped"
+        "test_timeout_address_intel_and_internal_are_mapped"
+      ]
+    },
+    {
+      "function": "Handler.do_POST",
+      "path": "/analyze",
+      "outcome": "address_intel",
+      "http_status": 422,
+      "coverage": "covered",
+      "tests": [
+        "test_timeout_address_intel_and_internal_are_mapped"
       ]
     },
     {
@@ -97,46 +118,29 @@
       "http_status": 500,
       "coverage": "covered",
       "tests": [
-        "test_timeout_and_internal_are_mapped"
+        "test_timeout_address_intel_and_internal_are_mapped"
       ]
-    },
-    {
-      "function": "Handler.do_POST",
-      "path": "/analyze",
-      "outcome": "address_intel",
-      "http_status": 422,
-      "coverage": "gap",
-      "tests": []
     },
     {
       "function": "Handler.do_POST",
       "path": "unknown",
       "outcome": "not_found",
       "http_status": 404,
-      "coverage": "gap",
-      "tests": []
+      "coverage": "covered",
+      "tests": [
+        "test_post_not_found_for_unknown_route"
+      ]
+    },
+    {
+      "function": "_resolve_port",
+      "path": "env resolution",
+      "outcome": "valid+invalid env handling",
+      "http_status": null,
+      "coverage": "covered",
+      "tests": [
+        "tests/test_web_service_port_resolution.py::TestResolvePort"
+      ]
     }
   ],
-  "gaps": [
-    {
-      "id": "gap-post-not-found",
-      "description": "POST unknown route should return 404/not_found",
-      "target_issue": 251
-    },
-    {
-      "id": "gap-address-intel-422",
-      "description": "AddressIntelError mapping to HTTP 422/address_intel lacks deterministic coverage",
-      "target_issue": 251
-    },
-    {
-      "id": "gap-get-request-id-echo",
-      "description": "Request-ID echo for GET /health and /version is not explicitly asserted",
-      "target_issue": 251
-    },
-    {
-      "id": "gap-resolve-port-invalid",
-      "description": "Invalid PORT/WEB_PORT behavior not explicitly tested",
-      "target_issue": 251
-    }
-  ]
+  "open_gaps": []
 }
