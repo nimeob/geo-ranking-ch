@@ -85,6 +85,25 @@ pre-commit run --all-files
 python -m src.web_service
 # optionaler Port via ENV: PORT (primär) oder WEB_PORT (Fallback für lokale Wrapper)
 # Healthcheck: http://localhost:8080/health
+
+# Optional: Dev-TLS mit self-signed Zertifikat
+openssl req -x509 -newkey rsa:2048 -nodes -days 7 \
+  -subj "/CN=localhost" \
+  -keyout /tmp/geo-dev.key \
+  -out /tmp/geo-dev.crt
+TLS_CERT_FILE=/tmp/geo-dev.crt \
+TLS_KEY_FILE=/tmp/geo-dev.key \
+PORT=8443 \
+python -m src.web_service
+# Healthcheck: https://localhost:8443/health
+
+# Optional: zusätzlicher HTTP->HTTPS Redirect-Listener (Dev)
+TLS_CERT_FILE=/tmp/geo-dev.crt \
+TLS_KEY_FILE=/tmp/geo-dev.key \
+PORT=8443 \
+TLS_ENABLE_HTTP_REDIRECT=1 \
+TLS_REDIRECT_HTTP_PORT=8080 \
+python -m src.web_service
 ```
 
 ### Docker (wie in ECS)
