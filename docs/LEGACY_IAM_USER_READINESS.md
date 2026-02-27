@@ -178,6 +178,22 @@ Zusätzliche Härtung im Zuge dieses Laufs:
 
 Interpretation: BL-15 bleibt **nicht decommission-ready**. OIDC in CI/CD ist intakt, aber Runtime-Default und CloudTrail-Fingerprints zeigen weiterhin aktive Legacy-Nutzung.
 
+### Read-only Recheck (2026-02-27, 6h-Fenster, Worker-A)
+
+Erneuter verifizierter Lauf im Worker-A-Kontext:
+
+- `./scripts/audit_legacy_aws_consumer_refs.sh` → Exit `10` (Caller weiterhin `arn:aws:iam::523234426229:user/swisstopo-api-deploy`)
+- `./scripts/audit_legacy_runtime_consumers.sh` → Exit `30` (Legacy-Caller + Runtime-Mode `long-lived-static` mit gesetzten AWS-Key-Variablen)
+- `LOOKBACK_HOURS=6 ./scripts/audit_legacy_cloudtrail_consumers.sh` → Exit `10` (98 Raw-Events / 90 ausgewertete Legacy-Events; dominanter Fingerprint weiterhin `source_ip=76.13.144.185`)
+- `./scripts/check_bl17_oidc_assumerole_posture.sh` → Exit `30` (OIDC-Workflow-Marker weiterhin korrekt, Runtime-Caller aber Legacy)
+
+Auffälligkeiten im 6h-Recheck:
+
+- CloudTrail zeigt weiterhin wiederkehrende `sts:GetCallerIdentity`-Aktivität auf dem Non-AWS-Fingerprint `76.13.144.185`.
+- Zusätzlich sind im selben Fenster Legacy-Events für `logs:FilterLogEvents` (aws-cli) und `bedrock:ListFoundationModels` (aws-sdk-js) sichtbar.
+
+Interpretation: Trotz stabiler OIDC-Marker im Workflow-Pfad bleibt die Runtime-Legacy-Nutzung aktiv. BL-15 bleibt damit auf **No-Go** für eine finale Decommission.
+
 ### Read-only Recheck (2026-02-26, BL-17.wp6 AssumeRole-Default-Pfad)
 
 Neuer Runtime-Startpfad:
