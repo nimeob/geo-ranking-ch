@@ -541,13 +541,14 @@
 - **Work-Packages (Issue #261):**
   - [x] #263 — Parent-Issue in Standardformat + atomare Zerlegung (abgeschlossen 2026-02-27)
   - [x] #264 — Dokumentationsabdeckung inventarisieren (Code + intern + User) (abgeschlossen 2026-02-27)
-  - [ ] #265 — Dokumentationslücken priorisieren + Umsetzungsplan
+  - [x] #265 — Dokumentationslücken priorisieren + Umsetzungsplan (abgeschlossen 2026-02-27)
   - [ ] #266 — Fehlende Dokumentation ergänzen
   - [x] #267 — Webservice-Test Espenmoosstrasse 18, 9008 St. Gallen dokumentieren (abgeschlossen 2026-02-27)
 - **Fortschritt:**
   - ✅ 2026-02-27: #263 abgeschlossen (Issue #261 auf Standardformat umgestellt, Parent-Work-Package-Checklist ergänzt, Child-Issues #264/#265/#266/#267 erstellt).
   - ✅ 2026-02-27: #264 abgeschlossen (Inventar der Doku-Abdeckung erstellt: [`docs/DOCUMENTATION_COVERAGE_INVENTORY.md`](DOCUMENTATION_COVERAGE_INVENTORY.md), inkl. Mapping Code ↔ interne/User-Doku und offensichtlicher Gaps als Input für #265).
   - ✅ 2026-02-27: #267 abgeschlossen (reproduzierter Analyze-Testlauf für `Espenmoosstrasse 18, 9008 St. Gallen` inkl. Header-/Response-Artefakten unter `reports/manual/` und Testprotokoll in [`docs/testing/WEB_SERVICE_TEST_ESPENMOOSSTRASSE_18_9008_ST_GALLEN.md`](testing/WEB_SERVICE_TEST_ESPENMOOSSTRASSE_18_9008_ST_GALLEN.md)).
+  - ✅ 2026-02-27: #265 abgeschlossen (Priorisierung + Umsetzungsreihenfolge der Doku-Gaps in [`docs/DOCUMENTATION_GAP_PRIORITIZATION_PLAN.md`](DOCUMENTATION_GAP_PRIORITIZATION_PLAN.md), inkl. verbindlichem Plan für #266).
 
 ---
 
