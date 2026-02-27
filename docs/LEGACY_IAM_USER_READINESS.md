@@ -253,6 +253,26 @@ Bundle-Inhalt (Minimum):
 
 Optional können zusätzliche Artefakte über `--optional-glob` eingebunden werden.
 
+### Readiness-Collector (BL-15.wp6)
+
+Für einen kombinierten Lauf (Repo-/Runtime-/CloudTrail-Audit + strukturierte JSON/MD-Nachweise + optionales Bundle) steht ein dedizierter Collector bereit:
+
+```bash
+./scripts/collect_bl15_readiness_evidence.py
+```
+
+Standardartefakte je Lauf:
+
+- `artifacts/bl15/readiness-collector-<timestamp>/collector_report.json`
+- `artifacts/bl15/readiness-collector-<timestamp>/collector_report.md`
+- `artifacts/bl15/readiness-collector-<timestamp>/logs/*.log`
+
+Deterministische Exit-Codes des Collectors:
+
+- `0` = Lauf erfolgreich, keine Findings
+- `10` = Lauf erfolgreich, Findings vorhanden (z. B. Legacy-Caller weiterhin aktiv)
+- `20` = externer Blocker/Ausführungsfehler (z. B. CloudTrail-Berechtigung oder fehlendes Script)
+
 ---
 
 ## 2) Risiko-Einschätzung
