@@ -7,6 +7,8 @@ Arbeitsmodus, Branching-Strategie, Commit-Regeln und Release-Checkliste.
 > **AWS-Naming:** AWS-Ressourcen heißen intern `swisstopo` (z. B. Cluster `swisstopo-dev`). Das ist so gewollt — der Repo-Name `geo-ranking-ch` und das interne AWS-Naming divergieren bewusst.
 
 > **Offene Umsetzungs-/Operations-Themen:** zentral in [`docs/BACKLOG.md`](BACKLOG.md) pflegen (hier keine separaten Nebenlisten).
+>
+> **Automation-Migration (GitHub Actions → OpenClaw):** aktuelle Ist-Aufnahme + Klassifikation siehe [`docs/automation/github-actions-migration-matrix.md`](automation/github-actions-migration-matrix.md).
 
 > **Sicherheits-/Datenhaltungsentscheidungen für API-Betrieb:** siehe [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md).
 
