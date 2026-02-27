@@ -14,6 +14,11 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-20.x.wp1 Actionable TODO/FIXME-Filter, Issue #202)
+- **`scripts/github_repo_crawler.py`** um `is_actionable_todo_line(...)` erweitert: TODO/FIXME-Treffer mit erledigt-/historisch-Markern (`✅`, `erledigt`, `abgeschlossen`, `closed`, `changelog`) werden nicht mehr als neue Finding-Issues erzeugt.
+- **`tests/test_github_repo_crawler.py`** um gezielte Regressionsfälle ergänzt (Marker-Filter + End-to-End-Scan mit gemischten TODO-Zeilen), damit nur actionable Treffer in `scan_repo_for_findings` verbleiben.
+- **`docs/WORKSTREAM_BALANCE_BASELINE.md`** und **`README.md`** um den Actionable-Filter-Hinweis im Crawler-Regressionskontext ergänzt.
+
 ### Changed (2026-02-27 — BL-15 Parent-Sync Work-Packages, Issue #8)
 - **`docs/BACKLOG.md`** BL-15 um eine explizite Work-Package-Checklist erweitert (abgeschlossen: `#109`, `#111`, `#112`; offen: `#151`, `#152`, `#187`, `#188`) zur sauberen Parent/Child-Fortschrittsführung.
 - **GitHub Issue `#8`** Work-Package-Checklist auf den aktuellen Child-Scope synchronisiert und Zerlegungsbegründung auf die offenen Folgepakete erweitert.

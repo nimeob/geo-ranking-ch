@@ -11,6 +11,10 @@ GHA = str(REPO_ROOT / "scripts" / "gha")
 
 EVIDENCE_RE = re.compile(r"\b(commit|pr\s*#|#\d+|pytest|test[s]?|merged|fixes)\b", re.IGNORECASE)
 TODO_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b")
+NON_ACTIONABLE_TODO_RE = re.compile(
+    r"(✅|\berledigt\b|\babgeschlossen\b|\bclosed\b|\bhistorisch\b|\bchangelog\b)",
+    re.IGNORECASE,
+)
 
 WORKSTREAM_KEYWORDS = {
     "development": {
@@ -94,6 +98,14 @@ def create_issue(title: str, body: str, dry_run: bool, priority: str = "priority
     print(f"created: {title} [{priority}]")
 
 
+def is_actionable_todo_line(line: str) -> bool:
+    if not TODO_RE.search(line):
+        return False
+    if NON_ACTIONABLE_TODO_RE.search(line):
+        return False
+    return True
+
+
 def audit_closed_issues(dry_run: bool):
     closed = run_json([
         "issue", "list", "--state", "closed", "--limit", "200",
@@ -159,7 +171,7 @@ def scan_repo_for_findings(dry_run: bool):
             for i, line in enumerate(text.splitlines(), start=1):
                 if "crawler:ignore" in line:
                     continue
-                if TODO_RE.search(line):
+                if is_actionable_todo_line(line):
                     snippet = line.strip()
                     if len(snippet) > 120:
                         snippet = snippet[:117] + "..."
