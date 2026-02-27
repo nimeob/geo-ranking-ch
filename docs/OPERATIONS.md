@@ -240,7 +240,7 @@ Stand nach WP4:
   - `.github/workflows/crawler-regression.yml`
   - `.github/workflows/docs-quality.yml`
   - `.github/workflows/bl20-sequencer.yml` (retired/manual placeholder)
-- `.github/workflows/worker-claim-priority.yml` bleibt bis zur vollständigen Event-Surrogate-Ablösung (`#227`) aktiv.
+- `.github/workflows/worker-claim-priority.yml` bleibt bis zur technischen Event-Relay-Umsetzung (`#233`) aktiv (Designgrundlage in `docs/automation/openclaw-event-relay-design.md`, abgeschlossen in `#227`).
 
 ### Required-Checks Zielzustand (Branch Protection `main`)
 
@@ -266,6 +266,15 @@ Wenn OpenClaw-Jobs temporär ausfallen, können die migrierten Checks manuell ge
 2. `Run workflow` ausführen
 3. Ergebnis in Issue/PR als temporären Fallback-Nachweis dokumentieren
 4. Nach Stabilisierung wieder auf OpenClaw-Evidenzpfade (`reports/automation/...`) zurückgehen
+
+## Event-Relay Zielpfad (Designstand)
+
+Das Zielbild für schnellere Issue/PR-nahe Trigger ist in [`docs/automation/openclaw-event-relay-design.md`](automation/openclaw-event-relay-design.md) dokumentiert (Issue #227).
+
+Wesentliche Betriebsannahmen:
+- Kein direkter Webhook auf den OpenClaw-Container (kein Inbound erreichbar).
+- Relay nimmt Events extern entgegen, validiert/signiert, schreibt in Queue.
+- OpenClaw verarbeitet Events outbound per Pull-Consumer; Cron bleibt degradierbarer Safety-Net bis #233.
 
 ## Consistency-Crawler (read-only) — Runbook
 
