@@ -2,6 +2,7 @@
 """Minimaler HTTP-Webservice für ECS (stdlib only).
 
 Endpoints:
+- GET /gui
 - GET /health
 - GET /version
 - GET /api/v1/dictionaries
@@ -28,6 +29,7 @@ from urllib.parse import urlencode, urlsplit
 from urllib.request import urlopen
 
 from src.address_intel import AddressIntelError, build_report
+from src.gui_mvp import render_gui_mvp_html
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
 from src.personalized_scoring import compute_two_stage_scores
 
@@ -1128,6 +1130,26 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_html(
+        self,
+        body_text: str,
+        status: int = 200,
+        *,
+        request_id: str | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> None:
+        body = body_text.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        if request_id:
+            self.send_header("X-Request-Id", request_id)
+        if extra_headers:
+            for key, value in extra_headers.items():
+                self.send_header(key, value)
+        self.end_headers()
+        self.wfile.write(body)
+
     def _send_not_modified(
         self,
         *,
@@ -1167,6 +1189,13 @@ class Handler(BaseHTTPRequestHandler):
         request_id = self._request_id()
         request_path = self._normalized_path()
 
+        if request_path == "/gui":
+            self._send_html(
+                render_gui_mvp_html(app_version=os.getenv("APP_VERSION", "dev")),
+                request_id=request_id,
+                extra_headers={"Cache-Control": "no-store"},
+            )
+            return
         if request_path == "/health":
             self._send_json(
                 {
