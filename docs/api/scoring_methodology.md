@@ -146,6 +146,76 @@ Wichtige Limitierungen (verbindlich):
 Forward-Compatibility (BL-30):
 - Faktorstruktur ist additiv gehalten (`factors[*]`), sodass spätere Deep-Mode-Signale (z. B. Hangneigung, Zufahrtsklassifikation) ohne Breaking Change ergänzt werden können.
 
+### 2.3.2 Zweistufiges Scoring + Präferenzmatrix (BL-20.4.d)
+
+Normative Referenzimplementierung: [`src/personalized_scoring.py`](../../src/personalized_scoring.py) (`compute_two_stage_scores`).
+
+Deterministischer Rechenweg pro Request:
+
+```text
+base_score = Σ(factor_score_i * base_weight_i)
+
+delta_i = Σ(matrix[dimension=value][factor_i] * intensity_dimension)
+raw_personalized_weight_i = base_weight_i * max(0.05, 1 + delta_i)
+
+# Vergleichbarkeit erzwingen (gleiche Gesamtgewichtssumme wie base)
+personalized_weight_i = raw_personalized_weight_i * (Σ(base_weight) / Σ(raw_personalized_weight))
+personalized_score = Σ(factor_score_i * personalized_weight_i)
+```
+
+Fallback-Regel (verbindlich):
+- Wenn **kein wirksames Präferenzsignal** vorliegt oder `Σ(base_weight) <= 0`, gilt strikt:
+  - `personalized_score == base_score`
+  - `fallback_applied = true`
+
+#### Default-Profil und zulässige Präferenzdimensionen
+
+| Dimension | Zulässige Werte | Default | Intensität über `weights.<dimension>` |
+|---|---|---|---|
+| `lifestyle_density` | `urban \| suburban \| rural` | `suburban` | `0..1` (Default `1.0` sobald Dimension gesetzt) |
+| `noise_tolerance` | `low \| medium \| high` | `medium` | `0..1` |
+| `nightlife_preference` | `avoid \| neutral \| prefer` | `neutral` | `0..1` |
+| `school_proximity` | `avoid \| neutral \| prefer` | `neutral` | `0..1` |
+| `family_friendly_focus` | `low \| medium \| high` | `medium` | `0..1` |
+| `commute_priority` | `car \| pt \| bike \| mixed` | `mixed` | `0..1` |
+
+Hinweise:
+- Unbekannte/fehlende Werte werden auf das jeweilige Default-Profil zurückgeführt.
+- `weights.*` außerhalb `0..1` werden verworfen (defensive Normalisierung).
+- Eine leere Präferenzstruktur (`preferences` fehlt/leer) darf den Basisscore nicht verändern.
+
+#### Delta-Matrix (v1 Draft)
+
+Die Matrix wirkt als additive Gewichtsanpassung auf Faktorbasis (`access`, `topography`, `building_state`).
+Nicht aufgeführte Kombinationen gelten als `0.0` (kein Effekt).
+
+| Dimension=Wert | `access` | `topography` | `building_state` |
+|---|---:|---:|---:|
+| `lifestyle_density=urban` | `+0.12` | `-0.04` | `-0.03` |
+| `lifestyle_density=suburban` | `0.00` | `0.00` | `0.00` |
+| `lifestyle_density=rural` | `-0.08` | `+0.10` | `+0.03` |
+| `noise_tolerance=low` | `+0.06` | `+0.04` | `0.00` |
+| `noise_tolerance=medium` | `0.00` | `0.00` | `0.00` |
+| `noise_tolerance=high` | `-0.03` | `-0.02` | `0.00` |
+| `nightlife_preference=avoid` | `-0.02` | `+0.03` | `0.00` |
+| `nightlife_preference=neutral` | `0.00` | `0.00` | `0.00` |
+| `nightlife_preference=prefer` | `+0.05` | `0.00` | `-0.01` |
+| `school_proximity=avoid` | `-0.01` | `0.00` | `-0.04` |
+| `school_proximity=neutral` | `0.00` | `0.00` | `0.00` |
+| `school_proximity=prefer` | `+0.03` | `0.00` | `+0.06` |
+| `family_friendly_focus=low` | `-0.02` | `0.00` | `-0.06` |
+| `family_friendly_focus=medium` | `0.00` | `0.00` | `0.00` |
+| `family_friendly_focus=high` | `0.00` | `+0.03` | `+0.08` |
+| `commute_priority=car` | `-0.04` | `+0.04` | `0.00` |
+| `commute_priority=pt` | `+0.10` | `-0.02` | `0.00` |
+| `commute_priority=bike` | `+0.08` | `-0.01` | `0.00` |
+| `commute_priority=mixed` | `0.00` | `0.00` | `0.00` |
+
+Integrator-Hinweise für Vergleichbarkeit/Reproduzierbarkeit:
+- `base_score` und `personalized_score` sind nur sinnvoll vergleichbar, weil die personalisierten Gewichte auf dieselbe Gesamtgewichtssumme normalisiert werden.
+- Für A/B-Vergleiche immer dieselbe Methodik-Version und denselben Faktorvektor verwenden (`factors[*].key`, `score`, `weight`).
+- Für Audits `weights.base`, `weights.personalized`, `weights.delta`, `fallback_applied` und `signal_strength` mitloggen.
+
 ## 3) Interpretationsbänder (inkl. Richtung und Grenzen)
 
 ### 3.1 Confidence (`result.status.quality.confidence.score`)
@@ -336,5 +406,6 @@ Guard:
 
 - Der Scope von BL-20.1.f.wp1–wp4 (#79, #80, #81, #82) ist abgeschlossen.
 - ✅ 2026-02-27: BL-20.4.d.wp1 (#180) liefert den deterministischen Engine-Core für zweistufiges Scoring (`src/personalized_scoring.py`) inkl. harter Fallback-Regel (`personalized_score == base_score` ohne Präferenzsignal) und Unit-Tests (`tests/test_personalized_scoring_engine.py`).
+- ✅ 2026-02-27: BL-20.4.d.wp3 (#182) erweitert die Methodik-Doku um normativen Rechenweg + Präferenzmatrix (Defaults, Delta-Matrix, Vergleichbarkeitsregeln) und ergänzt Doku-Regressionen in `tests/test_scoring_methodology_golden.py`.
 - ✅ 2026-02-27: BL-20.4.d.wp4 (#183) ergänzt ein runtime-nahes Golden-Testset mit konträren Präferenzprofilen (Artefakte unter `docs/api/examples/scoring/personalized-golden-*.json`) sowie Drift-/Determinismus-Guards in `tests/test_scoring_methodology_golden.py`.
 - Folgearbeiten laufen in separaten Backlog-Issues (z. B. API-Projection/Methodik-Sync für weitere Präferenzdimensionen).
