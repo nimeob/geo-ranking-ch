@@ -1,0 +1,14 @@
+{
+  "request_id": "golden-req-invalid-004",
+  "input": {
+    "mode": "point",
+    "point": {
+      "lat": 47.42,
+      "lon": 9.37
+    }
+  },
+  "requested_modules": ["context_profile"],
+  "options": {
+    "capabilities": "beta"
+  }
+}

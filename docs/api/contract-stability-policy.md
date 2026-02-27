@@ -88,6 +88,22 @@ Automatisierter Nachweis im Repo:
 - `tests/test_web_e2e.py::TestWebServiceE2E::test_analyze_ignores_unknown_options_keys_as_additive_noop`
 - `tests/test_web_e2e.py::TestWebServiceE2E::test_bad_request_options_must_be_object_when_provided`
 
+### 4.2 BL-20.1.h Capability-/Entitlement-Envelope (BL-30-ready, additiv)
+
+Bezug:
+- Follow-up-Issues: [#105](https://github.com/nimeob/geo-ranking-ch/issues/105), [#106](https://github.com/nimeob/geo-ranking-ch/issues/106), [#107](https://github.com/nimeob/geo-ranking-ch/issues/107)
+- Kontext: [#18](https://github.com/nimeob/geo-ranking-ch/issues/18)
+
+Regelset:
+- Request-Meta läuft optional über `options.capabilities` und `options.entitlements`.
+- Response-Meta läuft optional über `result.status.capabilities` und `result.status.entitlements`.
+- Envelope-Felder sind `stable` (Integrationsanker); innere, produktnahe Keys können `beta`/`internal` bleiben.
+- Legacy-Clients ohne Envelope-Unterstützung müssen weiterhin gültige Responses konsumieren können (keine Pflicht-/Typänderungen an bestehenden Domainfeldern).
+
+Automatisierter Nachweis im Repo:
+- `tests/test_api_contract_v1.py::TestApiContractV1::test_capability_entitlement_envelope_is_additive_for_legacy_clients`
+- `tests/test_contract_compatibility_regression.py::TestContractCompatibilityRegression::test_legacy_minimal_projection_survives_additive_optional_fields`
+
 ## 5) Changelog-/Release-Hinweisprozess
 
 Bei jeder Contract-Änderung:

@@ -65,7 +65,15 @@
       "additionalProperties": false,
       "properties": {
         "language": { "type": "string", "enum": ["de", "en", "fr", "it"] },
-        "timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 }
+        "timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "entitlements": {
+          "type": "object",
+          "additionalProperties": true
+        }
       }
     }
   }

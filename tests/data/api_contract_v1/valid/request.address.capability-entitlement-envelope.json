@@ -1,0 +1,20 @@
+{
+  "request_id": "golden-req-003",
+  "input": {
+    "mode": "address",
+    "address": "Marktgasse 18, 9000 St. Gallen"
+  },
+  "requested_modules": ["building_profile", "explainability"],
+  "options": {
+    "language": "de",
+    "capabilities": {
+      "deep_mode": {"state": "beta", "requested": false},
+      "gui_preview": {"state": "internal", "requested": true}
+    },
+    "entitlements": {
+      "plan": "starter",
+      "billing_cycle": "monthly",
+      "seat_count": 1
+    }
+  }
+}
