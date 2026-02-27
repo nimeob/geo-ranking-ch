@@ -81,6 +81,6 @@ Für Relay-/Consumer-Läufe sollen konsistente Artefakte unter `reports/automati
 
 - **Implementierungsfolge (Parent):** #233
   - ✅ #236: Event-Envelope + Queue-Consumer-Fundament
-  - ⏳ #237: Issue-/Label-Dispatch in Worker-Claim-Reconcile
+  - ✅ #237: Issue-/Label-Dispatch in Worker-Claim-Reconcile (inkl. Sequenztests `labeled`/`unlabeled`/`reopened`)
   - ⏳ #238: Shadow-/Hybrid-Rollout + Security-Runbook
 - Bis #233 vollständig abgeschlossen ist, bleibt der Cron-basierte Surrogate-Pfad produktiv maßgeblich.

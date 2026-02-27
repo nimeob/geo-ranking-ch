@@ -276,12 +276,28 @@ Wesentliche Betriebsannahmen:
 - Relay nimmt Events extern entgegen, validiert/signiert, schreibt in Queue.
 - OpenClaw verarbeitet Events outbound per Pull-Consumer; Cron bleibt degradierbarer Safety-Net bis #233.
 
-Repo-seitiger Consumer-Check (WP1-Prototyp):
+Repo-seitiger Consumer-Check (WP1/WP2):
+
+```bash
+# Shadow: Envelope-Validierung + Dedup + Dispatch-Preview
+python3 scripts/run_event_relay_consumer.py \
+  --queue-file /tmp/event-relay-queue.ndjson \
+  --mode dry-run
+
+# Apply: issues.* Events triggern Worker-Claim-Reconcile (einmal pro Run/Repo, dedup-batched)
+export GH_TOKEN="$(./scripts/gh_app_token.sh)"
+python3 scripts/run_event_relay_consumer.py \
+  --queue-file /tmp/event-relay-queue.ndjson \
+  --mode apply
+```
+
+Für lokale Integrationstests ohne GitHub-Mutationen kann ein Snapshot genutzt werden:
 
 ```bash
 python3 scripts/run_event_relay_consumer.py \
   --queue-file /tmp/event-relay-queue.ndjson \
-  --mode dry-run
+  --issues-snapshot /tmp/open-issues.snapshot.json \
+  --mode apply
 ```
 
 Artefakte:
@@ -289,6 +305,8 @@ Artefakte:
 - `reports/automation/event-relay/latest.md`
 - `reports/automation/event-relay/history/<timestamp>.json`
 - `reports/automation/event-relay/history/<timestamp>.md`
+
+Hinweis zur Cron-Koexistenz: Der Dispatch mutiert nur bei tatsächlichem Label-Delta (idempotente Reconcile-Regeln). Damit bleibt der periodische Cron-Fallback parallel betreibbar, ohne dauerhaftes Double-Mutation-Risiko.
 
 ## Consistency-Crawler (read-only) — Runbook
 
