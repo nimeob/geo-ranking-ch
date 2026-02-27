@@ -1,0 +1,44 @@
+{
+  "request_id": "manual-espenmoos-20260227T120718Z",
+  "ok": true,
+  "matched_address": "Espenmoosstrasse 18 9008 St. Gallen",
+  "coordinates": {
+    "lat": 47.441490173339844,
+    "lon": 9.39686393737793,
+    "lv95_e": 2747694.235,
+    "lv95_n": 1256350.782
+  },
+  "ids": {
+    "feature_id": "1075114_0",
+    "egid": "1075114",
+    "egaid": 100623591,
+    "egrid": "CH798777045991",
+    "esid": 10026717,
+    "edid": "0"
+  },
+  "confidence": {
+    "score": 90,
+    "max": 100,
+    "level": "high",
+    "ambiguity_level": "high",
+    "ambiguity_gap": 0.0
+  },
+  "suitability_light": {
+    "score": 82,
+    "traffic_light": "green",
+    "classification": "geeignet"
+  },
+  "source_health_status": {
+    "geoadmin_search": "ok",
+    "geoadmin_address": "ok",
+    "geoadmin_gwr": "ok",
+    "bfs_heating_layer": "ok",
+    "plz_layer_identify": "ok",
+    "swissboundaries_identify": "ok",
+    "swisstopo_height": "ok",
+    "osm_reverse": "ok",
+    "gwr_codes": "ok",
+    "osm_poi_overpass": "disabled",
+    "google_news_rss": "disabled"
+  }
+}
