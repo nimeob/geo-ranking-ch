@@ -1,0 +1,111 @@
+{
+  "findings": [
+    {
+      "evidence": [
+        {
+          "kind": "issue",
+          "number": 181,
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/181"
+        },
+        {
+          "kind": "metric",
+          "name": "reason_count",
+          "value": 1
+        }
+      ],
+      "severity": "medium",
+      "source": {
+        "component": "closed_issue_review",
+        "kind": "github_issue_audit",
+        "reasons": [
+          "Issue-Body enthält offene Checklist-Items"
+        ]
+      },
+      "summary": "Geschlossenes Issue #181 hat inkonsistente Abschlusssignale",
+      "type": "issue_closure_consistency"
+    },
+    {
+      "evidence": [
+        {
+          "kind": "issue",
+          "number": 182,
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/182"
+        },
+        {
+          "kind": "metric",
+          "name": "reason_count",
+          "value": 1
+        }
+      ],
+      "severity": "medium",
+      "source": {
+        "component": "closed_issue_review",
+        "kind": "github_issue_audit",
+        "reasons": [
+          "Issue-Body enthält offene Checklist-Items"
+        ]
+      },
+      "summary": "Geschlossenes Issue #182 hat inkonsistente Abschlusssignale",
+      "type": "issue_closure_consistency"
+    },
+    {
+      "evidence": [
+        {
+          "kind": "issue",
+          "number": 183,
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/183"
+        },
+        {
+          "kind": "metric",
+          "name": "reason_count",
+          "value": 1
+        }
+      ],
+      "severity": "medium",
+      "source": {
+        "component": "closed_issue_review",
+        "kind": "github_issue_audit",
+        "reasons": [
+          "Issue-Body enthält offene Checklist-Items"
+        ]
+      },
+      "summary": "Geschlossenes Issue #183 hat inkonsistente Abschlusssignale",
+      "type": "issue_closure_consistency"
+    },
+    {
+      "evidence": [
+        {
+          "kind": "issue",
+          "number": 202,
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/202"
+        },
+        {
+          "kind": "metric",
+          "name": "reason_count",
+          "value": 1
+        }
+      ],
+      "severity": "medium",
+      "source": {
+        "component": "closed_issue_review",
+        "kind": "github_issue_audit",
+        "reasons": [
+          "Issue-Body enthält offene Checklist-Items"
+        ]
+      },
+      "summary": "Geschlossenes Issue #202 hat inkonsistente Abschlusssignale",
+      "type": "issue_closure_consistency"
+    }
+  ],
+  "generated_at": "2026-02-27T05:57:42+00:00",
+  "schema_version": "1.0",
+  "summary": {
+    "by_severity": {
+      "medium": 4
+    },
+    "by_type": {
+      "issue_closure_consistency": 4
+    },
+    "total_findings": 4
+  }
+}
