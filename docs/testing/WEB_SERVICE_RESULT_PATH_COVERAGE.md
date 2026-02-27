@@ -29,25 +29,23 @@ Analysiert wurden die Resultpfade des produktiven Webservice-Einstiegspunkts `sr
 | Body/JSON Validation | empty/malformed/utf8/object required | `400`, `error=bad_request` | `test_bad_request_empty_body`, `test_bad_request_invalid_json_and_body_edgecases` | ✅ covered |
 | Timeout/Internal Mapping | fault injection mapping | `504 timeout`, `500 internal` | `test_timeout_and_internal_are_mapped` | ✅ covered |
 | Request-ID Selection (POST) | primary/fallback aliases + sanitizer | `request_id` Echo in Body/Header | `test_request_id_echoed_for_analyze_paths` + alle `test_request_id_*` Fälle | ✅ covered |
-| `POST` unknown path (`/analyze` only) | Not found (POST route) | `404`, `error=not_found` | _kein dedizierter Test_ | ⚠️ gap |
-| `AddressIntelError` Mapping | Domainfehler auf 422 | `422`, `error=address_intel` | _kein deterministischer Webservice-Testpfad_ | ⚠️ gap |
-| Request-ID Echo auf GET-Endpunkten | Header-Echo auf `/health`/`/version` | `X-Request-Id` konsistent | _kein dedizierter Assertion-Test_ | ⚠️ gap |
-| `_resolve_port` mit ungültigen Inputs | Invalid `PORT/WEB_PORT` handling | Fail-fast/Fehlerpfad | nur Fallback-Pfad getestet (`test_health_works_with_web_port_fallback`) | ⚠️ partial |
+| `POST` unknown path (`/analyze` only) | Not found (POST route) | `404`, `error=not_found` | `test_post_not_found_for_unknown_route` | ✅ covered |
+| `AddressIntelError` Mapping | Domainfehler auf 422 | `422`, `error=address_intel` | `test_timeout_address_intel_and_internal_are_mapped` | ✅ covered |
+| Request-ID Echo auf GET-Endpunkten | Header-Echo auf `/health`/`/version` | `X-Request-Id` konsistent | `test_get_endpoints_echo_request_id` | ✅ covered |
+| `_resolve_port` mit ungültigen Inputs | Invalid `PORT/WEB_PORT` handling | Fail-fast/Fehlerpfad | `tests/test_web_service_port_resolution.py` | ✅ covered |
 
-## Gap-Liste (für #251)
+## Gap-Liste (Status nach #251)
 
-1. **POST-Not-Found-Pfad ergänzen**
-   - Testfall: `POST /unknown` → `404 not_found`.
-2. **`AddressIntelError`-Pfad deterministisch abdecken**
-   - Testfall: `build_report` gezielt auf `AddressIntelError` mocken/patchen → `422 address_intel`.
-3. **GET Request-ID-Echo verifizieren**
-   - Testfall: `/health` und `/version` mit gesetztem Request-ID-Header, Echo in Header+Body prüfen.
-4. **`_resolve_port` Invalid-Input-Pfad ergänzen**
-   - Testfall: nicht-integer/whitespace-invalid `PORT`/`WEB_PORT` und erwartetes Fehlerverhalten dokumentieren.
+Die in #250 identifizierten Lücken sind mit #251 geschlossen:
+
+- ✅ POST unknown route (`404 not_found`) abgedeckt
+- ✅ `AddressIntelError -> 422` deterministisch abgedeckt
+- ✅ Request-ID-Echo auf GET-Endpunkten (`/health`, `/version`) abgedeckt
+- ✅ `_resolve_port` Invalid-Input-Pfade abgedeckt
 
 ## Verifizierter Testlauf
 
 ```bash
-python3 -m pytest -q tests/test_web_e2e.py tests/test_web_service_grouped_response.py tests/test_web_e2e_dev.py
-# Ergebnis: 42 passed, 2 skipped, 27 subtests passed
+python3 -m pytest -q tests/test_web_e2e.py tests/test_web_service_grouped_response.py tests/test_web_e2e_dev.py tests/test_web_service_port_resolution.py
+# Ergebnis: 47 passed, 2 skipped, 27 subtests passed
 ```

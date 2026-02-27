@@ -173,8 +173,41 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("version", version)
 
+    def test_get_endpoints_echo_request_id(self):
+        request_id = "bl18-e2e-get-request-id"
+
+        status, health, health_headers = _http_json(
+            "GET",
+            f"{self.base_url}/health",
+            headers={"X-Request-Id": request_id},
+            return_headers=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(health.get("request_id"), request_id)
+        self.assertEqual(health_headers.get("x-request-id"), request_id)
+
+        status, version, version_headers = _http_json(
+            "GET",
+            f"{self.base_url}/version",
+            headers={"X-Request-Id": request_id},
+            return_headers=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(version.get("request_id"), request_id)
+        self.assertEqual(version_headers.get("x-request-id"), request_id)
+
     def test_not_found(self):
         status, body = _http_json("GET", f"{self.base_url}/missing")
+        self.assertEqual(status, 404)
+        self.assertEqual(body.get("error"), "not_found")
+
+    def test_post_not_found_for_unknown_route(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/definitely-missing",
+            payload={"query": "__ok__"},
+            headers={"Authorization": "Bearer bl18-token"},
+        )
         self.assertEqual(status, 404)
         self.assertEqual(body.get("error"), "not_found")
 
@@ -691,7 +724,7 @@ class TestWebServiceE2E(unittest.TestCase):
                 if expected_message:
                     self.assertIn(expected_message, body.get("message", ""))
 
-    def test_timeout_and_internal_are_mapped(self):
+    def test_timeout_address_intel_and_internal_are_mapped(self):
         status, body = _http_json(
             "POST",
             f"{self.base_url}/analyze",
@@ -700,6 +733,15 @@ class TestWebServiceE2E(unittest.TestCase):
         )
         self.assertEqual(status, 504)
         self.assertEqual(body.get("error"), "timeout")
+
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={"query": "__address_intel__"},
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 422)
+        self.assertEqual(body.get("error"), "address_intel")
 
         status, body = _http_json(
             "POST",

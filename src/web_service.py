@@ -565,6 +565,8 @@ class Handler(BaseHTTPRequestHandler):
                     raise TimeoutError("forced timeout for e2e")
                 if query == "__internal__":
                     raise RuntimeError("forced internal error for e2e")
+                if query == "__address_intel__":
+                    raise AddressIntelError("forced address intel error for e2e")
                 if query == "__ok__":
                     stub_report = {
                         "query": query,
