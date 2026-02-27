@@ -49,3 +49,7 @@ Die in #250 identifizierten Lücken sind mit #251 geschlossen:
 python3 -m pytest -q tests/test_web_e2e.py tests/test_web_service_grouped_response.py tests/test_web_e2e_dev.py tests/test_web_service_port_resolution.py
 # Ergebnis: 47 passed, 2 skipped, 27 subtests passed
 ```
+
+Detaillierter Outcome-Run (inkl. `test_remote_*`-Skripttests und testcase-genauer Tabelle):
+- `reports/testing/webservice_test_outcomes.junit.xml`
+- `reports/testing/webservice_test_outcomes.md`
