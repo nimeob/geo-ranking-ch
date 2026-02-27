@@ -1,3 +1,10 @@
+"""Personalisierte Zwei-Stufen-Gewichtung für Suitability-Scores.
+
+Dieses Modul normalisiert Nutzerpräferenzen, berechnet daraus stabile
+Gewichtsanpassungen (Delta-Matrix) und liefert nachvollziehbare Metadaten
+für die Runtime-Personalisierung im Analyze-Flow.
+"""
+
 from __future__ import annotations
 
 import math
