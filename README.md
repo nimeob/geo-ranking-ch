@@ -21,6 +21,7 @@
 ### Webservice-Features (thematisch geordnet)
 
 - **API-Grundfunktionen**
+  - `GET /gui` als GUI-MVP-Shell (BL-20.6.a, API-first)
   - `GET /health` für Liveness-Checks
   - `GET /version` für Build-/Commit-Transparenz
   - `POST /analyze` für adressbasierte Standortanalyse
@@ -124,6 +125,7 @@ curl http://localhost:8080/health
 
 | Methode | Pfad | Zweck |
 |---|---|---|
+| `GET` | `/gui` | GUI-MVP-Shell (Adresseingabe + State-Flow, Map-Platzhalter) |
 | `GET` | `/health` | Liveness/Healthcheck |
 | `GET` | `/version` | Build/Commit-Metadaten |
 | `POST` | `/analyze` | Adressanalyse (`{"query":"...","intelligence_mode":"basic|extended|risk","timeout_seconds":15,"preferences":{...}}`) |
@@ -138,7 +140,7 @@ curl http://localhost:8080/health
 
 **Preferences-Input (optional):** `preferences` muss ein Objekt sein; erlaubte Enum-Dimensionen sind `lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`. Alternativ kann mit `preferences.preset` + `preferences.preset_version` (`v1`) gestartet werden. Optionale Gewichte liegen unter `preferences.weights` und müssen numerisch im Bereich `0..1` liegen. Ungültige oder unbekannte Keys führen zu `400 bad_request`.
 
-**Routing-Kompatibilität:** Die Endpunkte tolerieren optionale trailing Slashes, kollabieren doppelte Slash-Segmente (`//`) auf einen Slash und ignorieren Query/Fragment-Teile bei der Routenauflösung (z. B. `/health/?probe=1`, `//version///?ts=1`, `//analyze//?trace=1`).
+**Routing-Kompatibilität:** Die Endpunkte tolerieren optionale trailing Slashes, kollabieren doppelte Slash-Segmente (`//`) auf einen Slash und ignorieren Query/Fragment-Teile bei der Routenauflösung (z. B. `/gui/?probe=1`, `/health/?probe=1`, `//version///?ts=1`, `//analyze//?trace=1`).
 
 👉 Detaillierte API-Referenz: [`docs/user/api-usage.md`](docs/user/api-usage.md)
 
@@ -241,6 +243,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/BL-18_SERVICE_E2E.md](docs/BL-18_SERVICE_E2E.md) | Ist-Analyse + E2E-Runbook für BL-18 |
 | [docs/testing/dev-self-signed-tls-smoke.md](docs/testing/dev-self-signed-tls-smoke.md) | Dev-Runbook für self-signed TLS + verifizierten HTTPS-Smoke ohne globales `-k` |
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
+| [docs/gui/GUI_MVP_STATE_FLOW.md](docs/gui/GUI_MVP_STATE_FLOW.md) | GUI-MVP Shell: Grundlayout, Zustandsautomat und Forward-Compatibility-Notiz (BL-20.6.a) |
 | [docs/DATA_SOURCE_FIELD_MAPPING_CH.md](docs/DATA_SOURCE_FIELD_MAPPING_CH.md) | Technisches Feld-Mapping Quelle -> Domain inkl. Transform-Regeln und Follow-up-Gaps (BL-20.2.b) |
 | [docs/api/contract-v1.md](docs/api/contract-v1.md) | Versionierter API-Vertrag v1 für BL-20 (`/api/v1`, Schemas, Fehlercodes, Beispielpayloads) |
 | [docs/api/field-reference-v1.md](docs/api/field-reference-v1.md) | Menschenlesbare Feldreferenz für `legacy` + `grouped` (Semantik, Typ, Pflicht/Optionalität, Modus-Abhängigkeiten) (BL-20.1.d.wp2) |
@@ -258,8 +261,9 @@ geo-ranking-ch/
 ├── src/                              # Service- und Core-Logik
 │   ├── address_intel.py
 │   ├── geo_utils.py
+│   ├── gui_mvp.py                    # GUI-MVP Shell-Template + State-Flow (BL-20.6.a)
 │   ├── gwr_codes.py
-│   └── web_service.py                # HTTP-API (/health, /version, /analyze)
+│   └── web_service.py                # HTTP-API (/gui, /health, /version, /analyze)
 ├── tests/                            # Unit-, E2E- und Doku-Qualitäts-Tests
 │   ├── test_core.py
 │   ├── test_web_e2e.py
