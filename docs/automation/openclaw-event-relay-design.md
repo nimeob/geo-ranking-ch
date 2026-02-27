@@ -79,8 +79,9 @@ Für Relay-/Consumer-Läufe sollen konsistente Artefakte unter `reports/automati
 
 ## Follow-up
 
-- **Implementierungsfolge (Parent):** #233
+- **Implementierungsfolge (Parent):** #233 ✅ abgeschlossen
   - ✅ #236: Event-Envelope + Queue-Consumer-Fundament
   - ✅ #237: Issue-/Label-Dispatch in Worker-Claim-Reconcile (inkl. Sequenztests `labeled`/`unlabeled`/`reopened`)
   - ✅ #238: Shadow-/Hybrid-Rollout + Security-Runbook + Evidenzläufe (`20260227T090700Z`, `20260227T090900Z`)
+  - ✅ #233 Abschlussdelta: Relay-Receiver für Ingress-Härtung (`scripts/run_event_relay_receiver.py`, Signaturprüfung + Repository-Allowlist + Delivery-Dedup)
 - Bis der Deaktivierungsmarker erfüllt ist, bleibt der Cron-basierte Surrogate-Pfad produktiv maßgeblich.

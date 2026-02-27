@@ -35,7 +35,7 @@ Reproduzierbare Ist-Aufnahme aller aktuellen Workflows unter `.github/workflows/
 2. ✅ #223: Mindestens drei Workflows technisch migriert und Evidenzpfade standardisiert.
 3. ✅ #224: Bereinigung verbliebener Actions + Required-Checks/Runbook-Sync.
 4. ✅ #227: Event-Relay-Zielbild (Events, Security, Migration/Fallback) dokumentiert in [`docs/automation/openclaw-event-relay-design.md`](openclaw-event-relay-design.md).
-5. 🟡 #233: Event-Relay-Pfad technisch umgesetzt für Queue + OpenClaw-Consumer (✅ #236/#237/#238); extern erreichbarer Relay-Receiver bleibt als separates Infra-Delta offen.
+5. ✅ #233: Event-Relay-Pfad inkl. Receiver/Queue/Consumer umgesetzt (`scripts/run_event_relay_receiver.py`, `scripts/run_event_relay_consumer.py`) mit dokumentiertem Security-/Hybrid-Betriebspfad.
 
 ## WP4-Resultat (2026-02-27)
 
