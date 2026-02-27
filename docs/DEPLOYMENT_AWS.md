@@ -38,6 +38,10 @@ Die verbindlichen Entscheidungen zu Persistenzbedarf (BL-06) und API-Sicherheits
 
 Promotion-Zielbild inkl. Gates und Rollback-Prozess ist in [`docs/ENV_PROMOTION_STRATEGY.md`](ENV_PROMOTION_STRATEGY.md) dokumentiert (BL-09).
 
+### TLS-Zertifikats-Migrationspfad (Dev → Official)
+
+Der verbindliche Runbook-Pfad für den Übergang von self-signed Dev-Zertifikaten auf offizielle Zertifikate (ACM/Let's Encrypt/Corporate CA), inklusive TLS-Baseline (>= TLS 1.2, bevorzugt TLS 1.3), Rotation, Rollback und Incident-Hinweisen, ist in [`docs/TLS_CERTIFICATE_MIGRATION_RUNBOOK.md`](TLS_CERTIFICATE_MIGRATION_RUNBOOK.md) dokumentiert.
+
 ### Aktuelle Ressourcen (dev)
 
 | Ressource | Name / ARN | Status |
