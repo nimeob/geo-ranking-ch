@@ -2,6 +2,7 @@ import importlib.util
 import json
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 
@@ -194,6 +195,39 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
         self.assertEqual(payload["counts"]["documentation"], 1)
         self.assertEqual(payload["counts"]["testing"], 1)
         self.assertFalse(payload["needs_catchup"])
+
+
+class TestGithubRepoCrawlerTodoFiltering(unittest.TestCase):
+    def test_is_actionable_todo_line_filters_done_markers(self):
+        self.assertTrue(crawler.is_actionable_todo_line("# TODO: implement parser"))
+        self.assertFalse(crawler.is_actionable_todo_line("# TODO ✅ bereits erledigt"))
+        self.assertFalse(crawler.is_actionable_todo_line("# FIXME closed via PR #123"))
+        self.assertFalse(crawler.is_actionable_todo_line("# TODO changelog note for historical release"))
+
+    def test_scan_repo_for_findings_only_creates_actionable_todo_issues(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "src").mkdir(parents=True, exist_ok=True)
+            (root / "src" / "sample.py").write_text(
+                "# TODO: implement source mapping\n"
+                "# TODO ✅ abgeschlossen nach Merge\n"
+                "# FIXME closed in changelog\n",
+                encoding="utf-8",
+            )
+
+            created_titles = []
+
+            def fake_create_issue(title, body, dry_run, priority="priority:P2"):
+                created_titles.append(title)
+
+            with patch.object(crawler, "REPO_ROOT", root):
+                with patch.object(crawler, "list_open_titles", return_value={}):
+                    with patch.object(crawler, "create_issue", side_effect=fake_create_issue):
+                        with patch.object(crawler, "now_iso", return_value="2026-02-27T05:40:00+00:00"):
+                            crawler.scan_repo_for_findings(dry_run=False)
+
+            self.assertEqual(len(created_titles), 1)
+            self.assertIn("src/sample.py:1", created_titles[0])
 
 
 if __name__ == "__main__":
