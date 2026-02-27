@@ -68,7 +68,10 @@ class TestContractCompatibilityRegression(unittest.TestCase):
             "since": "v1",
         }
         additive["result"]["status"]["capabilities"] = {
-            "deep_mode": {"available": False}
+            "deep_mode": {"available": False, "state": "beta"}
+        }
+        additive["result"]["status"]["entitlements"] = {
+            "plan": {"value": "starter", "state": "stable"}
         }
         additive["result"]["status"]["quality"]["confidence"]["confidence_band"] = "p95"
         additive["result"]["data"]["entity"]["normalization"] = {

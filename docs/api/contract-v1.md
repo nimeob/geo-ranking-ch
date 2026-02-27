@@ -194,3 +194,29 @@ Für den bestehenden `/analyze`-Endpoint gilt ergänzend (rückwärtskompatibel)
 
 Die übergreifende Policy dazu ist im Stability-Guide dokumentiert:
 - [`docs/api/contract-stability-policy.md`](./contract-stability-policy.md)
+
+## 14) BL-20.1.h Capability-/Entitlement-Envelope (BL-30-ready)
+
+Bezug: [#105](https://github.com/nimeob/geo-ranking-ch/issues/105), [#106](https://github.com/nimeob/geo-ranking-ch/issues/106), [#107](https://github.com/nimeob/geo-ranking-ch/issues/107), [#18](https://github.com/nimeob/geo-ranking-ch/issues/18)
+
+Ziel: optionale Produkt-/Freischaltungs-Metadaten explizit vom fachlichen Ergebnis trennen und **additiv** einführbar halten.
+
+Request (optional, additiv):
+- `options.capabilities` (Objekt, optional)
+- `options.entitlements` (Objekt, optional)
+- Fehlt der Envelope, bleibt das Verhalten unverändert.
+
+Response (optional, additiv):
+- `result.status.capabilities` (Objekt, optional)
+- `result.status.entitlements` (Objekt, optional)
+- Fachdaten bleiben unter `result.data`/`result.*` (Domain), Produkt-/Freischaltungs-Meta bleibt in `status`.
+
+Stabilitäts-/Semantikrahmen (Mindeststandard):
+- **Envelope selbst** (`options.capabilities`, `options.entitlements`, `result.status.capabilities`, `result.status.entitlements`): `stable`
+- **Feature-Flags / experimentelle Capability-Keys innerhalb des Envelopes**: standardmäßig `beta` oder `internal` bis zur Produktfreigabe
+- Integratoren dürfen nur `stable` hart voraussetzen; `beta/internal` defensiv konsumieren (Fallback/Graceful Degradation)
+
+Einführungsstrategie (non-breaking):
+1. Zuerst Envelope leer/optional ausrollen (keine Pflichtfelder).
+2. Danach additive Schlüssel innerhalb des Envelopes ergänzen.
+3. Legacy-Clients ohne Envelope-Unterstützung bleiben lauffähig; Minimalprojektion darf sich nicht ändern.

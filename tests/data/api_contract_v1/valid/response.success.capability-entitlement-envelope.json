@@ -1,0 +1,61 @@
+{
+  "ok": true,
+  "api_version": "v1",
+  "request_id": "golden-res-002",
+  "result": {
+    "entity_id": "ch:egid:777",
+    "input_mode": "address",
+    "as_of": "2026-02-27T00:45:00Z",
+    "confidence": 0.8,
+    "status": {
+      "capabilities": {
+        "deep_mode": {"state": "beta", "available": false},
+        "future_checkout": {"state": "internal", "available": false}
+      },
+      "entitlements": {
+        "plan": {"state": "stable", "value": "starter"},
+        "quota": {"state": "beta", "remaining": 450}
+      }
+    },
+    "building_profile": {},
+    "context_profile": {},
+    "suitability_light": {},
+    "explainability": {
+      "sources": [
+        {
+          "source": "geoadmin_gwr",
+          "as_of": "2026-02-20",
+          "confidence": 0.9
+        }
+      ],
+      "base": {
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 60,
+            "normalized": 0.6,
+            "weight": 0.4,
+            "contribution": -0.24,
+            "direction": "contra",
+            "reason": "Verkehrslärm leicht erhöht.",
+            "source": "laermkataster_ch"
+          }
+        ]
+      },
+      "personalized": {
+        "factors": [
+          {
+            "key": "noise",
+            "raw_value": 60,
+            "normalized": 0.6,
+            "weight": 0.55,
+            "contribution": -0.33,
+            "direction": "contra",
+            "reason": "Quiet-Profil verstärkt Lärmgewichtung.",
+            "source": "laermkataster_ch"
+          }
+        ]
+      }
+    }
+  }
+}

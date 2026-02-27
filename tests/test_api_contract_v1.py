@@ -114,7 +114,7 @@ def validate_request(payload: Any) -> list[str]:
         if not isinstance(options, dict):
             errors.append("options must be object")
         else:
-            allowed_opt = {"language", "timeout_seconds"}
+            allowed_opt = {"language", "timeout_seconds", "capabilities", "entitlements"}
             unknown_opt = set(options.keys()) - allowed_opt
             if unknown_opt:
                 errors.append(f"options contains unknown keys: {sorted(unknown_opt)}")
@@ -127,6 +127,14 @@ def validate_request(payload: Any) -> list[str]:
                     errors.append("options.timeout_seconds must be number")
                 elif not (float(timeout) > 0 and float(timeout) <= 60):
                     errors.append("options.timeout_seconds out of range")
+
+            capabilities = options.get("capabilities")
+            if capabilities is not None and not isinstance(capabilities, dict):
+                errors.append("options.capabilities must be object")
+
+            entitlements = options.get("entitlements")
+            if entitlements is not None and not isinstance(entitlements, dict):
+                errors.append("options.entitlements must be object")
 
     return errors
 
@@ -174,6 +182,19 @@ def validate_success_response(payload: Any) -> list[str]:
         errors.append("result.confidence must be number")
     elif not (0 <= float(confidence) <= 1):
         errors.append("result.confidence out of range")
+
+    status = result.get("status")
+    if status is not None:
+        if not isinstance(status, dict):
+            errors.append("result.status must be object")
+        else:
+            capabilities = status.get("capabilities")
+            if capabilities is not None and not isinstance(capabilities, dict):
+                errors.append("result.status.capabilities must be object")
+
+            entitlements = status.get("entitlements")
+            if entitlements is not None and not isinstance(entitlements, dict):
+                errors.append("result.status.entitlements must be object")
 
     explainability = result.get("explainability")
     if not isinstance(explainability, dict):
@@ -302,6 +323,13 @@ class TestApiContractV1(unittest.TestCase):
             "result.explainability.base.factors[*]",
             "result.explainability.personalized.factors[*]",
             "result.data.modules.explainability.base.factors[*]",
+            "## 14) BL-20.1.h Capability-/Entitlement-Envelope (BL-30-ready)",
+            "options.capabilities",
+            "result.status.entitlements",
+            "#105",
+            "#106",
+            "#107",
+            "#18",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-v1.md: {marker}")
@@ -320,6 +348,9 @@ class TestApiContractV1(unittest.TestCase):
             "CHANGELOG.md",
             "/api/v1",
             "scripts/validate_field_catalog.py",
+            "BL-20.1.h Capability-/Entitlement-Envelope",
+            "result.status.capabilities",
+            "options.entitlements",
         ]
         for marker in markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in contract-stability-policy.md: {marker}")
@@ -348,6 +379,65 @@ class TestApiContractV1(unittest.TestCase):
         self.assertEqual(validate_request(req_point), [], msg="Example request(point) ungültig")
         self.assertEqual(validate_success_response(resp_ok), [], msg="Example success response ungültig")
         self.assertEqual(validate_error_response(resp_err), [], msg="Example error response ungültig")
+
+    def test_capability_entitlement_envelope_is_additive_for_legacy_clients(self):
+        req_baseline = _read_json(GOLDEN_DIR / "valid" / "request.address.minimal.json")
+        req_with_meta = json.loads(json.dumps(req_baseline))
+        req_with_meta["options"] = {
+            "capabilities": {
+                "deep_mode": {"state": "beta", "requested": False},
+                "future_module_x": {"state": "internal", "requested": True},
+            },
+            "entitlements": {
+                "plan": "starter",
+                "status": "active",
+                "origin": "contract-test",
+            },
+        }
+
+        self.assertEqual(validate_request(req_baseline), [], msg="Baseline-Request muss valide bleiben")
+        self.assertEqual(
+            validate_request(req_with_meta),
+            [],
+            msg="Capability-/Entitlement-Envelope muss additiv und valide sein",
+        )
+
+        resp_baseline = _read_json(GOLDEN_DIR / "valid" / "response.success.minimal.json")
+        resp_with_meta = json.loads(json.dumps(resp_baseline))
+        resp_with_meta["result"]["status"] = {
+            "capabilities": {
+                "deep_mode": {"state": "beta", "available": False},
+                "pricing_preview": {"state": "internal", "available": False},
+            },
+            "entitlements": {
+                "plan": {"state": "stable", "value": "starter"},
+                "limits": {
+                    "state": "beta",
+                    "requests_per_day": 500,
+                },
+            },
+        }
+
+        self.assertEqual(validate_success_response(resp_baseline), [], msg="Baseline-Response muss valide bleiben")
+        self.assertEqual(
+            validate_success_response(resp_with_meta),
+            [],
+            msg="Additive status.capabilities/status.entitlements dürfen Legacy-Response nicht brechen",
+        )
+
+        baseline_projection = {
+            key: resp_baseline["result"][key]
+            for key in ("entity_id", "input_mode", "as_of", "confidence")
+        }
+        additive_projection = {
+            key: resp_with_meta["result"][key]
+            for key in ("entity_id", "input_mode", "as_of", "confidence")
+        }
+        self.assertEqual(
+            additive_projection,
+            baseline_projection,
+            msg="Legacy-Projektion muss trotz Capability-/Entitlement-Meta unverändert bleiben",
+        )
 
     def test_golden_positive_payloads(self):
         valid_dir = GOLDEN_DIR / "valid"

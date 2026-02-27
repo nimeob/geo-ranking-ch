@@ -14,6 +14,14 @@ Dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Basis-Verzeichnisstruktur (`docs/`, `scripts/`, `.github/workflows/`)
 - GitHub Actions Placeholder-Workflow für CI/CD
 
+### Changed (2026-02-27 — BL-20.1.h Capability-/Entitlement-Envelope, Issue #127)
+- **`docs/api/contract-v1.md`** um BL-20.1.h-Abschnitt erweitert: additive Request-/Response-Envelopes (`options.capabilities`, `options.entitlements`, `result.status.capabilities`, `result.status.entitlements`) inkl. Stabilitäts-/Einführungsregeln und Verweisen auf #105/#106/#107/#18.
+- **`docs/api/contract-stability-policy.md`** um dedizierte Policy-Sektion für den Capability-/Entitlement-Envelope erweitert (stable Envelope, beta/internal für innere Feature-Keys, Legacy-Kompatibilität als Muss).
+- **`docs/api/schemas/v1/location-intelligence.request.schema.json`** und **`docs/api/schemas/v1/location-intelligence.response.schema.json`** um optionale Envelope-Felder ergänzt (rein additiv, non-breaking).
+- **`tests/test_api_contract_v1.py`** erweitert um Envelope-Validierung + additive Legacy-Kompatibilitätsguards; neue positive/negative Golden-Cases unter `tests/data/api_contract_v1/`.
+- **`tests/test_contract_compatibility_regression.py`** um Entitlement-Meta im Additivitäts-Regressionstest ergänzt.
+- **`docs/BACKLOG.md`** BL-20-Fortschritt um Abschluss von #127 aktualisiert.
+
 ### Changed (2026-02-27 — BL-17.wp8 Break-glass-Fallback-Runbook)
 - **`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`** um ein verbindliches Break-glass-Runbook erweitert (Triggerkriterien, Ablauf, Evidenz-Checkliste, CloudTrail-/Inventory-/Posture-Prüfpunkte, Rückweg auf AssumeRole-first).
 - **`docs/LEGACY_IAM_USER_READINESS.md`** um ein vollständig ausgefülltes synthetisches Fallback-Event (read-only) ergänzt, inklusive referenzierter Evidenzpfade.

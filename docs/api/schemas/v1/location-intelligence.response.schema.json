@@ -57,6 +57,20 @@
           "minimum": 0,
           "maximum": 1
         },
+        "status": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "capabilities": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "entitlements": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
         "building_profile": {
           "type": "object"
         },

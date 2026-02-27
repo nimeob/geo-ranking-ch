@@ -1,0 +1,11 @@
+{
+  "request_id": "golden-req-invalid-005",
+  "input": {
+    "mode": "address",
+    "address": "Neugasse 12, 9000 St. Gallen"
+  },
+  "requested_modules": ["building_profile"],
+  "options": {
+    "entitlements": ["starter", "pro"]
+  }
+}
