@@ -551,13 +551,15 @@
   - Architektur-Zielbild inkl. Risiken/Trade-offs in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) (Abschnitt „BL-31: 2-Container-Architektur").
   - Deployment-Entscheide (Ingress/TLS, service-getrennte Deploy-Regeln) in [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
   - Betriebsregeln für getrennte Rollouts/Rollbacks in [`docs/OPERATIONS.md`](OPERATIONS.md).
-- **Work-Packages (offen):**
+- **Work-Packages:**
   - [ ] #327 — BL-31.1 Umsetzung 2-Container-Deployment (Parent-Umsetzung)
-  - [ ] #328 — BL-31.2 UI-Container-Artefakt + ECS-Task-Basis
+  - [x] #328 — BL-31.2 UI-Container-Artefakt + ECS-Task-Basis (abgeschlossen 2026-02-28)
   - [ ] #329 — BL-31.3 Host-basiertes Routing + TLS (`app`/`api`)
   - [ ] #330 — BL-31.4 Getrennte Deploy-/Rollback-Runbooks
   - [ ] #331 — BL-31.5 Monitoring/Alerting für UI-Service
-- **Nächster Schritt (oldest-first, unblocked):** #327 claimen und in atomare Umsetzungspakete überführen/abarbeiten.
+- **Fortschritt (2026-02-28):**
+  - ✅ BL-31.2 umgesetzt: separates UI-Image (`Dockerfile.ui`) inkl. Build-Args/Runtime-ENV, eigenständiger UI-Entrypoint (`src/ui_service.py`) und ECS-Task-Template (`infra/ecs/taskdef.swisstopo-dev-ui.json`) mit `/healthz`-Healthcheck.
+- **Nächster Schritt (oldest-first, unblocked):** #329 claimen (Routing/TLS), da #327 als Parent-Container über die Leaf-Work-Packages fortgeschrieben wird.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1

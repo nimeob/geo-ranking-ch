@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+
+ARG UI_PORT=8080
+ARG APP_VERSION=dev
+ARG UI_API_BASE_URL=
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=${UI_PORT} \
+    APP_VERSION=${APP_VERSION} \
+    UI_API_BASE_URL=${UI_API_BASE_URL}
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY src ./src
+
+EXPOSE ${UI_PORT}
+
+CMD ["python", "-m", "src.ui_service"]
