@@ -1,0 +1,34 @@
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  pre_build:
+    commands:
+      - 'set -euo pipefail'
+      - 'export AWS_REGION="${AWS_REGION:-eu-central-1}"'
+      - 'test -n "${AWS_ACCOUNT_ID:-}" || (echo "AWS_ACCOUNT_ID is required" && exit 2)'
+      - 'test -n "${ECR_REPOSITORY:-}" || (echo "ECR_REPOSITORY is required" && exit 2)'
+      - 'test -n "${IMAGE_TAG:-}" || (echo "IMAGE_TAG is required" && exit 2)'
+      - 'export DOCKERFILE_PATH="${DOCKERFILE_PATH:-Dockerfile.ui}"'
+      - 'export APP_VERSION="${APP_VERSION:-${IMAGE_TAG}}"'
+      - 'export UI_API_BASE_URL="${UI_API_BASE_URL:-https://api.dev.invalid}"'
+      - 'export REPO_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"'
+      - 'echo "Using repo URI ${REPO_URI}"'
+      - 'aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"'
+
+  build:
+    commands:
+      - 'set -euo pipefail'
+      - 'docker build -f "${DOCKERFILE_PATH}" --build-arg APP_VERSION="${APP_VERSION}" --build-arg UI_API_BASE_URL="${UI_API_BASE_URL}" -t "${REPO_URI}:${IMAGE_TAG}" .'
+
+  post_build:
+    commands:
+      - 'set -euo pipefail'
+      - 'docker push "${REPO_URI}:${IMAGE_TAG}"'
+      - 'printf "{\"imageUri\":\"%s\",\"imageTag\":\"%s\"}\\n" "${REPO_URI}:${IMAGE_TAG}" "${IMAGE_TAG}" > image-detail.json'
+
+artifacts:
+  files:
+    - image-detail.json

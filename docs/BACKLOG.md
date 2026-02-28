@@ -559,13 +559,18 @@
   - [x] #329 — BL-31.3 Host-basiertes Routing + TLS (`app`/`api`) (abgeschlossen 2026-02-28)
   - [x] #330 — BL-31.4 Getrennte Deploy-/Rollback-Runbooks (abgeschlossen 2026-02-28)
   - [x] #331 — BL-31.5 Monitoring/Alerting für UI-Service (abgeschlossen 2026-02-28)
+  - [ ] #344 — BL-31.6 UI-Service dev-Rollout + E2E-Nachweis (Parent)
+    - [x] #345 — BL-31.6.a UI-ECR/Artefaktpfad + Task-Revision (abgeschlossen 2026-02-28)
+    - [ ] #346 — BL-31.6.b ECS UI-Service Rollout + Stabilisierung
+    - [ ] #347 — BL-31.6.c App/API/Monitoring Nachweislauf + Parent-Sync
 - **Fortschritt (2026-02-28):**
   - ✅ BL-31.2 umgesetzt: separates UI-Image (`Dockerfile.ui`) inkl. Build-Args/Runtime-ENV, eigenständiger UI-Entrypoint (`src/ui_service.py`) und ECS-Task-Template (`infra/ecs/taskdef.swisstopo-dev-ui.json`) mit `/healthz`-Healthcheck.
   - ✅ #336 abgeschlossen (Testing-Catch-up BL-31 Routing/TLS-Smokepfade): reproduzierbarer Smoke-Runner [`scripts/run_bl31_routing_tls_smoke.sh`](../scripts/run_bl31_routing_tls_smoke.sh) + Runbook [`docs/testing/bl31-routing-tls-smoke-catchup.md`](testing/bl31-routing-tls-smoke-catchup.md) inkl. CORS-Baseline-Check (Warn-/Strict-Modus) und Regressionstest `tests/test_bl31_routing_tls_smoke_script.py`.
   - ✅ #329 abgeschlossen: CORS-Allowlist für `POST/OPTIONS /analyze` (`CORS_ALLOW_ORIGINS`) in `src/web_service.py` umgesetzt, Routing/TLS/CORS-Abnahmepfad in [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md) dokumentiert und Failure-/Rollback-Hinweise in [`docs/OPERATIONS.md`](OPERATIONS.md) ergänzt.
   - ✅ #330 abgeschlossen (BL-31.4 Deploy-/Rollback-Runbooks): neues verbindliches Runbook [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md) mit API-only/UI-only/kombiniertem Deploy-Ablauf, service-lokalen Rollback-Kommandos, Strict-Smoke-Prozess (`scripts/run_bl31_routing_tls_smoke.sh`) und standardisiertem Evidenzformat für Issue-/PR-Kommentare; Verlinkung in [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md) und [`docs/OPERATIONS.md`](OPERATIONS.md) ergänzt, Guard-Test `tests/test_bl31_deploy_rollback_runbook_docs.py` hinzugefügt.
   - ✅ #331 abgeschlossen: UI-Monitoring-Baseline-Scripts ergänzt ([`scripts/setup_bl31_ui_monitoring_baseline.sh`](../scripts/setup_bl31_ui_monitoring_baseline.sh), [`scripts/check_bl31_ui_monitoring_baseline.sh`](../scripts/check_bl31_ui_monitoring_baseline.sh)), generische Health-Probe-Skripte für UI/API parametrisiert und Runbook [`docs/testing/bl31-ui-monitoring-baseline-check.md`](testing/bl31-ui-monitoring-baseline-check.md) inkl. Regressionstest `tests/test_bl31_ui_monitoring_baseline_check_script.py` ergänzt.
-- **Nächster Schritt (oldest-first, unblocked):** #327 Parent-Akzeptanzkriterien final abgleichen und schließen; anschließend #326 Checklist/Abschluss synchronisieren.
+  - ✅ #345 abgeschlossen (BL-31.6.a Artefaktpfad + Taskdef): neues Automationsscript [`scripts/setup_bl31_ui_artifact_path.sh`](../scripts/setup_bl31_ui_artifact_path.sh) für CodeBuild-basierten UI-Build/Push + Taskdef-Registrierung (inkl. AssumeRole-Fallback), Buildspec [`buildspec-openclaw.yml`](../buildspec-openclaw.yml), Nachweisdoku [`docs/testing/bl31-ui-artifact-path-taskdef-setup.md`](testing/bl31-ui-artifact-path-taskdef-setup.md) und Regressionstest `tests/test_bl31_ui_artifact_path_setup_script.py`; Evidenz unter `artifacts/bl31/20260228T075535Z-bl31-ui-artifact-path.json`.
+- **Nächster Schritt (oldest-first, unblocked):** #346 (BL-31.6.b) UI-Service in ECS dev ausrollen und stabilisieren; danach #347 Nachweislauf + Parent-Sync.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1

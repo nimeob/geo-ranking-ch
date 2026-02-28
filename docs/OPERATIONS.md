@@ -185,6 +185,14 @@ Sobald der UI-Service (`swisstopo-dev-ui`) live ist, gelten zusätzlich:
 Verbindlicher Ablauf + Kommandos + Kommentar-Template:
 - [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md)
 
+Für BL-31.6.a (UI-Artefaktpfad + Taskdef-Revision) steht zusätzlich ein automatisierter Setup-Pfad bereit:
+
+```bash
+./scripts/setup_bl31_ui_artifact_path.sh
+```
+
+Der Lauf erzeugt eine JSON-Evidenz unter `artifacts/bl31/*-bl31-ui-artifact-path.json` (CodeBuild-Run, Image-URI/Digest, Taskdef-ARN).
+
 #### BL-31.3 Failure-/Rollback-Hinweise (Routing/TLS)
 
 Typische Symptome und Sofortmaßnahmen:
