@@ -191,6 +191,13 @@ Verbindliche Betriebsregeln:
 Verbindlicher Ablauf inkl. service-lokaler Rollback-Kommandos und Evidenzformat:
 - [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md)
 
+Primärer Deploy-Entry für getrennte Rollouts (`api|ui|both`, default dry-run):
+
+```bash
+python3 scripts/run_bl31_split_deploy.py --mode both
+python3 scripts/run_bl31_split_deploy.py --mode both --execute
+```
+
 **Runtime-ENV (API, BL-31.3 relevant):**
 
 | ENV | Default | Zweck |
