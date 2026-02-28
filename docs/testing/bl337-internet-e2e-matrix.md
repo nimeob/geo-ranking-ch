@@ -53,3 +53,25 @@ python3 scripts/manage_bl337_internet_e2e_matrix.py \
 - Dieses Work-Package stellt nur Katalog + Format + Guardrails bereit.
 - Die tatsächliche API-/UI-Ausführung erfolgt in den Folge-Issues `#397` und `#398`.
 - Konsolidierter Abschluss inkl. Parent-Summary erfolgt in `#399`.
+
+## 5) WP2 API-Frontdoor-Ausführung (Issue #397)
+
+Reproduzierbare API-E2E-Ausführung inkl. Matrix-Update und Evidence-JSON:
+
+```bash
+python3 scripts/run_bl337_api_frontdoor_e2e.py \
+  --matrix artifacts/bl337/latest-internet-e2e-matrix.json \
+  --evidence-json artifacts/bl337/<timestamp>-wp2-api-frontdoor-e2e.json
+```
+
+Optional mit Auth (falls `POST /analyze` geschützt ist):
+
+```bash
+BL337_API_AUTH_TOKEN="<token>" \
+python3 scripts/run_bl337_api_frontdoor_e2e.py
+```
+
+Ergebnis:
+- API-Testfälle (`API.*`) werden in der Matrix von `planned` auf `pass|fail|blocked` fortgeschrieben.
+- `actualResult` + `evidenceLinks` werden pro API-Fall gesetzt.
+- Evidence-Datei enthält pro Testfall `httpStatus`, `reason`, `responseExcerpt` und Gesamtsummary.
