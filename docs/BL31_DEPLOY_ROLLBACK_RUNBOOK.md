@@ -29,7 +29,7 @@ export BL31_CORS_ORIGIN="https://app.<domain>"
 
 Zusätzlich nötig:
 - AWS CLI Zugriff auf ECS/ECR
-- `docker`, `curl`, `python3`
+- `aws`, `curl`, `python3`
 - Repo-Root als Arbeitsverzeichnis
 
 Pflicht-Endpoints für jede Abnahme:
@@ -40,112 +40,63 @@ Pflicht-Endpoints für jede Abnahme:
 
 ## 2) API-only Deployment (service-lokal)
 
-```bash
-IMAGE_TAG="$(git rev-parse --short HEAD)"
-AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-
-# 1) API-Image bauen + pushen
-docker build -t swisstopo-dev-api:${IMAGE_TAG} .
-aws ecr get-login-password --region "${AWS_REGION}" \
-  | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-docker tag swisstopo-dev-api:${IMAGE_TAG} \
-  "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/swisstopo-dev-api:${IMAGE_TAG}"
-docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/swisstopo-dev-api:${IMAGE_TAG}"
-
-# 2) API-Service ausrollen (UI bleibt unverändert)
-aws ecs update-service \
-  --cluster "${ECS_CLUSTER}" \
-  --service "${API_SERVICE}" \
-  --force-new-deployment \
-  --region "${AWS_REGION}"
-
-aws ecs wait services-stable \
-  --cluster "${ECS_CLUSTER}" \
-  --services "${API_SERVICE}" \
-  --region "${AWS_REGION}"
-```
-
-Pflicht-Smoke nach API-only Deploy (inkl. UI-Reachability/CORS):
+Primärpfad über den BL-31 Split-Runner (`api|ui|both`):
 
 ```bash
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BL31_OUTPUT_JSON="artifacts/bl31/${STAMP}-deploy-api.json" \
-BL31_STRICT_CORS="1" \
-./scripts/run_bl31_routing_tls_smoke.sh
+# 1) Pflicht: zuerst Dry-Run-Plan prüfen (keine AWS-Änderung)
+python3 scripts/run_bl31_split_deploy.py --mode api
+
+# 2) Ausführen (update-service + services-stable + strict smoke)
+python3 scripts/run_bl31_split_deploy.py --mode api --execute
 ```
+
+Erwartung:
+- nur `swisstopo-dev-api` wird aktualisiert,
+- `swisstopo-dev-ui` TaskDef bleibt unverändert (Guardrail),
+- Smoke-Artefakt wird automatisch geschrieben (`artifacts/bl31/*-bl31-split-deploy-api-smoke.json`).
 
 ---
 
 ## 3) UI-only Deployment (service-lokal)
 
-```bash
-IMAGE_TAG="$(git rev-parse --short HEAD)"
-AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-
-# 1) UI-Image bauen + pushen
-docker build \
-  -f Dockerfile.ui \
-  --build-arg APP_VERSION="${IMAGE_TAG}" \
-  --build-arg UI_API_BASE_URL="${BL31_API_BASE_URL}" \
-  -t swisstopo-dev-ui:${IMAGE_TAG} .
-
-aws ecr get-login-password --region "${AWS_REGION}" \
-  | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-docker tag swisstopo-dev-ui:${IMAGE_TAG} \
-  "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/swisstopo-dev-ui:${IMAGE_TAG}"
-docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/swisstopo-dev-ui:${IMAGE_TAG}"
-
-# 2) UI-Service ausrollen (API bleibt unverändert)
-aws ecs update-service \
-  --cluster "${ECS_CLUSTER}" \
-  --service "${UI_SERVICE}" \
-  --force-new-deployment \
-  --region "${AWS_REGION}"
-
-aws ecs wait services-stable \
-  --cluster "${ECS_CLUSTER}" \
-  --services "${UI_SERVICE}" \
-  --region "${AWS_REGION}"
-```
-
-Pflicht-Smoke nach UI-only Deploy:
+Primärpfad über den BL-31 Split-Runner:
 
 ```bash
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BL31_OUTPUT_JSON="artifacts/bl31/${STAMP}-deploy-ui.json" \
-BL31_STRICT_CORS="1" \
-./scripts/run_bl31_routing_tls_smoke.sh
+# 1) Pflicht: Dry-Run-Plan
+python3 scripts/run_bl31_split_deploy.py --mode ui
+
+# 2) Ausführen (update-service + services-stable + strict smoke)
+python3 scripts/run_bl31_split_deploy.py --mode ui --execute
 ```
+
+Erwartung:
+- nur `swisstopo-dev-ui` wird aktualisiert,
+- `swisstopo-dev-api` TaskDef bleibt unverändert (Guardrail),
+- Smoke-Artefakt wird automatisch geschrieben (`artifacts/bl31/*-bl31-split-deploy-ui-smoke.json`).
 
 ---
 
 ## 4) Kombiniertes Deployment (API + UI)
 
-Verbindliche Reihenfolge:
-1. API deployen
-2. API/UI/CORS Smoke (`strict`) erfolgreich
-3. UI deployen
-4. API/UI/CORS Smoke (`strict`) erfolgreich
+Verbindliche Reihenfolge bleibt API → UI und wird im Runner automatisch erzwungen.
 
 ```bash
-# A) API deployen
-# (Abschnitt 2 ausführen)
+# 1) Pflicht: Dry-Run-Plan (Reihenfolge + Guardrails prüfen)
+python3 scripts/run_bl31_split_deploy.py --mode both
 
-# B) Strict-Smoke nach API
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BL31_OUTPUT_JSON="artifacts/bl31/${STAMP}-deploy-combined-step-api.json" \
-BL31_STRICT_CORS="1" \
-./scripts/run_bl31_routing_tls_smoke.sh
-
-# C) UI deployen
-# (Abschnitt 3 ausführen)
-
-# D) Strict-Smoke nach UI
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BL31_OUTPUT_JSON="artifacts/bl31/${STAMP}-deploy-combined-step-ui.json" \
-BL31_STRICT_CORS="1" \
-./scripts/run_bl31_routing_tls_smoke.sh
+# 2) Ausführen (API-Step -> strict smoke -> UI-Step -> strict smoke)
+python3 scripts/run_bl31_split_deploy.py --mode both --execute
 ```
+
+Erwartung:
+- Steps laufen deterministisch in Reihenfolge `api`, dann `ui`.
+- Pro Step wird ein separates Strict-Smoke-Artefakt erzeugt:
+  - `artifacts/bl31/*-bl31-split-deploy-api-smoke.json`
+  - `artifacts/bl31/*-bl31-split-deploy-ui-smoke.json`
+
+### 4.1 Fallback (Runner nicht verfügbar)
+
+Falls der Split-Runner temporär nicht verfügbar ist, sind manuelle AWS-Kommandos zulässig — **aber nur**, wenn danach dieselben Guardrails und Strict-Smokes dokumentiert werden (inkl. Before/After-TaskDef für beide Services).
 
 ---
 
@@ -240,8 +191,8 @@ Für Deploy- und Rollback-Läufe wird dieses Schema verwendet:
 - Service(s): <swisstopo-dev-api / swisstopo-dev-ui>
 - Before taskDefinition(s): <arn/revision>
 - After taskDefinition(s): <arn/revision>
-- Smoke command: `BL31_STRICT_CORS=1 ./scripts/run_bl31_routing_tls_smoke.sh`
-- Smoke artifact: `artifacts/bl31/<timestamp>-<run-type>.json`
+- Smoke command: `python3 scripts/run_bl31_split_deploy.py --mode <api|ui|both> --execute` (enthält strict smoke je Step)
+- Smoke artifact: `artifacts/bl31/<timestamp>-bl31-split-deploy-<api|ui>-smoke.json`
 - Smoke result: <pass|fail>
 - Run/Log refs: <GitHub Actions URL oder CLI-Logpfad>
 - Notes: <optional, z. B. CORS-Fix/Hotfix-Hinweis>

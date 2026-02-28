@@ -15,10 +15,10 @@ def test_bl31_deploy_rollback_runbook_contains_required_sections_and_evidence_te
         "## 5) Service-lokaler Rollback",
         "/health",
         "/healthz",
-        "./scripts/run_bl31_routing_tls_smoke.sh",
+        "scripts/run_bl31_split_deploy.py",
         "## 6) Evidenzformat (Issue-/PR-Kommentar, verbindlich)",
         "Type: <deploy-api|deploy-ui|deploy-combined|rollback-api|rollback-ui>",
-        "Smoke artifact: `artifacts/bl31/<timestamp>-<run-type>.json`",
+        "Smoke artifact: `artifacts/bl31/<timestamp>-bl31-split-deploy-<api|ui>-smoke.json`",
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in text]
