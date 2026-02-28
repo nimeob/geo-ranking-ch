@@ -565,6 +565,8 @@
     - [x] #346 — BL-31.6.b ECS UI-Service Rollout + Stabilisierung (abgeschlossen 2026-02-28)
     - [x] #347 — BL-31.6.c App/API/Monitoring Nachweislauf + Parent-Sync (abgeschlossen 2026-02-28)
 - **Fortschritt (2026-02-28):**
+  - 🟡 2026-02-28: #362 (BL-334.x Source-Trennung WebUI/WebAPI) in atomare Work-Packages #364/#365/#366/#367/#368 zerlegt (Zielstruktur/Import-Policy, API-Move, UI-Move, Container-Kontexte, CI/Doku-Sync).
+  - ✅ 2026-02-28: #364 abgeschlossen (BL-334.1 Zielstruktur + Import-Grenzen) mit erweitertem Boundary-Guard [`scripts/check_bl31_service_boundaries.py`](../scripts/check_bl31_service_boundaries.py) für Legacy- und Split-Layout (`src/api|ui|shared`), ergänzter Regression in `tests/test_check_bl31_service_boundaries.py` (inkl. Split-Layout-Cases) und Architektur-Sync in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) (Sections 6.8/6.9).
   - 🟡 2026-02-28: #352 (BL-31.x Follow-up zur strikten UI/API-Entkopplung) in atomare Work-Packages #353/#354/#355/#356 zerlegt (Code-Grenzen, Deploy-Orchestrierung, Runbook, Smoke-/Evidence-Matrix).
   - ✅ 2026-02-28: #353 abgeschlossen (Service-Boundary-Guard) via PR #357 / Merge `8f7d138`: neues Guard-Skript `scripts/check_bl31_service_boundaries.py` mit expliziter API/UI/Shared-Policy, Doku-Update in `docs/ARCHITECTURE.md` (BL-31 Section 6.8) und Regressionstests in `tests/test_check_bl31_service_boundaries.py`.
   - ✅ 2026-02-28: #354 abgeschlossen (Deploy-Orchestrierung `api|ui|both`) via PR #359 / Merge `d2881ca`: neues Script `scripts/run_bl31_split_deploy.py` (default dry-run, optional `--execute`, service-lokale Guardrails gegen Cross-Service-TaskDef-Drift), Doku-Sync in `docs/OPERATIONS.md` und Regressionstests in `tests/test_run_bl31_split_deploy.py`.
