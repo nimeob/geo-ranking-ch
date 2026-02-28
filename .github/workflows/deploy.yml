@@ -282,14 +282,7 @@ jobs:
           STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
           BL31_API_BASE_URL="${SERVICE_API_BASE_URL}" \
           BL31_APP_BASE_URL="${SERVICE_APP_BASE_URL}" \
-          BL31_CORS_ORIGIN="$(python3 - <<'PY'
-from urllib.parse import urlsplit
-import os
-u=os.environ['SERVICE_APP_BASE_URL'].strip()
-p=urlsplit(u)
-print(f"{p.scheme}://{p.netloc}")
-PY
-)" \
+          BL31_CORS_ORIGIN="$(python3 -c 'import os,urllib.parse as u; p=u.urlsplit(os.environ["SERVICE_APP_BASE_URL"].strip()); print(f"{p.scheme}://{p.netloc}")')" \
           BL31_STRICT_CORS="1" \
           BL31_OUTPUT_JSON="artifacts/bl31/${STAMP}-github-actions-split-smoke.json" \
           ./scripts/run_bl31_routing_tls_smoke.sh
