@@ -96,6 +96,9 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('id="map-click-marker"', body)
         self.assertIn('id="core-factors"', body)
         self.assertIn('coordinates.lat/lon', body)
+        self.assertIn('function timeoutSecondsForMode(mode)', body)
+        self.assertIn('const controller = new AbortController();', body)
+        self.assertIn('timeout_seconds: timeoutSecondsForMode(mode)', body)
 
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
         status, body, _ = _http_text(f"{self.base_url}//gui///?probe=1")

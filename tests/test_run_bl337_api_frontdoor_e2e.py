@@ -98,7 +98,7 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
                 "apiBaseUrl": target_api,
                 "appBaseUrl": "https://www.dev.georanking.ch",
             },
-            "summary": {"total": 8, "planned": 8, "pass": 0, "fail": 0, "blocked": 0},
+            "summary": {"total": 9, "planned": 9, "pass": 0, "fail": 0, "blocked": 0},
             "tests": [
                 {
                     "testId": "API.HEALTH.200",
@@ -119,6 +119,18 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
                     "preconditions": [],
                     "steps": ["POST"],
                     "expectedResult": "HTTP 200",
+                    "actualResult": None,
+                    "status": "planned",
+                    "evidenceLinks": [],
+                    "notes": "",
+                },
+                {
+                    "testId": "API.ANALYZE.NON_BASIC.FINAL_STATE",
+                    "area": "api",
+                    "title": "analyze non-basic",
+                    "preconditions": [],
+                    "steps": ["POST extended"],
+                    "expectedResult": "Success oder strukturierter Fehler",
                     "actualResult": None,
                     "status": "planned",
                     "evidenceLinks": [],
@@ -213,7 +225,7 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
 
             matrix_payload = json.loads(matrix.read_text(encoding="utf-8"))
             summary = matrix_payload["summary"]
-            self.assertEqual(summary["pass"], 4)
+            self.assertEqual(summary["pass"], 5)
             self.assertEqual(summary["planned"], 4)
             self.assertEqual(summary["fail"], 0)
 
@@ -222,7 +234,7 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
                 for case in matrix_payload["tests"]
                 if case.get("testId", "").startswith("API.")
             ]
-            self.assertEqual(len(api_rows), 4)
+            self.assertEqual(len(api_rows), 5)
             for row in api_rows:
                 self.assertEqual(row["status"], "pass")
                 self.assertEqual(row["evidenceLinks"], [str(evidence)])
@@ -230,7 +242,7 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
                 self.assertTrue(row["actualResult"].strip())
 
             evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
-            self.assertEqual(evidence_payload["summary"]["pass"], 4)
+            self.assertEqual(evidence_payload["summary"]["pass"], 5)
             self.assertEqual(evidence_payload["summary"]["fail"], 0)
 
     def test_main_returns_nonzero_when_expectation_fails(self) -> None:

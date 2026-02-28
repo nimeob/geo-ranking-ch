@@ -10,6 +10,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - API-first Adresseingabe via `POST /analyze`
 - Kartenklick-Flow via `POST /analyze` mit `coordinates.lat/lon` + `snap_mode=ch_bounds`
 - reproduzierbarer UI-State-Flow: `idle -> loading -> success|error`
+- clientseitiger Request-Timeout-Guard (`AbortController`): kein dauerhaftes `loading` bei ausbleibender API-Antwort
 - sichtbare Kernfaktoren (Top-Faktoren aus Explainability) und rohe JSON-Antwort
 
 ## Struktur
@@ -43,7 +44,7 @@ Transitions:
 
 - `idle -> loading` beim Submit oder Kartenklick
 - `loading -> success` bei `HTTP 2xx` + `ok=true`
-- `loading -> error` bei API-Fehler, Auth-Fehler oder Netzwerkfehler
+- `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen`)
 - `error -> loading` beim nächsten Submit/Kartenklick (clean retry)
 
 ## Manuelle E2E-Prüfung (BL-20.6.b)

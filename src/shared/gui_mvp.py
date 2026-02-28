@@ -511,17 +511,47 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return { lat, lon };
       }
 
+      function timeoutSecondsForMode(mode) {
+        const normalized = String(mode || "basic").trim().toLowerCase();
+        if (normalized === "extended") {
+          return 30;
+        }
+        if (normalized === "risk") {
+          return 40;
+        }
+        return 20;
+      }
+
       async function runAnalyze(payload, token) {
         const headers = { "Content-Type": "application/json" };
         if (token) {
           headers["Authorization"] = `Bearer ${token}`;
         }
 
-        const response = await fetch("/analyze", {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload),
-        });
+        const timeoutSeconds = Number(payload && payload.timeout_seconds);
+        const timeoutMs = Number.isFinite(timeoutSeconds) && timeoutSeconds > 0
+          ? Math.round(timeoutSeconds * 1000) + 1500
+          : 25000;
+
+        const controller = new AbortController();
+        const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+
+        let response;
+        try {
+          response = await fetch("/analyze", {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            throw new Error(`timeout: Anfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`);
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeoutHandle);
+        }
 
         let parsed;
         try {
@@ -543,9 +573,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       function buildAnalyzePayload(base) {
+        const mode = String(modeEl.value || "basic").trim().toLowerCase() || "basic";
         return {
           ...base,
-          intelligence_mode: modeEl.value || "basic",
+          intelligence_mode: mode,
+          timeout_seconds: timeoutSecondsForMode(mode),
           options: {
             response_mode: "compact",
           },
