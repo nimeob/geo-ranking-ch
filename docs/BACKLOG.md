@@ -413,10 +413,11 @@
 - **Priorität:** P1
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-18, BL-19
-- **Status:** 🟡 in Umsetzung (BL-19-MVP abgeschlossen, 2026-02-26)
+- **Status:** ✅ abgeschlossen (2026-02-28, Issue #6)
 - **Quelle/Vision:** [`docs/VISION_PRODUCT.md`](./VISION_PRODUCT.md)
 - **Zielbild:** Adresse oder Kartenpunkt in der Schweiz analysieren und als kombinierte Standort-/Gebäudeauskunft bereitstellen; Webservice und GUI separat nutzbar/vermarktbar.
 - **Fortschritt (2026-02-26):**
+  - ✅ 2026-02-28: #6 finalisiert und geschlossen, nachdem die Parent-Checklist (#12/#13/#14/#15/#16/#17/#18) vollständig synchronisiert und die Phase-1-Akzeptanzkriterien (Vertical A+B über API, Kartenpunkt-Flow/Bau-Eignung, GUI-MVP inkl. Address+Map-Input sowie API/GUI-Entkopplung) über bestehende Nachweise in Backlog/Docs/Test-Suites bestätigt wurden.
   - ✅ 2026-02-27: #300 abgeschlossen (BL-20.8.a TLS-Runtime self-signed dev) mit optionalem TLS-Startpfad in [`src/web_service.py`](../src/web_service.py) (`TLS_CERT_FILE`/`TLS_KEY_FILE`, TLS >=1.2), optionalem HTTP→HTTPS-Redirect-Listener (`TLS_ENABLE_HTTP_REDIRECT`, `TLS_REDIRECT_HTTP_PORT`, `TLS_REDIRECT_HOST`), ergänzter Local-Setup-Doku in [`README.md`](../README.md) sowie Regressionstests in `tests/test_web_service_tls.py` und `tests/test_web_e2e.py`.
   - ✅ 2026-02-27: #303 als Duplikat zu #300 mit belastbarem Nachweis final geschlossen (transienter Zerlegungs-Fehler bereinigt; Re-Validation: `pytest -q tests/test_web_service_tls.py tests/test_web_service_port_resolution.py tests/test_web_e2e.py` → `63 passed`, `36 subtests passed`).
   - ✅ 2026-02-27: #301 abgeschlossen (BL-20.8.b HTTPS Smoke/Trust) mit neuem Dev-Zertifikat-Helper [`scripts/generate_dev_tls_cert.sh`](../scripts/generate_dev_tls_cert.sh), erweitertem Smoke-Script-Trustpfad `DEV_TLS_CA_CERT` via `curl --cacert` in [`scripts/run_remote_api_smoketest.sh`](../scripts/run_remote_api_smoketest.sh), Runbook [`docs/testing/dev-self-signed-tls-smoke.md`](testing/dev-self-signed-tls-smoke.md) und Testnachweisen in `tests/test_generate_dev_tls_cert_script.py` + `tests/test_remote_smoke_script.py`.
@@ -660,4 +661,4 @@
 4. **BL-17** (OpenClaw OIDC-first + Legacy-Fallback) ✅
 5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ✅
 6. **BL-19** (Userdokumentation) ⏳
-7. **BL-20** (Produktvision API+GUI umsetzen) ⏳
+7. **BL-20** (Produktvision API+GUI umsetzen) ✅
