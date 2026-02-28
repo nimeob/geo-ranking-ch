@@ -36,13 +36,21 @@ class TestUserDocumentation(unittest.TestCase):
         content = configuration_path.read_text(encoding="utf-8")
         required_markers = [
             "# Configuration / ENV Guide",
-            "## 1) Webservice (`src/web_service.py`)",
             "## 2) Remote-Smoke (`scripts/run_remote_api_smoketest.sh`)",
             "## 3) Stabilitätslauf (`scripts/run_remote_api_stability_check.sh`)",
             "## 4) Konfigurationsbeispiele",
         ]
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt im Configuration/ENV-Guide: {marker}")
+
+        self.assertTrue(
+            (
+                "## 1) Webservice (`src/api/web_service.py`, Legacy-Wrapper: `src/web_service.py`)"
+                in content
+            )
+            or ("## 1) Webservice (`src/web_service.py`)" in content),
+            msg="Marker fehlt im Configuration/ENV-Guide: Webservice-Abschnitt (kanonisch oder Legacy)",
+        )
 
     def test_user_docs_index_links_to_core_guides(self):
         user_index = (REPO_ROOT / "docs" / "user" / "README.md").read_text(encoding="utf-8")

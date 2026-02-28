@@ -4,7 +4,7 @@ Dieser Guide bündelt alle relevanten Umgebungsvariablen für Service und Betrie
 
 Für den kompakten Packaging-Überblick (Pflicht/Optional + Default/Beispiel pro Parameter) siehe zusätzlich die Konfigurationsmatrix in [`docs/PACKAGING_BASELINE.md`](../PACKAGING_BASELINE.md).
 
-## 1) Webservice (`src/web_service.py`)
+## 1) Webservice (`src/api/web_service.py`, Legacy-Wrapper: `src/web_service.py`)
 
 ### ENV-Referenz
 
@@ -106,7 +106,7 @@ Für den kompakten Packaging-Überblick (Pflicht/Optional + Default/Beispiel pro
 ### Lokal (ohne Auth)
 
 ```bash
-HOST="127.0.0.1" PORT="8080" python -m src.web_service
+HOST="127.0.0.1" PORT="8080" python -m src.api.web_service
 ```
 
 ### Lokal (mit Auth + strikteren Timeouts)
@@ -116,7 +116,7 @@ HOST="127.0.0.1" PORT="8080" \
 API_AUTH_TOKEN="dev-secret" \
 ANALYZE_DEFAULT_TIMEOUT_SECONDS="10" \
 ANALYZE_MAX_TIMEOUT_SECONDS="30" \
-python -m src.web_service
+python -m src.api.web_service
 ```
 
 ### Dev/Prod-ähnlicher Smoke gegen Remote-Endpoint

@@ -1,6 +1,6 @@
 # API Usage Guide
 
-Dieser Guide beschreibt die HTTP-API des Webservice (`src/web_service.py`) inkl. Auth, Request-ID-Verhalten, Validierung und typische Fehlercodes.
+Dieser Guide beschreibt die HTTP-API des Webservice (`src/api/web_service.py`, Legacy-Wrapper: `src/web_service.py`) inkl. Auth, Request-ID-Verhalten, Validierung und typische Fehlercodes.
 
 ## Base URL
 
@@ -385,7 +385,7 @@ Ungültige Kandidaten werden verworfen, danach greift der nächste Header in Pri
 | `APP_VERSION` | `dev` | Ausgabe in `GET /version` |
 | `GIT_SHA` | `unknown` | Ausgabe in `GET /version` |
 
-Hinweis: Eine vollständige ENV-Referenz folgt in **BL-19.3 (Configuration Guide)**.
+Hinweis: Die vollständige ENV-Referenz steht im [Configuration / ENV Guide](./configuration-env.md).
 
 ---
 
