@@ -438,7 +438,7 @@
   - ✅ 2026-02-27: #26 abgeschlossen (BL-20.3.a Input-Pipeline Adresse → Entity-Resolution) mit robuster Input-Normalisierung (`normalize_address_query_input`), erweitertem Query-Parsing (`parse_query_parts` inkl. Separator-/Hausnummer-Edgecases), additiven stabilen IDs (`entity_id`, `location_id`, `resolution_id`) via `derive_resolution_identifiers`, neuer Strategie-Doku [`docs/api/address-resolution-strategy.md`](api/address-resolution-strategy.md) und Testnachweisen in `tests/test_core.py`.
   - ✅ 2026-02-27: #27 abgeschlossen (BL-20.3.b Gebäudeprofil-Aggregation (MVP)) mit robuster Kernfeld-Aggregation via `build_building_core_profile` (GWR-first, Fallback auf dekodierte Werte, Placeholder-/Invalid-Handling), Pipeline-Dokuergänzung in [`docs/api/address-intel-flow-deep-dive.md`](api/address-intel-flow-deep-dive.md) sowie Vertrags-/Regressionsnachweisen über `tests/test_core.py`, `tests/test_web_service_grouped_response.py`, `tests/test_web_e2e.py` und `tests/test_api_contract_v1.py`.
   - ✅ 2026-02-27: #14 (BL-20.3 Parent) finalisiert und geschlossen, nachdem die Child-Work-Packages #26/#27 abgeschlossen, die Parent-Checklist synchronisiert und der Backlog-Status konsolidiert wurden.
-- ✅ BL-20.7.b abgeschlossen (Issue #35): GTM-MVP-Artefakte dokumentiert in [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md) (Value Proposition, Scope, Demo-Flow).
+- ✅ 2026-02-26: #35 abgeschlossen (BL-20.7.b) mit GTM-MVP-Artefakten in [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md) (Value Proposition, Scope, Demo-Flow).
   - ✅ 2026-02-26: #36 abgeschlossen (Lizenzgrenzen/GTM-Claims) mit Claim-Gate in [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md) inkl. Verweis auf #24 (BL-20.2.a).
   - ✅ 2026-02-27: #36 Issue-/Backlog-Sync nachgezogen (Issue war trotz Merge #49 noch offen) und administrativ geschlossen.
   - ✅ 2026-02-26: #24 abgeschlossen (BL-20.2.a Quelleninventar CH + Lizenzmatrix) mit Quellen-/Lizenzinventar in [`docs/DATA_SOURCE_INVENTORY_CH.md`](DATA_SOURCE_INVENTORY_CH.md) inkl. markierter offener Rechts-/Betriebsfragen.
@@ -518,8 +518,9 @@
   - ✅ 2026-02-26: #55 abgeschlossen (BL-20.7.a.r2) mit konsolidierter Packaging-/Runtime-Konfigurationsmatrix (Pflicht/Optional, Default/Beispiel) in [`docs/PACKAGING_BASELINE.md`](PACKAGING_BASELINE.md) inkl. Cross-Link auf [`docs/user/configuration-env.md`](user/configuration-env.md).
   - ✅ 2026-02-26: #56 abgeschlossen (BL-20.7.a.r3) mit API-only Basis-Release-Checkliste in [`docs/PACKAGING_BASELINE.md`](PACKAGING_BASELINE.md) und Cross-Link aus [`docs/OPERATIONS.md`](OPERATIONS.md).
   - ✅ 2026-02-26: #34 abgeschlossen (BL-20.7.a Parent) nach Abschluss aller Work-Packages #54/#55/#56; Backlog-/Status-Sync konsolidiert.
-  - ⏳ Offene GTM-Follow-ups: #37 (Demo-Datenset), #38 (Packaging/Pricing-Hypothesen).
-  - ⏳ Nächster direkter Schritt BL-20.7: GTM-Follow-ups (#37/#38) priorisieren.
+  - ✅ 2026-02-28: #37 abgeschlossen (BL-20.7.r2) mit reproduzierbarem CH-Demo-Datenset in [`docs/DEMO_DATASET_CH.md`](DEMO_DATASET_CH.md), erwarteten Kernaussagen inkl. Confidence/Unsicherheiten und direkter Verlinkung im Demo-Flow von [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md).
+  - ⏳ Offene GTM-Follow-ups: #38 (Packaging/Pricing-Hypothesen).
+  - ⏳ Nächster direkter Schritt BL-20.7: Follow-up #38 priorisieren.
 - **Akzeptanzkriterien (Phase 1):**
   - API liefert für Adresse und Kartenpunkt ein einheitliches Ergebnisobjekt (Gebäudeprofil + Umfeldprofil).
   - Ergebnis enthält Explainability-Felder (`sources`, `as_of`, `confidence`, `derived_from`).

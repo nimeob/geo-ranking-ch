@@ -20,6 +20,7 @@ class TestGoToMarketMvpDocs(unittest.TestCase):
             "#36",
             "#37",
             "#38",
+            "docs/DEMO_DATASET_CH.md",
         ]
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in GO_TO_MARKET_MVP.md: {marker}")
