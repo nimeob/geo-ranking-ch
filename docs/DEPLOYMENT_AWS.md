@@ -306,6 +306,20 @@ BL31_STRICT_CORS="1" \
 
 Erwartung: alle Checks `pass`, Exit-Code `0`.
 
+Zusätzlicher Runtime-Guardrail (BL-335), um veraltete UI/API-Env nach Redeploy früh zu erkennen:
+
+```bash
+python3 scripts/check_bl335_frontdoor_runtime.py \
+  --ui-health-url "https://www.dev.georanking.ch/healthz" \
+  --api-analyze-url "https://api.dev.georanking.ch/analyze" \
+  --expected-api-base-url "https://api.dev.georanking.ch" \
+  --expected-ui-origin "https://www.dev.georanking.ch" \
+  --expected-ui-origin "https://www.dev.geo-ranking.ch" \
+  --output-json "artifacts/bl335/frontdoor-runtime-check.json"
+```
+
+Details: [`docs/testing/bl335-frontdoor-runtime-guardrail.md`](testing/bl335-frontdoor-runtime-guardrail.md)
+
 ### Reguläres Deployment (nach erstem Setup)
 
 ```bash
