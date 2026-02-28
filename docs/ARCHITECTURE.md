@@ -6,24 +6,22 @@
 
 ## 1) Systemüberblick
 
-`geo-ranking-ch` ist aktuell als containerisierter Python-Webservice umgesetzt und wird nach Build/Test automatisch in die AWS-`dev`-Umgebung ausgerollt.
+`geo-ranking-ch` ist als service-getrennte 2-Container-Architektur umgesetzt (API + UI) und wird in der AWS-`dev`-Umgebung betrieben.
 
 ```text
 GitHub (main / manual)
         │
         ▼
-GitHub Actions (Build, Test, Deploy)
+GitHub Actions / OpenClaw Jobs
         │
-        ├─ docker build + push → Amazon ECR
-        │
-        └─ ECS Task Definition (neue Revision mit neuem Image)
-                      │
-                      ▼
-                ECS Service (Fargate, dev)
-                      │
-                      ▼
-            HTTP API (`src/web_service.py`)
-            /health   /version   /analyze
+        ├─ API-Container (Dockerfile) → ECR swisstopo-dev-api
+        ├─ UI-Container  (Dockerfile.ui) → ECR swisstopo-dev-ui
+        └─ CI-Smokes (API-only + UI-only)
+                │
+                ▼
+        ECS Services (Fargate, dev)
+          ├─ swisstopo-dev-api  -> src/api/web_service.py
+          └─ swisstopo-dev-ui   -> src/ui/service.py
 ```
 
 ---
@@ -33,18 +31,21 @@ GitHub Actions (Build, Test, Deploy)
 ### 2.1 Applikation
 
 - **Runtime:** Python 3.12 (Container)
-- **Entrypoint:** `python -m src.web_service`
-- **Port:** `8080`
-- **Container-Build:** `Dockerfile` im Repo-Root vorhanden
-- **HTTP-Service (MVP):** `src/web_service.py`
+- **Kanonischer API-Entrypoint:** `python -m src.api.web_service`
+- **Kanonischer UI-Entrypoint:** `python -m src.ui.service`
+- **Port:** `8080` (service-lokal)
+- **Container-Builds:** `Dockerfile` (API) + `Dockerfile.ui` (UI)
+- **Legacy-Kompatibilität:** Wrapper `src.web_service` und `src.ui_service` bleiben für bestehende Integrationen verfügbar
 
-**Implementierte Endpoints:**
+**Implementierte Endpoints (service-getrennt):**
 
-| Methode | Pfad | Zweck |
-|---|---|---|
-| `GET` | `/health` | Health/Liveness-Check |
-| `GET` | `/version` | Service-/Build-Metadaten (`APP_VERSION`, `GIT_SHA`) |
-| `POST` | `/analyze` | Analyse-Endpoint (adressbezogene Auswertung) |
+| Service | Methode | Pfad | Zweck |
+|---|---|---|---|
+| API | `GET` | `/health` | Health/Liveness-Check |
+| API | `GET` | `/version` | Service-/Build-Metadaten (`APP_VERSION`, `GIT_SHA`) |
+| API | `POST` | `/analyze` | Analyse-Endpoint (adressbezogene Auswertung) |
+| UI | `GET` | `/healthz` | UI-Liveness-Check |
+| UI | `GET` | `/` / `/gui` | GUI-MVP-Shell |
 
 ### 2.2 AWS-Zielumgebung (`dev`)
 
@@ -53,8 +54,10 @@ GitHub Actions (Build, Test, Deploy)
 | Region | `eu-central-1` |
 | ECS Launch Type | Fargate |
 | ECS Cluster | `swisstopo-dev` |
-| ECS Service | `swisstopo-dev-api` |
-| ECR Repository | `swisstopo-dev-api` |
+| ECS Service (API) | `swisstopo-dev-api` |
+| ECS Service (UI) | `swisstopo-dev-ui` |
+| ECR Repository (API) | `swisstopo-dev-api` |
+| ECR Repository (UI) | `swisstopo-dev-ui` |
 
 > Hinweis: AWS-Ressourcen werden intern unter dem Namen `swisstopo` geführt; das ist bewusst und konsistent mit dem bestehenden Setup.
 
@@ -62,7 +65,9 @@ GitHub Actions (Build, Test, Deploy)
 
 ## 3) CI/CD-Architektur (GitHub Actions)
 
-Workflow-Datei: **`.github/workflows/deploy.yml`**
+Workflow-Dateien (relevant für Split-Stand):
+- **`.github/workflows/deploy.yml`** (ECS Deploy-Pfad)
+- **`.github/workflows/contract-tests.yml`** (CI-Fallback inkl. API/UI-Split-Smokes)
 
 ### Trigger
 
@@ -76,6 +81,11 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
    - Python-Setup
    - `pip install -r requirements-dev.txt`
    - `pytest tests/ -v --tb=short`
+
+1b. **Split-Smoke-Fallback (API/UI getrennt)**
+   - `./scripts/check_bl334_split_smokes.sh`
+   - API-only Startpfad: `python -m src.api.web_service`
+   - UI-only Startpfad: `python -m src.ui.service`
 
 2. **Deploy to ECS (dev)**
    - Validierung erforderlicher Repo-Variablen
@@ -226,7 +236,7 @@ python3 scripts/check_bl31_service_boundaries.py --src-dir src
 
 ### 6.9 BL-334 Zielstruktur für Source-Trennung (Rollout-Stand)
 
-Zielstruktur bleibt unverändert und wird schrittweise über die Work-Packages #365–#368 vollständig umgesetzt:
+Zielstruktur bleibt unverändert und ist mit den Work-Packages #365–#368 vollständig umgesetzt:
 
 ```text
 src/
@@ -245,6 +255,7 @@ Migrationshinweis:
 - BL-334.2 hat den API-Code physisch nach `src/api/` verschoben und Legacy-Wrapper für stabile Entrypoints ergänzt.
 - BL-334.3 hat den UI-Code physisch nach `src/ui/` verschoben und Legacy-Wrapper für stabile Entrypoints ergänzt.
 - BL-334.4 hat die GUI-MVP als neutrales Shared-Modul (`src/shared/gui_mvp.py`) kanonisiert und service-lokale Containerkontexte via `Dockerfile*.dockerignore` eingeführt.
+- BL-334.5 hat die CI-/Smoke-Pfade auf kanonische Entrypoints synchronisiert (`scripts/check_bl334_split_smokes.sh`, API: `src.api.web_service`, UI: `src.ui.service`) und die Kern-Dokumente auf den Split-Stand aktualisiert.
 
 ## 7) Offene Punkte / Nächste Architektur-Schritte
 

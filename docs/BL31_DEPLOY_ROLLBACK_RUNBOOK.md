@@ -32,6 +32,16 @@ Zusätzlich nötig:
 - `aws`, `curl`, `python3`
 - Repo-Root als Arbeitsverzeichnis
 
+Kanonische Runtime-Entrypoints (Source-Split, BL-334):
+- API: `python -m src.api.web_service` (Legacy-Wrapper: `src.web_service`)
+- UI: `python -m src.ui.service` (Legacy-Wrapper: `src.ui_service`)
+
+Pflicht-Preflight vor Deploy/Rollback-Änderungen an Source-/Entrypoint-Struktur:
+
+```bash
+./scripts/check_bl334_split_smokes.sh
+```
+
 Pflicht-Endpoints für jede Abnahme:
 - API Health: `GET /health`
 - UI Health: `GET /healthz`

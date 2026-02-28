@@ -21,6 +21,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
+      - name: Run split service smokes (API-only + UI-only)
+        run: |
+          ./scripts/check_bl334_split_smokes.sh
+
       - name: Run API contract tests
         run: |
           pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py

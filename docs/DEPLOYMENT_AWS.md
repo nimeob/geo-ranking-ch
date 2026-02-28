@@ -187,6 +187,7 @@ Verbindliche Betriebsregeln:
 - API und UI werden **separat** gebaut, ausgerollt und zurückgerollt.
 - Bei kombinierten Änderungen gilt als sichere Reihenfolge: **API deployen → API smoke → UI deployen → UI smoke**.
 - CORS-Allowlist wird auf UI-Origin eingeschränkt; keine globale `*`-Freigabe.
+- Vor Deploy/Rollback-Änderungen auf Source-/Entrypoint-Ebene wird ein lokaler Split-Smoke ausgeführt: `./scripts/check_bl334_split_smokes.sh`.
 
 Verbindlicher Ablauf inkl. service-lokaler Rollback-Kommandos und Evidenzformat:
 - [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md)
@@ -208,6 +209,7 @@ python3 scripts/run_bl31_split_deploy.py --mode both --execute
 
 BL-31.2 legt die technische Basis für ein eigenes UI-Artefakt fest:
 
+- API-Runtime-Entrypoint (kanonisch): `python -m src.api.web_service` (Legacy: `src.web_service`)
 - UI-Dockerfile: [`Dockerfile.ui`](../Dockerfile.ui)
 - UI-Runtime-Entrypoint: `python -m src.ui.service` (kanonisch; Legacy-Wrapper `src.ui_service` bleibt lokal kompatibel)
 - ECS-Task-Template: [`infra/ecs/taskdef.swisstopo-dev-ui.json`](../infra/ecs/taskdef.swisstopo-dev-ui.json)
