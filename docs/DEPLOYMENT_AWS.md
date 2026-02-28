@@ -188,6 +188,59 @@ Verbindliche Betriebsregeln:
 - Bei kombinierten Änderungen gilt als sichere Reihenfolge: **API deployen → API smoke → UI deployen → UI smoke**.
 - CORS-Allowlist wird auf UI-Origin eingeschränkt; keine globale `*`-Freigabe.
 
+### BL-31.2 Artefakt-Basis für UI-Service
+
+BL-31.2 legt die technische Basis für ein eigenes UI-Artefakt fest:
+
+- UI-Dockerfile: [`Dockerfile.ui`](../Dockerfile.ui)
+- UI-Runtime-Entrypoint: `python -m src.ui_service`
+- ECS-Task-Template: [`infra/ecs/taskdef.swisstopo-dev-ui.json`](../infra/ecs/taskdef.swisstopo-dev-ui.json)
+- Ziel-ECR-Repository: **`swisstopo-dev-ui`**
+
+**Build-Args (UI):**
+
+| Build-Arg | Default | Zweck |
+|---|---|---|
+| `UI_PORT` | `8080` | Container-Port der UI-Runtime |
+| `APP_VERSION` | `dev` | Version im UI-Header + `/healthz` |
+| `UI_API_BASE_URL` | _(leer)_ | Absolute API-Basis (z. B. `https://api.<domain>`) |
+
+**Runtime-ENV (UI):**
+
+| ENV | Herkunft | Zweck |
+|---|---|---|
+| `PORT` | aus `UI_PORT` | Bind-Port des UI-Service |
+| `APP_VERSION` | aus Build-Arg / Task-ENV | UI-Versionierung |
+| `UI_API_BASE_URL` | aus Build-Arg / Task-ENV | API-Ziel für GUI-Analyze-Requests |
+
+Beispiel Build + Push für UI-Artefakt:
+
+```bash
+IMAGE_TAG=$(git rev-parse --short HEAD)
+
+# 1) UI-Image bauen (separat vom API-Image)
+docker build \
+  -f Dockerfile.ui \
+  --build-arg APP_VERSION=${IMAGE_TAG} \
+  --build-arg UI_API_BASE_URL="https://api.<domain>" \
+  -t swisstopo-dev-ui:${IMAGE_TAG} .
+
+# 2) ECR Login (wie API)
+aws ecr get-login-password --region eu-central-1 \
+  | docker login --username AWS \
+    --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com
+
+# 3) UI-Image pushen
+docker tag swisstopo-dev-ui:${IMAGE_TAG} \
+  ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-ui:${IMAGE_TAG}
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-ui:${IMAGE_TAG}
+```
+
+Task-Definition-Hinweis:
+- Das Template `infra/ecs/taskdef.swisstopo-dev-ui.json` ist als revisionsfähige Basis gedacht.
+- Platzhalter (`__IMAGE_TAG__`, `__APP_VERSION__`, `__DOMAIN__`) vor `register-task-definition` ersetzen.
+- Healthcheck für UI läuft auf `GET /healthz`.
+
 ### Reguläres Deployment (nach erstem Setup)
 
 ```bash

@@ -1,0 +1,48 @@
+{
+  "family": "swisstopo-dev-ui",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::523234426229:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::523234426229:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "swisstopo-dev-ui",
+      "image": "523234426229.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-ui:__IMAGE_TAG__",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "APP_VERSION",
+          "value": "__APP_VERSION__"
+        },
+        {
+          "name": "UI_API_BASE_URL",
+          "value": "https://api.__DOMAIN__"
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 20
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/swisstopo/dev/ecs/ui",
+          "awslogs-region": "eu-central-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
