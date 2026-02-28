@@ -139,6 +139,64 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 
 ---
 
-## 6) Offene Punkte / Nächste Architektur-Schritte
+## 6) Zielbild BL-31: 2-Container-Architektur (UI + API)
 
-Die offenen Architektur-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (aktuell v. a. **BL-15**, **BL-17**, **BL-18**), um doppelte Nebenlisten zu vermeiden.
+> **Status:** Zielbild festgelegt (2026-02-28), Umsetzung über Folge-Issues.
+
+### 6.1 Laufzeit-Topologie (Soll)
+
+| Baustein | Zielzustand |
+|---|---|
+| ECS Cluster | `swisstopo-dev` (bestehend, gemeinsam genutzt) |
+| API Service | `swisstopo-dev-api` (bestehender Service, separat deploybar) |
+| UI Service | `swisstopo-dev-ui` (neu, eigener Task/Service) |
+| ECR Repositories | `swisstopo-dev-api` (bestehend), `swisstopo-dev-ui` (neu) |
+| Scaling | API und UI mit eigener DesiredCount-/CPU-/Memory-Strategie |
+| Healthchecks | API: `/health`, UI: `/healthz` (leichtgewichtiger HTTP-Check) |
+
+### 6.2 Ingress/Routing/TLS (Soll)
+
+- Primärpfad: **Host-basiertes Routing über einen gemeinsamen ALB**
+  - `api.<domain>` → API Target Group
+  - `app.<domain>` → UI Target Group
+- TLS-Termination am ALB mit ACM-Zertifikat (SAN/Wildcard für `api.*` + `app.*`).
+- HTTP→HTTPS Redirect als Standardregel.
+- Fallback (nur falls ALB kurzfristig nicht verfügbar): temporär getrennte Endpunkte, aber kein langfristiger Zielzustand.
+
+### 6.3 API↔UI-Kommunikation
+
+- UI ruft API über öffentliches `api.<domain>` mit versioniertem `/api/v1`-Pfad auf.
+- CORS-Allowlist strikt auf UI-Origin(s), keine pauschale `*`-Freigabe.
+- Optionaler BFF/Proxy-Pfad bleibt als späterer Optimierungshebel offen, ist aber **nicht** Teil von BL-31-Baseline.
+
+### 6.4 AuthN/AuthZ/Entitlements (BL-30-ready)
+
+- Eintrittspunkt für künftige Entitlements liegt API-zentriert (Token-/Plan-Prüfung serverseitig).
+- UI enthält keine abrechnungsrelevante Autorisierungslogik; UI steuert nur UX.
+- Header-/Token-Konventionen bleiben mit bestehender API-Doku kompatibel (`docs/user/api-usage.md`).
+
+### 6.5 Deploy-/Rollback-Strategie getrennt für UI/API
+
+- Separate Build-/Deploy-Pipelines pro Service (UI und API unabhängig ausrollbar).
+- Default-Reihenfolge bei kombinierten Changes: **API zuerst**, dann UI.
+- Rollback service-lokal (nur betroffener Service auf letzte stabile Task-Revision).
+- Smoke-Gates pro Service (API-Health separat, UI-Erreichbarkeit separat).
+
+### 6.6 Monitoring/Health getrennt
+
+- API-Alarmierung bleibt aktiv (RunningTaskCount, 5xx, HealthProbe).
+- UI erhält eigene Basis-Metriken: RunningTaskCount, HTTP 5xx (falls ALB-Logs/Metrikpfad aktiv), Reachability-Check.
+- Alert-Routing bleibt zentral über bestehendes SNS→Telegram-Setup.
+
+### 6.7 Risiken & Trade-offs
+
+| Thema | Vorteil | Risiko/Kosten | Entscheidung |
+|---|---|---|---|
+| 2 Services statt 1 | Unabhängige Deployments, klarere Ownership | Mehr Ops-Aufwand (zweite TaskDef/Service) | akzeptiert |
+| Gemeinsamer ALB | Einheitliches TLS/Routing, weniger DNS-/Ops-Overhead | Gemeinsamer Ingress als potenzieller Bottleneck | akzeptiert mit Monitoring |
+| API-zentrierte Entitlements | Sicherheit und Konsistenz | UI-spezifische UX braucht zusätzliche API-Fehlerbehandlung | akzeptiert |
+| Service-lokaler Rollback | Geringerer Blast Radius | Versionsdrift UI↔API möglich | mitigiert über Smoke/Kompatibilitätschecks |
+
+## 7) Offene Punkte / Nächste Architektur-Schritte
+
+Die offenen Architektur-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (inkl. BL-31 Folgepakete), um doppelte Nebenlisten zu vermeiden.
