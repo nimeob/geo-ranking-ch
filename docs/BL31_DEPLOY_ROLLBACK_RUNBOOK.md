@@ -256,5 +256,6 @@ Bei produktiven Deploy-Läufen die gleichen Aufrufe mit `--execute` fahren.
 - Routing/TLS/CORS Smoke Catch-up: [`docs/testing/bl31-routing-tls-smoke-catchup.md`](./testing/bl31-routing-tls-smoke-catchup.md)
 - Smoke-/Evidence-Matrix (api/ui/both): [`docs/testing/bl31-smoke-evidence-matrix.md`](./testing/bl31-smoke-evidence-matrix.md)
 - BL-335 Runtime-Guardrail (UI_API_BASE_URL + CORS): [`docs/testing/bl335-frontdoor-runtime-guardrail.md`](./testing/bl335-frontdoor-runtime-guardrail.md)
+- BL-335 Redeploy-Abnahme + Parent-Checklist (#376): [`docs/testing/bl335-frontdoor-redeploy-acceptance-runbook.md`](./testing/bl335-frontdoor-redeploy-acceptance-runbook.md)
 - Allgemeines Deployment: [`docs/DEPLOYMENT_AWS.md`](./DEPLOYMENT_AWS.md)
 - Betriebs-/Incident-Rahmen: [`docs/OPERATIONS.md`](./OPERATIONS.md)
