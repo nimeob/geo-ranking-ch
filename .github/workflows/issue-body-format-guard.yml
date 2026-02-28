@@ -1,0 +1,59 @@
+name: issue-body-format-guard
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  normalize-escaped-markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Normalize accidentally escaped Markdown in issue bodies
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (!issue || issue.pull_request) return;
+
+            const body = issue.body || "";
+            // Only fix the specific regression pattern:
+            // whole markdown body serialized as escaped text ("\\n", "\\t", "\\`").
+            const hasRealNewlines = body.includes("\n");
+            const hasEscapedNewlines = body.includes("\\n");
+            const looksLikeEscapedMarkdown = /(^|\\n)##\s|Parent:\s*#\d+/.test(body);
+            const hasEscapedFormatting = body.includes("\\`") || body.includes("\\t") || body.includes("\\n-");
+
+            // Guardrail: only auto-rewrite if body is effectively single-line escaped markdown.
+            if (hasRealNewlines || !hasEscapedNewlines || !looksLikeEscapedMarkdown) {
+              core.info("No escaped-markdown normalization needed.");
+              return;
+            }
+
+            let normalized = body
+              .replace(/\\n/g, "\n")
+              .replace(/\\t/g, "\t")
+              .replace(/\\`/g, "`");
+
+            if (normalized === body) {
+              core.info("No effective changes after normalization.");
+              return;
+            }
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: normalized,
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: "🧹 Format-Guard: Body automatisch normalisiert (escaped Markdown → echte Zeilenumbrüche/Backticks).",
+            });
+
+            core.info(`Issue #${issue.number} normalized.`);
