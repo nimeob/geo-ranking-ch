@@ -35,7 +35,7 @@ Datei: `infra/iam/deploy-policy.json`
 |---|---|---|
 | Identity-Check (optional) | `sts:GetCallerIdentity` | `*` |
 | ECR Login | `ecr:GetAuthorizationToken` | `*` |
-| ECR Push | `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage` | nur Repo `swisstopo-dev-api` |
+| ECR Push | `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`, `ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage` | nur Repos `swisstopo-dev-api` + `swisstopo-dev-ui` |
 | ECS Read | `ecs:DescribeServices` | nur dev Cluster + Service |
 | ECS Read | `ecs:DescribeTaskDefinition` | `*` (AWS wertet ARN/Family-Scoping nicht aus — Policy v1→v2 Fix) |
 | ECS Register TaskDef | `ecs:RegisterTaskDefinition` | `*` (AWS-seitig nicht enger scoping-fähig) |

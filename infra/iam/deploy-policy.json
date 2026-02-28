@@ -18,7 +18,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "EcrPushOnlyToDevRepository",
+      "Sid": "EcrPushOnlyToDevRepositories",
       "Effect": "Allow",
       "Action": [
         "ecr:BatchCheckLayerAvailability",
@@ -27,7 +27,10 @@
         "ecr:PutImage",
         "ecr:UploadLayerPart"
       ],
-      "Resource": "arn:aws:ecr:eu-central-1:523234426229:repository/swisstopo-dev-api"
+      "Resource": [
+        "arn:aws:ecr:eu-central-1:523234426229:repository/swisstopo-dev-api",
+        "arn:aws:ecr:eu-central-1:523234426229:repository/swisstopo-dev-ui"
+      ]
     },
     {
       "Sid": "EcsDescribeServicesDevOnly",
@@ -37,7 +40,8 @@
       ],
       "Resource": [
         "arn:aws:ecs:eu-central-1:523234426229:cluster/swisstopo-dev",
-        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api"
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api",
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-ui"
       ]
     },
     {
@@ -57,14 +61,15 @@
       "Resource": "*"
     },
     {
-      "Sid": "EcsUpdateOnlyDevService",
+      "Sid": "EcsUpdateOnlyDevServices",
       "Effect": "Allow",
       "Action": [
         "ecs:UpdateService"
       ],
       "Resource": [
         "arn:aws:ecs:eu-central-1:523234426229:cluster/swisstopo-dev",
-        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api"
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api",
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-ui"
       ]
     },
     {
