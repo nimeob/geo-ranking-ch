@@ -245,6 +245,20 @@ docker tag swisstopo-dev-ui:${IMAGE_TAG} \
 docker push ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com/swisstopo-dev-ui:${IMAGE_TAG}
 ```
 
+Wenn lokal kein nutzbarer Docker-Daemon verfügbar ist (z. B. OpenClaw-Worker ohne Socket), kann derselbe Pfad reproduzierbar über CodeBuild + AWS CLI gefahren werden:
+
+```bash
+./scripts/setup_bl31_ui_artifact_path.sh
+```
+
+Das Skript führt idempotent aus:
+- ECR-Repo + benötigte CodeBuild-Push-Policy prüfen/setzen,
+- Source-ZIP nach `s3://swisstopo-dev-523234426229/codebuild-src/geo-ranking-ch-main.zip` hochladen,
+- `swisstopo-dev-api-openclaw-build` mit `Dockerfile.ui` starten,
+- UI-Image mit reproduzierbarem Tag nach `swisstopo-dev-ui` pushen,
+- ECS-Task-Definition `swisstopo-dev-ui` mit konkreter Image-Revision registrieren (Fallback via `openclaw-ops-role` bei fehlendem `iam:PassRole`/`ecs:RegisterTaskDefinition` auf dem aktuellen Principal),
+- Evidenz als JSON unter `artifacts/bl31/*-bl31-ui-artifact-path.json` schreiben.
+
 Task-Definition-Hinweis:
 - Das Template `infra/ecs/taskdef.swisstopo-dev-ui.json` ist als revisionsfähige Basis gedacht.
 - Platzhalter (`__IMAGE_TAG__`, `__APP_VERSION__`, `__DOMAIN__`) vor `register-task-definition` ersetzen.
@@ -438,7 +452,7 @@ git checkout v<stabile-version>
 | Alert-Kanal | SNS + Lambda → Telegram | ✅ Aktiv und getestet (ALARM/OK im Telegram-Chat bestätigt, 2026-02-25) |
 | Telegram-Alerting | Lambda `swisstopo-dev-sns-to-telegram` | ✅ Aktiv (SSM SecureString + SNS-Subscription + Lambda-Permission verifiziert) |
 | Uptime/HTTP Health | Lambda `swisstopo-dev-health-probe` + EventBridge (rate 5 min) | ✅ Aktiv und getestet (2026-02-25) — dynamische ECS-IP-Auflösung, Metrik `HealthProbeSuccess`, Alarm `swisstopo-dev-api-health-probe-fail` |
-| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh`, `scripts/setup_health_probe_dev.sh`, `scripts/check_health_probe_dev.sh`, `scripts/setup_bl31_ui_monitoring_baseline.sh`, `scripts/check_bl31_ui_monitoring_baseline.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks + Uptime Probe vorhanden (inkl. BL-31.5 UI-Monitoring-Baseline) |
+| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh`, `scripts/setup_health_probe_dev.sh`, `scripts/check_health_probe_dev.sh`, `scripts/setup_bl31_ui_artifact_path.sh`, `scripts/setup_bl31_ui_monitoring_baseline.sh`, `scripts/check_bl31_ui_monitoring_baseline.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks + Uptime Probe vorhanden (inkl. BL-31.5 UI-Monitoring-Baseline und BL-31.6.a Artefakt-/Taskdef-Setup) |
 | Tracing | X-Ray | ⚠️ zu evaluieren |
 
 ### Telegram-Alerting — Architektur & Deployment (BL-08)
