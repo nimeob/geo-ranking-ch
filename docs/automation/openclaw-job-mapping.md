@@ -1,6 +1,6 @@
 # BL-20.y.wp2 — OpenClaw-Mapping für migrierbare GitHub-Workflows
 
-Stand: 2026-02-27  
+Stand: 2026-02-28  
 Parent: #220  
 Work-Package: #222
 
@@ -31,7 +31,7 @@ Für alle in #221 als `migrate-to-openclaw` klassifizierten Workflows wird ein k
 | contract-tests | `.github/workflows/contract-tests.yml` | `geo-ranking-contract-tests-surrogate` | `cron: */30 * * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/contract-tests/` | `python3 scripts/validate_field_catalog.py` + `pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py` |
 | crawler-regression | `.github/workflows/crawler-regression.yml` | `geo-ranking-crawler-regression-surrogate` | `cron: 15 * * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/crawler-regression/` | `./scripts/check_crawler_regression.sh` |
 | docs-quality | `.github/workflows/docs-quality.yml` | `geo-ranking-docs-quality-surrogate` | `cron: 45 */2 * * *` + manueller Start | isolated/run | `openai/gpt-5-mini`, `low` | announce-on-fail | 2x (5m/15m), 20m | `reports/automation/docs-quality/` | `./scripts/check_docs_quality_gate.sh` |
-| worker-claim-priority | `.github/workflows/worker-claim-priority.yml` | `geo-ranking-worker-claim-reconciler` | event-surrogate via `cron: */10 * * * *` (Ist) + Relay-Hybrid-Pfad gemäß #227/#233/#238 | isolated/run | `openai/gpt-5-mini`, `low` | summary (nur bei Mutationen) | 2x (5m/15m), 20m | `reports/automation/worker-claim-priority/` + `reports/automation/event-relay/` | Reconcile-Script für Label-/Claim-Order (WP4) + Event-Relay-Design (`docs/automation/openclaw-event-relay-design.md`) + Receiver-Gates (`scripts/run_event_relay_receiver.py`, ✅ #233) + Consumer-Dispatch `issues.* -> reconcile` inkl. Dedup-Batching (`scripts/run_event_relay_consumer.py`, ✅ #237) + Shadow/Hybrid-Evidenz & Security-Runbook (✅ #238) |
+| worker-claim-priority | `.github/workflows/worker-claim-priority.yml` | `geo-ranking-worker-claim-reconciler` | event-surrogate via `cron: */10 * * * *` (Ist) + Relay-Hybrid-Pfad gemäß #227/#233/#238 | isolated/run | `openai/gpt-5-mini`, `low` | summary (nur bei Mutationen) | 2x (5m/15m), 20m | `reports/automation/worker-claim-priority/` + `reports/automation/event-relay/` | Reconcile-Script für Label-/Claim-Order (WP4) + Event-Relay-Design (`docs/automation/openclaw-event-relay-design.md`) + Receiver-Gates (`scripts/run_event_relay_receiver.py`, ✅ #233) + Consumer-Dispatch `issues.* -> reconcile` inkl. Dedup-Batching (`scripts/run_event_relay_consumer.py`, ✅ #237) + Shadow/Hybrid-Evidenz & Security-Runbook (✅ #238); GitHub-Workflow in #384 bewusst reaktiviert, bis Deaktivierungsmarker erfüllt ist |
 
 ## Umsetzung in #223 (technischer Migrationsanker)
 
@@ -63,7 +63,7 @@ Der Runner beendet sich mit dem Exit-Code des fehlgeschlagenen Schritts und kann
   - ✅ Design/Target-State in **#227** und `docs/automation/openclaw-event-relay-design.md` festgelegt.
   - ✅ Parent **#233** vollständig umgesetzt: Receiver-Gates (Signatur/Allowlist/Dedup) + Consumer-Dispatch (issues.*) + Shadow/Hybrid-Runbook.
   - ✅ WP3 **#238** dokumentiert reproduzierbare Evidenzläufe (`20260227T090700Z`, `20260227T090900Z`).
-  - ⏳ Offen bleibt nur der operative Deaktivierungsmarker für `.github/workflows/worker-claim-priority.yml` (2 saubere Live-Hybrid-Runs + Drift-Nachweis).
+  - ⏳ Offen bleibt nur der operative Deaktivierungsmarker für `.github/workflows/worker-claim-priority.yml` (2 saubere Live-Hybrid-Runs + Drift-Nachweis). Bis dahin bleibt der Workflow aktiv (Reaktivierung in #384).
 - **R2: Cron-Fallback bleibt bewusst aktiv (Safety-Net) bis Marker-Freigabe.**
   - Event-Dispatch läuft, aber Event-first ohne GitHub-Workflow wird erst nach erfüllten Marker-Kriterien aktiviert.
 

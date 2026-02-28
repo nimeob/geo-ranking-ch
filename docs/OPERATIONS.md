@@ -317,14 +317,16 @@ Hinweise:
 
 ## GitHub-Actions-Cleanup + Required-Checks (BL-20.y.wp4)
 
-Stand nach WP4:
-- **Automatisch aktiv auf GitHub bleibt nur** `.github/workflows/deploy.yml`.
-- Ehemalige Kosten-/Qualitäts-Workflows wurden auf **manual fallback (`workflow_dispatch`)** umgestellt:
+Stand nach WP4 / BL-336:
+- **Automatisch aktiv auf GitHub**:
+  - `.github/workflows/deploy.yml` (Push/Dispatch Deploy-Pfad)
+  - `.github/workflows/worker-claim-priority.yml` (Issue-Event-Hybridpfad; Reaktivierung in #384, da Deaktivierungsmarker noch offen)
+- Ehemalige Kosten-/Qualitäts-Workflows bleiben als **manual fallback (`workflow_dispatch`)** bestehen:
   - `.github/workflows/contract-tests.yml`
   - `.github/workflows/crawler-regression.yml`
   - `.github/workflows/docs-quality.yml`
-  - `.github/workflows/bl20-sequencer.yml` (retired/manual placeholder)
-- `.github/workflows/worker-claim-priority.yml` bleibt trotz umgesetztem Event-Relay-Pfad (`#233`) bis zum dokumentierten Deaktivierungsmarker aktiv (2 saubere Live-Hybrid-Runs + Drift-Nachweis; Designgrundlage in `docs/automation/openclaw-event-relay-design.md`, #227).
+- `.github/workflows/bl20-sequencer.yml` ist fachlich retired und wurde in #384 aus dem Repo entfernt.
+- `worker-claim-priority` darf erst final stillgelegt werden, wenn der dokumentierte Deaktivierungsmarker erfüllt ist (2 saubere Live-Hybrid-Runs + Drift-Nachweis; Designgrundlage in `docs/automation/openclaw-event-relay-design.md`, #227).
 
 ### Required-Checks Zielzustand (Branch Protection `main`)
 
@@ -332,7 +334,7 @@ Für den OpenClaw-Migrationsbetrieb dürfen nur Checks als **required** gesetzt 
 
 Empfohlener Minimalzustand:
 - optional/required nach Teamentscheid: `deploy / Build & Test` (oder äquivalenter Deploy-Check)
-- **nicht required**: `contract-tests`, `crawler-regression`, `docs-quality`, `bl20-sequencer`
+- **nicht required**: `contract-tests`, `crawler-regression`, `docs-quality`
 
 ### Administrative Anpassung (Repo-Owner)
 
