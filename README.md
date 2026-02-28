@@ -115,10 +115,17 @@ python -m src.web_service
 ### Docker (wie in ECS)
 
 ```bash
-docker build -t geo-ranking-ch:dev .
-docker run --rm -p 8080:8080 geo-ranking-ch:dev
+# API-Image (service-lokaler Build-Kontext via Dockerfile.dockerignore)
+docker build -f Dockerfile -t geo-ranking-ch:api-dev .
+docker run --rm -p 8080:8080 geo-ranking-ch:api-dev
 # Healthcheck
 curl http://localhost:8080/health
+
+# UI-Image (service-lokaler Build-Kontext via Dockerfile.ui.dockerignore)
+docker build -f Dockerfile.ui -t geo-ranking-ch:ui-dev .
+docker run --rm -p 8081:8080 geo-ranking-ch:ui-dev
+# Healthcheck
+curl http://localhost:8081/healthz
 ```
 
 ### Webservice-Endpoints (MVP)
@@ -263,11 +270,12 @@ geo-ranking-ch/
 │   │   └── web_service.py            # HTTP-API (/gui, /health, /version, /analyze)
 │   ├── ui/                           # Kanonischer UI-Source-Bereich
 │   │   ├── service.py                # Eigenständiger UI-Service (/ , /gui, /healthz)
-│   │   └── gui_mvp.py                # GUI-MVP Shell-Template + Kartenklick/Result-Flow (BL-20.6)
+│   │   └── gui_mvp.py                # Kompatibilitäts-Wrapper -> src.shared.gui_mvp
 │   ├── shared/                       # Shared-Namespace (neutral)
+│   │   └── gui_mvp.py                # Kanonische GUI-MVP Shell (von API + UI genutzt)
 │   ├── web_service.py                # Legacy-Wrapper -> src.api.web_service
 │   ├── ui_service.py                 # Legacy-Wrapper -> src.ui.service
-│   ├── gui_mvp.py                    # Legacy-Wrapper -> src.ui.gui_mvp
+│   ├── gui_mvp.py                    # Legacy-Wrapper -> src.shared.gui_mvp
 │   ├── geo_utils.py
 │   └── gwr_codes.py
 ├── tests/                            # Unit-, E2E- und Doku-Qualitäts-Tests

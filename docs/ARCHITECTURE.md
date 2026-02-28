@@ -201,15 +201,17 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 
 Für die laufende Entkopplung gilt ein expliziter Boundary-Guard in [`scripts/check_bl31_service_boundaries.py`](../scripts/check_bl31_service_boundaries.py).
 
-Aktueller Stand (2026-02-28, nach BL-334.3):
+Aktueller Stand (2026-02-28, nach BL-334.4):
 - **API-Quellbereich (kanonisch):** `src/api/*`
   - `web_service.py`, `address_intel.py`, `personalized_scoring.py`, `suitability_light.py`
 - **UI-Quellbereich (kanonisch):** `src/ui/*`
-  - `service.py`, `gui_mvp.py`
+  - `service.py`
+- **Shared-Bereich (kanonisch):** `src/shared/*`
+  - `gui_mvp.py` (von API + UI genutzt)
+  - plus bestehende neutrale Module `geo_utils`, `gwr_codes`, `mapping_transform_rules`
 - **Legacy-Importpfade (Kompatibilität):**
   - API: `src/web_service.py`, `src/address_intel.py`, `src/personalized_scoring.py`, `src/suitability_light.py` als Wrapper auf `src/api/*`
-  - UI: `src/ui_service.py`, `src/gui_mvp.py` als Wrapper auf `src/ui/*`
-- **Shared-Bereich:** `src/shared/*` (Namespace reserviert) + bestehende neutrale Module `geo_utils`, `gwr_codes`, `mapping_transform_rules`
+  - UI: `src/ui_service.py`, `src/gui_mvp.py` als Wrapper auf `src/ui.service` bzw. `src/shared.gui_mvp`
 
 Guard-Regeln (Legacy + Split):
 - API darf UI nicht importieren.
@@ -241,7 +243,8 @@ Verbindliche Import-Richtungen:
 
 Migrationshinweis:
 - BL-334.2 hat den API-Code physisch nach `src/api/` verschoben und Legacy-Wrapper für stabile Entrypoints ergänzt.
-- BL-334.3 hat den UI-Code physisch nach `src/ui/` verschoben und Legacy-Wrapper für stabile Entrypoints (`python -m src.ui_service`, `from src.gui_mvp import ...`) ergänzt.
+- BL-334.3 hat den UI-Code physisch nach `src/ui/` verschoben und Legacy-Wrapper für stabile Entrypoints ergänzt.
+- BL-334.4 hat die GUI-MVP als neutrales Shared-Modul (`src/shared/gui_mvp.py`) kanonisiert und service-lokale Containerkontexte via `Dockerfile*.dockerignore` eingeführt.
 
 ## 7) Offene Punkte / Nächste Architektur-Schritte
 

@@ -16,8 +16,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY src ./src
+COPY src/__init__.py ./src/__init__.py
+COPY src/ui ./src/ui
+COPY src/shared ./src/shared
 
 EXPOSE ${UI_PORT}
 
-CMD ["python", "-m", "src.ui_service"]
+CMD ["python", "-m", "src.ui.service"]

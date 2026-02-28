@@ -1,0 +1,8 @@
+**
+
+!requirements.txt
+!requirements-dev.txt
+!src/__init__.py
+!src/gwr_codes.py
+!src/api/**
+!src/shared/**

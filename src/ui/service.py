@@ -14,7 +14,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
-from src.ui.gui_mvp import render_gui_mvp_html
+from src.shared.gui_mvp import render_gui_mvp_html
 
 
 def _normalize_path(path: str) -> str:
