@@ -203,10 +203,40 @@ Minimalanforderung für „fertig“:
 - Strict-Smoke-Nachweis mit Artefaktpfad
 - Referenz auf Run/Log (CI oder CLI)
 
+### 6.1 Smoke-/Evidence-Matrix (API-only, UI-only, Combined)
+
+Für einen reproduzierbaren Matrix-Lauf über alle drei Modi:
+
+```bash
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+python3 scripts/run_bl31_split_deploy.py --mode api  --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-api.json"
+python3 scripts/run_bl31_split_deploy.py --mode ui   --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-ui.json"
+python3 scripts/run_bl31_split_deploy.py --mode both --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-both.json"
+```
+
+Pflicht-Mindestfelder pro Artefakt:
+- `mode`
+- `taskDefinitionBefore`
+- `taskDefinitionAfter`
+- `result`
+- `timestampUtc`
+
+Format-/Feldkonsistenz kann automatisiert geprüft werden:
+
+```bash
+python3 scripts/check_bl31_smoke_evidence_matrix.py \
+  "artifacts/bl31/${STAMP}-bl31-split-deploy-api.json" \
+  "artifacts/bl31/${STAMP}-bl31-split-deploy-ui.json" \
+  "artifacts/bl31/${STAMP}-bl31-split-deploy-both.json"
+```
+
+Bei produktiven Deploy-Läufen die gleichen Aufrufe mit `--execute` fahren.
+
 ---
 
 ## 7) Verlinkte Detail-Runbooks
 
 - Routing/TLS/CORS Smoke Catch-up: [`docs/testing/bl31-routing-tls-smoke-catchup.md`](./testing/bl31-routing-tls-smoke-catchup.md)
+- Smoke-/Evidence-Matrix (api/ui/both): [`docs/testing/bl31-smoke-evidence-matrix.md`](./testing/bl31-smoke-evidence-matrix.md)
 - Allgemeines Deployment: [`docs/DEPLOYMENT_AWS.md`](./DEPLOYMENT_AWS.md)
 - Betriebs-/Incident-Rahmen: [`docs/OPERATIONS.md`](./OPERATIONS.md)

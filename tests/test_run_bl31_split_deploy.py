@@ -62,6 +62,12 @@ class TestRunBl31SplitDeploy(unittest.TestCase):
             payload = module.execute_deploy(config)
             self.assertEqual(payload["mode"], "both")
             self.assertFalse(payload["execute"])
+            self.assertEqual(payload["result"], module.RESULT_PLANNED)
+            self.assertEqual(payload["taskDefinitionBefore"]["api"], module.DRY_RUN_TASKDEF_VALUE)
+            self.assertEqual(payload["taskDefinitionBefore"]["ui"], module.DRY_RUN_TASKDEF_VALUE)
+            self.assertEqual(payload["taskDefinitionAfter"]["api"], module.DRY_RUN_TASKDEF_VALUE)
+            self.assertEqual(payload["taskDefinitionAfter"]["ui"], module.DRY_RUN_TASKDEF_VALUE)
+            self.assertEqual(payload["smokeArtifacts"], [])
 
             plan = payload["plan"]
             self.assertEqual([step["step"] for step in plan], ["api", "ui"])
@@ -85,7 +91,11 @@ class TestRunBl31SplitDeploy(unittest.TestCase):
             payload = json.loads(output_json.read_text(encoding="utf-8"))
             self.assertEqual(payload["mode"], "api")
             self.assertFalse(payload["execute"])
+            self.assertEqual(payload["result"], module.RESULT_PLANNED)
             self.assertEqual(payload["plan"][0]["step"], "api")
+            self.assertIn("taskDefinitionBefore", payload)
+            self.assertIn("taskDefinitionAfter", payload)
+            self.assertIn("timestampUtc", payload)
 
 
 if __name__ == "__main__":

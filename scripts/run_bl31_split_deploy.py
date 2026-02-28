@@ -153,6 +153,19 @@ def _assert_service_local_guardrail(
         )
 
 
+DRY_RUN_TASKDEF_VALUE = "not-collected (dry-run)"
+RESULT_PLANNED = "planned"
+RESULT_PASS = "pass"
+
+
+def _taskdef_snapshot(api_taskdef: str, ui_taskdef: str) -> dict[str, str]:
+    return {"api": api_taskdef, "ui": ui_taskdef}
+
+
+def _dry_run_taskdef_snapshot() -> dict[str, str]:
+    return _taskdef_snapshot(DRY_RUN_TASKDEF_VALUE, DRY_RUN_TASKDEF_VALUE)
+
+
 def execute_deploy(config: Config) -> dict:
     config.out_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -162,8 +175,12 @@ def execute_deploy(config: Config) -> dict:
         "timestampUtc": stamp,
         "mode": config.mode,
         "execute": config.execute,
+        "result": RESULT_PLANNED,
         "region": config.aws_region,
         "cluster": config.ecs_cluster,
+        "taskDefinitionBefore": _dry_run_taskdef_snapshot(),
+        "taskDefinitionAfter": _dry_run_taskdef_snapshot(),
+        "smokeArtifacts": [],
         "steps": [],
     }
 
@@ -185,6 +202,7 @@ def execute_deploy(config: Config) -> dict:
 
     before_api = _service_taskdef(config, config.api_service)
     before_ui = _service_taskdef(config, config.ui_service)
+    evidence["taskDefinitionBefore"] = _taskdef_snapshot(before_api, before_ui)
 
     for step in steps:
         selected_service = _service_name(config, step)
@@ -203,18 +221,13 @@ def execute_deploy(config: Config) -> dict:
             after_ui_taskdef=after_ui,
         )
 
+        evidence["smokeArtifacts"].append(smoke_output)
         evidence["steps"].append(
             {
                 "step": step,
                 "service": selected_service,
-                "taskDefinitionBefore": {
-                    "api": before_api,
-                    "ui": before_ui,
-                },
-                "taskDefinitionAfter": {
-                    "api": after_api,
-                    "ui": after_ui,
-                },
+                "taskDefinitionBefore": _taskdef_snapshot(before_api, before_ui),
+                "taskDefinitionAfter": _taskdef_snapshot(after_api, after_ui),
                 "smokeArtifact": smoke_output,
                 "guardrail": "ok",
             }
@@ -223,6 +236,8 @@ def execute_deploy(config: Config) -> dict:
         before_api = after_api
         before_ui = after_ui
 
+    evidence["taskDefinitionAfter"] = _taskdef_snapshot(before_api, before_ui)
+    evidence["result"] = RESULT_PASS
     return evidence
 
 
