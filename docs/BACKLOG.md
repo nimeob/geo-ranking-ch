@@ -560,6 +560,7 @@
   - [ ] #331 — BL-31.5 Monitoring/Alerting für UI-Service
 - **Fortschritt (2026-02-28):**
   - ✅ BL-31.2 umgesetzt: separates UI-Image (`Dockerfile.ui`) inkl. Build-Args/Runtime-ENV, eigenständiger UI-Entrypoint (`src/ui_service.py`) und ECS-Task-Template (`infra/ecs/taskdef.swisstopo-dev-ui.json`) mit `/healthz`-Healthcheck.
+  - ✅ #336 abgeschlossen (Testing-Catch-up BL-31 Routing/TLS-Smokepfade): reproduzierbarer Smoke-Runner [`scripts/run_bl31_routing_tls_smoke.sh`](../scripts/run_bl31_routing_tls_smoke.sh) + Runbook [`docs/testing/bl31-routing-tls-smoke-catchup.md`](testing/bl31-routing-tls-smoke-catchup.md) inkl. CORS-Baseline-Check (Warn-/Strict-Modus) und Regressionstest `tests/test_bl31_routing_tls_smoke_script.py`.
 - **Nächster Schritt (oldest-first, unblocked):** #329 claimen (Routing/TLS), da #327 als Parent-Container über die Leaf-Work-Packages fortgeschrieben wird.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
