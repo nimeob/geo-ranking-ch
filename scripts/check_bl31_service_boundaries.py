@@ -29,13 +29,37 @@ SHARED_MODULES: Set[str] = {
 }
 
 
-def _normalize_local_module(import_name: str, local_modules: Set[str]) -> str | None:
-    """Map an import name to a local src module stem when possible."""
-    if import_name.startswith("src."):
-        candidate = import_name.split(".", 1)[1].split(".", 1)[0]
-    else:
-        candidate = import_name.split(".", 1)[0]
+def _collect_local_python_modules(src_dir: Path) -> Dict[str, Path]:
+    modules: Dict[str, Path] = {}
+    for py_file in sorted(src_dir.rglob("*.py")):
+        if py_file.name == "__init__.py":
+            continue
+        rel_path = py_file.relative_to(src_dir).with_suffix("")
+        module_name = ".".join(rel_path.parts)
+        modules[module_name] = py_file
+    return modules
 
+
+def _detect_layout_mode(local_modules: Set[str]) -> str:
+    has_split_api = any(module.startswith("api.") for module in local_modules)
+    has_split_ui = any(module.startswith("ui.") for module in local_modules)
+    has_split_shared = any(module.startswith("shared.") for module in local_modules)
+
+    if has_split_api or has_split_ui or has_split_shared:
+        return "split"
+    return "legacy"
+
+
+def _normalize_local_module(import_name: str, local_modules: Set[str]) -> str | None:
+    """Map an import name to a local module key when possible."""
+    clean_name = import_name.split("src.", 1)[1] if import_name.startswith("src.") else import_name
+
+    # Prefer longest local-module match first so dotted modules resolve correctly.
+    for module in sorted(local_modules, key=len, reverse=True):
+        if clean_name == module or clean_name.startswith(module + "."):
+            return module
+
+    candidate = clean_name.split(".", 1)[0]
     if candidate in local_modules:
         return candidate
     return None
@@ -67,7 +91,15 @@ def _collect_local_imports(file_path: Path, local_modules: Set[str]) -> Set[str]
     return imports
 
 
-def _service_group(module: str) -> str:
+def _service_group(module: str, layout_mode: str) -> str:
+    if layout_mode == "split":
+        if module.startswith("api."):
+            return "api"
+        if module.startswith("ui."):
+            return "ui"
+        if module.startswith("shared."):
+            return "shared"
+
     if module in API_SERVICE_MODULES:
         return "api"
     if module in UI_SERVICE_MODULES:
@@ -77,30 +109,42 @@ def _service_group(module: str) -> str:
     return "neutral"
 
 
+def _validate_expected_modules(local_modules: Set[str], layout_mode: str) -> List[str]:
+    violations: List[str] = []
+
+    if layout_mode == "split":
+        if not any(module.startswith("api.") for module in local_modules):
+            violations.append("Split layout requires at least one module below src/api/")
+        if not any(module.startswith("ui.") for module in local_modules):
+            violations.append("Split layout requires at least one module below src/ui/")
+        if not any(module.startswith("shared.") for module in local_modules):
+            violations.append("Split layout requires at least one module below src/shared/")
+        return violations
+
+    expected_modules = API_SERVICE_MODULES | UI_SERVICE_MODULES | SHARED_MODULES
+    missing_modules = sorted(module for module in expected_modules if module not in local_modules)
+    if missing_modules:
+        violations.append("Policy modules missing in src/: " + ", ".join(missing_modules))
+    return violations
+
+
 def analyze_service_boundaries(src_dir: Path) -> List[str]:
     if not src_dir.exists() or not src_dir.is_dir():
         return [f"src directory not found: {src_dir}"]
 
-    py_files = sorted(p for p in src_dir.glob("*.py") if p.name != "__init__.py")
-    local_modules = {p.stem for p in py_files}
-
-    expected_modules = API_SERVICE_MODULES | UI_SERVICE_MODULES | SHARED_MODULES
-    missing_modules = sorted(m for m in expected_modules if m not in local_modules)
-    violations: List[str] = []
-
-    if missing_modules:
-        violations.append(
-            "Policy modules missing in src/: " + ", ".join(missing_modules)
-        )
+    module_files = _collect_local_python_modules(src_dir)
+    local_modules = set(module_files)
+    layout_mode = _detect_layout_mode(local_modules)
+    violations: List[str] = _validate_expected_modules(local_modules, layout_mode)
 
     import_graph: Dict[str, Set[str]] = {}
-    for py_file in py_files:
-        import_graph[py_file.stem] = _collect_local_imports(py_file, local_modules)
+    for module, py_file in module_files.items():
+        import_graph[module] = _collect_local_imports(py_file, local_modules)
 
     for importer, dependencies in sorted(import_graph.items()):
-        importer_group = _service_group(importer)
+        importer_group = _service_group(importer, layout_mode)
         for dependency in sorted(dependencies):
-            dependency_group = _service_group(dependency)
+            dependency_group = _service_group(dependency, layout_mode)
 
             if importer_group == "api" and dependency_group == "ui":
                 violations.append(
@@ -143,6 +187,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     src_dir = Path(args.src_dir)
+    local_modules = set(_collect_local_python_modules(src_dir)) if src_dir.exists() else set()
+    layout_mode = _detect_layout_mode(local_modules) if local_modules else "legacy"
     violations = analyze_service_boundaries(src_dir)
     ok = len(violations) == 0
 
@@ -150,19 +196,21 @@ def main(argv: Iterable[str] | None = None) -> int:
         payload = {
             "ok": ok,
             "src_dir": str(src_dir),
+            "layout_mode": layout_mode,
             "violations": violations,
             "policy": {
-                "api_modules": sorted(API_SERVICE_MODULES),
-                "ui_modules": sorted(UI_SERVICE_MODULES),
-                "shared_modules": sorted(SHARED_MODULES),
+                "legacy_api_modules": sorted(API_SERVICE_MODULES),
+                "legacy_ui_modules": sorted(UI_SERVICE_MODULES),
+                "legacy_shared_modules": sorted(SHARED_MODULES),
+                "split_prefixes": ["api.*", "ui.*", "shared.*"],
             },
         }
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         if ok:
-            print("✅ BL-31 service-boundary check passed")
+            print(f"✅ BL-31 service-boundary check passed (mode: {layout_mode})")
         else:
-            print("❌ BL-31 service-boundary check failed")
+            print(f"❌ BL-31 service-boundary check failed (mode: {layout_mode})")
             for violation in violations:
                 print(f"- {violation}")
 

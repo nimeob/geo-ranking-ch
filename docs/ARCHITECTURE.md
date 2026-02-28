@@ -197,24 +197,49 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 | API-zentrierte Entitlements | Sicherheit und Konsistenz | UI-spezifische UX braucht zusätzliche API-Fehlerbehandlung | akzeptiert |
 | Service-lokaler Rollback | Geringerer Blast Radius | Versionsdrift UI↔API möglich | mitigiert über Smoke/Kompatibilitätschecks |
 
-### 6.8 Service-Boundary-Guard (BL-31.x.wp1)
+### 6.8 Service-Boundary-Guard (BL-31.x.wp1, erweitert für BL-334)
 
-Für die laufende Entkopplung gilt ein expliziter Boundary-Guard in [`scripts/check_bl31_service_boundaries.py`](../scripts/check_bl31_service_boundaries.py):
+Für die laufende Entkopplung gilt ein expliziter Boundary-Guard in [`scripts/check_bl31_service_boundaries.py`](../scripts/check_bl31_service_boundaries.py).
 
+Aktueller Legacy-Modus (flaches `src/`):
 - **API-Module:** `web_service`, `address_intel`, `personalized_scoring`, `suitability_light`
 - **UI-Module:** `ui_service`
 - **Shared-Module (explizit erlaubt):** `gui_mvp`, `geo_utils`, `gwr_codes`, `mapping_transform_rules`
 
-Guard-Regeln:
-- API-Module dürfen keine UI-Module importieren.
-- UI-Module dürfen keine API-Module importieren.
-- Shared-Module bleiben neutral (keine Imports von API- oder UI-Modulen).
+Zielmodus BL-334 (getrennte Source-Bereiche):
+- **API-Pakete:** `src/api/*`
+- **UI-Pakete:** `src/ui/*`
+- **Shared-Pakete:** `src/shared/*`
+
+Guard-Regeln (beide Modi):
+- API darf UI nicht importieren.
+- UI darf API nicht importieren.
+- Shared bleibt neutral (keine Imports von API- oder UI-Modulen).
 
 Aufruf (lokal/CI):
 
 ```bash
 python3 scripts/check_bl31_service_boundaries.py --src-dir src
 ```
+
+### 6.9 BL-334 Zielstruktur für Source-Trennung (Planungsbaseline)
+
+Geplante Zielstruktur für die folgenden BL-334-Work-Packages:
+
+```text
+src/
+  api/        # API-Laufzeit, HTTP-Entrypoints, Domain-Aggregation
+  ui/         # UI-Laufzeit, View/Interaction-Logik
+  shared/     # neutrale, service-übergreifende Hilfsmodule
+```
+
+Verbindliche Import-Richtungen:
+- `api -> shared` ✅ erlaubt
+- `ui -> shared` ✅ erlaubt
+- `shared -> api/ui` ❌ verboten
+- `api <-> ui` ❌ verboten
+
+Hinweis: Die physische Migration in diese Struktur erfolgt schrittweise über BL-334.2 bis BL-334.5. Bis dahin bleibt der Guard im Legacy-Modus aktiv und verhindert bereits heute unzulässige Cross-Imports.
 
 ## 7) Offene Punkte / Nächste Architektur-Schritte
 
