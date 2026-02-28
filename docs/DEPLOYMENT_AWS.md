@@ -452,7 +452,7 @@ git checkout v<stabile-version>
 | Alert-Kanal | SNS + Lambda → Telegram | ✅ Aktiv und getestet (ALARM/OK im Telegram-Chat bestätigt, 2026-02-25) |
 | Telegram-Alerting | Lambda `swisstopo-dev-sns-to-telegram` | ✅ Aktiv (SSM SecureString + SNS-Subscription + Lambda-Permission verifiziert) |
 | Uptime/HTTP Health | Lambda `swisstopo-dev-health-probe` + EventBridge (rate 5 min) | ✅ Aktiv und getestet (2026-02-25) — dynamische ECS-IP-Auflösung, Metrik `HealthProbeSuccess`, Alarm `swisstopo-dev-api-health-probe-fail` |
-| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh`, `scripts/setup_health_probe_dev.sh`, `scripts/check_health_probe_dev.sh`, `scripts/setup_bl31_ui_artifact_path.sh`, `scripts/setup_bl31_ui_monitoring_baseline.sh`, `scripts/check_bl31_ui_monitoring_baseline.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks + Uptime Probe vorhanden (inkl. BL-31.5 UI-Monitoring-Baseline und BL-31.6.a Artefakt-/Taskdef-Setup) |
+| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh`, `scripts/setup_health_probe_dev.sh`, `scripts/check_health_probe_dev.sh`, `scripts/setup_bl31_ui_artifact_path.sh`, `scripts/setup_bl31_ui_service_rollout.sh`, `scripts/setup_bl31_ui_monitoring_baseline.sh`, `scripts/check_bl31_ui_monitoring_baseline.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks + Uptime Probe vorhanden (inkl. BL-31.5 UI-Monitoring-Baseline sowie BL-31.6.a/BL-31.6.b Setup- und Rollout-Automation) |
 | Tracing | X-Ray | ⚠️ zu evaluieren |
 
 ### Telegram-Alerting — Architektur & Deployment (BL-08)
@@ -602,6 +602,25 @@ Das Setup nutzt intern das generische Health-Probe-Setup mit UI-spezifischen Nam
 ./scripts/check_bl31_ui_monitoring_baseline.sh
 # Exit 0 = ok | 10 = Warn | 20 = kritisch
 ```
+
+### BL-31.6.b UI-Service Rollout + Stabilisierung (dev)
+
+Für den separaten Rollout des UI-Service inkl. API-Paritätscheck steht ein idempotentes Rollout-Skript bereit:
+
+```bash
+TARGET_TASKDEF=swisstopo-dev-ui:<revision> ./scripts/setup_bl31_ui_service_rollout.sh
+```
+
+Der Lauf:
+- setzt den UI-Service auf die Ziel-Taskdef,
+- wartet auf `services-stable`,
+- prüft `GET /healthz` auf dem laufenden UI-Task,
+- prüft `GET /health` auf dem API-Task (Paritätscheck),
+- schreibt Evidenz nach `artifacts/bl31/*-bl31-ui-ecs-rollout.json`.
+
+Nachweislauf (Issue #346):
+- `docs/testing/bl31-ui-ecs-rollout.md`
+- `artifacts/bl31/20260228T080756Z-bl31-ui-ecs-rollout.json` (Taskdef `:3` → `:5`)
 
 **Erster verifizierter Testlauf (2026-02-25):**
 - IP `18.184.115.244` dynamisch aufgelöst

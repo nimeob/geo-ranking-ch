@@ -193,6 +193,14 @@ Für BL-31.6.a (UI-Artefaktpfad + Taskdef-Revision) steht zusätzlich ein automa
 
 Der Lauf erzeugt eine JSON-Evidenz unter `artifacts/bl31/*-bl31-ui-artifact-path.json` (CodeBuild-Run, Image-URI/Digest, Taskdef-ARN).
 
+Für BL-31.6.b (ECS-Rollout + Stabilisierung) ist der service-lokale Rolloutpfad automatisiert:
+
+```bash
+TARGET_TASKDEF=swisstopo-dev-ui:<revision> ./scripts/setup_bl31_ui_service_rollout.sh
+```
+
+Der Check verifiziert nach dem Rollout sowohl UI (`/healthz`) als auch API (`/health`) und schreibt die Evidenz nach `artifacts/bl31/*-bl31-ui-ecs-rollout.json`.
+
 #### BL-31.3 Failure-/Rollback-Hinweise (Routing/TLS)
 
 Typische Symptome und Sofortmaßnahmen:
