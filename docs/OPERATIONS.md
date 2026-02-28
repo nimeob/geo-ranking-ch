@@ -182,6 +182,29 @@ Sobald der UI-Service (`swisstopo-dev-ui`) live ist, gelten zusätzlich:
 3. **Rollback nur service-lokal:** bei UI-Problemen kein automatischer API-Rollback (und umgekehrt).
 4. **Runbook-Evidenz pro Service:** Deploy-/Rollback-Nachweis getrennt dokumentieren (Issue/PR-Kommentar + Artefakte).
 
+#### BL-31.3 Failure-/Rollback-Hinweise (Routing/TLS)
+
+Typische Symptome und Sofortmaßnahmen:
+
+- **`app.<domain>` liefert 404/503, `api.<domain>` gesund:**
+  - ALB Host-Rule für `app.<domain>` prüfen (Priority, Target Group)
+  - UI-Service/Task health prüfen (`/healthz`)
+  - nur UI-Service auf letzte stabile Revision zurückrollen
+
+- **TLS-Fehler auf einem Host (`NET::ERR_CERT_COMMON_NAME_INVALID` o. ä.):**
+  - ACM-Zertifikat auf SAN/Wildcard-Abdeckung für `api.<domain>` + `app.<domain>` prüfen
+  - Listener-Zertifikatsbindung/Default-Cert kontrollieren
+  - bei Bedarf letzte funktionierende Listener-Konfiguration wiederherstellen
+
+- **Browser-CORS-Fehler bei `POST /analyze`:**
+  - API-ENV `CORS_ALLOW_ORIGINS` mit UI-Origin abgleichen (`https://app.<domain>`)
+  - Preflight prüfen: `OPTIONS https://api.<domain>/analyze` muss `204` + passenden `Access-Control-Allow-Origin` liefern
+  - nach Korrektur Strict-Smoke ausführen: `BL31_STRICT_CORS=1 ./scripts/run_bl31_routing_tls_smoke.sh`
+
+Rollback-Guardrail:
+- Routing-/TLS-Änderungen zuerst rückgängig machen, **bevor** ein Service-Rollback ausgelöst wird.
+- Nach jedem Rollback Pflicht-Smoke: `https://api.<domain>/health` und `https://app.<domain>/healthz`.
+
 ---
 
 ## Agent-Autopilot (Nipa)

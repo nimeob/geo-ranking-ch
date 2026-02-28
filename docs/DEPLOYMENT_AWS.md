@@ -188,6 +188,12 @@ Verbindliche Betriebsregeln:
 - Bei kombinierten Änderungen gilt als sichere Reihenfolge: **API deployen → API smoke → UI deployen → UI smoke**.
 - CORS-Allowlist wird auf UI-Origin eingeschränkt; keine globale `*`-Freigabe.
 
+**Runtime-ENV (API, BL-31.3 relevant):**
+
+| ENV | Default | Zweck |
+|---|---|---|
+| `CORS_ALLOW_ORIGINS` | _(leer)_ | Komma-separierte CORS-Allowlist für `POST/OPTIONS /analyze` (z. B. `https://app.<domain>`). |
+
 ### BL-31.2 Artefakt-Basis für UI-Service
 
 BL-31.2 legt die technische Basis für ein eigenes UI-Artefakt fest:
@@ -240,6 +246,38 @@ Task-Definition-Hinweis:
 - Das Template `infra/ecs/taskdef.swisstopo-dev-ui.json` ist als revisionsfähige Basis gedacht.
 - Platzhalter (`__IMAGE_TAG__`, `__APP_VERSION__`, `__DOMAIN__`) vor `register-task-definition` ersetzen.
 - Healthcheck für UI läuft auf `GET /healthz`.
+
+### BL-31.3 Routing/TLS + CORS Abnahmepfad
+
+Host-basiertes Zielrouting (ALB):
+- `Host: api.<domain>` → API Target Group
+- `Host: app.<domain>` → UI Target Group
+
+TLS-Basis:
+- Ein ACM-Zertifikat (SAN oder Wildcard) deckt **beide** Hosts (`api.*`, `app.*`) ab.
+- HTTP-Listener leitet via 301/308 auf HTTPS um.
+
+CORS-Härtung (API):
+- `CORS_ALLOW_ORIGINS` auf UI-Origin(s) setzen, z. B.:
+
+```bash
+CORS_ALLOW_ORIGINS="https://app.<domain>"
+```
+
+- `OPTIONS /analyze` liefert bei erlaubter Origin `204` + `Access-Control-Allow-Origin`.
+- Nicht erlaubte Origins werden mit `403 cors_origin_not_allowed` abgewiesen.
+
+Reproduzierbare Verifikation (Strict-Modus):
+
+```bash
+BL31_API_BASE_URL="https://api.<domain>" \
+BL31_APP_BASE_URL="https://app.<domain>" \
+BL31_CORS_ORIGIN="https://app.<domain>" \
+BL31_STRICT_CORS="1" \
+./scripts/run_bl31_routing_tls_smoke.sh
+```
+
+Erwartung: alle Checks `pass`, Exit-Code `0`.
 
 ### Reguläres Deployment (nach erstem Setup)
 

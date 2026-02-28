@@ -45,6 +45,7 @@ class TestBl31RoutingTlsSmokeScript(unittest.TestCase):
                 "HOST": "127.0.0.1",
                 "PORT": str(cls.api_port),
                 "PYTHONPATH": str(REPO_ROOT),
+                "CORS_ALLOW_ORIGINS": cls.ui_base_url,
             }
         )
         cls.api_proc = subprocess.Popen(
@@ -117,21 +118,16 @@ class TestBl31RoutingTlsSmokeScript(unittest.TestCase):
         self.assertEqual(payload["overall"]["status"], "pass")
         self.assertEqual(payload["checks"]["api_health"]["status"], "pass")
         self.assertEqual(payload["checks"]["app_reachability"]["status"], "pass")
-        self.assertIn(payload["checks"]["cors_baseline"]["status"], {"warn", "pass"})
+        self.assertEqual(payload["checks"]["cors_baseline"]["status"], "pass")
         self.assertIn("[BL-31] API health", cp.stdout)
         self.assertIn("[BL-31] CORS baseline", cp.stdout)
 
-    def test_strict_mode_matches_cors_baseline_result(self):
+    def test_strict_mode_is_green_with_configured_allowlist(self):
         cp, payload = self._run_smoke(strict_cors="1")
 
-        cors_status = payload["checks"]["cors_baseline"]["status"]
-        if cors_status == "pass":
-            self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
-            self.assertEqual(payload["overall"]["status"], "pass")
-        else:
-            self.assertNotEqual(cp.returncode, 0)
-            self.assertEqual(payload["overall"]["status"], "fail")
-            self.assertEqual(payload["overall"]["reason"], "cors_baseline_failed")
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(payload["overall"]["status"], "pass")
+        self.assertEqual(payload["checks"]["cors_baseline"]["status"], "pass")
 
     def test_invalid_api_base_url_fails_fast(self):
         env = os.environ.copy()
