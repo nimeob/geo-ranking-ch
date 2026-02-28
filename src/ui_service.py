@@ -1,125 +1,16 @@
 #!/usr/bin/env python3
-"""Minimaler UI-Webservice für BL-31.2.
+"""Kompatibilitäts-Wrapper für ``src.ui.service``.
 
-Stellt das GUI-MVP (`/` und `/gui`) als eigenständigen HTTP-Service bereit
-und liefert einen separaten Healthcheck-Endpunkt (`/healthz`).
+Die kanonische UI-Service-Implementierung wurde nach ``src/ui/service.py``
+verschoben. Dieser Wrapper hält bestehende Entrypoints stabil
+(``python -m src.ui_service``).
 """
 
-from __future__ import annotations
+from importlib import import_module
+import sys
 
-import json
-import os
-import posixpath
-from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
-
-from src.gui_mvp import render_gui_mvp_html
-
-
-def _normalize_path(path: str) -> str:
-    """Normalisiert doppelte Slashes und entfernt Trailing-Slash (außer Root)."""
-
-    raw = path or "/"
-    normalized = posixpath.normpath(raw)
-    if not normalized.startswith("/"):
-        normalized = f"/{normalized}"
-    if normalized == "/.":
-        return "/"
-    return normalized
-
-
-def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
-    html = render_gui_mvp_html(app_version=app_version)
-    if not api_base_url:
-        return html
-
-    analyze_url = f"{api_base_url.rstrip('/')}/analyze"
-    return html.replace('fetch("/analyze", {', f"fetch({json.dumps(analyze_url)}, {{")
-
-
-class _UiHandler(BaseHTTPRequestHandler):
-    server_version = "geo-ranking-ui/1.0"
-
-    def _send_json(self, payload: dict, *, status: int = HTTPStatus.OK) -> None:
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def _send_html(self, html: str, *, status: int = HTTPStatus.OK) -> None:
-        body = html.encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_GET(self) -> None:  # noqa: N802 - stdlib callback name
-        parsed = urlparse(self.path)
-        request_path = _normalize_path(parsed.path)
-
-        if request_path in {"/", "/gui"}:
-            html = _build_gui_html(
-                app_version=self.server.app_version,
-                api_base_url=self.server.ui_api_base_url,
-            )
-            self._send_html(html)
-            return
-
-        if request_path in {"/health", "/healthz"}:
-            self._send_json(
-                {
-                    "ok": True,
-                    "service": "geo-ranking-ch-ui",
-                    "version": self.server.app_version,
-                    "api_base_url": self.server.ui_api_base_url or None,
-                }
-            )
-            return
-
-        self._send_json(
-            {
-                "ok": False,
-                "error": "not_found",
-                "message": f"Unknown endpoint: {request_path}",
-            },
-            status=HTTPStatus.NOT_FOUND,
-        )
-
-    def log_message(self, format: str, *args) -> None:  # noqa: A003 - stdlib signature
-        return
-
-
-class _UiHttpServer(ThreadingHTTPServer):
-    def __init__(self, server_address, request_handler_class, *, app_version: str, ui_api_base_url: str):
-        super().__init__(server_address, request_handler_class)
-        self.app_version = app_version
-        self.ui_api_base_url = ui_api_base_url
-
-
-def main() -> None:
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8080"))
-    app_version = os.getenv("APP_VERSION", "dev")
-    ui_api_base_url = os.getenv("UI_API_BASE_URL", "").strip()
-
-    httpd = _UiHttpServer(
-        (host, port),
-        _UiHandler,
-        app_version=app_version,
-        ui_api_base_url=ui_api_base_url,
-    )
-    print(
-        f"[geo-ranking-ch-ui] serving on http://{host}:{port} "
-        f"(version={app_version}, api_base_url={ui_api_base_url or '/analyze (relative)'})"
-    )
-    httpd.serve_forever()
-
+_ui_module = import_module("src.ui.service")
+sys.modules[__name__] = _ui_module
 
 if __name__ == "__main__":
-    main()
+    _ui_module.main()
