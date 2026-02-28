@@ -59,7 +59,8 @@ Für Standort- und Gebäudeentscheidungen sind in der Schweiz relevante Daten ü
 ## 4) Demo-Flow / Storyline (10–12 Minuten)
 
 ### Setup (vorab)
-- Zieladresse in der Schweiz vorbereiten
+- Demo-Datenset v1 nutzen: [`docs/DEMO_DATASET_CH.md`](DEMO_DATASET_CH.md) (DS-CH-01 bis DS-CH-05)
+- Primärfall + Vergleichsfall aus dem Datenset auswählen (statt ad-hoc Live-Adressen)
 - Optional zweiter Fall via Kartenklick (vergleichender Standort)
 - API- und GUI-Zugang verifizieren (`/health`, `/version`, Demo-URL)
 
@@ -84,8 +85,8 @@ Für Standort- und Gebäudeentscheidungen sind in der Schweiz relevante Daten ü
   - Ergebnis: GTM-Claim-Gate inkl. kommerzieller Nutzbarkeit/Attributionspflichten dokumentiert in [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md)
   - Regel: unspezifische Quellenclaims sind als „Claim nicht verwenden“ markiert
   - Referenz auf Quelleninventar: #24 (BL-20.2.a)
-- **#37 — Reproduzierbares Demo-Datenset definieren**
-  - Risiko: inkonsistente Live-Demo durch Datenänderungen
+- **✅ #37 — Reproduzierbares Demo-Datenset definiert**
+  - Ergebnis: v1-Datenset mit 5 CH-Standorten, erwarteten Kernaussagen und Confidence-/Unsicherheitsnotizen in [`docs/DEMO_DATASET_CH.md`](DEMO_DATASET_CH.md)
 - **#38 — Packaging-/Pricing-Hypothesen mit Zielsegmenten validieren**
   - Risiko: fehlende Entscheidungsbasis für Angebotsmodell
 
@@ -95,6 +96,6 @@ Die verbleibenden Risiken werden separat bearbeitet, damit BL-20.7.b als MVP-Bas
 
 ## 6) Nächster Schritt nach BL-20.7.b
 
-1. Offene Risiken #37/#38 priorisieren und in den nächsten Sprint übernehmen
-2. GTM-Baseline mit erstem Pilot-Run gegentesten
+1. Offenes Risiko #38 (Packaging/Pricing-Hypothesen) priorisieren und in den nächsten Sprint übernehmen
+2. GTM-Baseline mit erstem Pilot-Run gegentesten (unter Nutzung des Datensets v1)
 3. API-Felddoku/Manifest-Follow-ups (#66/#67) für Integrationsfähigkeit priorisieren
