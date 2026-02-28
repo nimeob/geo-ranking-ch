@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/license-propriet%C3%A4r-lightgrey.svg)]()
 [![Status](https://img.shields.io/badge/status-in%20development-yellow.svg)]()
-[![CI/CD](https://img.shields.io/badge/CI%2FCD-ECS%20dev%20(main%20%2B%20manual)-orange.svg)](.github/workflows/deploy.yml)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-ECS%20dev%20(manual)-orange.svg)](.github/workflows/deploy.yml)
 
 ---
 
@@ -322,7 +322,7 @@ geo-ranking-ch/
 │   ├── terraform/                    # IaC für AWS-Ressourcen
 │   ├── iam/                          # IAM Policies/Trusts
 │   └── lambda/                       # Lambda-Funktionen (health_probe, sns_to_telegram)
-├── .github/workflows/deploy.yml      # CI/CD Deploy (push main + manual dispatch)
+├── .github/workflows/deploy.yml      # CI/CD Deploy (manual workflow_dispatch, API+UI)
 ├── .github/workflows/docs-quality.yml# Manual-Fallback für Doku-Gate (OpenClaw ist Primärpfad)
 ├── Dockerfile
 ├── requirements.txt
@@ -337,11 +337,11 @@ geo-ranking-ch/
 
 ## CI/CD
 
-Der Workflow `.github/workflows/deploy.yml` ist auf **ECS/Fargate (dev)** ausgerichtet und läuft bei **Push auf `main`** sowie manuell via **GitHub Actions → Run workflow**.
+Der Workflow `.github/workflows/deploy.yml` ist auf **ECS/Fargate (dev)** ausgerichtet und läuft aktuell **nur manuell** via **GitHub Actions → Run workflow** (`workflow_dispatch`).
 
 Für `contract-tests`, `crawler-regression` und `docs-quality` ist OpenClaw der Primärpfad (siehe [`docs/OPERATIONS.md`](docs/OPERATIONS.md#github-actions-cleanup-required-checks-bl-20ywp4)); die gleichnamigen GitHub-Workflows bleiben als `workflow_dispatch`-Fallback erhalten.
 
-Nach dem ECS-Rollout wartet der Deploy-Workflow auf `services-stable` und führt anschliessend einen Smoke-Test auf `/health` aus (konfiguriert über `SERVICE_HEALTH_URL`).
+Der Deploy-Workflow ist service-getrennt: API und UI werden nacheinander ausgerollt (`services-stable` je Service), danach laufen die Smokes (`/health`, optional `/analyze`, `/healthz`) und optional ein strikter Split-Smoke.
 
 ### Voraussetzungen für den ECS-Deploy
 
@@ -350,12 +350,16 @@ Nach dem ECS-Rollout wartet der Deploy-Workflow auf `services-stable` und führt
 - Optional: `SERVICE_API_AUTH_TOKEN` (für `/analyze`-Smoke-Test, wenn `API_AUTH_TOKEN` im Service aktiv ist).
 
 **GitHub Variables (Actions):**
-- `ECR_REPOSITORY` (z. B. `swisstopo-dev-api`)
 - `ECS_CLUSTER` (z. B. `swisstopo-dev`)
-- `ECS_SERVICE` (z. B. `swisstopo-dev-api`)
-- `ECS_CONTAINER_NAME` (Container-Name in der Task Definition, oft `app` oder `api`)
-- `SERVICE_HEALTH_URL` (vollständige URL für Smoke-Test nach Deploy, z. B. `https://<alb-dns>/health`; wenn leer, wird der Smoke-Test mit Hinweis übersprungen)
-- Optional: `SERVICE_BASE_URL` (Basis-URL ohne Pfad für `/analyze`-Smoke-Test; falls nicht gesetzt, versucht der Workflow den Wert aus `SERVICE_HEALTH_URL` durch Entfernen von `/health` abzuleiten)
+- `ECS_API_SERVICE` (z. B. `swisstopo-dev-api`)
+- `ECS_UI_SERVICE` (z. B. `swisstopo-dev-ui`)
+- `ECS_API_CONTAINER_NAME` (Containername in der API-Task Definition)
+- `ECS_UI_CONTAINER_NAME` (Containername in der UI-Task Definition)
+- `ECR_API_REPOSITORY` (z. B. `swisstopo-dev-api`)
+- `ECR_UI_REPOSITORY` (z. B. `swisstopo-dev-ui`)
+- `SERVICE_API_BASE_URL` (z. B. `https://api.<domain>`)
+- `SERVICE_APP_BASE_URL` (z. B. `https://www.<domain>`)
+- Optional: `SERVICE_HEALTH_URL` (Override für API-Health; sonst wird `${SERVICE_API_BASE_URL}/health` verwendet)
 
 **Zusätzlich erforderlich:**
 - GitHub OIDC Deploy-Role in AWS: `arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`
