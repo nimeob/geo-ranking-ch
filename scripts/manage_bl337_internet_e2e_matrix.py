@@ -32,6 +32,17 @@ TEST_BLUEPRINTS: list[dict[str, Any]] = [
         "expectedResult": "HTTP 200; Response entspricht Contract-Grundstruktur (Result + Explainability-Felder).",
     },
     {
+        "testId": "API.ANALYZE.NON_BASIC.FINAL_STATE",
+        "area": "api",
+        "title": "Analyze Non-Basic Mode terminiert mit finalem Ergebnis oder sauberem Fehler",
+        "preconditions": ["Valider Request-Payload verfügbar", "intelligence_mode != basic"],
+        "steps": [
+            "POST {apiBaseUrl}/analyze mit validem JSON-Payload und intelligence_mode=extended",
+            "Antwort innerhalb Request-Timeout auswerten",
+        ],
+        "expectedResult": "Deterministischer Final-State: entweder HTTP 200 + ok=true + result oder strukturierter Fehler (ok=false + error + message) statt hängendem Loading.",
+    },
+    {
         "testId": "API.ANALYZE.INVALID_PAYLOAD.400",
         "area": "api",
         "title": "Analyze lehnt invalides JSON deterministisch ab",

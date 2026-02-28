@@ -177,7 +177,7 @@ class TestRunBl337UiFrontdoorE2E(unittest.TestCase):
                 "apiBaseUrl": api_base_url,
                 "appBaseUrl": app_base_url,
             },
-            "summary": {"total": 8, "planned": 8, "pass": 0, "fail": 0, "blocked": 0},
+            "summary": {"total": 9, "planned": 9, "pass": 0, "fail": 0, "blocked": 0},
             "tests": [
                 {
                     "testId": "API.HEALTH.200",
@@ -198,6 +198,18 @@ class TestRunBl337UiFrontdoorE2E(unittest.TestCase):
                     "preconditions": [],
                     "steps": ["POST"],
                     "expectedResult": "HTTP 200",
+                    "actualResult": None,
+                    "status": "planned",
+                    "evidenceLinks": [],
+                    "notes": "",
+                },
+                {
+                    "testId": "API.ANALYZE.NON_BASIC.FINAL_STATE",
+                    "area": "api",
+                    "title": "analyze non-basic",
+                    "preconditions": [],
+                    "steps": ["POST extended"],
+                    "expectedResult": "Success oder strukturierter Fehler",
                     "actualResult": None,
                     "status": "planned",
                     "evidenceLinks": [],
@@ -299,7 +311,7 @@ class TestRunBl337UiFrontdoorE2E(unittest.TestCase):
             matrix_payload = json.loads(matrix.read_text(encoding="utf-8"))
             summary = matrix_payload["summary"]
             self.assertEqual(summary["pass"], 4)
-            self.assertEqual(summary["planned"], 4)
+            self.assertEqual(summary["planned"], 5)
             self.assertEqual(summary["fail"], 0)
             self.assertEqual(summary["blocked"], 0)
 

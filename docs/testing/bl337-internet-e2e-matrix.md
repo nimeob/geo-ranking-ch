@@ -73,6 +73,7 @@ python3 scripts/run_bl337_api_frontdoor_e2e.py
 
 Ergebnis:
 - API-Testfälle (`API.*`) werden in der Matrix von `planned` auf `pass|fail|blocked` fortgeschrieben.
+- Der Non-Basic-Sicherheitsfall `API.ANALYZE.NON_BASIC.FINAL_STATE` prüft explizit, dass `intelligence_mode=extended` deterministisch terminiert (Success **oder** strukturierter Error-State).
 - `actualResult` + `evidenceLinks` werden pro API-Fall gesetzt.
 - Evidence-Datei enthält pro Testfall `httpStatus`, `reason`, `responseExcerpt` und Gesamtsummary.
 

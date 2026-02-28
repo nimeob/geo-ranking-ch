@@ -18,6 +18,7 @@ DEFAULT_TIMEOUT_SECONDS = 20.0
 API_TEST_IDS = {
     "API.HEALTH.200",
     "API.ANALYZE.POST.200",
+    "API.ANALYZE.NON_BASIC.FINAL_STATE",
     "API.ANALYZE.INVALID_PAYLOAD.400",
     "API.ANALYZE.METHOD_MISMATCH.405",
 }
@@ -188,6 +189,16 @@ def _run_api_checks(config: Config) -> list[ApiCheckResult]:
         ensure_ascii=False,
     ).encode("utf-8")
 
+    non_basic_mode = config.intelligence_mode if config.intelligence_mode != "basic" else "extended"
+    non_basic_payload = json.dumps(
+        {
+            "query": config.query,
+            "intelligence_mode": non_basic_mode,
+            "timeout_seconds": 30,
+        },
+        ensure_ascii=False,
+    ).encode("utf-8")
+
     cases = [
         {
             "test_id": "API.HEALTH.200",
@@ -200,6 +211,12 @@ def _run_api_checks(config: Config) -> list[ApiCheckResult]:
             "url": f"{config.api_base_url}/analyze",
             "method": "POST",
             "body": analyze_payload,
+        },
+        {
+            "test_id": "API.ANALYZE.NON_BASIC.FINAL_STATE",
+            "url": f"{config.api_base_url}/analyze",
+            "method": "POST",
+            "body": non_basic_payload,
         },
         {
             "test_id": "API.ANALYZE.INVALID_PAYLOAD.400",
@@ -283,6 +300,26 @@ def _evaluate_case(*, test_id: str, response: HttpResponse) -> dict[str, str]:
             "actual_result": (
                 f"HTTP {http_status}; ok={ok_flag}; result_object={has_result}; "
                 f"request_id={json_body.get('request_id') if isinstance(json_body, dict) else None}"
+            ),
+        }
+
+    if test_id == "API.ANALYZE.NON_BASIC.FINAL_STATE":
+        has_result = isinstance(json_body, dict) and isinstance(json_body.get("result"), dict)
+        has_structured_error = (
+            isinstance(json_body, dict)
+            and json_body.get("ok") is False
+            and isinstance(json_body.get("error"), str)
+            and isinstance(json_body.get("message"), str)
+        )
+        passed = (http_status == 200 and ok_flag and has_result) or has_structured_error
+        reason = "ok" if passed else "expected_success_or_structured_error_final_state"
+        return {
+            "status": "pass" if passed else "fail",
+            "reason": reason,
+            "actual_result": (
+                f"HTTP {http_status}; ok={ok_flag}; result_object={has_result}; "
+                f"structured_error={has_structured_error}; "
+                f"error={json_body.get('error') if isinstance(json_body, dict) else None}"
             ),
         }
 
