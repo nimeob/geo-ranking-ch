@@ -61,6 +61,28 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
         self.assertEqual(counts["development"], 0)
         self.assertEqual(counts["documentation"], 1)
 
+    def test_build_workstream_catchup_plan_returns_minimal_delta_per_category(self):
+        catchup_plan = crawler.build_workstream_catchup_plan(
+            {"development": 6, "documentation": 4, "testing": 2},
+            target_gap_max=2,
+            severe_zero_gap=False,
+        )
+
+        self.assertEqual(catchup_plan["target_min_count"], 4)
+        self.assertEqual(catchup_plan["total_delta"], 2)
+        self.assertEqual(
+            catchup_plan["categories"],
+            [
+                {
+                    "category": "testing",
+                    "label": "Testing",
+                    "current": 2,
+                    "target": 4,
+                    "delta": 2,
+                }
+            ],
+        )
+
     def test_audit_workstream_balance_creates_p0_issue_when_gap_is_too_large(self):
         issues = [
             {"title": "Implement API feature", "body": "", "labels": []},
@@ -83,6 +105,8 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
         self.assertIn("Development: **2**", created[0]["body"])
         self.assertIn("Dokumentation: **1**", created[0]["body"])
         self.assertIn("Testing: **0**", created[0]["body"])
+        self.assertIn("Catch-up-Empfehlung", created[0]["body"])
+        self.assertIn("Testing: **+1**", created[0]["body"])
 
     def test_audit_workstream_balance_skips_when_balanced(self):
         issues = [
@@ -157,6 +181,20 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
         self.assertEqual(baseline["gap"], 2)
         self.assertEqual(baseline["target_gap_max"], 2)
         self.assertTrue(baseline["needs_catchup"])
+        self.assertEqual(baseline["catchup_plan"]["target_min_count"], 1)
+        self.assertEqual(baseline["catchup_plan"]["total_delta"], 1)
+        self.assertEqual(
+            baseline["catchup_plan"]["categories"],
+            [
+                {
+                    "category": "testing",
+                    "label": "Testing",
+                    "current": 0,
+                    "target": 1,
+                    "delta": 1,
+                }
+            ],
+        )
 
     def test_format_workstream_balance_markdown_contains_core_fields(self):
         baseline = {
@@ -164,6 +202,11 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
             "gap": 2,
             "target_gap_max": 2,
             "needs_catchup": True,
+            "catchup_plan": {
+                "target_min_count": 1,
+                "total_delta": 0,
+                "categories": [],
+            },
         }
 
         rendered = crawler.format_workstream_balance_markdown(baseline, "2026-02-26T21:00:00+00:00")
@@ -174,6 +217,8 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
         self.assertIn("Testing: **1**", rendered)
         self.assertIn("Ziel-Gap: **<= 2**", rendered)
         self.assertIn("Catch-up nötig: **ja**", rendered)
+        self.assertIn("Catch-up-Empfehlung", rendered)
+        self.assertIn("Kein zusätzlicher Delta-Bedarf erkannt", rendered)
 
     def test_print_workstream_balance_report_json_renders_machine_readable_payload(self):
         issues = [

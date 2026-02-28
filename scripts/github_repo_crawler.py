@@ -35,6 +35,11 @@ WORKSTREAM_KEYWORDS = {
         "test", "pytest", "e2e", "smoke", "stability", "regression", "qa", "validation"
     },
 }
+WORKSTREAM_LABELS = {
+    "development": "Development",
+    "documentation": "Dokumentation",
+    "testing": "Testing",
+}
 
 WORKSTREAM_BALANCE_ISSUE_TITLE = "[Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen"
 CONSISTENCY_REPORT_JSON = Path("reports/consistency_report.json")
@@ -912,6 +917,63 @@ def get_open_issues_for_workstream_balance():
     ])
 
 
+def build_workstream_catchup_plan(counts: dict[str, int], *, target_gap_max: int, severe_zero_gap: bool) -> dict[str, Any]:
+    if not counts:
+        return {
+            "target_min_count": 0,
+            "total_delta": 0,
+            "categories": [],
+        }
+
+    max_count = max(counts.values())
+    target_min_count = max(max_count - target_gap_max, 1 if severe_zero_gap else 0)
+
+    categories = []
+    for category in sorted(counts.keys()):
+        current = counts[category]
+        delta = max(0, target_min_count - current)
+        if delta <= 0:
+            continue
+        categories.append(
+            {
+                "category": category,
+                "label": WORKSTREAM_LABELS.get(category, category),
+                "current": current,
+                "target": target_min_count,
+                "delta": delta,
+            }
+        )
+
+    return {
+        "target_min_count": target_min_count,
+        "total_delta": sum(item["delta"] for item in categories),
+        "categories": categories,
+    }
+
+
+def format_workstream_catchup_lines(catchup_plan: dict[str, Any]) -> list[str]:
+    categories = catchup_plan.get("categories") or []
+    if not categories:
+        return ["- Kein zusätzlicher Delta-Bedarf erkannt."]
+
+    lines = [f"- Ziel-Mindeststand je Workstream: **{catchup_plan['target_min_count']}**"]
+    for item in categories:
+        lines.append(
+            "- {label}: **+{delta}** (aktuell {current}, Ziel >= {target})".format(
+                label=item["label"],
+                delta=item["delta"],
+                current=item["current"],
+                target=item["target"],
+            )
+        )
+    return lines
+
+
+def format_workstream_catchup_issue_block(catchup_plan: dict[str, Any]) -> str:
+    lines = ["## Catch-up-Empfehlung (minimaler Delta-Plan)", *format_workstream_catchup_lines(catchup_plan)]
+    return "\n".join(lines)
+
+
 def build_workstream_balance_baseline(issues):
     counts = compute_workstream_counts(issues)
     max_count = max(counts.values()) if counts else 0
@@ -919,21 +981,28 @@ def build_workstream_balance_baseline(issues):
     gap = max_count - min_count
     severe_zero_gap = max_count >= 2 and min_count == 0
     spread_too_large = gap >= 3
+    target_gap_max = 2
 
     return {
         "counts": counts,
         "max_count": max_count,
         "min_count": min_count,
         "gap": gap,
-        "target_gap_max": 2,
+        "target_gap_max": target_gap_max,
         "severe_zero_gap": severe_zero_gap,
         "spread_too_large": spread_too_large,
         "needs_catchup": severe_zero_gap or spread_too_large,
+        "catchup_plan": build_workstream_catchup_plan(
+            counts,
+            target_gap_max=target_gap_max,
+            severe_zero_gap=severe_zero_gap,
+        ),
     }
 
 
 def format_workstream_balance_markdown(baseline, generated_at: str):
     counts = baseline["counts"]
+    catchup_block = "\n".join(format_workstream_catchup_lines(baseline["catchup_plan"]))
     return (
         f"# Workstream-Balance Baseline ({generated_at})\n\n"
         "Heuristische Zählung aus offenen, nicht-blockierten Issues (ohne `crawler:auto`).\n\n"
@@ -943,7 +1012,9 @@ def format_workstream_balance_markdown(baseline, generated_at: str):
         f"- Testing: **{counts['testing']}**\n"
         f"- Gap (max-min): **{baseline['gap']}**\n"
         f"- Ziel-Gap: **<= {baseline['target_gap_max']}**\n"
-        f"- Catch-up nötig: **{'ja' if baseline['needs_catchup'] else 'nein'}**\n"
+        f"- Catch-up nötig: **{'ja' if baseline['needs_catchup'] else 'nein'}**\n\n"
+        "## Catch-up-Empfehlung (minimaler Delta-Plan)\n"
+        f"{catchup_block}\n"
     )
 
 
@@ -1009,6 +1080,7 @@ def audit_workstream_balance(dry_run: bool) -> list[dict[str, Any]]:
     if existing_issue_number is not None:
         return findings
 
+    catchup_block = format_workstream_catchup_issue_block(baseline["catchup_plan"])
     body = (
         f"Automatisch vom Repository-Crawler erkannt ({now_iso()}).\n\n"
         "Es besteht ein Ungleichgewicht zwischen den offenen, nicht-blockierten Arbeitsströmen.\n"
@@ -1017,6 +1089,7 @@ def audit_workstream_balance(dry_run: bool) -> list[dict[str, Any]]:
         f"- Development: **{counts['development']}**\n"
         f"- Dokumentation: **{counts['documentation']}**\n"
         f"- Testing: **{counts['testing']}**\n\n"
+        f"{catchup_block}\n\n"
         "Erwartete Aktion (P0 Catch-up):\n"
         "1. Rückstandskategorie identifizieren\n"
         "2. Konkrete Catch-up-Tasks sofort freigeben\n"
