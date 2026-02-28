@@ -182,6 +182,9 @@ Sobald der UI-Service (`swisstopo-dev-ui`) live ist, gelten zusätzlich:
 3. **Rollback nur service-lokal:** bei UI-Problemen kein automatischer API-Rollback (und umgekehrt).
 4. **Runbook-Evidenz pro Service:** Deploy-/Rollback-Nachweis getrennt dokumentieren (Issue/PR-Kommentar + Artefakte).
 
+Verbindlicher Ablauf + Kommandos + Kommentar-Template:
+- [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md)
+
 #### BL-31.3 Failure-/Rollback-Hinweise (Routing/TLS)
 
 Typische Symptome und Sofortmaßnahmen:

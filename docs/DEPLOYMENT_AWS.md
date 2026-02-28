@@ -188,6 +188,9 @@ Verbindliche Betriebsregeln:
 - Bei kombinierten Änderungen gilt als sichere Reihenfolge: **API deployen → API smoke → UI deployen → UI smoke**.
 - CORS-Allowlist wird auf UI-Origin eingeschränkt; keine globale `*`-Freigabe.
 
+Verbindlicher Ablauf inkl. service-lokaler Rollback-Kommandos und Evidenzformat:
+- [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md)
+
 **Runtime-ENV (API, BL-31.3 relevant):**
 
 | ENV | Default | Zweck |
@@ -400,6 +403,7 @@ aws ecs update-service \
 Rollback-Regel BL-31:
 - Nur den betroffenen Service zurückrollen (kein unnötiger Dual-Rollback).
 - Nach jedem Rollback sofort service-spezifischen Smoke laufen lassen (`api.<domain>/health` bzw. `app.<domain>/healthz`).
+- Für BL-31 gilt der vollständige, reproduzierbare Rollback-Ablauf aus [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md) (inkl. Strict-Smoke + Evidenzformat für Issue/PR-Kommentare).
 
 ### Lambda Rollback (⚠️ falls Serverless-Architektur gewählt)
 
