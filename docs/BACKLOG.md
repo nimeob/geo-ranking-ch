@@ -519,8 +519,8 @@
   - ✅ 2026-02-26: #56 abgeschlossen (BL-20.7.a.r3) mit API-only Basis-Release-Checkliste in [`docs/PACKAGING_BASELINE.md`](PACKAGING_BASELINE.md) und Cross-Link aus [`docs/OPERATIONS.md`](OPERATIONS.md).
   - ✅ 2026-02-26: #34 abgeschlossen (BL-20.7.a Parent) nach Abschluss aller Work-Packages #54/#55/#56; Backlog-/Status-Sync konsolidiert.
   - ✅ 2026-02-28: #37 abgeschlossen (BL-20.7.r2) mit reproduzierbarem CH-Demo-Datenset in [`docs/DEMO_DATASET_CH.md`](DEMO_DATASET_CH.md), erwarteten Kernaussagen inkl. Confidence/Unsicherheiten und direkter Verlinkung im Demo-Flow von [`docs/GO_TO_MARKET_MVP.md`](GO_TO_MARKET_MVP.md).
-  - ⏳ Offene GTM-Follow-ups: #38 (Packaging/Pricing-Hypothesen).
-  - ⏳ Nächster direkter Schritt BL-20.7: Follow-up #38 priorisieren.
+  - ✅ 2026-02-28: #38 abgeschlossen (BL-20.7.r3) mit segmentierten Kaufkriterien, testbaren Pricing-/Packaging-Hypothesen, Capability-Gates für BL-30.1/30.2 und Entscheidungsvorlage für den nächsten GTM-Sprint in [`docs/PACKAGING_PRICING_HYPOTHESES.md`](PACKAGING_PRICING_HYPOTHESES.md).
+  - ⏳ Nächster direkter Schritt BL-20.7: Validierungssprint gemäß Interview-/Signalschema aus `docs/PACKAGING_PRICING_HYPOTHESES.md` durchführen und daraus BL-30-Folge-Issues ableiten.
 - **Akzeptanzkriterien (Phase 1):**
   - API liefert für Adresse und Kartenpunkt ein einheitliches Ergebnisobjekt (Gebäudeprofil + Umfeldprofil).
   - Ergebnis enthält Explainability-Felder (`sources`, `as_of`, `confidence`, `derived_from`).
