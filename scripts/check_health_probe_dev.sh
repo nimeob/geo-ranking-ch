@@ -12,9 +12,9 @@ set -euo pipefail
 AWS_REGION="${AWS_REGION:-eu-central-1}"
 ECS_SERVICE="${ECS_SERVICE:-swisstopo-dev-api}"
 METRIC_NS="${METRIC_NS:-swisstopo/dev-api}"
-LAMBDA_NAME="swisstopo-dev-health-probe"
-RULE_NAME="swisstopo-dev-health-probe-schedule"
-ALARM_NAME="swisstopo-dev-api-health-probe-fail"
+LAMBDA_NAME="${LAMBDA_NAME:-swisstopo-dev-health-probe}"
+RULE_NAME="${RULE_NAME:-swisstopo-dev-health-probe-schedule}"
+ALARM_NAME="${ALARM_NAME:-swisstopo-dev-api-health-probe-fail}"
 
 WARNINGS=0
 ERRORS=0

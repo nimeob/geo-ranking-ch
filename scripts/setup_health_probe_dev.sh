@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup_health_probe_dev.sh
-# Idempotentes Setup der HTTP-Uptime-Probe für swisstopo-dev GET /health.
+# Idempotentes Setup der HTTP-Uptime-Probe (default: swisstopo-dev GET /health).
 #
 # Was wird erstellt:
 #   1. IAM-Role  swisstopo-dev-health-probe-role
@@ -29,10 +29,10 @@ HEALTH_PATH="${HEALTH_PATH:-/health}"
 METRIC_NS="${METRIC_NS:-swisstopo/dev-api}"
 SNS_TOPIC_ARN="${SNS_TOPIC_ARN:-arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts}"
 
-LAMBDA_NAME="swisstopo-dev-health-probe"
-ROLE_NAME="swisstopo-dev-health-probe-role"
-RULE_NAME="swisstopo-dev-health-probe-schedule"
-ALARM_NAME="swisstopo-dev-api-health-probe-fail"
+LAMBDA_NAME="${LAMBDA_NAME:-swisstopo-dev-health-probe}"
+ROLE_NAME="${ROLE_NAME:-swisstopo-dev-health-probe-role}"
+RULE_NAME="${RULE_NAME:-swisstopo-dev-health-probe-schedule}"
+ALARM_NAME="${ALARM_NAME:-swisstopo-dev-api-health-probe-fail}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"

@@ -518,6 +518,25 @@ Exit Codes:
 - `10`: Baseline technisch vorhanden, aber mit Warnungen (z. B. kein bestätigter Subscriber)
 - `20`: Kritische Baseline-Teile fehlen
 
+### BL-31.5 Ergänzung: UI-Service separat überwachen
+
+Sobald der UI-Service (`swisstopo-dev-ui`) live ist, wird die Monitoring-Baseline um UI-spezifische Alarme ergänzt:
+- `swisstopo-dev-ui-running-taskcount-low` (Service-Ausfall)
+- `swisstopo-dev-ui-health-probe-fail` (Reachability via `/healthz`)
+
+Setup (idempotent):
+
+```bash
+AWS_ACCOUNT_ID=523234426229 ./scripts/setup_bl31_ui_monitoring_baseline.sh
+```
+
+Read-only Check:
+
+```bash
+./scripts/check_bl31_ui_monitoring_baseline.sh
+# Exit 0 = ok | 10 = Warn | 20 = kritisch
+```
+
 ### 1) CloudWatch Logs Standard (Log Group + Retention)
 
 **Log-Group-Namensschema (Standard):**
