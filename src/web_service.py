@@ -35,6 +35,10 @@ from src.personalized_scoring import compute_two_stage_scores
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
+_CORS_ALLOW_ORIGINS_ENV = "CORS_ALLOW_ORIGINS"
+_CORS_ALLOW_METHODS = "POST, OPTIONS"
+_CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Request-Id"
+_CORS_MAX_AGE_SECONDS = "600"
 _TOP_LEVEL_STATUS_KEYS = {
     "confidence",
     "sources",
@@ -835,6 +839,87 @@ def _sanitize_request_id_candidate(candidate: Any) -> str:
     return value
 
 
+def _canonical_origin(value: Any) -> str:
+    """Normalisiert eine Origin auf `scheme://host[:port]` oder gibt "" zurück."""
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+
+    parsed = urlsplit(raw)
+    if parsed.scheme.lower() not in {"http", "https"}:
+        return ""
+    if not parsed.netloc:
+        return ""
+    if parsed.username or parsed.password:
+        return ""
+    if parsed.path not in {"", "/"}:
+        return ""
+    if parsed.query or parsed.fragment:
+        return ""
+
+    hostname = (parsed.hostname or "").strip().lower()
+    if not hostname:
+        return ""
+
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+
+    authority = hostname
+    if parsed.port is not None:
+        authority = f"{authority}:{parsed.port}"
+    return f"{parsed.scheme.lower()}://{authority}"
+
+
+def _parse_cors_allow_origins(raw_value: Any) -> set[str]:
+    allowed: set[str] = set()
+    for chunk in str(raw_value or "").split(","):
+        origin = _canonical_origin(chunk)
+        if origin:
+            allowed.add(origin)
+    return allowed
+
+
+def _resolve_cors_allow_origins() -> set[str]:
+    return _parse_cors_allow_origins(os.getenv(_CORS_ALLOW_ORIGINS_ENV, ""))
+
+
+def _build_cors_headers(
+    origin_header: Any,
+    *,
+    allowed_origins: set[str],
+    include_preflight: bool,
+) -> dict[str, str] | None:
+    """Ermittelt CORS-Response-Header.
+
+    Returns:
+      - `None`: Origin explizit abgelehnt (Allowlist aktiv + Origin ungültig/nicht erlaubt)
+      - `{}`: keine CORS-Header nötig (keine Allowlist oder keine Origin)
+      - `{...}`: konkrete Header für die Antwort
+    """
+    if not allowed_origins:
+        return {}
+
+    origin = _canonical_origin(origin_header)
+    if not origin:
+        return {}
+    if origin not in allowed_origins:
+        return None
+
+    headers = {
+        "Access-Control-Allow-Origin": origin,
+        "Vary": "Origin",
+    }
+    if include_preflight:
+        headers.update(
+            {
+                "Access-Control-Allow-Methods": _CORS_ALLOW_METHODS,
+                "Access-Control-Allow-Headers": _CORS_ALLOW_HEADERS,
+                "Access-Control-Max-Age": _CORS_MAX_AGE_SECONDS,
+            }
+        )
+    return headers
+
+
 def _extract_request_options(data: dict[str, Any]) -> dict[str, Any]:
     """Liest den optionalen options-Envelope robust und rückwärtskompatibel.
 
@@ -1124,9 +1209,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         if request_id:
             self.send_header("X-Request-Id", request_id)
+
+        merged_headers: dict[str, str] = {}
+        cors_headers = getattr(self, "_cors_response_headers", None)
+        if isinstance(cors_headers, dict):
+            merged_headers.update(cors_headers)
         if extra_headers:
-            for key, value in extra_headers.items():
-                self.send_header(key, value)
+            merged_headers.update(extra_headers)
+
+        for key, value in merged_headers.items():
+            self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -1183,6 +1275,13 @@ class Handler(BaseHTTPRequestHandler):
             payload,
             request_id=request_id,
             extra_headers=extra_headers,
+        )
+
+    def _cors_headers_for_analyze(self, *, include_preflight: bool) -> dict[str, str] | None:
+        return _build_cors_headers(
+            self.headers.get("Origin", ""),
+            allowed_origins=_resolve_cors_allow_origins(),
+            include_preflight=include_preflight,
         )
 
     def do_GET(self) -> None:  # noqa: N802
@@ -1253,6 +1352,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         request_id = self._request_id()
         request_path = self._normalized_path()
+        self._cors_response_headers = None
 
         if request_path != "/analyze":
             self._send_json(
@@ -1261,6 +1361,20 @@ class Handler(BaseHTTPRequestHandler):
                 request_id=request_id,
             )
             return
+
+        cors_headers = self._cors_headers_for_analyze(include_preflight=False)
+        if cors_headers is None:
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "cors_origin_not_allowed",
+                    "request_id": request_id,
+                },
+                status=HTTPStatus.FORBIDDEN,
+                request_id=request_id,
+            )
+            return
+        self._cors_response_headers = cors_headers
 
         required_token = os.getenv("API_AUTH_TOKEN", "").strip()
         if required_token:
@@ -1471,6 +1585,38 @@ class Handler(BaseHTTPRequestHandler):
                 status=500,
                 request_id=request_id,
             )
+
+    def do_OPTIONS(self) -> None:  # noqa: N802
+        request_id = self._request_id()
+        request_path = self._normalized_path()
+
+        if request_path != "/analyze":
+            self._send_json(
+                {"ok": False, "error": "not_found", "request_id": request_id},
+                status=HTTPStatus.NOT_FOUND,
+                request_id=request_id,
+            )
+            return
+
+        cors_headers = self._cors_headers_for_analyze(include_preflight=True)
+        if cors_headers is None:
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "cors_origin_not_allowed",
+                    "request_id": request_id,
+                },
+                status=HTTPStatus.FORBIDDEN,
+                request_id=request_id,
+            )
+            return
+
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self.send_header("X-Request-Id", request_id)
+        self.send_header("Content-Length", "0")
+        for key, value in cors_headers.items():
+            self.send_header(key, value)
+        self.end_headers()
 
 
 def _resolve_port() -> int:

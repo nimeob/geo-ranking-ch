@@ -556,13 +556,14 @@
 - **Work-Packages:**
   - [ ] #327 — BL-31.1 Umsetzung 2-Container-Deployment (Parent-Umsetzung)
   - [x] #328 — BL-31.2 UI-Container-Artefakt + ECS-Task-Basis (abgeschlossen 2026-02-28)
-  - [ ] #329 — BL-31.3 Host-basiertes Routing + TLS (`app`/`api`)
+  - [x] #329 — BL-31.3 Host-basiertes Routing + TLS (`app`/`api`) (abgeschlossen 2026-02-28)
   - [ ] #330 — BL-31.4 Getrennte Deploy-/Rollback-Runbooks
   - [ ] #331 — BL-31.5 Monitoring/Alerting für UI-Service
 - **Fortschritt (2026-02-28):**
   - ✅ BL-31.2 umgesetzt: separates UI-Image (`Dockerfile.ui`) inkl. Build-Args/Runtime-ENV, eigenständiger UI-Entrypoint (`src/ui_service.py`) und ECS-Task-Template (`infra/ecs/taskdef.swisstopo-dev-ui.json`) mit `/healthz`-Healthcheck.
   - ✅ #336 abgeschlossen (Testing-Catch-up BL-31 Routing/TLS-Smokepfade): reproduzierbarer Smoke-Runner [`scripts/run_bl31_routing_tls_smoke.sh`](../scripts/run_bl31_routing_tls_smoke.sh) + Runbook [`docs/testing/bl31-routing-tls-smoke-catchup.md`](testing/bl31-routing-tls-smoke-catchup.md) inkl. CORS-Baseline-Check (Warn-/Strict-Modus) und Regressionstest `tests/test_bl31_routing_tls_smoke_script.py`.
-- **Nächster Schritt (oldest-first, unblocked):** #329 claimen (Routing/TLS), da #327 als Parent-Container über die Leaf-Work-Packages fortgeschrieben wird.
+  - ✅ #329 abgeschlossen: CORS-Allowlist für `POST/OPTIONS /analyze` (`CORS_ALLOW_ORIGINS`) in `src/web_service.py` umgesetzt, Routing/TLS/CORS-Abnahmepfad in [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md) dokumentiert und Failure-/Rollback-Hinweise in [`docs/OPERATIONS.md`](OPERATIONS.md) ergänzt.
+- **Nächster Schritt (oldest-first, unblocked):** #330 claimen (Deploy-/Rollback-Runbooks), da #327 als Parent-Container über die Leaf-Work-Packages fortgeschrieben wird.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1

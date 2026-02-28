@@ -25,7 +25,7 @@ Der Ablauf ist bewusst zweistufig aufgebaut:
 ### Terminal A (API)
 
 ```bash
-HOST=127.0.0.1 PORT=18080 python3 -m src.web_service
+HOST=127.0.0.1 PORT=18080 CORS_ALLOW_ORIGINS="http://127.0.0.1:18081" python3 -m src.web_service
 ```
 
 ### Terminal B (UI)
@@ -47,11 +47,13 @@ BL31_OUTPUT_JSON="artifacts/bl31-routing-tls-smoke-baseline.json" \
 ./scripts/run_bl31_routing_tls_smoke.sh
 ```
 
-### Erwartete Ausgabe (solange #329 offen ist)
+### Erwartete Ausgabe (nach #329, mit gesetzter API-Allowlist)
+
+Voraussetzung: API läuft mit `CORS_ALLOW_ORIGINS="http://127.0.0.1:18081"` (oder passender UI-Origin).
 
 - API-Health: `pass`
 - APP-Reachability: `pass`
-- CORS-Baseline: typischerweise `warn` mit `reason=missing_allow_origin`
+- CORS-Baseline: `pass`
 - OVERALL: `pass`
 
 Beispiel:
@@ -59,7 +61,7 @@ Beispiel:
 ```text
 [BL-31] API health (.../health): pass (...)
 [BL-31] APP reachability (.../healthz): pass (...)
-[BL-31] CORS baseline (.../analyze, origin=...): warn (..., reason=missing_allow_origin, ...)
+[BL-31] CORS baseline (.../analyze, origin=...): pass (..., reason=ok, ...)
 [BL-31] OVERALL: pass (ok)
 ```
 
@@ -75,11 +77,9 @@ BL31_STRICT_CORS="1" \
 ./scripts/run_bl31_routing_tls_smoke.sh
 ```
 
-### Erwartete Ausgabe vor #329
-- CORS-Baseline nicht `pass` → `OVERALL: fail (cors_baseline_failed)` und Exit-Code `1`.
-
-### Erwartete Ausgabe nach #329
-- Alle drei Checks `pass` und Exit-Code `0`.
+### Erwartete Ausgabe im Strict-Modus
+- Mit passender API-Allowlist (`CORS_ALLOW_ORIGINS=<UI-Origin>`) sind alle drei Checks `pass` und Exit-Code `0`.
+- Ohne passende Allowlist ist ein Hard-Fail erwartbar: `OVERALL: fail (cors_baseline_failed)` mit Exit-Code `1`.
 
 ---
 
@@ -98,8 +98,8 @@ Damit ist der Lauf in CI oder manuellen Reviews nachvollziehbar.
 ## Follow-up-Risiken / Abhängigkeiten
 
 ### Abhängigkeit zu #329 (BL-31.3 Routing + TLS)
-- Der CORS-Teil ist aktuell als **Baseline-Warnung** erwartbar, solange host-basiertes Routing/CORS-Policy für `app` → `api` noch nicht final umgesetzt ist.
-- Abnahmekriterium für #329: Strict-Modus (`BL31_STRICT_CORS=1`) muss stabil grün laufen.
+- Host-basiertes Routing (`app`/`api`) und CORS-Allowlist für `POST/OPTIONS /analyze` sind umgesetzt.
+- Abnahme erfolgt über Strict-Modus (`BL31_STRICT_CORS=1`) mit passender `CORS_ALLOW_ORIGINS`-Konfiguration auf der API.
 
 ### Abhängigkeit zu #330 (BL-31.4 Deploy-/Rollback-Runbooks)
 - Für reproduzierbare Umgebungs-Smokes (dev/stage/prod) fehlen noch service-spezifische Standardwerte/Schritte für `app`- und `api`-Domains inklusive Rollback-Reihenfolge.
