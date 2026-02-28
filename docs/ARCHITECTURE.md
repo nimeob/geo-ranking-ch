@@ -201,17 +201,14 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 
 Für die laufende Entkopplung gilt ein expliziter Boundary-Guard in [`scripts/check_bl31_service_boundaries.py`](../scripts/check_bl31_service_boundaries.py).
 
-Aktueller Legacy-Modus (flaches `src/`):
-- **API-Module:** `web_service`, `address_intel`, `personalized_scoring`, `suitability_light`
-- **UI-Module:** `ui_service`
-- **Shared-Module (explizit erlaubt):** `gui_mvp`, `geo_utils`, `gwr_codes`, `mapping_transform_rules`
+Aktueller Stand (2026-02-28, nach BL-334.2):
+- **API-Quellbereich (kanonisch):** `src/api/*`
+  - `web_service.py`, `address_intel.py`, `personalized_scoring.py`, `suitability_light.py`
+- **Legacy-Importpfade (Kompatibilität):** `src/web_service.py`, `src/address_intel.py`, `src/personalized_scoring.py`, `src/suitability_light.py` als Wrapper auf `src/api/*`
+- **UI-Bereich:** `src/ui/*` (Namespace reserviert), produktiver Entrypoint bis BL-334.3 weiterhin `src/ui_service.py`
+- **Shared-Bereich:** `src/shared/*` (Namespace reserviert) + bestehende neutrale Module `gui_mvp`, `geo_utils`, `gwr_codes`, `mapping_transform_rules`
 
-Zielmodus BL-334 (getrennte Source-Bereiche):
-- **API-Pakete:** `src/api/*`
-- **UI-Pakete:** `src/ui/*`
-- **Shared-Pakete:** `src/shared/*`
-
-Guard-Regeln (beide Modi):
+Guard-Regeln (Legacy + Split):
 - API darf UI nicht importieren.
 - UI darf API nicht importieren.
 - Shared bleibt neutral (keine Imports von API- oder UI-Modulen).
@@ -222,9 +219,9 @@ Aufruf (lokal/CI):
 python3 scripts/check_bl31_service_boundaries.py --src-dir src
 ```
 
-### 6.9 BL-334 Zielstruktur für Source-Trennung (Planungsbaseline)
+### 6.9 BL-334 Zielstruktur für Source-Trennung (Rollout-Stand)
 
-Geplante Zielstruktur für die folgenden BL-334-Work-Packages:
+Zielstruktur bleibt unverändert und wird schrittweise über die Work-Packages #365–#368 vollständig umgesetzt:
 
 ```text
 src/
@@ -239,7 +236,9 @@ Verbindliche Import-Richtungen:
 - `shared -> api/ui` ❌ verboten
 - `api <-> ui` ❌ verboten
 
-Hinweis: Die physische Migration in diese Struktur erfolgt schrittweise über BL-334.2 bis BL-334.5. Bis dahin bleibt der Guard im Legacy-Modus aktiv und verhindert bereits heute unzulässige Cross-Imports.
+Migrationshinweis:
+- BL-334.2 hat den API-Code physisch nach `src/api/` verschoben und Legacy-Wrapper für stabile Entrypoints ergänzt.
+- BL-334.3 migriert im nächsten Schritt den UI-Code nach `src/ui/`.
 
 ## 7) Offene Punkte / Nächste Architektur-Schritte
 
