@@ -23,6 +23,9 @@ def test_bl337_internet_e2e_matrix_runbook_contains_required_sections_and_comman
         "#397",
         "#398",
         "#399",
+        "## 5) WP2 API-Frontdoor-Ausführung (Issue #397)",
+        "scripts/run_bl337_api_frontdoor_e2e.py",
+        "BL337_API_AUTH_TOKEN",
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in text]
