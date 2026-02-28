@@ -75,3 +75,26 @@ Ergebnis:
 - API-Testfälle (`API.*`) werden in der Matrix von `planned` auf `pass|fail|blocked` fortgeschrieben.
 - `actualResult` + `evidenceLinks` werden pro API-Fall gesetzt.
 - Evidence-Datei enthält pro Testfall `httpStatus`, `reason`, `responseExcerpt` und Gesamtsummary.
+
+## 6) WP3 UI-Frontdoor-Ausführung (Issue #398)
+
+Reproduzierbare UI-E2E-Ausführung inkl. Matrix-Update und Evidence-Artefakten:
+
+```bash
+python3 scripts/run_bl337_ui_frontdoor_e2e.py \
+  --matrix artifacts/bl337/latest-internet-e2e-matrix.json \
+  --evidence-json artifacts/bl337/<timestamp>-wp3-ui-frontdoor-e2e.json
+```
+
+Optional mit Override für Test-/Staging-Targets:
+
+```bash
+python3 scripts/run_bl337_ui_frontdoor_e2e.py \
+  --app-base-url "https://www.dev.georanking.ch" \
+  --api-base-url "https://api.dev.georanking.ch"
+```
+
+Ergebnis:
+- UI-Testfälle (`UI.*`) werden in der Matrix von `planned` auf `pass|fail|blocked` fortgeschrieben.
+- Pro Lauf werden drei Evidence-Artefakte erzeugt: `*-wp3-ui-frontdoor-e2e.json`, `*-home.html`, `*-api-probe.json`.
+- Die Checks decken Homepage-Load, Kernnavigation/Form-Render, Client-Side-Validierungsfehler und UI/API-Fehlerkonsistenz ab.
