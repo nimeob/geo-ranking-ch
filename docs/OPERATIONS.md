@@ -173,6 +173,15 @@ git push origin v<x.y.z>
 - [ ] Release-Branch gelöscht
 - [ ] Team informiert (falls relevant)
 
+### BL-31 Betriebsregel: getrennte UI/API-Rollouts
+
+Sobald der UI-Service (`swisstopo-dev-ui`) live ist, gelten zusätzlich:
+
+1. **Service-getrennte Changesets:** API- und UI-Deployments als unabhängige Artefakte behandeln.
+2. **Reihenfolge bei kombinierten Releases:** API → API-Smoke → UI → UI-Smoke.
+3. **Rollback nur service-lokal:** bei UI-Problemen kein automatischer API-Rollback (und umgekehrt).
+4. **Runbook-Evidenz pro Service:** Deploy-/Rollback-Nachweis getrennt dokumentieren (Issue/PR-Kommentar + Artefakte).
+
 ---
 
 ## Agent-Autopilot (Nipa)

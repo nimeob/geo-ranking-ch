@@ -172,6 +172,22 @@ aws s3 mb s3://geo-ranking-ch-${AWS_ACCOUNT_ID} \
 - Healthcheck-Endpoint: `GET /health`
 - Version-Endpoint: `GET /version`
 
+### BL-31 Zielbild (2-Container: API + UI)
+
+Für BL-31 wird das Deployment von einem Single-Service-MVP auf zwei getrennte ECS-Services erweitert:
+
+| Bereich | API (bestehend) | UI (neu) |
+|---|---|---|
+| ECS Service | `swisstopo-dev-api` | `swisstopo-dev-ui` |
+| ECR Repository | `swisstopo-dev-api` | `swisstopo-dev-ui` |
+| Health Endpoint | `/health` | `/healthz` |
+| Ingress | `api.<domain>` | `app.<domain>` |
+
+Verbindliche Betriebsregeln:
+- API und UI werden **separat** gebaut, ausgerollt und zurückgerollt.
+- Bei kombinierten Änderungen gilt als sichere Reihenfolge: **API deployen → API smoke → UI deployen → UI smoke**.
+- CORS-Allowlist wird auf UI-Origin eingeschränkt; keine globale `*`-Freigabe.
+
 ### Reguläres Deployment (nach erstem Setup)
 
 ```bash
@@ -264,23 +280,35 @@ Empfohlene Reihenfolge: **`init` → `plan` → `import` → `apply`**.
 
 ## 5. Rollback-Prozedur
 
-### ECS Service Rollback
+### ECS Service Rollback (service-lokal)
 
 ```bash
-# Vorherige Task-Definition-Revision ermitteln
+# API: vorherige Task-Definition-Revision ermitteln
 aws ecs describe-services \
   --cluster swisstopo-dev \
   --services swisstopo-dev-api \
   --query 'services[0].deployments'
 
-# Auf vorherige Revision zurückwechseln
-PREV_REVISION=<nummer>
+# API: auf vorherige Revision zurückwechseln
+PREV_API_REVISION=<nummer>
 aws ecs update-service \
   --cluster swisstopo-dev \
   --service swisstopo-dev-api \
-  --task-definition swisstopo-dev-api:${PREV_REVISION} \
+  --task-definition swisstopo-dev-api:${PREV_API_REVISION} \
+  --region eu-central-1
+
+# UI: analog (sobald BL-31 UI-Service live ist)
+PREV_UI_REVISION=<nummer>
+aws ecs update-service \
+  --cluster swisstopo-dev \
+  --service swisstopo-dev-ui \
+  --task-definition swisstopo-dev-ui:${PREV_UI_REVISION} \
   --region eu-central-1
 ```
+
+Rollback-Regel BL-31:
+- Nur den betroffenen Service zurückrollen (kein unnötiger Dual-Rollback).
+- Nach jedem Rollback sofort service-spezifischen Smoke laufen lassen (`api.<domain>/health` bzw. `app.<domain>/healthz`).
 
 ### Lambda Rollback (⚠️ falls Serverless-Architektur gewählt)
 

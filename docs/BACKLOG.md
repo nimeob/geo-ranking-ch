@@ -1,7 +1,7 @@
 # Backlog (konsolidiert)
 
 > Quelle: konsolidierte offene Punkte aus `README.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_AWS.md`, `docs/OPERATIONS.md`.
-> Stand: 2026-02-27
+> Stand: 2026-02-28
 
 ## Legende
 
@@ -541,6 +541,23 @@
   - Für BL-20 gilt pro Iteration das 3-Säulen-Modell: **Programmierung + Dokumentation + Testing**.
   - BL-20 startet erst nach BL-19-MVP (BL-19.1, 19.2, 19.4, 19.3, 19.7).
 
+
+### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
+- **Priorität:** P2
+- **Aufwand:** M
+- **Abhängigkeiten:** BL-20.6 (GUI-MVP vorhanden), BL-16/Ingress-Gates nicht verletzen
+- **Status:** ✅ Zielbild abgeschlossen (2026-02-28, Issue #326)
+- **Nachweis:**
+  - Architektur-Zielbild inkl. Risiken/Trade-offs in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) (Abschnitt „BL-31: 2-Container-Architektur").
+  - Deployment-Entscheide (Ingress/TLS, service-getrennte Deploy-Regeln) in [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
+  - Betriebsregeln für getrennte Rollouts/Rollbacks in [`docs/OPERATIONS.md`](OPERATIONS.md).
+- **Work-Packages (offen):**
+  - [ ] #327 — BL-31.1 Umsetzung 2-Container-Deployment (Parent-Umsetzung)
+  - [ ] #328 — BL-31.2 UI-Container-Artefakt + ECS-Task-Basis
+  - [ ] #329 — BL-31.3 Host-basiertes Routing + TLS (`app`/`api`)
+  - [ ] #330 — BL-31.4 Getrennte Deploy-/Rollback-Runbooks
+  - [ ] #331 — BL-31.5 Monitoring/Alerting für UI-Service
+- **Nächster Schritt (oldest-first, unblocked):** #327 claimen und in atomare Umsetzungspakete überführen/abarbeiten.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
