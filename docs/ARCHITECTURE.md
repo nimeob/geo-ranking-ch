@@ -197,6 +197,25 @@ Workflow-Datei: **`.github/workflows/deploy.yml`**
 | API-zentrierte Entitlements | Sicherheit und Konsistenz | UI-spezifische UX braucht zusätzliche API-Fehlerbehandlung | akzeptiert |
 | Service-lokaler Rollback | Geringerer Blast Radius | Versionsdrift UI↔API möglich | mitigiert über Smoke/Kompatibilitätschecks |
 
+### 6.8 Service-Boundary-Guard (BL-31.x.wp1)
+
+Für die laufende Entkopplung gilt ein expliziter Boundary-Guard in [`scripts/check_bl31_service_boundaries.py`](../scripts/check_bl31_service_boundaries.py):
+
+- **API-Module:** `web_service`, `address_intel`, `personalized_scoring`, `suitability_light`
+- **UI-Module:** `ui_service`
+- **Shared-Module (explizit erlaubt):** `gui_mvp`, `geo_utils`, `gwr_codes`, `mapping_transform_rules`
+
+Guard-Regeln:
+- API-Module dürfen keine UI-Module importieren.
+- UI-Module dürfen keine API-Module importieren.
+- Shared-Module bleiben neutral (keine Imports von API- oder UI-Modulen).
+
+Aufruf (lokal/CI):
+
+```bash
+python3 scripts/check_bl31_service_boundaries.py --src-dir src
+```
+
 ## 7) Offene Punkte / Nächste Architektur-Schritte
 
 Die offenen Architektur-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (inkl. BL-31 Folgepakete), um doppelte Nebenlisten zu vermeiden.
