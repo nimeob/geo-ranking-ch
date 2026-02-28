@@ -37,7 +37,8 @@
   - konsistente Request-Korrelation über Header + JSON-Feld `request_id`
   - lokale/dev E2E-, Smoke- und Stabilitäts-Runner mit Artefakt-Ausgabe
 - **Developer Experience**
-  - stdlib-only Webservice (`src/web_service.py`) für einfache Reproduzierbarkeit
+  - kanonische Service-Entrypoints: API `src/api/web_service.py`, UI `src/ui/service.py`
+  - Legacy-Wrapper unter `src/*.py` bleiben für bestehende Integrationen kompatibel
   - klar dokumentierte User-Guides unter `docs/user/`
 
 ## Schnellstart
@@ -82,9 +83,14 @@ pre-commit run --all-files
 # Doku-Qualitätsgate (BL-19.8): Linkcheck + Strukturcheck im frischen venv
 ./scripts/check_docs_quality_gate.sh
 
-# Minimalen Webservice starten (für ECS vorbereitet)
-python -m src.web_service
-# optionaler Port via ENV: PORT (primär) oder WEB_PORT (Fallback für lokale Wrapper)
+# Service-getrennte Smoke-Checks (BL-334.5)
+# - API-only: src.api.web_service
+# - UI-only:  src.ui.service
+./scripts/check_bl334_split_smokes.sh
+
+# API-Service starten (kanonischer Entrypoint; ECS-ready)
+python -m src.api.web_service
+# optionaler Port via ENV: PORT (primär) oder WEB_PORT (Fallback für Legacy-Wrapper)
 # Healthcheck: http://localhost:8080/health
 
 # Optional: Dev-TLS mit self-signed Zertifikat
@@ -100,7 +106,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 7 \
 TLS_CERT_FILE=/tmp/geo-dev.crt \
 TLS_KEY_FILE=/tmp/geo-dev.key \
 PORT=8443 \
-python -m src.web_service
+python -m src.api.web_service
 # Healthcheck: https://localhost:8443/health
 
 # Optional: zusätzlicher HTTP->HTTPS Redirect-Listener (Dev)
@@ -109,7 +115,7 @@ TLS_KEY_FILE=/tmp/geo-dev.key \
 PORT=8443 \
 TLS_ENABLE_HTTP_REDIRECT=1 \
 TLS_REDIRECT_HTTP_PORT=8080 \
-python -m src.web_service
+python -m src.api.web_service
 ```
 
 ### Docker (wie in ECS)
@@ -127,6 +133,16 @@ docker run --rm -p 8081:8080 geo-ranking-ch:ui-dev
 # Healthcheck
 curl http://localhost:8081/healthz
 ```
+
+### Migrationshinweis zur Source-Trennung (BL-334)
+
+- **Kanonisch für neue Änderungen:**
+  - API: `python -m src.api.web_service`
+  - UI: `python -m src.ui.service`
+- **Legacy-Kompatibilität bleibt aktiv:**
+  - `python -m src.web_service` und `python -m src.ui_service` funktionieren weiterhin als Wrapper.
+- **Wichtig für CI/Smokes:**
+  - service-getrennte Smoke-Ausführung läuft über `./scripts/check_bl334_split_smokes.sh`.
 
 ### Webservice-Endpoints (MVP)
 
@@ -291,6 +307,7 @@ geo-ranking-ch/
 │   ├── run_remote_api_smoketest.sh
 │   ├── run_remote_api_stability_check.sh
 │   ├── check_docs_quality_gate.sh
+│   ├── check_bl334_split_smokes.sh
 │   ├── check_bl17_oidc_assumerole_posture.sh
 │   ├── audit_legacy_aws_consumer_refs.sh
 │   ├── audit_legacy_runtime_consumers.sh
