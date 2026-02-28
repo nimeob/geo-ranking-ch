@@ -209,7 +209,7 @@ python3 scripts/run_bl31_split_deploy.py --mode both --execute
 BL-31.2 legt die technische Basis für ein eigenes UI-Artefakt fest:
 
 - UI-Dockerfile: [`Dockerfile.ui`](../Dockerfile.ui)
-- UI-Runtime-Entrypoint: `python -m src.ui_service`
+- UI-Runtime-Entrypoint: `python -m src.ui_service` (Kompatibilitäts-Wrapper auf kanonisch `src/ui/service.py`)
 - ECS-Task-Template: [`infra/ecs/taskdef.swisstopo-dev-ui.json`](../infra/ecs/taskdef.swisstopo-dev-ui.json)
 - Ziel-ECR-Repository: **`swisstopo-dev-ui`**
 

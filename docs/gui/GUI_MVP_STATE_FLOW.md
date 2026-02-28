@@ -4,6 +4,8 @@
 
 Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20.6 ab:
 
+> Source-Stand seit BL-334.3: kanonisch `src/ui/gui_mvp.py` (Legacy-Wrapper `src/gui_mvp.py` bleibt kompatibel).
+
 - Kernnavigation (`Input`, `Karte`, `Result-Panel`)
 - API-first Adresseingabe via `POST /analyze`
 - Kartenklick-Flow via `POST /analyze` mit `coordinates.lat/lon` + `snap_mode=ch_bounds`

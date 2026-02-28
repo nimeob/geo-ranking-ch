@@ -259,11 +259,17 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 ```text
 geo-ranking-ch/
 ├── src/                              # Service- und Core-Logik
-│   ├── address_intel.py
+│   ├── api/                          # Kanonischer API-Source-Bereich
+│   │   └── web_service.py            # HTTP-API (/gui, /health, /version, /analyze)
+│   ├── ui/                           # Kanonischer UI-Source-Bereich
+│   │   ├── service.py                # Eigenständiger UI-Service (/ , /gui, /healthz)
+│   │   └── gui_mvp.py                # GUI-MVP Shell-Template + Kartenklick/Result-Flow (BL-20.6)
+│   ├── shared/                       # Shared-Namespace (neutral)
+│   ├── web_service.py                # Legacy-Wrapper -> src.api.web_service
+│   ├── ui_service.py                 # Legacy-Wrapper -> src.ui.service
+│   ├── gui_mvp.py                    # Legacy-Wrapper -> src.ui.gui_mvp
 │   ├── geo_utils.py
-│   ├── gui_mvp.py                    # GUI-MVP Shell-Template + Kartenklick/Result-Flow (BL-20.6)
-│   ├── gwr_codes.py
-│   └── web_service.py                # HTTP-API (/gui, /health, /version, /analyze)
+│   └── gwr_codes.py
 ├── tests/                            # Unit-, E2E- und Doku-Qualitäts-Tests
 │   ├── test_core.py
 │   ├── test_web_e2e.py
