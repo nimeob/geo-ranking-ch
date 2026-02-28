@@ -438,7 +438,7 @@ git checkout v<stabile-version>
 | Alert-Kanal | SNS + Lambda → Telegram | ✅ Aktiv und getestet (ALARM/OK im Telegram-Chat bestätigt, 2026-02-25) |
 | Telegram-Alerting | Lambda `swisstopo-dev-sns-to-telegram` | ✅ Aktiv (SSM SecureString + SNS-Subscription + Lambda-Permission verifiziert) |
 | Uptime/HTTP Health | Lambda `swisstopo-dev-health-probe` + EventBridge (rate 5 min) | ✅ Aktiv und getestet (2026-02-25) — dynamische ECS-IP-Auflösung, Metrik `HealthProbeSuccess`, Alarm `swisstopo-dev-api-health-probe-fail` |
-| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh`, `scripts/setup_health_probe_dev.sh`, `scripts/check_health_probe_dev.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks + Uptime Probe vorhanden |
+| Ops-Helper | `scripts/check_ecs_service.sh`, `scripts/tail_logs.sh`, `scripts/setup_monitoring_baseline_dev.sh`, `scripts/check_monitoring_baseline_dev.sh`, `scripts/setup_telegram_alerting_dev.sh`, `scripts/setup_health_probe_dev.sh`, `scripts/check_health_probe_dev.sh`, `scripts/setup_bl31_ui_monitoring_baseline.sh`, `scripts/check_bl31_ui_monitoring_baseline.sh` | ✅ Triage + Baseline-Provisioning + Read-only Monitoring-Checks + Uptime Probe vorhanden (inkl. BL-31.5 UI-Monitoring-Baseline) |
 | Tracing | X-Ray | ⚠️ zu evaluieren |
 
 ### Telegram-Alerting — Architektur & Deployment (BL-08)
@@ -565,6 +565,27 @@ terraform plan
 
 ```bash
 ./scripts/check_health_probe_dev.sh
+# Exit 0 = ok | 10 = Warn | 20 = kritisch
+```
+
+### BL-31.5 UI-Monitoring-Baseline (separater UI-Service)
+
+Für den separaten UI-Service (`swisstopo-dev-ui`) werden zwei eigenständige Baseline-Signale geführt:
+- `swisstopo-dev-ui-running-taskcount-low` (RunningTaskCount < 1)
+- `swisstopo-dev-ui-health-probe-fail` (Reachability via `/healthz`)
+
+**Setup (idempotent):**
+
+```bash
+AWS_ACCOUNT_ID=523234426229 ./scripts/setup_bl31_ui_monitoring_baseline.sh
+```
+
+Das Setup nutzt intern das generische Health-Probe-Setup mit UI-spezifischen Namen (`swisstopo-dev-ui-health-probe*`) und Namespace `swisstopo/dev-ui`.
+
+**Read-only Check (UI):**
+
+```bash
+./scripts/check_bl31_ui_monitoring_baseline.sh
 # Exit 0 = ok | 10 = Warn | 20 = kritisch
 ```
 
