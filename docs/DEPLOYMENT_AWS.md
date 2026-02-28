@@ -354,34 +354,49 @@ aws ecs update-service \
 
 ### Deployment via GitHub Actions
 
-CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (Trigger: **nur manueller `workflow_dispatch` / on-demand**). Er baut ein Docker-Image, pusht nach ECR, rolled den ECS-Service auf eine neue Task-Definition und wartet auf `services-stable`.
+CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (Trigger: **nur manueller `workflow_dispatch` / on-demand**). Der Lauf ist service-getrennt und deployt die volle BL-31-Topologie:
 
-Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health`). Wenn die Variable leer oder nicht gesetzt ist, wird der Smoke-Test mit Hinweis übersprungen (kein Hard-Fail).
+1) API- und UI-Image bauen/pushen (ECR)  
+2) API-/UI-TaskDef-Revisionen registrieren  
+3) API-Service deployen + warten + API-Smokes  
+4) UI-Service deployen + warten + UI-Smoke  
+5) optionaler Strict-Split-Smoke (`run_bl31_routing_tls_smoke.sh`, wenn Base-URLs gesetzt sind)
+
+Smoke-Verhalten:
+- API `/health` ist verpflichtend (über `SERVICE_HEALTH_URL` oder aus `SERVICE_API_BASE_URL` abgeleitet)
+- API `/analyze` läuft optional (wenn `SERVICE_API_BASE_URL` gesetzt)
+- UI `/healthz` ist verpflichtend über `SERVICE_APP_BASE_URL`
 
 **Benötigte GitHub Secrets (zu setzen unter Settings → Secrets):**
 
 | Secret | Beschreibung |
 |---|---|
-| _(keine erforderlich)_ | AWS Auth läuft via GitHub OIDC Role Assume (`aws-actions/configure-aws-credentials@v4`) |
+| `SERVICE_API_AUTH_TOKEN` | Optional: Bearer-Token für den API-Analyze-Smoke (`run_remote_api_smoketest.sh`) |
+| _(keine AWS-Credentials erforderlich)_ | AWS Auth läuft via GitHub OIDC Role Assume (`aws-actions/configure-aws-credentials@v4`) |
 
 **Benötigte GitHub Variables (zu setzen unter Settings → Variables):**
 
 | Variable | Beschreibung |
 |---|---|
-| `ECR_REPOSITORY` | Ziel-Repository in ECR (z. B. `swisstopo-dev-api`) |
 | `ECS_CLUSTER` | ECS Cluster (z. B. `swisstopo-dev`) |
-| `ECS_SERVICE` | ECS Service (z. B. `swisstopo-dev-api`) |
-| `ECS_CONTAINER_NAME` | Container-Name in der Task-Definition |
-| `SERVICE_HEALTH_URL` | Vollständige Health-URL für Smoke-Test (z. B. `https://<alb-dns>/health`) |
+| `ECS_API_SERVICE` | API-Service (z. B. `swisstopo-dev-api`) |
+| `ECS_UI_SERVICE` | UI-Service (z. B. `swisstopo-dev-ui`) |
+| `ECS_API_CONTAINER_NAME` | API-Containername in der API-TaskDef |
+| `ECS_UI_CONTAINER_NAME` | UI-Containername in der UI-TaskDef |
+| `ECR_API_REPOSITORY` | API-ECR-Repository (z. B. `swisstopo-dev-api`) |
+| `ECR_UI_REPOSITORY` | UI-ECR-Repository (z. B. `swisstopo-dev-ui`) |
+| `SERVICE_API_BASE_URL` | API-Base-URL für Smokes (`https://api.<domain>`) |
+| `SERVICE_APP_BASE_URL` | UI-Base-URL für Smokes (`https://www.<domain>` oder `https://app.<domain>`) |
+| `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`), falls `SERVICE_API_BASE_URL` nicht genutzt wird |
 
 **OIDC-Rollenbindung (AWS):**
 - Workflow verwendet `aws-actions/configure-aws-credentials@v4` mit
   `role-to-assume: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`.
 - Erforderliche Minimalrechte siehe `infra/iam/deploy-policy.json`.
 
-> `SERVICE_HEALTH_URL` ist optional: fehlt die Variable, wird der Smoke-Test im Workflow sauber übersprungen.
+> Hinweis: `SERVICE_HEALTH_URL` ist nur ein optionaler Override für den API-Health-Check. Fehlt der Wert, nutzt der Workflow `${SERVICE_API_BASE_URL}/health`. Der optionale Analyze-Smoke läuft nur, wenn `SERVICE_API_BASE_URL` gesetzt ist.
 
-### BL-02 Verifikationsnachweise (CI/CD Deploy via Push auf `main`)
+### BL-02 Verifikationsnachweise (historisch, vor Umstellung auf workflow_dispatch-only)
 
 | Datum (UTC) | Run | Trigger | Ergebnis | Relevante Schritte |
 |---|---|---|---|---|
@@ -392,10 +407,10 @@ Danach läuft ein Smoke-Test gegen `SERVICE_HEALTH_URL` (HTTP-Check auf `/health
 | 2026-02-25 | https://github.com/nimeob/geo-ranking-ch/actions/runs/22417939827 | `push` auf `main` | ✅ Success | End-to-End OIDC-Deploy mit `services-stable` + Smoke-Test erfolgreich |
 
 Kurzfazit BL-02:
-- Trigger per `push` auf `main`: ✅ nachgewiesen.
-- `services-stable` erfolgreich: ✅ mehrfach bestätigt (`22416418587`, `22417939827`).
-- Smoke-Test `/health` erfolgreich: ✅ mehrfach bestätigt (`22416418587`, `22417939827`).
-- Regression `ecs:DescribeTaskDefinition` wurde in IAM-Policy adressiert (OIDC-Role, Policy-Version `v2`) und per Validierungsrun `22417749775` sowie folgendem Push-Run `22417939827` bestätigt.
+- Historischer Push-Trigger auf `main` war zu diesem Zeitpunkt verifiziert.
+- `services-stable` und `/health`-Smoke waren mehrfach erfolgreich nachgewiesen.
+- Regression `ecs:DescribeTaskDefinition` wurde via IAM-Policy-Fix (OIDC-Role, Policy v2) geschlossen.
+- **Aktueller Ist-Stand:** `deploy.yml` läuft nur noch per `workflow_dispatch`; die BL-02-Läufe dienen als Referenzhistorie.
 
 > ⚠️ Niemals Secrets direkt in Code oder Dokumente schreiben.
 

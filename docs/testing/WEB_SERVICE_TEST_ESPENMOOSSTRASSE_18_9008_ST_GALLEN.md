@@ -3,7 +3,7 @@
 - **Issue:** #267 (BL-YY.4)
 - **Datum (UTC):** 2026-02-27
 - **Umgebung:** lokal (`127.0.0.1:18080`)
-- **Service-Start:** `PORT=18080 PYTHONPATH=. python3 -m src.web_service`
+- **Service-Start:** `PORT=18080 PYTHONPATH=. python3 -m src.api.web_service` (Legacy-Wrapper: `python3 -m src.web_service`)
 
 ## Ziel
 Reproduzierbarer Testlauf für die Adresse `Espenmoosstrasse 18, 9008 St. Gallen` inkl. dokumentiertem Request, HTTP-Status und Output-Artefakten.

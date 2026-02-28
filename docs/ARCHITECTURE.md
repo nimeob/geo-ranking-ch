@@ -72,9 +72,8 @@ Workflow-Dateien (relevant für Split-Stand):
 ### Trigger
 
 - `workflow_dispatch` (manueller Start)
-- `push` auf Branch `main`
 
-### Pipeline-Phasen
+### Pipeline-Phasen (`deploy.yml`, Ist-Stand)
 
 1. **Build & Test**
    - Checkout
@@ -82,36 +81,36 @@ Workflow-Dateien (relevant für Split-Stand):
    - `pip install -r requirements-dev.txt`
    - `pytest tests/ -v --tb=short`
 
-1b. **Split-Smoke-Fallback (API/UI getrennt)**
-   - `./scripts/check_bl334_split_smokes.sh`
-   - API-only Startpfad: `python -m src.api.web_service`
-   - UI-only Startpfad: `python -m src.ui.service`
-
-2. **Deploy to ECS (dev)**
+2. **Build & Push (API + UI)**
    - Validierung erforderlicher Repo-Variablen
-   - Validierung, dass `Dockerfile` existiert
-   - AWS Credentials konfigurieren
+   - Validierung, dass `Dockerfile` **und** `Dockerfile.ui` existieren
+   - AWS Credentials via OIDC
    - ECR Login
-   - Docker Image bauen und pushen (`<sha7>`-Tag)
-   - Aktuelle ECS Task Definition laden
-   - **Neue Task-Definition-Revision registrieren** (Container-Image wird ersetzt)
-   - **ECS Service update** auf neue Task-Definition
-   - Warten auf Stabilität via `aws ecs wait services-stable`
+   - API- und UI-Image bauen/pushen (`<sha7>`-Tag)
 
-3. **Optionaler Smoke-Test**
-   - URL aus `SERVICE_HEALTH_URL`
-   - HTTP-Check gegen Health-Endpoint
-   - **Wenn `SERVICE_HEALTH_URL` leer/nicht gesetzt:** Smoke-Test wird mit Notice **übersprungen** (kein Hard-Fail)
+3. **Deploy API, danach UI (service-getrennt)**
+   - Aktuelle TaskDefs für API/UI lesen
+   - neue API-/UI-TaskDef-Revisionen registrieren
+   - API-Service updaten + `services-stable`
+   - API-Smokes (`/health`, optional `/analyze`)
+   - UI-Service updaten + `services-stable`
+   - UI-Smoke (`/healthz`)
+
+4. **Optionaler Strict Split-Smoke**
+   - Wenn `SERVICE_API_BASE_URL` + `SERVICE_APP_BASE_URL` gesetzt sind:
+     - `./scripts/run_bl31_routing_tls_smoke.sh` mit `BL31_STRICT_CORS=1`
+   - sonst: sauberer Skip mit Notice
 
 ---
 
 ## 4) Konfiguration in GitHub (Secrets & Variables)
 
-### Required Secrets
+### Secrets
 
 | Name | Zweck |
 |---|---|
-| _(keine erforderlich)_ | AWS-Authentifizierung erfolgt via GitHub OIDC Role Assume |
+| `SERVICE_API_AUTH_TOKEN` | Optional: Bearer-Token für den API-Analyze-Smoke |
+| _(keine AWS-Credentials erforderlich)_ | AWS-Authentifizierung erfolgt via GitHub OIDC Role Assume |
 
 ### OIDC-AWS-Bindung
 
@@ -123,16 +122,21 @@ Workflow-Dateien (relevant für Split-Stand):
 
 | Name | Zweck |
 |---|---|
-| `ECR_REPOSITORY` | Ziel-ECR-Repository (z. B. `swisstopo-dev-api`) |
 | `ECS_CLUSTER` | Ziel-ECS-Cluster (z. B. `swisstopo-dev`) |
-| `ECS_SERVICE` | Ziel-ECS-Service (z. B. `swisstopo-dev-api`) |
-| `ECS_CONTAINER_NAME` | Containername in der Task Definition |
+| `ECS_API_SERVICE` | Ziel-ECS-Service API (z. B. `swisstopo-dev-api`) |
+| `ECS_UI_SERVICE` | Ziel-ECS-Service UI (z. B. `swisstopo-dev-ui`) |
+| `ECS_API_CONTAINER_NAME` | API-Containername in der API-TaskDef |
+| `ECS_UI_CONTAINER_NAME` | UI-Containername in der UI-TaskDef |
+| `ECR_API_REPOSITORY` | API-ECR-Repository |
+| `ECR_UI_REPOSITORY` | UI-ECR-Repository |
+| `SERVICE_API_BASE_URL` | API-Base-URL für Pflicht-Smokes |
+| `SERVICE_APP_BASE_URL` | UI-Base-URL für Pflicht-Smokes |
 
 ### Optionale Variable
 
 | Name | Zweck |
 |---|---|
-| `SERVICE_HEALTH_URL` | URL für Smoke-Test nach Deploy; wenn nicht gesetzt → Schritt wird übersprungen |
+| `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`) |
 
 ---
 
@@ -140,8 +144,8 @@ Workflow-Dateien (relevant für Split-Stand):
 
 - **Deploy-Ziel:** ECS/Fargate in `dev` ist aktiv.
 - **Build/Release-Pfad:** GitHub Actions ist der führende Deploy-Pfad.
-- **Artefakt:** Docker Image in ECR, Deployment über neue ECS Task-Definition-Revision.
-- **Service-Form:** Lightweight MVP-Webservice mit klaren Basisendpoints (`/health`, `/version`, `/analyze`).
+- **Artefakte:** Getrennte Docker-Images in ECR (API + UI), Deployment über neue ECS-TaskDef-Revisionen.
+- **Service-Form:** Service-getrennte Laufzeit (API: `/health` `/version` `/analyze`, UI: `/healthz` + GUI-Entry).
 - **IaC-Fundament (dev):** Terraform-Startpaket unter `infra/terraform/` für ECS/ECR/CloudWatch/S3 mit Import-first-Ansatz (`manage_*` standardmässig `false`).
 - **Netzwerk/Ingress-Zielbild:** Dokumentiert in `docs/NETWORK_INGRESS_DECISIONS.md` (ALB-direkt als Ziel, API Gateway aktuell nicht erforderlich, Route53-Pflichten für `staging`/`prod`).
 - **Datenhaltung + API-Sicherheit:** Entscheidungen dokumentiert in `docs/DATA_AND_API_SECURITY.md` (stateless in `dev`, DynamoDB-first bei Persistenzbedarf, AuthN/Rate-Limit/Secret-Standards für `/analyze`).
