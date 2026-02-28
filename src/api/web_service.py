@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 from urllib.request import urlopen
 
 from src.api.address_intel import AddressIntelError, build_report
-from src.gui_mvp import render_gui_mvp_html
+from src.shared.gui_mvp import render_gui_mvp_html
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
 from src.api.personalized_scoring import compute_two_stage_scores
 

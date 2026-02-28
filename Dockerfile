@@ -12,8 +12,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r requirements.txt
 
-COPY src ./src
+COPY src/__init__.py ./src/__init__.py
+COPY src/gwr_codes.py ./src/gwr_codes.py
+COPY src/api ./src/api
+COPY src/shared ./src/shared
 
 EXPOSE 8080
 
-CMD ["python", "-m", "src.web_service"]
+CMD ["python", "-m", "src.api.web_service"]

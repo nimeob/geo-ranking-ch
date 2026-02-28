@@ -20,7 +20,9 @@ def test_ui_dockerfile_defines_build_args_and_runtime_env() -> None:
     assert re.search(r"ENV[\s\S]*UI_API_BASE_URL=\$\{UI_API_BASE_URL\}", content)
 
     assert re.search(r"apt-get\s+install[^\n]*\bcurl\b", content)
-    assert 'CMD ["python", "-m", "src.ui_service"]' in content
+    assert "COPY src/ui ./src/ui" in content
+    assert "COPY src/shared ./src/shared" in content
+    assert 'CMD ["python", "-m", "src.ui.service"]' in content
 
 
 def test_ui_task_definition_template_exists_with_healthcheck_and_ui_repo() -> None:

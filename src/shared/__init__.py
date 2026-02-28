@@ -1,1 +1,5 @@
-"""Shared source package placeholder for BL-334 split layout."""
+"""Shared source package for API/UI-overlapping runtime modules.
+
+Canonical shared modules currently include:
+- ``src.shared.gui_mvp``
+"""

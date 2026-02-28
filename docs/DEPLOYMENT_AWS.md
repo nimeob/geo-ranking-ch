@@ -209,7 +209,7 @@ python3 scripts/run_bl31_split_deploy.py --mode both --execute
 BL-31.2 legt die technische Basis für ein eigenes UI-Artefakt fest:
 
 - UI-Dockerfile: [`Dockerfile.ui`](../Dockerfile.ui)
-- UI-Runtime-Entrypoint: `python -m src.ui_service` (Kompatibilitäts-Wrapper auf kanonisch `src/ui/service.py`)
+- UI-Runtime-Entrypoint: `python -m src.ui.service` (kanonisch; Legacy-Wrapper `src.ui_service` bleibt lokal kompatibel)
 - ECS-Task-Template: [`infra/ecs/taskdef.swisstopo-dev-ui.json`](../infra/ecs/taskdef.swisstopo-dev-ui.json)
 - Ziel-ECR-Repository: **`swisstopo-dev-ui`**
 
@@ -235,6 +235,7 @@ Beispiel Build + Push für UI-Artefakt:
 IMAGE_TAG=$(git rev-parse --short HEAD)
 
 # 1) UI-Image bauen (separat vom API-Image)
+#    Dockerfile.ui.dockerignore begrenzt den Kontext auf src/ui + src/shared.
 docker build \
   -f Dockerfile.ui \
   --build-arg APP_VERSION=${IMAGE_TAG} \
@@ -307,8 +308,9 @@ Erwartung: alle Checks `pass`, Exit-Code `0`.
 
 ```bash
 # 1. Docker Image bauen
+#    Dockerfile.dockerignore begrenzt den Kontext auf src/api + src/shared (+ src/gwr_codes.py).
 IMAGE_TAG=$(git rev-parse --short HEAD)
-docker build -t swisstopo-dev-api:${IMAGE_TAG} .
+docker build -f Dockerfile -t swisstopo-dev-api:${IMAGE_TAG} .
 
 # 2. ECR Login
 aws ecr get-login-password --region eu-central-1 \
