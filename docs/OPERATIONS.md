@@ -201,6 +201,16 @@ TARGET_TASKDEF=swisstopo-dev-ui:<revision> ./scripts/setup_bl31_ui_service_rollo
 
 Der Check verifiziert nach dem Rollout sowohl UI (`/healthz`) als auch API (`/health`) und schreibt die Evidenz nach `artifacts/bl31/*-bl31-ui-ecs-rollout.json`.
 
+Für BL-31.6.c (kombinierter App/API/Monitoring-Nachweis + Parent-Sync) gibt es einen aggregierten Evidence-Runner:
+
+```bash
+./scripts/openclaw_runtime_assumerole_exec.sh env \
+  BL31_STRICT_CORS=0 \
+  ./scripts/run_bl31_app_api_monitoring_evidence.sh
+```
+
+Er nutzt die jüngste Rollout-Evidenz als Input, führt den kombinierten App/API-Smoke (inkl. CORS-Baseline im Warn-/Strict-Modus) plus UI-Monitoring-Check aus und schreibt den Nachweis nach `artifacts/bl31/*-bl31-app-api-monitoring-evidence.json`.
+
 #### BL-31.3 Failure-/Rollback-Hinweise (Routing/TLS)
 
 Typische Symptome und Sofortmaßnahmen:

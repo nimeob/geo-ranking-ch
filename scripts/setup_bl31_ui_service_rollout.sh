@@ -140,9 +140,8 @@ if [[ -z "${TARGET_TASKDEF}" ]]; then
     --family-prefix "${UI_TASKDEF_FAMILY}" \
     --status ACTIVE \
     --sort DESC \
-    --max-items 1 \
-    --query 'taskDefinitionArns[0]' \
-    --output text)"
+    --query 'taskDefinitionArns' \
+    --output text | tr '\t' '\n' | grep -v '^None$' | head -n 1)"
 fi
 
 if [[ -z "${TARGET_TASKDEF}" || "${TARGET_TASKDEF}" == "None" ]]; then

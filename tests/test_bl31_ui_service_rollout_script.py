@@ -24,6 +24,13 @@ class TestBl31UiServiceRolloutScript(unittest.TestCase):
         self.assertIn('UI_HEALTH_PATH="${UI_HEALTH_PATH:-/healthz}"', text)
         self.assertIn('API_HEALTH_PATH="${API_HEALTH_PATH:-/health}"', text)
 
+    def test_rollout_script_resolves_target_taskdef_without_max_items_none_artifact(self):
+        text = ROLLOUT_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("--query 'taskDefinitionArns'", text)
+        self.assertIn("grep -v '^None$'", text)
+        self.assertNotIn("--max-items 1", text)
+        self.assertNotIn("taskDefinitionArns[0]", text)
+
 
 if __name__ == "__main__":
     unittest.main()
