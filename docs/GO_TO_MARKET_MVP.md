@@ -87,15 +87,15 @@ Für Standort- und Gebäudeentscheidungen sind in der Schweiz relevante Daten ü
   - Referenz auf Quelleninventar: #24 (BL-20.2.a)
 - **✅ #37 — Reproduzierbares Demo-Datenset definiert**
   - Ergebnis: v1-Datenset mit 5 CH-Standorten, erwarteten Kernaussagen und Confidence-/Unsicherheitsnotizen in [`docs/DEMO_DATASET_CH.md`](DEMO_DATASET_CH.md)
-- **#38 — Packaging-/Pricing-Hypothesen mit Zielsegmenten validieren**
-  - Risiko: fehlende Entscheidungsbasis für Angebotsmodell
+- **✅ #38 — Packaging-/Pricing-Hypothesen mit Zielsegmenten validiert**
+  - Ergebnis: segmentierte Kaufkriterien + testbare Pricing-/Packaging-Hypothesen inkl. Entscheidungsvorlage und BL-30-Gates dokumentiert in [`docs/PACKAGING_PRICING_HYPOTHESES.md`](PACKAGING_PRICING_HYPOTHESES.md).
 
-Die verbleibenden Risiken werden separat bearbeitet, damit BL-20.7.b als MVP-Basis erhalten bleibt und Folgeaufgaben klar nachverfolgbar sind.
+Die GTM-Basis ist damit für den nächsten Validierungssprint vollständig dokumentiert; weitere Iterationen laufen als eigene Follow-up-Issues.
 
 ---
 
 ## 6) Nächster Schritt nach BL-20.7.b
 
-1. Offenes Risiko #38 (Packaging/Pricing-Hypothesen) priorisieren und in den nächsten Sprint übernehmen
-2. GTM-Baseline mit erstem Pilot-Run gegentesten (unter Nutzung des Datensets v1)
-3. API-Felddoku/Manifest-Follow-ups (#66/#67) für Integrationsfähigkeit priorisieren
+1. GTM-Baseline mit erstem Pilot-Run gegentesten (unter Nutzung des Datensets v1)
+2. Interview-/Signalsammlung aus `docs/PACKAGING_PRICING_HYPOTHESES.md` ausführen und Entscheidung (API-only vs GUI+API vs Dual) treffen
+3. Abgeleitete BL-30.1/30.2-Folge-Issues mit konkreten Entitlement-/Pricing-DoD anlegen
