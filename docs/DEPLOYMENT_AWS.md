@@ -322,7 +322,9 @@ python3 scripts/check_bl335_frontdoor_runtime.py \
   --output-json "artifacts/bl335/frontdoor-runtime-check.json"
 ```
 
-Details: [`docs/testing/bl335-frontdoor-runtime-guardrail.md`](testing/bl335-frontdoor-runtime-guardrail.md)
+Details:
+- Runtime-Guardrail: [`docs/testing/bl335-frontdoor-runtime-guardrail.md`](testing/bl335-frontdoor-runtime-guardrail.md)
+- Redeploy-Abnahme inkl. Parent-Checklist (#376): [`docs/testing/bl335-frontdoor-redeploy-acceptance-runbook.md`](testing/bl335-frontdoor-redeploy-acceptance-runbook.md)
 
 ### Reguläres Deployment (nach erstem Setup)
 
