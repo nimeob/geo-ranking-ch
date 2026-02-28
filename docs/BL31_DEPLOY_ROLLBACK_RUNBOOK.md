@@ -240,6 +240,8 @@ python3 scripts/check_bl31_smoke_evidence_matrix.py \
   "artifacts/bl31/${STAMP}-bl31-split-deploy-both.json"
 ```
 
+Default-Scan ohne explizite Pfade ist auf die kanonischen Split-Deploy-Dateien begrenzt (`*-bl31-split-deploy-{api,ui,both}.json`) und ignoriert andere Artefaktklassen wie `*-ui-smoke.json`.
+
 Bei produktiven Deploy-Läufen die gleichen Aufrufe mit `--execute` fahren.
 
 ---

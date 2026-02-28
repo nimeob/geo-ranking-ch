@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -62,6 +63,30 @@ class TestCheckBl31SmokeEvidenceMatrix(unittest.TestCase):
 
             rc = module.main([str(api), "--require-modes", "api,ui"])
             self.assertEqual(rc, 1)
+
+    def test_default_scan_ignores_schemafremde_smoke_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            artifacts_dir = Path(tmp) / "artifacts" / "bl31"
+            artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+            self._write_artifact(artifacts_dir / "20260228T170000Z-bl31-split-deploy-api.json", "api")
+            self._write_artifact(artifacts_dir / "20260228T170100Z-bl31-split-deploy-ui.json", "ui")
+            self._write_artifact(artifacts_dir / "20260228T170200Z-bl31-split-deploy-both.json", "both")
+
+            # Dieses Artefakt gehört zu einem anderen Schema und darf den Default-Scan nicht kippen.
+            (artifacts_dir / "20260228T170300Z-bl31-split-deploy-ui-smoke.json").write_text(
+                json.dumps({"status": "ok", "kind": "ui-smoke"}),
+                encoding="utf-8",
+            )
+
+            old_cwd = Path.cwd()
+            try:
+                os.chdir(tmp)
+                rc = module.main([])
+            finally:
+                os.chdir(old_cwd)
+
+            self.assertEqual(rc, 0)
 
 
 if __name__ == "__main__":

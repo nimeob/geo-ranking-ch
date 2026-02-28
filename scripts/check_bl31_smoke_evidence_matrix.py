@@ -9,6 +9,11 @@ from typing import Iterable
 
 VALID_MODES = {"api", "ui", "both"}
 VALID_RESULTS = {"planned", "pass", "fail"}
+DEFAULT_GLOB_PATTERNS = [
+    "artifacts/bl31/*-bl31-split-deploy-api.json",
+    "artifacts/bl31/*-bl31-split-deploy-ui.json",
+    "artifacts/bl31/*-bl31-split-deploy-both.json",
+]
 
 
 def _parse_required_modes(raw: str) -> set[str]:
@@ -74,10 +79,17 @@ def _validate_payload(payload: object, source: Path) -> tuple[list[str], str | N
 
 def _resolve_paths(paths: list[str], glob_pattern: str) -> list[Path]:
     resolved_paths: list[Path] = [Path(path) for path in paths]
-    if not resolved_paths:
-        pattern = glob_pattern or "artifacts/bl31/*-bl31-split-deploy-*.json"
-        resolved_paths = sorted(Path().glob(pattern))
-    return resolved_paths
+    if resolved_paths:
+        return resolved_paths
+
+    if glob_pattern:
+        return sorted(Path().glob(glob_pattern))
+
+    discovered: list[Path] = []
+    for pattern in DEFAULT_GLOB_PATTERNS:
+        discovered.extend(sorted(Path().glob(pattern)))
+
+    return sorted(set(discovered))
 
 
 def _load_json(path: Path) -> object:
@@ -97,7 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help=(
             "Optional glob pattern used when no explicit paths are provided "
-            "(default: artifacts/bl31/*-bl31-split-deploy-*.json)"
+            "(default: artifacts/bl31/*-bl31-split-deploy-{api,ui,both}.json)"
         ),
     )
     parser.add_argument(

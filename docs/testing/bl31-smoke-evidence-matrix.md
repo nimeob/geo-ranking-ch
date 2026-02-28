@@ -42,8 +42,10 @@ python3 scripts/check_bl31_smoke_evidence_matrix.py \
   "artifacts/bl31/${STAMP}-bl31-split-deploy-both.json"
 ```
 
-Default ohne Pfade (nutzt Glob):
+Default ohne Pfade (scannt nur kanonische Split-Deploy-Artefakte `*-bl31-split-deploy-{api,ui,both}.json`):
 
 ```bash
 python3 scripts/check_bl31_smoke_evidence_matrix.py
 ```
+
+Hinweis: Andere Artefaktklassen (z. B. `*-ui-smoke.json`) werden im Default-Scan bewusst nicht ausgewertet.
