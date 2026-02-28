@@ -25,14 +25,16 @@ Der Ablauf ist bewusst zweistufig aufgebaut:
 ### Terminal A (API)
 
 ```bash
-HOST=127.0.0.1 PORT=18080 CORS_ALLOW_ORIGINS="http://127.0.0.1:18081" python3 -m src.web_service
+HOST=127.0.0.1 PORT=18080 CORS_ALLOW_ORIGINS="http://127.0.0.1:18081" python3 -m src.api.web_service
 ```
 
 ### Terminal B (UI)
 
 ```bash
-HOST=127.0.0.1 PORT=18081 UI_API_BASE_URL="http://127.0.0.1:18080" python3 -m src.ui_service
+HOST=127.0.0.1 PORT=18081 UI_API_BASE_URL="http://127.0.0.1:18080" python3 -m src.ui.service
 ```
+
+> Legacy-Kompatibilität: `src.web_service` und `src.ui_service` bleiben als Wrapper weiterhin nutzbar.
 
 ---
 
