@@ -4,7 +4,7 @@ Stand: 2026-02-27
 
 ## Scope
 
-Analysiert wurden die Resultpfade des produktiven Webservice-Einstiegspunkts `src/web_service.py`:
+Analysiert wurden die Resultpfade des produktiven Webservice-Einstiegspunkts `src/api/web_service.py` (Legacy-Wrapper: `src/web_service.py`):
 
 - `Handler.do_GET` (`/health`, `/version`, unknown)
 - `Handler.do_POST` (`/analyze`, Auth, Inputvalidierung, Fehler-Mapping)

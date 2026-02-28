@@ -11,9 +11,9 @@ Aus den inventarisierten Dokumentationslücken eine priorisierte, umsetzbare Rei
 
 | Priorität | Gap | Zielpublikum | Betroffener Bereich | Begründung |
 |---|---|---|---|---|
-| Hoch | Fehlender Address-Intel-Flow-Deep-Dive (Pipeline, Fehlerpfade, Source-Mix) | intern + integrator-nah | `src/address_intel.py`, `src/web_service.py`, API/Operations-Doku | Höchster Hebel für Onboarding, Debugging und fachlich korrekte Interpretation der Resultate |
+| Hoch | Fehlender Address-Intel-Flow-Deep-Dive (Pipeline, Fehlerpfade, Source-Mix) | intern + integrator-nah | `src/address_intel.py`, `src/api/web_service.py` (Legacy: `src/web_service.py`), API/Operations-Doku | Höchster Hebel für Onboarding, Debugging und fachlich korrekte Interpretation der Resultate |
 | Mittel | Mapping-/Transform-Regeln sind intern dokumentiert, aber ohne kompakte user-nahe Einordnung | User/Integratoren | `src/mapping_transform_rules.py`, `docs/DATA_SOURCE_FIELD_MAPPING_CH.md`, `docs/user/api-usage.md` | Reduziert Fehlinterpretationen bei Datenherkunft/-normalisierung |
-| Mittel | Mehrere Kernmodule ohne Modul-Docstring (Code-Navigation) | intern (Dev/Ops) | `src/web_service.py`, `src/address_intel.py`, `src/personalized_scoring.py`, `src/suitability_light.py`, `src/legacy_consumer_fingerprint.py` | Schnell umsetzbar; verbessert Wartbarkeit und Einstieg ohne API-Verhalten zu ändern |
+| Mittel | Mehrere Kernmodule ohne Modul-Docstring (Code-Navigation) | intern (Dev/Ops) | `src/api/web_service.py` (Legacy: `src/web_service.py`), `src/address_intel.py`, `src/personalized_scoring.py`, `src/suitability_light.py`, `src/legacy_consumer_fingerprint.py` | Schnell umsetzbar; verbessert Wartbarkeit und Einstieg ohne API-Verhalten zu ändern |
 | Niedrig | Utility-Layer (`geo_utils`, `gwr_codes`) ohne fokussierte User-Referenz | User (fortgeschritten) | `src/geo_utils.py`, `src/gwr_codes.py`, README/User-Doku | Der Layer ist aktuell über API-/README-Pfade indirekt nutzbar; fachlich nachgelagert |
 
 ## Umsetzungsreihenfolge für #266 (verbindlich)

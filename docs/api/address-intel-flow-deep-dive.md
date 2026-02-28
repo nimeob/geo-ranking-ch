@@ -6,7 +6,8 @@
 Diese Seite beschreibt den End-to-End-Flow für adressbasierte Analysen (`POST /analyze`) von der Anfrage bis zur gruppierten Response – inklusive Source-Policy je `intelligence_mode` und Fehler-Mapping.
 
 ## Einstiegspunkte
-- HTTP-Entry: [`src/web_service.py`](../../src/web_service.py) (`Handler.do_POST` für `/analyze`)
+- HTTP-Entry (kanonisch): [`src/api/web_service.py`](../../src/api/web_service.py) (`Handler.do_POST` für `/analyze`)
+- Legacy-Kompatibilität: [`src/web_service.py`](../../src/web_service.py) als Wrapper auf den kanonischen API-Entrypoint
 - Domain-Entry: [`src/address_intel.py`](../../src/address_intel.py) (`build_report(...)`)
 
 ## End-to-End Ablauf
@@ -48,7 +49,7 @@ Auf Basis des selektierten Kandidaten:
 - `build_intelligence_layers(...)`: mode-abhängige Zusatzlayer (Tenants/Incidents/Noise/Executive Risk)
 
 ### 4) Response-Aufbau
-`build_report(...)` liefert ein vollständiges Domain-Reportobjekt. `web_service.py` projiziert dieses anschließend in die API-Form:
+`build_report(...)` liefert ein vollständiges Domain-Reportobjekt. `src/api/web_service.py` projiziert dieses anschließend in die API-Form:
 - `result.status`: Qualität, Quellenzustand, Metadaten, Personalisierungsstatus
 - `result.data`: Entity-, Modul- und by_source-Daten
 
@@ -72,7 +73,7 @@ Implementierung: `intelligence_mode_settings(mode)` + Verzweigung in `build_inte
 
 ## Fehler-Mapping (Service)
 
-`web_service.py` mappt Fehler deterministisch auf HTTP-Codes:
+`src/api/web_service.py` mappt Fehler deterministisch auf HTTP-Codes:
 
 | Fehlerklasse | HTTP | `error`-Feld |
 |---|---:|---|

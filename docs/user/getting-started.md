@@ -22,8 +22,10 @@ pip install -r requirements-dev.txt
 Service starten:
 
 ```bash
-python -m src.web_service
+python -m src.api.web_service
 ```
+
+> Legacy-Kompatibilität: `python -m src.web_service` funktioniert weiterhin als Wrapper.
 
 Standard-Port ist `8080` (ENV `PORT`, Fallback `WEB_PORT`).
 
@@ -61,7 +63,7 @@ Wenn der Service mit `API_AUTH_TOKEN` läuft, ist `POST /analyze` geschützt.
 Start mit Token:
 
 ```bash
-API_AUTH_TOKEN="dev-secret" python -m src.web_service
+API_AUTH_TOKEN="dev-secret" python -m src.api.web_service
 ```
 
 Request mit Bearer Token:

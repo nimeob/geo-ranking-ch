@@ -12,9 +12,11 @@ Ziel dieses Dokuments ist eine **reproduzierbare Build/Run-Basis** für das aktu
 
 | Modus | Build/Setup | Run | Minimaler Verify-Check |
 |---|---|---|---|
-| Lokal (venv) | `python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt` | `python -m src.web_service` | `curl -fsS http://127.0.0.1:8080/health` |
+| Lokal (venv) | `python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt` | `python -m src.api.web_service` | `curl -fsS http://127.0.0.1:8080/health` |
 | Docker lokal | `docker build -t geo-ranking-ch:dev .` | `docker run --rm -p 8080:8080 geo-ranking-ch:dev` | `curl -fsS http://127.0.0.1:8080/health` |
 | Test-Baseline | `source .venv/bin/activate` | `pytest tests/test_web_e2e.py -q` | Exit-Code `0` |
+
+> Kompatibilität: `python -m src.web_service` bleibt als Legacy-Wrapper nutzbar; kanonisch ist `python -m src.api.web_service`.
 
 ## 3) Konfigurationsmatrix (Packaging/Runtime)
 
@@ -44,7 +46,7 @@ git checkout main
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m src.web_service
+python -m src.api.web_service
 ```
 
 Parallel (zweite Shell):
@@ -75,7 +77,7 @@ Diese Checkliste ist der minimale Gate für einen releasefähigen API-only Stand
 | Check | Kommando / Nachweis | Erwartung |
 |---|---|---|
 | Build (lokal) | `python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt` | Dependencies lösen ohne Fehler |
-| Run (lokal) | `python -m src.web_service` | Service startet ohne Traceback |
+| Run (lokal) | `python -m src.api.web_service` | Service startet ohne Traceback |
 | Smoke | `curl -fsS http://127.0.0.1:8080/health` | HTTP `200`, `{"ok": true}` |
 | Test-Gate | `pytest tests/test_web_e2e.py -q` | Exit-Code `0` |
 | Doku-Check | `./scripts/check_docs_quality_gate.sh` | Exit-Code `0` |

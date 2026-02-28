@@ -26,7 +26,7 @@ TLS_CERT_FILE=/tmp/geo-ranking-ch-dev-tls/dev-self-signed.crt \
 TLS_KEY_FILE=/tmp/geo-ranking-ch-dev-tls/dev-self-signed.key \
 API_AUTH_TOKEN=bl18-token \
 PORT=8443 \
-python -m src.web_service
+python -m src.api.web_service
 ```
 
 Optionaler Redirect-Listener:
