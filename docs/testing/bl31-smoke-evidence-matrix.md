@@ -7,6 +7,10 @@ Reproduzierbarer Nachweis, dass für alle Deploy-Modi (`api`, `ui`, `both`) kons
 
 ```bash
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+export BL31_SMOKE_API_BASE_URL="https://api.<domain>"
+export BL31_SMOKE_APP_BASE_URL="https://app.<domain>"
+export BL31_SMOKE_CORS_ORIGIN="https://app.<domain>"
+
 python3 scripts/run_bl31_split_deploy.py --mode api  --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-api.json"
 python3 scripts/run_bl31_split_deploy.py --mode ui   --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-ui.json"
 python3 scripts/run_bl31_split_deploy.py --mode both --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-both.json"
@@ -16,6 +20,10 @@ python3 scripts/run_bl31_split_deploy.py --mode both --output-json "artifacts/bl
 
 ```bash
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+export BL31_SMOKE_API_BASE_URL="https://api.<domain>"
+export BL31_SMOKE_APP_BASE_URL="https://app.<domain>"
+export BL31_SMOKE_CORS_ORIGIN="https://app.<domain>"
+
 python3 scripts/run_bl31_split_deploy.py --mode api  --execute --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-api.json"
 python3 scripts/run_bl31_split_deploy.py --mode ui   --execute --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-ui.json"
 python3 scripts/run_bl31_split_deploy.py --mode both --execute --output-json "artifacts/bl31/${STAMP}-bl31-split-deploy-both.json"

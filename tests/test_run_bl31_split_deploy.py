@@ -57,6 +57,9 @@ class TestRunBl31SplitDeploy(unittest.TestCase):
                 ui_service="swisstopo-dev-ui",
                 smoke_script="./scripts/run_bl31_routing_tls_smoke.sh",
                 out_dir=out_dir,
+                smoke_api_base_url="https://api.dev.georanking.ch",
+                smoke_app_base_url="https://www.dev.georanking.ch",
+                smoke_cors_origin="",
             )
 
             payload = module.execute_deploy(config)
@@ -68,11 +71,35 @@ class TestRunBl31SplitDeploy(unittest.TestCase):
             self.assertEqual(payload["taskDefinitionAfter"]["api"], module.DRY_RUN_TASKDEF_VALUE)
             self.assertEqual(payload["taskDefinitionAfter"]["ui"], module.DRY_RUN_TASKDEF_VALUE)
             self.assertEqual(payload["smokeArtifacts"], [])
+            self.assertEqual(payload["smokeConfig"]["BL31_API_BASE_URL"], "https://api.dev.georanking.ch")
+            self.assertEqual(payload["smokeConfig"]["BL31_APP_BASE_URL"], "https://www.dev.georanking.ch")
+            self.assertEqual(payload["smokeConfig"]["BL31_CORS_ORIGIN"], "https://www.dev.georanking.ch")
 
             plan = payload["plan"]
             self.assertEqual([step["step"] for step in plan], ["api", "ui"])
             self.assertIn("swisstopo-dev-ui task definition must remain unchanged", plan[0]["guardrail"])
             self.assertIn("swisstopo-dev-api task definition must remain unchanged", plan[1]["guardrail"])
+            self.assertIn("BL31_API_BASE_URL=https://api.dev.georanking.ch", plan[0]["commands"][2])
+            self.assertIn("BL31_APP_BASE_URL=https://www.dev.georanking.ch", plan[0]["commands"][2])
+
+    def test_execute_mode_requires_explicit_smoke_urls(self) -> None:
+        config = module.Config(
+            mode="api",
+            execute=True,
+            aws_region="eu-central-1",
+            ecs_cluster="swisstopo-dev",
+            api_service="swisstopo-dev-api",
+            ui_service="swisstopo-dev-ui",
+            smoke_script="./scripts/run_bl31_routing_tls_smoke.sh",
+            out_dir=Path("artifacts/bl31"),
+            smoke_api_base_url="",
+            smoke_app_base_url="",
+            smoke_cors_origin="",
+        )
+
+        with self.assertRaises(RuntimeError) as exc:
+            module.execute_deploy(config)
+        self.assertIn("--smoke-api-base-url", str(exc.exception))
 
     def test_main_writes_dry_run_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -83,6 +110,10 @@ class TestRunBl31SplitDeploy(unittest.TestCase):
                     "api",
                     "--out-dir",
                     str(Path(tmp) / "artifacts"),
+                    "--smoke-api-base-url",
+                    "https://api.dev.georanking.ch",
+                    "--smoke-app-base-url",
+                    "https://www.dev.georanking.ch",
                     "--output-json",
                     str(output_json),
                 ]
@@ -96,6 +127,7 @@ class TestRunBl31SplitDeploy(unittest.TestCase):
             self.assertIn("taskDefinitionBefore", payload)
             self.assertIn("taskDefinitionAfter", payload)
             self.assertIn("timestampUtc", payload)
+            self.assertEqual(payload["smokeConfig"]["BL31_CORS_ORIGIN"], "https://www.dev.georanking.ch")
 
 
 if __name__ == "__main__":
