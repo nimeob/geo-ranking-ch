@@ -622,6 +622,30 @@ Nachweislauf (Issue #346):
 - `docs/testing/bl31-ui-ecs-rollout.md`
 - `artifacts/bl31/20260228T080756Z-bl31-ui-ecs-rollout.json` (Taskdef `:3` → `:5`)
 
+### BL-31.6.c Kombinierter App/API/Monitoring-Nachweislauf (dev)
+
+Für die reproduzierbare Gesamtabnahme von #344/#327 steht ein kombinierter Nachweis-Runner bereit:
+
+```bash
+# 1) Optional: frische Rollout-Evidenz erzeugen
+TARGET_TASKDEF=swisstopo-dev-ui:<revision> ./scripts/setup_bl31_ui_service_rollout.sh
+
+# 2) Kombinierter Nachweislauf (CORS-Baseline + UI Monitoring Baseline)
+./scripts/openclaw_runtime_assumerole_exec.sh env \
+  BL31_STRICT_CORS=0 \
+  ./scripts/run_bl31_app_api_monitoring_evidence.sh
+```
+
+Der Runner:
+- liest die aktuelle Rollout-Evidenz (`*-bl31-ui-ecs-rollout.json`),
+- leitet daraus API-/UI-Base-URLs ab,
+- führt `scripts/run_bl31_routing_tls_smoke.sh` (inkl. CORS-Baseline) aus,
+- führt `scripts/check_bl31_ui_monitoring_baseline.sh` aus,
+- schreibt einen kombinierten JSON-Nachweis nach `artifacts/bl31/*-bl31-app-api-monitoring-evidence.json`.
+
+Nachweislauf (Issue #347):
+- `docs/testing/bl31-app-api-monitoring-evidence.md`
+
 **Erster verifizierter Testlauf (2026-02-25):**
 - IP `18.184.115.244` dynamisch aufgelöst
 - HTTP 200, `{"ok": true, "service": "geo-ranking-ch", ...}` erhalten
