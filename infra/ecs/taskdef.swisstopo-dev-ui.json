@@ -4,8 +4,8 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
   "memory": "512",
-  "executionRoleArn": "arn:aws:iam::523234426229:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::523234426229:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::523234426229:role/swisstopo-dev-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::523234426229:role/swisstopo-dev-ecs-task-role",
   "containerDefinitions": [
     {
       "name": "swisstopo-dev-ui",
