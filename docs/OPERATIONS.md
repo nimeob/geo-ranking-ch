@@ -12,6 +12,8 @@ Arbeitsmodus, Branching-Strategie, Commit-Regeln und Release-Checkliste.
 
 > **Sicherheits-/Datenhaltungsentscheidungen für API-Betrieb:** siehe [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md).
 
+> **Issue-Format-Guard (Worker):** Neue/edierte Issues werden automatisch auf das bekannte Escaping-Problem geprüft (`\\n`, `\\t`, `\\`` statt echter Markdown-Formatierung). Bei Treffer normalisiert der Workflow den Body automatisch.
+
 ---
 
 ## Branching-Strategie
@@ -189,13 +191,17 @@ Für BL-31.x.wp2 steht zusätzlich ein service-getrennter Orchestrierungs-Entry 
 
 ```bash
 # default: dry-run (nur Plan + Guardrails, keine AWS-Änderungen)
-python3 scripts/run_bl31_split_deploy.py --mode both
+python3 scripts/run_bl31_split_deploy.py --mode both \
+  --smoke-api-base-url "https://api.dev.georanking.ch" \
+  --smoke-app-base-url "https://www.dev.georanking.ch"
 
 # aktiv ausführen (AWS update-service + wait + strict smoke)
-python3 scripts/run_bl31_split_deploy.py --mode both --execute
+python3 scripts/run_bl31_split_deploy.py --mode both --execute \
+  --smoke-api-base-url "https://api.dev.georanking.ch" \
+  --smoke-app-base-url "https://www.dev.georanking.ch"
 ```
 
-Der Runner erzwingt pro Schritt Service-Lokalität (API-only darf UI-TaskDef nicht ändern, UI-only darf API-TaskDef nicht ändern) und schreibt ein JSON-Protokoll nach `artifacts/bl31/*-bl31-split-deploy-<mode>.json`.
+Der Runner erzwingt pro Schritt Service-Lokalität (API-only darf UI-TaskDef nicht ändern, UI-only darf API-TaskDef nicht ändern), propagiert die expliziten Frontdoor-URLs in den Strict-Smoke und schreibt ein JSON-Protokoll nach `artifacts/bl31/*-bl31-split-deploy-<mode>.json`.
 
 Für BL-31.6.a (UI-Artefaktpfad + Taskdef-Revision) steht zusätzlich ein automatisierter Setup-Pfad bereit:
 

@@ -21,10 +21,15 @@ export ECS_CLUSTER="swisstopo-dev"
 export API_SERVICE="swisstopo-dev-api"
 export UI_SERVICE="swisstopo-dev-ui"
 
-# Domain-/Smoke-Konfiguration
-export BL31_API_BASE_URL="https://api.<domain>"
-export BL31_APP_BASE_URL="https://app.<domain>"
-export BL31_CORS_ORIGIN="https://app.<domain>"
+# Domain-/Smoke-Konfiguration (Split-Runner)
+export BL31_SMOKE_API_BASE_URL="https://api.<domain>"
+export BL31_SMOKE_APP_BASE_URL="https://app.<domain>"
+export BL31_SMOKE_CORS_ORIGIN="https://app.<domain>"
+
+# optional für direkten Smoke-Runner (run_bl31_routing_tls_smoke.sh)
+export BL31_API_BASE_URL="${BL31_SMOKE_API_BASE_URL}"
+export BL31_APP_BASE_URL="${BL31_SMOKE_APP_BASE_URL}"
+export BL31_CORS_ORIGIN="${BL31_SMOKE_CORS_ORIGIN}"
 ```
 
 Zusätzlich nötig:

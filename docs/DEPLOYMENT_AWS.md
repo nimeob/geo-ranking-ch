@@ -195,6 +195,10 @@ Verbindlicher Ablauf inkl. service-lokaler Rollback-Kommandos und Evidenzformat:
 Primärer Deploy-Entry für getrennte Rollouts (`api|ui|both`, default dry-run):
 
 ```bash
+export BL31_SMOKE_API_BASE_URL="https://api.<domain>"
+export BL31_SMOKE_APP_BASE_URL="https://app.<domain>"
+export BL31_SMOKE_CORS_ORIGIN="https://app.<domain>"
+
 python3 scripts/run_bl31_split_deploy.py --mode both
 python3 scripts/run_bl31_split_deploy.py --mode both --execute
 ```
