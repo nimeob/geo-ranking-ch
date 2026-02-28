@@ -185,6 +185,18 @@ Sobald der UI-Service (`swisstopo-dev-ui`) live ist, gelten zusätzlich:
 Verbindlicher Ablauf + Kommandos + Kommentar-Template:
 - [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md)
 
+Für BL-31.x.wp2 steht zusätzlich ein service-getrennter Orchestrierungs-Entry bereit (`api|ui|both`):
+
+```bash
+# default: dry-run (nur Plan + Guardrails, keine AWS-Änderungen)
+python3 scripts/run_bl31_split_deploy.py --mode both
+
+# aktiv ausführen (AWS update-service + wait + strict smoke)
+python3 scripts/run_bl31_split_deploy.py --mode both --execute
+```
+
+Der Runner erzwingt pro Schritt Service-Lokalität (API-only darf UI-TaskDef nicht ändern, UI-only darf API-TaskDef nicht ändern) und schreibt ein JSON-Protokoll nach `artifacts/bl31/*-bl31-split-deploy-<mode>.json`.
+
 Für BL-31.6.a (UI-Artefaktpfad + Taskdef-Revision) steht zusätzlich ein automatisierter Setup-Pfad bereit:
 
 ```bash
