@@ -236,7 +236,7 @@ Regelwerk:
 - **Priorität:** P2
 - **Aufwand:** S
 - **Abhängigkeiten:** BL-03
-- **Status:** 🟡 in Umsetzung (Stand: 2026-03-01, BL-15.r2.wp4-Entscheid bestätigt als NO-GO)
+- **Status:** 🟡 in Umsetzung (Stand: 2026-03-01, BL-15.r2-Parent #564 abgeschlossen; Gesamtpfad bleibt NO-GO bis Consumer-Migration)
 - **Akzeptanzkriterien:**
   - Read-only Evidenz zu aktueller Nutzung des Legacy-Users `swisstopo-api-deploy` dokumentiert. ✅
   - Risikoarme Decommission-Checkliste (ohne direkte Abschaltung) liegt vor. ✅
@@ -269,6 +269,7 @@ Regelwerk:
   - ✅ 2026-03-01: #570 abgeschlossen (BL-15.r2.wp2.followup): Parent-DoD/Checklist final synchronisiert (Child-Issues #572/#573/#574), Policy-Konsolidierung auf Zielarchitektur bestätigt und Abschlussnachweise über PRs #579/#580 sowie aktualisierte Readiness-/Backlog-Doku verlinkt.
   - ✅ 2026-03-01: #567 abgeschlossen (BL-15.r2.wp3): Disable-Canary gegen bestätigte Zielarchitektur neu bewertet; Standardentscheid als `entfällt` (kein Pflicht-Blocker) dokumentiert, optionaler Härtungs-/Failover-Pfad mit Triggern/Nachweisanforderungen in `docs/LEGACY_IAM_USER_READINESS.md` festgehalten und Parent-Sync vorbereitet.
   - ✅ 2026-03-01: #568 abgeschlossen (BL-15.r2.wp4): finale Go/No-Go-Entscheidung in `docs/LEGACY_IAM_USER_READINESS.md` auf aktuellen Gate-Stand synchronisiert (G1/G2 grün, G3 rot, G4/G5 gelb), Entscheidung **NO-GO** bestätigt und Parent-/Backlog-Sync abgeschlossen.
+  - ✅ 2026-03-01: #564 abgeschlossen (BL-15.r2 Parent-Closeout): Parent-Checklist/DoD final bestätigt (wp1–wp4 erledigt), Abschlussnachweise aus PRs #582/#583 und Child-PRs #579/#580/#581 im Parent-Issue konsolidiert; Gesamtstatus bleibt wegen offener Consumer-Migration weiterhin **NO-GO**.
 - **Work-Packages (Issue #8):**
   - [x] #109 — Testabdeckung CloudTrail-Audit
   - [x] #111 — Strukturierter Fingerprint-Evidence-Export
