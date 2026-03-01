@@ -659,13 +659,13 @@
 - **Priorität:** P2
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-340 (strukturierte Request-/Upstream-Logs vorhanden)
-- **Status:** 🟡 in Umsetzung (Parent #430)
+- **Status:** ✅ abgeschlossen (2026-03-01, Parent #430)
 - **Ziel:** Für eine konkrete `request_id` den API/UI/Upstream-Verlauf als nachvollziehbare Timeline abrufbar machen.
 - **Work-Packages (Parent #430):**
   - [x] #433 — BL-422.1 Dev-only Trace-API (Timeline + Redaction) (abgeschlossen 2026-03-01)
   - [x] #434 — BL-422.2 Trace-Debug-View Route/Loader in GUI (abgeschlossen 2026-03-01)
   - [x] #435 — BL-422.3 Result-Panel UX (Trace-Link + Copy) (abgeschlossen 2026-03-01)
-  - [ ] #436 — BL-422.4 E2E-Smoke + Doku für Trace-Debugging
+  - [x] #436 — BL-422.4 E2E-Smoke + Doku für Trace-Debugging (abgeschlossen 2026-03-01)
 - **Fortschritt (2026-03-01):**
   - ✅ #433 abgeschlossen: neues Modul `src/api/debug_trace.py` für request_id-basierte JSONL-Timeline-Projektion (Start/Upstream/End), Guardrails für Request-ID/Window/Limit und redacted Detail-Ausgabe.
   - ✅ `GET /debug/trace` (dev-only) in `src/api/web_service.py` ergänzt, inklusive ENV-Gates (`TRACE_DEBUG_ENABLED`, `TRACE_DEBUG_LOG_PATH`) sowie Empty-/Unavailable-States.
@@ -674,6 +674,8 @@
   - ✅ #434 abgeschlossen: GUI-MVP um dediziertes Trace-Debug-Panel erweitert (`request_id` + Deep-Link `/gui?view=trace&request_id=<id>`), Timeline-Loader/Renderer mit robusten Defaults für Teil-/Fehldaten sowie klare `loading/success/empty/unknown/error`-Zustände umgesetzt (`src/shared/gui_mvp.py`, `src/ui/service.py`, `docs/gui/GUI_MVP_STATE_FLOW.md`).
   - ✅ Regressionen für Route/State-Flow + UI-Service-Rewrite ergänzt (`tests/test_web_service_gui_mvp.py`, `tests/test_ui_service.py`).
   - ✅ #435 abgeschlossen: Result-Panel zeigt `request_id` jetzt als aktive Debug-Einstiegsfläche mit klickbarem `Trace ansehen`-Link (öffnet/lädt Trace-View mit identischer ID) und `Copy ID`-Action inkl. `aria-live`-Feedback + Fallback-Copy-Strategie (`src/shared/gui_mvp.py`, `docs/gui/GUI_MVP_STATE_FLOW.md`).
+  - ✅ #436 abgeschlossen: reproduzierbarer Smoke-Test für Analyze→Trace-Lookup ergänzt (`tests/test_trace_debug_smoke.py`) und operative Nutzung/Limits/Security in `docs/testing/TRACE_DEBUG_SMOKE_FLOW.md` dokumentiert (inkl. Verlinkung aus `docs/testing/TRACE_DEBUG_API.md`).
+- **Nächster Schritt:** keiner (BL-422 vollständig abgeschlossen).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
