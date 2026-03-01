@@ -264,6 +264,26 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertEqual(body.get("error"), "not_found")
 
+    def test_external_direct_login_routes_blocked_for_get_and_post(self):
+        for method, path in (
+            ("GET", "/login"),
+            ("GET", "/auth/login/"),
+            ("POST", "/auth/signin"),
+            ("POST", "/oauth/login"),
+            ("OPTIONS", "/signin"),
+        ):
+            with self.subTest(method=method, path=path):
+                status, body = _http_json(
+                    method,
+                    f"{self.base_url}{path}",
+                    payload={"username": "demo", "password": "demo"}
+                    if method == "POST"
+                    else None,
+                )
+                self.assertEqual(status, 403)
+                self.assertEqual(body.get("error"), "external_direct_login_disabled")
+                self.assertIn("direct login is disabled", body.get("message", ""))
+
     def test_auth_required_for_analyze(self):
         status, body = _http_json(
             "POST",
