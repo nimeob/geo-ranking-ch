@@ -13,6 +13,7 @@ Endpoints:
 - GET /debug/trace?request_id=<id> (dev-only)
 - POST /analyze {"query": "...", "intelligence_mode": "basic|extended|risk"}
 - POST /analyze/jobs/<job_id>/cancel
+- POST /compliance/corrections/<document_id>  (Korrektur-Workflow; korrekturgrund Pflichtfeld)
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ from src.shared.gui_mvp import render_gui_mvp_html
 from src.shared.structured_logging import build_event, emit_event
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
 from src.api.personalized_scoring import compute_two_stage_scores
+from src.api.compliance_corrections import handle_correction_request
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -2628,12 +2630,36 @@ class Handler(BaseHTTPRequestHandler):
                 request_path.startswith("/analyze/jobs/")
                 and request_path.endswith("/cancel")
             )
-            if request_path != "/analyze" and not is_cancel_route:
+            is_correction_route = request_path.startswith("/compliance/corrections/")
+            if request_path != "/analyze" and not is_cancel_route and not is_correction_route:
                 self._send_json(
                     {"ok": False, "error": "not_found", "request_id": request_id},
                     status=HTTPStatus.NOT_FOUND,
                     request_id=request_id,
                 )
+                return
+
+            if is_correction_route:
+                document_id = request_path.removeprefix("/compliance/corrections/").strip("/")
+                if not document_id or "/" in document_id:
+                    self._send_json(
+                        {"ok": False, "error": "not_found", "request_id": request_id},
+                        status=HTTPStatus.NOT_FOUND,
+                        request_id=request_id,
+                    )
+                    return
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    raw = self.rfile.read(length) if length > 0 else b""
+                    payload = json.loads(raw.decode("utf-8")) if raw else {}
+                except Exception:
+                    payload = {}
+                body, status = handle_correction_request(
+                    document_id=document_id,
+                    payload=payload,
+                    request_id=request_id,
+                )
+                self._send_json(body, status=status, request_id=request_id)
                 return
 
             cors_headers = self._cors_headers_for_analyze(include_preflight=False)
