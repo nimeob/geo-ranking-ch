@@ -334,9 +334,13 @@ Für den OpenClaw-Migrationsbetrieb dürfen nur Checks als **required** gesetzt 
 
 Empfohlener Minimalzustand:
 - `contract-smoke` (**required**)
-- `docs-link-guard` (**required**)
+- `docs-link-guard` (**required**, fail-closed bei nicht reproduzierbarer Laufumgebung)
 - optional/required nach Teamentscheid: `deploy / Build & Test` (oder äquivalenter Deploy-Check)
 - **nicht required**: `crawler-regression` (läuft weiterhin nur on-demand)
+
+Fail-Closed-Regel (kritische Quality-Gates):
+- `scripts/check_docs_quality_gate.sh` bricht bei fehlgeschlagener venv-Erstellung mit Exit `1` ab.
+- Kein degraded PASS mehr ohne reproduzierbare Testumgebung.
 
 ### Administrative Anpassung (Repo-Owner)
 
