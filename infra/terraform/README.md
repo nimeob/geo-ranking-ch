@@ -41,6 +41,10 @@ terraform plan -var-file=terraform.staging.tfvars
 
 > Apply bleibt bewusst ein separater Schritt und sollte erst nach geprüftem Plan ausgeführt werden.
 
+### Outputs / Service URLs (Placeholder)
+
+Für frühe Smoke-/Dokumentations-Workflows (bevor Ingress/ALB als Terraform-Ressource existiert) können `api_base_url` und `api_health_path` in den `*.tfvars` gesetzt werden. Terraform spiegelt diese Werte als Outputs (`api_base_url`, `api_health_url`).
+
 ## Sicherheitsprinzip
 
 - Alle `manage_*` Flags stehen standardmässig auf `false`.

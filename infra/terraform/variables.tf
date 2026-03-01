@@ -215,3 +215,19 @@ variable "telegram_chat_id" {
   type        = string
   default     = ""
 }
+
+# ---------------------------------------------------------------------------
+# Service URLs / Endpoints (staging scaffold)
+# ---------------------------------------------------------------------------
+
+variable "api_base_url" {
+  description = "Base-URL der API (z. B. https://api.example.com). Wird als Output gespiegelt; kann später aus ALB DNS abgeleitet werden."
+  type        = string
+  default     = ""
+}
+
+variable "api_health_path" {
+  description = "Health-Path relativ zur api_base_url (Default: /health)."
+  type        = string
+  default     = "/health"
+}

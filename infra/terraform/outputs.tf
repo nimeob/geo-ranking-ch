@@ -8,6 +8,21 @@ output "aws_region" {
   value       = var.aws_region
 }
 
+locals {
+  api_base_url_normalized = var.api_base_url != "" ? trim(var.api_base_url, "/") : ""
+  api_health_path_normalized = startswith(var.api_health_path, "/") ? var.api_health_path : "/${var.api_health_path}"
+}
+
+output "api_base_url" {
+  description = "Konfigurierte API Base-URL (Placeholder bis Ingress/ALB live ist)."
+  value       = local.api_base_url_normalized != "" ? local.api_base_url_normalized : null
+}
+
+output "api_health_url" {
+  description = "Konfigurierte Health-URL (api_base_url + api_health_path)."
+  value       = local.api_base_url_normalized != "" ? "${local.api_base_url_normalized}${local.api_health_path_normalized}" : null
+}
+
 output "ecs_cluster_name" {
   description = "Effektiver ECS-Clustername (managed oder read-only erkannt)."
   value       = local.ecs_cluster_name_effective
