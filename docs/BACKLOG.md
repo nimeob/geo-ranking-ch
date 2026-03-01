@@ -19,11 +19,10 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#577](https://github.com/nimeob/geo-ranking-ch/issues/577) — BL-30/BL-15 Follow-up: GTM → Data Architecture Mapping v1 (Org/User/Billing/Entitlements) (priority:P2, status:todo)
+- (leer)
 
 ### Next
-- [#594](https://github.com/nimeob/geo-ranking-ch/issues/594) — BL-30.wp4.r3: Result-Page Delivery + Retention/Notification Jobs (priority:P2, status:todo)
-- [#602](https://github.com/nimeob/geo-ranking-ch/issues/602) — BL-30.wp4.r3.wp4: Ops-Runbook + Monitoring-Mindestmetriken für Async-Delivery (priority:P2, status:todo)
+- [#577](https://github.com/nimeob/geo-ranking-ch/issues/577) — BL-30/BL-15 Follow-up: GTM → Data Architecture Mapping v1 (Org/User/Billing/Entitlements) (priority:P2, status:todo)
 - [#626](https://github.com/nimeob/geo-ranking-ch/issues/626) — BL-30/BL-15.wp2: Data Model v1 — Multi-Tenant Entities + ERD (priority:P2, status:todo)
 - [#627](https://github.com/nimeob/geo-ranking-ch/issues/627) — BL-30/BL-15.wp3: Entitlements/Capabilities v1 — Modell + Enforcement (priority:P2, status:todo)
 - [#628](https://github.com/nimeob/geo-ranking-ch/issues/628) — BL-30/BL-15.wp4: Billing Lifecycle v1 — States, Transitions, Entitlement-Effects (priority:P2, status:todo)
