@@ -33,6 +33,10 @@ class TestBL30CloseoutDocs(unittest.TestCase):
         )
         self.assertIn("[`docs/BL30_1_CLOSEOUT_V1.md`](BL30_1_CLOSEOUT_V1.md)", backlog)
         self.assertIn("#465/#466", backlog)
+        self.assertIn(
+            "#107 atomisiert und finalisiert: Work-Packages #468/#469/#470/#472/#473 vollständig abgeschlossen",
+            backlog,
+        )
 
 
 if __name__ == "__main__":
