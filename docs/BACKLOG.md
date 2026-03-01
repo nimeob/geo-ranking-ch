@@ -806,7 +806,7 @@ Regelwerk:
   - [x] #518 — Kontrollplan für Export- und Löschprozesse definieren (abgeschlossen 2026-03-01)
   - [ ] #519 — Datenmodell erweitern: Policy-Versionierung + Metadatenfelder (atomisiert in #538/#539/#540)
     - [x] #538 — BL-342.wp5.wp1: Policy-Metadatenmodell v1 im Code einführen (abgeschlossen 2026-03-01)
-    - [ ] #539 — BL-342.wp5.wp2: Policy-Metadaten-Contract + Beispielartefakte dokumentieren
+    - [x] #539 — BL-342.wp5.wp2: Policy-Metadaten-Contract + Beispielartefakte dokumentieren (abgeschlossen 2026-03-01)
     - [ ] #540 — BL-342.wp5.wp3: Backlog-/Rollout-Sync für Policy-Metadatenmodell abschließen
   - [x] #524 — Externen Direktzugriff technisch unterbinden (abgeschlossen 2026-03-01)
   - [x] #525 — Export-Logging implementieren (wer/wann/Kanal) (abgeschlossen 2026-03-01)
@@ -830,6 +830,7 @@ Regelwerk:
   - ✅ #524 abgeschlossen: explizite Runtime-Sperre für externe Direktlogin-Routen in `src/api/web_service.py` ergänzt (`403` + `external_direct_login_disabled`, Audit-Event `api.auth.direct_login.blocked`), Compliance-Doku [`docs/compliance/EXTERNAL_DIRECT_ACCESS_CONTROL_V1.md`](compliance/EXTERNAL_DIRECT_ACCESS_CONTROL_V1.md) eingeführt und per E2E-/Doku-Tests (`tests/test_web_e2e.py`, `tests/test_compliance_external_direct_access_control_docs.py`) regressionsgesichert.
   - ✅ #525 abgeschlossen: Export-Logging-Standard v1 in [`docs/compliance/EXPORT_LOGGING_STANDARD_V1.md`](compliance/EXPORT_LOGGING_STANDARD_V1.md) dokumentiert; Runtime-Helper `src/compliance/export_logging.py` eingeführt und Batch-Exporte in `src/api/address_intel.py` (`--out-jsonl`, `--out-csv`, `--out-error-csv`) mit Pflichtfeldern `actor`/`exported_at_utc`/`channel` instrumentiert; Regressionen via `tests/test_compliance_export_logging.py`, `tests/test_address_intel_export_logging.py`, `tests/test_compliance_export_logging_docs.py` ergänzt.
   - ✅ #538 abgeschlossen: Runtime-Policy-Metadatenmodell v1 ergänzt (`src/compliance/policy_metadata.py`) inkl. Validierungs-/Serialisierungslogik und Regressionstest `tests/test_compliance_policy_metadata_model.py`; Parent #519 für risikoarme Iterationen in #538/#539/#540 atomisiert.
+  - ✅ #539 abgeschlossen: technischer Contract für Policy-Metadaten unter [`docs/compliance/POLICY_METADATA_CONTRACT_V1.md`](compliance/POLICY_METADATA_CONTRACT_V1.md) dokumentiert, reproduzierbare Beispielartefakte unter `docs/compliance/examples/policy-metadata.v1.*.json` ergänzt und über neuen Regressionstest `tests/test_compliance_policy_metadata_contract_docs.py` inkl. Runtime-Validierung abgesichert.
   - ✅ #526 abgeschlossen: Backup/Restore-Guideline v1 unter [`docs/compliance/BACKUP_RESTORE_GUIDELINE_V1.md`](compliance/BACKUP_RESTORE_GUIDELINE_V1.md) eingeführt (verbindliche RPO/RTO-Ziele, Backup-Policy, Restore-Workflow, quartalsweiser Restore-Drill, Nachweisformat `reports/compliance/backup-restore/<YYYY>/<MM>/<restore_run_id>/`) und per Doku-Regressionstest `tests/test_compliance_backup_restore_guideline_docs.py` abgesichert.
   - ✅ #527 abgeschlossen: Abnahmetestkatalog v1 unter [`docs/compliance/ACCEPTANCE_TEST_CATALOG_V1.md`](compliance/ACCEPTANCE_TEST_CATALOG_V1.md) erstellt (Musskriterien-Matrix MCS-AT-001..010 inkl. Sign-off-/Evidenzschema) und über Doku-Regressionstest `tests/test_compliance_acceptance_test_catalog_docs.py` abgesichert.
 
