@@ -11,6 +11,7 @@ Endpoints:
 - GET /analyze/results/<result_id>
 - GET /debug/trace?request_id=<id> (dev-only)
 - POST /analyze {"query": "...", "intelligence_mode": "basic|extended|risk"}
+- POST /analyze/jobs/<job_id>/cancel
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from urllib.request import urlopen
 
 from src.api.address_intel import AddressIntelError, build_report
 from src.api.async_jobs import AsyncJobStore
+from src.api.async_worker_runtime import AsyncJobRuntime
 from src.api.debug_trace import (
     build_trace_timeline,
     normalize_lookback_seconds,
@@ -219,6 +221,22 @@ _EXTERNAL_DIRECT_LOGIN_MESSAGE = (
 )
 
 _ASYNC_JOB_STORE = AsyncJobStore.from_env()
+_ASYNC_JOB_RUNTIME = AsyncJobRuntime(store=_ASYNC_JOB_STORE)
+_ASYNC_RUNTIME_START_LOCK = threading.Lock()
+_ASYNC_RUNTIME_STARTED = False
+
+
+def _ensure_async_runtime_started() -> None:
+    global _ASYNC_RUNTIME_STARTED
+    if _ASYNC_RUNTIME_STARTED:
+        return
+
+    with _ASYNC_RUNTIME_START_LOCK:
+        if _ASYNC_RUNTIME_STARTED:
+            return
+        _ASYNC_JOB_RUNTIME.start()
+        _ASYNC_JOB_RUNTIME.enqueue_pending_jobs()
+        _ASYNC_RUNTIME_STARTED = True
 
 
 def _env_flag_enabled(name: str, *, default: bool = False) -> bool:
@@ -1360,6 +1378,8 @@ def _project_async_job_status(job: dict[str, Any], *, include_events: bool = Fal
         "job_id": job.get("job_id"),
         "status": job.get("status"),
         "progress_percent": int(job.get("progress_percent", 0) or 0),
+        "partial_count": int(job.get("partial_count", 0) or 0),
+        "error_count": int(job.get("error_count", 0) or 0),
         "result_id": job.get("result_id"),
         "queued_at": job.get("queued_at"),
         "started_at": job.get("started_at"),
@@ -1367,6 +1387,12 @@ def _project_async_job_status(job: dict[str, Any], *, include_events: bool = Fal
         "updated_at": job.get("updated_at"),
         "error_code": job.get("error_code"),
         "error_message": job.get("error_message"),
+        "retryable": job.get("retryable"),
+        "retry_hint": job.get("retry_hint"),
+        "cancel_requested_at": job.get("cancel_requested_at"),
+        "canceled_at": job.get("canceled_at"),
+        "canceled_by": job.get("canceled_by"),
+        "cancel_reason": job.get("cancel_reason"),
     }
     if include_events:
         projected["events"] = _ASYNC_JOB_STORE.list_events(str(job.get("job_id") or ""))
@@ -2437,7 +2463,11 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            if request_path != "/analyze":
+            is_cancel_route = (
+                request_path.startswith("/analyze/jobs/")
+                and request_path.endswith("/cancel")
+            )
+            if request_path != "/analyze" and not is_cancel_route:
                 self._send_json(
                     {"ok": False, "error": "not_found", "request_id": request_id},
                     status=HTTPStatus.NOT_FOUND,
@@ -2472,19 +2502,86 @@ class Handler(BaseHTTPRequestHandler):
 
             try:
                 length = int(self.headers.get("Content-Length", "0"))
-                if length <= 0:
-                    raise ValueError("empty body")
-                raw = self.rfile.read(length)
-                try:
-                    decoded_body = raw.decode("utf-8")
-                except UnicodeDecodeError as exc:
-                    raise ValueError("body must be valid utf-8 json") from exc
+                if length < 0:
+                    raise ValueError("invalid content length")
 
-                data = json.loads(decoded_body)
+                if length == 0 and not is_cancel_route:
+                    raise ValueError("empty body")
+
+                raw = self.rfile.read(length) if length > 0 else b""
+                if raw:
+                    try:
+                        decoded_body = raw.decode("utf-8")
+                    except UnicodeDecodeError as exc:
+                        raise ValueError("body must be valid utf-8 json") from exc
+                    data = json.loads(decoded_body)
+                else:
+                    data = {}
+
                 if not isinstance(data, dict):
                     raise ValueError("json body must be an object")
 
                 session_id = str(getattr(self, "_request_lifecycle_session_id", "") or "")
+
+                if is_cancel_route:
+                    job_id = request_path.removeprefix("/analyze/jobs/").removesuffix("/cancel").strip("/")
+                    if not job_id or "/" in job_id:
+                        self._send_json(
+                            {
+                                "ok": False,
+                                "error": "not_found",
+                                "request_id": request_id,
+                            },
+                            status=HTTPStatus.NOT_FOUND,
+                            request_id=request_id,
+                        )
+                        return
+
+                    cancel_reason = str(data.get("reason") or "cancel_requested").strip() or "cancel_requested"
+                    canceled_by = str(data.get("canceled_by") or "user").strip() or "user"
+
+                    _ensure_async_runtime_started()
+
+                    try:
+                        cancel_outcome = _ASYNC_JOB_STORE.request_cancel(
+                            job_id=job_id,
+                            canceled_by=canceled_by,
+                            cancel_reason=cancel_reason,
+                            actor_type="user",
+                        )
+                    except KeyError:
+                        self._send_json(
+                            {
+                                "ok": False,
+                                "error": "not_found",
+                                "message": "unknown job_id",
+                                "request_id": request_id,
+                            },
+                            status=HTTPStatus.NOT_FOUND,
+                            request_id=request_id,
+                        )
+                        return
+
+                    current_job = _ASYNC_JOB_STORE.get_job(job_id) or cancel_outcome.get("job") or {}
+                    current_status = str(current_job.get("status") or "")
+                    accepted = current_status in {"running", "partial", "queued", "canceled"}
+
+                    if current_status in {"running", "partial"}:
+                        _ASYNC_JOB_RUNTIME.enqueue(job_id)
+
+                    status_code = HTTPStatus.ACCEPTED if current_status in {"running", "partial"} else HTTPStatus.OK
+                    self._send_json(
+                        {
+                            "ok": True,
+                            "accepted": accepted,
+                            "job": _project_async_job_status(current_job, include_events=True),
+                            "request_id": request_id,
+                        },
+                        status=status_code,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                    return
 
                 def _emit_upstream_for_request(*, event: str, level: str = "info", **fields: Any) -> None:
                     _emit_structured_log(
@@ -2536,36 +2633,22 @@ class Handler(BaseHTTPRequestHandler):
                 timeout = min(timeout, max_timeout)
 
                 if async_mode_requested:
+                    _ensure_async_runtime_started()
                     created_job = _ASYNC_JOB_STORE.create_job(
                         request_payload=data,
                         request_id=request_id,
                         query=query,
                         intelligence_mode=mode,
                     )
-                    _ASYNC_JOB_STORE.transition_job(
-                        job_id=str(created_job.get("job_id")),
-                        to_status="running",
-                        progress_percent=25,
-                    )
-                    final_result = _ASYNC_JOB_STORE.create_result(
-                        job_id=str(created_job.get("job_id")),
-                        result_payload=_build_async_result_stub(
-                            query=query,
-                            intelligence_mode=mode,
-                        ),
-                    )
-                    completed_job = _ASYNC_JOB_STORE.transition_job(
-                        job_id=str(created_job.get("job_id")),
-                        to_status="completed",
-                        progress_percent=100,
-                        result_id=str(final_result.get("result_id")),
-                    )
+                    created_job_id = str(created_job.get("job_id") or "")
+                    if created_job_id:
+                        _ASYNC_JOB_RUNTIME.enqueue(created_job_id)
 
                     self._send_json(
                         {
                             "ok": True,
                             "accepted": True,
-                            "job": _project_async_job_status(completed_job, include_events=True),
+                            "job": _project_async_job_status(created_job, include_events=True),
                             "request_id": request_id,
                         },
                         status=HTTPStatus.ACCEPTED,
@@ -2763,7 +2846,11 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            if request_path not in {"/analyze", "/debug/trace"}:
+            is_cancel_route = (
+                request_path.startswith("/analyze/jobs/")
+                and request_path.endswith("/cancel")
+            )
+            if request_path not in {"/analyze", "/debug/trace"} and not is_cancel_route:
                 self._send_json(
                     {"ok": False, "error": "not_found", "request_id": request_id},
                     status=HTTPStatus.NOT_FOUND,
@@ -3002,6 +3089,8 @@ def main() -> None:
                 "geo-ranking-ch redirect listener active on "
                 f"http://{host}:{tls_settings['redirect_http_port']} -> https://{host}:{port}"
             )
+
+    _ensure_async_runtime_started()
 
     _emit_structured_log(
         event="service.startup",
