@@ -23,7 +23,6 @@ Regelwerk:
 
 ### Next
 - [#594](https://github.com/nimeob/geo-ranking-ch/issues/594) — BL-30.wp4.r3: Result-Page Delivery + Retention/Notification Jobs (priority:P2, status:todo)
-- [#601](https://github.com/nimeob/geo-ranking-ch/issues/601) — BL-30.wp4.r3.wp3: In-App Notification-Pipeline für Async-Completion/Failure (priority:P2, status:todo)
 - [#602](https://github.com/nimeob/geo-ranking-ch/issues/602) — BL-30.wp4.r3.wp4: Ops-Runbook + Monitoring-Mindestmetriken für Async-Delivery (priority:P2, status:todo)
 - [#626](https://github.com/nimeob/geo-ranking-ch/issues/626) — BL-30/BL-15.wp2: Data Model v1 — Multi-Tenant Entities + ERD (priority:P2, status:todo)
 - [#627](https://github.com/nimeob/geo-ranking-ch/issues/627) — BL-30/BL-15.wp3: Entitlements/Capabilities v1 — Modell + Enforcement (priority:P2, status:todo)
