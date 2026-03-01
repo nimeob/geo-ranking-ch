@@ -61,8 +61,10 @@ Erlaubte Übergänge:
 Terminale States (`completed|failed|canceled`) sind unveränderlich.
 `progress_percent` ist monotonic und auf `0..100` begrenzt.
 
-## Offene Punkte für #593
+## Follow-up-Status
 
-- echte Queue-/Worker-Ausführung statt skeleton completion path
-- Partial-Result-Erzeugung über reale Chunk-Läufe
-- robustere Cancel-/Failure-Laufzeitpfade unter Last
+- Die zuvor offenen Punkte aus #593 (Queue-/Worker-Ausführung, Partial-Snapshots,
+  Cancel-/Failure-Härtung) wurden in der Worker-Pipeline-Doku
+  [`docs/api/async-analyze-worker-pipeline-v1.md`](async-analyze-worker-pipeline-v1.md)
+  umgesetzt und nachgezogen.
+- Nächster Schritt im Track: #594 (Result-Page Delivery + Retention/Notification Jobs).
