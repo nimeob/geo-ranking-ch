@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# GitHub Actions & Scripts
+.github/
+scripts/
+
+# Documentation
+docs/
+*.md
+README*
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Tests
+tests/
+test_*.py
+*_test.py
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE & editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Environment & secrets
+.env
+.env.*
+*.env
+
+# Docker compose (dev only)
+docker-compose*.yml
+Dockerfile.ui
+
+# Node / UI dev deps (not needed in API image; built via Dockerfile.ui)
+src/ui/
+node_modules/
+
+# Misc
+*.log
+tmp/
