@@ -2,4 +2,5 @@
 
 Canonical shared modules currently include:
 - ``src.shared.gui_mvp``
+- ``src.shared.structured_logging``
 """
