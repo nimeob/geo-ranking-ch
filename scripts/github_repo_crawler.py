@@ -1018,20 +1018,39 @@ def format_workstream_balance_markdown(baseline, generated_at: str):
     )
 
 
-def print_workstream_balance_report(report_format: str):
+def write_report_output(rendered: str, output_file: str | None) -> Path | None:
+    if not output_file:
+        return None
+
+    target = Path(output_file)
+    if not target.is_absolute():
+        target = REPO_ROOT / target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = rendered if rendered.endswith("\n") else f"{rendered}\n"
+    target.write_text(payload, encoding="utf-8")
+    return target
+
+
+def print_workstream_balance_report(report_format: str, output_file: str | None = None):
     issues = get_open_issues_for_workstream_balance()
     baseline = build_workstream_balance_baseline(issues)
     generated_at = now_iso()
 
     if report_format == "json":
-        payload = {
-            "generated_at": generated_at,
-            **baseline,
-        }
-        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
-        return
+        rendered = json.dumps(
+            {
+                "generated_at": generated_at,
+                **baseline,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    else:
+        rendered = format_workstream_balance_markdown(baseline, generated_at)
 
-    print(format_workstream_balance_markdown(baseline, generated_at))
+    print(rendered)
+    write_report_output(rendered, output_file)
 
 
 def audit_workstream_balance(dry_run: bool) -> list[dict[str, Any]]:
@@ -1118,10 +1137,17 @@ def main():
         default="markdown",
         help="Ausgabeformat für --print-workstream-balance (default: markdown).",
     )
+    parser.add_argument(
+        "--output-file",
+        help=(
+            "Optionaler Dateipfad für persistente Report-Ausgabe bei --print-workstream-balance. "
+            "Relative Pfade werden ab Repo-Root aufgelöst."
+        ),
+    )
     args = parser.parse_args()
 
     if args.print_workstream_balance:
-        print_workstream_balance_report(report_format=args.format)
+        print_workstream_balance_report(report_format=args.format, output_file=args.output_file)
         return
 
     ensure_label("crawler:auto", "5319e7", "Automatisch vom Crawler erzeugte Findings", dry_run=args.dry_run)
