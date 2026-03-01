@@ -94,5 +94,7 @@ Kandidaten pro Segment auf robuste Schwellen mappen kann.
 
 ## Nächster Schritt
 
-- #460: Preisvalidierungs-Experimentkarten + Entscheidungslogik auf Basis der
-  oben definierten Hebel und Schwellen fertigstellen.
+- ✅ #460: Preisvalidierungs-Experimentkarten + Entscheidungslogik auf Basis der
+  oben definierten Hebel und Schwellen umgesetzt; Details in
+  [`docs/PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md`](./PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md).
+- #461: Konsolidierter Abschluss (wp1/wp2/wp3) + Übergabe an BL-30.2.

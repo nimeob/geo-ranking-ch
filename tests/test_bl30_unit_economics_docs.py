@@ -41,7 +41,7 @@ class TestBL30UnitEconomicsDocs(unittest.TestCase):
             "#459 — BL-30.1.wp2 Unit-Economics-Hypothesen je Tier/Segment strukturieren (abgeschlossen 2026-03-01)",
             backlog,
         )
-        self.assertIn("**Nächster Schritt:** #460 (oldest-first, unblocked).", backlog)
+        self.assertIn("**Nächster Schritt:** #461 (oldest-first, unblocked).", backlog)
 
 
 if __name__ == "__main__":

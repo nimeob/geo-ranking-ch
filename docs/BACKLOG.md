@@ -581,13 +581,14 @@ Regelwerk:
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
   - [x] #459 — BL-30.1.wp2 Unit-Economics-Hypothesen je Tier/Segment strukturieren (abgeschlossen 2026-03-01)
-  - [ ] #460 — BL-30.1.wp3 Preisvalidierungs-Experimentkarten + Entscheidungslogik
+  - [x] #460 — BL-30.1.wp3 Preisvalidierungs-Experimentkarten + Entscheidungslogik (abgeschlossen 2026-03-01)
   - [ ] #461 — BL-30.1.wp4 Konsolidierter Abschluss + BL-30.2 Übergabe
 - **Fortschritt (2026-03-01):**
   - ✅ #105 in atomare Child-Issues #458/#459/#460/#461 zerlegt (oldest-first Leaf-Umsetzung).
   - ✅ #458 abgeschlossen: neue Tier-/Limit-Matrix v1 in [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](PRICING_TIER_LIMIT_MATRIX_V1.md), GTM-Hypothesen-Doku verlinkt und Doku-Regression ergänzt.
   - ✅ #459 abgeschlossen: versionierte Unit-Economics-Doku in [`docs/UNIT_ECONOMICS_HYPOTHESES_V1.md`](UNIT_ECONOMICS_HYPOTHESES_V1.md) ergänzt (Tier-/Segment-Annahmen, Sensitivitätshebel, Go/Adjust/Stop-Schwellen) und via Regressionstest abgesichert.
-- **Nächster Schritt:** #460 (oldest-first, unblocked).
+  - ✅ #460 abgeschlossen: experimentfähige Pricing-Karten (3 Kandidaten inkl. Inputs/Outputs/Abbruchkriterien) und standardisierte Go/Adjust/Stop-Entscheidungslogik in [`docs/PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md`](PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md) ergänzt; Follow-up-Issue-Template für BL-30.1/30.2 in [`docs/testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md`](testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md) eingeführt; Doku-Regressionen erweitert.
+- **Nächster Schritt:** #461 (oldest-first, unblocked).
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
