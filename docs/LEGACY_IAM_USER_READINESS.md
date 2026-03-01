@@ -261,6 +261,14 @@ Interpretation:
 - Die Ambient-Injection ist nicht nur ein Shell-Einzelfall, sondern folgt der Prozess-/Startpfad-Vererbung des laufenden OpenClaw-Stacks.
 - Damit ist die Quelle für wp2 technisch attribuiert; nächster Schritt ist die persistente Startpfad-Migration in #573.
 
+### BL-15.r2.wp2.b.prereq-Entscheid (2026-03-01, #576)
+
+Bewertung des Prereqs „Wartungsfenster/Host-Zugriff nur falls nötig":
+
+- Ergebnis: Für den aktuellen Scope der BL-15.r2-Doku-/Policy-Synchronisierung ist **kein** Host-Orchestrator-Eingriff erforderlich.
+- Konsequenz: #573 kann als Doku-/Governance-Härtung ohne verpflichtendes Wartungsfenster fortgeführt werden.
+- Wartungsfenster bleibt **nur** dann Pflicht, wenn tatsächlich persistente Startpfad-Änderungen am Host/Container vorgenommen werden müssen (z. B. `/entrypoint.sh`, Orchestrator-Env-Injektion, kontrollierter Restart).
+
 Temporäre Ausnahme-Klassifikation (wp2, evidenzpflichtig):
 
 | Feld | Wert |
