@@ -633,7 +633,7 @@
   - ✅ #412 abgeschlossen: GUI-MVP (`src/shared/gui_mvp.py`) emittiert jetzt strukturierte UI-Events für Input/Interaktion, State-Transitions und UI→API-Lifecycle (`ui.api.request.start/end` inkl. Fehler/Timeout-Klassen) und setzt `X-Request-Id` + `X-Session-Id` für direkte UI↔API-Korrelation; Doku-Sync in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) + [`docs/gui/GUI_MVP_STATE_FLOW.md`](gui/GUI_MVP_STATE_FLOW.md), Regressionserweiterung in `tests/test_web_service_gui_mvp.py`.
   - ✅ #413 abgeschlossen: Upstream-Lifecycle-Events (`api.upstream.request.start/end`, `api.upstream.response.summary`) für API-Koordinatenauflösung und Address-Intel-Providerpfade ergänzt (`src/api/web_service.py`, `src/api/address_intel.py`), Trace-Artefakte dokumentiert ([`docs/testing/BL-340_UPSTREAM_TRACE_EVIDENCE.md`](testing/BL-340_UPSTREAM_TRACE_EVIDENCE.md), `artifacts/bl340/*.jsonl`) und Regressionstests erweitert (`tests/test_address_intel_upstream_logging.py`, `tests/test_web_service_request_logging.py`).
   - ✅ Parent #409 abgeschlossen/geschlossen: Work-Package-Checklist + Akzeptanzkriterien synchronisiert.
-- **Nächster Schritt (oldest-first, unblocked):** aktuell kein weiteres unblocked Child in BL-340 offen.
+- **Nächster Schritt (oldest-first, unblocked):** #426 — BL-340.1.wp1 Logging-Schema-Contract + Redaction-Utility atomar umsetzen (neu freigegeben am 2026-03-01).
 
 ### BL-421 — Workstream-Balance Catch-up (Crawler P0)
 - **Priorität:** P0
@@ -643,10 +643,11 @@
 - **Ziel:** Reproduzierbare Balance-Evidenz liefern und daraus konkrete Development-Catch-up-Tasks + Parent-Sync ableiten.
 - **Work-Packages (Parent #421):**
   - [x] #422 — BL-421.wp1 Workstream-Balance Audit als Script + Test (abgeschlossen 2026-03-01)
-  - [ ] #423 — BL-421.wp2 Development-Catch-up-Issues oldest-first freigeben
+  - [x] #423 — BL-421.wp2 Development-Catch-up-Issues oldest-first freigeben (abgeschlossen 2026-03-01)
   - [ ] #424 — BL-421.wp3 Parent-Tracking + BACKLOG-Sync für Workstream-Balance abschließen
 - **Fortschritt (2026-03-01):**
   - ✅ #422 abgeschlossen: `scripts/github_repo_crawler.py --print-workstream-balance` unterstützt jetzt optional persistente Artefakt-Ausgabe via `--output-file` (relative Pfade ab Repo-Root), inklusive neuer Regression `test_print_workstream_balance_report_json_writes_output_file` in `tests/test_github_repo_crawler.py` und nachgezogener Nutzungsdoku in `docs/WORKSTREAM_BALANCE_BASELINE.md`.
+  - ✅ #423 abgeschlossen: aktuelle Baseline per `python3 scripts/github_repo_crawler.py --print-workstream-balance --format markdown` verifiziert (Dev=11, Doku=14, Testing=14; Catch-up +1 Dev), oldest-first auf das älteste unblocked Development-Issue #410 angewendet und daraus das atomare Follow-up #426 (`BL-340.1.wp1`) mit klarer DoD/Abhängigkeit erstellt.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
