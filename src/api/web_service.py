@@ -46,7 +46,7 @@ SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
 _CORS_ALLOW_ORIGINS_ENV = "CORS_ALLOW_ORIGINS"
 _CORS_ALLOW_METHODS = "POST, OPTIONS"
-_CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Request-Id"
+_CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Request-Id, X-Session-Id"
 _CORS_MAX_AGE_SECONDS = "600"
 _TOP_LEVEL_STATUS_KEYS = {
     "confidence",
