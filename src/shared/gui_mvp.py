@@ -251,6 +251,34 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         color: #7a201a;
         padding: 0.65rem 0.75rem;
       }
+      .trace-timeline {
+        margin: 0;
+        padding-left: 1.15rem;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .trace-event {
+        display: grid;
+        gap: 0.2rem;
+      }
+      .trace-event strong {
+        font-size: 0.9rem;
+      }
+      .trace-event-meta {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .trace-event-summary {
+        font-size: 0.86rem;
+      }
+      .trace-event pre {
+        margin-top: 0.3rem;
+        max-height: 16rem;
+        background: #f8faff;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+      }
     </style>
   </head>
   <body>
@@ -264,6 +292,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           <a href=\"#input\">Input</a>
           <a href=\"#map\">Karte</a>
           <a href=\"#result\">Result-Panel</a>
+          <a href=\"#trace-debug\">Trace-Debug</a>
         </nav>
       </div>
     </header>
@@ -343,6 +372,35 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           <h2>API-Response (JSON)</h2>
           <pre id=\"result-json\">{\n  \"hint\": \"Sende eine Anfrage per Adresse oder Kartenklick.\"\n}</pre>
         </article>
+
+        <article class=\"card\" id=\"trace-debug\">
+          <h2>Trace-Debug-View</h2>
+          <form id=\"trace-debug-form\" class=\"stack\">
+            <label>
+              request_id
+              <input id=\"trace-request-id\" type=\"text\" placeholder=\"z. B. req-m8x4...\" />
+            </label>
+            <div class=\"grid-2\">
+              <label>
+                lookback_seconds (optional)
+                <input id=\"trace-lookback-seconds\" type=\"number\" min=\"60\" max=\"604800\" placeholder=\"172800\" />
+              </label>
+              <label>
+                max_events (optional)
+                <input id=\"trace-max-events\" type=\"number\" min=\"1\" max=\"500\" placeholder=\"200\" />
+              </label>
+            </div>
+            <button id=\"trace-submit-btn\" type=\"submit\">Trace laden</button>
+          </form>
+          <p class=\"pill\" id=\"trace-phase-pill\" data-phase=\"idle\">Trace-Status: idle</p>
+          <p class=\"meta\" id=\"trace-meta\">Noch keine Trace-Abfrage gestartet.</p>
+          <div id=\"trace-empty-box\" class=\"placeholder\" hidden></div>
+          <div id=\"trace-error-box\" class=\"error-box\" hidden></div>
+          <ol id=\"trace-timeline\" class=\"trace-timeline\">
+            <li>Noch keine Trace-Events geladen.</li>
+          </ol>
+          <pre id=\"trace-json\">{\n  \"hint\": \"Deep-Link via /gui?view=trace&request_id=<id>\"\n}</pre>
+        </article>
       </section>
     </main>
 
@@ -363,6 +421,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       };
       const UI_LOG_COMPONENT = "ui.gui_mvp";
       const UI_SESSION_STORAGE_KEY = "geo-ranking-ui-session-id";
+      const TRACE_DEBUG_ENDPOINT = "/debug/trace";
 
       const state = {
         phase: "idle",
@@ -371,6 +430,16 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         lastError: null,
         lastInput: null,
         coreFactors: [],
+      };
+
+      const traceState = {
+        phase: "idle",
+        requestId: "",
+        apiRequestId: "",
+        payload: null,
+        error: "",
+        emptyMessage: "",
+        events: [],
       };
 
       const mapState = {
@@ -391,6 +460,18 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const resultJson = document.getElementById("result-json");
       const errorBox = document.getElementById("error-box");
       const coreFactorsEl = document.getElementById("core-factors");
+
+      const traceFormEl = document.getElementById("trace-debug-form");
+      const traceRequestIdEl = document.getElementById("trace-request-id");
+      const traceLookbackSecondsEl = document.getElementById("trace-lookback-seconds");
+      const traceMaxEventsEl = document.getElementById("trace-max-events");
+      const traceSubmitBtn = document.getElementById("trace-submit-btn");
+      const tracePhasePill = document.getElementById("trace-phase-pill");
+      const traceMetaEl = document.getElementById("trace-meta");
+      const traceEmptyBoxEl = document.getElementById("trace-empty-box");
+      const traceErrorBoxEl = document.getElementById("trace-error-box");
+      const traceTimelineEl = document.getElementById("trace-timeline");
+      const traceJsonEl = document.getElementById("trace-json");
 
       const mapSurface = document.getElementById("map-click-surface");
       const mapTileLayer = document.getElementById("map-tile-layer");
@@ -524,11 +605,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return num;
       }
 
-      function updatePhaseClass(phase) {
-        phasePill.classList.remove("phase-loading", "phase-success", "phase-error");
-        if (phase === "loading") phasePill.classList.add("phase-loading");
-        if (phase === "success") phasePill.classList.add("phase-success");
-        if (phase === "error") phasePill.classList.add("phase-error");
+      function applyPhaseClass(target, phase) {
+        if (!target) {
+          return;
+        }
+        target.classList.remove("phase-loading", "phase-success", "phase-error");
+        if (phase === "loading") target.classList.add("phase-loading");
+        if (phase === "success") target.classList.add("phase-success");
+        if (phase === "error" || phase === "unknown") target.classList.add("phase-error");
       }
 
       function getNestedArray(source, path) {
@@ -602,7 +686,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function renderState() {
         phasePill.textContent = `Status: ${state.phase}`;
         phasePill.dataset.phase = state.phase;
-        updatePhaseClass(state.phase);
+        applyPhaseClass(phasePill, state.phase);
 
         if (state.lastRequestId) {
           requestMeta.textContent = `Letzte Request-ID: ${state.lastRequestId}`;
@@ -627,6 +711,244 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
 
         renderCoreFactors();
+      }
+
+      function parseBoundedInteger(rawValue, { min, max }) {
+        const normalizedRaw = String(rawValue || "").trim();
+        if (!normalizedRaw) {
+          return null;
+        }
+        const number = Number(normalizedRaw);
+        if (!Number.isFinite(number) || !Number.isInteger(number)) {
+          return null;
+        }
+        if (number < min || number > max) {
+          return null;
+        }
+        return number;
+      }
+
+      function normalizeTraceRequestId(rawValue) {
+        return String(rawValue || "").trim();
+      }
+
+      function describeTraceEmptyReason(reason) {
+        const normalized = String(reason || "").trim();
+        if (normalized === "request_id_outside_window") {
+          return "Für diese request_id liegen nur Events außerhalb des konfigurierten Zeitfensters.";
+        }
+        if (normalized === "request_id_unknown_or_no_events") {
+          return "request_id unbekannt oder noch keine Events vorhanden.";
+        }
+        return "Für diese request_id wurden keine Timeline-Events gefunden.";
+      }
+
+      function setTracePhase(nextPhase, context = {}) {
+        const previousPhase = String(traceState.phase || "idle");
+        traceState.phase = nextPhase;
+
+        emitUiEvent("ui.trace.state.transition", {
+          level: nextPhase === "error" || nextPhase === "unknown" ? "warn" : "info",
+          traceId: context.traceId,
+          requestId: context.requestId,
+          direction: "ui",
+          status: nextPhase,
+          previous_phase: previousPhase,
+          next_phase: nextPhase,
+          trigger: context.trigger || "",
+          error_code: context.errorCode || "",
+        });
+      }
+
+      function normalizeTraceEvents(rawEvents) {
+        if (!Array.isArray(rawEvents)) {
+          return [];
+        }
+
+        const normalized = rawEvents
+          .filter((event) => event && typeof event === "object")
+          .map((event, index) => {
+            const tsText = String(event.ts || "").trim();
+            const parsedTs = tsText ? Date.parse(tsText) : Number.NaN;
+            return {
+              key: `${String(event.event || "event")}-${index}`,
+              event: String(event.event || "unknown_event"),
+              ts: tsText,
+              phase: String(event.phase || "unknown"),
+              summary: String(event.summary || "kein Summary verfügbar"),
+              details: event.details && typeof event.details === "object" ? event.details : {},
+              component: String(event.component || ""),
+              direction: String(event.direction || ""),
+              _sortTs: Number.isFinite(parsedTs) ? parsedTs : Number.POSITIVE_INFINITY,
+              _index: index,
+            };
+          });
+
+        normalized.sort((left, right) => {
+          if (left._sortTs !== right._sortTs) {
+            return left._sortTs - right._sortTs;
+          }
+          return left._index - right._index;
+        });
+
+        return normalized;
+      }
+
+      function renderTraceTimeline() {
+        traceTimelineEl.textContent = "";
+
+        if (!traceState.events.length) {
+          const fallback = document.createElement("li");
+          fallback.textContent = "Keine Timeline-Events verfügbar.";
+          traceTimelineEl.appendChild(fallback);
+          return;
+        }
+
+        traceState.events.forEach((event) => {
+          const item = document.createElement("li");
+          item.className = "trace-event";
+
+          const title = document.createElement("strong");
+          title.textContent = event.event;
+          item.appendChild(title);
+
+          const meta = document.createElement("span");
+          meta.className = "trace-event-meta";
+          const tsText = event.ts || "ts unbekannt";
+          const componentText = event.component ? ` · ${event.component}` : "";
+          const directionText = event.direction ? ` · ${event.direction}` : "";
+          meta.textContent = `${tsText} · phase=${event.phase}${componentText}${directionText}`;
+          item.appendChild(meta);
+
+          const summary = document.createElement("span");
+          summary.className = "trace-event-summary";
+          summary.textContent = event.summary;
+          item.appendChild(summary);
+
+          const detailsKeys = Object.keys(event.details || {});
+          if (detailsKeys.length > 0) {
+            const detailPre = document.createElement("pre");
+            detailPre.textContent = prettyPrint(event.details);
+            item.appendChild(detailPre);
+          }
+
+          traceTimelineEl.appendChild(item);
+        });
+      }
+
+      function renderTraceState() {
+        tracePhasePill.textContent = `Trace-Status: ${traceState.phase}`;
+        tracePhasePill.dataset.phase = traceState.phase;
+        applyPhaseClass(tracePhasePill, traceState.phase);
+
+        if (traceState.requestId && traceState.apiRequestId) {
+          traceMetaEl.textContent = `Trace lookup: ${traceState.requestId} (API request_id: ${traceState.apiRequestId})`;
+        } else if (traceState.requestId) {
+          traceMetaEl.textContent = `Trace lookup: ${traceState.requestId}`;
+        } else if (traceState.phase === "loading") {
+          traceMetaEl.textContent = "Trace wird geladen …";
+        } else {
+          traceMetaEl.textContent = "Noch keine Trace-Abfrage gestartet.";
+        }
+
+        if (traceState.emptyMessage) {
+          traceEmptyBoxEl.hidden = false;
+          traceEmptyBoxEl.textContent = traceState.emptyMessage;
+        } else {
+          traceEmptyBoxEl.hidden = true;
+          traceEmptyBoxEl.textContent = "";
+        }
+
+        if (traceState.error) {
+          traceErrorBoxEl.hidden = false;
+          traceErrorBoxEl.textContent = traceState.error;
+        } else {
+          traceErrorBoxEl.hidden = true;
+          traceErrorBoxEl.textContent = "";
+        }
+
+        if (traceState.payload) {
+          traceJsonEl.textContent = prettyPrint(traceState.payload);
+        }
+
+        renderTraceTimeline();
+      }
+
+      function updateTraceDeepLink(requestId) {
+        if (typeof window === "undefined" || !window.history || !window.location) {
+          return;
+        }
+
+        const normalizedRequestId = normalizeTraceRequestId(requestId);
+        const nextUrl = new URL(window.location.href);
+        if (normalizedRequestId) {
+          nextUrl.searchParams.set("view", "trace");
+          nextUrl.searchParams.set("request_id", normalizedRequestId);
+        } else {
+          nextUrl.searchParams.delete("request_id");
+          if (nextUrl.searchParams.get("view") === "trace") {
+            nextUrl.searchParams.delete("view");
+          }
+        }
+
+        window.history.replaceState({}, "", nextUrl);
+      }
+
+      function restoreTraceDeepLinkInput() {
+        if (typeof window === "undefined" || !window.location) {
+          return "";
+        }
+
+        const url = new URL(window.location.href);
+        const fromRequestId = normalizeTraceRequestId(url.searchParams.get("request_id") || "");
+        const fromAlias = normalizeTraceRequestId(url.searchParams.get("trace_request_id") || "");
+        const requestId = fromRequestId || fromAlias;
+
+        if (requestId) {
+          traceRequestIdEl.value = requestId;
+        }
+
+        const lookback = parseBoundedInteger(url.searchParams.get("lookback_seconds"), {
+          min: 60,
+          max: 604800,
+        });
+        if (lookback != null) {
+          traceLookbackSecondsEl.value = String(lookback);
+        }
+
+        const maxEvents = parseBoundedInteger(url.searchParams.get("max_events"), {
+          min: 1,
+          max: 500,
+        });
+        if (maxEvents != null) {
+          traceMaxEventsEl.value = String(maxEvents);
+        }
+
+        return requestId;
+      }
+
+      function buildTraceLookupUrl(requestId) {
+        const normalizedRequestId = normalizeTraceRequestId(requestId);
+        const query = new URLSearchParams();
+        query.set("request_id", normalizedRequestId);
+
+        const lookbackSeconds = parseBoundedInteger(traceLookbackSecondsEl.value, {
+          min: 60,
+          max: 604800,
+        });
+        if (lookbackSeconds != null) {
+          query.set("lookback_seconds", String(lookbackSeconds));
+        }
+
+        const maxEvents = parseBoundedInteger(traceMaxEventsEl.value, {
+          min: 1,
+          max: 500,
+        });
+        if (maxEvents != null) {
+          query.set("max_events", String(maxEvents));
+        }
+
+        return `${TRACE_DEBUG_ENDPOINT}?${query.toString()}`;
       }
 
       function clampLatToMercator(lat) {
@@ -1328,6 +1650,251 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
       }
 
+      async function runTraceLookup(traceRequestId, token, context = {}) {
+        const normalizedTraceRequestId = normalizeTraceRequestId(traceRequestId);
+        const traceId = String(context.traceId || "").trim() || createUiCorrelationId("trace");
+        const requestId = String(context.requestId || "").trim() || createUiCorrelationId("req");
+        const endpointUrl = buildTraceLookupUrl(normalizedTraceRequestId);
+
+        const headers = {
+          "Accept": "application/json",
+          "X-Request-Id": requestId,
+          "X-Session-Id": uiSessionId,
+        };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        emitUiEvent("ui.trace.request.start", {
+          traceId,
+          requestId,
+          direction: "ui->api",
+          status: "sent",
+          route: TRACE_DEBUG_ENDPOINT,
+          method: "GET",
+          trace_request_id: normalizedTraceRequestId,
+          auth_present: Boolean(token),
+        });
+
+        const controller = new AbortController();
+        const timeoutMs = 12000;
+        const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+        const startedAt = performance.now();
+
+        let response;
+        try {
+          response = await fetch(endpointUrl, {
+            method: "GET",
+            headers,
+            signal: controller.signal,
+          });
+        } catch (error) {
+          const durationMs = Number((performance.now() - startedAt).toFixed(3));
+          const errorCode = error && error.name === "AbortError" ? "timeout" : "network_error";
+          emitUiEvent("ui.trace.request.end", {
+            level: requestLifecycleLevel(errorCode === "timeout" ? 504 : 0, errorCode),
+            traceId,
+            requestId,
+            direction: "api->ui",
+            status: requestLifecycleStatus(errorCode === "timeout" ? 504 : 0, errorCode),
+            route: TRACE_DEBUG_ENDPOINT,
+            method: "GET",
+            status_code: errorCode === "timeout" ? 504 : 0,
+            duration_ms: durationMs,
+            error_code: errorCode,
+            error_class: errorCode,
+            trace_request_id: normalizedTraceRequestId,
+          });
+          if (errorCode === "timeout") {
+            throw new Error(`timeout: Trace-Abfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`);
+          }
+          throw new Error("network_error: Trace-Abfrage fehlgeschlagen");
+        } finally {
+          clearTimeout(timeoutHandle);
+        }
+
+        const durationMs = Number((performance.now() - startedAt).toFixed(3));
+
+        let parsed;
+        try {
+          parsed = await response.json();
+        } catch (error) {
+          emitUiEvent("ui.trace.request.end", {
+            level: requestLifecycleLevel(response.status, "invalid_json"),
+            traceId,
+            requestId,
+            direction: "api->ui",
+            status: requestLifecycleStatus(response.status, "invalid_json"),
+            route: TRACE_DEBUG_ENDPOINT,
+            method: "GET",
+            status_code: response.status,
+            duration_ms: durationMs,
+            error_code: "invalid_json",
+            error_class: "invalid_json",
+            trace_request_id: normalizedTraceRequestId,
+          });
+          throw new Error("invalid_json: Trace-Response ist kein gültiges JSON.");
+        }
+
+        const responseRequestId = parsed && parsed.request_id ? String(parsed.request_id) : requestId;
+        if (!response.ok || !parsed.ok) {
+          const errCode = parsed && parsed.error ? String(parsed.error) : `http_${response.status}`;
+          const errMsg = parsed && parsed.message ? String(parsed.message) : "Trace-Abfrage fehlgeschlagen";
+
+          emitUiEvent("ui.trace.request.end", {
+            level: requestLifecycleLevel(response.status, errCode),
+            traceId,
+            requestId: responseRequestId,
+            direction: "api->ui",
+            status: requestLifecycleStatus(response.status, errCode),
+            route: TRACE_DEBUG_ENDPOINT,
+            method: "GET",
+            status_code: response.status,
+            duration_ms: durationMs,
+            error_code: errCode,
+            error_class: errCode,
+            trace_request_id: normalizedTraceRequestId,
+          });
+
+          return {
+            ok: false,
+            requestId: responseRequestId,
+            traceRequestId: normalizedTraceRequestId,
+            response: parsed || { ok: false, error: errCode, message: errMsg },
+            errorCode: errCode,
+            errorMessage: `${errCode}: ${errMsg}`,
+          };
+        }
+
+        const tracePayload = parsed && parsed.trace && typeof parsed.trace === "object" ? parsed.trace : {};
+        const traceReason = String(tracePayload.reason || "").trim();
+        const rawTraceState = String(tracePayload.state || "").trim();
+        const events = normalizeTraceEvents(tracePayload.events);
+
+        let phase = "success";
+        let emptyMessage = "";
+        if (rawTraceState === "empty") {
+          if (traceReason === "request_id_unknown_or_no_events" || traceReason === "request_id_outside_window") {
+            phase = "unknown";
+          } else {
+            phase = "empty";
+          }
+          emptyMessage = describeTraceEmptyReason(traceReason);
+        }
+
+        emitUiEvent("ui.trace.request.end", {
+          level: requestLifecycleLevel(response.status, ""),
+          traceId,
+          requestId: responseRequestId,
+          direction: "api->ui",
+          status: requestLifecycleStatus(response.status, ""),
+          route: TRACE_DEBUG_ENDPOINT,
+          method: "GET",
+          status_code: response.status,
+          duration_ms: durationMs,
+          trace_request_id: normalizedTraceRequestId,
+          timeline_state: rawTraceState || phase,
+          timeline_events: events.length,
+        });
+
+        return {
+          ok: true,
+          requestId: responseRequestId,
+          traceRequestId: String(parsed.trace_request_id || normalizedTraceRequestId),
+          response: parsed,
+          phase,
+          emptyMessage,
+          events,
+        };
+      }
+
+      async function startTraceLookup(rawTraceRequestId, trigger = "trace_submit") {
+        const normalizedTraceRequestId = normalizeTraceRequestId(rawTraceRequestId);
+        const requestId = createUiCorrelationId("req");
+        const traceId = requestId;
+
+        if (!normalizedTraceRequestId) {
+          setTracePhase("error", {
+            traceId,
+            requestId,
+            trigger,
+            errorCode: "validation",
+          });
+          traceState.requestId = "";
+          traceState.apiRequestId = requestId;
+          traceState.payload = {
+            ok: false,
+            error: "validation",
+            message: "request_id darf nicht leer sein",
+          };
+          traceState.events = [];
+          traceState.emptyMessage = "";
+          traceState.error = "Bitte eine request_id eingeben.";
+          renderTraceState();
+          return;
+        }
+
+        updateTraceDeepLink(normalizedTraceRequestId);
+
+        setTracePhase("loading", {
+          traceId,
+          requestId,
+          trigger,
+        });
+        traceState.requestId = normalizedTraceRequestId;
+        traceState.apiRequestId = requestId;
+        traceState.payload = {
+          ok: false,
+          loading: true,
+          request_id: normalizedTraceRequestId,
+        };
+        traceState.error = "";
+        traceState.emptyMessage = "";
+        traceState.events = [];
+        traceSubmitBtn.disabled = true;
+        renderTraceState();
+
+        try {
+          const result = await runTraceLookup(normalizedTraceRequestId, (tokenEl.value || "").trim(), {
+            traceId,
+            requestId,
+          });
+
+          traceState.requestId = result.traceRequestId || normalizedTraceRequestId;
+          traceState.apiRequestId = result.requestId || requestId;
+          traceState.payload = result.response;
+          traceState.events = result.ok ? result.events : [];
+          traceState.emptyMessage = result.ok ? result.emptyMessage : "";
+          traceState.error = result.ok ? "" : result.errorMessage;
+
+          setTracePhase(result.ok ? result.phase : "error", {
+            traceId,
+            requestId: traceState.apiRequestId,
+            trigger,
+            errorCode: result.ok ? "" : result.errorCode || "",
+          });
+        } catch (error) {
+          setTracePhase("error", {
+            traceId,
+            requestId,
+            trigger,
+            errorCode: "network_error",
+          });
+          traceState.apiRequestId = requestId;
+          traceState.payload = {
+            ok: false,
+            error: "network_error",
+            message: error instanceof Error ? error.message : "Trace-Abfrage fehlgeschlagen",
+          };
+          traceState.events = [];
+          traceState.emptyMessage = "";
+          traceState.error = error instanceof Error ? error.message : "Trace-Abfrage fehlgeschlagen";
+        } finally {
+          traceSubmitBtn.disabled = false;
+          renderTraceState();
+        }
+      }
+
       formEl.addEventListener("submit", async (event) => {
         event.preventDefault();
 
@@ -1370,6 +1937,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         await startAnalyze(payload, `Adresse: ${query}`);
       });
 
+      traceFormEl.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const traceRequestId = normalizeTraceRequestId(traceRequestIdEl.value);
+
+        emitUiEvent("ui.interaction.trace.submit", {
+          direction: "human->ui",
+          status: "triggered",
+          trace_request_id: traceRequestId,
+        });
+
+        await startTraceLookup(traceRequestId, "trace_form_submit");
+      });
+
       emitUiEvent("ui.session.start", {
         direction: "internal",
         status: "ready",
@@ -1378,6 +1958,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       initializeInteractiveMap();
       renderState();
+      renderTraceState();
+
+      const deepLinkTraceRequestId = restoreTraceDeepLinkInput();
+      if (deepLinkTraceRequestId) {
+        startTraceLookup(deepLinkTraceRequestId, "trace_deep_link");
+      }
     </script>
   </body>
 </html>

@@ -34,8 +34,16 @@ def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
     if not api_base_url:
         return html
 
-    analyze_url = f"{api_base_url.rstrip('/')}/analyze"
-    return html.replace('fetch("/analyze", {', f"fetch({json.dumps(analyze_url)}, {{")
+    normalized_base_url = api_base_url.rstrip("/")
+    analyze_url = f"{normalized_base_url}/analyze"
+    trace_debug_url = f"{normalized_base_url}/debug/trace"
+
+    html = html.replace('fetch("/analyze", {', f"fetch({json.dumps(analyze_url)}, {{")
+    html = html.replace(
+        'const TRACE_DEBUG_ENDPOINT = "/debug/trace";',
+        f"const TRACE_DEBUG_ENDPOINT = {json.dumps(trace_debug_url)};",
+    )
+    return html
 
 
 class _UiHandler(BaseHTTPRequestHandler):

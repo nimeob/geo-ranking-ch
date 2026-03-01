@@ -13,6 +13,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - clientseitiger Request-Timeout-Guard (`AbortController`): kein dauerhaftes `loading` bei ausbleibender API-Antwort
 - korrelierbares UI-Structured-Logging (`ui.state.transition`, `ui.api.request.start/end`) inkl. `X-Request-Id`/`X-Session-Id` für UI↔API-Tracing
 - sichtbare Kernfaktoren (Top-Faktoren aus Explainability) und rohe JSON-Antwort
+- Trace-Debug-Panel mit Deep-Link-Unterstützung (`/gui?view=trace&request_id=<id>`) und Timeline-Lookup via `GET /debug/trace`
 
 ## Struktur
 
@@ -49,13 +50,33 @@ Transitions:
 - `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen`)
 - `error -> loading` beim nächsten Submit/Kartenklick (clean retry)
 
+## Trace-Debug-View (BL-422.2)
+
+Das Result-Column enthält zusätzlich ein dediziertes Trace-Debug-Panel:
+
+- Formularfelder: `request_id`, optional `lookback_seconds`, optional `max_events`
+- Deep-Link-Rehydrierung aus URL-Parametern (`request_id`, optional `lookback_seconds`, `max_events`)
+- Auto-Lookup beim Laden, wenn ein Deep-Link vorhanden ist
+- Timeline-Rendering sortiert robust nach Timestamp und fällt bei Teil-/Fehldaten auf sichere Defaults zurück
+
+Trace-State-Flow (clientseitig):
+
+- `idle` → kein Lookup gestartet
+- `loading` → laufender `GET /debug/trace` Request
+- `success` → Timeline verfügbar
+- `empty` → keine Events (ohne Unknown-Hinweis)
+- `unknown` → `request_id` unbekannt oder außerhalb des Zeitfensters
+- `error` → API-/Netzwerk-/Validierungsfehler
+
 ## Logging & Korrelation (BL-340.3)
 
 Die GUI emittiert strukturierte Client-Events (JSONL via Browser-Console) und korreliert API-Requests über dieselbe Request-ID:
 
 - `ui.api.request.start` / `ui.api.request.end` mit `trace_id`, `request_id`, `session_id`, `status_code`, `duration_ms`
-- `ui.state.transition` für alle Zustandswechsel (`idle/loading/success/error`)
-- Input-/Interaktionsereignisse (`ui.interaction.form.submit`, `ui.interaction.map.analyze_trigger`, `ui.input.accepted`)
+- `ui.trace.request.start` / `ui.trace.request.end` für Trace-Lookups inkl. `trace_request_id`, Timeline-State und Fehlerklassifikation
+- `ui.state.transition` für Analyze-Zustandswechsel (`idle/loading/success/error`)
+- `ui.trace.state.transition` für Trace-Zustandswechsel (`idle/loading/success/empty/unknown/error`)
+- Input-/Interaktionsereignisse (`ui.interaction.form.submit`, `ui.interaction.map.analyze_trigger`, `ui.interaction.trace.submit`, `ui.input.accepted`)
 - Validierungs-/Degraded-Signale (`ui.validation.error`, `ui.output.map_status`)
 
 Für die UI→API-Korrelation setzt der Client pro Analyze-Request:
