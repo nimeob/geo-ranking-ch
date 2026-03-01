@@ -685,7 +685,7 @@
 - **Ziel:** Reibungspunkte aus `docs/testing/WORKING_MODE_FRICTION_ANALYSIS.md` in kleinen, risikoarmen Paketen abbauen.
 - **Work-Packages (Parent #418):**
   - [x] #444 — BL-341.wp1 Pflicht-PR-Gates als required checks (abgeschlossen 2026-03-01)
-  - [ ] #445 — BL-341.wp2 Kritische Quality-Gates fail-closed
+  - [x] #445 — BL-341.wp2 Kritische Quality-Gates fail-closed (abgeschlossen 2026-03-01)
   - [ ] #446 — BL-341.wp3 Staging-lite Promote-/Abort-/Rollback-Gate
   - [ ] #447 — BL-341.wp4 Backlog-/Issue-Statussync automatisieren
   - [ ] #448 — BL-341.wp5 GTM-Validierungssprint operationalisieren
@@ -694,7 +694,8 @@
   - ✅ #444 abgeschlossen: Fast-Gates `contract-smoke` + `docs-link-guard` laufen wieder automatisch auf PR (`pull_request`) und bleiben manuell triggerbar (`workflow_dispatch`).
   - ✅ Required-Check-Zielzustand + Admin-Verifikation in `docs/OPERATIONS.md` synchronisiert.
   - ✅ Regressionstest für Workflow-/Doku-Sync ergänzt (`tests/test_pr_fast_gates_config.py`).
-- **Nächster Schritt:** #445 (P0 fail-closed für kritische Quality-Gates).
+  - ✅ #445 abgeschlossen: Docs-Quality-Gate läuft jetzt fail-closed (`scripts/check_docs_quality_gate.sh` bricht bei venv-Fehler mit Exit 1 ab), inklusive Script-Regressionen und Doku-Sync (`tests/test_check_docs_quality_gate_script.py`, `docs/OPERATIONS.md`, `docs/automation/openclaw-job-mapping.md`).
+- **Nächster Schritt:** #446 (P0 Staging-lite Promote-/Abort-/Rollback-Gate).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
