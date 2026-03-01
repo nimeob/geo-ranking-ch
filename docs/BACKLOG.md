@@ -19,13 +19,17 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- (leer)
+- [#609](https://github.com/nimeob/geo-ranking-ch/issues/609) — [Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen (priority:P0, status:todo)
 
 ### Next
-- (leer)
+- [#577](https://github.com/nimeob/geo-ranking-ch/issues/577) — BL-30/BL-15 Follow-up: GTM → Data Architecture Mapping v1 (Org/User/Billing/Entitlements) (priority:P2, status:todo)
+- [#594](https://github.com/nimeob/geo-ranking-ch/issues/594) — BL-30.wp4.r3: Result-Page Delivery + Retention/Notification Jobs (priority:P2, status:todo)
+- [#600](https://github.com/nimeob/geo-ranking-ch/issues/600) — BL-30.wp4.r3.wp2: Retention-Cleanup für job_results/job_events implementieren (priority:P2, status:todo)
+- [#601](https://github.com/nimeob/geo-ranking-ch/issues/601) — BL-30.wp4.r3.wp3: In-App Notification-Pipeline für Async-Completion/Failure (priority:P2, status:todo)
+- [#602](https://github.com/nimeob/geo-ranking-ch/issues/602) — BL-30.wp4.r3.wp4: Ops-Runbook + Monitoring-Mindestmetriken für Async-Delivery (priority:P2, status:todo)
 
 ### Later
-- (leer — alle bekannten Items abgeschlossen oder geschlossen; Stand: 2026-03-01)
+- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:?, status:blocked)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Backlog-Items
