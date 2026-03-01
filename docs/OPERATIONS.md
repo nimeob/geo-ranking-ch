@@ -11,6 +11,8 @@ Arbeitsmodus, Branching-Strategie, Commit-Regeln und Release-Checkliste.
 > **Automation-Migration (GitHub Actions → OpenClaw):** Ist-Aufnahme + Klassifikation siehe [`docs/automation/github-actions-migration-matrix.md`](automation/github-actions-migration-matrix.md), konkretes Job-Mapping v1 in [`docs/automation/openclaw-job-mapping.md`](automation/openclaw-job-mapping.md).
 
 > **Sicherheits-/Datenhaltungsentscheidungen für API-Betrieb:** siehe [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md).
+>
+> **Async-Delivery Betrieb (Result-Permalink/Retention/Notifications):** siehe [`docs/api/async-delivery-ops-runbook-v1.md`](api/async-delivery-ops-runbook-v1.md).
 
 > **Issue-Format-Guard (Worker):** Neue/edierte Issues werden automatisch auf das bekannte Escaping-Problem geprüft (`\\n`, `\\t`, `\\`` statt echter Markdown-Formatierung). Bei Treffer normalisiert der Workflow den Body automatisch.
 
