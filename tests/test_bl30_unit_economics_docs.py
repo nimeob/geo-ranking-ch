@@ -42,7 +42,7 @@ class TestBL30UnitEconomicsDocs(unittest.TestCase):
             backlog,
         )
         self.assertIn(
-            "**Nächster Schritt:** oldest-first BL-30.2-Leaf-Umsetzung nach GTM-Freigabe (#457), beginnend mit #465.",
+            "**Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf umsetzen: #482 (BL-30.4.wp4 Explainability-/Scoring-UX-Standards).",
             backlog,
         )
 
