@@ -801,7 +801,7 @@ Regelwerk:
 - **Work-Packages:**
   - [x] #515 — Policy-Standard finalisieren (Version, Begründung, Wirksam-ab, Impact-Pflicht) (abgeschlossen 2026-03-01)
   - [x] #516 — Korrektur-Richtlinie freigeben (nur neue Version + Pflichtfeld Grund) (abgeschlossen 2026-03-01)
-  - [ ] #517 — Hold-Governance definieren (wer darf Hold setzen/aufheben)
+  - [x] #517 — Hold-Governance definieren (wer darf Hold setzen/aufheben) (abgeschlossen 2026-03-01)
   - [ ] #518 — Kontrollplan für Export- und Löschprozesse definieren
   - [ ] #519 — Datenmodell erweitern: Policy-Versionierung + Metadatenfelder
   - [ ] #524 — Externen Direktzugriff technisch unterbinden
@@ -821,6 +821,7 @@ Regelwerk:
 - **Fortschritt (2026-03-01):**
   - ✅ #515 abgeschlossen: verbindliche Policy-Vorlage in [`docs/compliance/POLICY_STANDARD_V1.md`](compliance/POLICY_STANDARD_V1.md) eingeführt (Pflichtfelder `version`, `begruendung`, `wirksam_ab`, `impact_summary` + Freigabe-Workflow v1 und Copy/Paste-Referenztemplate).
   - ✅ #516 abgeschlossen: Korrektur-Richtlinie in [`docs/compliance/KORREKTUR_RICHTLINIE_V1.md`](compliance/KORREKTUR_RICHTLINIE_V1.md) veröffentlicht (Original bleibt unverändert, Korrekturen nur als neue Version, Pflichtfeld `korrekturgrund`, inkl. Freigabe-/Kommunikationskriterien).
+  - ✅ #517 abgeschlossen: Hold-Governance in [`docs/compliance/HOLD_GOVERNANCE_V1.md`](compliance/HOLD_GOVERNANCE_V1.md) definiert (Rollen-/Berechtigungsmatrix, Vier-Augen-Freigaben, Entscheidungswege für Setzen/Aufheben, Pflicht-Nachweise inkl. `review_due_at`).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
