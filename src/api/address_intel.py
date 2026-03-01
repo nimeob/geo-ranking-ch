@@ -55,6 +55,12 @@ try:
 except ModuleNotFoundError:
     from suitability_light import evaluate_suitability_light  # type: ignore[no-redef]
 
+try:
+    from src.compliance.export_logging import record_export_log_entry
+except ModuleNotFoundError:  # pragma: no cover - fallback for direct script execution
+    def record_export_log_entry(**_: Any) -> dict[str, Any]:
+        return {}
+
 UA = "openclaw-swisstopo-address-intel/2.2"
 DEFAULT_TIMEOUT = 15
 DEFAULT_RETRIES = 3
@@ -6885,6 +6891,33 @@ def write_csv(path: str, rows: List[Dict[str, Any]], *, fieldnames: List[str]) -
             writer.writerow(row)
 
 
+def _emit_export_log(
+    *,
+    path: str,
+    channel: str,
+    export_kind: str,
+    row_count: int,
+    error_count: int = 0,
+    status: str = "ok",
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Best-effort compliance export logging (must never block exports)."""
+
+    try:
+        record_export_log_entry(
+            channel=channel,
+            artifact_path=path,
+            export_kind=export_kind,
+            row_count=row_count,
+            error_count=error_count,
+            status=status,
+            details=details or {},
+        )
+    except Exception:
+        # Compliance logging is additive and must not break primary export workflows.
+        return
+
+
 def classify_error(ex: Exception) -> str:
     if isinstance(ex, NoAddressMatchError):
         return "NO_MATCH"
@@ -7357,15 +7390,52 @@ def main() -> int:
 
                 if args.out_jsonl:
                     write_jsonl(args.out_jsonl, rows)
+                    _emit_export_log(
+                        path=args.out_jsonl,
+                        channel="file:jsonl",
+                        export_kind="address-intel-batch-jsonl",
+                        row_count=len(rows),
+                        error_count=int(stats.get("error", 0)),
+                        status="partial" if stats.get("error") else "ok",
+                        details={
+                            "scope": "batch-export",
+                            "source": "src.api.address_intel",
+                        },
+                    )
                 if args.out_csv:
                     flat_rows = [flatten_report_for_csv(r) for r in rows]
                     write_csv(args.out_csv, flat_rows, fieldnames=CSV_EXPORT_FIELDS)
+                    _emit_export_log(
+                        path=args.out_csv,
+                        channel="file:csv",
+                        export_kind="address-intel-batch-csv",
+                        row_count=len(flat_rows),
+                        error_count=int(stats.get("error", 0)),
+                        status="partial" if stats.get("error") else "ok",
+                        details={
+                            "scope": "batch-export",
+                            "field_count": len(CSV_EXPORT_FIELDS),
+                            "source": "src.api.address_intel",
+                        },
+                    )
                 if args.out_error_csv:
                     errors = [flatten_report_for_csv(r) for r in rows if r.get("batch_meta", {}).get("status") == "error"]
                     write_csv(
                         args.out_error_csv,
                         errors,
                         fieldnames=["row", "query", "status", "error_code", "error_type", "error"],
+                    )
+                    _emit_export_log(
+                        path=args.out_error_csv,
+                        channel="file:error-csv",
+                        export_kind="address-intel-batch-error-csv",
+                        row_count=len(errors),
+                        error_count=len(errors),
+                        status="ok",
+                        details={
+                            "scope": "batch-export",
+                            "source": "src.api.address_intel",
+                        },
                     )
 
                 if args.json and not args.out_jsonl and not args.out_csv:
