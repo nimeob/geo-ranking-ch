@@ -584,13 +584,16 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
-- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3 abgeschlossen; BL-30.4 vollständig abgeschlossen mit wp1/#479, wp2/#480, wp3/#481 und wp4/#482; BL-30.5-Leafs #494/#495/#496/#498 abgeschlossen; BL-30.6-Leafs #502/#503/#504 abgeschlossen und Parent #113 finalisiert/geschlossen; BL-30.2 weiterhin blocked)
+- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3 abgeschlossen; BL-30.4 vollständig abgeschlossen mit wp1/#479, wp2/#480, wp3/#481 und wp4/#482; BL-30.5-Leafs #494/#495/#496/#498 abgeschlossen; BL-30.6-Leafs #502/#503/#504 abgeschlossen und Parent #113 finalisiert/geschlossen; BL-30.2 reaktiviert, #465 abgeschlossen, #466 offen)
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
   - [x] #459 — BL-30.1.wp2 Unit-Economics-Hypothesen je Tier/Segment strukturieren (abgeschlossen 2026-03-01)
   - [x] #460 — BL-30.1.wp3 Preisvalidierungs-Experimentkarten + Entscheidungslogik (abgeschlossen 2026-03-01)
   - [x] #461 — BL-30.1.wp4 Konsolidierter Abschluss + BL-30.2 Übergabe (abgeschlossen 2026-03-01)
+- **Work-Packages (BL-30.2 Parent #106):**
+  - [x] #465 — BL-30.2.wp1 Entitlement-Contract v1 + Gate-Semantik aus BL-30.1 konsolidieren (abgeschlossen 2026-03-01)
+  - [ ] #466 — BL-30.2.wp2 Checkout-/Lifecycle-Contract + idempotenter Entitlement-Sync
 - **Work-Packages (BL-30.3 Parent #107):**
   - [x] #468 — BL-30.3.wp1 Deep-Mode-Contract v1 (Request/Status/Fallback) spezifizieren (abgeschlossen 2026-03-01)
   - [x] #469 — BL-30.3.wp2 Deep-Mode-Orchestrierung + Runtime-Guardrails designen (abgeschlossen 2026-03-01)
@@ -620,7 +623,8 @@ Regelwerk:
   - ✅ #459 abgeschlossen: versionierte Unit-Economics-Doku in [`docs/UNIT_ECONOMICS_HYPOTHESES_V1.md`](UNIT_ECONOMICS_HYPOTHESES_V1.md) ergänzt (Tier-/Segment-Annahmen, Sensitivitätshebel, Go/Adjust/Stop-Schwellen) und via Regressionstest abgesichert.
   - ✅ #460 abgeschlossen: experimentfähige Pricing-Karten (3 Kandidaten inkl. Inputs/Outputs/Abbruchkriterien) und standardisierte Go/Adjust/Stop-Entscheidungslogik in [`docs/PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md`](PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md) ergänzt; Follow-up-Issue-Template für BL-30.1/30.2 in [`docs/testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md`](testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md) eingeführt; Doku-Regressionen erweitert.
   - ✅ #461 abgeschlossen: konsolidierter Entscheidungsabschluss in [`docs/BL30_1_CLOSEOUT_V1.md`](BL30_1_CLOSEOUT_V1.md) dokumentiert (Primärkandidat `CAND-API-PRO-390`, Sekundärkandidat `CAND-BIZ-API-890`) und BL-30.2-Handover via Follow-up-Issues #465/#466 plus Parent-Sync in #106 vorbereitet.
-  - ℹ️ Historischer Zwischenstand direkt nach #459/#460 (vor den später abgeschlossenen BL-30.5/30.6-Leafs): **Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf in #106/#113 identifizieren (ggf. zuerst atomisieren), da #498 abgeschlossen ist und #106-Childs (#465/#466) aktuell gate-blocked sind.
+  - ✅ #465 abgeschlossen: technischer Entitlement-Contract v1 in [`docs/api/bl30-entitlement-contract-v1.md`](api/bl30-entitlement-contract-v1.md) ergänzt (normativer Gate-Katalog `entitlement.requests.monthly`, `entitlement.requests.rate_limit`, `capability.explainability.level`, `capability.gui.access`, `capability.trace.debug`), additive API-/UI-Auswirkungen und Forward-Compatibility-Guardrails (#6/#127) konsolidiert sowie über `tests/test_bl30_entitlement_contract_docs.py` regressionsgesichert.
+  - ℹ️ Historischer Zwischenstand direkt nach #459/#460 (vor den später abgeschlossenen BL-30.5/30.6-Leafs): BL-30.2 war temporär gate-blocked; nach dokumentiertem GTM-Entscheid (`GTM-DEC-002`) wurde #465 oldest-first wieder aufgenommen.
   - ✅ #107 atomisiert und finalisiert: Work-Packages #468/#469/#470/#472/#473 vollständig abgeschlossen, Parent geschlossen und Parent-Sync in #128 fortgeschrieben (2026-03-01).
   - ✅ #108 atomisiert: Parent-Scope in die Leaf-Work-Packages #479/#480/#481/#482 zerlegt und Parent-Checklist synchronisiert (2026-03-01).
   - ✅ #110 atomisiert: Parent-Scope in die Leaf-Work-Packages #494/#495/#496 zerlegt und Parent-Checklist synchronisiert (2026-03-01).
@@ -644,7 +648,7 @@ Regelwerk:
   - ✅ #470 abgeschlossen: Hypothesenblatt + Entitlement-/Quota-Kopplung + Transparenzrahmen in [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md) dokumentiert, GTM-Decision-Input in [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md) als `GTM-IN-30.3-001` verankert und durch `tests/test_bl30_deep_mode_addon_quota_hypotheses_docs.py` regressionsgesichert.
   - ✅ #472 abgeschlossen: Runtime-Orchestrator in `src/api/web_service.py` umgesetzt (Eligibility-Gate inkl. `requested/allowed/quota/budget`, deterministische Statusprojektion nach `result.status.capabilities.deep_mode` + `result.status.entitlements.deep_mode`), Design-Doku in [`docs/api/deep-mode-orchestration-guardrails-v1.md`](api/deep-mode-orchestration-guardrails-v1.md) auf Implementierungsstand ergänzt und Fallback-Matrix per `tests/test_bl30_deep_mode_runtime_orchestrator.py` abgesichert.
   - ✅ #473 abgeschlossen: Deep-Mode-Telemetrie im Analyze-Flow ergänzt (`api.deep_mode.gate_evaluated|execution.start|execution.retry|execution.abort|execution.end` inkl. Pflichtfelder `deep_*`, `retry_count`, `duration_ms`), Logging-Schema in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) verankert, operatives Nachweis-Runbook [`docs/testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md`](testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md) + Beispielartefakt [`docs/testing/deep-mode-trace-evidence-sample.jsonl`](testing/deep-mode-trace-evidence-sample.jsonl) ergänzt und per `tests/test_bl30_deep_mode_telemetry_events.py` / `tests/test_bl30_deep_mode_telemetry_docs.py` regressionsgesichert.
-- **Nächster Schritt:** BL-30.6 ist vollständig auf Leaf-Ebene abgeschlossen (#502/#503/#504); für BL-30 bleibt als nächster Move die Entblockung der BL-30.2-Childs (#465/#466) über den GTM-Entscheid in #457 (oldest-first sobald unblocked).
+- **Nächster Schritt:** BL-30.6 ist vollständig auf Leaf-Ebene abgeschlossen (#502/#503/#504); im BL-30.2-Strang ist oldest-first als nächstes Leaf #466 (Checkout-/Lifecycle-Contract + idempotenter Entitlement-Sync) umzusetzen.
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
