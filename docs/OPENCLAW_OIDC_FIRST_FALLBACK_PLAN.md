@@ -54,6 +54,11 @@ aws cloudwatch describe-alarms --region eu-central-1 --max-items 5
 
 > Hinweis: Helper für AssumeRole (`scripts/aws_assume_openclaw_ops.sh`, `scripts/openclaw_runtime_assumerole_exec.sh`) können für Diagnostik bestehen bleiben, sind aber **nicht** mehr der verpflichtende Runtime-Default.
 
+### 4) Startpfad-/Host-Änderungen (nur falls technisch nötig)
+- **Default:** Keine Änderungen am Host-Orchestrator-Startpfad für reine Doku-/Policy-Synchronisierung.
+- **Nur bei echtem Technikbedarf:** Persistente Startpfad-Anpassungen (z. B. `/entrypoint.sh`, Container-Env-Injektion, Runtime-Restart) ausschließlich im Wartungsfenster mit dokumentiertem Rollback.
+- **Allowed Runtime-Key-Setpoints:** Secrets/Env-Management des Hosts/Orchestrators (nicht im Repo als Klartext, nicht in Commit-Historie).
+
 ---
 
 ## Verifikation / Compliance-Checks
