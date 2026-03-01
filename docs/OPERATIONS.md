@@ -203,6 +203,24 @@ python3 scripts/run_bl31_split_deploy.py --mode both --execute \
 
 Der Runner erzwingt pro Schritt Service-Lokalität (API-only darf UI-TaskDef nicht ändern, UI-only darf API-TaskDef nicht ändern), propagiert die expliziten Frontdoor-URLs in den Strict-Smoke und schreibt ein JSON-Protokoll nach `artifacts/bl31/*-bl31-split-deploy-<mode>.json`.
 
+#### Staging-lite Promote-Gate (Digest + Smoke + Abort/Rollback)
+
+Für reproduzierbare Promote-Entscheide ohne vollwertiges `staging` ist der Gate-Runner verfügbar:
+
+```bash
+python3 scripts/run_staging_lite_promote_gate.py \
+  --candidate-digest sha256:<candidate> \
+  --approved-digest sha256:<approved> \
+  --smoke-command "./scripts/run_bl31_routing_tls_smoke.sh --api-base-url https://api.dev.georanking.ch --app-base-url https://www.dev.georanking.ch" \
+  --artifact-dir artifacts/staging-lite
+```
+
+Exit-Codes: `0=promote_ready`, `10=digest_mismatch`, `20=smoke_failed`.
+
+Runbook + Nachweise:
+- [`docs/testing/STAGING_LITE_PROMOTE_GATE.md`](testing/STAGING_LITE_PROMOTE_GATE.md)
+- [`docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`](BL31_DEPLOY_ROLLBACK_RUNBOOK.md)
+
 Für BL-31.6.a (UI-Artefaktpfad + Taskdef-Revision) steht zusätzlich ein automatisierter Setup-Pfad bereit:
 
 ```bash
