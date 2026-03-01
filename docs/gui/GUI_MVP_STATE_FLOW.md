@@ -28,6 +28,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 3. **Result-Panel**
    - Status-Pill pro State
    - Request-ID + Input-Metadaten
+   - Request-ID-UX mit klickbarem Trace-Link (`Trace ansehen`) und Copy-Action (`Copy ID`) inkl. Live-Feedback
    - Fehlerbox für API-/Netzwerkfehler
    - Kernfaktoren-Liste (`top 4` nach |contribution|)
    - Roh-JSON zur transparenten MVP-Diagnose
@@ -58,6 +59,7 @@ Das Result-Column enthält zusätzlich ein dediziertes Trace-Debug-Panel:
 - Deep-Link-Rehydrierung aus URL-Parametern (`request_id`, optional `lookback_seconds`, `max_events`)
 - Auto-Lookup beim Laden, wenn ein Deep-Link vorhanden ist
 - Timeline-Rendering sortiert robust nach Timestamp und fällt bei Teil-/Fehldaten auf sichere Defaults zurück
+- Accessibility-Basics: Fokus-fähiger Link/Button-Flow und `aria-live` Feedback für Copy-/Status-Rückmeldungen
 
 Trace-State-Flow (clientseitig):
 
