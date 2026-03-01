@@ -119,7 +119,45 @@ Zusätzlich werden pattern-basiert maskiert:
 }
 ```
 
-## Implementierungsstand BL-340.1 + BL-340.2
+### 5) UI->API Request-Lifecycle (BL-340.3)
+
+```json
+{
+  "ts": "2026-03-01T01:55:44.103Z",
+  "level": "info",
+  "event": "ui.api.request.start",
+  "trace_id": "req-m7vyrj-9f31a6c2",
+  "request_id": "req-m7vyrj-9f31a6c2",
+  "session_id": "sess-m7vyr5-8c22a9b1",
+  "component": "ui.gui_mvp",
+  "direction": "ui->api",
+  "status": "sent",
+  "route": "/analyze",
+  "method": "POST",
+  "input_kind": "query",
+  "auth_present": true
+}
+```
+
+```json
+{
+  "ts": "2026-03-01T01:55:44.281Z",
+  "level": "info",
+  "event": "ui.api.request.end",
+  "trace_id": "req-m7vyrj-9f31a6c2",
+  "request_id": "req-m7vyrj-9f31a6c2",
+  "session_id": "sess-m7vyr5-8c22a9b1",
+  "component": "ui.gui_mvp",
+  "direction": "api->ui",
+  "status": "ok",
+  "route": "/analyze",
+  "method": "POST",
+  "status_code": 200,
+  "duration_ms": 178.221
+}
+```
+
+## Implementierungsstand BL-340.1 + BL-340.2 + BL-340.3
 
 - Shared Helper: `src/shared/structured_logging.py`
   - `build_event(...)`
@@ -131,11 +169,20 @@ Zusätzlich werden pattern-basiert maskiert:
   - `api.health.response`
   - `api.request.start` (Ingress, `GET/POST/OPTIONS`)
   - `api.request.end` (Egress inkl. `status_code`, `duration_ms`, `error_class`)
+- UI-Call-Sites im GUI-MVP (`src/shared/gui_mvp.py`):
+  - `ui.session.start`
+  - `ui.interaction.form.submit`
+  - `ui.interaction.map.analyze_trigger`
+  - `ui.input.accepted`
+  - `ui.state.transition` (`idle/loading/success/error`)
+  - `ui.api.request.start`
+  - `ui.api.request.end` (inkl. `status_code`, `duration_ms`, `error_code/error_class`)
+  - `ui.validation.error`
+  - `ui.output.map_status`
 
-## Abgrenzung zu BL-340.3 / .4
+## Abgrenzung zu BL-340.4
 
-BL-340.1 + BL-340.2 decken **Kernschema + Redaction + API Ingress/Egress-Lifecycle** ab.
-Offen bleiben die nächsten Child-Issues:
+BL-340.1 bis BL-340.3 decken **Kernschema + Redaction + API- und UI-Lifecycle-Logging** ab.
+Offen bleibt als nächster Child-Step:
 
-- #412 (UI Interaktions-/Client-Logging)
-- #413 (Upstream Provider Logging + Trace-Nachweise)
+- #413 (Upstream Provider Logging + Trace-/Retry-Nachweise)
