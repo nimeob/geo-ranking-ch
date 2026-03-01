@@ -54,6 +54,17 @@ Für frühe Smoke-/Dokumentations-Workflows (bevor Ingress/ALB als Terraform-Res
 
 > **Kein blindes `terraform apply` auf bestehender Infrastruktur.**
 
+### Staging Network / Ingress Skeleton (WP #660)
+
+Für `staging` existiert ein optionales Network+Ingress-Skeleton (VPC/Subnets/IGW/Route Table + ALB/Listener), vollständig hinter Manage-Flags:
+
+- `manage_staging_network` (Default: `false`)
+- `manage_staging_ingress` (Default: `false`, wirkt nur wenn `manage_staging_network=true`)
+
+Guardrails:
+- wirkt zusätzlich nur bei `environment = "staging"` (kein versehentliches Create in `dev`)
+- `lifecycle.prevent_destroy = true` / Deletion Protection wo sinnvoll
+
 ---
 
 ## Verifizierter Ist-Stand (read-only AWS-Checks, 2026-02-25)

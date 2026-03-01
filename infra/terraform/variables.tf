@@ -217,6 +217,52 @@ variable "telegram_chat_id" {
 }
 
 # ---------------------------------------------------------------------------
+# Staging Network + Ingress Skeleton (WP #660)
+# ---------------------------------------------------------------------------
+
+variable "manage_staging_network" {
+  description = "Wenn true, erstellt Terraform die staging Network-Baseline (VPC/Subnets/Route Tables/IGW). Guard: wirkt nur bei environment=staging."
+  type        = bool
+  default     = false
+}
+
+variable "manage_staging_ingress" {
+  description = "Wenn true, erstellt Terraform ein staging ALB/Ingress-Skeleton (ALB + SG + HTTP listener fixed-response). Guard: wirkt nur bei environment=staging und nur wenn manage_staging_network=true."
+  type        = bool
+  default     = false
+}
+
+variable "staging_vpc_cidr" {
+  description = "CIDR Block für die staging VPC."
+  type        = string
+  default     = "10.70.0.0/16"
+}
+
+variable "staging_public_subnet_cidrs" {
+  description = "CIDR Blocks für staging Public Subnets (mind. 2 empfohlen, unterschiedliche AZs)."
+  type        = list(string)
+  default     = ["10.70.0.0/24", "10.70.1.0/24"]
+}
+
+variable "staging_private_subnet_cidrs" {
+  description = "CIDR Blocks für staging Private Subnets (optional; NAT ist in diesem WP bewusst nicht enthalten)."
+  type        = list(string)
+  default     = ["10.70.10.0/24", "10.70.11.0/24"]
+}
+
+variable "staging_alb_name" {
+  description = "Name des staging Application Load Balancers (<= 32 Zeichen)."
+  type        = string
+  default     = "swisstopo-staging-alb"
+}
+
+variable "staging_alb_ingress_cidr_blocks" {
+  description = "CIDR Blocks, von denen HTTP (80) auf das staging ALB erlaubt ist (nur relevant bei manage_staging_ingress=true)."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+# ---------------------------------------------------------------------------
 # Service URLs / Endpoints (staging scaffold)
 # ---------------------------------------------------------------------------
 

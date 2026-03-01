@@ -9,7 +9,7 @@ output "aws_region" {
 }
 
 locals {
-  api_base_url_normalized = var.api_base_url != "" ? trim(var.api_base_url, "/") : ""
+  api_base_url_normalized    = var.api_base_url != "" ? trim(var.api_base_url, "/") : ""
   api_health_path_normalized = startswith(var.api_health_path, "/") ? var.api_health_path : "/${var.api_health_path}"
 }
 
@@ -21,6 +21,40 @@ output "api_base_url" {
 output "api_health_url" {
   description = "Konfigurierte Health-URL (api_base_url + api_health_path)."
   value       = local.api_base_url_normalized != "" ? "${local.api_base_url_normalized}${local.api_health_path_normalized}" : null
+}
+
+# ---------------------------------------------------------------------------
+# Staging Network / Ingress Outputs (WP #660)
+# ---------------------------------------------------------------------------
+
+output "staging_vpc_id" {
+  description = "VPC ID der staging VPC (leer wenn manage flags deaktiviert sind oder environment != staging)."
+  value       = try(aws_vpc.staging[0].id, null)
+}
+
+output "staging_public_subnet_ids" {
+  description = "Subnet IDs der staging Public Subnets (leer wenn nicht gemanagt)."
+  value       = [for s in aws_subnet.staging_public : s.id]
+}
+
+output "staging_private_subnet_ids" {
+  description = "Subnet IDs der staging Private Subnets (leer wenn nicht gemanagt)."
+  value       = [for s in aws_subnet.staging_private : s.id]
+}
+
+output "staging_alb_dns_name" {
+  description = "DNS Name des staging ALB (leer wenn manage_staging_ingress=false)."
+  value       = try(aws_lb.staging[0].dns_name, null)
+}
+
+output "staging_alb_zone_id" {
+  description = "Zone ID des staging ALB (Route53 Alias Target)."
+  value       = try(aws_lb.staging[0].zone_id, null)
+}
+
+output "staging_alb_http_url" {
+  description = "HTTP Base-URL auf Basis des ALB DNS Names (Skeleton; TLS/Custom-Domain ist separate Arbeit)."
+  value       = try("http://${aws_lb.staging[0].dns_name}", null)
 }
 
 output "ecs_cluster_name" {
@@ -73,6 +107,8 @@ output "resource_management_flags" {
     manage_s3_bucket            = var.manage_s3_bucket
     manage_telegram_alerting    = var.manage_telegram_alerting
     manage_health_probe         = var.manage_health_probe
+    manage_staging_network      = var.manage_staging_network
+    manage_staging_ingress      = var.manage_staging_ingress
   }
 }
 
