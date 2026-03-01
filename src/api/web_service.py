@@ -55,6 +55,8 @@ _TOP_LEVEL_STATUS_KEYS = {
     "source_attribution",
     "executive_summary",
     "personalization_status",
+    "capabilities_status",
+    "entitlements_status",
 }
 _ENTITY_KEYS = ("query", "matched_address", "ids", "coordinates", "administrative")
 _SOURCE_GROUP_MODULE_MAP = {
@@ -65,6 +67,12 @@ _SOURCE_GROUP_MODULE_MAP = {
     "intelligence": ("intelligence",),
 }
 _RESPONSE_MODES = {"compact", "verbose"}
+_DEEP_MODE_ALLOWED_PROFILES = {"analysis_plus", "risk_plus"}
+_DEEP_MODE_DEFAULT_PROFILE_BY_MODE = {
+    "risk": "risk_plus",
+    "basic": "analysis_plus",
+    "extended": "analysis_plus",
+}
 _COORDINATE_SNAP_MODES = {"strict", "ch_bounds"}
 _CH_WGS84_BOUNDS = {
     "lat_min": 45.8179,
@@ -492,6 +500,14 @@ def _build_status_block(report: dict[str, Any]) -> dict[str, Any]:
     personalization_status = report.get("personalization_status")
     if isinstance(personalization_status, dict):
         status_block["personalization"] = deepcopy(personalization_status)
+
+    capabilities_status = report.get("capabilities_status")
+    if isinstance(capabilities_status, dict) and capabilities_status:
+        status_block["capabilities"] = deepcopy(capabilities_status)
+
+    entitlements_status = report.get("entitlements_status")
+    if isinstance(entitlements_status, dict) and entitlements_status:
+        status_block["entitlements"] = deepcopy(entitlements_status)
 
     return status_block
 
@@ -1287,6 +1303,254 @@ def _reject_legacy_options(options: dict[str, Any]) -> None:
         )
 
 
+def _as_non_negative_int(value: Any, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} must be an integer >= 0")
+    if value < 0:
+        raise ValueError(f"{field_name} must be an integer >= 0")
+    return int(value)
+
+
+def _resolve_deep_mode_profile(*, raw_profile: Any, intelligence_mode: str) -> str:
+    if raw_profile is None:
+        return _DEEP_MODE_DEFAULT_PROFILE_BY_MODE.get(intelligence_mode, "analysis_plus")
+    if not isinstance(raw_profile, str):
+        raise ValueError("options.capabilities.deep_mode.profile must be a string")
+
+    normalized = raw_profile.strip().lower()
+    if not normalized:
+        raise ValueError("options.capabilities.deep_mode.profile must be a non-empty string")
+    return normalized
+
+
+def _extract_deep_mode_request(
+    options: dict[str, Any],
+    *,
+    intelligence_mode: str,
+) -> dict[str, Any]:
+    capabilities_raw = options.get("capabilities")
+    if capabilities_raw is not None and not isinstance(capabilities_raw, dict):
+        raise ValueError("options.capabilities must be an object when provided")
+    capabilities = capabilities_raw if isinstance(capabilities_raw, dict) else {}
+
+    entitlements_raw = options.get("entitlements")
+    if entitlements_raw is not None and not isinstance(entitlements_raw, dict):
+        raise ValueError("options.entitlements must be an object when provided")
+    entitlements = entitlements_raw if isinstance(entitlements_raw, dict) else {}
+
+    deep_cap_raw = capabilities.get("deep_mode")
+    if deep_cap_raw is not None and not isinstance(deep_cap_raw, dict):
+        raise ValueError("options.capabilities.deep_mode must be an object when provided")
+    deep_cap = deep_cap_raw if isinstance(deep_cap_raw, dict) else {}
+
+    deep_ent_raw = entitlements.get("deep_mode")
+    if deep_ent_raw is not None and not isinstance(deep_ent_raw, dict):
+        raise ValueError("options.entitlements.deep_mode must be an object when provided")
+    deep_ent = deep_ent_raw if isinstance(deep_ent_raw, dict) else {}
+
+    raw_requested = deep_cap.get("requested")
+    if raw_requested is None:
+        requested = False
+    elif isinstance(raw_requested, bool):
+        requested = raw_requested
+    else:
+        raise ValueError("options.capabilities.deep_mode.requested must be a boolean")
+
+    profile = _resolve_deep_mode_profile(
+        raw_profile=deep_cap.get("profile"),
+        intelligence_mode=intelligence_mode,
+    )
+
+    raw_max_budget_tokens = deep_cap.get("max_budget_tokens")
+    max_budget_tokens: int | None = None
+    if raw_max_budget_tokens is not None:
+        max_budget_tokens = _as_non_negative_int(
+            raw_max_budget_tokens,
+            "options.capabilities.deep_mode.max_budget_tokens",
+        )
+
+    raw_allowed = deep_ent.get("allowed")
+    if raw_allowed is None:
+        allowed = False
+    elif isinstance(raw_allowed, bool):
+        allowed = raw_allowed
+    else:
+        raise ValueError("options.entitlements.deep_mode.allowed must be a boolean")
+
+    raw_quota_remaining = deep_ent.get("quota_remaining")
+    quota_remaining: int | None = None
+    if raw_quota_remaining is not None:
+        quota_remaining = _as_non_negative_int(
+            raw_quota_remaining,
+            "options.entitlements.deep_mode.quota_remaining",
+        )
+
+    return {
+        "requested": requested,
+        "profile": profile,
+        "allowed": allowed,
+        "quota_remaining": quota_remaining,
+        "max_budget_tokens": max_budget_tokens,
+    }
+
+
+def _read_env_non_negative_int(name: str, *, default: int) -> int:
+    raw_value = str(os.getenv(name, "")).strip()
+    if not raw_value:
+        return default
+    try:
+        parsed = int(raw_value)
+    except ValueError:
+        return default
+    if parsed < 0:
+        return default
+    return parsed
+
+
+def _read_env_unit_interval(name: str, *, default: float) -> float:
+    raw_value = str(os.getenv(name, "")).strip()
+    if not raw_value:
+        return default
+    try:
+        parsed = float(raw_value)
+    except ValueError:
+        return default
+    if not math.isfinite(parsed):
+        return default
+    return min(max(parsed, 0.0), 1.0)
+
+
+def _derive_deep_mode_budget(
+    *,
+    timeout_seconds: float,
+    profile: str,
+    requested_budget_tokens: int | None,
+) -> dict[str, int]:
+    total_request_budget_ms = max(1, int(round(float(timeout_seconds) * 1000)))
+
+    baseline_reserved_floor_ms = _read_env_non_negative_int(
+        "DEEP_BASELINE_RESERVED_FLOOR_MS",
+        default=1_000,
+    )
+    baseline_reserved_ratio = _read_env_unit_interval(
+        "DEEP_BASELINE_RESERVED_RATIO",
+        default=0.7,
+    )
+    safety_margin_ms = _read_env_non_negative_int(
+        "DEEP_SAFETY_MARGIN_MS",
+        default=250,
+    )
+    min_budget_ms = _read_env_non_negative_int(
+        "DEEP_MIN_BUDGET_MS",
+        default=600,
+    )
+
+    baseline_reserved_ms = max(
+        baseline_reserved_floor_ms,
+        int(round(total_request_budget_ms * baseline_reserved_ratio)),
+    )
+    baseline_reserved_ms = min(total_request_budget_ms, baseline_reserved_ms)
+
+    deep_budget_ms = max(0, total_request_budget_ms - baseline_reserved_ms - safety_margin_ms)
+
+    server_cap_tokens = _read_env_non_negative_int("DEEP_MAX_TOKENS_SERVER", default=12_000)
+    profile_caps = {
+        "analysis_plus": _read_env_non_negative_int("DEEP_PROFILE_CAP_ANALYSIS_PLUS", default=12_000),
+        "risk_plus": _read_env_non_negative_int("DEEP_PROFILE_CAP_RISK_PLUS", default=9_000),
+    }
+    profile_cap_tokens = profile_caps.get(profile, 0)
+
+    client_cap_tokens = server_cap_tokens if requested_budget_tokens is None else requested_budget_tokens
+    deep_budget_tokens_effective = min(client_cap_tokens, profile_cap_tokens, server_cap_tokens)
+
+    return {
+        "total_request_budget_ms": total_request_budget_ms,
+        "baseline_reserved_ms": baseline_reserved_ms,
+        "safety_margin_ms": safety_margin_ms,
+        "deep_budget_ms": deep_budget_ms,
+        "deep_min_budget_ms": min_budget_ms,
+        "deep_budget_tokens_effective": max(0, deep_budget_tokens_effective),
+    }
+
+
+def _evaluate_deep_mode_gate(
+    *,
+    requested: bool,
+    profile: str,
+    allowed: bool,
+    quota_remaining: int | None,
+    deep_budget_ms: int,
+    deep_min_budget_ms: int,
+) -> tuple[bool, str | None]:
+    if not requested:
+        return False, None
+    if profile not in _DEEP_MODE_ALLOWED_PROFILES:
+        return False, "policy_guard"
+    if not allowed:
+        return False, "not_entitled"
+    if quota_remaining is not None and quota_remaining <= 0:
+        return False, "quota_exhausted"
+    if deep_budget_ms < deep_min_budget_ms:
+        return False, "timeout_budget"
+    return True, None
+
+
+def _apply_deep_mode_runtime_status(
+    report: dict[str, Any],
+    *,
+    options: dict[str, Any],
+    intelligence_mode: str,
+    timeout_seconds: float,
+) -> None:
+    deep_request = _extract_deep_mode_request(options, intelligence_mode=intelligence_mode)
+    budget = _derive_deep_mode_budget(
+        timeout_seconds=timeout_seconds,
+        profile=str(deep_request["profile"]),
+        requested_budget_tokens=deep_request.get("max_budget_tokens"),
+    )
+
+    deep_effective, fallback_reason = _evaluate_deep_mode_gate(
+        requested=bool(deep_request["requested"]),
+        profile=str(deep_request["profile"]),
+        allowed=bool(deep_request["allowed"]),
+        quota_remaining=deep_request.get("quota_remaining"),
+        deep_budget_ms=int(budget["deep_budget_ms"]),
+        deep_min_budget_ms=int(budget["deep_min_budget_ms"]),
+    )
+
+    quota_before = deep_request.get("quota_remaining")
+    quota_consumed = 1 if deep_effective else 0
+    quota_after = quota_before
+    if isinstance(quota_before, int) and deep_effective:
+        quota_after = max(0, quota_before - quota_consumed)
+
+    deep_capability_status: dict[str, Any] = {
+        "requested": bool(deep_request["requested"]),
+        "effective": bool(deep_effective),
+    }
+    if fallback_reason:
+        deep_capability_status["fallback_reason"] = fallback_reason
+
+    deep_entitlement_status: dict[str, Any] = {
+        "allowed": bool(deep_request["allowed"]),
+        "quota_consumed": quota_consumed,
+    }
+    if isinstance(quota_after, int):
+        deep_entitlement_status["quota_remaining"] = quota_after
+
+    existing_capabilities = report.get("capabilities_status")
+    if not isinstance(existing_capabilities, dict):
+        existing_capabilities = {}
+    existing_capabilities["deep_mode"] = deep_capability_status
+    report["capabilities_status"] = existing_capabilities
+
+    existing_entitlements = report.get("entitlements_status")
+    if not isinstance(existing_entitlements, dict):
+        existing_entitlements = {}
+    existing_entitlements["deep_mode"] = deep_entitlement_status
+    report["entitlements_status"] = existing_entitlements
+
+
 def _as_unit_interval_number(value: Any, field_name: str) -> float:
     """Validiert und normalisiert Präferenzgewichte robust auf den Bereich 0..1."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -1912,6 +2176,18 @@ class Handler(BaseHTTPRequestHandler):
                 preferences_supplied = "preferences" in data and data.get("preferences") is not None
                 preferences_profile = _extract_preferences(data)
 
+                default_timeout = _as_positive_finite_number(
+                    os.getenv("ANALYZE_DEFAULT_TIMEOUT_SECONDS", "15"),
+                    "ANALYZE_DEFAULT_TIMEOUT_SECONDS",
+                )
+                max_timeout = _as_positive_finite_number(
+                    os.getenv("ANALYZE_MAX_TIMEOUT_SECONDS", "45"),
+                    "ANALYZE_MAX_TIMEOUT_SECONDS",
+                )
+                req_timeout_raw = data.get("timeout_seconds", default_timeout)
+                timeout = _as_positive_finite_number(req_timeout_raw, "timeout_seconds")
+                timeout = min(timeout, max_timeout)
+
                 if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
                     if query == "__timeout__":
                         raise TimeoutError("forced timeout for e2e")
@@ -1979,6 +2255,12 @@ class Handler(BaseHTTPRequestHandler):
                             preferences_profile,
                             preferences_supplied=preferences_supplied,
                         )
+                        _apply_deep_mode_runtime_status(
+                            stub_report,
+                            options=request_options,
+                            intelligence_mode=mode,
+                            timeout_seconds=timeout,
+                        )
                         self._send_json(
                             {
                                 "ok": True,
@@ -1991,18 +2273,6 @@ class Handler(BaseHTTPRequestHandler):
                             request_id=request_id,
                         )
                         return
-
-                default_timeout = _as_positive_finite_number(
-                    os.getenv("ANALYZE_DEFAULT_TIMEOUT_SECONDS", "15"),
-                    "ANALYZE_DEFAULT_TIMEOUT_SECONDS",
-                )
-                max_timeout = _as_positive_finite_number(
-                    os.getenv("ANALYZE_MAX_TIMEOUT_SECONDS", "45"),
-                    "ANALYZE_MAX_TIMEOUT_SECONDS",
-                )
-                req_timeout_raw = data.get("timeout_seconds", default_timeout)
-                timeout = _as_positive_finite_number(req_timeout_raw, "timeout_seconds")
-                timeout = min(timeout, max_timeout)
 
                 report = build_report(
                     query,
@@ -2025,6 +2295,12 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 if coordinate_context:
                     _attach_coordinate_resolution_context(report, coordinate_context)
+                _apply_deep_mode_runtime_status(
+                    report,
+                    options=request_options,
+                    intelligence_mode=mode,
+                    timeout_seconds=timeout,
+                )
                 self._send_json(
                     {
                         "ok": True,

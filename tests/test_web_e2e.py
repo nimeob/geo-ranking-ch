@@ -421,6 +421,97 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("result", body)
 
+    def test_analyze_deep_mode_runtime_status_not_entitled(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 2,
+                "options": {
+                    "capabilities": {
+                        "deep_mode": {
+                            "requested": True,
+                            "profile": "analysis_plus",
+                        }
+                    },
+                    "entitlements": {
+                        "deep_mode": {
+                            "allowed": False,
+                            "quota_remaining": 5,
+                        }
+                    },
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        deep_cap = (
+            body.get("result", {})
+            .get("status", {})
+            .get("capabilities", {})
+            .get("deep_mode", {})
+        )
+        deep_ent = (
+            body.get("result", {})
+            .get("status", {})
+            .get("entitlements", {})
+            .get("deep_mode", {})
+        )
+        self.assertEqual(deep_cap.get("requested"), True)
+        self.assertEqual(deep_cap.get("effective"), False)
+        self.assertEqual(deep_cap.get("fallback_reason"), "not_entitled")
+        self.assertEqual(deep_ent.get("allowed"), False)
+        self.assertEqual(deep_ent.get("quota_consumed"), 0)
+        self.assertEqual(deep_ent.get("quota_remaining"), 5)
+
+    def test_analyze_deep_mode_runtime_status_effective_when_eligible(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "intelligence_mode": "basic",
+                "timeout_seconds": 5,
+                "options": {
+                    "capabilities": {
+                        "deep_mode": {
+                            "requested": True,
+                            "profile": "analysis_plus",
+                            "max_budget_tokens": 9000,
+                        }
+                    },
+                    "entitlements": {
+                        "deep_mode": {
+                            "allowed": True,
+                            "quota_remaining": 2,
+                        }
+                    },
+                },
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        deep_cap = (
+            body.get("result", {})
+            .get("status", {})
+            .get("capabilities", {})
+            .get("deep_mode", {})
+        )
+        deep_ent = (
+            body.get("result", {})
+            .get("status", {})
+            .get("entitlements", {})
+            .get("deep_mode", {})
+        )
+        self.assertEqual(deep_cap.get("requested"), True)
+        self.assertEqual(deep_cap.get("effective"), True)
+        self.assertNotIn("fallback_reason", deep_cap)
+        self.assertEqual(deep_ent.get("allowed"), True)
+        self.assertEqual(deep_ent.get("quota_consumed"), 1)
+        self.assertEqual(deep_ent.get("quota_remaining"), 1)
+
     def test_analyze_response_mode_compact_default_and_verbose_opt_in(self):
         compact_status, compact_body = _http_json(
             "POST",
