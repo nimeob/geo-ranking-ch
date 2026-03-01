@@ -576,7 +576,7 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
-- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3 abgeschlossen; BL-30.4 vollständig abgeschlossen mit wp1/#479, wp2/#480, wp3/#481 und wp4/#482; BL-30.5-Leafs #494/#495/#496/#498 abgeschlossen; BL-30.2/30.6 weiterhin offen/blocked)
+- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3 abgeschlossen; BL-30.4 vollständig abgeschlossen mit wp1/#479, wp2/#480, wp3/#481 und wp4/#482; BL-30.5-Leafs #494/#495/#496/#498 abgeschlossen; BL-30.2 weiterhin blocked, BL-30.6 atomisiert mit abgeschlossenem wp1/#502)
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
@@ -599,6 +599,10 @@ Regelwerk:
   - [x] #495 — BL-30.5.wp2 Datenquellen-/Lizenzmatrix für Map- und Bau-/Zufahrtslayer (abgeschlossen 2026-03-01)
   - [x] #496 — BL-30.5.wp3 Response-Modell v1 für Bau-/Zufahrtseignung (additiv) (abgeschlossen 2026-03-01)
   - [x] #498 — BL-30.5.wp2.f1 OSM-Tile-/ODbL-Compliance-Entscheid für produktiven Kartenbetrieb (abgeschlossen 2026-03-01)
+- **Work-Packages (BL-30.6 Parent #113):**
+  - [x] #502 — BL-30.6.wp1 Mobile Live-Geolocation API-Contract v1 (abgeschlossen 2026-03-01)
+  - [ ] #503 — BL-30.6.wp2 Mobile Geolocation State-/Interaction-Contract v1 (Permission/Retry/Offline)
+  - [ ] #504 — BL-30.6.wp3 Mobile Geolocation Trace-/Privacy-Guardrails v1
 - **Fortschritt (2026-03-01):**
   - ✅ #105 in atomare Child-Issues #458/#459/#460/#461 zerlegt (oldest-first Leaf-Umsetzung).
   - ✅ #458 abgeschlossen: neue Tier-/Limit-Matrix v1 in [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](PRICING_TIER_LIMIT_MATRIX_V1.md), GTM-Hypothesen-Doku verlinkt und Doku-Regression ergänzt.
@@ -608,6 +612,8 @@ Regelwerk:
   - ✅ #107 atomisiert und finalisiert: Work-Packages #468/#469/#470/#472/#473 vollständig abgeschlossen, Parent geschlossen und Parent-Sync in #128 fortgeschrieben (2026-03-01).
   - ✅ #108 atomisiert: Parent-Scope in die Leaf-Work-Packages #479/#480/#481/#482 zerlegt und Parent-Checklist synchronisiert (2026-03-01).
   - ✅ #110 atomisiert: Parent-Scope in die Leaf-Work-Packages #494/#495/#496 zerlegt und Parent-Checklist synchronisiert (2026-03-01).
+  - ✅ #113 atomisiert: Parent-Scope in die Leaf-Work-Packages #502/#503/#504 zerlegt und Parent-Checklist synchronisiert (2026-03-01).
+  - ✅ #502 abgeschlossen: Mobile-Geolocation-Contract v1 in [`docs/api/mobile-live-geolocation-contract-v1.md`](api/mobile-live-geolocation-contract-v1.md) ergänzt (additiver Request-/Response-Rahmen über `options.mobile_geolocation`/`result.status.mobile_geolocation`, deterministische Error-/Fallback-Codes, Follow-up-Pfade #503/#504), Contract-Referenz in [`docs/api/contract-v1.md`](api/contract-v1.md) nachgezogen und via `tests/test_bl30_mobile_live_geolocation_contract_docs.py` regressionsgesichert.
   - ✅ #494 abgeschlossen: Karten-Workflow-Spec v1 in [`docs/gui/OSM_MAP_INTELLIGENCE_WORKFLOW_V1.md`](gui/OSM_MAP_INTELLIGENCE_WORKFLOW_V1.md) ergänzt (Map-Pick-Flow, additiver `/analyze`-Handshake, State-/Error-/Retry-Regeln), Doku-Regression via `tests/test_bl30_osm_map_workflow_docs.py` hinzugefügt und Parent-Sync in #110 fortgeschrieben.
   - ✅ #495 abgeschlossen: Datenquellen-/Lizenzmatrix v1 in [`docs/gui/OSM_MAP_DATA_SOURCE_LICENSE_MATRIX_V1.md`](gui/OSM_MAP_DATA_SOURCE_LICENSE_MATRIX_V1.md) ergänzt (Basemap, Gebäude-/Parzellennähe, Topografie, Straßentyp/Zufahrtsrelevanz inkl. Decision-Frame `GO/NEEDS_CLARIFICATION/BLOCKED`), Follow-up #498 für produktive OSM-Tile-/ODbL-Compliance angelegt und via `tests/test_bl30_osm_data_license_matrix_docs.py` regressionsgesichert.
   - ✅ #496 abgeschlossen: Response-Modell v1 in [`docs/api/map-point-construction-access-response-model-v1.md`](api/map-point-construction-access-response-model-v1.md) ergänzt (normatives Feldmodell, Pflichtmarker `explainability/confidence/source`, grouped-Contract-Mapping inkl. `result.data.modules.map_site_suitability`), Follow-up-Pfade für Runtime/Schema-Sync dokumentiert und via `tests/test_bl30_map_suitability_response_model_docs.py` regressionsgesichert.
@@ -621,7 +627,7 @@ Regelwerk:
   - ✅ #470 abgeschlossen: Hypothesenblatt + Entitlement-/Quota-Kopplung + Transparenzrahmen in [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md) dokumentiert, GTM-Decision-Input in [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md) als `GTM-IN-30.3-001` verankert und durch `tests/test_bl30_deep_mode_addon_quota_hypotheses_docs.py` regressionsgesichert.
   - ✅ #472 abgeschlossen: Runtime-Orchestrator in `src/api/web_service.py` umgesetzt (Eligibility-Gate inkl. `requested/allowed/quota/budget`, deterministische Statusprojektion nach `result.status.capabilities.deep_mode` + `result.status.entitlements.deep_mode`), Design-Doku in [`docs/api/deep-mode-orchestration-guardrails-v1.md`](api/deep-mode-orchestration-guardrails-v1.md) auf Implementierungsstand ergänzt und Fallback-Matrix per `tests/test_bl30_deep_mode_runtime_orchestrator.py` abgesichert.
   - ✅ #473 abgeschlossen: Deep-Mode-Telemetrie im Analyze-Flow ergänzt (`api.deep_mode.gate_evaluated|execution.start|execution.retry|execution.abort|execution.end` inkl. Pflichtfelder `deep_*`, `retry_count`, `duration_ms`), Logging-Schema in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) verankert, operatives Nachweis-Runbook [`docs/testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md`](testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md) + Beispielartefakt [`docs/testing/deep-mode-trace-evidence-sample.jsonl`](testing/deep-mode-trace-evidence-sample.jsonl) ergänzt und per `tests/test_bl30_deep_mode_telemetry_events.py` / `tests/test_bl30_deep_mode_telemetry_docs.py` regressionsgesichert.
-- **Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf in #106/#113 identifizieren (ggf. zuerst atomisieren), da #498 abgeschlossen ist und #106-Childs (#465/#466) aktuell gate-blocked sind.
+- **Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf #503 umsetzen (BL-30.6.wp2), da #106-Childs (#465/#466) weiterhin gate-blocked sind.
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
