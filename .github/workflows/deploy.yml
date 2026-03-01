@@ -96,20 +96,64 @@ jobs:
           API_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_API_REPOSITORY}:${IMAGE_TAG}"
           UI_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_UI_REPOSITORY}:${IMAGE_TAG}"
 
-          # Create a fresh BuildX builder instance per run to avoid stale CAS
-          # snapshot corruption on the self-hosted runner (content-addressable
-          # storage entry 2798490f-... predates COPY src/compliance and causes
-          # "not found" errors even with --no-cache). Fresh builder = clean state.
-          BUILDER="ci-builder-${GITHUB_RUN_ID}"
-          docker buildx create --name "${BUILDER}" --use
-          trap "docker buildx rm '${BUILDER}' 2>/dev/null || true" EXIT
+          # Diagnose and fix stale .dockerignore on reused runners.
+          # A stale runner artifact had 'src/api', 'src/compliance', 'src/shared'
+          # explicitly excluded, causing all COPY instructions for those dirs to
+          # fail. We explicitly write the correct .dockerignore here to be safe,
+          # regardless of what the runner filesystem contains.
+          echo "--- .dockerignore content (pre-build) ---"
+          cat -n .dockerignore || echo "(no .dockerignore)"
+          echo "-----------------------------------------"
+          # Write the authoritative .dockerignore inline so runner state is irrelevant.
+          cat > .dockerignore << 'EODIGNOREEOD'
+.git
+.gitignore
+.gitattributes
+.github/
+scripts/
+docs/
+*.md
+README*
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+tests/
+test_*.py
+*_test.py
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+.env
+.env.*
+*.env
+docker-compose*.yml
+src/ui/node_modules/
+node_modules/
+*.log
+tmp/
+EODIGNOREEOD
+          echo "--- .dockerignore content (post-write) ---"
+          cat -n .dockerignore
+          echo "------------------------------------------"
 
           echo "Building API image ${API_IMAGE_URI}"
-          docker buildx build --load -t "${API_IMAGE_URI}" .
+          docker build -t "${API_IMAGE_URI}" .
           docker push "${API_IMAGE_URI}"
 
           echo "Building UI image ${UI_IMAGE_URI}"
-          docker buildx build --load -f Dockerfile.ui \
+          docker build -f Dockerfile.ui \
             --build-arg APP_VERSION="${IMAGE_TAG}" \
             -t "${UI_IMAGE_URI}" .
           docker push "${UI_IMAGE_URI}"
