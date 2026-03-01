@@ -260,6 +260,7 @@ Regelwerk:
   - ✅ 2026-02-27: #152 abgeschlossen (GO/NO-GO Decision-Matrix + Sign-off): `docs/LEGACY_IAM_USER_READINESS.md` um harte Gates (G1–G5), Entscheidungslogik (`GO`/`GO with timebox`/`NO-GO`), verlinkte BL-15-Evidenzartefakte, Sign-off-Template und synthetisch ausgefülltes Entscheidungsbeispiel ergänzt; zusätzlicher 5-Schritte-Entscheidungsablauf dokumentiert.
   - ✅ 2026-02-27: #187 abgeschlossen (CLI-Collector für Readiness-Evidence): neues Script `scripts/collect_bl15_readiness_evidence.py` führt Repo-/Runtime-/CloudTrail-Audits in einem Lauf zusammen, schreibt strukturierte JSON/MD-Berichte inkl. Log-Artefakte und liefert deterministische Exit-Codes (`0/10/20`); ergänzt durch Testabdeckung in `tests/test_collect_bl15_readiness_evidence.py`.
   - ✅ 2026-02-27: #188 abgeschlossen (Fingerprint-Korrelation als Modul): neues Shared-Modul `src/legacy_consumer_fingerprint.py` kapselt Event-Normalisierung, deterministische Fingerprint-Aggregation und Report-Rendering; `scripts/audit_legacy_cloudtrail_consumers.sh` nutzt das Modul über einen klaren Integrationspfad (inkl. optionaler Fingerprint-Dimensionen `region`/`recipient_account`), abgesichert durch `tests/test_legacy_consumer_fingerprint.py` und bestehende Script-Regressionstests.
+  - ✅ 2026-03-01: #565 abgeschlossen (BL-15.r2.wp1): `docs/LEGACY_CONSUMER_INVENTORY.md` Target-Registry auf Pflichtfeld-Vollständigkeit ohne `TBD` gehärtet (inkl. `owner`-Spalte, explizite Cutover-Blocker, konkrete Next Steps je Target) und Konsistenz-Update in `docs/LEGACY_IAM_USER_READINESS.md` für Gate G3 durchgeführt.
 - **Work-Packages (Issue #8):**
   - [x] #109 — Testabdeckung CloudTrail-Audit
   - [x] #111 — Strukturierter Fingerprint-Evidence-Export
@@ -274,7 +275,7 @@ Regelwerk:
   - CloudTrail-Fingerprints zeigen wiederkehrende Non-AWS-Quelle (`76.13.144.185`); trotz sichtbarer `sts:AssumeRole`-Events ist AssumeRole-first im Runtime-Default noch nicht erreicht und externe/weitere Runner außerhalb dieses Hosts sind weiterhin nicht vollständig ausgeschlossen.
 - **Next Actions:**
   1. ✅ Repo-scope Consumer-Inventar abgeschlossen (Workflow OIDC-konform, lokale/Runner-Skripte als offene Consumer identifiziert).
-  2. 🟡 Runtime-Consumer außerhalb des Repos vollständig inventarisieren (Host-Baseline + CloudTrail-Fingerprints + strukturiertes Target-Schema in `docs/LEGACY_CONSUMER_INVENTORY.md` erledigt; als Nächstes externe Runner/Hosts + Fremd-Cron-Umgebungen pro Target gegen Fingerprint `76.13.144.185` verifizieren und `TBD`-Felder schließen).
+  2. 🟡 Runtime-Consumer außerhalb des Repos vollständig inventarisieren (Host-Baseline + CloudTrail-Fingerprints + strukturiertes Target-Schema in `docs/LEGACY_CONSUMER_INVENTORY.md` inkl. geschlossener Pflichtfelder erledigt; als Nächstes externe Runner/Hosts + Fremd-Cron-Umgebungen pro Target gegen Fingerprint `76.13.144.185` eindeutig zuordnen und Cutover-Blocker auflösen).
   3. Für offene Consumer auf OIDC/AssumeRole migrieren (zuerst bekannte OpenClaw-Runtime-Credential-Injection entfernen und AWS-Ops standardmäßig über `scripts/aws_exec_via_openclaw_ops.sh` routen, dann externe Targets).
   4. Geplantes Wartungsfenster: Key nur deaktivieren (nicht löschen), 24h beobachten, dann Entscheidung zur Finalisierung.
 
