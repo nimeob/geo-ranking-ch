@@ -19,14 +19,13 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: OpenClaw AWS-Webhook-Gate mit IP-Allowlist umsetzen (Hostinger) (priority:P2, status:in-progress)
-- [#549](https://github.com/nimeob/geo-ranking-ch/issues/549) — BL-16.wp1: Repo-Runbook + NGINX/Compose-Templates für AWS-Webhook-Gate (priority:P2, status:todo)
+- [#554](https://github.com/nimeob/geo-ranking-ch/issues/554) — [Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen (priority:P0, status:todo)
 
 ### Next
 - (leer)
 
 ### Later
-- [#457](https://github.com/nimeob/geo-ranking-ch/issues/457) — BL-341.wp5.r1: GTM-Sprint gtm-validation-001 ausführen und BL-30-Entscheidung ableiten (priority:P1, status:blocked)
+- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: OpenClaw AWS-Webhook-Gate mit IP-Allowlist umsetzen (Hostinger) (priority:P2, status:blocked)
 - [#520](https://github.com/nimeob/geo-ranking-ch/issues/520) — Korrektur-Workflow implementieren (neue Version, Original unverändert) (priority:P2, status:blocked)
 - [#521](https://github.com/nimeob/geo-ranking-ch/issues/521) — Pflichtfeld Korrekturgrund erzwingen (priority:P2, status:blocked)
 - [#522](https://github.com/nimeob/geo-ranking-ch/issues/522) — Lösch-Scheduler mit Vorankündigung implementieren (priority:P2, status:blocked)
