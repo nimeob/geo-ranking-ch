@@ -61,3 +61,8 @@ aws_account_id   = "523234426229"
 # Placeholder: ARN ggf. an tatsächliches staging Topic anpassen.
 sns_topic_arn    = "arn:aws:sns:eu-central-1:523234426229:swisstopo-staging-alerts"
 telegram_chat_id = ""  # z.B. "8614377280" — kein Secret, nur numerische ID
+
+# --- Service URLs (Placeholder) ---
+# Sobald Ingress/ALB live ist, api_base_url setzen (z. B. https://<alb-dns-name>)
+api_base_url    = ""
+api_health_path = "/health"

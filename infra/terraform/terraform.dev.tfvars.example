@@ -57,3 +57,8 @@ health_probe_schedule_expression = "rate(5 minutes)"
 aws_account_id   = "523234426229"
 sns_topic_arn    = "arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts"
 telegram_chat_id = ""              # z.B. "8614377280" — kein Secret, nur numerische ID
+
+# --- Service URLs (Placeholder) ---
+# Optional: für Outputs (health URL) setzen.
+api_base_url    = ""
+api_health_path = "/health"
