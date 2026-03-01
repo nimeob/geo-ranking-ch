@@ -22,7 +22,7 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 
 | Dimension | Reifegrad | Kurzbeschreibung |
 |---|---|---|
-| **Technisch** | ~80 % | API mit M1–M5, Async Runtime, 2-Container-Deployment auf dev, CI/CD, OIDC, Logging/Tracing — stabil und deploybar. Hauptlücke: kein Prod-Environment, BL-15 noch NO-GO. |
+| **Technisch** | ~80 % | API mit M1–M5, Async Runtime, 2-Container-Deployment auf dev, CI/CD, OIDC, Logging/Tracing — stabil und deploybar. Hauptlücke: kein Prod-Environment. BL-15 abgeschlossen (Architekturentscheid 2026-03-01). |
 | **Produktreife** | ~50 % | Sync-Analyze produktiv nutzbar, Async UX spezifiziert aber nicht deployed, kein Entitlement-Layer, Intelligence-Qualität in Teilen noch schwach (POI-Dichte, Deep Mode ohne echte Tiefenquellen). |
 | **Kommerziell** | ~25 % | GTM-Architektur und Pricing-Hypothesen vollständig dokumentiert (BL-30, `docs/GTM_TO_DB_ARCHITECTURE_V1.md`, `docs/api/entitlement-billing-lifecycle-v1.md`). Kein Billing, keine Subscriptions, keine zahlenden Kunden. GTM-Validierungssprint (#457) noch ausstehend. |
 
@@ -37,8 +37,7 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 
 ### Was noch fehlt (strukturiert)
 
-1. **BL-15 Legacy IAM** → Ext. Consumer `76.13.144.185` ist noch aktiv → Prod-Gate ist BLOCKED
-2. **Prod-Environment** → Alles läuft auf `dev`; Staging/Prod noch nicht provisioniert
+1. **Prod-Environment** → Alles läuft auf `dev`; Staging/Prod noch nicht provisioniert
 3. **Async UX live** → Jobs, Progress, Notifications, Result-Pages sind implementiert, aber nicht in Prod deployed
 4. **Entitlement-Layer (G3)** → Org/User/Plan/Subscription/Quota noch nicht implementiert; beginnt nach #457-Close
 5. **Billing/Checkout** → kein Stripe oder Äquivalent; kein Self-Service-Zugang
@@ -52,7 +51,7 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 
 ### Deliverables
 
-- **BL-15 Resolution:** Externe Consumer auf `76.13.144.185` identifizieren und migrieren (OIDC oder eigene Credentials); Legacy-IAM-Key abschalten. Referenz: `docs/LEGACY_CONSUMER_INVENTORY.md`, `docs/LEGACY_IAM_USER_READINESS.md`.
+- **BL-15 Resolution:** ✅ Abgeschlossen (Architekturentscheid 2026-03-01). Externer Consumer (`76.13.144.185`) bleibt dauerhaft aktiv — bewusste Architekturentscheidung, kein Blocker für Prod-Gate. Referenz: `docs/LEGACY_IAM_USER_READINESS.md`, `docs/LEGACY_CONSUMER_INVENTORY.md`.
 - **Staging/Prod provisionieren:** IaC-Erweiterung (Terraform) für `staging`- und `prod`-Umgebung; Promotion-Pfad `dev → staging → prod` aktivieren. Referenz: `docs/ENV_PROMOTION_STRATEGY.md`.
 - **Async UX deployen:** Jobs-API, Result-Pages, In-App-Notifications und Result-Permalinks auf Prod ausrollen; Monitoring-Runbook aktivieren. Referenz: `docs/api/async-analyze-domain-design-v1.md`, `docs/api/async-delivery-ops-runbook-v1.md`.
 - **TLS + Custom Domain Prod:** Produktives Zertifikat, Route53-Eintrag, CORS-Policy für Prod-Origins. Referenz: `docs/TLS_CERTIFICATE_MIGRATION_RUNBOOK.md`.
@@ -61,14 +60,14 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 
 | Kriterium | Nachweis |
 |---|---|
-| BL-15 GO: Legacy-Key deaktiviert, CloudTrail-Fingerprint `76.13.144.185` still | `audit_legacy_cloudtrail_consumers.sh` → Exit 0, kein Legacy-Event in 48h |
+| BL-15: ✅ Abgeschlossen (Architekturentscheid 2026-03-01, kein Blocking) | Externer Consumer bleibt dauerhaft aktiv — accepted. Referenz: `docs/LEGACY_IAM_USER_READINESS.md` |
 | Prod-Deployment läuft stabil (`services-stable`) | GitHub Actions Run + Post-Deploy-Verify via `check_deploy_version_trace.py` |
 | `POST /analyze` auf Prod: HTTP 200, korrekte Response-Struktur | Internet-Smoke `run_remote_api_smoketest.sh` gegen Prod-URL |
 | Async-Job Lifecycle `queued → completed` auf Prod nachweisbar | E2E-Test gegen Prod-Job-Endpoints |
 | Monitoring + Alerting aktiv (Telegram-Alert bei Ausfall) | CloudWatch-Alarm verifiziert |
 
-**Abhängigkeiten:** BL-15 Consumer-Migration (extern; unbekannte externe Runner), Prod-AWS-Account-Konfiguration  
-**Komplexität:** Mittel-Hoch (dominanter Faktor: externe Consumer-Identifikation)
+**Abhängigkeiten:** Prod-AWS-Account-Konfiguration  
+**Komplexität:** Mittel (BL-15 abgeschlossen; dominanter Faktor: Prod-IaC-Provisionierung)
 
 ---
 
@@ -156,9 +155,8 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 ## 5 Kritischer Pfad
 
 ```
-BL-15 Consumer-Migration (extern)
-    │
-    ▼
+BL-15 ✅ Abgeschlossen (Architekturentscheid 2026-03-01)
+
 Prod-Deployment (Phase 1) ──────────────────────────────────────────┐
     │                                                                 │
     ▼                                                                 │
@@ -175,7 +173,7 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 ```
 
 **Zwingend sequenziell:**
-1. BL-15 muss vor Prod-Deploy geschlossen sein (Security-Gate)
+1. ~~BL-15 muss vor Prod-Deploy geschlossen sein~~ → ✅ abgeschlossen (Architekturentscheid 2026-03-01, kein Blocker mehr)
 2. GTM-Sprint (#457) muss vor Entitlement-Implementierung abgeschlossen sein (kein Code ohne validiertes Pricing)
 3. Entitlement-Layer muss vor Self-Service-Checkout existieren
 
@@ -190,7 +188,7 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 
 | Risiko | Wahrscheinlichkeit | Impact | Mitigation |
 |---|---|---|---|
-| **BL-15 extern**: Consumer `76.13.144.185` ist nicht vollständig identifizierbar (fremde Infrastruktur, kein Zugriff) | Mittel | Hoch — Prod-Gate bleibt dauerhaft blockiert | Konkretes Target-Inventar in `docs/LEGACY_CONSUMER_INVENTORY.md` ausbauen; Cutover-Termin pro Target forcieren |
+| ~~**BL-15 extern**~~: Consumer `76.13.144.185` — **Architekturentscheid 2026-03-01: bleibt dauerhaft aktiv, accepted** | — | — | BL-15 abgeschlossen; kein Prod-Gate-Blocker mehr |
 | **GTM-Sprint**: Pilot-Gespräche zeigen klares Stop-Signal (kein Markt-Fit) | Niedrig–Mittel | Hoch — Pivoting nötig; Entitlement-Scope unklar | Stop-Kriterium explizit in Decision-Log; Pivot-Optionen (anderes Segment, API-only) vorformulieren |
 | **Datenlizenz**: Tiefenquellen (kantonale Daten) nicht lizenzierbar oder prohibitiv teuer | Mittel | Mittel — Deep Mode bleibt schwach | Frühzeitig Lizenzanfragen stellen; Fallback auf ausschließlich offene Daten dokumentieren |
 | **Entitlement-Komplexität**: Multi-Tenant-Datenschicht dauert länger als geplant | Mittel | Mittel — Verzögerung Phase 2 | Scope-Minimalversion (nur Free/Pro, kein Business-Tier initial) als Fallback |
@@ -204,7 +202,7 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 ### Phase 1 — abgeschlossen, wenn:
 - Prod-URL öffentlich erreichbar, HTTPS mit gültigem Zertifikat
 - `/health` liefert 200, `/analyze` liefert korrekte Intelligence-Response
-- BL-15 Legacy-IAM CloudTrail-Fingerprint seit 72h still
+- BL-15 ✅ Abgeschlossen (Architekturentscheid 2026-03-01)
 
 ### Phase 2 — abgeschlossen, wenn:
 - **Erster zahlender Kunde** mit aktivem API-Key, bezahlter Subscription, nachgewiesener Analyse-Nutzung
@@ -227,9 +225,9 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 
 ## 8 Nächste Schritte heute
 
-1. **BL-15 konkret angehen:** Für den CloudTrail-Fingerprint `76.13.144.185` den konkreten Consumer (Laptop/Runner/Cron) final identifizieren und Migration-Datum setzen. Referenz: `docs/LEGACY_CONSUMER_INVENTORY.md`.
+1. ~~**BL-15 konkret angehen**~~ → ✅ Abgeschlossen (Architekturentscheid 2026-03-01).
 2. **GTM-Sprint #457 terminieren:** Erste 3–4 Discovery-Gespräche (Segment A: Immobilienbewertung) konkret buchen. Ohne Gespräche kein Go für den Entitlement-Implementierungsstart.
-3. **Prod-IaC vorbereiten:** Staging-Umgebung in Terraform vorbereiten (parallel zu BL-15); Deploy-Workflow auf Staging erproben.
+3. **Prod-IaC vorbereiten:** Staging-Umgebung in Terraform vorbereiten; Deploy-Workflow auf Staging erproben.
 4. **Async UX Smoke auf Staging:** Sobald Staging live, Async-Job-Lifecycle-Test als Abnahme-Gate dokumentieren.
 5. **Intelligence-Qualität-Ticket anlegen:** POI-Abdeckungs-Smoke als eigenes Issue aufsetzen (Baseline-Messung auf 20 Referenz-Adressen).
 

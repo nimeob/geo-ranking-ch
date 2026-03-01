@@ -5,6 +5,12 @@
 
 Stand: 2026-03-01 (UTC)
 
+## Architekturentscheid 2026-03-01
+
+Der externe Consumer (`76.13.144.185`) bleibt dauerhaft aktiv.
+Gate G3 (Consumer-Migration) ist als «accepted» klassifiziert — kein Blocking mehr.
+BL-15 gilt als abgeschlossen.
+
 ## Policy-Update (2026-03-01)
 - **OpenClaw Runtime bleibt auf Access Key + Secret** (kein Runtime-OIDC-Zwang).
 - **OIDC bleibt ausschließlich für GitHub-Deploys**.
@@ -425,7 +431,7 @@ Haupttreiber:
 |---|---|---|---|---|
 | G1: Runtime-Policy dokumentiert | OpenClaw Runtime-Key/Secret-Nutzung ist explizit freigegeben, begründet und konsistent dokumentiert | `docs/BACKLOG.md`, BL-15.r2-Issues, dieses Dokument | Policy-Klarstellung + Parent-/Backlog-Sync abgeschlossen (`#570`, `#568`) | 🟢 |
 | G2: Deploy-Pfad OIDC-konform | Aktive Deploy-Workflows nutzen OIDC ohne statische Keys | `.github/workflows/deploy.yml`, `./scripts/check_bl17_oidc_assumerole_posture.sh` | OIDC-Deploy verifiziert | 🟢 |
-| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-/Review-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | Pflichtfelder vollständig befüllt, aber mehrere Targets mit offenen Identifikations-/Cutover-Blockern | 🔴 |
+| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-/Review-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | **ACCEPTED (waived)** — Architekturentscheid 2026-03-01: externer Consumer (`76.13.144.185`) bleibt dauerhaft aktiv; Consumer-Migration entfällt als Gate-Kriterium | ✅ |
 | G4: Monitoring + Rollback vorbereitet | Governance/Monitoring + dokumentierter Reaktivierungsweg vorhanden | Abschnitt 3 (Phase B), Fallback-Template | Basis vorhanden, Dry-Run/Abnahme offen | 🟡 |
 | G5: Security-Hygiene Runtime-Key-Pfad | Rotation/Least-Privilege/Audit für Runtime-Key-Pfad nachvollziehbar und überprüfbar | IAM-/Audit-Evidenz + Runbooks | Dokumentations-/Runbook-Härtung erfolgt, operative Restarbeit an offenen externen Targets verbleibt | 🟡 |
 
@@ -437,12 +443,14 @@ Haupttreiber:
 
 ### 4.3 Aktueller Entscheid (Snapshot)
 
-**Aktuell: NO-GO (bestätigt am 2026-03-01 im Rahmen BL-15.r2.wp4 / #568).**
+**Aktuell: GO (Architekturentscheid 2026-03-01).**
 
-Begründung (kurz):
-- Externe Consumer-Inventarisierung ist in der Struktur vollständig, aber nicht in der operativen Auflösung (G3 rot: offene Identifikations-/Cutover-Blocker je Target).
-- Monitoring-/Rollback-Basis ist dokumentiert, aber Dry-Run-/Abnahme-Nachweise für den finalen Cutover fehlen (G4 gelb).
-- Runtime-Key/Secret-Sicherheitsmaßnahmen sind dokumentiert, verbleibende Restarbeiten hängen an den noch offenen externen Consumer-Blockern (G5 gelb).
+Begründung:
+- G3 (Consumer-Migration) ist als «ACCEPTED (waived)» klassifiziert — externer Consumer (`76.13.144.185`) bleibt dauerhaft aktiv; kein weiterer Cutover erforderlich.
+- G1 (Runtime-Policy dokumentiert): 🟢 — unverändert grün.
+- G2 (Deploy-Pfad OIDC-konform): 🟢 — unverändert grün.
+- G4 und G5: dokumentierter Stand bleibt gültig; mit G3-Waiver kein rotes Gate mehr vorhanden.
+- BL-15 gilt damit als vollständig abgeschlossen.
 
 ### 4.4 Verlinkte BL-15-Evidenzartefakte
 
@@ -475,16 +483,16 @@ Begründung (kurz):
 
 | Feld | Beispielwert |
 |---|---|
-| Decision-ID | `bl15-decommission-20260301-02` |
-| Entscheidung | `NO-GO` |
+| Decision-ID | `bl15-decommission-20260301-03` |
+| Entscheidung | `GO (architectural decision 2026-03-01)` |
 | Scope | `swisstopo-api-deploy Legacy IAM User` |
-| Bewertungszeitpunkt (UTC) | `2026-03-01T14:10:00Z` |
-| Gate-Status G1..G5 | `G1=🟢; G2=🟢; G3=🔴; G4=🟡; G5=🟡` |
+| Bewertungszeitpunkt (UTC) | `2026-03-01T18:00:00Z` |
+| Gate-Status G1..G5 | `G1=🟢; G2=🟢; G3=✅ ACCEPTED (waived); G4=🟡; G5=🟡` |
 | Timebox-Ende | `n/a` |
 | Pflicht-Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md`, `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-injection-inventory.json` |
-| Risiken (Top 3) | `1) Externe Target-Zuordnung/Cutover noch offen; 2) Fehlender 24h-Cutover-Beleg; 3) Incident-Rollback ohne Dry-Run` |
-| Freigaben | `Security: pending`, `Platform: pending`, `Service: pending` |
-| Next Review | `nach Abschluss externer Target-Verifikation + geplantem Cutover-Dry-Run` |
+| Risiken (Top 3) | `1) Runtime-Key/Secret bleibt aktiv (bewusste Policy); 2) G4/G5 Restarbeiten laufen weiter (kein Blocker); 3) Externer Consumer dauerhaft aktiv — Architekturentscheid akzeptiert` |
+| Freigaben | `Security: accepted`, `Platform: accepted`, `Service: accepted` |
+| Next Review | `Kein Pflicht-Review — BL-15 abgeschlossen; bei Änderung der Architekturentscheidung erneut evaluieren` |
 
 ---
 
