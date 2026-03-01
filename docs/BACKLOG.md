@@ -398,7 +398,7 @@ Regelwerk:
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-18 (API-Verhalten stabil dokumentierbar)
-- **Status:** 🟡 in Umsetzung (Issue #5)
+- **Status:** ✅ abgeschlossen (2026-03-01, Issue #5 geschlossen)
 - **Akzeptanzkriterien:**
   - Eine nutzerorientierte Doku beschreibt Installation, Konfiguration und Betrieb verständlich.
   - API-Nutzung inkl. Auth, Timeouts, Request-ID und Fehlerbilder ist mit Beispielen dokumentiert.
@@ -423,7 +423,7 @@ Regelwerk:
   - ✅ 2026-02-27: Crawler-Finding #116 verifiziert und geschlossen (Fundstelle `docs/BACKLOG.md:345` enthält keine Trigger-Schlüsselwörter; Gegencheck auf Crawler-Marker bleibt leer).
   - ✅ 2026-02-27: Crawler-Finding #156 verifiziert und geschlossen (Fundstelle `docs/BACKLOG.md:371` enthält keine auslösenden Marker; `python3 scripts/github_repo_crawler.py --dry-run` erzeugt hierfür keinen neuen Finding-Case).
   - ✅ 2026-02-27: #219 abgeschlossen (Crawler-False-Positive auf `README.md:69` eliminiert) durch strengeren TODO-Kontext-Filter in `scripts/github_repo_crawler.py` (nur Prefix-/Inline-Kommentar-Kontext), Regressionserweiterung in `tests/test_github_repo_crawler.py` und Methodik-Sync in [`docs/WORKSTREAM_BALANCE_BASELINE.md`](WORKSTREAM_BALANCE_BASELINE.md).
-  - ⏳ Nächster Schritt: Parent-Issue #5 finalisieren (Sub-Issue-Checklist sync + Abschluss)
+  - ✅ 2026-03-01: #623 abgeschlossen (Status-Sync): Issue #5 (BL-19 Parent) war bereits geschlossen; BACKLOG.md-Status auf abgeschlossen korrigiert.
 - **Teilaufgaben (vorgeschlagen):**
   1. **BL-19.1 – Informationsarchitektur:** Zielgruppen, Doku-Navigation und Kapitelstruktur festlegen (`docs/user/README.md` als Einstieg).
   2. **BL-19.2 – Getting Started:** Quickstart für lokale Inbetriebnahme inkl. Minimal-Konfiguration und erstem erfolgreichen Request.
@@ -943,5 +943,5 @@ Regelwerk:
 3. **BL-15** (Legacy-IAM-Readiness) 🟡
 4. **BL-17** (Deploy via OIDC, OpenClaw Runtime via Key/Secret) ✅
 5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ✅
-6. **BL-19** (Userdokumentation) ⏳
+6. **BL-19** (Userdokumentation) ✅
 7. **BL-20** (Produktvision API+GUI umsetzen) ✅
