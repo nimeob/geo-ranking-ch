@@ -27,7 +27,6 @@ Regelwerk:
 - [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:todo)
 - [#656](https://github.com/nimeob/geo-ranking-ch/issues/656) — WP: Async Result Pages/Permalinks – staging live (result_id Deep-Link) (priority:P0, status:todo)
 - [#657](https://github.com/nimeob/geo-ranking-ch/issues/657) — WP: Async Notifications – staging live + Verify (priority:P0, status:todo)
-- [#661](https://github.com/nimeob/geo-ranking-ch/issues/661) — WP: staging Terraform – ECS compute baseline (cluster/service/taskdef) skeleton (manage flags) (priority:P0, status:todo)
 - [#662](https://github.com/nimeob/geo-ranking-ch/issues/662) — WP: staging Terraform – Logs + Secrets baseline (SSM/Secrets Manager patterns) + outputs (priority:P0, status:todo)
 - [#665](https://github.com/nimeob/geo-ranking-ch/issues/665) — [Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen (priority:P0, status:todo)
 - [#567](https://github.com/nimeob/geo-ranking-ch/issues/567) — BL-15.r2.wp3: Legacy-Key Disable-Canary neu bewerten (optional statt Pflicht) (priority:P1, status:todo)
