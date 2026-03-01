@@ -387,14 +387,21 @@ jobs:
             --task-definition "$CURRENT_UI_TASKDEF" \
             --query 'taskDefinition' > /tmp/current-ui-taskdef.json
 
+          RESOLVED_UI_CONTAINER="$ECS_UI_CONTAINER_NAME"
           if ! jq -e --arg CONTAINER "$ECS_UI_CONTAINER_NAME" '.containerDefinitions | any(.name == $CONTAINER)' /tmp/current-ui-taskdef.json >/dev/null; then
-            echo "::error::UI container '$ECS_UI_CONTAINER_NAME' not found in active task definition '$CURRENT_UI_TASKDEF'."
-            echo "Available containers: $(jq -r '.containerDefinitions[].name' /tmp/current-ui-taskdef.json | paste -sd, -)"
-            exit 1
+            UI_CONTAINER_COUNT=$(jq '.containerDefinitions | length' /tmp/current-ui-taskdef.json)
+            if [ "$UI_CONTAINER_COUNT" -eq 1 ]; then
+              RESOLVED_UI_CONTAINER=$(jq -r '.containerDefinitions[0].name' /tmp/current-ui-taskdef.json)
+              echo "::warning::UI container '$ECS_UI_CONTAINER_NAME' not found in active task definition '$CURRENT_UI_TASKDEF'. Fallback to single container '$RESOLVED_UI_CONTAINER'."
+            else
+              echo "::error::UI container '$ECS_UI_CONTAINER_NAME' not found in active task definition '$CURRENT_UI_TASKDEF'."
+              echo "Available containers: $(jq -r '.containerDefinitions[].name' /tmp/current-ui-taskdef.json | paste -sd, -)"
+              exit 1
+            fi
           fi
 
-          ACTUAL_UI_IMAGE=$(jq -r --arg CONTAINER "$ECS_UI_CONTAINER_NAME" '.containerDefinitions[] | select(.name == $CONTAINER) | .image' /tmp/current-ui-taskdef.json)
-          ACTUAL_APP_VERSION=$(jq -r --arg CONTAINER "$ECS_UI_CONTAINER_NAME" '.containerDefinitions[] | select(.name == $CONTAINER) | ((.environment // []) | map(select(.name == "APP_VERSION")) | .[0].value // "")' /tmp/current-ui-taskdef.json)
+          ACTUAL_UI_IMAGE=$(jq -r --arg CONTAINER "$RESOLVED_UI_CONTAINER" '.containerDefinitions[] | select(.name == $CONTAINER) | .image' /tmp/current-ui-taskdef.json)
+          ACTUAL_APP_VERSION=$(jq -r --arg CONTAINER "$RESOLVED_UI_CONTAINER" '.containerDefinitions[] | select(.name == $CONTAINER) | ((.environment // []) | map(select(.name == "APP_VERSION")) | .[0].value // "")' /tmp/current-ui-taskdef.json)
 
           if [ "$ACTUAL_UI_IMAGE" != "$EXPECTED_UI_IMAGE_URI" ]; then
             echo "::error::Active UI image mismatch. expected='$EXPECTED_UI_IMAGE_URI' actual='$ACTUAL_UI_IMAGE'"
@@ -406,7 +413,7 @@ jobs:
             exit 1
           fi
 
-          echo "UI task definition wiring verified (container=$ECS_UI_CONTAINER_NAME image=$ACTUAL_UI_IMAGE app_version=$ACTUAL_APP_VERSION)"
+          echo "UI task definition wiring verified (container=$RESOLVED_UI_CONTAINER image=$ACTUAL_UI_IMAGE app_version=$ACTUAL_APP_VERSION)"
 
       - name: Smoke-Test UI /healthz
         env:
