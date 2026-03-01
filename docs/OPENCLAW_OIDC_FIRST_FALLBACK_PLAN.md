@@ -1,79 +1,58 @@
-# OpenClaw AWS Auth: OIDC-first + AssumeRole-first (Legacy nur Fallback)
+# OpenClaw AWS Auth: OIDC für Deploy, Key/Secret für Runtime
 
 ## Zielbild
-Für dieses Projekt gilt ein **Hybrid-Standard**:
+Für dieses Projekt gilt folgende **verbindliche Trennung**:
 
 1. **CI/CD über GitHub Actions OIDC** (ohne statische AWS-Keys in Workflows)
-2. **Direkte OpenClaw-Administration über STS AssumeRole**
-3. **Legacy-IAM-User nur als kontrollierter Fallback**
+2. **OpenClaw Runtime-Zugriffe auf AWS über Access Key + Secret**
+3. **Kein Runtime-OIDC-Zwang** für direkte OpenClaw-Operationen
 
-Damit bleibt volle AWS-Verwaltung möglich, ohne den Legacy-Key als Primärmechanismus zu betreiben.
+Damit bleibt der Deploy-Pfad modern/auditierbar und der OpenClaw-Runtime-Pfad stabil gemäß Betriebsentscheidung.
 
 ---
 
-## Aktueller Ist-Stand (2026-02-26)
+## Aktueller Ist-Stand (2026-03-01)
 
 ### OIDC-Pfad (CI/CD)
 - Workflow `/.github/workflows/deploy.yml` nutzt `aws-actions/configure-aws-credentials@v4` mit OIDC.
 - Rolle: `arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`
 
-### Direkter OpenClaw-Pfad (AssumeRole)
-- Ops-Rolle: `arn:aws:iam::523234426229:role/openclaw-ops-role`
-- Trust erlaubt `sts:AssumeRole` für `arn:aws:iam::523234426229:user/swisstopo-api-deploy`
-- Helper-Scripts vorhanden:
-  - `scripts/aws_assume_openclaw_ops.sh` (interaktive Session)
-  - `scripts/openclaw_runtime_assumerole_exec.sh` (Runtime-Start ohne statische Legacy-Keys als Default)
+### OpenClaw Runtime-Pfad (direkter Betrieb)
+- Runtime nutzt Access Key + Secret (Host-/Runtime-Kontext).
+- Diese Nutzung ist eine bewusste Betriebsentscheidung und **kein Migrationsrest**.
 
 ### Legacy-User
 - User: `swisstopo-api-deploy`
-- Ist absichtlich noch nicht final dekommissioniert (Fallback/Transition)
+- Bleibt für OpenClaw-Runtime aktuell aktiv vorgesehen.
 
 ---
 
 ## Betriebsregeln (verbindlich)
 
 1. **CI/CD-Deploys:** immer OIDC-Workflow verwenden.
-2. **Direkte AWS-Operationen in OpenClaw:** zuerst `AssumeRole` in `openclaw-ops-role`.
-3. **Legacy-Identity direkt verwenden:** nur bei Blocker/Incident und kurz dokumentieren.
-4. **Jede Fallback-Nutzung** mit standardisiertem Minimalformat protokollieren:
-   - Template: `docs/LEGACY_FALLBACK_LOG_TEMPLATE.md`
-   - Journal: `docs/LEGACY_IAM_USER_READINESS.md` (Section "Fallback-Log Entries")
+2. **Direkte AWS-Operationen in OpenClaw Runtime:** Nutzung über den vorgesehenen Key/Secret-Pfad.
+3. **Keine Pflicht-Migration auf Runtime-OIDC/AssumeRole** in BL-15.r2.
+4. Security-Hygiene für Runtime-Key-Pfad bleibt Pflicht (Least-Privilege, Rotation, Audit).
 
 ---
 
-## Runbook: Direkter Betrieb via AssumeRole
+## Runbook: Direkter OpenClaw-Betrieb (Runtime Key/Secret)
 
-### 1) Runtime-Default (AssumeRole-first) starten
-```bash
-cd /data/.openclaw/workspace/geo-ranking-ch
-./scripts/openclaw_runtime_assumerole_exec.sh <dein-openclaw-kommando>
-# Beispiel:
-./scripts/openclaw_runtime_assumerole_exec.sh openclaw gateway status
-```
-
-Dieser Pfad ersetzt langlebige Legacy-Keys im Prozesskontext durch temporäre STS-Session-Credentials (`ASIA...` + `AWS_SESSION_TOKEN`) und ist der neue Default für Runtime-Starts.
-
-### 2) Interaktiver Rollenwechsel (Fallback für manuelle Shell)
-```bash
-cd /data/.openclaw/workspace/geo-ranking-ch
-source ./scripts/aws_assume_openclaw_ops.sh
-```
-
-### 3) Identität verifizieren
+### 1) Runtime-Caller verifizieren
 ```bash
 aws sts get-caller-identity
-# Erwartet: arn:aws:sts::523234426229:assumed-role/openclaw-ops-role/<session>
 ```
 
-### 4) Beispiel-Sanity-Checks
+### 2) Basis-Sanity-Checks
 ```bash
 aws ecs list-clusters --region eu-central-1
 aws cloudwatch describe-alarms --region eu-central-1 --max-items 5
 ```
 
-### 5) Session-Hygiene
-- STS-Session ist temporär.
-- Für längere Arbeitsschritte regelmäßig neu assumen.
+### 3) OIDC-Deploy bleibt separat
+- Deploy-Validierung erfolgt über GitHub Workflow (`deploy.yml`) und OIDC-Role.
+
+> Hinweis: Helper für AssumeRole (`scripts/aws_assume_openclaw_ops.sh`, `scripts/openclaw_runtime_assumerole_exec.sh`) können für Diagnostik bestehen bleiben, sind aber **nicht** mehr der verpflichtende Runtime-Default.
 
 ---
 
@@ -84,11 +63,11 @@ aws cloudwatch describe-alarms --region eu-central-1 --max-items 5
   - `permissions: id-token: write`
   - `configure-aws-credentials` mit `role-to-assume`
 
-### B) Direktzugriffe laufen über angenommene Rolle
-- CloudTrail-Abfragen zeigen `assumed-role/openclaw-ops-role/...` als Principal für OpenClaw-Operationen.
+### B) Runtime-Zugriffe folgen der Betriebsentscheidung
+- OpenClaw-Runtime-Zugriffe auf AWS dürfen über den vorgesehenen Key/Secret-Principal laufen.
 
-### C) Legacy nur Fallback
-- Keine Routine-Aktivität auf Principal `...:user/swisstopo-api-deploy` außerhalb definierter Fallback-Fenster.
+### C) Deploy-Pfad bleibt strikt OIDC
+- Keine statischen AWS-Keys in aktiven GitHub-Deploy-Workflows.
 
 ### D) Automatischer Quick-Check (BL-17)
 ```bash
@@ -114,7 +93,7 @@ Runtime-Credential-Injection-Inventar (BL-17.wp5):
   --output-json artifacts/bl17/runtime-credential-injection-inventory.json
 ```
 
-Runtime-Default-Nachweis (AssumeRole-first Startpfad):
+Historischer Runtime-Vergleichsnachweis (AssumeRole-gekapselter Startpfad):
 ```bash
 ./scripts/openclaw_runtime_assumerole_exec.sh \
   ./scripts/inventory_bl17_runtime_credential_paths.py \
@@ -152,7 +131,7 @@ OIDC-only Guard (konsolidierter Runtime+CloudTrail-Nachweis, BL-17.wp7):
 
 ## Break-glass Runbook (Legacy-Fallback, BL-17.wp8)
 
-Ziel: Der Legacy-IAM-User bleibt nur ein **zeitlich begrenzter Notfallpfad**. Jede Nutzung ist evidenzpflichtig und muss auf den AssumeRole/OIDC-Primärpfad zurückgeführt werden.
+Ziel: Runtime-Key-Nutzung ist regulär erlaubt; bei Abweichungen/Incidents bleibt jede Sondernutzung evidenzpflichtig und nachvollziehbar dokumentiert.
 
 ### Trigger (erlaubte Fälle)
 
@@ -169,7 +148,7 @@ Nicht zulässig: Routinearbeiten, reine Bequemlichkeit oder fehlende Vorprüfung
 1. **Fallback-ID vergeben** (z. B. `legacy-fallback-YYYY-MM-DD-<nnn>`) und Incident-Context eröffnen.
 2. **Primärpfad-Blocker kurz belegen** (Fehlermeldung/Command-Output, read-only).
 3. **Legacy-Scope minimal ausführen** (zeitlich begrenzt, nur notwendige Kommandos).
-4. **Unmittelbar zurück auf AssumeRole-first** wechseln und Recheck fahren.
+4. **Unmittelbar zurück in den regulären Runtime-Betrieb** wechseln und Recheck fahren.
 5. **Fallback-Log vollständig dokumentieren** nach Template:
    - `docs/LEGACY_FALLBACK_LOG_TEMPLATE.md`
    - Ablage im Journal: `docs/LEGACY_IAM_USER_READINESS.md` (Section "Fallback-Log Entries").
@@ -190,7 +169,7 @@ Nicht zulässig: Routinearbeiten, reine Bequemlichkeit oder fehlende Vorprüfung
 LOOKBACK_HOURS=2 ./scripts/audit_legacy_cloudtrail_consumers.sh \
   > artifacts/legacy-fallback/<fallback_id>-cloudtrail.txt
 
-# 2) Runtime-Credential-Inventar nach Rückkehr auf AssumeRole-first
+# 2) Runtime-Credential-Inventar nach Rückkehr in den regulären Betrieb
 ./scripts/inventory_bl17_runtime_credential_paths.py \
   --output-json artifacts/legacy-fallback/<fallback_id>-runtime-inventory.json
 
@@ -217,7 +196,7 @@ Ein ausgefülltes Referenz-Event (inkl. CloudTrail-/Inventory-/Posture-Refs) ste
 
 1. Incident dokumentieren (`was/warum/wann`).
 2. Zeitlich begrenzt Legacy-Pfad gemäß Break-glass-Runbook nutzen.
-3. Nach Stabilisierung zurück auf AssumeRole-first, Recheck + Evidenz sichern.
+3. Nach Stabilisierung zurück in den regulären Runtime-Betrieb, Recheck + Evidenz sichern.
 4. Root-Cause + dauerhafte Korrektur dokumentieren.
 
 ---

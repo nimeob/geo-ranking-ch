@@ -274,27 +274,25 @@ Regelwerk:
 - **Blocker:**
   - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed + aktueller Caller-ARN), daher noch keine sichere Abschaltfreigabe.
   - Runtime-Audit zeigt weiterhin gesetzte AWS-Key-Variablen im laufenden Kontext; Quelle der Injection ist noch nicht final eliminiert.
-  - CloudTrail-Fingerprints zeigen wiederkehrende Non-AWS-Quelle (`76.13.144.185`); trotz sichtbarer `sts:AssumeRole`-Events ist AssumeRole-first im Runtime-Default noch nicht erreicht und externe/weitere Runner außerhalb dieses Hosts sind weiterhin nicht vollständig ausgeschlossen.
+  - CloudTrail-Fingerprints zeigen wiederkehrende Non-AWS-Quelle (`76.13.144.185`); externe/weitere Runner außerhalb dieses Hosts sind weiterhin nicht vollständig ausgeschlossen und müssen je Target sauber zugeordnet werden.
 - **Next Actions:**
   1. ✅ Repo-scope Consumer-Inventar abgeschlossen (Workflow OIDC-konform, lokale/Runner-Skripte als offene Consumer identifiziert).
   2. 🟡 Runtime-Consumer außerhalb des Repos vollständig inventarisieren (Host-Baseline + CloudTrail-Fingerprints + strukturiertes Target-Schema in `docs/LEGACY_CONSUMER_INVENTORY.md` inkl. geschlossener Pflichtfelder erledigt; als Nächstes externe Runner/Hosts + Fremd-Cron-Umgebungen pro Target gegen Fingerprint `76.13.144.185` eindeutig zuordnen und Cutover-Blocker auflösen).
-  3. Für offene Consumer auf OIDC/AssumeRole migrieren (zuerst bekannte OpenClaw-Runtime-Credential-Injection entfernen und AWS-Ops standardmäßig über `scripts/aws_exec_via_openclaw_ops.sh` routen, dann externe Targets).
-  4. Geplantes Wartungsfenster: Key nur deaktivieren (nicht löschen), 24h beobachten, dann Entscheidung zur Finalisierung.
+  3. Für offene Consumer Migrationsziel je Zielsystem klar trennen: **Deploy bleibt OIDC**, **OpenClaw-Runtime bleibt Key/Secret**; externe Targets separat inventarisieren und dokumentieren.
+  4. Optionales Wartungsfenster nur bei explizitem Bedarf (kein verpflichtender Disable-Canary für OpenClaw-Runtime).
 
-### BL-17 — OpenClaw AWS-Betrieb auf OIDC-first umstellen (Legacy nur Fallback)
+### BL-17 — AWS-Betrieb trennen: OIDC für Deploy, Key/Secret für OpenClaw Runtime
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** BL-03, BL-15
-- **Status:** ✅ abgeschlossen (2026-02-27, Issue #2)
+- **Status:** ✅ abgeschlossen (2026-02-27, Issue #2; Policy-Klarstellung 2026-03-01)
 - **Akzeptanzkriterien:**
-  - Primärpfad für AWS-Operationen läuft über GitHub Actions OIDC.
-  - Legacy-Key wird nur als dokumentierter Fallback genutzt.
-  - Fallback-Nutzung wird protokolliert und schrittweise auf 0 reduziert.
-  - OIDC-first/Fallback-Runbook ist dokumentiert (Pfad wird bei BL-17-Start final fixiert).
+  - CI/CD-Deploy läuft über GitHub Actions OIDC.
+  - OpenClaw Runtime-Zugriffe dürfen über Access Key + Secret erfolgen (kein Runtime-OIDC-Zwang).
+  - Die Trennung ist in Runbooks/Backlog konsistent dokumentiert.
 - **Umgesetzt:**
-  - `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md` auf Hybrid-Standard präzisiert (OIDC für CI/CD + AssumeRole-first für direkte OpenClaw-Ops).
-  - `scripts/aws_exec_via_openclaw_ops.sh` ergänzt (führt beliebige AWS-CLI-Subcommands in temporärer `openclaw-ops-role` Session aus).
-  - `scripts/check_bl17_oidc_assumerole_posture.sh` ergänzt (OIDC-Workflow-Marker, statische-Key-Checks, Caller-Klassifikation + Kontext-Audits in einem Lauf).
+  - `docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md` auf Betriebsmodell mit klarer Trennung präzisiert (OIDC für CI/CD; Runtime via Key/Secret).
+  - `scripts/check_bl17_oidc_assumerole_posture.sh` als OIDC-Deploy-/Runtime-Posture-Check dokumentiert.
   - ✅ 2026-02-26: #136 abgeschlossen (Wrapper-Härtung + Tests): `scripts/aws_exec_via_openclaw_ops.sh` validiert jetzt Role-ARN, Session-Dauer (`900..43200`) und Session-Name fail-fast; JSON-Parsing-/Credential-Fehler aus `assume-role` werden deterministisch abgefangen. Testabdeckung via `tests/test_aws_exec_via_openclaw_ops.py` (Missing-Args, Invalid-Duration, Invalid-Role-ARN, Parse-Error, Happy-Path).
   - ✅ 2026-02-26: #137 abgeschlossen (Fallback-Logging-Template + Nachweisformat): neues Standardformat in `docs/LEGACY_FALLBACK_LOG_TEMPLATE.md` (Markdown-Minimaltemplate + optionales JSON-Snippet + ausgefülltes Beispiel) eingeführt, in `docs/LEGACY_IAM_USER_READINESS.md` als verbindliche "Fallback-Log Entries" referenziert und im OIDC-Runbook (`docs/OPENCLAW_OIDC_FIRST_FALLBACK_PLAN.md`) als operative Regel verlinkt. Link-/Struktur-Nachweis: `python3 -m pytest -q tests/test_user_docs.py tests/test_markdown_links.py` (Exit `0`).
   - ✅ 2026-02-26: #138 abgeschlossen (Runtime-Caller-Evidence-Export): `scripts/check_bl17_oidc_assumerole_posture.sh` unterstützt jetzt optionalen JSON-Report via `--report-json <path>` oder `BL17_POSTURE_REPORT_JSON`, inkl. Pflichtfeldern für Timestamp, Caller-Klassifikation und relevante Exit-Codes (`workflow_check`, `caller_check`, Kontext-Audits, final). Reproduzierbare Nachweis-Tests über `tests/test_check_bl17_oidc_assumerole_posture.py` (Flag-/ENV-Export + Feldkonsistenz), Verifikation: `python3 -m pytest -q tests/test_check_bl17_oidc_assumerole_posture.py` (Exit `0`).
@@ -926,7 +924,7 @@ Regelwerk:
 1. **BL-13** (Doku-Konsistenz) ✅
 2. **BL-14** (Health-Probe IaC-Parität) ✅
 3. **BL-15** (Legacy-IAM-Readiness) 🟡
-4. **BL-17** (OpenClaw OIDC-first + Legacy-Fallback) ✅
+4. **BL-17** (Deploy via OIDC, OpenClaw Runtime via Key/Secret) ✅
 5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ✅
 6. **BL-19** (Userdokumentation) ⏳
 7. **BL-20** (Produktvision API+GUI umsetzen) ✅

@@ -3,7 +3,12 @@
 > Scope: **BL-15** — nur Evidenz + Risikoanalyse + Decommission-Checkliste.
 > Es wurden **keine** produktiven Rechte entzogen und **keine** Keys deaktiviert.
 
-Stand: 2026-02-26 (UTC)
+Stand: 2026-03-01 (UTC)
+
+## Policy-Update (2026-03-01)
+- **OpenClaw Runtime bleibt auf Access Key + Secret** (kein Runtime-OIDC-Zwang).
+- **OIDC bleibt ausschließlich für GitHub-Deploys**.
+- Frühere BL-17-Passagen zu „AssumeRole-first als Runtime-Default" sind historisch und für BL-15.r2 nicht mehr als Muss zu werten.
 
 ---
 
@@ -40,7 +45,7 @@ Wenn ein Legacy-Fallback notwendig ist, Eintrag im obigen Template-Format ergän
     - artifacts/legacy-fallback/2026-02-27-001-posture.json
 - follow_up:
   - issue: #150
-  - action: Break-glass-Runbook schärfen (Triggerkriterien + Evidenz-Checkliste + Rückweg auf AssumeRole-first)
+  - action: Break-glass-Runbook schärfen (Triggerkriterien + Evidenz-Checkliste + Rückweg in den regulären Runtime-Betrieb)
 ```
 
 Hinweis: Dieses Beispiel ist **synthetisch** und dient nur als vollständige Referenz für die Pflichtfelder und Evidenzpfade.
@@ -187,7 +192,7 @@ Zusätzliche Härtung im Zuge dieses Laufs:
 
 - `scripts/audit_legacy_aws_consumer_refs.sh` nutzt für Repo-Scans jetzt primär `git grep` mit Excludes für `artifacts/`, `.venv/` und `.terraform/`, damit generierte Audit-Logs keine Folge-Scans verfälschen.
 
-Interpretation: BL-15 bleibt **nicht decommission-ready**. OIDC in CI/CD ist intakt, aber Runtime-Default und CloudTrail-Fingerprints zeigen weiterhin aktive Legacy-Nutzung.
+Interpretation: OIDC in CI/CD ist intakt; aktive Runtime-Key-Nutzung ist gemäß Policy zulässig. BL-15-Readiness hängt damit primär an sauberer Dokumentation, Governance und externer Consumer-Zuordnung (nicht an einer Runtime-OIDC-Migration).
 
 ### Read-only Recheck (2026-02-27, 6h-Fenster, Worker-A)
 
@@ -374,11 +379,11 @@ Haupttreiber:
 
 | Gate | Muss erfüllt sein für **GO** | Primäre Evidenz | Status 2026-02-27 | Bewertung |
 |---|---|---|---|---|
-| G1: Aktive Legacy-Consumer | Kein aktiver Legacy-Caller mehr in Runtime/CloudTrail | `./scripts/audit_legacy_runtime_consumers.sh`, `./scripts/audit_legacy_cloudtrail_consumers.sh` | Legacy-Caller weiterhin nachweisbar | 🔴 |
-| G2: Runtime-Default auf AssumeRole/OIDC | Default-Startpfad nutzt temporäre STS-Credentials statt statischer Keys | `./scripts/openclaw_runtime_assumerole_exec.sh ...`, `artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json` | Auf diesem Host verifiziert, externe Targets offen | 🟡 |
-| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | Pflichtfelder vollständig befüllt, aber mehrere Targets mit offenen Identifikations-/Cutover-Blockern | 🔴 |
-| G4: Monitoring + Rollback vorbereitet | Cutover-Monitoring + dokumentierter Reaktivierungsweg vorhanden | Abschnitt 3 (Phase B), Fallback-Template | Basis vorhanden, Dry-Run/Abnahme offen | 🟡 |
-| G5: 24h Cutover-Stabilität | Nach Deaktivierung des Legacy-Keys keine Auth-Fehler über 24h | Geplanter Controlled-Cutover-Nachweis | Noch nicht durchgeführt | 🔴 |
+| G1: Runtime-Policy dokumentiert | OpenClaw Runtime-Key/Secret-Nutzung ist explizit freigegeben, begründet und konsistent dokumentiert | `docs/BACKLOG.md`, BL-15.r2-Issues, dieses Dokument | Policy-Update gesetzt, Feinsync läuft | 🟡 |
+| G2: Deploy-Pfad OIDC-konform | Aktive Deploy-Workflows nutzen OIDC ohne statische Keys | `.github/workflows/deploy.yml`, `./scripts/check_bl17_oidc_assumerole_posture.sh` | OIDC-Deploy verifiziert | 🟢 |
+| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-/Review-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | Pflichtfelder vollständig befüllt, aber mehrere Targets mit offenen Identifikations-/Cutover-Blockern | 🔴 |
+| G4: Monitoring + Rollback vorbereitet | Governance/Monitoring + dokumentierter Reaktivierungsweg vorhanden | Abschnitt 3 (Phase B), Fallback-Template | Basis vorhanden, Dry-Run/Abnahme offen | 🟡 |
+| G5: Security-Hygiene Runtime-Key-Pfad | Rotation/Least-Privilege/Audit für Runtime-Key-Pfad nachvollziehbar und überprüfbar | IAM-/Audit-Evidenz + Runbooks | Teilweise nachgewiesen, Abschluss-Sync offen | 🟡 |
 
 ### 4.2 Entscheidungslogik
 
@@ -391,9 +396,8 @@ Haupttreiber:
 **Aktuell: NO-GO.**
 
 Begründung (kurz):
-- Aktive Legacy-Nutzung ist weiterhin nachweisbar (G1 rot).
 - Externe Consumer-Inventarisierung ist noch nicht vollständig (G3 rot).
-- Der 24h-Deaktivierungsnachweis fehlt naturgemäß noch (G5 rot).
+- Runtime-Key/Secret-Policy ist gesetzt, aber Governance-/Dokumentationssync ist noch nicht final (G1/G5 gelb).
 
 ### 4.4 Verlinkte BL-15-Evidenzartefakte
 
