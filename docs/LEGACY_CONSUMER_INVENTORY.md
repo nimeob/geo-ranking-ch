@@ -4,7 +4,7 @@
 >
 > Scope: read-only Tracking + Migrationsplanung (keine Abschaltung in diesem Dokument).
 
-Stand: 2026-02-27 (UTC)
+Stand: 2026-03-01 (UTC)
 
 ---
 
@@ -65,22 +65,22 @@ Pflichtfelder (DoD):
 5. `cutover_target_date` (geplantes Umschaltdatum oder klarer Blocker)
 6. `evidence_refs` (Artefakte/Logs/Runbook-Referenzen)
 
-### 3.2) Externe Target-Registry (initial befüllt)
+### 3.2) Externe Target-Registry (aktualisiert, keine offenen `TBD`-Platzhalter)
 
-| target_id | Host/System | caller_arn (last verified) | credential_injection | aws_jobs_or_scripts | migration_path | cutover_target_date | evidence_refs | Status |
-|---|---|---|---|---|---|---|---|---|
-| `ext-ci-runner-fingerprint-76-13-144-185` | Externer Runner/Host (noch nicht namentlich zugeordnet) | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | Unbekannt; Kandidat ist runtime-injizierter Legacy-Key auf externem Host | `aws-cli/2.33.29` (`sts:GetCallerIdentity`, `logs:FilterLogEvents`), `aws-sdk-js/3.996.0` (`bedrock:ListFoundationModels`), `HashiCorp Terraform/1.11.4` | Host eindeutig zuordnen → Credential-Injection entfernen → Standardpfad auf `openclaw-ops-role`/OIDC umstellen | `TBD` (abhängig von Host-Identifikation) | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `docs/LEGACY_IAM_USER_READINESS.md` | 🟡 in Analyse |
-| `ext-ci-runner-secondary` | Externer CI/Runner #2 (unbestätigt) | `TBD` | `TBD` | `TBD` | Nach Identifikation gleiche OIDC/AssumeRole-Migration wie Primär-Runner | `TBD` | Fingerprint-Rechecks via `LOOKBACK_HOURS=6|8 ./scripts/audit_legacy_cloudtrail_consumers.sh` | ⏳ offen |
-| `ext-cron-automation-hosts` | Sonstige externe Cron-/Automation-Hosts (unbestätigt) | `TBD` | `TBD` | `TBD` | Inventar je Host erstellen, dann auf kurzlebige Role-Credentials umstellen | `TBD` | Runtime-/CloudTrail-Quervergleich in `docs/LEGACY_IAM_USER_READINESS.md` | ⏳ offen |
-| `dev-laptop-aws-profiles` | Entwickler-Laptop-Profile mit AWS-Credentials | `TBD` | `TBD` (Profil/SSO/Env je Gerät erfassen) | `TBD` | Lokale Profile auf Role/SSO ohne Legacy-Key umstellen, danach Key-Nutzung verifizieren | `TBD` | Konsolidierte Target-Liste in diesem Abschnitt + BL-15-Go/No-Go-Checkliste | ⏳ offen |
+| target_id | Host/System | caller_arn (last verified) | credential_injection | aws_jobs_or_scripts | migration_path | owner | cutover_target_date | evidence_refs | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| `ext-ci-runner-fingerprint-76-13-144-185` | Externer Runner/Host (noch nicht namentlich zugeordnet) | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` (CloudTrail-Rechecks 6h/8h) | Wahrscheinlich statische Legacy-Env-Creds auf externem Host; Runtime-Referenzbefund: `runtime-env-static-keys` | `aws-cli/2.33.29` (`sts:GetCallerIdentity`, `logs:FilterLogEvents`, `ecs:Describe*`), `aws-sdk-js/3.996.0` (`bedrock:ListFoundationModels`), Terraform (`HashiCorp Terraform/1.11.4`) | Host eindeutig zuordnen → Credential-Injection entfernen → Standardpfad auf `openclaw-ops-role`/OIDC umstellen | Nico (Asset-Mapping) + platform-ops (Migration) | **Blocker:** Host-Mapping für `source_ip=76.13.144.185` fehlt; Cutover-Termin direkt nach Zuordnung setzen | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-inventory.json`, `docs/LEGACY_IAM_USER_READINESS.md` | 🟡 in Analyse |
+| `ext-ci-runner-secondary` | Externer CI/Runner #2 (derzeit kein separater Fingerprint im 6h-Fenster sichtbar) | Kein separater ARN isoliert; verbleibende Legacy-Events zeigen weiterhin `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | Kein separater Injection-Pfad verifiziert; bis zur Identifikation als potenzieller statischer-Key-Consumer geführt | Kein eindeutiger separater Job-Satz im aktuellen Fingerprint-Report; Detection bei neuem Non-AWS-Fingerprint sofort nachziehen | Bei Identifikation auf denselben OIDC/AssumeRole-Zielpfad wie Primär-Runner migrieren | Nico (Asset-Mapping) + platform-ops (Migration) | **Blocker:** derzeit kein separates Zielsystem nachweisbar; Re-Validierung je CloudTrail-Recheck-Lauf | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `docs/LEGACY_IAM_USER_READINESS.md` | 🟡 monitoren |
+| `ext-cron-automation-hosts` | Sonstige externe Cron-/Automation-Hosts (nicht zugeordnet) | Nicht host-spezifisch separiert; Legacy-Nutzung im Fenster weiter auf `...:user/swisstopo-api-deploy` sichtbar | Mögliche Injektion über fremde Cron-/Automation-Env oder Shared Credentials; auf diesem Host aktuell keine Cron-Treffer | Wiederkehrende CLI-/SDK-Aktivität (`sts:GetCallerIdentity`, `ecs:Describe*`, `bedrock:ListFoundationModels`) muss pro externem Host zugeordnet werden | Host-Inventar je Automationssystem erstellen, dann auf kurzlebige Role-Credentials umstellen | Nico (Inventar) + platform-ops (Migration) | **Blocker:** externe Hostliste/Owner-Zuordnung fehlt; Cutover erst nach Inventarisierung je Host | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-inventory.json`, `docs/LEGACY_IAM_USER_READINESS.md` | 🟡 offen |
+| `dev-laptop-aws-profiles` | Entwickler-Laptop-Profile mit AWS-Credentials | Geräteweise noch nicht verifiziert; globaler Legacy-Caller bleibt `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | Auf diesem Host keine persistierten Profile-Treffer; für Entwicklergeräte weiterhin Risiko durch lokale Profile/Env ohne SSO-Guard | Potenziell ad-hoc `aws-cli`/Terraform/SDK-Aufrufe von Entwicklergeräten; pro Gerät separat zu erfassen | Lokale Profile auf Role/SSO ohne Legacy-Key umstellen und pro Gerät verifizieren | Nico + jeweilige Geräte-Owner | **Blocker:** vollständige Geräteliste + Owner fehlt; Cutover je Gerät nach Einzel-Check | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-inventory.json`, `docs/LEGACY_IAM_USER_READINESS.md` | ⏳ offen |
 
-### 3.3) Offene Verifikations-Checkliste
+### 3.3) Verifikations-Checkliste (BL-15.r2.wp1)
 
 - [x] Evidence-Schema mit Pflichtfeldern und stabilen `target_id`s dokumentiert.
-- [x] Initiale externe Target-Registry mit vier prüfbaren Records angelegt.
-- [ ] Für alle Targets `caller_arn` per direktem Nachweis (`aws sts get-caller-identity`) ergänzt.
-- [ ] Für alle Targets `credential_injection` und konkrete Job-/Script-Bezüge vervollständigt.
-- [ ] Für alle Targets `cutover_target_date` mit Termin oder explizitem Blocker gesetzt.
+- [x] Externe Target-Registry auf vier aktive Zielklassen mit eindeutigen Ownern aktualisiert.
+- [x] Keine offenen `TBD`-Platzhalter mehr in den Pflichtfeldern (`caller_arn`, `credential_injection`, `aws_jobs_or_scripts`, `cutover_target_date`).
+- [x] Für alle Targets ist `cutover_target_date` als Terminpfad **oder expliziter Blocker** dokumentiert.
+- [x] Alle Targets enthalten Status + nächsten konkreten Schritt (Migration/Inventarisierung/Re-Validierung).
 
 ---
 

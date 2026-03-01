@@ -235,7 +235,7 @@ Aktueller Kurzbefund daraus:
 
 - GitHub Actions Deploy ist bereits OIDC-migriert.
 - OpenClaw Runtime auf diesem Host nutzt weiterhin runtime-injizierte Legacy-Umgebungsvariablen.
-- Externe Targets sind jetzt strukturiert erfasst, aber inhaltlich noch nicht vollständig verifiziert (`caller_arn`/Injection/Cutover je Target teils `TBD`).
+- Externe Targets sind strukturiert erfasst und ohne offene `TBD`-Platzhalter gepflegt; mehrere Targets stehen jedoch weiterhin auf explizitem Blockerstatus (fehlendes Host-/Owner-Mapping für finalen Cutover).
 
 ### Standardisiertes Evidence-Bundle exportieren (BL-15.wp4)
 
@@ -331,7 +331,7 @@ Haupttreiber:
 |---|---|---|---|---|
 | G1: Aktive Legacy-Consumer | Kein aktiver Legacy-Caller mehr in Runtime/CloudTrail | `./scripts/audit_legacy_runtime_consumers.sh`, `./scripts/audit_legacy_cloudtrail_consumers.sh` | Legacy-Caller weiterhin nachweisbar | 🔴 |
 | G2: Runtime-Default auf AssumeRole/OIDC | Default-Startpfad nutzt temporäre STS-Credentials statt statischer Keys | `./scripts/openclaw_runtime_assumerole_exec.sh ...`, `artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json` | Auf diesem Host verifiziert, externe Targets offen | 🟡 |
-| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | Teilweise `TBD`, nicht vollständig verifiziert | 🔴 |
+| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | Pflichtfelder vollständig befüllt, aber mehrere Targets mit offenen Identifikations-/Cutover-Blockern | 🔴 |
 | G4: Monitoring + Rollback vorbereitet | Cutover-Monitoring + dokumentierter Reaktivierungsweg vorhanden | Abschnitt 3 (Phase B), Fallback-Template | Basis vorhanden, Dry-Run/Abnahme offen | 🟡 |
 | G5: 24h Cutover-Stabilität | Nach Deaktivierung des Legacy-Keys keine Auth-Fehler über 24h | Geplanter Controlled-Cutover-Nachweis | Noch nicht durchgeführt | 🔴 |
 
