@@ -196,6 +196,23 @@ _TRACE_DEBUG_LOG_PATH_ENV = "TRACE_DEBUG_LOG_PATH"
 _TRACE_DEBUG_LOOKBACK_SECONDS_ENV = "TRACE_DEBUG_LOOKBACK_SECONDS"
 _TRACE_DEBUG_MAX_EVENTS_ENV = "TRACE_DEBUG_MAX_EVENTS"
 
+_EXTERNAL_DIRECT_LOGIN_BLOCKED_PATHS = frozenset(
+    {
+        "/login",
+        "/signin",
+        "/sign-in",
+        "/auth/login",
+        "/auth/signin",
+        "/auth/sign-in",
+        "/oauth/login",
+        "/oauth2/login",
+    }
+)
+_EXTERNAL_DIRECT_LOGIN_ERROR = "external_direct_login_disabled"
+_EXTERNAL_DIRECT_LOGIN_MESSAGE = (
+    "direct login is disabled; access is only allowed via internal provisioning/export workflows"
+)
+
 
 def _env_flag_enabled(name: str, *, default: bool = False) -> bool:
     raw_value = str(os.getenv(name, "")).strip().lower()
@@ -255,6 +272,19 @@ def _if_none_match_matches(header_value: Any, current_etag: str) -> bool:
         if _normalize_etag_for_compare(candidate) == normalized_current:
             return True
     return False
+
+
+def _is_external_direct_login_path(request_path: str) -> bool:
+    """True, wenn der Pfad einem explizit gesperrten Direktlogin-Endpoint entspricht."""
+    normalized = str(request_path or "").strip().lower()
+    if not normalized:
+        return False
+    if not normalized.startswith("/"):
+        normalized = f"/{normalized}"
+    normalized = re.sub(r"/{2,}", "/", normalized)
+    if normalized != "/":
+        normalized = normalized.rstrip("/") or "/"
+    return normalized in _EXTERNAL_DIRECT_LOGIN_BLOCKED_PATHS
 
 
 def _build_dictionary_payloads() -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
@@ -2010,12 +2040,52 @@ class Handler(BaseHTTPRequestHandler):
             include_preflight=include_preflight,
         )
 
+    def _send_external_direct_login_disabled(
+        self,
+        *,
+        request_id: str,
+        request_path: str,
+        method: str,
+    ) -> None:
+        _emit_structured_log(
+            event="api.auth.direct_login.blocked",
+            level="warn",
+            trace_id=request_id,
+            request_id=request_id,
+            session_id=str(getattr(self, "_request_lifecycle_session_id", "") or ""),
+            component="api.web_service",
+            direction="client->api",
+            status="blocked",
+            route=request_path,
+            method=method,
+            reason=_EXTERNAL_DIRECT_LOGIN_ERROR,
+        )
+        self._send_json(
+            {
+                "ok": False,
+                "error": _EXTERNAL_DIRECT_LOGIN_ERROR,
+                "message": _EXTERNAL_DIRECT_LOGIN_MESSAGE,
+                "request_id": request_id,
+            },
+            status=HTTPStatus.FORBIDDEN,
+            request_id=request_id,
+            extra_headers={"Cache-Control": "no-store"},
+        )
+
     def do_GET(self) -> None:  # noqa: N802
         request_id = self._request_id()
         request_path = self._normalized_path()
         self._begin_request_lifecycle(method="GET", request_path=request_path, request_id=request_id)
 
         try:
+            if _is_external_direct_login_path(request_path):
+                self._send_external_direct_login_disabled(
+                    request_id=request_id,
+                    request_path=request_path,
+                    method="GET",
+                )
+                return
+
             if request_path == "/gui":
                 self._send_html(
                     render_gui_mvp_html(app_version=os.getenv("APP_VERSION", "dev")),
@@ -2171,6 +2241,14 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             self._cors_response_headers = None
+
+            if _is_external_direct_login_path(request_path):
+                self._send_external_direct_login_disabled(
+                    request_id=request_id,
+                    request_path=request_path,
+                    method="POST",
+                )
+                return
 
             if request_path != "/analyze":
                 self._send_json(
@@ -2449,6 +2527,14 @@ class Handler(BaseHTTPRequestHandler):
         self._begin_request_lifecycle(method="OPTIONS", request_path=request_path, request_id=request_id)
 
         try:
+            if _is_external_direct_login_path(request_path):
+                self._send_external_direct_login_disabled(
+                    request_id=request_id,
+                    request_path=request_path,
+                    method="OPTIONS",
+                )
+                return
+
             if request_path != "/analyze":
                 self._send_json(
                     {"ok": False, "error": "not_found", "request_id": request_id},
