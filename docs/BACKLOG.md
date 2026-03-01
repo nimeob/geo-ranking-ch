@@ -576,7 +576,7 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
-- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3 abgeschlossen; BL-30.4 vollständig abgeschlossen mit wp1/#479, wp2/#480, wp3/#481 und wp4/#482; BL-30.2/30.5/30.6 weiterhin offen/blocked)
+- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3 abgeschlossen; BL-30.4 vollständig abgeschlossen mit wp1/#479, wp2/#480, wp3/#481 und wp4/#482; BL-30.5 atomisiert mit abgeschlossenem wp1/#494; BL-30.2/30.6 weiterhin offen/blocked)
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
@@ -594,6 +594,10 @@ Regelwerk:
   - [x] #480 — BL-30.4.wp2 Zustandsmodell + Interaktions-Contract für dynamische UI-Flows (abgeschlossen 2026-03-01)
   - [x] #481 — BL-30.4.wp3 Performance-Budget + Browser-Caching-Strategie v1 (abgeschlossen 2026-03-01)
   - [x] #482 — BL-30.4.wp4 Explainability-/Scoring-UX-Standards (Desktop+Tablet) (abgeschlossen 2026-03-01)
+- **Work-Packages (BL-30.5 Parent #110):**
+  - [x] #494 — BL-30.5.wp1 Karten-Workflow-Spec v1 (Map-Pick -> Analyze -> Result) (abgeschlossen 2026-03-01)
+  - [ ] #495 — BL-30.5.wp2 Datenquellen-/Lizenzmatrix für Map- und Bau-/Zufahrtslayer
+  - [ ] #496 — BL-30.5.wp3 Response-Modell v1 für Bau-/Zufahrtseignung (additiv)
 - **Fortschritt (2026-03-01):**
   - ✅ #105 in atomare Child-Issues #458/#459/#460/#461 zerlegt (oldest-first Leaf-Umsetzung).
   - ✅ #458 abgeschlossen: neue Tier-/Limit-Matrix v1 in [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](PRICING_TIER_LIMIT_MATRIX_V1.md), GTM-Hypothesen-Doku verlinkt und Doku-Regression ergänzt.
@@ -602,6 +606,8 @@ Regelwerk:
   - ✅ #461 abgeschlossen: konsolidierter Entscheidungsabschluss in [`docs/BL30_1_CLOSEOUT_V1.md`](BL30_1_CLOSEOUT_V1.md) dokumentiert (Primärkandidat `CAND-API-PRO-390`, Sekundärkandidat `CAND-BIZ-API-890`) und BL-30.2-Handover via Follow-up-Issues #465/#466 plus Parent-Sync in #106 vorbereitet.
   - ✅ #107 atomisiert und finalisiert: Work-Packages #468/#469/#470/#472/#473 vollständig abgeschlossen, Parent geschlossen und Parent-Sync in #128 fortgeschrieben (2026-03-01).
   - ✅ #108 atomisiert: Parent-Scope in die Leaf-Work-Packages #479/#480/#481/#482 zerlegt und Parent-Checklist synchronisiert (2026-03-01).
+  - ✅ #110 atomisiert: Parent-Scope in die Leaf-Work-Packages #494/#495/#496 zerlegt und Parent-Checklist synchronisiert (2026-03-01).
+  - ✅ #494 abgeschlossen: Karten-Workflow-Spec v1 in [`docs/gui/OSM_MAP_INTELLIGENCE_WORKFLOW_V1.md`](gui/OSM_MAP_INTELLIGENCE_WORKFLOW_V1.md) ergänzt (Map-Pick-Flow, additiver `/analyze`-Handshake, State-/Error-/Retry-Regeln), Doku-Regression via `tests/test_bl30_osm_map_workflow_docs.py` hinzugefügt und Parent-Sync in #110 fortgeschrieben.
   - ✅ #479 abgeschlossen: Architektur-ADR für BL-30.4 in [`docs/gui/HTML5_UI_ARCHITECTURE_V1.md`](gui/HTML5_UI_ARCHITECTURE_V1.md) ergänzt (Modulgrenzen `src/ui|src/shared|src/api`, State-Ownership, Forward-Compatibility-Guardrails #6/#127), Doku-Regression via `tests/test_bl30_html5_ui_architecture_docs.py` hinzugefügt und Parent-Sync in #108 vorbereitet.
   - ✅ #480 abgeschlossen: Zustandsmodell + Interaktions-Contract v1 in [`docs/gui/HTML5_UI_STATE_INTERACTION_CONTRACT_V1.md`](gui/HTML5_UI_STATE_INTERACTION_CONTRACT_V1.md) ergänzt (State-Diagramm, Event-/Action-Contract, Debounce/Cancel-Regeln, Timeout-/Retry-Matrix, additive `/analyze`-Kompatibilität), Regression via `tests/test_bl30_ui_state_interaction_contract_docs.py` hinzugefügt und Parent-Sync in #108 fortgeschrieben.
   - ✅ #481 abgeschlossen: Performance-Budget + Browser-Caching-Strategie v1 in [`docs/gui/HTML5_UI_PERFORMANCE_BUDGET_CACHING_V1.md`](gui/HTML5_UI_PERFORMANCE_BUDGET_CACHING_V1.md) ergänzt (LCP/TTI/Input-Latency-/Request-Budgets, Datenklassen-Caching inkl. Invalidation/Revalidation, Telemetrie-Mindestfelder + Diagnoseablauf), Regression via `tests/test_bl30_ui_performance_budget_docs.py` hinzugefügt und Parent-Sync in #108 fortgeschrieben.
@@ -611,7 +617,7 @@ Regelwerk:
   - ✅ #470 abgeschlossen: Hypothesenblatt + Entitlement-/Quota-Kopplung + Transparenzrahmen in [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md) dokumentiert, GTM-Decision-Input in [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md) als `GTM-IN-30.3-001` verankert und durch `tests/test_bl30_deep_mode_addon_quota_hypotheses_docs.py` regressionsgesichert.
   - ✅ #472 abgeschlossen: Runtime-Orchestrator in `src/api/web_service.py` umgesetzt (Eligibility-Gate inkl. `requested/allowed/quota/budget`, deterministische Statusprojektion nach `result.status.capabilities.deep_mode` + `result.status.entitlements.deep_mode`), Design-Doku in [`docs/api/deep-mode-orchestration-guardrails-v1.md`](api/deep-mode-orchestration-guardrails-v1.md) auf Implementierungsstand ergänzt und Fallback-Matrix per `tests/test_bl30_deep_mode_runtime_orchestrator.py` abgesichert.
   - ✅ #473 abgeschlossen: Deep-Mode-Telemetrie im Analyze-Flow ergänzt (`api.deep_mode.gate_evaluated|execution.start|execution.retry|execution.abort|execution.end` inkl. Pflichtfelder `deep_*`, `retry_count`, `duration_ms`), Logging-Schema in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) verankert, operatives Nachweis-Runbook [`docs/testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md`](testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md) + Beispielartefakt [`docs/testing/deep-mode-trace-evidence-sample.jsonl`](testing/deep-mode-trace-evidence-sample.jsonl) ergänzt und per `tests/test_bl30_deep_mode_telemetry_events.py` / `tests/test_bl30_deep_mode_telemetry_docs.py` regressionsgesichert.
-- **Nächster Schritt:** oldest-first ist aktuell kein weiteres unblocked BL-30-Leaf offen; nächster Move ist Parent-/Backlog-Triage für BL-30.5 (#110) und BL-30.6 (#113) mit atomisierbaren Child-Work-Packages.
+- **Nächster Schritt:** oldest-first auf BL-30.5-Leafs fortsetzen: #495 claimen (Datenquellen-/Lizenzmatrix), danach #496 (Response-Modell) und Parent #110 entsprechend finalisieren.
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
