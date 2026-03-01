@@ -707,14 +707,14 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** keine
-- **Status:** 🟡 in Umsetzung (Parent #418)
+- **Status:** ✅ abgeschlossen (2026-03-01, Parent #418)
 - **Ziel:** Reibungspunkte aus `docs/testing/WORKING_MODE_FRICTION_ANALYSIS.md` in kleinen, risikoarmen Paketen abbauen.
 - **Work-Packages (Parent #418):**
   - [x] #444 — BL-341.wp1 Pflicht-PR-Gates als required checks (abgeschlossen 2026-03-01)
   - [x] #445 — BL-341.wp2 Kritische Quality-Gates fail-closed (abgeschlossen 2026-03-01)
   - [x] #446 — BL-341.wp3 Staging-lite Promote-/Abort-/Rollback-Gate (abgeschlossen 2026-03-01)
-  - [ ] #447 — BL-341.wp4 Backlog-/Issue-Statussync automatisieren
-  - [ ] #448 — BL-341.wp5 GTM-Validierungssprint operationalisieren
+  - [x] #447 — BL-341.wp4 Backlog-/Issue-Statussync automatisieren (abgeschlossen 2026-03-01)
+  - [x] #448 — BL-341.wp5 GTM-Validierungssprint operationalisieren (abgeschlossen 2026-03-01)
 - **Fortschritt (2026-03-01):**
   - ✅ Epic #418 in atomare Child-Issues zerlegt (2x P0, 3x P1) inkl. Parent-Checklist und Begründung.
   - ✅ #444 abgeschlossen: Fast-Gates `contract-smoke` + `docs-link-guard` laufen wieder automatisch auf PR (`pull_request`) und bleiben manuell triggerbar (`workflow_dispatch`).
@@ -722,7 +722,8 @@ Regelwerk:
   - ✅ Regressionstest für Workflow-/Doku-Sync ergänzt (`tests/test_pr_fast_gates_config.py`).
   - ✅ #445 abgeschlossen: Docs-Quality-Gate läuft jetzt fail-closed (`scripts/check_docs_quality_gate.sh` bricht bei venv-Fehler mit Exit 1 ab), inklusive Script-Regressionen und Doku-Sync (`tests/test_check_docs_quality_gate_script.py`, `docs/OPERATIONS.md`, `docs/automation/openclaw-job-mapping.md`).
   - ✅ #446 abgeschlossen: Staging-lite Promote-Gate mit digest-basierter Entscheidungslogik + Smoke-Gate + Abort-/Rollback-Hinweisen als reproduzierbarer Runner eingeführt (`scripts/run_staging_lite_promote_gate.py`) inkl. Artefaktpfaden (`artifacts/staging-lite/*`), Runbook (`docs/testing/STAGING_LITE_PROMOTE_GATE.md`) und Regressionen (`tests/test_staging_lite_promote_gate.py`).
-- **Nächster Schritt:** #447 (P1 Backlog-/Issue-Statussync-Automation).
+  - ✅ #448 abgeschlossen: operatives GTM-Sprint-Template + Rollen-/Outputpflichten dokumentiert (`docs/testing/GTM_VALIDATION_SPRINT_TEMPLATE.md`), Decision-Log für BL-30-Priorisierung mit Seed-Ableitung eingeführt (`docs/testing/GTM_VALIDATION_DECISION_LOG.md`), bestehende GTM-Dokus auf den neuen Entscheidungsfluss verlinkt (`docs/PACKAGING_PRICING_HYPOTHESES.md`, `docs/GO_TO_MARKET_MVP.md`) und Guard-Test ergänzt (`tests/test_gtm_validation_sprint_docs.py`).
+- **Nächster Schritt:** keiner (BL-341 vollständig abgeschlossen).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1

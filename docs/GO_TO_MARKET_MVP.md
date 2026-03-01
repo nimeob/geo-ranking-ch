@@ -97,5 +97,6 @@ Die GTM-Basis ist damit für den nächsten Validierungssprint vollständig dokum
 ## 6) Nächster Schritt nach BL-20.7.b
 
 1. GTM-Baseline mit erstem Pilot-Run gegentesten (unter Nutzung des Datensets v1)
-2. Interview-/Signalsammlung aus `docs/PACKAGING_PRICING_HYPOTHESES.md` ausführen und Entscheidung (API-only vs GUI+API vs Dual) treffen
-3. Abgeleitete BL-30.1/30.2-Folge-Issues mit konkreten Entitlement-/Pricing-DoD anlegen
+2. Interview-/Signalsammlung aus `docs/PACKAGING_PRICING_HYPOTHESES.md` mit dem operativen Template aus [`docs/testing/GTM_VALIDATION_SPRINT_TEMPLATE.md`](testing/GTM_VALIDATION_SPRINT_TEMPLATE.md) durchführen und Entscheidung (API-only vs GUI+API vs Dual) treffen
+3. Entscheidung transparent im [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md) dokumentieren
+4. Abgeleitete BL-30.1/30.2-Folge-Issues mit konkreten Entitlement-/Pricing-DoD anlegen
