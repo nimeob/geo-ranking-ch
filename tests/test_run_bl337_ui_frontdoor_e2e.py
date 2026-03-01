@@ -45,7 +45,9 @@ GOOD_UI_HTML = """<!doctype html>
       </form>
     </article>
     <article id="map">
-      <div id="map-click-surface" role="button"></div>
+      <div id="map-click-surface" role="application">
+        <div id="map-tile-layer" aria-hidden="true"></div>
+      </div>
     </article>
     <article id="result"></article>
     <script>
@@ -54,7 +56,20 @@ GOOD_UI_HTML = """<!doctype html>
       const modeEl = document.getElementById("intelligence-mode");
       const tokenEl = document.getElementById("api-token");
       const submitBtn = document.getElementById("submit-btn");
+      const mapSurface = document.getElementById("map-click-surface");
       const state = { phase: "idle", lastError: null };
+
+      function buildOsmTileUrl(zoom, tileX, tileY) {
+        return `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+      }
+
+      function initializeInteractiveMap() {
+        const mapTile = document.getElementById("map-tile-layer");
+        mapTile.setAttribute("data-src", buildOsmTileUrl(8, 133, 88));
+        mapSurface.addEventListener("wheel", (event) => {
+          event.preventDefault();
+        }, { passive: false });
+      }
 
       async function runAnalyze(payload, token) {
         const response = await fetch("https://api.dev.georanking.ch/analyze", {
@@ -77,6 +92,8 @@ GOOD_UI_HTML = """<!doctype html>
         state.phase = result.ok ? "success" : "error";
         state.lastError = result.errorMessage;
       }
+
+      initializeInteractiveMap();
 
       formEl.addEventListener("submit", async (event) => {
         event.preventDefault();

@@ -227,6 +227,10 @@ def _check_ui_navigation_and_core_flow(html: str) -> UiCheckResult:
         "mode_select": 'id="intelligence-mode"',
         "submit_button": 'id="submit-btn"',
         "map_surface": 'id="map-click-surface"',
+        "map_tile_layer": 'id="map-tile-layer"',
+        "map_tile_url": "https://tile.openstreetmap.org/",
+        "map_wheel_zoom": '"wheel",',
+        "map_initializer": "function initializeInteractiveMap()",
     }
     passed, present, missing = _required_marker_presence(html, markers)
 

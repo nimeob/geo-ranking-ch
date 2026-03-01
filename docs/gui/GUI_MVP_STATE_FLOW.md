@@ -19,9 +19,10 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Adresse, Intelligence-Mode, optionaler API-Token
    - Submit triggert deterministisch eine Analyze-Anfrage
 2. **Kartenpanel**
-   - klickbare CH-Bounds-Fläche (WGS84-Bounds als expliziter Rahmen)
+   - echte, interaktive OSM-Basemap (Tile-Render) mit deterministischem Pan/Zoom
    - Klick setzt Marker und startet unmittelbar dieselbe Analyze-Pipeline über Koordinateninput
-   - Keyboard-Fallback (`Enter`/`Space`) triggert Center-Analyse für Accessibility
+   - Degraded-State bei Tile-Ausfall bleibt funktional (Analyze via `coordinates.lat/lon` weiter möglich)
+   - Keyboard-Fallback (`Enter`/`Space`) triggert Center-Analyse; Pfeiltasten/+/- unterstützen Pan/Zoom für Accessibility
 3. **Result-Panel**
    - Status-Pill pro State
    - Request-ID + Input-Metadaten
@@ -53,8 +54,10 @@ Durchgeführt am **2026-02-28** (lokal):
 
 1. `python3 -m src.web_service` gestartet
 2. `GET /gui` geöffnet
-3. Kartenklick auf Surface ausgelöst
+3. Karte per Drag/Mousewheel bewegt und gezoomt, danach Kartenklick ausgelöst
 4. Verifiziert:
+   - Basemap-Tiles werden gerendert (OSM)
+   - Pan/Zoom reagieren deterministisch
    - Marker wird gesetzt
    - Request geht über `coordinates.lat/lon`
    - Status wechselt `loading -> success`
