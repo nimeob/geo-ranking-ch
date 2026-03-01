@@ -1,0 +1,21 @@
+acceptance_run_id: ACC-MCS-2026-03-01-001
+scope: BL-342 Minimum-Compliance-Set
+environment: dev
+executed_by_role: QA Lead (Worker B automated run)
+reviewed_by_roles:
+  - Compliance Lead
+  - IT Product Owner
+executed_at_utc: "2026-03-01T17:55:00Z"
+result: pass
+finding_count: 0
+finding_refs: []
+evidence_ref: "reports/compliance/acceptance/2026/03/ACC-MCS-2026-03-01-001/"
+tests_total: 31
+tests_passed: 31
+tests_failed: 0
+issue_ref: "https://github.com/nimeob/geo-ranking-ch/issues/528"
+notes: |
+  Alle Muss-Tests des MCS-Abnahmetestkatalogs v1 (MCS-AT-001 bis MCS-AT-010)
+  laufen in der dev-Umgebung vollständig grün.
+  Blockerabhängigkeiten #520-#527 wurden zuvor abgeschlossen (PRs #611-#617).
+  Unblocked via Architekturentscheid 2026-03-01 (BL-15 abgeschlossen, externer Consumer bleibt).

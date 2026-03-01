@@ -1,0 +1,39 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0 -- /data/.openclaw/workspace/geo-ranking-ch/.venv/bin/python3.13
+cachedir: .pytest_cache
+rootdir: /data/.openclaw/workspace/geo-ranking-ch
+collecting ... collected 31 items
+
+tests/test_compliance_policy_standard_docs.py::TestCompliancePolicyStandardDocs::test_backlog_tracks_issue_515_completion PASSED [  3%]
+tests/test_compliance_policy_standard_docs.py::TestCompliancePolicyStandardDocs::test_policy_standard_doc_exists_with_required_markers PASSED [  6%]
+tests/test_compliance_korrektur_richtlinie_docs.py::TestComplianceKorrekturRichtlinieDocs::test_backlog_tracks_issue_516_completion PASSED [  9%]
+tests/test_compliance_korrektur_richtlinie_docs.py::TestComplianceKorrekturRichtlinieDocs::test_korrektur_richtlinie_doc_exists_with_required_markers PASSED [ 12%]
+tests/test_compliance_hold_governance_docs.py::TestComplianceHoldGovernanceDocs::test_backlog_tracks_issue_517_completion PASSED [ 16%]
+tests/test_compliance_hold_governance_docs.py::TestComplianceHoldGovernanceDocs::test_hold_governance_doc_exists_with_required_markers PASSED [ 19%]
+tests/test_compliance_export_delete_control_plan_docs.py::TestComplianceExportDeleteControlPlanDocs::test_backlog_tracks_issue_518_completion PASSED [ 22%]
+tests/test_compliance_export_delete_control_plan_docs.py::TestComplianceExportDeleteControlPlanDocs::test_control_plan_doc_exists_with_required_markers PASSED [ 25%]
+tests/test_compliance_external_direct_access_control_docs.py::TestComplianceExternalDirectAccessControlDocs::test_backlog_tracks_issue_524_completion PASSED [ 29%]
+tests/test_compliance_external_direct_access_control_docs.py::TestComplianceExternalDirectAccessControlDocs::test_external_direct_access_control_doc_exists_with_required_markers PASSED [ 32%]
+tests/test_compliance_export_logging.py::TestComplianceExportLogging::test_build_export_log_entry_contains_required_fields PASSED [ 35%]
+tests/test_compliance_export_logging.py::TestComplianceExportLogging::test_build_export_log_entry_rejects_empty_channel PASSED [ 38%]
+tests/test_compliance_export_logging.py::TestComplianceExportLogging::test_record_export_log_entry_writes_jsonl_and_uses_actor_from_env PASSED [ 41%]
+tests/test_compliance_export_logging_docs.py::TestComplianceExportLoggingDocs::test_backlog_tracks_issue_525_completion PASSED [ 45%]
+tests/test_compliance_export_logging_docs.py::TestComplianceExportLoggingDocs::test_export_logging_standard_doc_exists_with_required_markers PASSED [ 48%]
+tests/test_compliance_backup_restore_guideline_docs.py::TestComplianceBackupRestoreGuidelineDocs::test_backlog_tracks_issue_526_completion PASSED [ 51%]
+tests/test_compliance_backup_restore_guideline_docs.py::TestComplianceBackupRestoreGuidelineDocs::test_backup_restore_guideline_exists_with_required_markers PASSED [ 54%]
+tests/test_compliance_policy_metadata_model.py::TestCompliancePolicyMetadataModel::test_from_dict_accepts_valid_payload_and_normalizes PASSED [ 58%]
+tests/test_compliance_policy_metadata_model.py::TestCompliancePolicyMetadataModel::test_validate_policy_metadata_rejects_empty_impact_reference PASSED [ 61%]
+tests/test_compliance_policy_metadata_model.py::TestCompliancePolicyMetadataModel::test_validate_policy_metadata_rejects_invalid_version PASSED [ 64%]
+tests/test_compliance_policy_metadata_model.py::TestCompliancePolicyMetadataModel::test_validate_policy_metadata_rejects_invalid_wirksam_ab_format PASSED [ 67%]
+tests/test_compliance_policy_metadata_model.py::TestCompliancePolicyMetadataModel::test_validate_policy_metadata_rejects_missing_required_field PASSED [ 70%]
+tests/test_compliance_policy_metadata_contract_docs.py::TestCompliancePolicyMetadataContractDocs::test_backlog_tracks_issue_539_completion PASSED [ 74%]
+tests/test_compliance_policy_metadata_contract_docs.py::TestCompliancePolicyMetadataContractDocs::test_contract_doc_exists_with_required_markers PASSED [ 77%]
+tests/test_compliance_policy_metadata_contract_docs.py::TestCompliancePolicyMetadataContractDocs::test_invalid_example_artifact_is_rejected PASSED [ 80%]
+tests/test_compliance_policy_metadata_contract_docs.py::TestCompliancePolicyMetadataContractDocs::test_valid_example_artifacts_pass_runtime_validation PASSED [ 83%]
+tests/test_compliance_policy_metadata_rollout_sync_docs.py::TestCompliancePolicyMetadataRolloutSyncDocs::test_acceptance_catalog_tracks_mcs_at_010_automation PASSED [ 87%]
+tests/test_compliance_policy_metadata_rollout_sync_docs.py::TestCompliancePolicyMetadataRolloutSyncDocs::test_backlog_tracks_issue_540_and_parent_519_completion PASSED [ 90%]
+tests/test_compliance_policy_metadata_rollout_sync_docs.py::TestCompliancePolicyMetadataRolloutSyncDocs::test_contract_doc_contains_rollout_guidance_markers PASSED [ 93%]
+tests/test_compliance_acceptance_test_catalog_docs.py::TestComplianceAcceptanceTestCatalogDocs::test_acceptance_test_catalog_exists_with_required_markers PASSED [ 96%]
+tests/test_compliance_acceptance_test_catalog_docs.py::TestComplianceAcceptanceTestCatalogDocs::test_backlog_tracks_issue_527_completion PASSED [100%]
+
+============================== 31 passed in 0.19s ==============================
