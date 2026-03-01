@@ -54,6 +54,19 @@ messbarer Telemetrie.
 
 ## Ausführungssequenz (v1)
 
+### Implementierungsstand (#472)
+
+Stand Runtime-Orchestrator (`src/api/web_service.py`, BL-30.3.wp2.r1):
+
+- Der Analyze-Flow projiziert Deep-Mode-Status jetzt deterministisch nach `result.status.capabilities.deep_mode` und
+  `result.status.entitlements.deep_mode`.
+- Gate-Reihenfolge ist umgesetzt als: `requested` → `profile/policy` → `allowed` → `quota_remaining` → Zeitbudget.
+- Budgetaufteilung wird pro Request aus `timeout_seconds` berechnet (`total_request_budget_ms`,
+  `baseline_reserved_ms`, `deep_budget_ms`) und über ENV-Parameter feinjustierbar gehalten.
+- Bei erfülltem Gate wird `effective=true` und `quota_consumed=1` gesetzt; bei nicht erfülltem Gate bleibt der
+  Basispfad aktiv und `fallback_reason` wird gesetzt (`not_entitled`, `quota_exhausted`, `timeout_budget`,
+  `policy_guard`).
+
 ### Stage A — Baseline first (Pflicht)
 
 - Führt bestehende Analysepfade aus (Address/Context/Suitability/Explainability-Basis).
@@ -182,7 +195,7 @@ andernfalls `effective=true` mit partiellem Deep-Hinweis in Telemetrie.
 ## Follow-up-Issues
 
 - #470 — Add-on-/Quota-Hypothesen + Transparenzrahmen (Produkt-/GTM-Policy), siehe [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](../DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md)
-- #472 — BL-30.3.wp2.r1 Runtime-Orchestrator-Implementierung (Gate/Budget/Fallback in `/analyze`)
+- #472 — ✅ BL-30.3.wp2.r1 Runtime-Orchestrator-Implementierung (Gate/Budget/Fallback in `/analyze`) abgeschlossen
 - #473 — BL-30.3.wp2.r2 Deep-Mode-Telemetrie + Trace-Evidence-Runbook
 
 ## DoD-Checklist #469 (Status)
