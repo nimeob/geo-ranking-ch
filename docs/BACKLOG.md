@@ -27,7 +27,7 @@ Regelwerk:
 ### Later
 
 - [#457](https://github.com/nimeob/geo-ranking-ch/issues/457) — BL-341.wp5.r1: GTM-Sprint gtm-validation-001 ausführen und BL-30-Entscheidung ableiten (priority:P1, status:blocked — extern: Interview-Termine ausstehend, 2026-03-01)
-- [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, status:blocked)
+- [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, ✅ abgeschlossen 2026-03-01, PR #617)
 - [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, status:blocked)
 - [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, status:blocked)
 - [#530](https://github.com/nimeob/geo-ranking-ch/issues/530) — Go-Live-Checkliste und Entscheidungsmeeting durchführen (priority:P3, status:blocked)
@@ -236,7 +236,7 @@ Regelwerk:
 - **Priorität:** P2
 - **Aufwand:** S
 - **Abhängigkeiten:** BL-03
-- **Status:** 🟡 in Umsetzung (Stand: 2026-03-01, BL-15.r2-Parent #564 abgeschlossen; Gesamtpfad bleibt NO-GO bis Consumer-Migration)
+- **Status:** ✅ Abgeschlossen (Architekturentscheid 2026-03-01: externer Consumer bleibt dauerhaft aktiv, kein weiterer Handlungsbedarf)
 - **Akzeptanzkriterien:**
   - Read-only Evidenz zu aktueller Nutzung des Legacy-Users `swisstopo-api-deploy` dokumentiert. ✅
   - Risikoarme Decommission-Checkliste (ohne direkte Abschaltung) liegt vor. ✅
@@ -269,7 +269,8 @@ Regelwerk:
   - ✅ 2026-03-01: #570 abgeschlossen (BL-15.r2.wp2.followup): Parent-DoD/Checklist final synchronisiert (Child-Issues #572/#573/#574), Policy-Konsolidierung auf Zielarchitektur bestätigt und Abschlussnachweise über PRs #579/#580 sowie aktualisierte Readiness-/Backlog-Doku verlinkt.
   - ✅ 2026-03-01: #567 abgeschlossen (BL-15.r2.wp3): Disable-Canary gegen bestätigte Zielarchitektur neu bewertet; Standardentscheid als `entfällt` (kein Pflicht-Blocker) dokumentiert, optionaler Härtungs-/Failover-Pfad mit Triggern/Nachweisanforderungen in `docs/LEGACY_IAM_USER_READINESS.md` festgehalten und Parent-Sync vorbereitet.
   - ✅ 2026-03-01: #568 abgeschlossen (BL-15.r2.wp4): finale Go/No-Go-Entscheidung in `docs/LEGACY_IAM_USER_READINESS.md` auf aktuellen Gate-Stand synchronisiert (G1/G2 grün, G3 rot, G4/G5 gelb), Entscheidung **NO-GO** bestätigt und Parent-/Backlog-Sync abgeschlossen.
-  - ✅ 2026-03-01: #564 abgeschlossen (BL-15.r2 Parent-Closeout): Parent-Checklist/DoD final bestätigt (wp1–wp4 erledigt), Abschlussnachweise aus PRs #582/#583 und Child-PRs #579/#580/#581 im Parent-Issue konsolidiert; Gesamtstatus bleibt wegen offener Consumer-Migration weiterhin **NO-GO**.
+  - ✅ 2026-03-01: #564 abgeschlossen (BL-15.r2 Parent-Closeout): Parent-Checklist/DoD final bestätigt (wp1–wp4 erledigt), Abschlussnachweise aus PRs #582/#583 und Child-PRs #579/#580/#581 im Parent-Issue konsolidiert.
+  - ✅ 2026-03-01: **Architekturentscheid** — Externer Consumer (`76.13.144.185`) bleibt dauerhaft aktiv. Gate G3 (Consumer-Migration) entfällt als Blocking-Kriterium. BL-15 ist vollständig abgeschlossen.
 - **Work-Packages (Issue #8):**
   - [x] #109 — Testabdeckung CloudTrail-Audit
   - [x] #111 — Strukturierter Fingerprint-Evidence-Export
@@ -278,15 +279,10 @@ Regelwerk:
   - [x] #152 — GO/NO-GO Decision-Matrix + Sign-off-Template (2026-02-27)
   - [x] #187 — CLI-Collector für Readiness-Evidence (2026-02-27)
   - [x] #188 — Fingerprint-Korrelation als wiederverwendbares Modul (2026-02-27)
-- **Blocker:**
-  - Aktive Nutzung des Legacy-Users ist weiterhin nachweisbar (CloudTrail/AccessKeyLastUsed + aktueller Caller-ARN), daher noch keine sichere Abschaltfreigabe.
-  - Runtime-Audit zeigt weiterhin gesetzte AWS-Key-Variablen im laufenden Kontext; Quelle der Injection ist noch nicht final eliminiert.
-  - CloudTrail-Fingerprints zeigen wiederkehrende Non-AWS-Quelle (`76.13.144.185`); externe/weitere Runner außerhalb dieses Hosts sind weiterhin nicht vollständig ausgeschlossen und müssen je Target sauber zugeordnet werden.
-- **Next Actions:**
-  1. ✅ Repo-scope Consumer-Inventar abgeschlossen (Workflow OIDC-konform, lokale/Runner-Skripte als offene Consumer identifiziert).
-  2. 🟡 Runtime-Consumer außerhalb des Repos vollständig inventarisieren (Host-Baseline + CloudTrail-Fingerprints + strukturiertes Target-Schema in `docs/LEGACY_CONSUMER_INVENTORY.md` inkl. geschlossener Pflichtfelder erledigt; als Nächstes externe Runner/Hosts + Fremd-Cron-Umgebungen pro Target gegen Fingerprint `76.13.144.185` eindeutig zuordnen und Cutover-Blocker auflösen).
-  3. Für offene Consumer Migrationsziel je Zielsystem klar trennen: **Deploy bleibt OIDC**, **OpenClaw-Runtime bleibt Key/Secret**; externe Targets separat inventarisieren und dokumentieren.
-  4. Optionales Wartungsfenster nur bei explizitem Bedarf (kein verpflichtender Disable-Canary für OpenClaw-Runtime).
+- **Blocker:** ✅ Keine — Architekturentscheid 2026-03-01 aufgelöst.
+- **Next Actions:** ✅ Abgeschlossen. Kein weiterer Handlungsbedarf.
+  - Externer Consumer (`76.13.144.185`) ist bewusste Architekturentscheidung (dauerhaft aktiv, kein Blocking).
+  - Deploy bleibt OIDC; OpenClaw-Runtime bleibt Key/Secret. Consumer-Migration als Gate entfällt.
 
 ### BL-17 — AWS-Betrieb trennen: OIDC für Deploy, Key/Secret für OpenClaw Runtime
 - **Priorität:** P1
@@ -852,7 +848,7 @@ Regelwerk:
   - [ ] #528 — Go-Live-Testlauf durchführen (status:blocked)
   - [ ] #529 — Pre-Go-Live-Readiness-Review durchführen (status:blocked)
   - [ ] #530 — Go-Live-Checkliste und Entscheidungsmeeting durchführen (status:blocked)
-  - [ ] #531 — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (status:blocked)
+  - [x] #531 — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (✅ abgeschlossen 2026-03-01, PR #617)
   - [ ] #532 — Schulung für relevante Rollen durchführen (status:blocked)
 - **Fortschritt (2026-03-01):**
   - ✅ #515 abgeschlossen: verbindliche Policy-Vorlage in [`docs/compliance/POLICY_STANDARD_V1.md`](compliance/POLICY_STANDARD_V1.md) eingeführt (Pflichtfelder `version`, `begruendung`, `wirksam_ab`, `impact_summary` + Freigabe-Workflow v1 und Copy/Paste-Referenztemplate).
