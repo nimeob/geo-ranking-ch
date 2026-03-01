@@ -79,22 +79,63 @@ Zusätzlich werden pattern-basiert maskiert:
 }
 ```
 
-## Implementierungsstand BL-340.1
+### 3) API Request-Start (Ingress, BL-340.2)
+
+```json
+{
+  "ts": "2026-03-01T01:36:11.125991Z",
+  "level": "info",
+  "event": "api.request.start",
+  "trace_id": "req-abc123",
+  "request_id": "req-abc123",
+  "session_id": "sess-42",
+  "component": "api.web_service",
+  "direction": "client->api",
+  "status": "received",
+  "route": "/analyze",
+  "method": "POST"
+}
+```
+
+### 4) API Request-Ende (Egress inkl. Fehlerklassifikation, BL-340.2)
+
+```json
+{
+  "ts": "2026-03-01T01:36:11.241120Z",
+  "level": "warn",
+  "event": "api.request.end",
+  "trace_id": "req-abc123",
+  "request_id": "req-abc123",
+  "session_id": "sess-42",
+  "component": "api.web_service",
+  "direction": "api->client",
+  "status": "client_error",
+  "route": "/analyze",
+  "method": "POST",
+  "status_code": 401,
+  "duration_ms": 115.129,
+  "error_code": "unauthorized",
+  "error_class": "unauthorized"
+}
+```
+
+## Implementierungsstand BL-340.1 + BL-340.2
 
 - Shared Helper: `src/shared/structured_logging.py`
   - `build_event(...)`
   - `redact_mapping(...)`
   - `emit_event(...)`
-- Erste Call-Sites im API-Service:
+- API-Call-Sites im Service:
   - `service.startup`
   - `service.redirect_listener.enabled`
   - `api.health.response`
+  - `api.request.start` (Ingress, `GET/POST/OPTIONS`)
+  - `api.request.end` (Egress inkl. `status_code`, `duration_ms`, `error_class`)
 
-## Abgrenzung zu BL-340.2 / .3 / .4
+## Abgrenzung zu BL-340.3 / .4
 
-BL-340.1 liefert bewusst nur das **Kernschema + Redaction + Logging-Baustein**.
-Vollständige Request-Lifecycle-Instrumentierung und Upstream-/UI-Flows folgen in den Child-Issues:
+BL-340.1 + BL-340.2 decken **Kernschema + Redaction + API Ingress/Egress-Lifecycle** ab.
+Offen bleiben die nächsten Child-Issues:
 
-- #411 (API Ingress/Egress)
 - #412 (UI Interaktions-/Client-Logging)
 - #413 (Upstream Provider Logging + Trace-Nachweise)

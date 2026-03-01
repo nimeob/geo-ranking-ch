@@ -19,6 +19,7 @@ import os
 import re
 import ssl
 import threading
+import time
 import uuid
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -290,6 +291,110 @@ def _emit_structured_log(
     except Exception:
         # Logging must never break primary service logic.
         return
+
+
+def _request_lifecycle_status(*, status_code: int, error_code: str = "") -> str:
+    normalized_error = str(error_code or "").strip().lower()
+    if normalized_error == "timeout" or status_code in {
+        int(HTTPStatus.REQUEST_TIMEOUT),
+        int(HTTPStatus.GATEWAY_TIMEOUT),
+    }:
+        return "timeout"
+    if 200 <= status_code < 400:
+        return "ok"
+    if 400 <= status_code < 500:
+        return "client_error"
+    if status_code >= 500:
+        return "server_error"
+    return "unknown"
+
+
+def _request_lifecycle_error_class(*, status_code: int, error_code: str = "") -> str:
+    normalized_error = str(error_code or "").strip().lower()
+    if normalized_error:
+        return normalized_error
+    if status_code in {
+        int(HTTPStatus.REQUEST_TIMEOUT),
+        int(HTTPStatus.GATEWAY_TIMEOUT),
+    }:
+        return "timeout"
+    if status_code >= 500:
+        return "internal"
+    if status_code >= 400:
+        return "client_error"
+    return ""
+
+
+def _request_lifecycle_level(*, status_code: int) -> str:
+    if status_code >= 500:
+        return "error"
+    if status_code >= 400:
+        return "warn"
+    return "info"
+
+
+def _log_api_request_start(
+    *,
+    method: str,
+    route: str,
+    request_id: str,
+    session_id: str,
+) -> None:
+    _emit_structured_log(
+        event="api.request.start",
+        level="info",
+        trace_id=request_id,
+        request_id=request_id,
+        session_id=session_id,
+        component="api.web_service",
+        direction="client->api",
+        status="received",
+        route=route,
+        method=method,
+    )
+
+
+def _log_api_request_end(
+    *,
+    method: str,
+    route: str,
+    request_id: str,
+    session_id: str,
+    status_code: int,
+    duration_ms: float,
+    error_code: str = "",
+) -> None:
+    lifecycle_status = _request_lifecycle_status(
+        status_code=status_code,
+        error_code=error_code,
+    )
+    error_class = _request_lifecycle_error_class(
+        status_code=status_code,
+        error_code=error_code,
+    )
+
+    fields: dict[str, Any] = {
+        "component": "api.web_service",
+        "direction": "api->client",
+        "status": lifecycle_status,
+        "route": route,
+        "method": method,
+        "status_code": status_code,
+        "duration_ms": duration_ms,
+    }
+    if error_code:
+        fields["error_code"] = error_code
+    if error_class:
+        fields["error_class"] = error_class
+
+    _emit_structured_log(
+        event="api.request.end",
+        level=_request_lifecycle_level(status_code=status_code),
+        trace_id=request_id,
+        request_id=request_id,
+        session_id=session_id,
+        **fields,
+    )
 
 
 def _dictionary_status_payload() -> dict[str, Any]:
@@ -1222,6 +1327,54 @@ class Handler(BaseHTTPRequestHandler):
                 return request_id
         return f"req-{uuid.uuid4().hex[:16]}"
 
+    def _begin_request_lifecycle(self, *, method: str, request_path: str, request_id: str) -> None:
+        self._request_lifecycle_started_at = time.perf_counter()
+        self._request_lifecycle_method = str(method or "").strip().upper() or "GET"
+        self._request_lifecycle_route = str(request_path or "/")
+        self._request_lifecycle_request_id = str(request_id or "").strip()
+        self._request_lifecycle_session_id = str(self.headers.get("X-Session-Id", "") or "").strip()
+        self._response_status_code: int | None = None
+        self._response_error_code = ""
+
+        _log_api_request_start(
+            method=self._request_lifecycle_method,
+            route=self._request_lifecycle_route,
+            request_id=self._request_lifecycle_request_id,
+            session_id=self._request_lifecycle_session_id,
+        )
+
+    def _capture_response_error(self, *, payload: dict[str, Any] | None, status: int) -> None:
+        self._response_error_code = ""
+        if isinstance(payload, dict) and payload.get("ok") is False:
+            self._response_error_code = str(payload.get("error") or "").strip().lower()
+        if int(status) < HTTPStatus.BAD_REQUEST:
+            self._response_error_code = ""
+
+    def _finish_request_lifecycle(self) -> None:
+        started_at = getattr(self, "_request_lifecycle_started_at", None)
+        if not isinstance(started_at, (int, float)):
+            return
+
+        raw_status_code = getattr(self, "_response_status_code", None)
+        status_code = int(raw_status_code) if isinstance(raw_status_code, int) else int(HTTPStatus.INTERNAL_SERVER_ERROR)
+        duration_ms = round((time.perf_counter() - float(started_at)) * 1000.0, 3)
+
+        _log_api_request_end(
+            method=str(getattr(self, "_request_lifecycle_method", "")),
+            route=str(getattr(self, "_request_lifecycle_route", "/")),
+            request_id=str(getattr(self, "_request_lifecycle_request_id", "")),
+            session_id=str(getattr(self, "_request_lifecycle_session_id", "")),
+            status_code=status_code,
+            duration_ms=duration_ms,
+            error_code=str(getattr(self, "_response_error_code", "")),
+        )
+
+        self._request_lifecycle_started_at = None
+
+    def send_response(self, code: int, message: str | None = None) -> None:
+        self._response_status_code = int(code)
+        super().send_response(code, message)
+
     def _send_json(
         self,
         payload: dict[str, Any],
@@ -1230,6 +1383,7 @@ class Handler(BaseHTTPRequestHandler):
         request_id: str | None = None,
         extra_headers: dict[str, str] | None = None,
     ) -> None:
+        self._capture_response_error(payload=payload, status=status)
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -1257,6 +1411,7 @@ class Handler(BaseHTTPRequestHandler):
         request_id: str | None = None,
         extra_headers: dict[str, str] | None = None,
     ) -> None:
+        self._capture_response_error(payload=None, status=status)
         body = body_text.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -1276,6 +1431,7 @@ class Handler(BaseHTTPRequestHandler):
         etag: str,
         cache_control: str = _DICTIONARY_CACHE_CONTROL,
     ) -> None:
+        self._capture_response_error(payload=None, status=int(HTTPStatus.NOT_MODIFIED))
         self.send_response(HTTPStatus.NOT_MODIFIED)
         self.send_header("ETag", etag)
         self.send_header("Cache-Control", cache_control)
@@ -1314,347 +1470,361 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         request_id = self._request_id()
         request_path = self._normalized_path()
+        self._begin_request_lifecycle(method="GET", request_path=request_path, request_id=request_id)
 
-        if request_path == "/gui":
-            self._send_html(
-                render_gui_mvp_html(app_version=os.getenv("APP_VERSION", "dev")),
-                request_id=request_id,
-                extra_headers={"Cache-Control": "no-store"},
-            )
-            return
-        if request_path == "/health":
-            _emit_structured_log(
-                event="api.health.response",
-                trace_id=request_id,
-                request_id=request_id,
-                session_id=self.headers.get("X-Session-Id", "").strip(),
-                component="api.web_service",
-                direction="api->client",
-                status="ok",
-                route="/health",
-                method="GET",
-            )
-            self._send_json(
-                {
-                    "ok": True,
-                    "service": "geo-ranking-ch",
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                    "request_id": request_id,
-                },
-                request_id=request_id,
-            )
-            return
-        if request_path == "/version":
-            self._send_json(
-                {
-                    "service": "geo-ranking-ch",
-                    "version": os.getenv("APP_VERSION", "dev"),
-                    "commit": os.getenv("GIT_SHA", "unknown"),
-                    "request_id": request_id,
-                },
-                request_id=request_id,
-            )
-            return
-        if request_path == "/api/v1/dictionaries":
-            self._send_dictionary_payload(
-                deepcopy(_DICTIONARY_INDEX_PAYLOAD),
-                request_id=request_id,
-            )
-            return
-        if request_path.startswith("/api/v1/dictionaries/"):
-            domain_name = request_path.rsplit("/", 1)[-1].strip().lower()
-            domain_payload = _DICTIONARY_DOMAIN_PAYLOADS.get(domain_name)
-            if domain_payload is None:
+        try:
+            if request_path == "/gui":
+                self._send_html(
+                    render_gui_mvp_html(app_version=os.getenv("APP_VERSION", "dev")),
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+            if request_path == "/health":
+                _emit_structured_log(
+                    event="api.health.response",
+                    trace_id=request_id,
+                    request_id=request_id,
+                    session_id=self.headers.get("X-Session-Id", "").strip(),
+                    component="api.web_service",
+                    direction="api->client",
+                    status="ok",
+                    route="/health",
+                    method="GET",
+                )
                 self._send_json(
                     {
-                        "ok": False,
-                        "error": "not_found",
-                        "message": f"unknown dictionary domain: {domain_name}",
+                        "ok": True,
+                        "service": "geo-ranking-ch",
+                        "ts": datetime.now(timezone.utc).isoformat(),
                         "request_id": request_id,
                     },
-                    status=HTTPStatus.NOT_FOUND,
                     request_id=request_id,
                 )
                 return
-            self._send_dictionary_payload(
-                deepcopy(domain_payload),
-                request_id=request_id,
-            )
-            return
-        self._send_json(
-            {"ok": False, "error": "not_found", "request_id": request_id},
-            status=HTTPStatus.NOT_FOUND,
-            request_id=request_id,
-        )
-
-    def do_POST(self) -> None:  # noqa: N802
-        request_id = self._request_id()
-        request_path = self._normalized_path()
-        self._cors_response_headers = None
-
-        if request_path != "/analyze":
+            if request_path == "/version":
+                self._send_json(
+                    {
+                        "service": "geo-ranking-ch",
+                        "version": os.getenv("APP_VERSION", "dev"),
+                        "commit": os.getenv("GIT_SHA", "unknown"),
+                        "request_id": request_id,
+                    },
+                    request_id=request_id,
+                )
+                return
+            if request_path == "/api/v1/dictionaries":
+                self._send_dictionary_payload(
+                    deepcopy(_DICTIONARY_INDEX_PAYLOAD),
+                    request_id=request_id,
+                )
+                return
+            if request_path.startswith("/api/v1/dictionaries/"):
+                domain_name = request_path.rsplit("/", 1)[-1].strip().lower()
+                domain_payload = _DICTIONARY_DOMAIN_PAYLOADS.get(domain_name)
+                if domain_payload is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "not_found",
+                            "message": f"unknown dictionary domain: {domain_name}",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.NOT_FOUND,
+                        request_id=request_id,
+                    )
+                    return
+                self._send_dictionary_payload(
+                    deepcopy(domain_payload),
+                    request_id=request_id,
+                )
+                return
             self._send_json(
                 {"ok": False, "error": "not_found", "request_id": request_id},
                 status=HTTPStatus.NOT_FOUND,
                 request_id=request_id,
             )
-            return
+        finally:
+            self._finish_request_lifecycle()
 
-        cors_headers = self._cors_headers_for_analyze(include_preflight=False)
-        if cors_headers is None:
-            self._send_json(
-                {
-                    "ok": False,
-                    "error": "cors_origin_not_allowed",
-                    "request_id": request_id,
-                },
-                status=HTTPStatus.FORBIDDEN,
-                request_id=request_id,
-            )
-            return
-        self._cors_response_headers = cors_headers
+    def do_POST(self) -> None:  # noqa: N802
+        request_id = self._request_id()
+        request_path = self._normalized_path()
+        self._begin_request_lifecycle(method="POST", request_path=request_path, request_id=request_id)
 
-        required_token = os.getenv("API_AUTH_TOKEN", "").strip()
-        if required_token:
-            provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
-            if provided_token != required_token:
+        try:
+            self._cors_response_headers = None
+
+            if request_path != "/analyze":
                 self._send_json(
-                    {"ok": False, "error": "unauthorized", "request_id": request_id},
-                    status=HTTPStatus.UNAUTHORIZED,
+                    {"ok": False, "error": "not_found", "request_id": request_id},
+                    status=HTTPStatus.NOT_FOUND,
                     request_id=request_id,
                 )
                 return
 
-        try:
-            length = int(self.headers.get("Content-Length", "0"))
-            if length <= 0:
-                raise ValueError("empty body")
-            raw = self.rfile.read(length)
-            try:
-                decoded_body = raw.decode("utf-8")
-            except UnicodeDecodeError as exc:
-                raise ValueError("body must be valid utf-8 json") from exc
-
-            data = json.loads(decoded_body)
-            if not isinstance(data, dict):
-                raise ValueError("json body must be an object")
-
-            query, coordinate_context = _extract_query_and_coordinate_context(data)
-
-            mode = str(data.get("intelligence_mode", "basic")).strip() or "basic"
-            mode = mode.lower()
-            if mode not in SUPPORTED_INTELLIGENCE_MODES:
-                raise ValueError(
-                    f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}"
+            cors_headers = self._cors_headers_for_analyze(include_preflight=False)
+            if cors_headers is None:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "cors_origin_not_allowed",
+                        "request_id": request_id,
+                    },
+                    status=HTTPStatus.FORBIDDEN,
+                    request_id=request_id,
                 )
+                return
+            self._cors_response_headers = cors_headers
 
-            # Forward-Compatibility: optionaler, additiver Namespace für spätere
-            # Request-Erweiterungen (z. B. Deep-Mode) ohne Breaking Changes.
-            request_options = _extract_request_options(data)
-            _reject_legacy_options(request_options)
-            response_mode = _extract_response_mode(request_options)
+            required_token = os.getenv("API_AUTH_TOKEN", "").strip()
+            if required_token:
+                provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
+                if provided_token != required_token:
+                    self._send_json(
+                        {"ok": False, "error": "unauthorized", "request_id": request_id},
+                        status=HTTPStatus.UNAUTHORIZED,
+                        request_id=request_id,
+                    )
+                    return
 
-            # Optionales Preference-Profil für BL-20.4-Personalisierung.
-            # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
-            preferences_supplied = "preferences" in data and data.get("preferences") is not None
-            preferences_profile = _extract_preferences(data)
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0:
+                    raise ValueError("empty body")
+                raw = self.rfile.read(length)
+                try:
+                    decoded_body = raw.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    raise ValueError("body must be valid utf-8 json") from exc
 
-            if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
-                if query == "__timeout__":
-                    raise TimeoutError("forced timeout for e2e")
-                if query == "__internal__":
-                    raise RuntimeError("forced internal error for e2e")
-                if query == "__address_intel__":
-                    raise AddressIntelError("forced address intel error for e2e")
-                if query == "__ok__":
-                    stub_report = {
-                        "query": query,
-                        "matched_address": query,
-                        "ids": {},
-                        "coordinates": {},
-                        "administrative": {},
-                        "match": {"mode": "e2e_stub"},
-                        "building": {
-                            "codes": {"gstat": 1004, "gkat": 1020},
-                            "decoded": {
-                                "status": "Bestehend",
-                                "kategorie": "Wohngebäude",
+                data = json.loads(decoded_body)
+                if not isinstance(data, dict):
+                    raise ValueError("json body must be an object")
+
+                query, coordinate_context = _extract_query_and_coordinate_context(data)
+
+                mode = str(data.get("intelligence_mode", "basic")).strip() or "basic"
+                mode = mode.lower()
+                if mode not in SUPPORTED_INTELLIGENCE_MODES:
+                    raise ValueError(
+                        f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}"
+                    )
+
+                # Forward-Compatibility: optionaler, additiver Namespace für spätere
+                # Request-Erweiterungen (z. B. Deep-Mode) ohne Breaking Changes.
+                request_options = _extract_request_options(data)
+                _reject_legacy_options(request_options)
+                response_mode = _extract_response_mode(request_options)
+
+                # Optionales Preference-Profil für BL-20.4-Personalisierung.
+                # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
+                preferences_supplied = "preferences" in data and data.get("preferences") is not None
+                preferences_profile = _extract_preferences(data)
+
+                if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
+                    if query == "__timeout__":
+                        raise TimeoutError("forced timeout for e2e")
+                    if query == "__internal__":
+                        raise RuntimeError("forced internal error for e2e")
+                    if query == "__address_intel__":
+                        raise AddressIntelError("forced address intel error for e2e")
+                    if query == "__ok__":
+                        stub_report = {
+                            "query": query,
+                            "matched_address": query,
+                            "ids": {},
+                            "coordinates": {},
+                            "administrative": {},
+                            "match": {"mode": "e2e_stub"},
+                            "building": {
+                                "codes": {"gstat": 1004, "gkat": 1020},
+                                "decoded": {
+                                    "status": "Bestehend",
+                                    "kategorie": "Wohngebäude",
+                                },
                             },
-                        },
-                        "energy": {
-                            "raw_codes": {"gwaerzh1": 7410, "genh1": 7501},
-                            "decoded_summary": {"heizung": ["Wärmepumpe (Luft)"]},
-                        },
-                        "suitability_light": {
-                            "status": "ok",
-                            "heuristic_version": "e2e-stub-v1",
-                            "score": 80,
-                            "traffic_light": "green",
-                            "classification": "geeignet",
-                            "base_score": 80.1,
-                            "personalized_score": 80.1,
-                            "factors": [
-                                {"key": "topography", "score": 82.0, "weight": 0.34},
-                                {"key": "access", "score": 76.0, "weight": 0.29},
-                                {"key": "building_state", "score": 74.0, "weight": 0.17},
-                                {"key": "data_quality", "score": 88.0, "weight": 0.20},
-                            ],
-                        },
-                        "summary_compact": {
+                            "energy": {
+                                "raw_codes": {"gwaerzh1": 7410, "genh1": 7501},
+                                "decoded_summary": {"heizung": ["Wärmepumpe (Luft)"]},
+                            },
                             "suitability_light": {
                                 "status": "ok",
+                                "heuristic_version": "e2e-stub-v1",
                                 "score": 80,
                                 "traffic_light": "green",
                                 "classification": "geeignet",
                                 "base_score": 80.1,
                                 "personalized_score": 80.1,
-                            }
-                        },
-                        "sources": {"e2e_fault_injection": {"status": "ok"}},
-                        "source_classification": {
-                            "e2e_fault_injection": {
-                                "source": "e2e_fault_injection",
-                                "authority": "internal",
-                                "present": True,
-                            }
-                        },
-                        "source_attribution": {"match": ["e2e_fault_injection"]},
-                        "confidence": {"score": 100, "max": 100, "level": "high"},
-                    }
-                    _apply_personalized_suitability_scores(
-                        stub_report,
-                        preferences_profile,
-                        preferences_supplied=preferences_supplied,
-                    )
-                    self._send_json(
-                        {
-                            "ok": True,
-                            "result": _grouped_api_result(
-                                stub_report,
-                                response_mode=response_mode,
-                            ),
-                            "request_id": request_id,
-                        },
-                        request_id=request_id,
-                    )
-                    return
+                                "factors": [
+                                    {"key": "topography", "score": 82.0, "weight": 0.34},
+                                    {"key": "access", "score": 76.0, "weight": 0.29},
+                                    {"key": "building_state", "score": 74.0, "weight": 0.17},
+                                    {"key": "data_quality", "score": 88.0, "weight": 0.20},
+                                ],
+                            },
+                            "summary_compact": {
+                                "suitability_light": {
+                                    "status": "ok",
+                                    "score": 80,
+                                    "traffic_light": "green",
+                                    "classification": "geeignet",
+                                    "base_score": 80.1,
+                                    "personalized_score": 80.1,
+                                }
+                            },
+                            "sources": {"e2e_fault_injection": {"status": "ok"}},
+                            "source_classification": {
+                                "e2e_fault_injection": {
+                                    "source": "e2e_fault_injection",
+                                    "authority": "internal",
+                                    "present": True,
+                                }
+                            },
+                            "source_attribution": {"match": ["e2e_fault_injection"]},
+                            "confidence": {"score": 100, "max": 100, "level": "high"},
+                        }
+                        _apply_personalized_suitability_scores(
+                            stub_report,
+                            preferences_profile,
+                            preferences_supplied=preferences_supplied,
+                        )
+                        self._send_json(
+                            {
+                                "ok": True,
+                                "result": _grouped_api_result(
+                                    stub_report,
+                                    response_mode=response_mode,
+                                ),
+                                "request_id": request_id,
+                            },
+                            request_id=request_id,
+                        )
+                        return
 
-            default_timeout = _as_positive_finite_number(
-                os.getenv("ANALYZE_DEFAULT_TIMEOUT_SECONDS", "15"),
-                "ANALYZE_DEFAULT_TIMEOUT_SECONDS",
-            )
-            max_timeout = _as_positive_finite_number(
-                os.getenv("ANALYZE_MAX_TIMEOUT_SECONDS", "45"),
-                "ANALYZE_MAX_TIMEOUT_SECONDS",
-            )
-            req_timeout_raw = data.get("timeout_seconds", default_timeout)
-            timeout = _as_positive_finite_number(req_timeout_raw, "timeout_seconds")
-            timeout = min(timeout, max_timeout)
+                default_timeout = _as_positive_finite_number(
+                    os.getenv("ANALYZE_DEFAULT_TIMEOUT_SECONDS", "15"),
+                    "ANALYZE_DEFAULT_TIMEOUT_SECONDS",
+                )
+                max_timeout = _as_positive_finite_number(
+                    os.getenv("ANALYZE_MAX_TIMEOUT_SECONDS", "45"),
+                    "ANALYZE_MAX_TIMEOUT_SECONDS",
+                )
+                req_timeout_raw = data.get("timeout_seconds", default_timeout)
+                timeout = _as_positive_finite_number(req_timeout_raw, "timeout_seconds")
+                timeout = min(timeout, max_timeout)
 
-            report = build_report(
-                query,
-                include_osm=True,
-                candidate_limit=8,
-                candidate_preview=3,
-                timeout=timeout,
-                retries=2,
-                backoff_seconds=0.6,
-                intelligence_mode=mode,
-            )
-            _apply_personalized_suitability_scores(
-                report,
-                preferences_profile,
-                preferences_supplied=preferences_supplied,
-            )
-            if coordinate_context:
-                _attach_coordinate_resolution_context(report, coordinate_context)
-            self._send_json(
-                {
-                    "ok": True,
-                    "result": _grouped_api_result(
-                        report,
-                        response_mode=response_mode,
-                    ),
-                    "request_id": request_id,
-                },
-                request_id=request_id,
-            )
-        except TimeoutError as e:
-            self._send_json(
-                {
-                    "ok": False,
-                    "error": "timeout",
-                    "message": str(e),
-                    "request_id": request_id,
-                },
-                status=HTTPStatus.GATEWAY_TIMEOUT,
-                request_id=request_id,
-            )
-        except AddressIntelError as e:
-            self._send_json(
-                {
-                    "ok": False,
-                    "error": "address_intel",
-                    "message": str(e),
-                    "request_id": request_id,
-                },
-                status=422,
-                request_id=request_id,
-            )
-        except (ValueError, json.JSONDecodeError) as e:
-            self._send_json(
-                {
-                    "ok": False,
-                    "error": "bad_request",
-                    "message": str(e),
-                    "request_id": request_id,
-                },
-                status=400,
-                request_id=request_id,
-            )
-        except Exception as e:  # pragma: no cover
-            self._send_json(
-                {
-                    "ok": False,
-                    "error": "internal",
-                    "message": str(e),
-                    "request_id": request_id,
-                },
-                status=500,
-                request_id=request_id,
-            )
+                report = build_report(
+                    query,
+                    include_osm=True,
+                    candidate_limit=8,
+                    candidate_preview=3,
+                    timeout=timeout,
+                    retries=2,
+                    backoff_seconds=0.6,
+                    intelligence_mode=mode,
+                )
+                _apply_personalized_suitability_scores(
+                    report,
+                    preferences_profile,
+                    preferences_supplied=preferences_supplied,
+                )
+                if coordinate_context:
+                    _attach_coordinate_resolution_context(report, coordinate_context)
+                self._send_json(
+                    {
+                        "ok": True,
+                        "result": _grouped_api_result(
+                            report,
+                            response_mode=response_mode,
+                        ),
+                        "request_id": request_id,
+                    },
+                    request_id=request_id,
+                )
+            except TimeoutError as e:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "timeout",
+                        "message": str(e),
+                        "request_id": request_id,
+                    },
+                    status=HTTPStatus.GATEWAY_TIMEOUT,
+                    request_id=request_id,
+                )
+            except AddressIntelError as e:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "address_intel",
+                        "message": str(e),
+                        "request_id": request_id,
+                    },
+                    status=422,
+                    request_id=request_id,
+                )
+            except (ValueError, json.JSONDecodeError) as e:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "bad_request",
+                        "message": str(e),
+                        "request_id": request_id,
+                    },
+                    status=400,
+                    request_id=request_id,
+                )
+            except Exception as e:  # pragma: no cover
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "internal",
+                        "message": str(e),
+                        "request_id": request_id,
+                    },
+                    status=500,
+                    request_id=request_id,
+                )
 
+        finally:
+            self._finish_request_lifecycle()
     def do_OPTIONS(self) -> None:  # noqa: N802
         request_id = self._request_id()
         request_path = self._normalized_path()
+        self._begin_request_lifecycle(method="OPTIONS", request_path=request_path, request_id=request_id)
 
-        if request_path != "/analyze":
-            self._send_json(
-                {"ok": False, "error": "not_found", "request_id": request_id},
-                status=HTTPStatus.NOT_FOUND,
-                request_id=request_id,
-            )
-            return
+        try:
+            if request_path != "/analyze":
+                self._send_json(
+                    {"ok": False, "error": "not_found", "request_id": request_id},
+                    status=HTTPStatus.NOT_FOUND,
+                    request_id=request_id,
+                )
+                return
 
-        cors_headers = self._cors_headers_for_analyze(include_preflight=True)
-        if cors_headers is None:
-            self._send_json(
-                {
-                    "ok": False,
-                    "error": "cors_origin_not_allowed",
-                    "request_id": request_id,
-                },
-                status=HTTPStatus.FORBIDDEN,
-                request_id=request_id,
-            )
-            return
+            cors_headers = self._cors_headers_for_analyze(include_preflight=True)
+            if cors_headers is None:
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "cors_origin_not_allowed",
+                        "request_id": request_id,
+                    },
+                    status=HTTPStatus.FORBIDDEN,
+                    request_id=request_id,
+                )
+                return
 
-        self.send_response(HTTPStatus.NO_CONTENT)
-        self.send_header("X-Request-Id", request_id)
-        self.send_header("Content-Length", "0")
-        for key, value in cors_headers.items():
-            self.send_header(key, value)
-        self.end_headers()
+            self._capture_response_error(payload=None, status=int(HTTPStatus.NO_CONTENT))
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self.send_header("X-Request-Id", request_id)
+            self.send_header("Content-Length", "0")
+            for key, value in cors_headers.items():
+                self.send_header(key, value)
+            self.end_headers()
+        finally:
+            self._finish_request_lifecycle()
 
 
 def _resolve_port() -> int:
