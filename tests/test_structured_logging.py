@@ -4,10 +4,27 @@ import unittest
 from unittest.mock import patch
 
 from src.api import web_service
-from src.shared.structured_logging import build_event, emit_event, redact_mapping
+from src.shared.structured_logging import (
+    LOG_EVENT_SCHEMA_V1_RECOMMENDED_FIELDS,
+    LOG_EVENT_SCHEMA_V1_REQUIRED_FIELDS,
+    build_event,
+    emit_event,
+    redact_headers,
+    redact_mapping,
+)
 
 
 class TestStructuredLoggingHelpers(unittest.TestCase):
+    def test_schema_v1_field_constants_cover_required_and_recommended_fields(self):
+        self.assertEqual(
+            LOG_EVENT_SCHEMA_V1_REQUIRED_FIELDS,
+            ("ts", "level", "event", "trace_id", "request_id", "session_id"),
+        )
+        self.assertEqual(
+            LOG_EVENT_SCHEMA_V1_RECOMMENDED_FIELDS,
+            ("component", "direction", "status", "duration_ms"),
+        )
+
     def test_build_event_contains_required_keys(self):
         payload = build_event(
             "api.test",
@@ -41,6 +58,19 @@ class TestStructuredLoggingHelpers(unittest.TestCase):
         self.assertEqual(redacted["nested"]["api_token"], "[REDACTED]")
         self.assertEqual(redacted["nested"]["email"], "p***@example.com")
         self.assertIn("p***@example.com", redacted["notes"])
+
+    def test_redact_headers_masks_auth_and_cookie_values(self):
+        redacted = redact_headers(
+            {
+                "Authorization": "Bearer secret-token",
+                "X-Request-Id": "req-1",
+                "Set-Cookie": "session=abc; HttpOnly",
+            }
+        )
+
+        self.assertEqual(redacted["Authorization"], "[REDACTED]")
+        self.assertEqual(redacted["Set-Cookie"], "[REDACTED]")
+        self.assertEqual(redacted["X-Request-Id"], "req-1")
 
     def test_emit_event_writes_json_line(self):
         stream = io.StringIO()

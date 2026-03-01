@@ -233,8 +233,11 @@ Zusätzlich werden pattern-basiert maskiert:
 ## Implementierungsstand BL-340.1 + BL-340.2 + BL-340.3 + BL-340.4
 
 - Shared Helper: `src/shared/structured_logging.py`
+  - `LOG_EVENT_SCHEMA_V1_REQUIRED_FIELDS` (normative Pflichtfelder)
+  - `LOG_EVENT_SCHEMA_V1_RECOMMENDED_FIELDS` (empfohlene Kontextfelder)
   - `build_event(...)`
   - `redact_mapping(...)`
+  - `redact_headers(...)`
   - `emit_event(...)`
 - API-Call-Sites im Service:
   - `service.startup`

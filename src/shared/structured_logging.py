@@ -14,13 +14,20 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, Mapping, TextIO
 
-_REQUIRED_KEYS = (
+LOG_EVENT_SCHEMA_V1_REQUIRED_FIELDS = (
     "ts",
     "level",
     "event",
     "trace_id",
     "request_id",
     "session_id",
+)
+
+LOG_EVENT_SCHEMA_V1_RECOMMENDED_FIELDS = (
+    "component",
+    "direction",
+    "status",
+    "duration_ms",
 )
 
 _SENSITIVE_KEY_MARKERS = (
@@ -92,6 +99,16 @@ def redact_mapping(payload: Mapping[str, Any]) -> dict[str, Any]:
     return redacted
 
 
+def redact_headers(headers: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a redacted copy of HTTP-style headers.
+
+    This is an explicit convenience wrapper around ``redact_mapping`` so call
+    sites can sanitize request/response headers without rebuilding redaction
+    rules locally.
+    """
+    return {str(key): redact_scalar(key=str(key), value=value) for key, value in headers.items()}
+
+
 def build_event(
     event: str,
     *,
@@ -116,7 +133,7 @@ def build_event(
     payload.update(fields)
 
     # Ensure required keys stay present even if overridden through fields.
-    for required_key in _REQUIRED_KEYS:
+    for required_key in LOG_EVENT_SCHEMA_V1_REQUIRED_FIELDS:
         payload.setdefault(required_key, "")
 
     return payload
