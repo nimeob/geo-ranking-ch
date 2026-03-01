@@ -606,6 +606,7 @@ Regelwerk:
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
 - **Status:** ✅ Vollständig abgeschlossen (2026-03-01, BL-30.1 bis BL-30.6 inkl. BL-30.2-Leafs #465/#466 sowie Parent-Sync #106/#128 abgeschlossen); ✅ Follow-up-Track #577 (WPs #585/#586/#587/#588) gemerged (2026-03-01); ✅ zusätzliche Doc-Refinement-WPs (#625/#626/#627/#628/#629 abgeschlossen) (siehe Issues)
+- **Nächster Schritt:** keiner (BL-30 vollständig abgeschlossen).
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
