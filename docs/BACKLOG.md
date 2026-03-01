@@ -25,7 +25,6 @@ Regelwerk:
 - (leer)
 
 ### Later
-- [#522](https://github.com/nimeob/geo-ranking-ch/issues/522) — Lösch-Scheduler mit Vorankündigung implementieren (priority:P2, status:todo)
 - [#523](https://github.com/nimeob/geo-ranking-ch/issues/523) — Hold-Flag pro Dokument implementieren (priority:P2, status:todo)
 - [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, status:blocked)
 - [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, status:blocked)
@@ -847,7 +846,7 @@ Regelwerk:
 - **Folgeschritte:**
   - [x] #520 — Korrektur-Workflow implementieren (abgeschlossen 2026-03-01)
   - [x] #521 — Pflichtfeld Korrekturgrund erzwingen (abgeschlossen 2026-03-01)
-  - [ ] #522 — Lösch-Scheduler mit Vorankündigung implementieren (status:todo, unblocked)
+  - [x] #522 — Lösch-Scheduler mit Vorankündigung implementieren (abgeschlossen 2026-03-01)
   - [ ] #523 — Hold-Flag pro Dokument implementieren (status:todo, unblocked)
   - [ ] #528 — Go-Live-Testlauf durchführen (status:blocked)
   - [ ] #529 — Pre-Go-Live-Readiness-Review durchführen (status:blocked)
@@ -866,6 +865,7 @@ Regelwerk:
   - ✅ #540 abgeschlossen: Backlog-/Rollout-Sync für das Policy-Metadatenmodell vervollständigt (Parent #519 nun vollständig), Betriebs-/Nutzungshinweise in `docs/compliance/POLICY_METADATA_CONTRACT_V1.md` ergänzt und MCS-AT-010 auf automatisierten Nachweis via `tests/test_compliance_policy_metadata_rollout_sync_docs.py` umgestellt.
   - ✅ #526 abgeschlossen: Backup/Restore-Guideline v1 unter [`docs/compliance/BACKUP_RESTORE_GUIDELINE_V1.md`](compliance/BACKUP_RESTORE_GUIDELINE_V1.md) eingeführt (verbindliche RPO/RTO-Ziele, Backup-Policy, Restore-Workflow, quartalsweiser Restore-Drill, Nachweisformat `reports/compliance/backup-restore/<YYYY>/<MM>/<restore_run_id>/`) und per Doku-Regressionstest `tests/test_compliance_backup_restore_guideline_docs.py` abgesichert.
   - ✅ #527 abgeschlossen: Abnahmetestkatalog v1 unter [`docs/compliance/ACCEPTANCE_TEST_CATALOG_V1.md`](compliance/ACCEPTANCE_TEST_CATALOG_V1.md) erstellt (Musskriterien-Matrix MCS-AT-001..010 inkl. Sign-off-/Evidenzschema) und über Doku-Regressionstest `tests/test_compliance_acceptance_test_catalog_docs.py` abgesichert.
+  - ✅ #522 abgeschlossen (2026-03-01): Lösch-Scheduler mit Vorankündigungsmechanismus (`src/compliance/deletion_scheduler.py`) — `DeletionRecord` + `DeletionScheduler` mit State-Machine `pending→notified→executed|canceled`, konfigurierbarem `notice_period_days`, `on_notify`/`on_execute`-Callbacks, Hold-Stub für #523; E2E-Test + 22 Unit-Tests in `tests/test_compliance_deletion_scheduler.py` (alle passed).
   - ✅ #521 abgeschlossen (2026-03-01): Pflichtfeld-Enforcement für korrekturgrund auf API-Ebene (`src/api/compliance_corrections.py`) — HTTP 422 mit `korrekturgrund_required` bei leerem/fehlendem/Placeholder-Feld, Placeholder-Guard (TODO/TBD/N/A/-), Mindestlänge 10 Zeichen, no-side-effect bei Validation-Fehler; Route `POST /compliance/corrections/<document_id>` in `web_service.py` eingehängt; 20 API-Enforcement-Tests in `tests/test_compliance_correction_api_enforcement.py`.
   - ✅ #520 abgeschlossen (2026-03-01): Korrektur-Workflow implementiert (`src/compliance/correction_workflow.py`) — `CorrectionMetadataV1` mit allen 6 Pflichtfeldern (version, supersedes_version, korrekturgrund, wirksam_ab, approved_by_role, evidence_ref), Placeholder-/Leerfeld-Guard, `VersionedDocument` mit append-only History (Original nie überschreibbar), `CorrectionStore` mit Duplikat-/Overwrite-Guard; 26 Regressionstests in `tests/test_compliance_correction_workflow.py` (alle passed).
 
