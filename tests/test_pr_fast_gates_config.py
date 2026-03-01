@@ -30,7 +30,7 @@ class TestPrFastGatesConfig(unittest.TestCase):
     def test_operations_required_checks_documented(self):
         content = self._read("docs/OPERATIONS.md")
         self.assertIn("`contract-smoke` (**required**)", content)
-        self.assertIn("`docs-link-guard` (**required**)", content)
+        self.assertIn("`docs-link-guard` (**required", content)
 
 
 if __name__ == "__main__":

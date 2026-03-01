@@ -34,10 +34,7 @@ if "$PYTHON_BIN" -m venv "$VENV_DIR/.venv" >"$VENV_ERR_FILE" 2>&1; then
 
   echo "docs quality gate: PASS"
 else
-  echo "WARN: venv-Erstellung fehlgeschlagen, fallback ohne frisches venv." >&2
+  echo "ERROR: venv-Erstellung fehlgeschlagen (fail-closed, kein degraded fallback erlaubt)." >&2
   cat "$VENV_ERR_FILE" >&2 || true
-
-  cd "$REPO_ROOT"
-  "$PYTHON_BIN" -m pytest -q tests/test_user_docs.py tests/test_markdown_links.py
-  echo "docs quality gate: PASS (fallback ohne venv)"
+  exit 1
 fi

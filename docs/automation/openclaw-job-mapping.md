@@ -51,7 +51,7 @@ Der Runner beendet sich mit dem Exit-Code des fehlgeschlagenen Schritts und kann
 
 1. **contract-tests / crawler-regression / docs-quality**
    - laufen deterministisch und script-basiert → gute Cron-Kandidaten.
-   - PR-Event-Parität wird MVP-seitig über häufige Surrogate-Läufe + Fehler-Delivery abgedeckt.
+   - Für die Fast-Gates ist PR-Parität wieder nativ hergestellt (`contract-smoke`, `docs-link-guard` auf `pull_request`); OpenClaw-Surrogate-Läufe bleiben als zusätzlicher Betriebs-/Fallback-Pfad für Evidenz und Wiederholbarkeit erhalten.
 
 2. **worker-claim-priority**
    - benötigt Issue/Label-Event-Logik; OpenClaw übernimmt dies als periodischen Reconciler.
