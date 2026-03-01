@@ -138,7 +138,7 @@ jobs:
             local trace_enabled="${TRACE_DEBUG_ENABLED_DEV:-true}"
             local trace_lookback="${TRACE_DEBUG_LOOKBACK_SECONDS_DEV:-86400}"
             local trace_max_events="${TRACE_DEBUG_MAX_EVENTS_DEV:-500}"
-            local trace_cw_log_group="${TRACE_DEBUG_CW_LOG_GROUP_DEV:-/ecs/dev/swisstopo-api}"
+            local trace_cw_log_group="${TRACE_DEBUG_CW_LOG_GROUP_DEV:-/swisstopo/dev/ecs/api}"
             local trace_cw_log_stream_prefix="${TRACE_DEBUG_CW_LOG_STREAM_PREFIX_DEV:-}"
 
             local current_taskdef_arn
