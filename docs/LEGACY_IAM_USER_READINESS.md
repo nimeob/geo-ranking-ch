@@ -223,13 +223,43 @@ Verifizierter Nachweislauf im neuen Default-Pfad:
 
 Interpretation: Der neue Runtime-Default eliminiert den statischen Env-Key-Befund im aktiven Prozesskontext (temporäre STS-Session-Credentials statt Legacy-User-Key als Startzustand).
 
-### Externe Consumer-Matrix (BL-15 Iteration, aktualisiert 2026-02-27)
+### Read-only Recheck (2026-03-01, BL-15.r2.wp2 Runtime-Injection)
+
+Vergleichslauf zwischen ambientem Runtime-Kontext und AssumeRole-first-Kapselung:
+
+- Ambient Runtime:
+  - `./scripts/audit_legacy_runtime_consumers.sh` → Exit `30` (`legacy caller` + `credential_mode=long-lived-static`)
+  - `python3 scripts/check_bl17_oidc_only_guard.py --output-json artifacts/bl17/oidc-only-guard-20260301-default.json --posture-report-json artifacts/bl17/posture-report-20260301-default.json --runtime-report-json artifacts/bl17/runtime-credential-inventory-20260301-default.json --cloudtrail-log artifacts/bl17/legacy-cloudtrail-audit-20260301-default.log --cloudtrail-lookback-hours 6` → Exit `10`
+- AssumeRole-first kapselter Runtime-Pfad:
+  - `./scripts/openclaw_runtime_assumerole_exec.sh ./scripts/audit_legacy_runtime_consumers.sh` → Exit `0`
+  - `./scripts/openclaw_runtime_assumerole_exec.sh ./scripts/check_bl17_oidc_assumerole_posture.sh --report-json artifacts/bl17/posture-report-20260301-assumerole.json` → Exit `0`
+  - `./scripts/openclaw_runtime_assumerole_exec.sh python3 scripts/inventory_bl17_runtime_credential_paths.py --output-json artifacts/bl17/runtime-credential-inventory-20260301-assumerole.json` → Exit `0`
+  - `./scripts/openclaw_runtime_assumerole_exec.sh python3 scripts/check_bl17_oidc_only_guard.py --assume-role-first --output-json artifacts/bl17/oidc-only-guard-20260301-assumerole.json --posture-report-json artifacts/bl17/posture-report-20260301-assumerole.json --runtime-report-json artifacts/bl17/runtime-credential-inventory-20260301-assumerole.json --cloudtrail-log artifacts/bl17/legacy-cloudtrail-audit-20260301-assumerole.log --cloudtrail-lookback-hours 6` → Exit `10` (fail **nur** wegen weiterhin vorhandener Legacy-CloudTrail-Events).
+
+Interpretation:
+- Runtime-Legacy-Injection ist im ambienten Prozesskontext weiterhin ein Risiko.
+- Der gekapselte AssumeRole-first Pfad ist reproduzierbar sauber (`posture=ok`, `runtime_inventory=ok`) und stellt den kontrollierten Standardpfad dar.
+- Offene Restarbeit liegt primär in externer Legacy-Nutzung laut CloudTrail (nicht im lokalen Wrapper-Pfad).
+
+Temporäre Ausnahme-Klassifikation (wp2, evidenzpflichtig):
+
+| Feld | Wert |
+|---|---|
+| exception_id | `bl15-r2-wp2-runtime-legacy-env-static-keys` |
+| Scope | Ambient OpenClaw-Runtime mit statischen AWS-Env-Keys außerhalb des AssumeRole-Wrappers |
+| Control/Mitigation | AWS-relevante Checks/Ops nur über `./scripts/openclaw_runtime_assumerole_exec.sh` bzw. Guard-Mode `--assume-role-first` ausführen |
+| Owner | Nico + platform-ops |
+| Sunset | 2026-03-15 (bis dahin Quelle der Ambient-Injection identifizieren und entfernen) |
+| Follow-up | #570 |
+| Evidenz | `artifacts/bl15/runtime-audit-20260301-default.log`, `artifacts/bl15/runtime-audit-20260301-assumerole.log`, `artifacts/bl17/oidc-only-guard-20260301-default.json`, `artifacts/bl17/oidc-only-guard-20260301-assumerole.json` |
+
+### Externe Consumer-Matrix (BL-15 Iteration, aktualisiert 2026-03-01)
 
 Zur strukturierten Abarbeitung der offenen Consumer wurde ein dediziertes Tracking ergänzt:
 
 - `docs/LEGACY_CONSUMER_INVENTORY.md`
   - Abschnitt `3.1`: verbindliches Evidence-Schema pro Target (`caller_arn`, `credential_injection`, `aws_jobs_or_scripts`, `migration_path`, `cutover_target_date`, `evidence_refs`)
-  - Abschnitt `3.2`: initial befüllte Target-Registry mit stabilen `target_id`s für externe Runner/Cron/Laptop-Profile
+  - Abschnitt `3.2`: aktualisierte Target-Registry mit stabilen `target_id`s (Pflichtfelder ohne offene `TBD`-Platzhalter, inkl. Owner/Cutover-Blocker)
 
 Aktueller Kurzbefund daraus:
 

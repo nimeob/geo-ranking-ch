@@ -139,10 +139,11 @@ Zeitfenster-Aggregation (z. B. für 48h Legacy-Fallback-Beobachtung):
 OIDC-only Guard (konsolidierter Runtime+CloudTrail-Nachweis, BL-17.wp7):
 ```bash
 ./scripts/check_bl17_oidc_only_guard.py \
+  --assume-role-first \
   --output-json artifacts/bl17/oidc-only-guard-report.json \
   --cloudtrail-lookback-hours 24
 ```
-- Output-Schema: `status = ok|warn|fail` + `checks.*.evidence_paths`.
+- Output-Schema: `status = ok|warn|fail`, `execution_mode = ambient-runtime|assume-role-first` + `checks.*.evidence_paths`.
 - Exit `0`: konsolidiert `ok` (kein Legacy-Befund in Posture/Runtime/CloudTrail).
 - Exit `10`: konsolidiert `fail` (Legacy-Befund erkannt).
 - Exit `20`: konsolidiert `warn` (Teilcheck inkonsistent/nicht eindeutig).
@@ -202,6 +203,7 @@ Optionaler Konsolidierungs-Check:
 
 ```bash
 ./scripts/check_bl17_oidc_only_guard.py \
+  --assume-role-first \
   --output-json artifacts/legacy-fallback/<fallback_id>-oidc-only-guard.json \
   --cloudtrail-lookback-hours 24
 ```

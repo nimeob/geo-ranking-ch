@@ -52,6 +52,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=int(os.environ.get("LOOKBACK_HOURS", "6")),
         help="Lookback-Fenster für CloudTrail-Audit in Stunden (default: LOOKBACK_HOURS oder 6)",
     )
+    parser.add_argument(
+        "--assume-role-first",
+        action="store_true",
+        help=(
+            "Führt Guard-Checks in einem AssumeRole-first Kontext aus "
+            "(über scripts/openclaw_runtime_assumerole_exec.sh)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -156,21 +164,29 @@ def main(argv: list[str]) -> int:
     posture_script = scripts_dir / "check_bl17_oidc_assumerole_posture.sh"
     runtime_script = scripts_dir / "inventory_bl17_runtime_credential_paths.py"
     cloudtrail_script = scripts_dir / "audit_legacy_cloudtrail_consumers.sh"
+    wrapper_script = scripts_dir / "openclaw_runtime_assumerole_exec.sh"
+
+    execution_mode = "assume-role-first" if args.assume_role_first else "ambient-runtime"
 
     output_path = resolve_path(repo_root, args.output_json)
     posture_report_path = resolve_path(repo_root, args.posture_report_json)
     runtime_report_path = resolve_path(repo_root, args.runtime_report_json)
     cloudtrail_log_path = resolve_path(repo_root, args.cloudtrail_log)
 
+    required_scripts = [posture_script, runtime_script, cloudtrail_script]
+    if args.assume_role_first:
+        required_scripts.append(wrapper_script)
+
     missing_scripts = [
         str(path)
-        for path in (posture_script, runtime_script, cloudtrail_script)
+        for path in required_scripts
         if not path.is_file()
     ]
     if missing_scripts:
         report = {
             "version": 1,
             "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "execution_mode": execution_mode,
             "status": "warn",
             "summary": "required BL-17 scripts missing",
             "missing_scripts": missing_scripts,
@@ -187,19 +203,24 @@ def main(argv: list[str]) -> int:
     runtime_report_path.parent.mkdir(parents=True, exist_ok=True)
     cloudtrail_log_path.parent.mkdir(parents=True, exist_ok=True)
 
+    def maybe_wrap(command: list[str]) -> list[str]:
+        if args.assume_role_first:
+            return [str(wrapper_script), *command]
+        return command
+
     posture_result = run_command(
-        [str(posture_script), "--report-json", str(posture_report_path)],
+        maybe_wrap([str(posture_script), "--report-json", str(posture_report_path)]),
         cwd=repo_root,
     )
     runtime_result = run_command(
-        [sys.executable, str(runtime_script), "--output-json", str(runtime_report_path)],
+        maybe_wrap([sys.executable, str(runtime_script), "--output-json", str(runtime_report_path)]),
         cwd=repo_root,
     )
 
     cloudtrail_env = os.environ.copy()
     cloudtrail_env["LOOKBACK_HOURS"] = str(args.cloudtrail_lookback_hours)
     cloudtrail_result = run_command(
-        [str(cloudtrail_script)],
+        maybe_wrap([str(cloudtrail_script)]),
         cwd=repo_root,
         env=cloudtrail_env,
     )
@@ -254,6 +275,7 @@ def main(argv: list[str]) -> int:
     report = {
         "version": 1,
         "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "execution_mode": execution_mode,
         "status": overall_status,
         "summary": "BL-17 OIDC-only Guard (runtime + cloudtrail) consolidated result",
         "checks": checks,
