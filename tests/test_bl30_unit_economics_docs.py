@@ -41,9 +41,13 @@ class TestBL30UnitEconomicsDocs(unittest.TestCase):
             "#459 — BL-30.1.wp2 Unit-Economics-Hypothesen je Tier/Segment strukturieren (abgeschlossen 2026-03-01)",
             backlog,
         )
-        self.assertIn(
-            "**Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf in #106/#113 identifizieren (ggf. zuerst atomisieren), da #498 abgeschlossen ist und #106-Childs (#465/#466) aktuell gate-blocked sind.",
-            backlog,
+        self.assertTrue(
+            (
+                "**Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf in #106/#113 identifizieren (ggf. zuerst atomisieren), da #498 abgeschlossen ist und #106-Childs (#465/#466) aktuell gate-blocked sind."
+                in backlog
+            )
+            or ("**Nächster Schritt:** keiner (BL-30 vollständig abgeschlossen)." in backlog),
+            msg="BACKLOG.md sollte entweder den historischen BL-30-Nächster-Schritt oder den finalen Abschlussstand enthalten.",
         )
 
 
