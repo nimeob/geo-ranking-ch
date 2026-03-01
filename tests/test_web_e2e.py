@@ -986,6 +986,7 @@ class TestWebServiceE2E(unittest.TestCase):
             f"{self.base_url}/analyze",
             payload={"query": "__timeout__"},
             headers={"Authorization": "Bearer bl18-token"},
+            timeout=20.0,
         )
         self.assertEqual(status, 504)
         self.assertEqual(body.get("error"), "timeout")

@@ -49,7 +49,11 @@ class TestWebServiceCoordinateInput(unittest.TestCase):
         self.assertEqual(context.get("input_mode"), "coordinates")
         self.assertEqual(context.get("snap_mode"), "ch_bounds")
         self.assertFalse(context.get("snap_applied"))
-        resolver.assert_called_once_with(lat=47.4245, lon=9.3767)
+        resolver.assert_called_once_with(
+            lat=47.4245,
+            lon=9.3767,
+            upstream_log_emitter=None,
+        )
 
     def test_snaps_near_border_in_ch_bounds_mode(self):
         min_lat = float(web_service._CH_WGS84_BOUNDS["lat_min"])
