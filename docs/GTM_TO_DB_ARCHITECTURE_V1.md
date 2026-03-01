@@ -140,5 +140,5 @@ kanonisches, multi-tenant-fähiges Datenmodell für geo-ranking.
 ## Übergabe an Folge-Work-Packages
 
 - **#586** konkretisiert Entitlement-/Billing-Lifecycle inkl. idempotenter Eventverarbeitung.
-- **#587** definiert das Async-Analyze-Domänenmodell (`jobs`, `job_events`, `job_results`, Notifications).
+- **#587** definiert das Async-Analyze-Domänenmodell (`jobs`, `job_events`, `job_results`, Notifications) in [`docs/api/async-analyze-domain-design-v1.md`](api/async-analyze-domain-design-v1.md).
 - **#588** liefert den MVP→Scale-Rollout inkl. atomisierbarer Umsetzungs-Issues.
