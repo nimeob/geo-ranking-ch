@@ -739,7 +739,7 @@ Regelwerk:
   - ✅ Tests: `tests/test_debug_trace.py`, `tests/test_web_service_debug_trace_api.py`.
   - ✅ #434 abgeschlossen: GUI-MVP um dediziertes Trace-Debug-Panel erweitert (`request_id` + Deep-Link `/gui?view=trace&request_id=<id>`), Timeline-Loader/Renderer mit robusten Defaults für Teil-/Fehldaten sowie klare `loading/success/empty/unknown/error`-Zustände umgesetzt (`src/shared/gui_mvp.py`, `src/ui/service.py`, `docs/gui/GUI_MVP_STATE_FLOW.md`).
   - ✅ Regressionen für Route/State-Flow + UI-Service-Rewrite ergänzt (`tests/test_web_service_gui_mvp.py`, `tests/test_ui_service.py`).
-  - ✅ #435 abgeschlossen: Result-Panel zeigt `request_id` jetzt als aktive Debug-Einstiegsfläche mit klickbarem `Trace ansehen`-Link (öffnet/lädt Trace-View mit identischer ID) und `Copy ID`-Action inkl. `aria-live`-Feedback + Fallback-Copy-Strategie (`src/shared/gui_mvp.py`, `docs/gui/GUI_MVP_STATE_FLOW.md`).
+  - ✅ #435 abgeschlossen: Result-Panel zeigt `request_id` jetzt als aktive Debug-Einstiegsfläche mit klickbarem `Trace ansehen`-Link (öffnet/lädt Trace-View mit identischer ID) und `Copy ID`-Action inkl. `aria-live`-Feedback + Fallback-Copy-Strategie (`src/shared/gui_mvp.py`, `docs/gui/GUI_MVP_STATE_FLOW.md`). Reopen durch Crawler-Audit wurde am 2026-03-01 per Checklist-Sync im Issue bereinigt.
   - ✅ #436 abgeschlossen: reproduzierbarer Smoke-Test für Analyze→Trace-Lookup ergänzt (`tests/test_trace_debug_smoke.py`) und operative Nutzung/Limits/Security in `docs/testing/TRACE_DEBUG_SMOKE_FLOW.md` dokumentiert (inkl. Verlinkung aus `docs/testing/TRACE_DEBUG_API.md`).
 - **Nächster Schritt:** keiner (BL-422 vollständig abgeschlossen).
 
