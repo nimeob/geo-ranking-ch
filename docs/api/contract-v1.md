@@ -245,8 +245,9 @@ BL-30.3-Referenz (Deep-Mode, v1-Rahmen):
 
 BL-30.6-Referenz (Mobile Live-Geolocation, v1-Rahmen):
 - [`docs/api/mobile-live-geolocation-contract-v1.md`](./mobile-live-geolocation-contract-v1.md)
+- [`docs/gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md`](../gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md)
 - Mobile-Geolocation wird additiv über `options.mobile_geolocation` und `result.status.mobile_geolocation` modelliert.
-- Ohne Mobile-Envelope bleibt das bestehende `/analyze`-Verhalten unverändert.
+- Ohne Mobile-Envelope bleibt das bestehende `/analyze`-Verhalten unverändert; UI-States für Permission/Retry/Offline sind separat in der BL-30.6.wp2-Doku normiert.
 
 ## 15) BL-20.4.c Preference-Profile Envelope
 

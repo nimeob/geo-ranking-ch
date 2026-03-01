@@ -108,3 +108,7 @@ Hinweis: Die Regression für ausgelieferte GUI-Marker läuft zusätzlich über `
 ## Forward-Compatibility (BL-30)
 
 Die GUI bleibt bewusst **API-first**: keine UI-exklusive Fachlogik, alle fachlichen Ergebnisse kommen aus `POST /analyze`. Der Kartenklick nutzt denselben Backend-Contract wie zukünftige Mobile-/HTML5-Clients (nur anderer Input-Kanal), wodurch BL-30.4/30.6 ohne Rewrite anschließen kann. Die Kernfaktoren-Darstellung wertet Explainability additiv aus mehreren möglichen Pfaden aus, sodass zukünftige Schema-Erweiterungen die bestehende UI nicht brechen.
+
+Spezifische BL-30.6-Referenzen:
+- API-Contract (wp1): [`docs/api/mobile-live-geolocation-contract-v1.md`](../api/mobile-live-geolocation-contract-v1.md)
+- Mobile State-/Interaction-Contract (wp2): [`docs/gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md`](./MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md)

@@ -82,7 +82,7 @@ Referenz-Hauptvertrag:
 
 ## 7) Offene Folgepunkte
 
-- #503 — Mobile State-/Interaction-Contract für Permission/Retry/Offline.
+- #503 — Mobile State-/Interaction-Contract für Permission/Retry/Offline (v1-Doku: [`docs/gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md`](../gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md)).
 - #504 — Mobile Trace-/Privacy-Guardrails inkl. Evidence-Schema.
 
 ## 8) Definition-of-Done-Check (#502)
