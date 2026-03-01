@@ -800,7 +800,7 @@ Regelwerk:
 - **Ziel:** Governance-/Compliance-Vorgaben in verbindliche Policies, technische Controls und Abnahmetests überführen.
 - **Work-Packages:**
   - [x] #515 — Policy-Standard finalisieren (Version, Begründung, Wirksam-ab, Impact-Pflicht) (abgeschlossen 2026-03-01)
-  - [ ] #516 — Korrektur-Richtlinie freigeben (nur neue Version + Pflichtfeld Grund)
+  - [x] #516 — Korrektur-Richtlinie freigeben (nur neue Version + Pflichtfeld Grund) (abgeschlossen 2026-03-01)
   - [ ] #517 — Hold-Governance definieren (wer darf Hold setzen/aufheben)
   - [ ] #518 — Kontrollplan für Export- und Löschprozesse definieren
   - [ ] #519 — Datenmodell erweitern: Policy-Versionierung + Metadatenfelder
@@ -820,6 +820,7 @@ Regelwerk:
   - [ ] #532 — Schulung für relevante Rollen durchführen (status:blocked)
 - **Fortschritt (2026-03-01):**
   - ✅ #515 abgeschlossen: verbindliche Policy-Vorlage in [`docs/compliance/POLICY_STANDARD_V1.md`](compliance/POLICY_STANDARD_V1.md) eingeführt (Pflichtfelder `version`, `begruendung`, `wirksam_ab`, `impact_summary` + Freigabe-Workflow v1 und Copy/Paste-Referenztemplate).
+  - ✅ #516 abgeschlossen: Korrektur-Richtlinie in [`docs/compliance/KORREKTUR_RICHTLINIE_V1.md`](compliance/KORREKTUR_RICHTLINIE_V1.md) veröffentlicht (Original bleibt unverändert, Korrekturen nur als neue Version, Pflichtfeld `korrekturgrund`, inkl. Freigabe-/Kommunikationskriterien).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
