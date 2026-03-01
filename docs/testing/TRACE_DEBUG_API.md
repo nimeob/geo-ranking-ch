@@ -54,3 +54,7 @@ Timeline-Details werden vor Auslieferung redacted (u. a. `authorization`, `token
 ## Tests
 - `tests/test_debug_trace.py`
 - `tests/test_web_service_debug_trace_api.py`
+- `tests/test_trace_debug_smoke.py`
+
+## E2E-Smoke-Dokumentation
+- [`docs/testing/TRACE_DEBUG_SMOKE_FLOW.md`](TRACE_DEBUG_SMOKE_FLOW.md)
