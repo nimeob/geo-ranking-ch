@@ -62,10 +62,12 @@ review_intervall: yearly
 
 ## Abgrenzung / Nicht-Ziele
 
-- Dieser Standard implementiert **keine** Laufzeitlogik im Backend.
-- Technische Umsetzungspakete (z. B. Datenmodell, Logging, Scheduler) werden in separaten Issues geführt (u. a. #519, #525, #522).
+- Dieser Standard ist primär der **fachliche Referenzrahmen**; er ersetzt keine vollständige Prozess-/Workflow-Automation.
+- Technische Umsetzungspakete (z. B. Logging, Scheduler, Enforcements in Fach-Workflows) werden in separaten Issues geführt (u. a. #525, #522).
 
 ## Nachweis
 
 - Backlog-Sync: `docs/BACKLOG.md`
-- Umsetzung/Claim-Historie: `https://github.com/nimeob/geo-ranking-ch/issues/515`
+- Umsetzung/Claim-Historie (Policy-Standard): `https://github.com/nimeob/geo-ranking-ch/issues/515`
+- Runtime-Metadatenmodell (v1): `src/compliance/policy_metadata.py` (Issue #538)
+- Regressionstest Runtime-Modell: `tests/test_compliance_policy_metadata_model.py`

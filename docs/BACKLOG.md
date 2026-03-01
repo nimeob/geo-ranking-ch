@@ -803,7 +803,10 @@ Regelwerk:
   - [x] #516 — Korrektur-Richtlinie freigeben (nur neue Version + Pflichtfeld Grund) (abgeschlossen 2026-03-01)
   - [x] #517 — Hold-Governance definieren (wer darf Hold setzen/aufheben) (abgeschlossen 2026-03-01)
   - [x] #518 — Kontrollplan für Export- und Löschprozesse definieren (abgeschlossen 2026-03-01)
-  - [ ] #519 — Datenmodell erweitern: Policy-Versionierung + Metadatenfelder
+  - [ ] #519 — Datenmodell erweitern: Policy-Versionierung + Metadatenfelder (atomisiert in #538/#539/#540)
+    - [x] #538 — BL-342.wp5.wp1: Policy-Metadatenmodell v1 im Code einführen (abgeschlossen 2026-03-01)
+    - [ ] #539 — BL-342.wp5.wp2: Policy-Metadaten-Contract + Beispielartefakte dokumentieren
+    - [ ] #540 — BL-342.wp5.wp3: Backlog-/Rollout-Sync für Policy-Metadatenmodell abschließen
   - [ ] #524 — Externen Direktzugriff technisch unterbinden
   - [ ] #525 — Export-Logging implementieren (wer/wann/Kanal)
   - [ ] #526 — Backup/Restore-Guideline dokumentieren
@@ -823,6 +826,7 @@ Regelwerk:
   - ✅ #516 abgeschlossen: Korrektur-Richtlinie in [`docs/compliance/KORREKTUR_RICHTLINIE_V1.md`](compliance/KORREKTUR_RICHTLINIE_V1.md) veröffentlicht (Original bleibt unverändert, Korrekturen nur als neue Version, Pflichtfeld `korrekturgrund`, inkl. Freigabe-/Kommunikationskriterien).
   - ✅ #517 abgeschlossen: Hold-Governance in [`docs/compliance/HOLD_GOVERNANCE_V1.md`](compliance/HOLD_GOVERNANCE_V1.md) definiert (Rollen-/Berechtigungsmatrix, Vier-Augen-Freigaben, Entscheidungswege für Setzen/Aufheben, Pflicht-Nachweise inkl. `review_due_at`).
   - ✅ #518 abgeschlossen: Kontrollplan für Export-/Löschkontrollen in [`docs/compliance/EXPORT_DELETE_CONTROL_PLAN_V1.md`](compliance/EXPORT_DELETE_CONTROL_PLAN_V1.md) eingeführt (verbindliche Kontrollfrequenzen, kombinierte Stichprobenregeln inkl. `sampling_seed`, standardisiertes Nachweispaket unter `reports/compliance/controls/<YYYY>/<MM>/<control_run_id>/`).
+  - ✅ #538 abgeschlossen: Runtime-Policy-Metadatenmodell v1 ergänzt (`src/compliance/policy_metadata.py`) inkl. Validierungs-/Serialisierungslogik und Regressionstest `tests/test_compliance_policy_metadata_model.py`; Parent #519 für risikoarme Iterationen in #538/#539/#540 atomisiert.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
