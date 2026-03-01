@@ -403,6 +403,11 @@ Smoke-Verhalten:
 | `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`), falls `SERVICE_API_BASE_URL` nicht genutzt wird |
 | `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Deploy-Workflow den zusätzlichen `/debug/trace`-Sanity-Check |
 
+> Hinweis zur Container-Auflösung (ECS):
+> - Der Deploy-Workflow erwartet, dass `ECS_API_CONTAINER_NAME`/`ECS_UI_CONTAINER_NAME` exakt zu den Containernamen in der jeweiligen Task-Definition passen.
+> - Sicherheitsnetz: Falls ein Name nicht passt und die Task-Definition **genau einen** Container enthält, wird dieser automatisch verwendet und als `::warning::` im Workflow geloggt.
+> - Bei mehreren Containern ohne exakten Match bricht der Workflow bewusst mit `::error::` ab, um stilles No-Op-Deploy zu verhindern.
+
 **OIDC-Rollenbindung (AWS):**
 - Workflow verwendet `aws-actions/configure-aws-credentials@v4` mit
   `role-to-assume: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`.

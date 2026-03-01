@@ -49,3 +49,34 @@ def test_deploy_workflow_runs_post_deploy_verification_step():
 
     missing = [snippet for snippet in required if snippet not in text]
     assert not missing, f"deploy.yml fehlt Post-Deploy-Verifikation: {missing}"
+
+
+def test_deploy_workflow_guards_against_container_name_mismatches():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "Container '$container' not found for service '$service'. Fallback to single taskdef container",
+        "Container '$container' not found for service '$service'. Available containers",
+        "Taskdef update failed for service '$service' container",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"deploy.yml fehlt Container-Mismatch-Guardrail: {missing}"
+
+
+def test_deployment_aws_doc_mentions_container_resolution_guardrail():
+    doc = Path("docs/DEPLOYMENT_AWS.md")
+    assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "Hinweis zur Container-Auflösung (ECS)",
+        "ECS_API_CONTAINER_NAME`/`ECS_UI_CONTAINER_NAME`",
+        "genau einen",
+        "stilles No-Op-Deploy",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"DEPLOYMENT_AWS.md fehlt Container-Auflösungs-Hinweis: {missing}"

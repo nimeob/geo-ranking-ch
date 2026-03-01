@@ -142,8 +142,24 @@ jobs:
               --task-definition "$current_taskdef_arn" \
               --query 'taskDefinition' > taskdef.json
 
+            local resolved_container="$container"
+            if ! jq -e --arg CONTAINER "$container" '.containerDefinitions | any(.name == $CONTAINER)' taskdef.json >/dev/null; then
+              local container_count
+              container_count=$(jq '.containerDefinitions | length' taskdef.json)
+
+              if [ "$container_count" -eq 1 ]; then
+                resolved_container=$(jq -r '.containerDefinitions[0].name' taskdef.json)
+                echo "::warning::Container '$container' not found for service '$service'. Fallback to single taskdef container '$resolved_container'."
+              else
+                local available_containers
+                available_containers=$(jq -r '.containerDefinitions[].name' taskdef.json | paste -sd, -)
+                echo "::error::Container '$container' not found for service '$service'. Available containers: ${available_containers}."
+                exit 1
+              fi
+            fi
+
             jq \
-              --arg CONTAINER "$container" \
+              --arg CONTAINER "$resolved_container" \
               --arg IMAGE "$image" \
               --arg APP_VERSION "$app_version" \
               --arg GIT_SHA "$git_sha" '
@@ -175,6 +191,13 @@ jobs:
                     )
                 )
             ' taskdef.json > taskdef-new.json
+
+            local resolved_image
+            resolved_image=$(jq -r --arg CONTAINER "$resolved_container" '.containerDefinitions[] | select(.name == $CONTAINER) | .image' taskdef-new.json)
+            if [ "$resolved_image" != "$image" ]; then
+              echo "::error::Taskdef update failed for service '$service' container '$resolved_container' (resolved image: '$resolved_image', expected: '$image')."
+              exit 1
+            fi
 
             local new_taskdef_arn
             new_taskdef_arn=$(aws ecs register-task-definition \
