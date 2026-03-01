@@ -809,7 +809,7 @@ Regelwerk:
     - [ ] #540 — BL-342.wp5.wp3: Backlog-/Rollout-Sync für Policy-Metadatenmodell abschließen
   - [x] #524 — Externen Direktzugriff technisch unterbinden (abgeschlossen 2026-03-01)
   - [ ] #525 — Export-Logging implementieren (wer/wann/Kanal)
-  - [ ] #526 — Backup/Restore-Guideline dokumentieren
+  - [x] #526 — Backup/Restore-Guideline dokumentieren (abgeschlossen 2026-03-01)
   - [ ] #527 — Abnahmetests für Minimum-Compliance-Set erstellen
 - **Blocked Folgeschritte (abhängig von WP oben):**
   - [ ] #520 — Korrektur-Workflow implementieren (status:blocked)
@@ -828,6 +828,7 @@ Regelwerk:
   - ✅ #518 abgeschlossen: Kontrollplan für Export-/Löschkontrollen in [`docs/compliance/EXPORT_DELETE_CONTROL_PLAN_V1.md`](compliance/EXPORT_DELETE_CONTROL_PLAN_V1.md) eingeführt (verbindliche Kontrollfrequenzen, kombinierte Stichprobenregeln inkl. `sampling_seed`, standardisiertes Nachweispaket unter `reports/compliance/controls/<YYYY>/<MM>/<control_run_id>/`).
   - ✅ #524 abgeschlossen: explizite Runtime-Sperre für externe Direktlogin-Routen in `src/api/web_service.py` ergänzt (`403` + `external_direct_login_disabled`, Audit-Event `api.auth.direct_login.blocked`), Compliance-Doku [`docs/compliance/EXTERNAL_DIRECT_ACCESS_CONTROL_V1.md`](compliance/EXTERNAL_DIRECT_ACCESS_CONTROL_V1.md) eingeführt und per E2E-/Doku-Tests (`tests/test_web_e2e.py`, `tests/test_compliance_external_direct_access_control_docs.py`) regressionsgesichert.
   - ✅ #538 abgeschlossen: Runtime-Policy-Metadatenmodell v1 ergänzt (`src/compliance/policy_metadata.py`) inkl. Validierungs-/Serialisierungslogik und Regressionstest `tests/test_compliance_policy_metadata_model.py`; Parent #519 für risikoarme Iterationen in #538/#539/#540 atomisiert.
+  - ✅ #526 abgeschlossen: Backup/Restore-Guideline v1 unter [`docs/compliance/BACKUP_RESTORE_GUIDELINE_V1.md`](compliance/BACKUP_RESTORE_GUIDELINE_V1.md) eingeführt (verbindliche RPO/RTO-Ziele, Backup-Policy, Restore-Workflow, quartalsweiser Restore-Drill, Nachweisformat `reports/compliance/backup-restore/<YYYY>/<MM>/<restore_run_id>/`) und per Doku-Regressionstest `tests/test_compliance_backup_restore_guideline_docs.py` abgesichert.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
