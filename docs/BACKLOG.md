@@ -236,7 +236,7 @@ Regelwerk:
 - **Priorität:** P2
 - **Aufwand:** S
 - **Abhängigkeiten:** BL-03
-- **Status:** ✅ Abgeschlossen (Architekturentscheid 2026-03-01: externer Consumer bleibt dauerhaft aktiv, kein weiterer Handlungsbedarf)
+- **Status:** ✅ Abgeschlossen (Architekturentscheid 2026-03-01: externer Consumer `76.13.144.185` = **OpenClaw-Umgebung** (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt); bleibt dauerhaft aktiv (decision: retained), kein weiterer Handlungsbedarf)
 - **Akzeptanzkriterien:**
   - Read-only Evidenz zu aktueller Nutzung des Legacy-Users `swisstopo-api-deploy` dokumentiert. ✅
   - Risikoarme Decommission-Checkliste (ohne direkte Abschaltung) liegt vor. ✅
@@ -270,7 +270,7 @@ Regelwerk:
   - ✅ 2026-03-01: #567 abgeschlossen (BL-15.r2.wp3): Disable-Canary gegen bestätigte Zielarchitektur neu bewertet; Standardentscheid als `entfällt` (kein Pflicht-Blocker) dokumentiert, optionaler Härtungs-/Failover-Pfad mit Triggern/Nachweisanforderungen in `docs/LEGACY_IAM_USER_READINESS.md` festgehalten und Parent-Sync vorbereitet.
   - ✅ 2026-03-01: #568 abgeschlossen (BL-15.r2.wp4): finale Go/No-Go-Entscheidung in `docs/LEGACY_IAM_USER_READINESS.md` auf aktuellen Gate-Stand synchronisiert (G1/G2 grün, G3 rot, G4/G5 gelb), Entscheidung **NO-GO** bestätigt und Parent-/Backlog-Sync abgeschlossen.
   - ✅ 2026-03-01: #564 abgeschlossen (BL-15.r2 Parent-Closeout): Parent-Checklist/DoD final bestätigt (wp1–wp4 erledigt), Abschlussnachweise aus PRs #582/#583 und Child-PRs #579/#580/#581 im Parent-Issue konsolidiert.
-  - ✅ 2026-03-01: **Architekturentscheid** — Externer Consumer (`76.13.144.185`) bleibt dauerhaft aktiv. Gate G3 (Consumer-Migration) entfällt als Blocking-Kriterium. BL-15 ist vollständig abgeschlossen.
+  - ✅ 2026-03-01: **Architekturentscheid** — Externer Consumer (`76.13.144.185`) = **OpenClaw-Umgebung** (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt); bleibt dauerhaft aktiv (decision: retained). Gate G3 (Consumer-Migration) entfällt als Blocking-Kriterium. BL-15 ist vollständig abgeschlossen.
 - **Work-Packages (Issue #8):**
   - [x] #109 — Testabdeckung CloudTrail-Audit
   - [x] #111 — Strukturierter Fingerprint-Evidence-Export
@@ -281,7 +281,7 @@ Regelwerk:
   - [x] #188 — Fingerprint-Korrelation als wiederverwendbares Modul (2026-02-27)
 - **Blocker:** ✅ Keine — Architekturentscheid 2026-03-01 aufgelöst.
 - **Next Actions:** ✅ Abgeschlossen. Kein weiterer Handlungsbedarf.
-  - Externer Consumer (`76.13.144.185`) ist bewusste Architekturentscheidung (dauerhaft aktiv, kein Blocking).
+  - Externer Consumer (`76.13.144.185`) = **OpenClaw-Umgebung** (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt) — bewusste Architekturentscheidung (decision: retained, dauerhaft aktiv, kein Blocking).
   - Deploy bleibt OIDC; OpenClaw-Runtime bleibt Key/Secret. Consumer-Migration als Gate entfällt.
 
 ### BL-17 — AWS-Betrieb trennen: OIDC für Deploy, Key/Secret für OpenClaw Runtime

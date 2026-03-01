@@ -51,7 +51,7 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 
 ### Deliverables
 
-- **BL-15 Resolution:** ✅ Abgeschlossen (Architekturentscheid 2026-03-01). Externer Consumer (`76.13.144.185`) bleibt dauerhaft aktiv — bewusste Architekturentscheidung, kein Blocker für Prod-Gate. Referenz: `docs/LEGACY_IAM_USER_READINESS.md`, `docs/LEGACY_CONSUMER_INVENTORY.md`.
+- **BL-15 Resolution:** ✅ Abgeschlossen (Architekturentscheid 2026-03-01). Externer Consumer (`76.13.144.185`) = **OpenClaw-Umgebung** (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt); bleibt dauerhaft aktiv (decision: retained) — bewusste Architekturentscheidung, kein Blocker für Prod-Gate. Referenz: `docs/LEGACY_IAM_USER_READINESS.md`, `docs/LEGACY_CONSUMER_INVENTORY.md`.
 - **Staging/Prod provisionieren:** IaC-Erweiterung (Terraform) für `staging`- und `prod`-Umgebung; Promotion-Pfad `dev → staging → prod` aktivieren. Referenz: `docs/ENV_PROMOTION_STRATEGY.md`.
 - **Async UX deployen:** Jobs-API, Result-Pages, In-App-Notifications und Result-Permalinks auf Prod ausrollen; Monitoring-Runbook aktivieren. Referenz: `docs/api/async-analyze-domain-design-v1.md`, `docs/api/async-delivery-ops-runbook-v1.md`.
 - **TLS + Custom Domain Prod:** Produktives Zertifikat, Route53-Eintrag, CORS-Policy für Prod-Origins. Referenz: `docs/TLS_CERTIFICATE_MIGRATION_RUNBOOK.md`.
@@ -188,7 +188,7 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 
 | Risiko | Wahrscheinlichkeit | Impact | Mitigation |
 |---|---|---|---|
-| ~~**BL-15 extern**~~: Consumer `76.13.144.185` — **Architekturentscheid 2026-03-01: bleibt dauerhaft aktiv, accepted** | — | — | BL-15 abgeschlossen; kein Prod-Gate-Blocker mehr |
+| ~~**BL-15 extern**~~: Consumer `76.13.144.185` = **OpenClaw-Umgebung** (AI-Agent/Assistent) — **Architekturentscheid 2026-03-01: bleibt dauerhaft aktiv, decision: retained** | — | — | BL-15 abgeschlossen; kein Prod-Gate-Blocker mehr |
 | **GTM-Sprint**: Pilot-Gespräche zeigen klares Stop-Signal (kein Markt-Fit) | Niedrig–Mittel | Hoch — Pivoting nötig; Entitlement-Scope unklar | Stop-Kriterium explizit in Decision-Log; Pivot-Optionen (anderes Segment, API-only) vorformulieren |
 | **Datenlizenz**: Tiefenquellen (kantonale Daten) nicht lizenzierbar oder prohibitiv teuer | Mittel | Mittel — Deep Mode bleibt schwach | Frühzeitig Lizenzanfragen stellen; Fallback auf ausschließlich offene Daten dokumentieren |
 | **Entitlement-Komplexität**: Multi-Tenant-Datenschicht dauert länger als geplant | Mittel | Mittel — Verzögerung Phase 2 | Scope-Minimalversion (nur Free/Pro, kein Business-Tier initial) als Fallback |

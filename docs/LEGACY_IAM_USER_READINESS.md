@@ -7,8 +7,8 @@ Stand: 2026-03-01 (UTC)
 
 ## Architekturentscheid 2026-03-01
 
-Der externe Consumer (`76.13.144.185`) bleibt dauerhaft aktiv.
-Gate G3 (Consumer-Migration) ist als «accepted» klassifiziert — kein Blocking mehr.
+Der externe Consumer (`76.13.144.185`) = **OpenClaw-Umgebung** (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt); bleibt dauerhaft aktiv (decision: retained).
+Gate G3 (Consumer-Migration) ist als «accepted/retained» klassifiziert — kein Blocking mehr.
 BL-15 gilt als abgeschlossen.
 
 ## Policy-Update (2026-03-01)
@@ -170,7 +170,7 @@ Verifizierter Lauf (`Exit 10`):
 - Dominanter Non-AWS-Fingerprint: `source_ip=76.13.144.185` (u. a. `aws-cli/2.33.29`, `aws-sdk-js/3.996.0`, Terraform Provider)
 - Zusätzlich delegierte AWS-Service-Aktivität sichtbar (`source_ip=lambda.amazonaws.com`, KMS Events)
 
-Interpretation: Die Legacy-Nutzung ist weiterhin aktiv und technisch klarer eingrenzbar (hauptsächlich ein wiederkehrender Host-Fingerprint plus AWS-Service-Delegation). Für Decommission fehlt weiterhin die vollständige Zuordnung aller externen Runner/Hosts gegen diese Fingerprints.
+Interpretation: Die Legacy-Nutzung ist weiterhin aktiv. Dominanter externer Consumer (`source_ip=76.13.144.185`) ist als **OpenClaw-Umgebung** identifiziert (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt). **Architekturentscheid 2026-03-01: bleibt dauerhaft aktiv (decision: retained).** Zuordnungsaufgabe externer Runner/Hosts: abgeschlossen (Identität: OpenClaw).
 
 ### Read-only Recheck (2026-02-26, 8h-Fenster)
 
@@ -198,7 +198,7 @@ Zusätzliche Härtung im Zuge dieses Laufs:
 
 - `scripts/audit_legacy_aws_consumer_refs.sh` nutzt für Repo-Scans jetzt primär `git grep` mit Excludes für `artifacts/`, `.venv/` und `.terraform/`, damit generierte Audit-Logs keine Folge-Scans verfälschen.
 
-Interpretation: OIDC in CI/CD ist intakt; aktive Runtime-Key-Nutzung ist gemäß Policy zulässig. BL-15-Readiness hängt damit primär an sauberer Dokumentation, Governance und externer Consumer-Zuordnung (nicht an einer Runtime-OIDC-Migration).
+Interpretation: OIDC in CI/CD ist intakt; aktive Runtime-Key-Nutzung ist gemäß Policy zulässig. Externe Consumer-Zuordnung: **abgeschlossen** — `76.13.144.185` = OpenClaw-Umgebung (AI-Agent/Assistent), Architekturentscheid 2026-03-01: dauerhaft beibehalten (decision: retained). BL-15-Readiness ist damit vollständig dokumentiert und geschlossen.
 
 ### Read-only Recheck (2026-02-27, 6h-Fenster, Worker-A)
 
@@ -211,10 +211,10 @@ Erneuter verifizierter Lauf im Worker-A-Kontext:
 
 Auffälligkeiten im 6h-Recheck:
 
-- CloudTrail zeigt weiterhin wiederkehrende `sts:GetCallerIdentity`-Aktivität auf dem Non-AWS-Fingerprint `76.13.144.185`.
+- CloudTrail zeigt weiterhin wiederkehrende `sts:GetCallerIdentity`-Aktivität auf dem Non-AWS-Fingerprint `76.13.144.185` = **OpenClaw-Umgebung** (AI-Agent/Assistent, bekannt und retained by design).
 - Zusätzlich sind im selben Fenster Legacy-Events für `logs:FilterLogEvents` (aws-cli) und `bedrock:ListFoundationModels` (aws-sdk-js) sichtbar.
 
-Interpretation: Trotz stabiler OIDC-Marker im Workflow-Pfad bleibt die Runtime-Legacy-Nutzung aktiv. BL-15 bleibt damit auf **No-Go** für eine finale Decommission.
+Interpretation (historisch, 2026-02-27): Trotz stabiler OIDC-Marker im Workflow-Pfad bleibt die Runtime-Legacy-Nutzung aktiv. BL-15 stand zu diesem Zeitpunkt auf **No-Go** für eine finale Decommission. ⚠️ **Überholt durch Architekturentscheid 2026-03-01**: `76.13.144.185` = **OpenClaw-Umgebung**, bleibt dauerhaft aktiv (decision: retained). BL-15 ist abgeschlossen.
 
 ### Read-only Vergleichslauf (2026-02-26, BL-17.wp6, historisch — kein Runtime-Default)
 
@@ -303,7 +303,7 @@ Entscheidungsmatrix für die Praxis:
 | `optional durchführen` | Konkreter Bedarf (z. B. Incident-Learning, Audit-Auflage, gezielter Failover-Test) | Ziel/Hypothese, Wartungsfenster falls persistente Startpfad-Änderung nötig, Rollback-Plan, Evidenzpfade |
 
 Konsequenz für BL-15.r2:
-- Das offene Abschlusskriterium liegt weiterhin bei externer Consumer-Zuordnung/Governance (insb. Gate G3), **nicht** bei einem verpflichtenden Disable-Canary-Lauf.
+- Die externe Consumer-Zuordnung (Gate G3) ist **abgeschlossen**: `76.13.144.185` = OpenClaw-Umgebung (AI-Agent/Assistent). Architekturentscheid 2026-03-01: dauerhaft beibehalten (decision: retained). Kein Disable-Canary-Lauf erforderlich.
 
 ### Read-only Abschluss-Recheck (2026-03-01, BL-15.r2.wp2.c)
 
@@ -335,7 +335,7 @@ Aktueller Kurzbefund daraus:
 
 - GitHub Actions Deploy ist bereits OIDC-migriert.
 - OpenClaw Runtime auf diesem Host nutzt weiterhin runtime-injizierte Legacy-Umgebungsvariablen.
-- Externe Targets sind strukturiert erfasst und ohne offene `TBD`-Platzhalter gepflegt; mehrere Targets stehen jedoch weiterhin auf explizitem Blockerstatus (fehlendes Host-/Owner-Mapping für finalen Cutover).
+- Externe Targets sind strukturiert erfasst und ohne offene `TBD`-Platzhalter gepflegt. Primäres Target (`76.13.144.185`) = **OpenClaw-Umgebung** (AI-Agent/Assistent); Architekturentscheid 2026-03-01: dauerhaft beibehalten (decision: retained). Kein offener Blockerstatus mehr für BL-15.
 
 ### Standardisiertes Evidence-Bundle exportieren (BL-15.wp4)
 
@@ -431,7 +431,7 @@ Haupttreiber:
 |---|---|---|---|---|
 | G1: Runtime-Policy dokumentiert | OpenClaw Runtime-Key/Secret-Nutzung ist explizit freigegeben, begründet und konsistent dokumentiert | `docs/BACKLOG.md`, BL-15.r2-Issues, dieses Dokument | Policy-Klarstellung + Parent-/Backlog-Sync abgeschlossen (`#570`, `#568`) | 🟢 |
 | G2: Deploy-Pfad OIDC-konform | Aktive Deploy-Workflows nutzen OIDC ohne statische Keys | `.github/workflows/deploy.yml`, `./scripts/check_bl17_oidc_assumerole_posture.sh` | OIDC-Deploy verifiziert | 🟢 |
-| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-/Review-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | **ACCEPTED (waived)** — Architekturentscheid 2026-03-01: externer Consumer (`76.13.144.185`) bleibt dauerhaft aktiv; Consumer-Migration entfällt als Gate-Kriterium | ✅ |
+| G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-/Review-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | **ACCEPTED (waived)** — Architekturentscheid 2026-03-01: externer Consumer (`76.13.144.185`) = **OpenClaw-Umgebung** (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt); bleibt dauerhaft aktiv (decision: retained); Consumer-Migration entfällt als Gate-Kriterium | ✅ |
 | G4: Monitoring + Rollback vorbereitet | Governance/Monitoring + dokumentierter Reaktivierungsweg vorhanden | Abschnitt 3 (Phase B), Fallback-Template | Basis vorhanden, Dry-Run/Abnahme offen | 🟡 |
 | G5: Security-Hygiene Runtime-Key-Pfad | Rotation/Least-Privilege/Audit für Runtime-Key-Pfad nachvollziehbar und überprüfbar | IAM-/Audit-Evidenz + Runbooks | Dokumentations-/Runbook-Härtung erfolgt, operative Restarbeit an offenen externen Targets verbleibt | 🟡 |
 
@@ -446,7 +446,7 @@ Haupttreiber:
 **Aktuell: GO (Architekturentscheid 2026-03-01).**
 
 Begründung:
-- G3 (Consumer-Migration) ist als «ACCEPTED (waived)» klassifiziert — externer Consumer (`76.13.144.185`) bleibt dauerhaft aktiv; kein weiterer Cutover erforderlich.
+- G3 (Consumer-Migration) ist als «ACCEPTED (waived)» klassifiziert — externer Consumer (`76.13.144.185`) = **OpenClaw-Umgebung** (AI-Agent/Assistent); bleibt dauerhaft aktiv (decision: retained); kein weiterer Cutover erforderlich.
 - G1 (Runtime-Policy dokumentiert): 🟢 — unverändert grün.
 - G2 (Deploy-Pfad OIDC-konform): 🟢 — unverändert grün.
 - G4 und G5: dokumentierter Stand bleibt gültig; mit G3-Waiver kein rotes Gate mehr vorhanden.

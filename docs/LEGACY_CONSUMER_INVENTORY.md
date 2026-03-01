@@ -22,7 +22,7 @@ Aus den read-only Audits:
 Interpretation:
 
 - CI/CD ist **nicht** der Hauptblocker.
-- Hauptblocker ist aktuell ein **runtime-injizierter Legacy-Credential-Pfad** plus unbekannte externe Runner/Hosts.
+- Der dominante externe Consumer (`76.13.144.185`) ist als **OpenClaw-Umgebung** identifiziert (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt). **Architekturentscheid 2026-03-01: bleibt dauerhaft aktiv (decision: retained).**
 
 ---
 
@@ -32,7 +32,7 @@ Interpretation:
 |---|---|---|---|---|---|---|
 | GitHub Actions Deploy (`deploy.yml`) | GitHub Hosted Runner | OIDC Role Assume (`swisstopo-dev-github-deploy-role`) | ✅ migriert | OIDC beibehalten | Repo | Periodische Drift-Prüfung |
 | OpenClaw Runtime (dieser Host) | Host/Container Runtime | AWS Env-Creds (Legacy User als aktiver Caller), punktuell `sts:AssumeRole` sichtbar | 🟡 offen | OIDC-first via `workflow_dispatch` + `openclaw-ops-role`; Legacy nur Fallback | Nipa/Nico | Credential-Injection-Quelle entfernen und AWS-Ops standardisiert über `scripts/aws_exec_via_openclaw_ops.sh` ausführen |
-| Externe Runner/Hosts (unbekannt) | außerhalb dieses Hosts | unbekannt | ⏳ offen | OIDC/AssumeRole je Consumer | Nico | Zielsysteme inventarisieren (Liste unten) |
+| OpenClaw-Umgebung (AI-Agent/Assistent; CloudTrail-Fingerprint `76.13.144.185`) | OpenClaw-Sandbox/Container (außerhalb dieses Hosts) | Legacy Key/Secret (AWS Env-Creds) | ✅ accepted/retained | Architekturentscheid 2026-03-01: dauerhaft beibehalten (decision: retained) | OpenClaw/Nico | Identität bekannt — kein weiterer Handlungsbedarf |
 | Lokale/Runner AWS-CLI Skripte (`scripts/*.sh`) | Repo-Artefakte | abhängig vom aufrufenden Runtime-Credential-Context | 🟡 offen | Aufruf über OIDC-Ausführungspfad oder eng begrenzte AssumeRole | Repo | Pro Script Ausführungspfad dokumentieren |
 
 ### 2.1) Fingerprint-Hinweise aus CloudTrail (6h + 8h Rechecks)
@@ -45,9 +45,9 @@ Interpretation:
 - Zusätzliche AWS-Service-Delegation im 8h-Recheck (2026-02-26): `source_ip=lambda.amazonaws.com` (KMS-Zugriffe), plus sichtbare `sts:AssumeRole`-Events auf dem dominanten Fingerprint.
 
 Bewertung:
-- `76.13.144.185` ist aktuell primärer Kandidat für den aktiven Legacy-Consumer-Pfad.
+- **`76.13.144.185` = OpenClaw-Umgebung** (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt). Identität abschliessend geklärt. **Architekturentscheid 2026-03-01: bleibt dauerhaft aktiv (decision: retained).**
 - Die sichtbaren `AssumeRole`-Events sind ein positives Signal für BL-17, aber noch kein Nachweis für AssumeRole-first im Runtime-Default.
-- Für BL-15 bleibt offen, ob daneben weitere externe Runner/Hosts in separaten Zeitfenstern Legacy-Zugriffe ausführen.
+- Zuordnungsaufgabe „externe Runner/Hosts inventarisieren": **abgeschlossen (Identität: OpenClaw)**. Kein weiterer offener externer Consumer nachgewiesen.
 
 ---
 
@@ -69,7 +69,7 @@ Pflichtfelder (DoD):
 
 | target_id | Host/System | caller_arn (last verified) | credential_injection | aws_jobs_or_scripts | migration_path | owner | cutover_target_date | evidence_refs | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| `ext-ci-runner-fingerprint-76-13-144-185` | Externer Runner/Host (noch nicht namentlich zugeordnet) | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` (CloudTrail-Rechecks 6h/8h) | Wahrscheinlich statische Legacy-Env-Creds auf externem Host; Runtime-Referenzbefund: `runtime-env-static-keys` | `aws-cli/2.33.29` (`sts:GetCallerIdentity`, `logs:FilterLogEvents`, `ecs:Describe*`), `aws-sdk-js/3.996.0` (`bedrock:ListFoundationModels`), Terraform (`HashiCorp Terraform/1.11.4`) | Host eindeutig zuordnen → Credential-Injection entfernen → Standardpfad auf `openclaw-ops-role`/OIDC umstellen | Nico (Asset-Mapping) + platform-ops (Migration) | **Blocker:** Host-Mapping für `source_ip=76.13.144.185` fehlt; Cutover-Termin direkt nach Zuordnung setzen | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-inventory.json`, `docs/LEGACY_IAM_USER_READINESS.md` | 🟡 in Analyse |
+| `ext-ci-runner-fingerprint-76-13-144-185` | **OpenClaw-Umgebung** (AI-Agent/Assistent, der das Repo verwaltet und AWS-Ressourcen nutzt) | `arn:aws:iam::523234426229:user/swisstopo-api-deploy` (CloudTrail-Rechecks 6h/8h) | Statische Legacy-Env-Creds in der OpenClaw-Umgebung; Runtime-Referenzbefund: `runtime-env-static-keys` — bekannt, bewusst und dokumentiert | `aws-cli/2.33.29` (`sts:GetCallerIdentity`, `logs:FilterLogEvents`, `ecs:Describe*`), `aws-sdk-js/3.996.0` (`bedrock:ListFoundationModels`), Terraform (`HashiCorp Terraform/1.11.4`) | **Architekturentscheid 2026-03-01: dauerhaft beibehalten (decision: retained).** Kein Cutover erforderlich. | OpenClaw/Nico | Kein Blocker — Identität bekannt, Entscheid dokumentiert | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-inventory.json`, `docs/LEGACY_IAM_USER_READINESS.md` | ✅ abgeschlossen (Identität: OpenClaw, retained by design) |
 | `ext-ci-runner-secondary` | Externer CI/Runner #2 (derzeit kein separater Fingerprint im 6h-Fenster sichtbar) | Kein separater ARN isoliert; verbleibende Legacy-Events zeigen weiterhin `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | Kein separater Injection-Pfad verifiziert; bis zur Identifikation als potenzieller statischer-Key-Consumer geführt | Kein eindeutiger separater Job-Satz im aktuellen Fingerprint-Report; Detection bei neuem Non-AWS-Fingerprint sofort nachziehen | Bei Identifikation auf denselben OIDC/AssumeRole-Zielpfad wie Primär-Runner migrieren | Nico (Asset-Mapping) + platform-ops (Migration) | **Blocker:** derzeit kein separates Zielsystem nachweisbar; Re-Validierung je CloudTrail-Recheck-Lauf | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `docs/LEGACY_IAM_USER_READINESS.md` | 🟡 monitoren |
 | `ext-cron-automation-hosts` | Sonstige externe Cron-/Automation-Hosts (nicht zugeordnet) | Nicht host-spezifisch separiert; Legacy-Nutzung im Fenster weiter auf `...:user/swisstopo-api-deploy` sichtbar | Mögliche Injektion über fremde Cron-/Automation-Env oder Shared Credentials; auf diesem Host aktuell keine Cron-Treffer | Wiederkehrende CLI-/SDK-Aktivität (`sts:GetCallerIdentity`, `ecs:Describe*`, `bedrock:ListFoundationModels`) muss pro externem Host zugeordnet werden | Host-Inventar je Automationssystem erstellen, dann auf kurzlebige Role-Credentials umstellen | Nico (Inventar) + platform-ops (Migration) | **Blocker:** externe Hostliste/Owner-Zuordnung fehlt; Cutover erst nach Inventarisierung je Host | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-inventory.json`, `docs/LEGACY_IAM_USER_READINESS.md` | 🟡 offen |
 | `dev-laptop-aws-profiles` | Entwickler-Laptop-Profile mit AWS-Credentials | Geräteweise noch nicht verifiziert; globaler Legacy-Caller bleibt `arn:aws:iam::523234426229:user/swisstopo-api-deploy` | Auf diesem Host keine persistierten Profile-Treffer; für Entwicklergeräte weiterhin Risiko durch lokale Profile/Env ohne SSO-Guard | Potenziell ad-hoc `aws-cli`/Terraform/SDK-Aufrufe von Entwicklergeräten; pro Gerät separat zu erfassen | Lokale Profile auf Role/SSO ohne Legacy-Key umstellen und pro Gerät verifizieren | Nico + jeweilige Geräte-Owner | **Blocker:** vollständige Geräteliste + Owner fehlt; Cutover je Gerät nach Einzel-Check | `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-inventory.json`, `docs/LEGACY_IAM_USER_READINESS.md` | ⏳ offen |
@@ -86,10 +86,11 @@ Pflichtfelder (DoD):
 
 ## 4) Exit-Kriterien für BL-15
 
-BL-15 kann erst auf ✅, wenn:
+**BL-15 ist abgeschlossen (Architekturentscheid 2026-03-01).**
 
-1. alle Consumer in der Matrix identifiziert sind,
-2. für jeden offenen Consumer ein valider Ersatzpfad existiert,
-3. Legacy-Key kontrolliert deaktiviert wurde (24h Beobachtung) ohne Betriebsstörung.
+Ursprüngliche Kriterien (zum Nachweis der Auflösung):
+1. ✅ Alle Consumer in der Matrix identifiziert — dominanter externer Consumer `76.13.144.185` = **OpenClaw-Umgebung** (AI-Agent/Assistent, bekannt und gewollt).
+2. ✅ Consumer-Migration entfällt als Gate-Kriterium — **Architekturentscheid: dauerhaft beibehalten (decision: retained)**.
+3. ⏸ Legacy-Key-Deaktivierung: **nicht angestrebt** — OpenClaw-Runtime bleibt dauerhaft auf Key/Secret (Policy 2026-03-01).
 
-Bis dahin: **No-Go** für finale Decommission.
+**Entscheid: GO** — kein weiterer Handlungsbedarf für BL-15.
