@@ -60,3 +60,4 @@ node_modules/
 
 # Runtime-State (Automation-Consumer)
 reports/automation/**/state/
+runtime/
