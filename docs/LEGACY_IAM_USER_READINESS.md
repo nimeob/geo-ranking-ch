@@ -210,15 +210,15 @@ Auffälligkeiten im 6h-Recheck:
 
 Interpretation: Trotz stabiler OIDC-Marker im Workflow-Pfad bleibt die Runtime-Legacy-Nutzung aktiv. BL-15 bleibt damit auf **No-Go** für eine finale Decommission.
 
-### Read-only Recheck (2026-02-26, BL-17.wp6 AssumeRole-Default-Pfad)
+### Read-only Vergleichslauf (2026-02-26, BL-17.wp6, historisch — kein Runtime-Default)
 
-Neuer Runtime-Startpfad:
+Historisch getesteter Kapselungs-Pfad:
 
 ```bash
 ./scripts/openclaw_runtime_assumerole_exec.sh <kommando>
 ```
 
-Verifizierter Nachweislauf im neuen Default-Pfad:
+Verifizierter Nachweislauf im gekapselten Vergleichspfad:
 
 - `./scripts/openclaw_runtime_assumerole_exec.sh ./scripts/inventory_bl17_runtime_credential_paths.py --output-json artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json` → Exit `0`
   - Befund `runtime-env-static-keys`: **detected=false**
@@ -226,7 +226,7 @@ Verifizierter Nachweislauf im neuen Default-Pfad:
 - `./scripts/openclaw_runtime_assumerole_exec.sh ./scripts/audit_legacy_runtime_consumers.sh` → Exit `0`
 - `./scripts/openclaw_runtime_assumerole_exec.sh ./scripts/check_bl17_oidc_assumerole_posture.sh --report-json artifacts/bl17/posture-after-assumerole-default.json` → Exit `0`
 
-Interpretation: Der neue Runtime-Default eliminiert den statischen Env-Key-Befund im aktiven Prozesskontext (temporäre STS-Session-Credentials statt Legacy-User-Key als Startzustand).
+Interpretation: Der gekapselte Vergleichspfad eliminiert im Testkontext den statischen Env-Key-Befund (temporäre STS-Session-Credentials statt Legacy-User-Key). Dieser Pfad bleibt optional für Diagnostik/Evidence und ist kein verpflichtender Runtime-Startzustand.
 
 ### Read-only Recheck (2026-03-01, BL-15.r2.wp2 Runtime-Injection)
 
@@ -243,7 +243,7 @@ Vergleichslauf zwischen ambientem Runtime-Kontext und AssumeRole-first-Kapselung
 
 Interpretation:
 - Runtime-Legacy-Injection ist im ambienten Prozesskontext weiterhin ein Risiko.
-- Der gekapselte AssumeRole-first Pfad ist reproduzierbar sauber (`posture=ok`, `runtime_inventory=ok`) und stellt den kontrollierten Standardpfad dar.
+- Der gekapselte AssumeRole-first Pfad ist reproduzierbar sauber (`posture=ok`, `runtime_inventory=ok`), dient aber nur als optionaler Diagnose-/Vergleichspfad (nicht als Runtime-Standard).
 - Offene Restarbeit liegt primär in externer Legacy-Nutzung laut CloudTrail (nicht im lokalen Wrapper-Pfad).
 
 ### Source-Attribution-Update (2026-03-01, BL-15.r2.wp2.a / #572)
@@ -259,7 +259,7 @@ Relevante neue Detection-IDs im Report:
 
 Interpretation:
 - Die Ambient-Injection ist nicht nur ein Shell-Einzelfall, sondern folgt der Prozess-/Startpfad-Vererbung des laufenden OpenClaw-Stacks.
-- Damit ist die Quelle für wp2 technisch attribuiert; nächster Schritt ist die persistente Startpfad-Migration in #573.
+- Damit ist die Quelle für wp2 technisch attribuiert; nächster Schritt ist die Startpfad-/Governance-Dokumentation in #573. Persistente technische Startpfad-Änderungen bleiben optional und nur bei echtem Bedarf im Wartungsfenster.
 
 ### BL-15.r2.wp2.b.prereq-Entscheid (2026-03-01, #576)
 
@@ -274,8 +274,8 @@ Temporäre Ausnahme-Klassifikation (wp2, evidenzpflichtig):
 | Feld | Wert |
 |---|---|
 | exception_id | `bl15-r2-wp2-runtime-legacy-env-static-keys` |
-| Scope | Ambient OpenClaw-Runtime mit statischen AWS-Env-Keys außerhalb des AssumeRole-Wrappers |
-| Control/Mitigation | AWS-relevante Checks/Ops nur über `./scripts/openclaw_runtime_assumerole_exec.sh` bzw. Guard-Mode `--assume-role-first` ausführen |
+| Scope | Ambient OpenClaw-Runtime mit statischen AWS-Env-Keys im regulären Startpfad |
+| Control/Mitigation | Runtime-Key/Secret ausschließlich über Host-/Orchestrator-Secret-Setpoints führen; für Vergleichsdiagnostik optional Wrapper/Guard (`openclaw_runtime_assumerole_exec.sh`, `--assume-role-first`) nutzen |
 | Owner | Nico + platform-ops |
 | Sunset | 2026-03-15 (bis dahin Quelle der Ambient-Injection identifizieren und entfernen) |
 | Follow-up | #570 |

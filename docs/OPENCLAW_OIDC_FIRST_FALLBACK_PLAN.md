@@ -54,10 +54,21 @@ aws cloudwatch describe-alarms --region eu-central-1 --max-items 5
 
 > Hinweis: Helper für AssumeRole (`scripts/aws_assume_openclaw_ops.sh`, `scripts/openclaw_runtime_assumerole_exec.sh`) können für Diagnostik bestehen bleiben, sind aber **nicht** mehr der verpflichtende Runtime-Default.
 
-### 4) Startpfad-/Host-Änderungen (nur falls technisch nötig)
-- **Default:** Keine Änderungen am Host-Orchestrator-Startpfad für reine Doku-/Policy-Synchronisierung.
-- **Nur bei echtem Technikbedarf:** Persistente Startpfad-Anpassungen (z. B. `/entrypoint.sh`, Container-Env-Injektion, Runtime-Restart) ausschließlich im Wartungsfenster mit dokumentiertem Rollback.
-- **Allowed Runtime-Key-Setpoints:** Secrets/Env-Management des Hosts/Orchestrators (nicht im Repo als Klartext, nicht in Commit-Historie).
+### 4) Persistenter Startpfad + erlaubte Runtime-Key-Setpoints
+Kanonische Startkette (Hostinger/OpenClaw-Host):
+
+`Host-Orchestrator/Container-Env` → `/entrypoint.sh` → `runuser -u node -- node server.mjs` → `openclaw` → `openclaw-gateway`
+
+Verbindliche Regeln:
+- **Erlaubte Setpoints:** Secrets-/Environment-Management des Hosts/Orchestrators (z. B. Container-Secret-Store, Host-Env-Management).
+- **Nicht erlaubt:** Klartext-Secrets im Repo, in Commit-Historie, in Runbooks mit Realwerten oder in persistenten User-Shell-Profilen (`~/.bashrc`, `~/.profile`).
+- **Änderungskontrolle:** Persistente Startpfad-Anpassungen (z. B. `/entrypoint.sh`, Orchestrator-Env-Injektion, Runtime-Restart) nur bei technischem Bedarf und dann ausschließlich im Wartungsfenster mit dokumentiertem Rollback.
+- **Read-only Nachweis:** Quelle/Vererbung regelmäßig mit `./scripts/inventory_bl17_runtime_credential_paths.py` und `./scripts/audit_legacy_runtime_consumers.sh` prüfen.
+
+### 5) Security-Härtung (Rotation, Least-Privilege, Audit)
+- **Rotation:** Runtime-Key/Secret nach festem Turnus (mind. quartalsweise oder sofort bei Incident/Owner-Wechsel) rotieren und den Wechsel mit Timestamp + Owner dokumentieren.
+- **Least-Privilege:** Runtime-Principal schrittweise auf minimale notwendige Rechte reduzieren; breite Policy-Bindings (`IAMFullAccess`, `PowerUserAccess`) bleiben als offenes Risiko sichtbar, bis sie ersetzt sind.
+- **Audit/Evidence:** CloudTrail-/Runtime-Rechecks (`audit_legacy_cloudtrail_consumers.sh`, `check_bl17_oidc_assumerole_posture.sh`) als wiederholbare Evidenz führen und in BL-15-Artefakten verlinken.
 
 ---
 
@@ -143,7 +154,7 @@ Ziel: Runtime-Key-Nutzung ist regulär erlaubt; bei Abweichungen/Incidents bleib
 Legacy-Fallback ist nur zulässig, wenn **alle** Bedingungen erfüllt sind:
 
 1. Ein relevanter Betriebsablauf ist blockiert (z. B. Incident, kritischer Deploy-/Ops-Blocker).
-2. OIDC- oder AssumeRole-Primärpfad ist für den konkreten Ablauf aktuell nicht nutzbar.
+2. Der reguläre Runtime-Key/Secret-Pfad ist für den konkreten Ablauf aktuell blockiert oder liefert nicht reproduzierbare Ergebnisse.
 3. Scope ist auf das notwendige Minimum eingegrenzt (kein "Convenience-Fallback").
 
 Nicht zulässig: Routinearbeiten, reine Bequemlichkeit oder fehlende Vorprüfung des Primärpfads.
@@ -197,10 +208,10 @@ Optionaler Konsolidierungs-Check:
 Ein ausgefülltes Referenz-Event (inkl. CloudTrail-/Inventory-/Posture-Refs) steht unter:
 - `docs/LEGACY_IAM_USER_READINESS.md` → Abschnitt **"Synthetisches Vollbeispiel (BL-17.wp8)"**
 
-## Rollback (wenn AssumeRole-Flow blockiert)
+## Rollback (wenn regulärer Runtime-Startpfad blockiert)
 
 1. Incident dokumentieren (`was/warum/wann`).
-2. Zeitlich begrenzt Legacy-Pfad gemäß Break-glass-Runbook nutzen.
+2. Zeitlich begrenzt den dokumentierten Ausnahmepfad gemäß Break-glass-Runbook nutzen.
 3. Nach Stabilisierung zurück in den regulären Runtime-Betrieb, Recheck + Evidenz sichern.
 4. Root-Cause + dauerhafte Korrektur dokumentieren.
 
