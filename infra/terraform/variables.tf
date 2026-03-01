@@ -277,3 +277,73 @@ variable "api_health_path" {
   type        = string
   default     = "/health"
 }
+
+# ---------------------------------------------------------------------------
+# Staging ECS Compute Baseline (WP #661)
+# ---------------------------------------------------------------------------
+
+variable "manage_staging_ecs_compute" {
+  description = "Wenn true, erstellt Terraform ein staging ECS compute skeleton (SG + TaskDef + Service). Guard: wirkt nur bei environment=staging."
+  type        = bool
+  default     = false
+}
+
+variable "staging_service_name" {
+  description = "Name des ECS Services in staging."
+  type        = string
+  default     = "swisstopo-staging-api"
+}
+
+variable "staging_task_family" {
+  description = "Task Definition Family für staging."
+  type        = string
+  default     = "swisstopo-staging-api"
+}
+
+variable "staging_task_cpu" {
+  description = "CPU für Fargate Task Definition (String; z. B. 256/512/1024)."
+  type        = string
+  default     = "256"
+}
+
+variable "staging_task_memory" {
+  description = "Memory für Fargate Task Definition (String; z. B. 512/1024/2048)."
+  type        = string
+  default     = "512"
+}
+
+variable "staging_desired_count" {
+  description = "Desired Count für den staging ECS Service."
+  type        = number
+  default     = 1
+}
+
+variable "staging_container_name" {
+  description = "Container-Name im staging Task Definition Container Definitions JSON."
+  type        = string
+  default     = "api"
+}
+
+variable "staging_container_image" {
+  description = "Container Image für staging. Leer => auto: <ecr_repository_url>:latest (wenn verfügbar), sonst nginx Placeholder."
+  type        = string
+  default     = ""
+}
+
+variable "staging_container_port" {
+  description = "Container Port für staging (z. B. 8080)."
+  type        = number
+  default     = 8080
+}
+
+variable "staging_task_execution_role_arn" {
+  description = "Optional: Execution Role ARN für die ECS Task Definition (leer => null)."
+  type        = string
+  default     = ""
+}
+
+variable "staging_task_role_arn" {
+  description = "Optional: Task Role ARN für die ECS Task Definition (leer => null)."
+  type        = string
+  default     = ""
+}
