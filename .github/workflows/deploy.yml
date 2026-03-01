@@ -96,14 +96,20 @@ jobs:
           API_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_API_REPOSITORY}:${IMAGE_TAG}"
           UI_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_UI_REPOSITORY}:${IMAGE_TAG}"
 
+          # Create a fresh BuildX builder instance per run to avoid stale CAS
+          # snapshot corruption on the self-hosted runner (content-addressable
+          # storage entry 2798490f-... predates COPY src/compliance and causes
+          # "not found" errors even with --no-cache). Fresh builder = clean state.
+          BUILDER="ci-builder-${GITHUB_RUN_ID}"
+          docker buildx create --name "${BUILDER}" --use
+          trap "docker buildx rm '${BUILDER}' 2>/dev/null || true" EXIT
+
           echo "Building API image ${API_IMAGE_URI}"
-          # --no-cache: avoids stale BuildKit snapshot errors when Dockerfile
-          # COPY instructions are added (e.g. src/compliance added in #615).
-          docker build --no-cache -t "${API_IMAGE_URI}" .
+          docker buildx build --load -t "${API_IMAGE_URI}" .
           docker push "${API_IMAGE_URI}"
 
           echo "Building UI image ${UI_IMAGE_URI}"
-          docker build -f Dockerfile.ui \
+          docker buildx build --load -f Dockerfile.ui \
             --build-arg APP_VERSION="${IMAGE_TAG}" \
             -t "${UI_IMAGE_URI}" .
           docker push "${UI_IMAGE_URI}"
