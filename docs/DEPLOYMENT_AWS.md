@@ -413,6 +413,37 @@ Smoke-Verhalten:
   `role-to-assume: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`.
 - Erforderliche Minimalrechte siehe `infra/iam/deploy-policy.json`.
 
+### Deployment via GitHub Actions (staging)
+
+Für `staging` existiert ein separater Workflow:
+
+- `.github/workflows/deploy-staging.yml`
+- Trigger: `workflow_dispatch`
+- Erwartet eine dedizierte GitHub-Environment `staging` (für vars/secrets)
+
+**Benötigte GitHub Variables (Environment `staging`):**
+
+| Variable | Beschreibung |
+|---|---|
+| `AWS_ROLE_TO_ASSUME` | OIDC-Deploy-Role ARN für staging (separat von dev) |
+| `ECS_CLUSTER` | ECS Cluster (z. B. `swisstopo-staging`) |
+| `ECS_API_SERVICE` | API-Service (z. B. `swisstopo-staging-api`) |
+| `ECS_UI_SERVICE` | UI-Service (z. B. `swisstopo-staging-ui`) |
+| `ECS_API_CONTAINER_NAME` | API-Containername in der API-TaskDef |
+| `ECS_UI_CONTAINER_NAME` | UI-Containername in der UI-TaskDef |
+| `ECR_API_REPOSITORY` | API-ECR-Repository (z. B. `swisstopo-staging-api`) |
+| `ECR_UI_REPOSITORY` | UI-ECR-Repository (z. B. `swisstopo-staging-ui`) |
+| `SERVICE_API_BASE_URL` | API-Base-URL für Smokes (`https://api.staging.<domain>`) |
+| `SERVICE_APP_BASE_URL` | UI-Base-URL für Smokes (`https://www.staging.<domain>` oder `https://app.staging.<domain>`) |
+| `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`), falls `SERVICE_API_BASE_URL` nicht genutzt wird |
+| `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Post-Deploy-Verify den `/debug/trace`-Sanity-Check |
+
+**Benötigte GitHub Secrets (Environment `staging`):**
+
+| Secret | Beschreibung |
+|---|---|
+| `SERVICE_API_AUTH_TOKEN` | Optional: Bearer-Token für den API-Analyze-Smoke (`run_remote_api_smoketest.sh`) |
+
 > Hinweis: `SERVICE_HEALTH_URL` ist nur ein optionaler Override für den API-Health-Check. Fehlt der Wert, nutzt der Workflow `${SERVICE_API_BASE_URL}/health`. Der optionale Analyze-Smoke läuft nur, wenn `SERVICE_API_BASE_URL` gesetzt ist.
 >
 > Verbindliche Checkliste für Version-/Trace-Verifikation: [`docs/testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md`](testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md).

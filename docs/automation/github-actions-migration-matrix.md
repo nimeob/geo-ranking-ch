@@ -1,6 +1,6 @@
 # GitHub Actions → OpenClaw Migrationsmatrix
 
-Stand: 2026-02-28  
+Stand: 2026-03-01  
 Parent: #220  
 Work-Package: #221
 
@@ -15,7 +15,8 @@ Reproduzierbare Ist-Aufnahme aller aktuellen Workflows unter `.github/workflows/
 
 | Workflow | Datei | Trigger heute | Zweck | Kritikalität | Zielentscheidung | Begründung |
 |---|---|---|---|---|---|---|
-| Deploy to AWS (ECS dev) | `.github/workflows/deploy.yml` | `push(main)` bei app/infra-Änderungen, `workflow_dispatch` | Build/Test + ECS Deploy inkl. Smoke-Checks | hoch | `keep-on-github` (MVP) | OIDC-Deploypfad über GitHub ist bereits etabliert und auditierbar; bis OpenClaw-Äquivalent inkl. Branch-Gates verifiziert ist, bleibt dieser Pfad minimal bestehen. |
+| Deploy to AWS (ECS dev) | `.github/workflows/deploy.yml` | `schedule` (stündlich), `workflow_dispatch` | Build/Test + ECS Deploy inkl. Smoke-Checks | hoch | `keep-on-github` (MVP) | OIDC-Deploypfad über GitHub ist bereits etabliert und auditierbar; bis OpenClaw-Äquivalent inkl. Branch-Gates verifiziert ist, bleibt dieser Pfad minimal bestehen. |
+| Deploy to AWS (ECS staging) | `.github/workflows/deploy-staging.yml` | `workflow_dispatch` | Build/Test + ECS Deploy inkl. Smoke-Checks + Post-Deploy Verify (Version/Trace) | hoch | `keep-on-github` (MVP) | Staging-Deploypfad ist sicherheitskritisch (OIDC + Environment-Secrets/Vars) und soll für MVP auditierbar direkt über GitHub Actions laufen. |
 | contract-tests | `.github/workflows/contract-tests.yml` | `push`/`pull_request` auf API-Contract-Pfade, `workflow_dispatch` | Contract-/Schema-Regressionen + Feldkatalog-Validierung | mittel | `migrate-to-openclaw` | Deterministische Testläufe können als OpenClaw Job (event-surrogate/cron + PR-Kommentar) kosteneffizient übernommen werden. |
 | crawler-regression | `.github/workflows/crawler-regression.yml` | `push(main)`/`pull_request` auf Crawler-Pfade, `workflow_dispatch` | Regressionstest für Consistency-Crawler | mittel | `migrate-to-openclaw` | Read-only Crawler-Regression passt gut zu OpenClaw-Scheduler + Artefaktablage in Repo/Reports. |
 | docs-quality | `.github/workflows/docs-quality.yml` | `push(main)`/`pull_request` auf Doku-Pfade | Doku-Link-/Struktur-Qualitätsgate | mittel | `migrate-to-openclaw` | Doku-Gates sind script-basiert (`scripts/check_docs_quality_gate.sh`) und direkt als OpenClaw Job reproduzierbar. |
@@ -24,8 +25,8 @@ Reproduzierbare Ist-Aufnahme aller aktuellen Workflows unter `.github/workflows/
 
 ## Ergebniszusammenfassung
 
-- Gesamt-Workflows erfasst: **6/6**
-- `keep-on-github` (MVP): **1**
+- Gesamt-Workflows erfasst: **7/7**
+- `keep-on-github` (MVP): **2**
 - `migrate-to-openclaw`: **4**
 - `retire`: **1**
 
@@ -37,9 +38,10 @@ Reproduzierbare Ist-Aufnahme aller aktuellen Workflows unter `.github/workflows/
 4. ✅ #227: Event-Relay-Zielbild (Events, Security, Migration/Fallback) dokumentiert in [`docs/automation/openclaw-event-relay-design.md`](openclaw-event-relay-design.md).
 5. ✅ #233: Event-Relay-Pfad inkl. Receiver/Queue/Consumer umgesetzt (`scripts/run_event_relay_receiver.py`, `scripts/run_event_relay_consumer.py`) mit dokumentiertem Security-/Hybrid-Betriebspfad.
 
-## WP4/BL-336-Resultat (2026-02-28)
+## WP4/BL-336-Resultat (Stand: 2026-03-01)
 
-- `deploy.yml`: bleibt automatischer GitHub-Pfad (`push main` + `workflow_dispatch`).
+- `deploy.yml`: bleibt automatischer GitHub-Pfad (`schedule` + `workflow_dispatch`).
+- `deploy-staging.yml`: bleibt GitHub-Pfad (`workflow_dispatch`) für Staging Deploy + Post-Deploy Verify.
 - `contract-tests.yml`, `crawler-regression.yml`, `docs-quality.yml`: bleiben auf `workflow_dispatch` als manueller Fallback (Primärpfad OpenClaw).
 - `bl20-sequencer.yml`: retired und in #384 final aus dem Repo entfernt.
 - `worker-claim-priority.yml`: Deaktivierungsmarker ist noch **nicht** erfüllt; Workflow wurde in #384 wieder aktiviert (Hybrid-Betrieb bis Marker-Freigabe, siehe `docs/OPERATIONS.md`).
