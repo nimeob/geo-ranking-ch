@@ -1,0 +1,59 @@
+# --- Basis ---
+project_name = "swisstopo"
+environment  = "dev"
+aws_region   = "eu-central-1"
+owner        = "nico"
+managed_by   = "openclaw"
+
+# --- Sicherheitsmodus (Default): keine Ressourcen verwalten ---
+# Dadurch ist ein "terraform plan" zunächst read-only/neutral.
+lookup_existing_resources   = false
+manage_ecs_cluster          = false
+manage_ecr_repository       = false
+manage_cloudwatch_log_group = false
+manage_s3_bucket            = false
+
+# --- Ziel-/Bestandsnamen (dev) ---
+ecs_cluster_name               = "swisstopo-dev"
+ecs_container_insights_enabled = false
+ecr_repository_name            = "swisstopo-dev-api"
+cloudwatch_log_group_name      = "/swisstopo/dev/ecs/api"
+cloudwatch_log_retention_days  = 30
+s3_bucket_name                 = "swisstopo-dev-523234426229"
+
+existing_ecs_cluster_name          = "swisstopo-dev"
+existing_ecr_repository_name       = "swisstopo-dev-api"
+existing_cloudwatch_log_group_name = "/swisstopo/dev/ecs/api"
+existing_s3_bucket_name            = "swisstopo-dev-523234426229"
+
+# --- Telegram Alerting (BL-08) ---
+# Voraussetzung: SSM-Parameter manuell anlegen (NICHT per Terraform, damit kein Token im State):
+#   aws ssm put-parameter \
+#     --region eu-central-1 \
+#     --name /swisstopo/dev/telegram-bot-token \
+#     --type SecureString \
+#     --value "<DEIN_BOT_TOKEN>" \
+#     --description "Telegram Bot Token für swisstopo-dev Alerting"
+#
+# Dann hier aktivieren:
+manage_telegram_alerting = false   # auf true setzen nach SSM-Parameter-Anlage
+
+# --- HTTP Health Probe (BL-14) ---
+# Import-first empfohlen, da Ressourcen in dev typischerweise bereits existieren
+# (via scripts/setup_health_probe_dev.sh).
+manage_health_probe = false
+
+health_probe_ecs_cluster       = "swisstopo-dev"
+health_probe_ecs_service       = "swisstopo-dev-api"
+health_probe_port              = 8080
+health_probe_path              = "/health"
+health_probe_metric_namespace  = "swisstopo/dev-api"
+health_probe_lambda_name       = "swisstopo-dev-health-probe"
+health_probe_role_name         = "swisstopo-dev-health-probe-role"
+health_probe_rule_name         = "swisstopo-dev-health-probe-schedule"
+health_probe_alarm_name        = "swisstopo-dev-api-health-probe-fail"
+health_probe_schedule_expression = "rate(5 minutes)"
+
+aws_account_id   = "523234426229"
+sns_topic_arn    = "arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts"
+telegram_chat_id = ""              # z.B. "8614377280" — kein Secret, nur numerische ID

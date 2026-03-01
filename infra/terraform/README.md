@@ -13,6 +13,34 @@ Optionale Erweiterungen (ebenfalls import-first):
 
 Ziel: erst **read-only prüfen**, dann **importieren**, erst danach (bei sauberem Plan) aktiv verwalten.
 
+## Environments (dev + staging)
+
+Dieses Terraform-Setup ist **env-parametrisierbar** (Variable `environment` + Var-Files):
+
+- dev: `terraform.dev.tfvars.example` (Alias/Legacy: `terraform.tfvars.example`)
+- staging: `terraform.staging.tfvars.example` (Skeleton)
+
+Für lokales Arbeiten ohne State-Kollisionen (dev/staging parallel) **Terraform Workspaces** verwenden:
+
+```bash
+cd infra/terraform
+terraform init
+
+# dev
+cp terraform.dev.tfvars.example terraform.dev.tfvars
+terraform workspace select dev || terraform workspace new dev
+terraform plan -var-file=terraform.dev.tfvars
+# terraform apply -var-file=terraform.dev.tfvars
+
+# staging
+cp terraform.staging.tfvars.example terraform.staging.tfvars
+terraform workspace select staging || terraform workspace new staging
+terraform plan -var-file=terraform.staging.tfvars
+# terraform apply -var-file=terraform.staging.tfvars
+```
+
+> Apply bleibt bewusst ein separater Schritt und sollte erst nach geprüftem Plan ausgeführt werden.
+
 ## Sicherheitsprinzip
 
 - Alle `manage_*` Flags stehen standardmässig auf `false`.
