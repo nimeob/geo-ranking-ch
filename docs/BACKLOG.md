@@ -626,12 +626,13 @@
   - [x] #410 — BL-340.1 Logging-Kernschema v1 + Redaction-Policy + Shared Helper (abgeschlossen 2026-03-01)
   - [x] #411 — BL-340.2 API Ingress/Egress Logging mit korrelierten IDs (abgeschlossen 2026-03-01)
   - [x] #412 — BL-340.3 UI Interaktions- und UI->API Logging instrumentieren (abgeschlossen 2026-03-01)
-  - [ ] #413 — BL-340.4 Upstream-Provider Logging + Retry/Error Trace-Nachweise
+  - [x] #413 — BL-340.4 Upstream-Provider Logging + Retry/Error Trace-Nachweise (abgeschlossen 2026-03-01)
 - **Fortschritt (2026-03-01):**
   - ✅ #410 abgeschlossen: neues normatives Logging-Dokument [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md), Shared Helper [`src/shared/structured_logging.py`](../src/shared/structured_logging.py), erste API-Call-Sites (`service.startup`, `service.redirect_listener.enabled`, `api.health.response`) in [`src/api/web_service.py`](../src/api/web_service.py) sowie Regressionstests in `tests/test_structured_logging.py`.
   - ✅ #411 abgeschlossen: Request-Lifecycle-Instrumentierung für `GET/POST/OPTIONS` via `api.request.start`/`api.request.end` mit `status_code`, `duration_ms`, `error_code/error_class` in [`src/api/web_service.py`](../src/api/web_service.py), erweiterte Schema-Doku in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) und neue Integrationstests in `tests/test_web_service_request_logging.py` (inkl. `401`/`504` Fehlerpfade).
   - ✅ #412 abgeschlossen: GUI-MVP (`src/shared/gui_mvp.py`) emittiert jetzt strukturierte UI-Events für Input/Interaktion, State-Transitions und UI→API-Lifecycle (`ui.api.request.start/end` inkl. Fehler/Timeout-Klassen) und setzt `X-Request-Id` + `X-Session-Id` für direkte UI↔API-Korrelation; Doku-Sync in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) + [`docs/gui/GUI_MVP_STATE_FLOW.md`](gui/GUI_MVP_STATE_FLOW.md), Regressionserweiterung in `tests/test_web_service_gui_mvp.py`.
-- **Nächster Schritt (oldest-first, unblocked):** #413.
+  - ✅ #413 abgeschlossen: Upstream-Lifecycle-Events (`api.upstream.request.start/end`, `api.upstream.response.summary`) für API-Koordinatenauflösung und Address-Intel-Providerpfade ergänzt (`src/api/web_service.py`, `src/api/address_intel.py`), Trace-Artefakte dokumentiert ([`docs/testing/BL-340_UPSTREAM_TRACE_EVIDENCE.md`](testing/BL-340_UPSTREAM_TRACE_EVIDENCE.md), `artifacts/bl340/*.jsonl`) und Regressionstests erweitert (`tests/test_address_intel_upstream_logging.py`, `tests/test_web_service_request_logging.py`).
+- **Nächster Schritt (oldest-first, unblocked):** Parent #409 auf „done“ setzen/abschließen.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1

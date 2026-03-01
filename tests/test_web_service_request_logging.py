@@ -145,6 +145,98 @@ class TestWebServiceRequestLifecycleLogging(unittest.TestCase):
         self.assertEqual(end_event.get("error_class"), "timeout")
         self.assertEqual(end_event.get("error_code"), "timeout")
 
+    def test_post_analyze_forwards_upstream_events_with_request_context(self):
+        def _fake_build_report(query, **kwargs):
+            emitter = kwargs.get("upstream_log_emitter")
+            self.assertIsNotNone(emitter)
+            emitter(
+                event="api.upstream.request.start",
+                level="info",
+                component="api.address_intel",
+                direction="api->upstream",
+                status="sent",
+                source="geoadmin_search",
+                target_host="api3.geo.admin.ch",
+                target_path="/rest/services/api/SearchServer",
+                attempt=1,
+                max_attempts=1,
+                retry_count=0,
+            )
+            emitter(
+                event="api.upstream.request.end",
+                level="info",
+                component="api.address_intel",
+                direction="upstream->api",
+                status="ok",
+                source="geoadmin_search",
+                target_host="api3.geo.admin.ch",
+                target_path="/rest/services/api/SearchServer",
+                status_code=200,
+                duration_ms=12.5,
+                attempt=1,
+                max_attempts=1,
+                retry_count=0,
+            )
+            emitter(
+                event="api.upstream.response.summary",
+                level="info",
+                component="api.address_intel",
+                direction="upstream->api",
+                status="ok",
+                source="geoadmin_search",
+                target_host="api3.geo.admin.ch",
+                target_path="/rest/services/api/SearchServer",
+                records=1,
+                payload_kind="dict",
+                cache="miss",
+                attempt=1,
+                max_attempts=1,
+                retry_count=0,
+            )
+            return {
+                "query": query,
+                "matched_address": query,
+                "ids": {},
+                "coordinates": {},
+                "administrative": {},
+                "suitability_light": {},
+                "summary_compact": {},
+            }
+
+        with patch("src.api.web_service.build_report", side_effect=_fake_build_report):
+            status, body, _ = self._request(
+                "POST",
+                "/analyze",
+                body=json.dumps({"query": "Bahnhofstrasse 1, 9000 St. Gallen"}),
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Request-Id": "bl340-req-upstream",
+                    "X-Session-Id": "sess-upstream",
+                },
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn('"ok": true', body.lower())
+
+        upstream_events = [
+            event
+            for event in self.events
+            if str(event.get("event", "")).startswith("api.upstream.")
+        ]
+        self.assertGreaterEqual(len(upstream_events), 3)
+
+        start_event = next(event for event in upstream_events if event.get("event") == "api.upstream.request.start")
+        end_event = next(event for event in upstream_events if event.get("event") == "api.upstream.request.end")
+        summary_event = next(event for event in upstream_events if event.get("event") == "api.upstream.response.summary")
+
+        self.assertEqual(start_event.get("request_id"), "bl340-req-upstream")
+        self.assertEqual(start_event.get("session_id"), "sess-upstream")
+        self.assertEqual(start_event.get("route"), "/analyze")
+
+        self.assertEqual(end_event.get("status"), "ok")
+        self.assertEqual(end_event.get("status_code"), 200)
+        self.assertEqual(summary_event.get("records"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

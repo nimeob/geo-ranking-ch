@@ -40,7 +40,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 try:
     import cairo
@@ -213,6 +213,31 @@ SOURCE_CATALOG: Dict[str, Dict[str, Any]] = {
 
 _REQUIRED_SOURCES = ["geoadmin_search", "geoadmin_gwr", "geoadmin_address"]
 
+
+def _upstream_target_fields(url: str) -> Dict[str, str]:
+    parsed = urllib.parse.urlsplit(str(url or ""))
+    host = parsed.netloc.lower()
+    path = parsed.path or "/"
+    if not path.startswith("/"):
+        path = f"/{path}"
+    return {
+        "target_host": host,
+        "target_path": path,
+    }
+
+
+def _infer_provider_record_count(payload: Any) -> int:
+    if isinstance(payload, dict):
+        for key in ("results", "features", "elements", "events", "items"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return len(value)
+        return 1
+    if isinstance(payload, list):
+        return len(payload)
+    return 0
+
+
 _LAST_OSM_REQUEST_TS = 0.0
 _LAST_OSM_TILE_REQUEST_TS = 0.0
 _GWR_CODES_MODULE = None
@@ -372,12 +397,52 @@ class HttpClient:
     user_agent: str = UA
     cache_ttl_seconds: float = DEFAULT_CACHE_TTL
     enable_disk_cache: bool = True
+    upstream_log_emitter: Optional[Callable[..., None]] = None
+    upstream_trace_id: str = ""
+    upstream_request_id: str = ""
+    upstream_session_id: str = ""
     _cache: Dict[str, Tuple[float, Dict[str, Any]]] = field(default_factory=dict)
     _last_request_started_at: float = 0.0
 
     def _disk_cache_file(self, url: str) -> Path:
         digest = hashlib.sha1(url.encode("utf-8", errors="ignore")).hexdigest()
         return SKILL_DIR / HTTP_DISK_CACHE_SUBDIR / f"{digest}.json"
+
+    def _emit_upstream_event(
+        self,
+        *,
+        event: str,
+        source: str,
+        url: str,
+        level: str = "info",
+        **fields: Any,
+    ) -> None:
+        emitter = self.upstream_log_emitter
+        if emitter is None:
+            return
+
+        source_meta = SOURCE_CATALOG.get(source, {})
+        payload: Dict[str, Any] = {
+            "component": "api.address_intel",
+            "source": source,
+            "provider_tier": source_meta.get("tier") or "unknown",
+            "provider_authority": source_meta.get("authority") or "unknown",
+            "provider_purpose": source_meta.get("purpose") or "unknown",
+            **_upstream_target_fields(url),
+        }
+        payload.update(fields)
+
+        try:
+            emitter(
+                event=event,
+                level=level,
+                trace_id=self.upstream_trace_id,
+                request_id=self.upstream_request_id,
+                session_id=self.upstream_session_id,
+                **payload,
+            )
+        except Exception:
+            return
 
     def _read_disk_cache(self, url: str) -> Optional[Dict[str, Any]]:
         if not self.enable_disk_cache or self.cache_ttl_seconds <= 0:
@@ -415,26 +480,97 @@ class HttpClient:
         now = time.time()
         cached = self._cache.get(url)
         if cached and now - cached[0] <= self.cache_ttl_seconds:
-            return cached[1]
+            payload = cached[1]
+            self._emit_upstream_event(
+                event="api.upstream.response.summary",
+                level="info",
+                source=source,
+                url=url,
+                direction="upstream->api",
+                status="cache_hit",
+                cache="memory",
+                records=_infer_provider_record_count(payload),
+                payload_kind=type(payload).__name__,
+                retry_count=0,
+            )
+            return payload
 
         disk_cached = self._read_disk_cache(url)
         if disk_cached is not None:
+            self._emit_upstream_event(
+                event="api.upstream.response.summary",
+                level="info",
+                source=source,
+                url=url,
+                direction="upstream->api",
+                status="cache_hit",
+                cache="disk",
+                records=_infer_provider_record_count(disk_cached),
+                payload_kind=type(disk_cached).__name__,
+                retry_count=0,
+            )
             return disk_cached
 
         headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
         last_error: Optional[ExternalRequestError] = None
+        max_attempts = self.retries + 1
 
-        for attempt in range(1, self.retries + 2):
+        for attempt in range(1, max_attempts + 1):
+            attempt_started_at = time.perf_counter()
+            self._emit_upstream_event(
+                event="api.upstream.request.start",
+                level="info",
+                source=source,
+                url=url,
+                direction="api->upstream",
+                status="sent",
+                attempt=attempt,
+                max_attempts=max_attempts,
+                retry_count=max(0, attempt - 1),
+                timeout_seconds=float(self.timeout),
+            )
             try:
                 self._enforce_min_interval()
                 req = urllib.request.Request(url, headers=headers)
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     raw = resp.read()
+                    status_code = int(getattr(resp, "status", 200) or 200)
                 payload = json.loads(raw.decode("utf-8"))
                 self._cache[url] = (time.time(), payload)
                 self._write_disk_cache(url, payload)
+
+                duration_ms = round((time.perf_counter() - attempt_started_at) * 1000.0, 3)
+                self._emit_upstream_event(
+                    event="api.upstream.request.end",
+                    level="info",
+                    source=source,
+                    url=url,
+                    direction="upstream->api",
+                    status="ok",
+                    status_code=status_code,
+                    duration_ms=duration_ms,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    retry_count=max(0, attempt - 1),
+                )
+                self._emit_upstream_event(
+                    event="api.upstream.response.summary",
+                    level="info",
+                    source=source,
+                    url=url,
+                    direction="upstream->api",
+                    status="ok",
+                    cache="miss",
+                    status_code=status_code,
+                    records=_infer_provider_record_count(payload),
+                    payload_kind=type(payload).__name__,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    retry_count=max(0, attempt - 1),
+                )
                 return payload
             except urllib.error.HTTPError as exc:
+                duration_ms = round((time.perf_counter() - attempt_started_at) * 1000.0, 3)
                 body = ""
                 try:
                     body = (exc.read() or b"").decode("utf-8", errors="ignore")
@@ -452,11 +588,29 @@ class HttpClient:
                     attempt=attempt,
                     retryable=retryable,
                 )
-                if not self._should_retry(attempt, retryable):
+                will_retry = self._should_retry(attempt, retryable)
+                self._emit_upstream_event(
+                    event="api.upstream.request.end",
+                    level="warn" if will_retry else "error",
+                    source=source,
+                    url=url,
+                    direction="upstream->api",
+                    status="retrying" if will_retry else "error",
+                    status_code=int(exc.code),
+                    duration_ms=duration_ms,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    retry_count=max(0, attempt - 1),
+                    retryable=retryable,
+                    error_class="http_error",
+                    error_message=msg,
+                )
+                if not will_retry:
                     raise last_error
                 retry_after_raw = exc.headers.get("Retry-After") if getattr(exc, "headers", None) else None
                 self._sleep_retry_after_or_backoff(attempt, retry_after_raw)
             except (urllib.error.URLError, TimeoutError) as exc:
+                duration_ms = round((time.perf_counter() - attempt_started_at) * 1000.0, 3)
                 msg = f"Netzwerkfehler: {exc}"
                 last_error = ExternalRequestError(
                     source,
@@ -465,10 +619,27 @@ class HttpClient:
                     attempt=attempt,
                     retryable=True,
                 )
-                if not self._should_retry(attempt, True):
+                will_retry = self._should_retry(attempt, True)
+                self._emit_upstream_event(
+                    event="api.upstream.request.end",
+                    level="warn" if will_retry else "error",
+                    source=source,
+                    url=url,
+                    direction="upstream->api",
+                    status="retrying" if will_retry else "error",
+                    duration_ms=duration_ms,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    retry_count=max(0, attempt - 1),
+                    retryable=True,
+                    error_class="network_error",
+                    error_message=msg,
+                )
+                if not will_retry:
                     raise last_error
                 self._sleep_backoff(attempt)
             except json.JSONDecodeError as exc:
+                duration_ms = round((time.perf_counter() - attempt_started_at) * 1000.0, 3)
                 msg = f"Ungültige JSON-Antwort: {exc}"
                 last_error = ExternalRequestError(
                     source,
@@ -476,6 +647,21 @@ class HttpClient:
                     msg,
                     attempt=attempt,
                     retryable=False,
+                )
+                self._emit_upstream_event(
+                    event="api.upstream.request.end",
+                    level="error",
+                    source=source,
+                    url=url,
+                    direction="upstream->api",
+                    status="error",
+                    duration_ms=duration_ms,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    retry_count=max(0, attempt - 1),
+                    retryable=False,
+                    error_class="decode_error",
+                    error_message=msg,
                 )
                 raise last_error
 
@@ -1473,19 +1659,47 @@ def fetch_google_news_rss(
     rss_cache_key = f"rss::{url}"
     cached = client._read_disk_cache(rss_cache_key)
     if isinstance(cached, dict) and isinstance(cached.get("events"), list):
-        sources.note_success(source_name, url, records=len(cached.get("events") or []), optional=True)
+        cached_events = list(cached.get("events") or [])[: max(0, limit)]
+        sources.note_success(source_name, url, records=len(cached_events), optional=True)
+        client._emit_upstream_event(
+            event="api.upstream.response.summary",
+            level="info",
+            source=source_name,
+            url=url,
+            direction="upstream->api",
+            status="cache_hit",
+            cache="disk",
+            records=len(cached_events),
+            payload_kind="rss",
+            retry_count=0,
+        )
         return {
             "source_url": url,
-            "events": list(cached.get("events") or [])[: max(0, limit)],
+            "events": cached_events,
             "cache": "disk",
         }
 
     last_error: Optional[str] = None
-    for attempt in range(1, client.retries + 2):
+    max_attempts = client.retries + 1
+    for attempt in range(1, max_attempts + 1):
+        attempt_started_at = time.perf_counter()
+        client._emit_upstream_event(
+            event="api.upstream.request.start",
+            level="info",
+            source=source_name,
+            url=url,
+            direction="api->upstream",
+            status="sent",
+            attempt=attempt,
+            max_attempts=max_attempts,
+            retry_count=max(0, attempt - 1),
+            timeout_seconds=float(client.timeout),
+        )
         try:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=client.timeout) as resp:
                 raw = resp.read()
+                status_code = int(getattr(resp, "status", 200) or 200)
 
             root = ET.fromstring(raw)
             events: List[Dict[str, Any]] = []
@@ -1507,20 +1721,85 @@ def fetch_google_news_rss(
                     }
                 )
 
+            duration_ms = round((time.perf_counter() - attempt_started_at) * 1000.0, 3)
+            client._emit_upstream_event(
+                event="api.upstream.request.end",
+                level="info",
+                source=source_name,
+                url=url,
+                direction="upstream->api",
+                status="ok",
+                status_code=status_code,
+                duration_ms=duration_ms,
+                attempt=attempt,
+                max_attempts=max_attempts,
+                retry_count=max(0, attempt - 1),
+            )
+            client._emit_upstream_event(
+                event="api.upstream.response.summary",
+                level="info",
+                source=source_name,
+                url=url,
+                direction="upstream->api",
+                status="ok",
+                cache="miss",
+                status_code=status_code,
+                records=len(events),
+                payload_kind="rss",
+                attempt=attempt,
+                max_attempts=max_attempts,
+                retry_count=max(0, attempt - 1),
+            )
+
             sources.note_success(source_name, url, records=len(events), optional=True)
             client._write_disk_cache(rss_cache_key, {"source_url": url, "events": events})
             return {"source_url": url, "events": events}
         except urllib.error.HTTPError as exc:
+            duration_ms = round((time.perf_counter() - attempt_started_at) * 1000.0, 3)
             retryable = exc.code in RETRYABLE_HTTP_CODES
             last_error = f"HTTP {exc.code}"
             sources.note_error(source_name, url, last_error, optional=True)
-            if not (retryable and attempt <= client.retries):
+            will_retry = retryable and attempt <= client.retries
+            client._emit_upstream_event(
+                event="api.upstream.request.end",
+                level="warn" if will_retry else "error",
+                source=source_name,
+                url=url,
+                direction="upstream->api",
+                status="retrying" if will_retry else "error",
+                status_code=int(exc.code),
+                duration_ms=duration_ms,
+                attempt=attempt,
+                max_attempts=max_attempts,
+                retry_count=max(0, attempt - 1),
+                retryable=retryable,
+                error_class="http_error",
+                error_message=last_error,
+            )
+            if not will_retry:
                 break
             client._sleep_backoff(attempt)
         except (urllib.error.URLError, TimeoutError, ET.ParseError) as exc:
+            duration_ms = round((time.perf_counter() - attempt_started_at) * 1000.0, 3)
             last_error = str(exc)
             sources.note_error(source_name, url, last_error, optional=True)
-            if attempt > client.retries:
+            will_retry = attempt <= client.retries
+            client._emit_upstream_event(
+                event="api.upstream.request.end",
+                level="warn" if will_retry else "error",
+                source=source_name,
+                url=url,
+                direction="upstream->api",
+                status="retrying" if will_retry else "error",
+                duration_ms=duration_ms,
+                attempt=attempt,
+                max_attempts=max_attempts,
+                retry_count=max(0, attempt - 1),
+                retryable=not isinstance(exc, ET.ParseError),
+                error_class="decode_error" if isinstance(exc, ET.ParseError) else "network_error",
+                error_message=last_error,
+            )
+            if not will_retry or isinstance(exc, ET.ParseError):
                 break
             client._sleep_backoff(attempt)
 
@@ -5983,6 +6262,10 @@ def build_report(
     cache_ttl_seconds: float = DEFAULT_CACHE_TTL,
     intelligence_mode: str = "basic",
     client: Optional[HttpClient] = None,
+    upstream_log_emitter: Optional[Callable[..., None]] = None,
+    trace_id: str = "",
+    request_id: str = "",
+    session_id: str = "",
 ) -> Dict[str, Any]:
     query = parse_query_parts(address_query)
     intelligence_mode = intelligence_mode if intelligence_mode in INTELLIGENCE_MODES else "basic"
@@ -5993,7 +6276,21 @@ def build_report(
         backoff_seconds=backoff_seconds,
         min_request_interval_seconds=max(0.0, min_request_interval_seconds),
         cache_ttl_seconds=max(0.0, cache_ttl_seconds),
+        upstream_log_emitter=upstream_log_emitter,
+        upstream_trace_id=str(trace_id or request_id or ""),
+        upstream_request_id=str(request_id or trace_id or ""),
+        upstream_session_id=str(session_id or ""),
     )
+    if upstream_log_emitter is not None:
+        client.upstream_log_emitter = upstream_log_emitter
+    if trace_id or request_id:
+        trace_value = str(trace_id or request_id or "")
+        request_value = str(request_id or trace_id or "")
+        client.upstream_trace_id = trace_value
+        client.upstream_request_id = request_value
+    if session_id:
+        client.upstream_session_id = str(session_id)
+
     sources = SourceRegistry()
 
     raw_candidates = search_candidates(client, sources, address_query, limit=candidate_limit)
