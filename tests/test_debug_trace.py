@@ -124,6 +124,56 @@ class TestDebugTraceHelpers(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["error"], "trace_source_unavailable")
 
+    def test_build_trace_timeline_from_cloudwatch(self):
+        class _FakeLogsClient:
+            def filter_log_events(self, **kwargs):
+                self.kwargs = kwargs
+                return {
+                    "events": [
+                        {
+                            "message": json.dumps(
+                                {
+                                    "ts": "2026-03-01T00:00:01Z",
+                                    "level": "info",
+                                    "event": "api.request.start",
+                                    "request_id": "req-cw-1",
+                                    "session_id": "sess-1",
+                                    "route": "/analyze",
+                                    "method": "POST",
+                                }
+                            )
+                        },
+                        {
+                            "message": json.dumps(
+                                {
+                                    "ts": "2026-03-01T00:00:02Z",
+                                    "level": "info",
+                                    "event": "api.request.end",
+                                    "request_id": "req-cw-1",
+                                    "session_id": "sess-1",
+                                    "status": "ok",
+                                    "status_code": 200,
+                                }
+                            )
+                        },
+                    ]
+                }
+
+        fake_client = _FakeLogsClient()
+        result = build_trace_timeline(
+            request_id="req-cw-1",
+            log_path="",
+            cloudwatch_log_group="/ecs/dev/swisstopo-api",
+            cloudwatch_client=fake_client,
+            lookback_seconds=3600,
+            max_events=20,
+            now_utc=datetime(2026, 3, 1, 1, 0, tzinfo=timezone.utc),
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["source"]["kind"], "cloudwatch_logs")
+        self.assertEqual(result["event_count"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -193,6 +193,8 @@ _DICTIONARY_DOMAIN_TABLES: dict[str, dict[str, dict[int, str]]] = {
 
 _TRACE_DEBUG_ENABLED_ENV = "TRACE_DEBUG_ENABLED"
 _TRACE_DEBUG_LOG_PATH_ENV = "TRACE_DEBUG_LOG_PATH"
+_TRACE_DEBUG_CW_LOG_GROUP_ENV = "TRACE_DEBUG_CW_LOG_GROUP"
+_TRACE_DEBUG_CW_LOG_STREAM_PREFIX_ENV = "TRACE_DEBUG_CW_LOG_STREAM_PREFIX"
 _TRACE_DEBUG_LOOKBACK_SECONDS_ENV = "TRACE_DEBUG_LOOKBACK_SECONDS"
 _TRACE_DEBUG_MAX_EVENTS_ENV = "TRACE_DEBUG_MAX_EVENTS"
 
@@ -2195,6 +2197,8 @@ class Handler(BaseHTTPRequestHandler):
                 trace_payload = build_trace_timeline(
                     request_id=trace_request_id,
                     log_path=os.getenv(_TRACE_DEBUG_LOG_PATH_ENV, ""),
+                    cloudwatch_log_group=os.getenv(_TRACE_DEBUG_CW_LOG_GROUP_ENV, ""),
+                    cloudwatch_log_stream_prefix=os.getenv(_TRACE_DEBUG_CW_LOG_STREAM_PREFIX_ENV, ""),
                     lookback_seconds=lookback_seconds,
                     max_events=max_events,
                 )

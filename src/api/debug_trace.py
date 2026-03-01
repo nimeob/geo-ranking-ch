@@ -193,31 +193,52 @@ def _normalize_event(payload: dict[str, Any]) -> dict[str, Any] | None:
     return normalized
 
 
-def build_trace_timeline(
+def _finalize_timeline_result(
     *,
-    request_id: str,
-    log_path: str,
-    lookback_seconds: int,
-    max_events: int,
-    now_utc: datetime | None = None,
+    normalized_request_id: str,
+    timeline_candidates: list[tuple[datetime, int, dict[str, Any]]],
+    matched_outside_window: bool,
+    matched_without_timestamp: bool,
+    window_seconds: int,
+    event_limit: int,
+    source: dict[str, Any],
 ) -> dict[str, Any]:
-    """Build a redacted, chronological trace timeline for one request id."""
-    normalized_request_id = normalize_request_id(request_id)
-    if not normalized_request_id:
-        return {
-            "ok": False,
-            "error": "invalid_request_id",
-            "message": "request_id is missing or invalid",
-        }
+    timeline_candidates.sort(key=lambda item: (item[0], item[1]))
+    limited_candidates = timeline_candidates[:event_limit]
+    timeline = [entry for _, _, entry in limited_candidates]
 
-    normalized_path = str(log_path or "").strip()
-    if not normalized_path:
-        return {
-            "ok": False,
-            "error": "trace_source_unavailable",
-            "message": "TRACE_DEBUG_LOG_PATH is not configured",
-        }
+    state = "ready"
+    reason = ""
+    if not timeline:
+        state = "empty"
+        if matched_outside_window:
+            reason = "request_id_outside_window"
+        else:
+            reason = "request_id_unknown_or_no_events"
 
+    return {
+        "ok": True,
+        "request_id": normalized_request_id,
+        "state": state,
+        "reason": reason,
+        "found": bool(timeline),
+        "events": timeline,
+        "event_count": len(timeline),
+        "window_seconds": window_seconds,
+        "max_events": event_limit,
+        "source": source,
+        "incomplete": matched_without_timestamp,
+    }
+
+
+def _build_trace_timeline_from_jsonl(
+    *,
+    normalized_request_id: str,
+    normalized_path: str,
+    cutoff: datetime,
+    window_seconds: int,
+    event_limit: int,
+) -> dict[str, Any]:
     path = Path(normalized_path)
     if not path.exists() or not path.is_file():
         return {
@@ -225,11 +246,6 @@ def build_trace_timeline(
             "error": "trace_source_unavailable",
             "message": f"trace source not found: {normalized_path}",
         }
-
-    window_seconds = normalize_lookback_seconds(lookback_seconds)
-    event_limit = normalize_max_events(max_events)
-    current_time = now_utc or datetime.now(timezone.utc)
-    cutoff = current_time - timedelta(seconds=window_seconds)
 
     timeline_candidates: list[tuple[datetime, int, dict[str, Any]]] = []
     matched_outside_window = False
@@ -273,32 +289,174 @@ def build_trace_timeline(
             "message": f"trace source unreadable: {exc}",
         }
 
-    timeline_candidates.sort(key=lambda item: (item[0], item[1]))
-    limited_candidates = timeline_candidates[:event_limit]
-    timeline = [entry for _, _, entry in limited_candidates]
+    return _finalize_timeline_result(
+        normalized_request_id=normalized_request_id,
+        timeline_candidates=timeline_candidates,
+        matched_outside_window=matched_outside_window,
+        matched_without_timestamp=matched_without_timestamp,
+        window_seconds=window_seconds,
+        event_limit=event_limit,
+        source={"kind": "jsonl_file", "path": str(path)},
+    )
 
-    state = "ready"
-    reason = ""
-    if not timeline:
-        state = "empty"
-        if matched_outside_window:
-            reason = "request_id_outside_window"
-        else:
-            reason = "request_id_unknown_or_no_events"
 
-    return {
-        "ok": True,
-        "request_id": normalized_request_id,
-        "state": state,
-        "reason": reason,
-        "found": bool(timeline),
-        "events": timeline,
-        "event_count": len(timeline),
-        "window_seconds": window_seconds,
-        "max_events": event_limit,
-        "source": {
-            "kind": "jsonl_file",
-            "path": str(path),
-        },
-        "incomplete": matched_without_timestamp,
+def _build_trace_timeline_from_cloudwatch(
+    *,
+    normalized_request_id: str,
+    log_group: str,
+    log_stream_prefix: str,
+    cutoff: datetime,
+    current_time: datetime,
+    window_seconds: int,
+    event_limit: int,
+    cloudwatch_client: Any | None,
+) -> dict[str, Any]:
+    client = cloudwatch_client
+    if client is None:
+        try:
+            import boto3  # type: ignore
+
+            client = boto3.client("logs")
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": "trace_source_unavailable",
+                "message": f"cloudwatch client unavailable: {exc}",
+            }
+
+    start_time_ms = int(cutoff.timestamp() * 1000)
+    end_time_ms = int(current_time.timestamp() * 1000)
+    next_token: str | None = None
+
+    timeline_candidates: list[tuple[datetime, int, dict[str, Any]]] = []
+    matched_outside_window = False
+    matched_without_timestamp = False
+    event_index = 0
+
+    filter_kwargs: dict[str, Any] = {
+        "logGroupName": log_group,
+        "startTime": start_time_ms,
+        "endTime": end_time_ms,
+        "filterPattern": f'"{normalized_request_id}"',
     }
+    if log_stream_prefix:
+        filter_kwargs["logStreamNamePrefix"] = log_stream_prefix
+
+    try:
+        while True:
+            request_kwargs = dict(filter_kwargs)
+            if next_token:
+                request_kwargs["nextToken"] = next_token
+
+            response = client.filter_log_events(**request_kwargs)
+            for event in response.get("events", []):
+                message = str(event.get("message") or "").strip()
+                if not message:
+                    continue
+                try:
+                    payload = json.loads(message)
+                except json.JSONDecodeError:
+                    continue
+
+                if not isinstance(payload, dict):
+                    continue
+                if str(payload.get("request_id") or "").strip() != normalized_request_id:
+                    continue
+
+                normalized_event = _normalize_event(payload)
+                if normalized_event is None:
+                    continue
+
+                parsed_ts = _parse_timestamp(payload.get("ts"))
+                if parsed_ts is None:
+                    matched_without_timestamp = True
+                    parsed_ts = datetime.fromtimestamp(0, tz=timezone.utc)
+                elif parsed_ts < cutoff:
+                    matched_outside_window = True
+                    continue
+
+                event_index += 1
+                timeline_candidates.append((parsed_ts, event_index, normalized_event))
+
+            new_token = response.get("nextToken")
+            if not new_token or new_token == next_token:
+                break
+            next_token = str(new_token)
+
+            if len(timeline_candidates) >= event_limit:
+                break
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "trace_source_unavailable",
+            "message": f"cloudwatch query failed: {exc}",
+        }
+
+    return _finalize_timeline_result(
+        normalized_request_id=normalized_request_id,
+        timeline_candidates=timeline_candidates,
+        matched_outside_window=matched_outside_window,
+        matched_without_timestamp=matched_without_timestamp,
+        window_seconds=window_seconds,
+        event_limit=event_limit,
+        source={
+            "kind": "cloudwatch_logs",
+            "log_group": log_group,
+            "log_stream_prefix": log_stream_prefix,
+        },
+    )
+
+
+def build_trace_timeline(
+    *,
+    request_id: str,
+    log_path: str,
+    lookback_seconds: int,
+    max_events: int,
+    cloudwatch_log_group: str = "",
+    cloudwatch_log_stream_prefix: str = "",
+    cloudwatch_client: Any | None = None,
+    now_utc: datetime | None = None,
+) -> dict[str, Any]:
+    """Build a redacted, chronological trace timeline for one request id."""
+    normalized_request_id = normalize_request_id(request_id)
+    if not normalized_request_id:
+        return {
+            "ok": False,
+            "error": "invalid_request_id",
+            "message": "request_id is missing or invalid",
+        }
+
+    window_seconds = normalize_lookback_seconds(lookback_seconds)
+    event_limit = normalize_max_events(max_events)
+    current_time = now_utc or datetime.now(timezone.utc)
+    cutoff = current_time - timedelta(seconds=window_seconds)
+
+    normalized_log_group = str(cloudwatch_log_group or "").strip()
+    if normalized_log_group:
+        return _build_trace_timeline_from_cloudwatch(
+            normalized_request_id=normalized_request_id,
+            log_group=normalized_log_group,
+            log_stream_prefix=str(cloudwatch_log_stream_prefix or "").strip(),
+            cutoff=cutoff,
+            current_time=current_time,
+            window_seconds=window_seconds,
+            event_limit=event_limit,
+            cloudwatch_client=cloudwatch_client,
+        )
+
+    normalized_path = str(log_path or "").strip()
+    if not normalized_path:
+        return {
+            "ok": False,
+            "error": "trace_source_unavailable",
+            "message": "TRACE_DEBUG_CW_LOG_GROUP or TRACE_DEBUG_LOG_PATH must be configured",
+        }
+
+    return _build_trace_timeline_from_jsonl(
+        normalized_request_id=normalized_request_id,
+        normalized_path=normalized_path,
+        cutoff=cutoff,
+        window_seconds=window_seconds,
+        event_limit=event_limit,
+    )
