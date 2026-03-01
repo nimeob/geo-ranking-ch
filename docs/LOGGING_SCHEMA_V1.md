@@ -157,7 +157,80 @@ Zusätzlich werden pattern-basiert maskiert:
 }
 ```
 
-## Implementierungsstand BL-340.1 + BL-340.2 + BL-340.3
+### 6) API->Upstream Request-Start (BL-340.4)
+
+```json
+{
+  "ts": "2026-03-01T02:05:11.004Z",
+  "level": "info",
+  "event": "api.upstream.request.start",
+  "trace_id": "req-bl340-413",
+  "request_id": "req-bl340-413",
+  "session_id": "sess-bl340",
+  "component": "api.address_intel",
+  "direction": "api->upstream",
+  "status": "sent",
+  "source": "geoadmin_search",
+  "target_host": "api3.geo.admin.ch",
+  "target_path": "/rest/services/api/SearchServer",
+  "attempt": 1,
+  "max_attempts": 3,
+  "retry_count": 0,
+  "timeout_seconds": 15.0
+}
+```
+
+### 7) API->Upstream Request-Ende mit Retry (BL-340.4)
+
+```json
+{
+  "ts": "2026-03-01T02:05:11.451Z",
+  "level": "warn",
+  "event": "api.upstream.request.end",
+  "trace_id": "req-bl340-413",
+  "request_id": "req-bl340-413",
+  "session_id": "sess-bl340",
+  "component": "api.address_intel",
+  "direction": "upstream->api",
+  "status": "retrying",
+  "source": "geoadmin_search",
+  "status_code": 503,
+  "duration_ms": 447.312,
+  "attempt": 1,
+  "max_attempts": 3,
+  "retry_count": 0,
+  "retryable": true,
+  "error_class": "http_error",
+  "error_message": "HTTP-Fehler (503)"
+}
+```
+
+### 8) Upstream-Response Summary (BL-340.4)
+
+```json
+{
+  "ts": "2026-03-01T02:05:12.009Z",
+  "level": "info",
+  "event": "api.upstream.response.summary",
+  "trace_id": "req-bl340-413",
+  "request_id": "req-bl340-413",
+  "session_id": "sess-bl340",
+  "component": "api.address_intel",
+  "direction": "upstream->api",
+  "status": "ok",
+  "source": "geoadmin_search",
+  "target_host": "api3.geo.admin.ch",
+  "target_path": "/rest/services/api/SearchServer",
+  "cache": "miss",
+  "records": 5,
+  "payload_kind": "dict",
+  "attempt": 2,
+  "max_attempts": 3,
+  "retry_count": 1
+}
+```
+
+## Implementierungsstand BL-340.1 + BL-340.2 + BL-340.3 + BL-340.4
 
 - Shared Helper: `src/shared/structured_logging.py`
   - `build_event(...)`
@@ -179,10 +252,14 @@ Zusätzlich werden pattern-basiert maskiert:
   - `ui.api.request.end` (inkl. `status_code`, `duration_ms`, `error_code/error_class`)
   - `ui.validation.error`
   - `ui.output.map_status`
+- Upstream-Call-Sites BL-340.4:
+  - API-Koordinatenauflösung in `src/api/web_service.py` (`wgs84tolv95`, `gwr_identify`)
+  - Address-Intel-JSON-Provider in `src/api/address_intel.py` (`HttpClient.get_json`)
+  - RSS-Provider in `src/api/address_intel.py` (`fetch_google_news_rss`)
 
-## Abgrenzung zu BL-340.4
+## BL-340.4 Nachweise
 
-BL-340.1 bis BL-340.3 decken **Kernschema + Redaction + API- und UI-Lifecycle-Logging** ab.
-Offen bleibt als nächster Child-Step:
-
-- #413 (Upstream Provider Logging + Trace-/Retry-Nachweise)
+- Traces (Erfolg + Fehler): `docs/testing/BL-340_UPSTREAM_TRACE_EVIDENCE.md`
+- Regressionstests:
+  - `tests/test_address_intel_upstream_logging.py`
+  - `tests/test_web_service_request_logging.py`

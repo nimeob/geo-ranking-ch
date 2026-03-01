@@ -25,7 +25,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlencode, urlsplit
 from urllib.request import urlopen
 
@@ -707,24 +707,152 @@ def _extract_postal_prefix(value: Any) -> str:
     return match.group(1) if match else ""
 
 
-def _fetch_json_url(url: str, *, timeout_seconds: float, source: str) -> dict[str, Any]:
+def _fetch_json_url(
+    url: str,
+    *,
+    timeout_seconds: float,
+    source: str,
+    upstream_log_emitter: Callable[..., None] | None = None,
+) -> dict[str, Any]:
+    target = urlsplit(url)
+    target_host = str(target.netloc or "").lower()
+    target_path = str(target.path or "/")
+    if not target_path.startswith("/"):
+        target_path = f"/{target_path}"
+
+    started_at = time.perf_counter()
+    if upstream_log_emitter is not None:
+        upstream_log_emitter(
+            event="api.upstream.request.start",
+            level="info",
+            component="api.web_service",
+            direction="api->upstream",
+            status="sent",
+            source=source,
+            target_host=target_host,
+            target_path=target_path,
+            attempt=1,
+            max_attempts=1,
+            retry_count=0,
+            timeout_seconds=max(1.0, float(timeout_seconds)),
+        )
+
+    status_code = 0
     try:
         with urlopen(url, timeout=max(1.0, float(timeout_seconds))) as response:
+            status_code = int(getattr(response, "status", 200) or 200)
             body = response.read().decode("utf-8")
     except Exception as exc:
+        if upstream_log_emitter is not None:
+            upstream_log_emitter(
+                event="api.upstream.request.end",
+                level="error",
+                component="api.web_service",
+                direction="upstream->api",
+                status="error",
+                source=source,
+                target_host=target_host,
+                target_path=target_path,
+                attempt=1,
+                max_attempts=1,
+                retry_count=0,
+                duration_ms=round((time.perf_counter() - started_at) * 1000.0, 3),
+                error_class="network_error",
+                error_message=str(exc),
+            )
         raise ValueError(f"coordinate resolution failed at {source}") from exc
 
     try:
         payload = json.loads(body)
     except json.JSONDecodeError as exc:
+        if upstream_log_emitter is not None:
+            upstream_log_emitter(
+                event="api.upstream.request.end",
+                level="error",
+                component="api.web_service",
+                direction="upstream->api",
+                status="error",
+                source=source,
+                target_host=target_host,
+                target_path=target_path,
+                status_code=status_code,
+                attempt=1,
+                max_attempts=1,
+                retry_count=0,
+                duration_ms=round((time.perf_counter() - started_at) * 1000.0, 3),
+                error_class="decode_error",
+                error_message=str(exc),
+            )
         raise ValueError(f"coordinate resolution returned invalid JSON at {source}") from exc
 
     if not isinstance(payload, dict):
+        if upstream_log_emitter is not None:
+            upstream_log_emitter(
+                event="api.upstream.request.end",
+                level="error",
+                component="api.web_service",
+                direction="upstream->api",
+                status="error",
+                source=source,
+                target_host=target_host,
+                target_path=target_path,
+                status_code=status_code,
+                attempt=1,
+                max_attempts=1,
+                retry_count=0,
+                duration_ms=round((time.perf_counter() - started_at) * 1000.0, 3),
+                error_class="invalid_payload",
+                error_message="payload is not an object",
+            )
         raise ValueError(f"coordinate resolution returned invalid payload at {source}")
+
+    duration_ms = round((time.perf_counter() - started_at) * 1000.0, 3)
+    result_records = payload.get("results") if isinstance(payload, dict) else None
+    records = len(result_records) if isinstance(result_records, list) else 1
+
+    if upstream_log_emitter is not None:
+        upstream_log_emitter(
+            event="api.upstream.request.end",
+            level="info",
+            component="api.web_service",
+            direction="upstream->api",
+            status="ok",
+            source=source,
+            target_host=target_host,
+            target_path=target_path,
+            status_code=status_code,
+            attempt=1,
+            max_attempts=1,
+            retry_count=0,
+            duration_ms=duration_ms,
+        )
+        upstream_log_emitter(
+            event="api.upstream.response.summary",
+            level="info",
+            component="api.web_service",
+            direction="upstream->api",
+            status="ok",
+            source=source,
+            target_host=target_host,
+            target_path=target_path,
+            status_code=status_code,
+            cache="miss",
+            records=records,
+            payload_kind=type(payload).__name__,
+            attempt=1,
+            max_attempts=1,
+            retry_count=0,
+        )
     return payload
 
 
-def _wgs84_to_lv95(*, lat: float, lon: float, timeout_seconds: float) -> tuple[float, float]:
+def _wgs84_to_lv95(
+    *,
+    lat: float,
+    lon: float,
+    timeout_seconds: float,
+    upstream_log_emitter: Callable[..., None] | None = None,
+) -> tuple[float, float]:
     params = urlencode(
         {
             "easting": f"{lon:.8f}",
@@ -733,14 +861,25 @@ def _wgs84_to_lv95(*, lat: float, lon: float, timeout_seconds: float) -> tuple[f
         }
     )
     url = f"https://geodesy.geo.admin.ch/reframe/wgs84tolv95?{params}"
-    payload = _fetch_json_url(url, timeout_seconds=timeout_seconds, source="wgs84tolv95")
+    payload = _fetch_json_url(
+        url,
+        timeout_seconds=timeout_seconds,
+        source="wgs84tolv95",
+        upstream_log_emitter=upstream_log_emitter,
+    )
 
     lv95_e = _as_finite_number(payload.get("easting"), "coordinates.lv95_e")
     lv95_n = _as_finite_number(payload.get("northing"), "coordinates.lv95_n")
     return lv95_e, lv95_n
 
 
-def _identify_gwr_candidates(*, lat: float, lon: float, timeout_seconds: float) -> list[dict[str, Any]]:
+def _identify_gwr_candidates(
+    *,
+    lat: float,
+    lon: float,
+    timeout_seconds: float,
+    upstream_log_emitter: Callable[..., None] | None = None,
+) -> list[dict[str, Any]]:
     cos_lat = max(math.cos(math.radians(lat)), 0.2)
     margin_lat = max(_COORDINATE_IDENTIFY_TOLERANCE_M / 111320.0, 0.0015)
     margin_lon = max(_COORDINATE_IDENTIFY_TOLERANCE_M / (111320.0 * cos_lat), 0.0015)
@@ -761,7 +900,12 @@ def _identify_gwr_candidates(*, lat: float, lon: float, timeout_seconds: float) 
         "f": "json",
     }
     url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify?" + urlencode(params)
-    payload = _fetch_json_url(url, timeout_seconds=timeout_seconds, source="gwr_identify")
+    payload = _fetch_json_url(
+        url,
+        timeout_seconds=timeout_seconds,
+        source="gwr_identify",
+        upstream_log_emitter=upstream_log_emitter,
+    )
 
     results = payload.get("results")
     if not isinstance(results, list):
@@ -810,9 +954,25 @@ def _identify_gwr_candidates(*, lat: float, lon: float, timeout_seconds: float) 
     return candidates
 
 
-def _resolve_query_from_coordinates(*, lat: float, lon: float, timeout_seconds: float = 8.0) -> tuple[str, dict[str, Any]]:
-    click_lv95_e, click_lv95_n = _wgs84_to_lv95(lat=lat, lon=lon, timeout_seconds=timeout_seconds)
-    candidates = _identify_gwr_candidates(lat=lat, lon=lon, timeout_seconds=timeout_seconds)
+def _resolve_query_from_coordinates(
+    *,
+    lat: float,
+    lon: float,
+    timeout_seconds: float = 8.0,
+    upstream_log_emitter: Callable[..., None] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    click_lv95_e, click_lv95_n = _wgs84_to_lv95(
+        lat=lat,
+        lon=lon,
+        timeout_seconds=timeout_seconds,
+        upstream_log_emitter=upstream_log_emitter,
+    )
+    candidates = _identify_gwr_candidates(
+        lat=lat,
+        lon=lon,
+        timeout_seconds=timeout_seconds,
+        upstream_log_emitter=upstream_log_emitter,
+    )
 
     if not candidates:
         raise ValueError("coordinates could not be resolved to a Swiss building candidate")
@@ -851,7 +1011,11 @@ def _resolve_query_from_coordinates(*, lat: float, lon: float, timeout_seconds: 
     }
 
 
-def _extract_query_and_coordinate_context(data: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+def _extract_query_and_coordinate_context(
+    data: dict[str, Any],
+    *,
+    upstream_log_emitter: Callable[..., None] | None = None,
+) -> tuple[str, dict[str, Any] | None]:
     query = str(data.get("query", "")).strip()
     if query:
         return query, None
@@ -910,7 +1074,11 @@ def _extract_query_and_coordinate_context(data: dict[str, Any]) -> tuple[str, di
         lon = snapped_lon
         snap_applied = True
 
-    resolved_query, resolution_context = _resolve_query_from_coordinates(lat=lat, lon=lon)
+    resolved_query, resolution_context = _resolve_query_from_coordinates(
+        lat=lat,
+        lon=lon,
+        upstream_log_emitter=upstream_log_emitter,
+    )
 
     coordinate_context = {
         "input_mode": "coordinates",
@@ -1602,7 +1770,24 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(data, dict):
                     raise ValueError("json body must be an object")
 
-                query, coordinate_context = _extract_query_and_coordinate_context(data)
+                session_id = str(getattr(self, "_request_lifecycle_session_id", "") or "")
+
+                def _emit_upstream_for_request(*, event: str, level: str = "info", **fields: Any) -> None:
+                    _emit_structured_log(
+                        event=event,
+                        level=level,
+                        trace_id=request_id,
+                        request_id=request_id,
+                        session_id=session_id,
+                        route=request_path,
+                        method="POST",
+                        **fields,
+                    )
+
+                query, coordinate_context = _extract_query_and_coordinate_context(
+                    data,
+                    upstream_log_emitter=_emit_upstream_for_request,
+                )
 
                 mode = str(data.get("intelligence_mode", "basic")).strip() or "basic"
                 mode = mode.lower()
@@ -1723,6 +1908,10 @@ class Handler(BaseHTTPRequestHandler):
                     retries=2,
                     backoff_seconds=0.6,
                     intelligence_mode=mode,
+                    upstream_log_emitter=_emit_upstream_for_request,
+                    trace_id=request_id,
+                    request_id=request_id,
+                    session_id=session_id,
                 )
                 _apply_personalized_suitability_scores(
                     report,
