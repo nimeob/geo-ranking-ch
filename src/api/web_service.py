@@ -2182,6 +2182,12 @@ class Handler(BaseHTTPRequestHandler):
         for key, value in merged_headers.items():
             self.send_header(key, value)
         self.end_headers()
+
+        # Emit the lifecycle end event as early as possible (after status/headers are set)
+        # to avoid timing races where callers observe the HTTP response before the
+        # corresponding structured log event is captured.
+        self._finish_request_lifecycle()
+
         self.wfile.write(body)
 
     def _send_html(
@@ -2203,6 +2209,12 @@ class Handler(BaseHTTPRequestHandler):
             for key, value in extra_headers.items():
                 self.send_header(key, value)
         self.end_headers()
+
+        # Emit the lifecycle end event as early as possible (after status/headers are set)
+        # to avoid timing races where callers observe the HTTP response before the
+        # corresponding structured log event is captured.
+        self._finish_request_lifecycle()
+
         self.wfile.write(body)
 
     def _send_not_modified(
