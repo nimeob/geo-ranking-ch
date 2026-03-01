@@ -22,7 +22,6 @@ Regelwerk:
 - (leer)
 
 ### Next
-- [#576](https://github.com/nimeob/geo-ranking-ch/issues/576) — BL-15.r2.wp2.b.prereq — optionales Wartungsfenster/Host-Zugriff (nur falls nötig) (priority:P0, status:todo)
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
 - [#651](https://github.com/nimeob/geo-ranking-ch/issues/651) — WP: staging Terraform – Baseline Provisioning (VPC/ECS/ALB/Logs/Secrets) + Outputs (priority:P0, status:todo)
 - [#653](https://github.com/nimeob/geo-ranking-ch/issues/653) — WP: staging Smoke – POST /analyze => 200 (staging URL) + Evidence (priority:P0, status:todo)
