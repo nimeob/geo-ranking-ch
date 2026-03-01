@@ -31,7 +31,7 @@ Regelwerk:
 - [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, ✅ abgeschlossen 2026-03-01, Evidence: ACC-MCS-2026-03-01-001, 31/31 Muss-Tests bestanden)
 - [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, ✅ abgeschlossen 2026-03-01, READINESS-BL342-2026-03-01-001: 16/16 Bereiche freigegeben)
 - [#530](https://github.com/nimeob/geo-ranking-ch/issues/530) — Go-Live-Checkliste und Entscheidungsmeeting durchführen (priority:P3, ✅ abgeschlossen 2026-03-01, GOLIVE-BL342-2026-03-01-001: GO, 10/10 Gates)
-- [#532](https://github.com/nimeob/geo-ranking-ch/issues/532) — Schulung für relevante Rollen durchführen (priority:P3, status:blocked)
+- [#532](https://github.com/nimeob/geo-ranking-ch/issues/532) — Schulung für relevante Rollen durchführen (priority:P3, ✅ abgeschlossen 2026-03-01, SCHULUNG-BL342-2026-03-01-001: 5/5 Rollen geschult)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Backlog-Items
@@ -849,7 +849,7 @@ Regelwerk:
   - [x] #529 — Pre-Go-Live-Readiness-Review durchführen (✅ abgeschlossen 2026-03-01, READINESS-BL342-2026-03-01-001)
   - [x] #530 — Go-Live-Checkliste und Entscheidungsmeeting durchführen (✅ abgeschlossen 2026-03-01, GOLIVE-BL342-2026-03-01-001: GO)
   - [x] #531 — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (✅ abgeschlossen 2026-03-01, PR #617)
-  - [ ] #532 — Schulung für relevante Rollen durchführen (status:blocked)
+  - [x] #532 — Schulung für relevante Rollen durchführen (✅ abgeschlossen 2026-03-01, SCHULUNG-BL342-2026-03-01-001)
 - **Fortschritt (2026-03-01):**
   - ✅ #515 abgeschlossen: verbindliche Policy-Vorlage in [`docs/compliance/POLICY_STANDARD_V1.md`](compliance/POLICY_STANDARD_V1.md) eingeführt (Pflichtfelder `version`, `begruendung`, `wirksam_ab`, `impact_summary` + Freigabe-Workflow v1 und Copy/Paste-Referenztemplate).
   - ✅ #516 abgeschlossen: Korrektur-Richtlinie in [`docs/compliance/KORREKTUR_RICHTLINIE_V1.md`](compliance/KORREKTUR_RICHTLINIE_V1.md) veröffentlicht (Original bleibt unverändert, Korrekturen nur als neue Version, Pflichtfeld `korrekturgrund`, inkl. Freigabe-/Kommunikationskriterien).
