@@ -741,6 +741,7 @@ Regelwerk:
   - ✅ Regressionen für Route/State-Flow + UI-Service-Rewrite ergänzt (`tests/test_web_service_gui_mvp.py`, `tests/test_ui_service.py`).
   - ✅ #435 abgeschlossen: Result-Panel zeigt `request_id` jetzt als aktive Debug-Einstiegsfläche mit klickbarem `Trace ansehen`-Link (öffnet/lädt Trace-View mit identischer ID) und `Copy ID`-Action inkl. `aria-live`-Feedback + Fallback-Copy-Strategie (`src/shared/gui_mvp.py`, `docs/gui/GUI_MVP_STATE_FLOW.md`). Reopen durch Crawler-Audit wurde am 2026-03-01 per Checklist-Sync im Issue bereinigt.
   - ✅ #436 abgeschlossen: reproduzierbarer Smoke-Test für Analyze→Trace-Lookup ergänzt (`tests/test_trace_debug_smoke.py`) und operative Nutzung/Limits/Security in `docs/testing/TRACE_DEBUG_SMOKE_FLOW.md` dokumentiert (inkl. Verlinkung aus `docs/testing/TRACE_DEBUG_API.md`). Reopen durch Crawler-Audit wurde am 2026-03-01 per Checklist-Sync im Issue bereinigt.
+  - ✅ #430 Parent-Sync abgeschlossen: Akzeptanzkriterien/DoD im Parent-Issue nach Child-Abschluss vollständig auf erfüllt gesetzt; Crawler-Reopen dadurch final bereinigt (2026-03-01).
 - **Nächster Schritt:** keiner (BL-422 vollständig abgeschlossen).
 
 ### BL-341 — Maßnahmen aus WORKING_MODE_FRICTION_ANALYSIS umsetzen (Verkaufsreife)
