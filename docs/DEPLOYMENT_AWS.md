@@ -446,6 +446,8 @@ Für `staging` existiert ein separater Workflow:
 
 > Hinweis: `SERVICE_HEALTH_URL` ist nur ein optionaler Override für den API-Health-Check. Fehlt der Wert, nutzt der Workflow `${SERVICE_API_BASE_URL}/health`. Der optionale Analyze-Smoke läuft nur, wenn `SERVICE_API_BASE_URL` gesetzt ist.
 >
+> Lokaler Smoke (Evidence): [`docs/testing/STAGING_ANALYZE_SMOKE_RUNBOOK.md`](testing/STAGING_ANALYZE_SMOKE_RUNBOOK.md) (Wrapper: `./scripts/run_staging_api_smoketest.sh`).
+>
 > Verbindliche Checkliste für Version-/Trace-Verifikation: [`docs/testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md`](testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md).
 
 ### BL-02 Verifikationsnachweise (historisch, vor Umstellung auf workflow_dispatch-only)
