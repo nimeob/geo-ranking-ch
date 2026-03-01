@@ -1,0 +1,7 @@
+{
+  "policy_id": "POL-RETDEL-002",
+  "version": "v1.1",
+  "begruendung": "Korrektur nach Audit-Hinweis zu Löschfristen",
+  "wirksam_ab": "2026-03-15",
+  "impact_referenz": "issue:539"
+}

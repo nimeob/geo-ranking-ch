@@ -1,0 +1,7 @@
+{
+  "policy_id": "POL-RETDEL-001",
+  "version": "v1.0",
+  "begruendung": "Regulatorische Mindestanforderungen konsolidiert",
+  "wirksam_ab": "2026-03-01",
+  "impact_referenz": "https://github.com/nimeob/geo-ranking-ch/issues/539"
+}
