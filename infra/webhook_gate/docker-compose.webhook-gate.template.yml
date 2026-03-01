@@ -1,0 +1,17 @@
+services:
+  openclaw:
+    image: __OPENCLAW_IMAGE__
+    restart: unless-stopped
+    expose:
+      - "__OPENCLAW_PORT__"
+
+  webhook-gate:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - openclaw
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.aws-alarm.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro

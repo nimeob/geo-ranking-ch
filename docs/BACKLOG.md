@@ -19,21 +19,28 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- (leer)
+- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: OpenClaw AWS-Webhook-Gate mit IP-Allowlist umsetzen (Hostinger) (priority:P2, status:in-progress)
+- [#549](https://github.com/nimeob/geo-ranking-ch/issues/549) — BL-16.wp1: Repo-Runbook + NGINX/Compose-Templates für AWS-Webhook-Gate (priority:P2, status:todo)
 
 ### Next
 - (leer)
 
 ### Later
 - [#457](https://github.com/nimeob/geo-ranking-ch/issues/457) — BL-341.wp5.r1: GTM-Sprint gtm-validation-001 ausführen und BL-30-Entscheidung ableiten (priority:P1, status:blocked)
-- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: OpenClaw AWS-Webhook-Gate mit IP-Allowlist umsetzen (Hostinger) (priority:P2, status:blocked)
-- [#105](https://github.com/nimeob/geo-ranking-ch/issues/105) — BL-30.1: Pricing-Modell für API+UI entwerfen (Later) (priority:P3, status:todo)
+- [#520](https://github.com/nimeob/geo-ranking-ch/issues/520) — Korrektur-Workflow implementieren (neue Version, Original unverändert) (priority:P2, status:blocked)
+- [#521](https://github.com/nimeob/geo-ranking-ch/issues/521) — Pflichtfeld Korrekturgrund erzwingen (priority:P2, status:blocked)
+- [#522](https://github.com/nimeob/geo-ranking-ch/issues/522) — Lösch-Scheduler mit Vorankündigung implementieren (priority:P2, status:blocked)
+- [#523](https://github.com/nimeob/geo-ranking-ch/issues/523) — Hold-Flag pro Dokument implementieren (priority:P2, status:blocked)
+- [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, status:blocked)
+- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Externes Hostinger-Rollout + E2E-Verifikation (priority:P2, status:blocked)
 - [#106](https://github.com/nimeob/geo-ranking-ch/issues/106) — BL-30.2: Shop + Payment + Entitlements für UI/API (Later) (priority:P3, status:todo)
-- [#107](https://github.com/nimeob/geo-ranking-ch/issues/107) — BL-30.3: Optionaler AI-Deep-Mode pro Abruf (Later) (priority:P3, status:todo)
-- [#108](https://github.com/nimeob/geo-ranking-ch/issues/108) — BL-30.4: HTML5-UI-Architektur für hochdynamische Interaktion (Later) (priority:P3, status:todo)
-- [#110](https://github.com/nimeob/geo-ranking-ch/issues/110) — BL-30.5: OSM-Map Intelligence Flow (Punktwahl -> vollständige Standortanalyse) (Later) (priority:P3, status:todo)
-- [#113](https://github.com/nimeob/geo-ranking-ch/issues/113) — BL-30.6: Mobile App (Phone/Tablet) mit Live-Geolocation-Analyse (Later) (priority:P3, status:todo)
 - [#128](https://github.com/nimeob/geo-ranking-ch/issues/128) — BL-30: Parent-Issue für Monetization/Deep-Mode/HTML5/Map/Mobile inkl. Dependency-Gates (priority:P3, status:todo)
+- [#465](https://github.com/nimeob/geo-ranking-ch/issues/465) — BL-30.2.wp1: Entitlement-Contract v1 + Gate-Semantik aus BL-30.1 konsolidieren (priority:P3, status:todo)
+- [#466](https://github.com/nimeob/geo-ranking-ch/issues/466) — BL-30.2.wp2: Checkout-/Lifecycle-Contract + idempotenter Entitlement-Sync (priority:P3, status:todo)
+- [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, status:blocked)
+- [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, status:blocked)
+- [#530](https://github.com/nimeob/geo-ranking-ch/issues/530) — Go-Live-Checkliste und Entscheidungsmeeting durchführen (priority:P3, status:blocked)
+- [#532](https://github.com/nimeob/geo-ranking-ch/issues/532) — Schulung für relevante Rollen durchführen (priority:P3, status:blocked)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Backlog-Items
