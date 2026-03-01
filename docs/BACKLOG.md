@@ -677,6 +677,25 @@
   - ✅ #436 abgeschlossen: reproduzierbarer Smoke-Test für Analyze→Trace-Lookup ergänzt (`tests/test_trace_debug_smoke.py`) und operative Nutzung/Limits/Security in `docs/testing/TRACE_DEBUG_SMOKE_FLOW.md` dokumentiert (inkl. Verlinkung aus `docs/testing/TRACE_DEBUG_API.md`).
 - **Nächster Schritt:** keiner (BL-422 vollständig abgeschlossen).
 
+### BL-341 — Maßnahmen aus WORKING_MODE_FRICTION_ANALYSIS umsetzen (Verkaufsreife)
+- **Priorität:** P3
+- **Aufwand:** L
+- **Abhängigkeiten:** keine
+- **Status:** 🟡 in Umsetzung (Parent #418)
+- **Ziel:** Reibungspunkte aus `docs/testing/WORKING_MODE_FRICTION_ANALYSIS.md` in kleinen, risikoarmen Paketen abbauen.
+- **Work-Packages (Parent #418):**
+  - [x] #444 — BL-341.wp1 Pflicht-PR-Gates als required checks (abgeschlossen 2026-03-01)
+  - [ ] #445 — BL-341.wp2 Kritische Quality-Gates fail-closed
+  - [ ] #446 — BL-341.wp3 Staging-lite Promote-/Abort-/Rollback-Gate
+  - [ ] #447 — BL-341.wp4 Backlog-/Issue-Statussync automatisieren
+  - [ ] #448 — BL-341.wp5 GTM-Validierungssprint operationalisieren
+- **Fortschritt (2026-03-01):**
+  - ✅ Epic #418 in atomare Child-Issues zerlegt (2x P0, 3x P1) inkl. Parent-Checklist und Begründung.
+  - ✅ #444 abgeschlossen: Fast-Gates `contract-smoke` + `docs-link-guard` laufen wieder automatisch auf PR (`pull_request`) und bleiben manuell triggerbar (`workflow_dispatch`).
+  - ✅ Required-Check-Zielzustand + Admin-Verifikation in `docs/OPERATIONS.md` synchronisiert.
+  - ✅ Regressionstest für Workflow-/Doku-Sync ergänzt (`tests/test_pr_fast_gates_config.py`).
+- **Nächster Schritt:** #445 (P0 fail-closed für kritische Quality-Gates).
+
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
 - **Aufwand:** L
