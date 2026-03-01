@@ -10,6 +10,32 @@
 
 ---
 
+<!-- NOW_NEXT_LATER:START -->
+## Now / Next / Later (auto-synced)
+
+Regelwerk:
+- **Now:** aktive Arbeit (`status:in-progress` oder `worker-*-active`)
+- **Next:** unblocked `status:todo` (außer `priority:P3`)
+- **Later:** `status:blocked` oder `priority:P3`
+
+### Now
+- [#447](https://github.com/nimeob/geo-ranking-ch/issues/447) — BL-341.wp4: Backlog-/Issue-Prozess mit Statussync automatisieren (Now/Next/Later) (priority:P1, status:todo)
+
+### Next
+- [#448](https://github.com/nimeob/geo-ranking-ch/issues/448) — BL-341.wp5: GTM-Validierungssprint in Priorisierungsprozess verankern (priority:P1, status:todo)
+
+### Later
+- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: OpenClaw AWS-Webhook-Gate mit IP-Allowlist umsetzen (Hostinger) (priority:P2, status:blocked)
+- [#105](https://github.com/nimeob/geo-ranking-ch/issues/105) — BL-30.1: Pricing-Modell für API+UI entwerfen (Later) (priority:P3, status:blocked)
+- [#106](https://github.com/nimeob/geo-ranking-ch/issues/106) — BL-30.2: Shop + Payment + Entitlements für UI/API (Later) (priority:P3, status:blocked)
+- [#107](https://github.com/nimeob/geo-ranking-ch/issues/107) — BL-30.3: Optionaler AI-Deep-Mode pro Abruf (Later) (priority:P3, status:blocked)
+- [#108](https://github.com/nimeob/geo-ranking-ch/issues/108) — BL-30.4: HTML5-UI-Architektur für hochdynamische Interaktion (Later) (priority:P3, status:blocked)
+- [#110](https://github.com/nimeob/geo-ranking-ch/issues/110) — BL-30.5: OSM-Map Intelligence Flow (Punktwahl -> vollständige Standortanalyse) (Later) (priority:P3, status:blocked)
+- [#113](https://github.com/nimeob/geo-ranking-ch/issues/113) — BL-30.6: Mobile App (Phone/Tablet) mit Live-Geolocation-Analyse (Later) (priority:P3, status:blocked)
+- [#128](https://github.com/nimeob/geo-ranking-ch/issues/128) — BL-30: Parent-Issue für Monetization/Deep-Mode/HTML5/Map/Mobile inkl. Dependency-Gates (priority:P3, status:blocked)
+- [#418](https://github.com/nimeob/geo-ranking-ch/issues/418) — BL-341: Maßnahmen aus WORKING_MODE_FRICTION_ANALYSIS umsetzen (Verkaufsreife) (priority:P3, status:todo)
+<!-- NOW_NEXT_LATER:END -->
+
 ## Backlog-Items
 
 ### BL-01 — IaC als Source of Truth für `dev`
@@ -556,7 +582,7 @@
   - Deployment-Entscheide (Ingress/TLS, service-getrennte Deploy-Regeln) in [`docs/DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md).
   - Betriebsregeln für getrennte Rollouts/Rollbacks in [`docs/OPERATIONS.md`](OPERATIONS.md).
 - **Work-Packages:**
-  - [ ] #327 — BL-31.1 Umsetzung 2-Container-Deployment (Parent-Umsetzung)
+  - [x] #327 — BL-31.1 Umsetzung 2-Container-Deployment (Parent-Umsetzung)
   - [x] #328 — BL-31.2 UI-Container-Artefakt + ECS-Task-Basis (abgeschlossen 2026-02-28)
   - [x] #329 — BL-31.3 Host-basiertes Routing + TLS (`app`/`api`) (abgeschlossen 2026-02-28)
   - [x] #330 — BL-31.4 Getrennte Deploy-/Rollback-Runbooks (abgeschlossen 2026-02-28)

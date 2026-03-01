@@ -485,6 +485,27 @@ Hinweis zur Cron-Koexistenz: Der Dispatch mutiert nur bei tatsächlichem Label-D
 
 Zusatzregel aus Follow-up #241: `status:in-progress` gilt als aktiver Zustand und wird im Reconcile-Pfad nicht mehr zusätzlich mit `status:todo` kombiniert.
 
+## Backlog-Statussync (Now/Next/Later)
+
+Zur Reduktion manueller Backlog-Sync-Commits gibt es einen automatisierten Sync-Runner:
+
+```bash
+# Dry-run (nur Summary)
+python3 scripts/sync_backlog_issue_status.py
+
+# Mit Write-Back nach docs/BACKLOG.md
+python3 scripts/sync_backlog_issue_status.py --write
+```
+
+Der Runner synchronisiert:
+1. Issue-Checkboxen in `docs/BACKLOG.md` (`[x]` bei CLOSED, `[ ]` bei OPEN)
+2. das Now/Next/Later-Board im Markerblock `<!-- NOW_NEXT_LATER:START/END -->`
+
+Lane-Regeln:
+- **Now:** `status:in-progress` oder `worker-*-active`
+- **Next:** `status:todo` (außer `priority:P3`)
+- **Later:** `status:blocked` oder `priority:P3`
+
 ## Consistency-Crawler (read-only) — Runbook
 
 Zweck: Drift zwischen Vision, Backlog/Issues, Code und Doku früh erkennen, ohne automatische Mutationen als Default.
