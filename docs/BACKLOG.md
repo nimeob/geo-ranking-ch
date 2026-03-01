@@ -29,7 +29,7 @@ Regelwerk:
 - [#457](https://github.com/nimeob/geo-ranking-ch/issues/457) — BL-341.wp5.r1: GTM-Sprint gtm-validation-001 ausführen und BL-30-Entscheidung ableiten (priority:P1, status:blocked — extern: Interview-Termine ausstehend, 2026-03-01)
 - [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, ✅ abgeschlossen 2026-03-01, PR #617)
 - [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, ✅ abgeschlossen 2026-03-01, Evidence: ACC-MCS-2026-03-01-001, 31/31 Muss-Tests bestanden)
-- [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, status:blocked)
+- [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, ✅ abgeschlossen 2026-03-01, READINESS-BL342-2026-03-01-001: 16/16 Bereiche freigegeben)
 - [#530](https://github.com/nimeob/geo-ranking-ch/issues/530) — Go-Live-Checkliste und Entscheidungsmeeting durchführen (priority:P3, status:blocked)
 - [#532](https://github.com/nimeob/geo-ranking-ch/issues/532) — Schulung für relevante Rollen durchführen (priority:P3, status:blocked)
 <!-- NOW_NEXT_LATER:END -->
@@ -846,7 +846,7 @@ Regelwerk:
   - [x] #522 — Lösch-Scheduler mit Vorankündigung implementieren (abgeschlossen 2026-03-01)
   - [x] #523 — Hold-Flag pro Dokument implementieren (abgeschlossen 2026-03-01)
   - [x] #528 — Go-Live-Testlauf durchführen (✅ abgeschlossen 2026-03-01, ACC-MCS-2026-03-01-001: 31/31 Muss-Tests bestanden)
-  - [ ] #529 — Pre-Go-Live-Readiness-Review durchführen (status:blocked)
+  - [x] #529 — Pre-Go-Live-Readiness-Review durchführen (✅ abgeschlossen 2026-03-01, READINESS-BL342-2026-03-01-001)
   - [ ] #530 — Go-Live-Checkliste und Entscheidungsmeeting durchführen (status:blocked)
   - [x] #531 — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (✅ abgeschlossen 2026-03-01, PR #617)
   - [ ] #532 — Schulung für relevante Rollen durchführen (status:blocked)
