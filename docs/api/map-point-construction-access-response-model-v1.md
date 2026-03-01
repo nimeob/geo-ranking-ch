@@ -13,7 +13,7 @@ Einordnung:
 - Parent: #110
 - Parent-Epic: #128
 - Vorarbeit: #494 (Workflow), #495 (Daten-/Lizenzmatrix)
-- Follow-up: #498 (produktive Tile-/ODbL-Compliance-Entscheide)
+- Follow-up (abgeschlossen): #498 (produktive Tile-/ODbL-Compliance-Entscheide, siehe [`docs/gui/OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md`](../gui/OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md))
 
 ## 2) Modulpfad im grouped Response-Contract
 
@@ -160,7 +160,7 @@ Für BL-30.5.wp3 gilt als Mindeststandard:
 
 1. Runtime-Projektion in `src/api/address_intel.py` ergänzen (modular, additiv).
 2. Contract-/Schema-Abgleich gegen grouped Core-Paths + Field-Catalog durchführen.
-3. Lizenz-/Attribution-Boundaries aus #498 in Runtime-Hinweise und Exporte übernehmen.
+3. Lizenz-/Attribution-Boundaries gemäß #498 in Runtime-Hinweise und Exporte übernehmen (siehe [`docs/gui/OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md`](../gui/OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md)).
 4. API-Example-Payloads und ggf. Golden-Cases nachziehen, sobald Runtime-Felder live sind.
 
 ## 7) Definition-of-Done-Check (#496)

@@ -42,7 +42,7 @@ class TestBL30UnitEconomicsDocs(unittest.TestCase):
             backlog,
         )
         self.assertIn(
-            "**Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf umsetzen: #482 (BL-30.4.wp4 Explainability-/Scoring-UX-Standards).",
+            "**Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf in #106/#113 identifizieren (ggf. zuerst atomisieren), da #498 abgeschlossen ist und #106-Childs (#465/#466) aktuell gate-blocked sind.",
             backlog,
         )
 
