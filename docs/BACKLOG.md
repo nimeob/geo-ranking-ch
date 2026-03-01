@@ -663,7 +663,7 @@
 - **Ziel:** Für eine konkrete `request_id` den API/UI/Upstream-Verlauf als nachvollziehbare Timeline abrufbar machen.
 - **Work-Packages (Parent #430):**
   - [x] #433 — BL-422.1 Dev-only Trace-API (Timeline + Redaction) (abgeschlossen 2026-03-01)
-  - [ ] #434 — BL-422.2 Trace-Debug-View Route/Loader in GUI
+  - [x] #434 — BL-422.2 Trace-Debug-View Route/Loader in GUI (abgeschlossen 2026-03-01)
   - [ ] #435 — BL-422.3 Result-Panel UX (Trace-Link + Copy)
   - [ ] #436 — BL-422.4 E2E-Smoke + Doku für Trace-Debugging
 - **Fortschritt (2026-03-01):**
@@ -671,6 +671,8 @@
   - ✅ `GET /debug/trace` (dev-only) in `src/api/web_service.py` ergänzt, inklusive ENV-Gates (`TRACE_DEBUG_ENABLED`, `TRACE_DEBUG_LOG_PATH`) sowie Empty-/Unavailable-States.
   - ✅ Doku `docs/testing/TRACE_DEBUG_API.md` erstellt und Logging-Schema in `docs/LOGGING_SCHEMA_V1.md` verlinkt.
   - ✅ Tests: `tests/test_debug_trace.py`, `tests/test_web_service_debug_trace_api.py`.
+  - ✅ #434 abgeschlossen: GUI-MVP um dediziertes Trace-Debug-Panel erweitert (`request_id` + Deep-Link `/gui?view=trace&request_id=<id>`), Timeline-Loader/Renderer mit robusten Defaults für Teil-/Fehldaten sowie klare `loading/success/empty/unknown/error`-Zustände umgesetzt (`src/shared/gui_mvp.py`, `src/ui/service.py`, `docs/gui/GUI_MVP_STATE_FLOW.md`).
+  - ✅ Regressionen für Route/State-Flow + UI-Service-Rewrite ergänzt (`tests/test_web_service_gui_mvp.py`, `tests/test_ui_service.py`).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
