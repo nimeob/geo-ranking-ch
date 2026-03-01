@@ -181,7 +181,7 @@ andernfalls `effective=true` mit partiellem Deep-Hinweis in Telemetrie.
 
 ## Follow-up-Issues
 
-- #470 — Add-on-/Quota-Hypothesen + Transparenzrahmen (Produkt-/GTM-Policy)
+- #470 — Add-on-/Quota-Hypothesen + Transparenzrahmen (Produkt-/GTM-Policy), siehe [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](../DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md)
 - #472 — BL-30.3.wp2.r1 Runtime-Orchestrator-Implementierung (Gate/Budget/Fallback in `/analyze`)
 - #473 — BL-30.3.wp2.r2 Deep-Mode-Telemetrie + Trace-Evidence-Runbook
 

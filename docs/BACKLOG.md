@@ -576,7 +576,7 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
-- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3.wp1/wp2 abgeschlossen)
+- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 sowie BL-30.3.wp1/wp2/wp3 abgeschlossen)
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
@@ -586,7 +586,7 @@ Regelwerk:
 - **Work-Packages (BL-30.3 Parent #107):**
   - [x] #468 — BL-30.3.wp1 Deep-Mode-Contract v1 (Request/Status/Fallback) spezifizieren (abgeschlossen 2026-03-01)
   - [x] #469 — BL-30.3.wp2 Deep-Mode-Orchestrierung + Runtime-Guardrails designen (abgeschlossen 2026-03-01)
-  - [ ] #470 — BL-30.3.wp3 Add-on-/Quota-Hypothesen + Transparenzrahmen ausarbeiten
+  - [x] #470 — BL-30.3.wp3 Add-on-/Quota-Hypothesen + Transparenzrahmen ausarbeiten (abgeschlossen 2026-03-01)
   - [ ] #472 — BL-30.3.wp2.r1 Runtime-Orchestrator im `/analyze`-Flow implementieren
   - [ ] #473 — BL-30.3.wp2.r2 Deep-Mode-Telemetrie + Trace-Evidence absichern
 - **Fortschritt (2026-03-01):**
@@ -598,7 +598,8 @@ Regelwerk:
   - 🟡 #107 atomisiert: Work-Packages #468/#469/#470 ergänzt, weil BL-30.3 als Einzelpaket zu groß/mehrteilig war.
   - ✅ #468 abgeschlossen: neue Deep-Mode-Vertragsdoku [`docs/api/deep-mode-contract-v1.md`](api/deep-mode-contract-v1.md) erstellt, Contract-Referenz in [`docs/api/contract-v1.md`](api/contract-v1.md) ergänzt und per Regressionstest `tests/test_bl30_deep_mode_contract_docs.py` abgesichert.
   - ✅ #469 abgeschlossen: neues Orchestrierungs-/Guardrail-Design in [`docs/api/deep-mode-orchestration-guardrails-v1.md`](api/deep-mode-orchestration-guardrails-v1.md) dokumentiert (Sequenz, Budget-, Retry-/Abort-Regeln, Telemetrie-Mindeststandard, Schnittstellen zum Analyze-Flow), Contract-Referenzen in `docs/api/contract-v1.md` + `docs/api/deep-mode-contract-v1.md` ergänzt, Regressionstest `tests/test_bl30_deep_mode_orchestration_docs.py` hinzugefügt und Follow-up-Issues #472/#473 für Runtime-/Telemetry-Umsetzung angelegt.
-- **Nächster Schritt:** oldest-first nächstes unblocked BL-30.3-Leaf #470; Runtime-Folgepakete #472/#473 bleiben danach als technische Umsetzungsschritte offen.
+  - ✅ #470 abgeschlossen: Hypothesenblatt + Entitlement-/Quota-Kopplung + Transparenzrahmen in [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md) dokumentiert, GTM-Decision-Input in [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md) als `GTM-IN-30.3-001` verankert und durch `tests/test_bl30_deep_mode_addon_quota_hypotheses_docs.py` regressionsgesichert.
+- **Nächster Schritt:** oldest-first nächstes unblocked BL-30.3-Leaf #472; #473 folgt als Telemetrie-/Trace-Absicherung.
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2

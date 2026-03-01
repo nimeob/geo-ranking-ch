@@ -116,6 +116,6 @@ Empfohlene Felder im Status-Envelope:
 ## Anschluss-Folgearbeiten
 
 - #469: Deep-Mode-Orchestrierung + Runtime-Guardrails (Design abgeschlossen, siehe `docs/api/deep-mode-orchestration-guardrails-v1.md`)
-- #470: Add-on-/Quota-Hypothesen + Transparenzrahmen (Produkt-/GTM-Pfad)
+- #470: Add-on-/Quota-Hypothesen + Transparenzrahmen (Produkt-/GTM-Pfad), umgesetzt in [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](../DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md)
 - #472: Runtime-Orchestrator im `/analyze`-Flow implementieren
 - #473: Deep-Mode-Telemetrie + Trace-Evidence absichern
