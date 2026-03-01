@@ -802,7 +802,7 @@ Regelwerk:
   - [x] #515 — Policy-Standard finalisieren (Version, Begründung, Wirksam-ab, Impact-Pflicht) (abgeschlossen 2026-03-01)
   - [x] #516 — Korrektur-Richtlinie freigeben (nur neue Version + Pflichtfeld Grund) (abgeschlossen 2026-03-01)
   - [x] #517 — Hold-Governance definieren (wer darf Hold setzen/aufheben) (abgeschlossen 2026-03-01)
-  - [ ] #518 — Kontrollplan für Export- und Löschprozesse definieren
+  - [x] #518 — Kontrollplan für Export- und Löschprozesse definieren (abgeschlossen 2026-03-01)
   - [ ] #519 — Datenmodell erweitern: Policy-Versionierung + Metadatenfelder
   - [ ] #524 — Externen Direktzugriff technisch unterbinden
   - [ ] #525 — Export-Logging implementieren (wer/wann/Kanal)
@@ -822,6 +822,7 @@ Regelwerk:
   - ✅ #515 abgeschlossen: verbindliche Policy-Vorlage in [`docs/compliance/POLICY_STANDARD_V1.md`](compliance/POLICY_STANDARD_V1.md) eingeführt (Pflichtfelder `version`, `begruendung`, `wirksam_ab`, `impact_summary` + Freigabe-Workflow v1 und Copy/Paste-Referenztemplate).
   - ✅ #516 abgeschlossen: Korrektur-Richtlinie in [`docs/compliance/KORREKTUR_RICHTLINIE_V1.md`](compliance/KORREKTUR_RICHTLINIE_V1.md) veröffentlicht (Original bleibt unverändert, Korrekturen nur als neue Version, Pflichtfeld `korrekturgrund`, inkl. Freigabe-/Kommunikationskriterien).
   - ✅ #517 abgeschlossen: Hold-Governance in [`docs/compliance/HOLD_GOVERNANCE_V1.md`](compliance/HOLD_GOVERNANCE_V1.md) definiert (Rollen-/Berechtigungsmatrix, Vier-Augen-Freigaben, Entscheidungswege für Setzen/Aufheben, Pflicht-Nachweise inkl. `review_due_at`).
+  - ✅ #518 abgeschlossen: Kontrollplan für Export-/Löschkontrollen in [`docs/compliance/EXPORT_DELETE_CONTROL_PLAN_V1.md`](compliance/EXPORT_DELETE_CONTROL_PLAN_V1.md) eingeführt (verbindliche Kontrollfrequenzen, kombinierte Stichprobenregeln inkl. `sampling_seed`, standardisiertes Nachweispaket unter `reports/compliance/controls/<YYYY>/<MM>/<control_run_id>/`).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
