@@ -122,8 +122,8 @@ class TestWebServiceE2E(unittest.TestCase):
             [sys.executable, "-m", "src.web_service"],
             cwd=str(REPO_ROOT),
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True,
         )
         deadline = time.time() + 12
@@ -1314,8 +1314,8 @@ class TestWebServiceEnvPortFallback(unittest.TestCase):
             [sys.executable, "-m", "src.web_service"],
             cwd=str(REPO_ROOT),
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True,
         )
 
