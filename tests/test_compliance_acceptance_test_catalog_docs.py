@@ -29,6 +29,8 @@ class TestComplianceAcceptanceTestCatalogDocs(unittest.TestCase):
             "#538",
             "#539",
             "#540",
+            "tests/test_compliance_policy_metadata_contract_docs.py",
+            "tests/test_compliance_policy_metadata_rollout_sync_docs.py",
             "## Sign-off-Protokoll (verbindlich)",
             "reports/compliance/acceptance/<YYYY>/<MM>/<acceptance_run_id>/",
             "Issue #527",
