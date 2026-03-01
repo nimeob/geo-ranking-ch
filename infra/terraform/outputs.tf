@@ -109,6 +109,7 @@ output "resource_management_flags" {
     manage_health_probe         = var.manage_health_probe
     manage_staging_network      = var.manage_staging_network
     manage_staging_ingress      = var.manage_staging_ingress
+    manage_staging_ecs_compute  = var.manage_staging_ecs_compute
   }
 }
 

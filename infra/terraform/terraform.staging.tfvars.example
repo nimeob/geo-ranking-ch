@@ -19,6 +19,17 @@ manage_s3_bucket            = false
 manage_staging_network = false
 manage_staging_ingress = false
 
+# --- Staging ECS Compute Skeleton (WP #661) ---
+# Default: deaktiviert. Wird zusätzlich nur bei environment="staging" aktiv.
+# Voraussetzung (aktuell): Staging Network/Subnets werden via manage_staging_network gemanagt.
+manage_staging_ecs_compute = false
+
+# Optional: Override Container Image/Ports/Roles (Defaults sind bewusst "safe" / placeholder)
+# staging_container_image = "<ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/<repo>:<tag>"
+# staging_container_port  = 8080
+# staging_task_execution_role_arn = "arn:aws:iam::<account-id>:role/<role>"
+# staging_task_role_arn           = "arn:aws:iam::<account-id>:role/<role>"
+
 staging_vpc_cidr = "10.70.0.0/16"
 
 # Public Subnets (mind. 2 empfohlen, unterschiedliche AZs)

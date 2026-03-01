@@ -65,6 +65,21 @@ Guardrails:
 - wirkt zusätzlich nur bei `environment = "staging"` (kein versehentliches Create in `dev`)
 - `lifecycle.prevent_destroy = true` / Deletion Protection wo sinnvoll
 
+### Staging ECS Compute Skeleton (WP #661)
+
+Für `staging` existiert ein optionales ECS Compute Skeleton (Security Group + Task Definition + Service), vollständig hinter Manage-Flag:
+
+- `manage_staging_ecs_compute` (Default: `false`)
+
+Guardrails:
+- wirkt zusätzlich nur bei `environment = "staging"` (kein versehentliches Create in `dev`)
+- `lifecycle.prevent_destroy = true`
+
+Hinweise:
+- Voraussetzung (aktuell): `manage_staging_network=true` (das Skeleton hängt an `aws_vpc.staging` / Subnets aus WP #660).
+- Container Image kann via `staging_container_image` überschrieben werden; leer bedeutet: wenn ECR via `lookup_existing_resources=true` auflösbar ist, wird `<ecr_repository_url>:latest` verwendet, sonst ein nginx Placeholder.
+- Routing (ALB Target Groups / Listener Rules) ist bewusst **nicht** Teil dieses Skeletons.
+
 ---
 
 ## Verifizierter Ist-Stand (read-only AWS-Checks, 2026-02-25)
