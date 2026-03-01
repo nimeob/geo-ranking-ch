@@ -80,10 +80,10 @@ Bis zur vollständigen Operationalisierung in #504 gelten folgende Mindestanker:
 Referenz-Hauptvertrag:
 - [`docs/api/contract-v1.md`](./contract-v1.md)
 
-## 7) Offene Folgepunkte
+## 7) Folgepunkte / Status
 
-- #503 — Mobile State-/Interaction-Contract für Permission/Retry/Offline (v1-Doku: [`docs/gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md`](../gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md)).
-- #504 — Mobile Trace-/Privacy-Guardrails inkl. Evidence-Schema.
+- #503 — Mobile State-/Interaction-Contract für Permission/Retry/Offline (umgesetzt; v1-Doku: [`docs/gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md`](../gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md)).
+- #504 — Mobile Trace-/Privacy-Guardrails inkl. Evidence-Schema (umgesetzt; v1-Doku: [`docs/testing/MOBILE_GEOLOCATION_TRACE_PRIVACY_V1.md`](../testing/MOBILE_GEOLOCATION_TRACE_PRIVACY_V1.md)).
 
 ## 8) Definition-of-Done-Check (#502)
 
