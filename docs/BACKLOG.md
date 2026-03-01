@@ -22,7 +22,7 @@ Regelwerk:
 - (leer)
 
 ### Next
-- [#562](https://github.com/nimeob/geo-ranking-ch/issues/562) — CI: stündlicher Dev-Deploy fehlgeschlagen (priority:P2, status:todo)
+- (leer)
 
 ### Later
 - [#520](https://github.com/nimeob/geo-ranking-ch/issues/520) — Korrektur-Workflow implementieren (neue Version, Original unverändert) (priority:P2, status:blocked)
@@ -65,6 +65,7 @@ Regelwerk:
   - ✅ 2026-03-01: #487 abgeschlossen — Deploy-Workflow härtet TaskDef-Containerauflösung gegen Name-Drift ab (Single-Container-Fallback + expliziter Multi-Container-Fehler), Doku/Test-Guardrails ergänzt und erfolgreicher Nachweis-Redeploy per `workflow_dispatch` Run `22540919242` (`main`, Erfolg inkl. Post-Deploy-Verifikation).
   - ✅ 2026-03-01: #562 abgeschlossen — UI-TaskDef-Verifikation im Deploy-Workflow nutzt jetzt dieselbe Single-Container-Fallback-Logik wie die TaskDef-Registrierung (inkl. explizitem Multi-Container-Fehlerpfad), damit stündliche Dev-Deploys nicht mehr auf Containername-Drift (`ui` vs. `swisstopo-dev-ui`) abbrechen.
   - ✅ 2026-03-01: #596 abgeschlossen — Root-Cause im Build-&-Test-Job identifiziert (`tests/test_bl30_unit_economics_docs.py` erlaubte nur historischen/finalen BL-30-Nächster-Schritt), Regressionstest auf den aktuellen Follow-up-Pfad erweitert (`#600 → #601/#602`), Full-Testlauf lokal grün (`pytest -q`: 596 passed, 2 skipped) und Redeploy auf `main` via Workflow-Dispatch-Run `22546344609` erfolgreich verifiziert.
+  - ✅ 2026-03-01: #606 abgeschlossen — Root-Cause im Build-&-Test-Job identifiziert (SHA `776b6e6`, `tests/test_bl30_unit_economics_docs.py::test_backlog_tracks_bl30_wp2_completion` scheiterte, weil `allowed_next_steps` den durch #600/#601/#602 geänderten BACKLOG-Marker nicht abdeckte); Fix bereits durch Commits #607/eef9dfee eingespielt; Full-Testlauf lokal grün (`pytest -q`: 607 passed, 2 skipped) und Redeploy auf `main` via Workflow-Dispatch-Run `22547047442` (`eef9dfee`, Build & Test ✓ + Deploy ✓) erfolgreich verifiziert.
 
 ### BL-03 — Separaten Deploy-User mit Least-Privilege aufsetzen
 - **Priorität:** P0
