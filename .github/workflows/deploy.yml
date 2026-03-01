@@ -122,6 +122,7 @@ jobs:
           TRACE_DEBUG_ENABLED_DEV: ${{ vars.TRACE_DEBUG_ENABLED_DEV }}
           TRACE_DEBUG_LOOKBACK_SECONDS_DEV: ${{ vars.TRACE_DEBUG_LOOKBACK_SECONDS_DEV }}
           TRACE_DEBUG_MAX_EVENTS_DEV: ${{ vars.TRACE_DEBUG_MAX_EVENTS_DEV }}
+          TRACE_DEBUG_LOG_PATH_DEV: ${{ vars.TRACE_DEBUG_LOG_PATH_DEV }}
         run: |
           set -euo pipefail
 
@@ -136,6 +137,7 @@ jobs:
             local trace_enabled="${TRACE_DEBUG_ENABLED_DEV:-true}"
             local trace_lookback="${TRACE_DEBUG_LOOKBACK_SECONDS_DEV:-86400}"
             local trace_max_events="${TRACE_DEBUG_MAX_EVENTS_DEV:-500}"
+            local trace_log_path="${TRACE_DEBUG_LOG_PATH_DEV:-/tmp/structured-events.jsonl}"
 
             local current_taskdef_arn
             current_taskdef_arn=$(aws ecs describe-services \
@@ -177,7 +179,8 @@ jobs:
               --arg IS_API "$is_api" \
               --arg TRACE_ENABLED "$trace_enabled" \
               --arg TRACE_LOOKBACK "$trace_lookback" \
-              --arg TRACE_MAX_EVENTS "$trace_max_events" '
+              --arg TRACE_MAX_EVENTS "$trace_max_events" \
+              --arg TRACE_LOG_PATH "$trace_log_path" '
               del(
                 .taskDefinitionArn,
                 .revision,
@@ -194,7 +197,7 @@ jobs:
                         .image = $IMAGE
                         | .environment = (
                             (.environment // [])
-                            | map(select(.name != "APP_VERSION" and .name != "GIT_SHA" and .name != "TRACE_DEBUG_ENABLED" and .name != "TRACE_DEBUG_LOOKBACK_SECONDS" and .name != "TRACE_DEBUG_MAX_EVENTS"))
+                            | map(select(.name != "APP_VERSION" and .name != "GIT_SHA" and .name != "TRACE_DEBUG_ENABLED" and .name != "TRACE_DEBUG_LOOKBACK_SECONDS" and .name != "TRACE_DEBUG_MAX_EVENTS" and .name != "TRACE_DEBUG_LOG_PATH"))
                             + [
                                 {"name": "APP_VERSION", "value": $APP_VERSION},
                                 {"name": "GIT_SHA", "value": $GIT_SHA}
@@ -202,7 +205,8 @@ jobs:
                             + (if $IS_API == "true" then [
                                 {"name": "TRACE_DEBUG_ENABLED", "value": $TRACE_ENABLED},
                                 {"name": "TRACE_DEBUG_LOOKBACK_SECONDS", "value": $TRACE_LOOKBACK},
-                                {"name": "TRACE_DEBUG_MAX_EVENTS", "value": $TRACE_MAX_EVENTS}
+                                {"name": "TRACE_DEBUG_MAX_EVENTS", "value": $TRACE_MAX_EVENTS},
+                                {"name": "TRACE_DEBUG_LOG_PATH", "value": $TRACE_LOG_PATH}
                               ] else [] end)
                           )
                       else
@@ -247,6 +251,45 @@ jobs:
           aws ecs wait services-stable \
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_API_SERVICE"
+
+      - name: Verify ECS API trace-debug wiring (enabled + log path)
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
+          ECS_API_CONTAINER_NAME: ${{ vars.ECS_API_CONTAINER_NAME }}
+        run: |
+          set -euo pipefail
+
+          CURRENT_API_TASKDEF=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_API_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          aws ecs describe-task-definition \
+            --task-definition "$CURRENT_API_TASKDEF" \
+            --query 'taskDefinition' > /tmp/current-api-taskdef.json
+
+          if ! jq -e --arg CONTAINER "$ECS_API_CONTAINER_NAME" '.containerDefinitions | any(.name == $CONTAINER)' /tmp/current-api-taskdef.json >/dev/null; then
+            echo "::error::API container '$ECS_API_CONTAINER_NAME' not found in active task definition '$CURRENT_API_TASKDEF'."
+            echo "Available containers: $(jq -r '.containerDefinitions[].name' /tmp/current-api-taskdef.json | paste -sd, -)"
+            exit 1
+          fi
+
+          TRACE_ENABLED=$(jq -r --arg CONTAINER "$ECS_API_CONTAINER_NAME" '.containerDefinitions[] | select(.name == $CONTAINER) | ((.environment // []) | map(select(.name == "TRACE_DEBUG_ENABLED")) | .[0].value // "")' /tmp/current-api-taskdef.json)
+          TRACE_LOG_PATH=$(jq -r --arg CONTAINER "$ECS_API_CONTAINER_NAME" '.containerDefinitions[] | select(.name == $CONTAINER) | ((.environment // []) | map(select(.name == "TRACE_DEBUG_LOG_PATH")) | .[0].value // "")' /tmp/current-api-taskdef.json)
+
+          if [ "$TRACE_ENABLED" != "true" ] && [ "$TRACE_ENABLED" != "1" ]; then
+            echo "::error::TRACE_DEBUG_ENABLED must be true/1 in active API taskdef (actual='$TRACE_ENABLED')."
+            exit 1
+          fi
+
+          if [ -z "$TRACE_LOG_PATH" ]; then
+            echo "::error::TRACE_DEBUG_LOG_PATH is empty in active API taskdef."
+            exit 1
+          fi
+
+          echo "API trace-debug wiring verified (enabled=$TRACE_ENABLED log_path=$TRACE_LOG_PATH)"
 
       - name: Smoke-Test API /health
         env:
