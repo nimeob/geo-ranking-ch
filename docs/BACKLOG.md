@@ -576,7 +576,7 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
-- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 abgeschlossen; BL-30.3.wp1 vorbereitet)
+- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3.wp1/wp2 abgeschlossen)
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
@@ -585,8 +585,10 @@ Regelwerk:
   - [x] #461 — BL-30.1.wp4 Konsolidierter Abschluss + BL-30.2 Übergabe (abgeschlossen 2026-03-01)
 - **Work-Packages (BL-30.3 Parent #107):**
   - [x] #468 — BL-30.3.wp1 Deep-Mode-Contract v1 (Request/Status/Fallback) spezifizieren (abgeschlossen 2026-03-01)
-  - [ ] #469 — BL-30.3.wp2 Deep-Mode-Orchestrierung + Runtime-Guardrails designen
+  - [x] #469 — BL-30.3.wp2 Deep-Mode-Orchestrierung + Runtime-Guardrails designen (abgeschlossen 2026-03-01)
   - [ ] #470 — BL-30.3.wp3 Add-on-/Quota-Hypothesen + Transparenzrahmen ausarbeiten
+  - [ ] #472 — BL-30.3.wp2.r1 Runtime-Orchestrator im `/analyze`-Flow implementieren
+  - [ ] #473 — BL-30.3.wp2.r2 Deep-Mode-Telemetrie + Trace-Evidence absichern
 - **Fortschritt (2026-03-01):**
   - ✅ #105 in atomare Child-Issues #458/#459/#460/#461 zerlegt (oldest-first Leaf-Umsetzung).
   - ✅ #458 abgeschlossen: neue Tier-/Limit-Matrix v1 in [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](PRICING_TIER_LIMIT_MATRIX_V1.md), GTM-Hypothesen-Doku verlinkt und Doku-Regression ergänzt.
@@ -595,7 +597,8 @@ Regelwerk:
   - ✅ #461 abgeschlossen: konsolidierter Entscheidungsabschluss in [`docs/BL30_1_CLOSEOUT_V1.md`](BL30_1_CLOSEOUT_V1.md) dokumentiert (Primärkandidat `CAND-API-PRO-390`, Sekundärkandidat `CAND-BIZ-API-890`) und BL-30.2-Handover via Follow-up-Issues #465/#466 plus Parent-Sync in #106 vorbereitet.
   - 🟡 #107 atomisiert: Work-Packages #468/#469/#470 ergänzt, weil BL-30.3 als Einzelpaket zu groß/mehrteilig war.
   - ✅ #468 abgeschlossen: neue Deep-Mode-Vertragsdoku [`docs/api/deep-mode-contract-v1.md`](api/deep-mode-contract-v1.md) erstellt, Contract-Referenz in [`docs/api/contract-v1.md`](api/contract-v1.md) ergänzt und per Regressionstest `tests/test_bl30_deep_mode_contract_docs.py` abgesichert.
-- **Nächster Schritt:** oldest-first nächstes unblocked BL-30.3-Leaf #469; BL-30.2-Leaves (#465/#466) bleiben bis GTM-Entscheidung #457 blockiert.
+  - ✅ #469 abgeschlossen: neues Orchestrierungs-/Guardrail-Design in [`docs/api/deep-mode-orchestration-guardrails-v1.md`](api/deep-mode-orchestration-guardrails-v1.md) dokumentiert (Sequenz, Budget-, Retry-/Abort-Regeln, Telemetrie-Mindeststandard, Schnittstellen zum Analyze-Flow), Contract-Referenzen in `docs/api/contract-v1.md` + `docs/api/deep-mode-contract-v1.md` ergänzt, Regressionstest `tests/test_bl30_deep_mode_orchestration_docs.py` hinzugefügt und Follow-up-Issues #472/#473 für Runtime-/Telemetry-Umsetzung angelegt.
+- **Nächster Schritt:** oldest-first nächstes unblocked BL-30.3-Leaf #470; Runtime-Folgepakete #472/#473 bleiben danach als technische Umsetzungsschritte offen.
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
