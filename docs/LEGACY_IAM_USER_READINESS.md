@@ -421,13 +421,13 @@ Haupttreiber:
 
 ### 4.1 Harte Gates (entscheidungsrelevant)
 
-| Gate | Muss erfüllt sein für **GO** | Primäre Evidenz | Status 2026-02-27 | Bewertung |
+| Gate | Muss erfüllt sein für **GO** | Primäre Evidenz | Status 2026-03-01 (BL-15.r2.wp4) | Bewertung |
 |---|---|---|---|---|
-| G1: Runtime-Policy dokumentiert | OpenClaw Runtime-Key/Secret-Nutzung ist explizit freigegeben, begründet und konsistent dokumentiert | `docs/BACKLOG.md`, BL-15.r2-Issues, dieses Dokument | Policy-Update gesetzt, Feinsync läuft | 🟡 |
+| G1: Runtime-Policy dokumentiert | OpenClaw Runtime-Key/Secret-Nutzung ist explizit freigegeben, begründet und konsistent dokumentiert | `docs/BACKLOG.md`, BL-15.r2-Issues, dieses Dokument | Policy-Klarstellung + Parent-/Backlog-Sync abgeschlossen (`#570`, `#568`) | 🟢 |
 | G2: Deploy-Pfad OIDC-konform | Aktive Deploy-Workflows nutzen OIDC ohne statische Keys | `.github/workflows/deploy.yml`, `./scripts/check_bl17_oidc_assumerole_posture.sh` | OIDC-Deploy verifiziert | 🟢 |
 | G3: Externe Consumer vollständig inventarisiert | Für jedes Target: `caller_arn`, Injection-Pfad, Owner, Cutover-/Review-Datum, Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md` | Pflichtfelder vollständig befüllt, aber mehrere Targets mit offenen Identifikations-/Cutover-Blockern | 🔴 |
 | G4: Monitoring + Rollback vorbereitet | Governance/Monitoring + dokumentierter Reaktivierungsweg vorhanden | Abschnitt 3 (Phase B), Fallback-Template | Basis vorhanden, Dry-Run/Abnahme offen | 🟡 |
-| G5: Security-Hygiene Runtime-Key-Pfad | Rotation/Least-Privilege/Audit für Runtime-Key-Pfad nachvollziehbar und überprüfbar | IAM-/Audit-Evidenz + Runbooks | Teilweise nachgewiesen, Abschluss-Sync offen | 🟡 |
+| G5: Security-Hygiene Runtime-Key-Pfad | Rotation/Least-Privilege/Audit für Runtime-Key-Pfad nachvollziehbar und überprüfbar | IAM-/Audit-Evidenz + Runbooks | Dokumentations-/Runbook-Härtung erfolgt, operative Restarbeit an offenen externen Targets verbleibt | 🟡 |
 
 ### 4.2 Entscheidungslogik
 
@@ -437,11 +437,12 @@ Haupttreiber:
 
 ### 4.3 Aktueller Entscheid (Snapshot)
 
-**Aktuell: NO-GO.**
+**Aktuell: NO-GO (bestätigt am 2026-03-01 im Rahmen BL-15.r2.wp4 / #568).**
 
 Begründung (kurz):
-- Externe Consumer-Inventarisierung ist noch nicht vollständig (G3 rot).
-- Runtime-Key/Secret-Policy ist gesetzt, aber Governance-/Dokumentationssync ist noch nicht final (G1/G5 gelb).
+- Externe Consumer-Inventarisierung ist in der Struktur vollständig, aber nicht in der operativen Auflösung (G3 rot: offene Identifikations-/Cutover-Blocker je Target).
+- Monitoring-/Rollback-Basis ist dokumentiert, aber Dry-Run-/Abnahme-Nachweise für den finalen Cutover fehlen (G4 gelb).
+- Runtime-Key/Secret-Sicherheitsmaßnahmen sind dokumentiert, verbleibende Restarbeiten hängen an den noch offenen externen Consumer-Blockern (G5 gelb).
 
 ### 4.4 Verlinkte BL-15-Evidenzartefakte
 
@@ -474,14 +475,14 @@ Begründung (kurz):
 
 | Feld | Beispielwert |
 |---|---|
-| Decision-ID | `bl15-decommission-20260227-01` |
+| Decision-ID | `bl15-decommission-20260301-02` |
 | Entscheidung | `NO-GO` |
 | Scope | `swisstopo-api-deploy Legacy IAM User` |
-| Bewertungszeitpunkt (UTC) | `2026-02-27T04:25:00Z` |
-| Gate-Status G1..G5 | `G1=🔴; G2=🟡; G3=🔴; G4=🟡; G5=🔴` |
+| Bewertungszeitpunkt (UTC) | `2026-03-01T14:10:00Z` |
+| Gate-Status G1..G5 | `G1=🟢; G2=🟢; G3=🔴; G4=🟡; G5=🟡` |
 | Timebox-Ende | `n/a` |
-| Pflicht-Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md`, `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-injection-inventory-after-assumerole-default.json` |
-| Risiken (Top 3) | `1) Externer Runtime-Consumer unbekannt; 2) Fehlender 24h-Cutover-Beleg; 3) Incident-Rollback ohne Dry-Run` |
+| Pflicht-Evidenz | `docs/LEGACY_CONSUMER_INVENTORY.md`, `artifacts/bl15/legacy-cloudtrail-fingerprint-report.json`, `artifacts/bl17/runtime-credential-injection-inventory.json` |
+| Risiken (Top 3) | `1) Externe Target-Zuordnung/Cutover noch offen; 2) Fehlender 24h-Cutover-Beleg; 3) Incident-Rollback ohne Dry-Run` |
 | Freigaben | `Security: pending`, `Platform: pending`, `Service: pending` |
 | Next Review | `nach Abschluss externer Target-Verifikation + geplantem Cutover-Dry-Run` |
 
