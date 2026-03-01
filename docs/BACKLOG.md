@@ -754,6 +754,7 @@ Regelwerk:
   - ✅ #424 abgeschlossen: Parent-Tracking #421 und BACKLOG-Status synchronisiert; Restarbeit explizit auf das offene Development-Follow-up #426 gelegt (Next Step für sichtbare Gap-Reduktion).
   - ✅ #426 abgeschlossen: Logging-Schema-v1-Feldkonstanten + Header-Redaction im Shared Helper umgesetzt (PR #431) und Ziel-Gap via erneuter Baseline auf `1` reduziert (`Dev=1`, `Doku=2`, `Testing=2`, Catch-up nicht nötig).
   - ✅ Parent #421 abgeschlossen/geschlossen: Next-Step-Checklist auf erledigt gesetzt und Balance-Ziel (`gap <= 2`) verifiziert.
+  - ✅ #554 abgeschlossen (2026-03-01, Crawler-Reopen-Cleanup): Re-Baseline via `python3 scripts/github_repo_crawler.py --print-workstream-balance --format json` ergibt `Dev=0`, `Doku=0`, `Testing=0`, `Gap=0`, `Catch-up nötig: nein`; damit kein zusätzlicher Development-Delta-Task erforderlich.
 - **Nächster Schritt:** keiner (P0 Catch-up-Ziel erreicht).
 
 ### BL-422 — request_id Trace-Debugging in der WebUI
