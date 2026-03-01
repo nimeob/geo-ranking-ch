@@ -97,13 +97,18 @@ class TestAsyncJobsRuntimeSkeleton(unittest.TestCase):
         job_id: str,
         expected_statuses: set[str],
         timeout_seconds: float = 8.0,
+        headers: dict[str, str] | None = None,
     ) -> tuple[int, dict]:
         deadline = time.time() + timeout_seconds
         last_status = 0
         last_body: dict = {}
 
         while time.time() < deadline:
-            status, body = _http_json("GET", f"{self.base_url}/analyze/jobs/{job_id}")
+            status, body = _http_json(
+                "GET",
+                f"{self.base_url}/analyze/jobs/{job_id}",
+                headers=headers,
+            )
             last_status = status
             last_body = body
             if status == 200:
@@ -183,6 +188,89 @@ class TestAsyncJobsRuntimeSkeleton(unittest.TestCase):
             .get("runtime", {})
         )
         self.assertEqual(runtime_module.get("status"), "completed")
+
+    def test_result_endpoint_enforces_tenant_guard_and_supports_projection_modes(self):
+        tenant_headers = {
+            "Authorization": "Bearer async-token",
+            "X-Org-Id": "tenant-alpha",
+        }
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            headers=tenant_headers,
+            payload={
+                "query": "Limmatquai 12, 8001 Zürich",
+                "intelligence_mode": "basic",
+                "options": {
+                    "async_mode": {"requested": True},
+                },
+            },
+        )
+        self.assertEqual(status, 202)
+        self.assertTrue(body.get("ok"))
+
+        job_id = str(body.get("job", {}).get("job_id") or "")
+        self.assertTrue(job_id)
+
+        status_job, body_job = self._poll_job(
+            job_id=job_id,
+            expected_statuses={"completed"},
+            timeout_seconds=12,
+            headers={"X-Org-Id": "tenant-alpha"},
+        )
+        self.assertEqual(status_job, 200)
+        self.assertTrue(body_job.get("ok"))
+
+        denied_job_status, denied_job_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/jobs/{job_id}",
+            headers={"X-Org-Id": "tenant-beta"},
+        )
+        self.assertEqual(denied_job_status, 404)
+        self.assertEqual(denied_job_body.get("error"), "not_found")
+
+        store = AsyncJobStore(store_file=self._store_file)
+        all_results = store.list_results(job_id)
+        partial_results = [row for row in all_results if row.get("result_kind") == "partial"]
+        final_results = [row for row in all_results if row.get("result_kind") == "final"]
+        self.assertGreaterEqual(len(partial_results), 1)
+        self.assertEqual(len(final_results), 1)
+
+        partial_result_id = str(partial_results[0].get("result_id") or "")
+        final_result_id = str(final_results[0].get("result_id") or "")
+        self.assertTrue(partial_result_id)
+        self.assertTrue(final_result_id)
+
+        denied_result_status, denied_result_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/results/{partial_result_id}",
+            headers={"X-Org-Id": "tenant-beta"},
+        )
+        self.assertEqual(denied_result_status, 404)
+        self.assertEqual(denied_result_body.get("error"), "not_found")
+
+        latest_status, latest_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/results/{partial_result_id}",
+            headers={"X-Org-Id": "tenant-alpha"},
+        )
+        self.assertEqual(latest_status, 200)
+        self.assertTrue(latest_body.get("ok"))
+        self.assertEqual(latest_body.get("projection_mode"), "latest")
+        self.assertEqual(latest_body.get("requested_result_id"), partial_result_id)
+        self.assertEqual(latest_body.get("result_id"), final_result_id)
+        self.assertEqual(latest_body.get("result_kind"), "final")
+
+        requested_status, requested_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/results/{partial_result_id}?view=requested",
+            headers={"X-Org-Id": "tenant-alpha"},
+        )
+        self.assertEqual(requested_status, 200)
+        self.assertTrue(requested_body.get("ok"))
+        self.assertEqual(requested_body.get("projection_mode"), "requested")
+        self.assertEqual(requested_body.get("result_id"), partial_result_id)
+        self.assertEqual(requested_body.get("result_kind"), "partial")
 
     def test_cancel_endpoint_stops_running_job_idempotently(self):
         status, body = _http_json(
