@@ -752,6 +752,10 @@ aws sns publish \
 
 > **Secret-Hinweis:** Bot-Token wird in SSM Parameter Store als SecureString gespeichert (`/swisstopo/dev/telegram-bot-token`). Er erscheint weder im Repo noch als Klartext im Terraform-State.
 
+### Optional: AWS-Webhook-Gate vor OpenClaw (Hostinger)
+
+Für den gehärteten Inbound-Pfad `https://<host>/aws-alarm` via NGINX-Gate (IP-Allowlist + `X-Alarm-Token`) liegt ein dediziertes Runbook unter [`docs/WEBHOOK_GATE_HOSTINGER_RUNBOOK.md`](WEBHOOK_GATE_HOSTINGER_RUNBOOK.md).
+
 ### 3) HTTP Uptime Probe (`/health`)
 
 **Status (2026-02-25):** ✅ Produktiv aktiv — Lambda-basierte Self-Resolving Probe
