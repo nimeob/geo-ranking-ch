@@ -587,7 +587,7 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
-- **Status:** ✅ abgeschlossen (2026-03-01, BL-30.1 bis BL-30.6 inkl. BL-30.2-Leafs #465/#466 sowie Parent-Sync #106/#128 abgeschlossen)
+- **Status:** ✅ Kerntrack abgeschlossen (2026-03-01, BL-30.1 bis BL-30.6 inkl. BL-30.2-Leafs #465/#466 sowie Parent-Sync #106/#128 abgeschlossen); 🟡 Follow-up-Track #577 in Umsetzung (seit 2026-03-01)
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
@@ -622,6 +622,8 @@ Regelwerk:
   - [x] #510 — BL-30.parent.wp2 Rebuild-vs-Ausbau-Guardrails + API-first Anschluss konsolidieren (abgeschlossen 2026-03-01)
 - **Fortschritt (2026-03-01):**
   - ✅ #105 in atomare Child-Issues #458/#459/#460/#461 zerlegt (oldest-first Leaf-Umsetzung).
+  - ✅ #577 atomisiert in Work-Packages #585/#586/#587/#588, weil Scope und Deliverables >1 Slot sind und parallelisierbare Leaf-Pakete benötigen.
+  - ✅ #585 abgeschlossen: GTM→DB-Architekturgrundlage v1 in [`docs/GTM_TO_DB_ARCHITECTURE_V1.md`](GTM_TO_DB_ARCHITECTURE_V1.md) dokumentiert (Entscheidungsmatrix, kanonisches Tenant-Datenmodell, Ownership-Regeln, No-regrets Defaults + Trade-offs).
   - ✅ #458 abgeschlossen: neue Tier-/Limit-Matrix v1 in [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](PRICING_TIER_LIMIT_MATRIX_V1.md), GTM-Hypothesen-Doku verlinkt und Doku-Regression ergänzt.
   - ✅ #459 abgeschlossen: versionierte Unit-Economics-Doku in [`docs/UNIT_ECONOMICS_HYPOTHESES_V1.md`](UNIT_ECONOMICS_HYPOTHESES_V1.md) ergänzt (Tier-/Segment-Annahmen, Sensitivitätshebel, Go/Adjust/Stop-Schwellen) und via Regressionstest abgesichert.
   - ✅ #460 abgeschlossen: experimentfähige Pricing-Karten (3 Kandidaten inkl. Inputs/Outputs/Abbruchkriterien) und standardisierte Go/Adjust/Stop-Entscheidungslogik in [`docs/PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md`](PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md) ergänzt; Follow-up-Issue-Template für BL-30.1/30.2 in [`docs/testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md`](testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md) eingeführt; Doku-Regressionen erweitert.
@@ -654,7 +656,7 @@ Regelwerk:
   - ✅ #470 abgeschlossen: Hypothesenblatt + Entitlement-/Quota-Kopplung + Transparenzrahmen in [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md) dokumentiert, GTM-Decision-Input in [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md) als `GTM-IN-30.3-001` verankert und durch `tests/test_bl30_deep_mode_addon_quota_hypotheses_docs.py` regressionsgesichert.
   - ✅ #472 abgeschlossen: Runtime-Orchestrator in `src/api/web_service.py` umgesetzt (Eligibility-Gate inkl. `requested/allowed/quota/budget`, deterministische Statusprojektion nach `result.status.capabilities.deep_mode` + `result.status.entitlements.deep_mode`), Design-Doku in [`docs/api/deep-mode-orchestration-guardrails-v1.md`](api/deep-mode-orchestration-guardrails-v1.md) auf Implementierungsstand ergänzt und Fallback-Matrix per `tests/test_bl30_deep_mode_runtime_orchestrator.py` abgesichert.
   - ✅ #473 abgeschlossen: Deep-Mode-Telemetrie im Analyze-Flow ergänzt (`api.deep_mode.gate_evaluated|execution.start|execution.retry|execution.abort|execution.end` inkl. Pflichtfelder `deep_*`, `retry_count`, `duration_ms`), Logging-Schema in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) verankert, operatives Nachweis-Runbook [`docs/testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md`](testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md) + Beispielartefakt [`docs/testing/deep-mode-trace-evidence-sample.jsonl`](testing/deep-mode-trace-evidence-sample.jsonl) ergänzt und per `tests/test_bl30_deep_mode_telemetry_events.py` / `tests/test_bl30_deep_mode_telemetry_docs.py` regressionsgesichert.
-- **Nächster Schritt:** keiner (BL-30 vollständig abgeschlossen).
+- **Nächster Schritt:** BL-30-Follow-up #586 (oldest-first innerhalb #577-Work-Packages) umsetzen; danach #587 und #588.
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
