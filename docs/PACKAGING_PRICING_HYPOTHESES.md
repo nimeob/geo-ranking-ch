@@ -75,6 +75,9 @@ Operative Ausführung (Template, Rollen, Outputpflichten):
 
 ## Capability-Gates (Forward-Compatibility BL-30.1 / BL-30.2)
 
+Operationalisierte Tier-/Limit-Matrix (BL-30.1.wp1):
+- [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](./PRICING_TIER_LIMIT_MATRIX_V1.md)
+
 | Gate | Bedeutung | Heute verfügbar | Relevanz für Angebot |
 |---|---|---|---|
 | G1 API Baseline | Stabiler API-Kern (`/analyze`, Explainability, reproduzierbarer Contract) | Ja (BL-20.1/20.3/20.4/20.5) | Voraussetzung für alle API-only-Pakete |

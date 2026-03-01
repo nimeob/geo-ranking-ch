@@ -572,6 +572,22 @@ Regelwerk:
   - BL-20 startet erst nach BL-19-MVP (BL-19.1, 19.2, 19.4, 19.3, 19.7).
 
 
+### BL-30 — Monetization/Packaging/Deep-Mode/HTML5/Map/Mobile (Later-Track)
+- **Priorität:** P3
+- **Aufwand:** L
+- **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
+- **Status:** 🟡 in Umsetzung (2026-03-01, Parent #128 / BL-30.1 Parent #105)
+- **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
+- **Work-Packages (BL-30.1 Parent #105):**
+  - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
+  - [ ] #459 — BL-30.1.wp2 Unit-Economics-Hypothesen je Tier/Segment strukturieren
+  - [ ] #460 — BL-30.1.wp3 Preisvalidierungs-Experimentkarten + Entscheidungslogik
+  - [ ] #461 — BL-30.1.wp4 Konsolidierter Abschluss + BL-30.2 Übergabe
+- **Fortschritt (2026-03-01):**
+  - ✅ #105 in atomare Child-Issues #458/#459/#460/#461 zerlegt (oldest-first Leaf-Umsetzung).
+  - ✅ #458 abgeschlossen: neue Tier-/Limit-Matrix v1 in [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](PRICING_TIER_LIMIT_MATRIX_V1.md), GTM-Hypothesen-Doku verlinkt und Doku-Regression ergänzt.
+- **Nächster Schritt:** #459 (oldest-first, unblocked).
+
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
 - **Aufwand:** M
