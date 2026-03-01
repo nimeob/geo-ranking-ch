@@ -8,6 +8,7 @@ Endpoints:
 - GET /api/v1/dictionaries
 - GET /api/v1/dictionaries/<domain>
 - GET /analyze/jobs/<job_id>
+- GET /analyze/jobs/<job_id>/notifications
 - GET /analyze/results/<result_id>
 - GET /debug/trace?request_id=<id> (dev-only)
 - POST /analyze {"query": "...", "intelligence_mode": "basic|extended|risk"}
@@ -1391,6 +1392,28 @@ def _resolve_result_projection_mode(raw_value: str | None) -> str:
     return mode
 
 
+def _resolve_notification_channel(raw_value: str | None) -> str | None:
+    normalized = str(raw_value or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized not in {"in_app", "email", "webhook"}:
+        raise ValueError("channel must be one of ['in_app', 'email', 'webhook']")
+    return normalized
+
+
+def _resolve_notification_limit(raw_value: str | None) -> int:
+    normalized = str(raw_value or "").strip()
+    if not normalized:
+        return 50
+    try:
+        parsed = int(normalized)
+    except ValueError as exc:
+        raise ValueError("limit must be an integer >= 1") from exc
+    if parsed < 1:
+        raise ValueError("limit must be an integer >= 1")
+    return min(parsed, 200)
+
+
 def _select_async_result_snapshot(
     *,
     requested_result: dict[str, Any],
@@ -2318,6 +2341,53 @@ class Handler(BaseHTTPRequestHandler):
                         "request_id": request_id,
                     },
                     request_id=request_id,
+                )
+                return
+            if request_path.startswith("/analyze/jobs/") and request_path.endswith("/notifications"):
+                job_id = (
+                    request_path.removeprefix("/analyze/jobs/")
+                    .removesuffix("/notifications")
+                    .strip("/")
+                )
+                if not job_id or "/" in job_id:
+                    self._send_not_found(request_id=request_id)
+                    return
+
+                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                try:
+                    request_org_id = self._request_org_id()
+                    channel = _resolve_notification_channel(query_params.get("channel", [""])[0])
+                    limit = _resolve_notification_limit(query_params.get("limit", [""])[0])
+                except ValueError as exc:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "bad_request",
+                            "message": str(exc),
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.BAD_REQUEST,
+                        request_id=request_id,
+                    )
+                    return
+
+                job_record = _ASYNC_JOB_STORE.get_job(job_id)
+                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    return
+
+                notifications = _ASYNC_JOB_STORE.list_notifications(job_id, channel=channel)
+                self._send_json(
+                    {
+                        "ok": True,
+                        "job_id": job_id,
+                        "channel": channel,
+                        "limit": limit,
+                        "notifications": notifications[:limit],
+                        "request_id": request_id,
+                    },
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
                 )
                 return
             if request_path.startswith("/analyze/jobs/"):
