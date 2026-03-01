@@ -1,0 +1,63 @@
+# --- Basis ---
+# Staging-Skeleton: Werte ggf. an reale Namen anpassen, sobald staging Ressourcen provisioniert sind.
+project_name = "swisstopo"
+environment  = "staging"
+aws_region   = "eu-central-1"
+owner        = "nico"
+managed_by   = "openclaw"
+
+# --- Sicherheitsmodus (Default): keine Ressourcen verwalten ---
+# Dadurch ist ein "terraform plan" zunächst read-only/neutral.
+lookup_existing_resources   = false
+manage_ecs_cluster          = false
+manage_ecr_repository       = false
+manage_cloudwatch_log_group = false
+manage_s3_bucket            = false
+
+# --- Ziel-/Bestandsnamen (staging) ---
+# Konvention: <project>-<env>(-<component>)
+ecs_cluster_name               = "swisstopo-staging"
+ecs_container_insights_enabled = false
+
+ecr_repository_name       = "swisstopo-staging-api"
+cloudwatch_log_group_name = "/swisstopo/staging/ecs/api"
+cloudwatch_log_retention_days = 30
+
+# Hinweis: Bucket-Name ist global eindeutig. Placeholder bis staging final ist.
+# Beispiel-Pattern: swisstopo-staging-<account-id>
+s3_bucket_name = "swisstopo-staging-523234426229"
+
+existing_ecs_cluster_name          = "swisstopo-staging"
+existing_ecr_repository_name       = "swisstopo-staging-api"
+existing_cloudwatch_log_group_name = "/swisstopo/staging/ecs/api"
+existing_s3_bucket_name            = "swisstopo-staging-523234426229"
+
+# --- Telegram Alerting (BL-08) ---
+# Voraussetzung: SSM-Parameter manuell anlegen (NICHT per Terraform, damit kein Token im State):
+#   aws ssm put-parameter \
+#     --region eu-central-1 \
+#     --name /swisstopo/staging/telegram-bot-token \
+#     --type SecureString \
+#     --value "<DEIN_BOT_TOKEN>" \
+#     --description "Telegram Bot Token für swisstopo-staging Alerting"
+manage_telegram_alerting = false
+
+# --- HTTP Health Probe (BL-14) ---
+manage_health_probe = false
+
+health_probe_ecs_cluster      = "swisstopo-staging"
+health_probe_ecs_service      = "swisstopo-staging-api"
+health_probe_port             = 8080
+health_probe_path             = "/health"
+health_probe_metric_namespace = "swisstopo/staging-api"
+
+health_probe_lambda_name = "swisstopo-staging-health-probe"
+health_probe_role_name   = "swisstopo-staging-health-probe-role"
+health_probe_rule_name   = "swisstopo-staging-health-probe-schedule"
+health_probe_alarm_name  = "swisstopo-staging-api-health-probe-fail"
+health_probe_schedule_expression = "rate(5 minutes)"
+
+aws_account_id   = "523234426229"
+# Placeholder: ARN ggf. an tatsächliches staging Topic anpassen.
+sns_topic_arn    = "arn:aws:sns:eu-central-1:523234426229:swisstopo-staging-alerts"
+telegram_chat_id = ""  # z.B. "8614377280" — kein Secret, nur numerische ID
