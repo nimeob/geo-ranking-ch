@@ -119,6 +119,9 @@ jobs:
           ECS_UI_CONTAINER_NAME: ${{ vars.ECS_UI_CONTAINER_NAME }}
           API_IMAGE_URI: ${{ steps.images.outputs.api_image_uri }}
           UI_IMAGE_URI: ${{ steps.images.outputs.ui_image_uri }}
+          TRACE_DEBUG_ENABLED_DEV: ${{ vars.TRACE_DEBUG_ENABLED_DEV }}
+          TRACE_DEBUG_LOOKBACK_SECONDS_DEV: ${{ vars.TRACE_DEBUG_LOOKBACK_SECONDS_DEV }}
+          TRACE_DEBUG_MAX_EVENTS_DEV: ${{ vars.TRACE_DEBUG_MAX_EVENTS_DEV }}
         run: |
           set -euo pipefail
 
@@ -130,6 +133,9 @@ jobs:
 
             local app_version="${GITHUB_SHA::7}"
             local git_sha="${GITHUB_SHA}"
+            local trace_enabled="${TRACE_DEBUG_ENABLED_DEV:-true}"
+            local trace_lookback="${TRACE_DEBUG_LOOKBACK_SECONDS_DEV:-86400}"
+            local trace_max_events="${TRACE_DEBUG_MAX_EVENTS_DEV:-500}"
 
             local current_taskdef_arn
             current_taskdef_arn=$(aws ecs describe-services \
@@ -158,11 +164,20 @@ jobs:
               fi
             fi
 
+            local is_api="false"
+            if [ "$service" = "$ECS_API_SERVICE" ]; then
+              is_api="true"
+            fi
+
             jq \
               --arg CONTAINER "$resolved_container" \
               --arg IMAGE "$image" \
               --arg APP_VERSION "$app_version" \
-              --arg GIT_SHA "$git_sha" '
+              --arg GIT_SHA "$git_sha" \
+              --arg IS_API "$is_api" \
+              --arg TRACE_ENABLED "$trace_enabled" \
+              --arg TRACE_LOOKBACK "$trace_lookback" \
+              --arg TRACE_MAX_EVENTS "$trace_max_events" '
               del(
                 .taskDefinitionArn,
                 .revision,
@@ -179,11 +194,16 @@ jobs:
                         .image = $IMAGE
                         | .environment = (
                             (.environment // [])
-                            | map(select(.name != "APP_VERSION" and .name != "GIT_SHA"))
+                            | map(select(.name != "APP_VERSION" and .name != "GIT_SHA" and .name != "TRACE_DEBUG_ENABLED" and .name != "TRACE_DEBUG_LOOKBACK_SECONDS" and .name != "TRACE_DEBUG_MAX_EVENTS"))
                             + [
                                 {"name": "APP_VERSION", "value": $APP_VERSION},
                                 {"name": "GIT_SHA", "value": $GIT_SHA}
                               ]
+                            + (if $IS_API == "true" then [
+                                {"name": "TRACE_DEBUG_ENABLED", "value": $TRACE_ENABLED},
+                                {"name": "TRACE_DEBUG_LOOKBACK_SECONDS", "value": $TRACE_LOOKBACK},
+                                {"name": "TRACE_DEBUG_MAX_EVENTS", "value": $TRACE_MAX_EVENTS}
+                              ] else [] end)
                           )
                       else
                         .
