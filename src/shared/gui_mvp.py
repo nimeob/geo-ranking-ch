@@ -152,6 +152,39 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         font-size: 0.8rem;
         padding: 0.26rem 0.58rem;
       }
+      .request-id-row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+      }
+      .request-id-value {
+        margin: 0;
+        border: 1px solid var(--border);
+        background: #f8faff;
+        border-radius: 0.45rem;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.84rem;
+      }
+      .trace-link-btn {
+        text-decoration: none;
+        border: 1px solid var(--border);
+        color: var(--primary);
+        border-radius: 0.45rem;
+        padding: 0.28rem 0.5rem;
+        font-size: 0.82rem;
+        background: #f9fbff;
+      }
+      .copy-btn {
+        background: #fff;
+        color: var(--ink);
+        border-color: var(--border);
+        padding: 0.35rem 0.55rem;
+        font-size: 0.82rem;
+      }
+      .copy-feedback-error {
+        color: var(--danger);
+      }
       .phase-loading { color: #8b5200; }
       .phase-success { color: var(--success); }
       .phase-error { color: var(--danger); }
@@ -357,6 +390,26 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           <h2>Result-Panel</h2>
           <p class=\"pill\" id=\"phase-pill\" data-phase=\"idle\">Status: idle</p>
           <p class=\"meta\" id=\"request-meta\">Noch keine Anfrage gesendet.</p>
+          <div class=\"stack\" aria-label=\"Request-ID Debug-Aktionen\">
+            <div class=\"request-id-row\">
+              <code id=\"request-id-value\" class=\"request-id-value\" aria-live=\"polite\">—</code>
+              <a
+                id=\"request-trace-link\"
+                class=\"trace-link-btn\"
+                href=\"#trace-debug\"
+                aria-label=\"Trace-Debug für aktuelle Request-ID öffnen\"
+                hidden
+              >Trace ansehen</a>
+              <button
+                id=\"request-id-copy-btn\"
+                class=\"copy-btn\"
+                type=\"button\"
+                aria-label=\"Aktuelle Request-ID in die Zwischenablage kopieren\"
+                disabled
+              >Copy ID</button>
+            </div>
+            <p class=\"meta\" id=\"request-id-feedback\" aria-live=\"polite\">Noch keine Request-ID vorhanden.</p>
+          </div>
           <p class=\"meta\" id=\"input-meta\">Input: —</p>
           <div id=\"error-box\" class=\"error-box\" hidden></div>
         </article>
@@ -456,6 +509,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const submitBtn = document.getElementById("submit-btn");
       const phasePill = document.getElementById("phase-pill");
       const requestMeta = document.getElementById("request-meta");
+      const requestIdValueEl = document.getElementById("request-id-value");
+      const requestTraceLinkEl = document.getElementById("request-trace-link");
+      const requestIdCopyBtnEl = document.getElementById("request-id-copy-btn");
+      const requestIdFeedbackEl = document.getElementById("request-id-feedback");
       const inputMeta = document.getElementById("input-meta");
       const resultJson = document.getElementById("result-json");
       const errorBox = document.getElementById("error-box");
@@ -482,6 +539,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       let mapRenderToken = 0;
       let uiEventSequence = 0;
+      let requestIdFeedbackResetHandle = null;
 
       function utcTimestamp() {
         return new Date().toISOString();
@@ -683,17 +741,113 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         });
       }
 
+      function buildGuiTraceDeepLink(requestId) {
+        const normalizedRequestId = normalizeTraceRequestId(requestId);
+        if (!normalizedRequestId || typeof window === "undefined" || !window.location) {
+          return "#trace-debug";
+        }
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set("view", "trace");
+        nextUrl.searchParams.set("request_id", normalizedRequestId);
+        nextUrl.hash = "#trace-debug";
+        return nextUrl.toString();
+      }
+
+      function setRequestIdFeedback(message, { isError = false, autoResetMs = 0 } = {}) {
+        if (requestIdFeedbackResetHandle) {
+          clearTimeout(requestIdFeedbackResetHandle);
+          requestIdFeedbackResetHandle = null;
+        }
+
+        requestIdFeedbackEl.textContent = message;
+        requestIdFeedbackEl.classList.toggle("copy-feedback-error", Boolean(isError));
+
+        if (autoResetMs > 0) {
+          requestIdFeedbackResetHandle = setTimeout(() => {
+            requestIdFeedbackEl.classList.remove("copy-feedback-error");
+            if (state.lastRequestId) {
+              requestIdFeedbackEl.textContent = "Trace-Link bereit.";
+            } else {
+              requestIdFeedbackEl.textContent = "Noch keine Request-ID vorhanden.";
+            }
+            requestIdFeedbackResetHandle = null;
+          }, autoResetMs);
+        }
+      }
+
+      async function copyTextToClipboard(value) {
+        const text = String(value || "").trim();
+        if (!text) {
+          return false;
+        }
+
+        try {
+          if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            await navigator.clipboard.writeText(text);
+            return true;
+          }
+        } catch (error) {
+          // fallback below
+        }
+
+        try {
+          const textarea = document.createElement("textarea");
+          textarea.value = text;
+          textarea.setAttribute("readonly", "readonly");
+          textarea.style.position = "fixed";
+          textarea.style.top = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          const copied = document.execCommand("copy");
+          document.body.removeChild(textarea);
+          return Boolean(copied);
+        } catch (error) {
+          return false;
+        }
+      }
+
+      async function openTraceFromResultPanel() {
+        const requestId = normalizeTraceRequestId(state.lastRequestId);
+        if (!requestId) {
+          return;
+        }
+
+        traceRequestIdEl.value = requestId;
+        setRequestIdFeedback("Trace wird geöffnet …");
+        document.getElementById("trace-debug").scrollIntoView({ behavior: "smooth", block: "start" });
+        await startTraceLookup(requestId, "result_panel_trace_link");
+      }
+
       function renderState() {
         phasePill.textContent = `Status: ${state.phase}`;
         phasePill.dataset.phase = state.phase;
         applyPhaseClass(phasePill, state.phase);
 
-        if (state.lastRequestId) {
-          requestMeta.textContent = `Letzte Request-ID: ${state.lastRequestId}`;
+        const currentRequestId = normalizeTraceRequestId(state.lastRequestId);
+        if (currentRequestId) {
+          requestMeta.textContent = `Letzte Request-ID verfügbar (${currentRequestId}).`;
         } else if (state.phase === "loading") {
           requestMeta.textContent = "Anfrage läuft …";
         } else {
           requestMeta.textContent = "Noch keine Anfrage gesendet.";
+        }
+
+        requestIdValueEl.textContent = currentRequestId || "—";
+        if (currentRequestId) {
+          requestTraceLinkEl.hidden = false;
+          requestTraceLinkEl.href = buildGuiTraceDeepLink(currentRequestId);
+          requestIdCopyBtnEl.disabled = false;
+          if (!requestIdFeedbackEl.classList.contains("copy-feedback-error") && !requestIdFeedbackResetHandle) {
+            requestIdFeedbackEl.textContent = "Trace-Link bereit.";
+          }
+        } else {
+          requestTraceLinkEl.hidden = true;
+          requestTraceLinkEl.href = "#trace-debug";
+          requestIdCopyBtnEl.disabled = true;
+          requestIdFeedbackEl.classList.remove("copy-feedback-error");
+          requestIdFeedbackEl.textContent = "Noch keine Request-ID vorhanden.";
         }
 
         inputMeta.textContent = state.lastInput ? `Input: ${state.lastInput}` : "Input: —";
@@ -1834,6 +1988,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           return;
         }
 
+        traceRequestIdEl.value = normalizedTraceRequestId;
         updateTraceDeepLink(normalizedTraceRequestId);
 
         setTracePhase("loading", {
@@ -1935,6 +2090,46 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         const payload = buildAnalyzePayload({ query });
         await startAnalyze(payload, `Adresse: ${query}`);
+      });
+
+      requestTraceLinkEl.addEventListener("click", async (event) => {
+        event.preventDefault();
+        await openTraceFromResultPanel();
+      });
+
+      requestIdCopyBtnEl.addEventListener("click", async () => {
+        const requestId = normalizeTraceRequestId(state.lastRequestId);
+        if (!requestId) {
+          setRequestIdFeedback("Keine Request-ID zum Kopieren vorhanden.", {
+            isError: true,
+            autoResetMs: 2400,
+          });
+          return;
+        }
+
+        const copied = await copyTextToClipboard(requestId);
+        if (copied) {
+          setRequestIdFeedback("Request-ID in die Zwischenablage kopiert.", {
+            autoResetMs: 2400,
+          });
+          emitUiEvent("ui.interaction.request_id.copy", {
+            direction: "human->ui",
+            status: "copied",
+            requestId,
+          });
+          return;
+        }
+
+        setRequestIdFeedback("Copy fehlgeschlagen. Bitte ID manuell markieren.", {
+          isError: true,
+          autoResetMs: 3200,
+        });
+        emitUiEvent("ui.interaction.request_id.copy", {
+          level: "warn",
+          direction: "human->ui",
+          status: "copy_failed",
+          requestId,
+        });
       });
 
       traceFormEl.addEventListener("submit", async (event) => {
