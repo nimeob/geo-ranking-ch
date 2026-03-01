@@ -904,3 +904,34 @@ aws ecs update-service   --region "$AWS_REGION"   --cluster "$ECS_CLUSTER"   --s
 ```
 
 Rollback-Prozedur: siehe [`DEPLOYMENT_AWS.md`](DEPLOYMENT_AWS.md#5-rollback-prozedur)
+
+---
+
+## Compliance Ops Monitoring (Issue #531)
+
+Überwacht laufende Compliance-Operationen: Löschjobs, Hold-Bestand, Export-Fehlerquote.
+
+**Runbook:** [`docs/compliance/COMPLIANCE_OPS_MONITORING_V1.md`](compliance/COMPLIANCE_OPS_MONITORING_V1.md)
+
+### Schnellcheck
+
+```bash
+# Basis-Run (ohne JSONL-Konfiguration — nur Export-Log wenn vorhanden)
+python scripts/check_compliance_ops_monitoring.py
+
+# Mit vollständiger Konfiguration
+COMPLIANCE_DELETION_LOG=artifacts/compliance/deletions/deletion_records_snapshot.jsonl \
+COMPLIANCE_HOLD_LOG=artifacts/compliance/holds/hold_records_snapshot.jsonl \
+python scripts/check_compliance_ops_monitoring.py
+# Exit 0 = OK | 10 = WARN | 20 = FAIL (Eskalation erforderlich)
+```
+
+### KPIs & Schwellenwerte
+
+| KPI | WARN | FAIL | Aktion bei FAIL |
+|---|---|---|---|
+| Löschjobs-Overdue | — | ≥ 1 | `DeletionScheduler.tick()` prüfen, On-Call |
+| Hold-Review-Overdue | — | ≥ 1 | Compliance Lead benachrichtigen |
+| Export-Fehlerquote | ≥ 10% | ≥ 25% | API-Service-Health prüfen, ggf. Incident |
+
+Detaillierte Reaktionswege → Runbook.
