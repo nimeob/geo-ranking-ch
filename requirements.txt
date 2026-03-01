@@ -1,6 +1,9 @@
 # Runtime-Abhängigkeiten
-# Alle Kernmodule nutzen ausschliesslich die Python-Standardbibliothek.
-# Kein pip-Install nötig für den Basisbetrieb.
+# Basisbetrieb nutzt überwiegend die Python-Standardbibliothek.
+# Für aktiviertes Trace-Debugging (`/debug/trace` mit CloudWatch-Query)
+# wird boto3 im Runtime-Image benötigt.
+
+boto3>=1.34,<2
 
 # Optional (für Karten-PNG-Rendering in address_intel.py):
 # pycairo>=1.24
