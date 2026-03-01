@@ -1,7 +1,7 @@
 # Backlog (konsolidiert)
 
 > Quelle: konsolidierte offene Punkte aus `README.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_AWS.md`, `docs/OPERATIONS.md`.
-> Stand: 2026-02-28
+> Stand: 2026-03-01
 
 ## Legende
 
@@ -791,6 +791,35 @@ Regelwerk:
   - ✅ #446 abgeschlossen: Staging-lite Promote-Gate mit digest-basierter Entscheidungslogik + Smoke-Gate + Abort-/Rollback-Hinweisen als reproduzierbarer Runner eingeführt (`scripts/run_staging_lite_promote_gate.py`) inkl. Artefaktpfaden (`artifacts/staging-lite/*`), Runbook (`docs/testing/STAGING_LITE_PROMOTE_GATE.md`) und Regressionen (`tests/test_staging_lite_promote_gate.py`).
   - ✅ #448 abgeschlossen: operatives GTM-Sprint-Template + Rollen-/Outputpflichten dokumentiert (`docs/testing/GTM_VALIDATION_SPRINT_TEMPLATE.md`), Decision-Log für BL-30-Priorisierung mit Seed-Ableitung eingeführt (`docs/testing/GTM_VALIDATION_DECISION_LOG.md`), bestehende GTM-Dokus auf den neuen Entscheidungsfluss verlinkt (`docs/PACKAGING_PRICING_HYPOTHESES.md`, `docs/GO_TO_MARKET_MVP.md`) und Guard-Test ergänzt (`tests/test_gtm_validation_sprint_docs.py`).
 - **Nächster Schritt:** keiner (BL-341 vollständig abgeschlossen).
+
+### BL-342 — Minimum-Compliance-Set (Governance-Rollout)
+- **Priorität:** P1
+- **Aufwand:** L
+- **Abhängigkeiten:** BL-341.wp5 (#448) abgeschlossen
+- **Status:** 🟡 in Umsetzung (2026-03-01)
+- **Ziel:** Governance-/Compliance-Vorgaben in verbindliche Policies, technische Controls und Abnahmetests überführen.
+- **Work-Packages:**
+  - [x] #515 — Policy-Standard finalisieren (Version, Begründung, Wirksam-ab, Impact-Pflicht) (abgeschlossen 2026-03-01)
+  - [ ] #516 — Korrektur-Richtlinie freigeben (nur neue Version + Pflichtfeld Grund)
+  - [ ] #517 — Hold-Governance definieren (wer darf Hold setzen/aufheben)
+  - [ ] #518 — Kontrollplan für Export- und Löschprozesse definieren
+  - [ ] #519 — Datenmodell erweitern: Policy-Versionierung + Metadatenfelder
+  - [ ] #524 — Externen Direktzugriff technisch unterbinden
+  - [ ] #525 — Export-Logging implementieren (wer/wann/Kanal)
+  - [ ] #526 — Backup/Restore-Guideline dokumentieren
+  - [ ] #527 — Abnahmetests für Minimum-Compliance-Set erstellen
+- **Blocked Folgeschritte (abhängig von WP oben):**
+  - [ ] #520 — Korrektur-Workflow implementieren (status:blocked)
+  - [ ] #521 — Pflichtfeld Korrekturgrund erzwingen (status:blocked)
+  - [ ] #522 — Lösch-Scheduler mit Vorankündigung implementieren (status:blocked)
+  - [ ] #523 — Hold-Flag pro Dokument implementieren (status:blocked)
+  - [ ] #528 — Go-Live-Testlauf durchführen (status:blocked)
+  - [ ] #529 — Pre-Go-Live-Readiness-Review durchführen (status:blocked)
+  - [ ] #530 — Go-Live-Checkliste und Entscheidungsmeeting durchführen (status:blocked)
+  - [ ] #531 — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (status:blocked)
+  - [ ] #532 — Schulung für relevante Rollen durchführen (status:blocked)
+- **Fortschritt (2026-03-01):**
+  - ✅ #515 abgeschlossen: verbindliche Policy-Vorlage in [`docs/compliance/POLICY_STANDARD_V1.md`](compliance/POLICY_STANDARD_V1.md) eingeführt (Pflichtfelder `version`, `begruendung`, `wirksam_ab`, `impact_summary` + Freigabe-Workflow v1 und Copy/Paste-Referenztemplate).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
