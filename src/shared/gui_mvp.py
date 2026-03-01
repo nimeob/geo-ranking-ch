@@ -1529,10 +1529,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function timeoutSecondsForMode(mode) {
         const normalized = String(mode || "basic").trim().toLowerCase();
         if (normalized === "extended") {
-          return 30;
+          return 210;
         }
         if (normalized === "risk") {
-          return 40;
+          return 240;
         }
         return 20;
       }
