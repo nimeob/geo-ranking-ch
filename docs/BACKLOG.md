@@ -25,6 +25,7 @@ Regelwerk:
 - (leer)
 
 ### Later
+- [#457](https://github.com/nimeob/geo-ranking-ch/issues/457) — BL-341.wp5.r1: GTM-Sprint gtm-validation-001 ausführen und BL-30-Entscheidung ableiten (priority:P1, status:blocked)
 - [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: OpenClaw AWS-Webhook-Gate mit IP-Allowlist umsetzen (Hostinger) (priority:P2, status:blocked)
 - [#105](https://github.com/nimeob/geo-ranking-ch/issues/105) — BL-30.1: Pricing-Modell für API+UI entwerfen (Later) (priority:P3, status:todo)
 - [#106](https://github.com/nimeob/geo-ranking-ch/issues/106) — BL-30.2: Shop + Payment + Entitlements für UI/API (Later) (priority:P3, status:todo)
