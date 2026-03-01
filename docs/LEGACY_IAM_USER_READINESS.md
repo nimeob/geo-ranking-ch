@@ -281,6 +281,24 @@ Temporäre Ausnahme-Klassifikation (wp2, evidenzpflichtig):
 | Follow-up | #570 |
 | Evidenz | `artifacts/bl15/runtime-audit-20260301-default.log`, `artifacts/bl15/runtime-audit-20260301-assumerole.log`, `artifacts/bl17/oidc-only-guard-20260301-default.json`, `artifacts/bl17/oidc-only-guard-20260301-assumerole.json` |
 
+### Read-only Abschluss-Recheck (2026-03-01, BL-15.r2.wp2.c)
+
+Reproduzierbarer Recheck mit aktueller Zielarchitektur (**Runtime = Key/Secret als bewusste Policy**):
+
+- `./scripts/audit_legacy_runtime_consumers.sh` → Exit `30`
+  - Log: `artifacts/bl15/runtime-audit-20260301T134803Z-default.log`
+- `./scripts/check_bl17_oidc_assumerole_posture.sh --report-json artifacts/bl17/posture-report-20260301T134803Z-default.json` → Exit `30`
+  - Log: `artifacts/bl15/posture-20260301T134803Z-default.log`
+- `python3 scripts/inventory_bl17_runtime_credential_paths.py --output-json artifacts/bl17/runtime-credential-injection-inventory-20260301T134803Z-ambient.json` → Exit `10`
+  - Log: `artifacts/bl15/runtime-inventory-20260301T134803Z-ambient.log`
+- `python3 scripts/check_bl17_oidc_only_guard.py --output-json artifacts/bl17/oidc-only-guard-20260301T134803Z-default.json --posture-report-json artifacts/bl17/oidc-only-guard-20260301T134803Z-posture.json --runtime-report-json artifacts/bl17/oidc-only-guard-20260301T134803Z-runtime.json --cloudtrail-log artifacts/bl15/oidc-only-guard-20260301T134803Z-cloudtrail.log --cloudtrail-lookback-hours 6` → Exit `10`
+  - Log: `artifacts/bl15/oidc-only-guard-20260301T134803Z.log`
+
+Interpretation:
+- OIDC-Deploy-Marker bleiben intakt; Runtime läuft weiterhin im dokumentierten Key/Secret-Mode.
+- Die non-zero Exitcodes sind erwartete Findings für Legacy-Aktivität/Runtime-Key-Injection (Readiness weiter **NO-GO**, bis externe Consumer-Blocker aufgelöst sind).
+- Die Policy-Synchronisierung ist damit nachvollziehbar aktualisiert und auf den gültigen Zielzustand referenziert.
+
 ### Externe Consumer-Matrix (BL-15 Iteration, aktualisiert 2026-03-01)
 
 Zur strukturierten Abarbeitung der offenen Consumer wurde ein dediziertes Tracking ergänzt:
