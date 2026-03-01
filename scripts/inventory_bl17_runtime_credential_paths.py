@@ -19,6 +19,19 @@ AWS_REF_REGEX = re.compile(
 )
 SCAN_SUFFIXES = {".service", ".timer", ".conf", ".env", ".sh"}
 
+STATIC_OR_RISKY_ENV_MODES = {"long-lived-static", "partial", "session-unknown-prefix"}
+
+DEFAULT_RUNTIME_WRAPPER_HINT_PATHS = [
+    Path("/entrypoint.sh"),
+    Path("/hostinger/server.mjs"),
+]
+
+RUNTIME_WRAPPER_MARKERS = [
+    re.compile(r"runuser\s+-u\s+node\s+--\s+\"\$@\"", re.IGNORECASE),
+    re.compile(r"spawn\(\s*\"openclaw\"\s*,\s*\[\s*\"gateway\"\s*,\s*\"run\"", re.IGNORECASE),
+    re.compile(r"env\s*:\s*\{\s*\.\.\.process\.env\s*\}", re.IGNORECASE),
+]
+
 
 @dataclass
 class Detection:
@@ -165,6 +178,232 @@ def shutil_which(cmd: str) -> str | None:
     return None
 
 
+def sanitize_command(command: str) -> str:
+    redacted = re.sub(
+        r"(AWS_(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY|SESSION_TOKEN)=)([^\s]+)",
+        r"\1<redacted>",
+        command,
+    )
+    return redacted if len(redacted) <= 260 else f"{redacted[:257]}..."
+
+
+def _read_proc_pid_metadata(pid: int) -> tuple[int | None, str]:
+    status_path = Path(f"/proc/{pid}/status")
+    ppid: int | None = None
+    try:
+        for line in status_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.startswith("PPid:"):
+                parts = line.split()
+                if len(parts) >= 2 and parts[1].isdigit():
+                    ppid = int(parts[1])
+                break
+    except OSError:
+        pass
+
+    cmdline_path = Path(f"/proc/{pid}/cmdline")
+    command = ""
+    try:
+        raw = cmdline_path.read_bytes()
+        command = sanitize_command(raw.replace(b"\x00", b" ").decode("utf-8", errors="ignore").strip())
+    except OSError:
+        command = ""
+
+    return ppid, command
+
+
+def _read_proc_env_entry(pid: int) -> tuple[dict, str | None]:
+    env_path = Path(f"/proc/{pid}/environ")
+    try:
+        raw = env_path.read_bytes()
+    except OSError as exc:
+        return {
+            "pid": pid,
+            "env_readable": False,
+            "error": str(exc),
+            "aws_access_key_id": None,
+            "aws_secret_access_key_set": None,
+            "aws_session_token_set": None,
+            "credential_mode": None,
+            "_raw_access_key": "",
+        }, None
+
+    env_map: dict[str, str] = {}
+    for item in raw.split(b"\x00"):
+        if not item or b"=" not in item:
+            continue
+        key, value = item.split(b"=", 1)
+        env_map[key.decode("utf-8", errors="ignore")] = value.decode("utf-8", errors="ignore")
+
+    raw_access_key = env_map.get("AWS_ACCESS_KEY_ID", "")
+    secret_set = bool(env_map.get("AWS_SECRET_ACCESS_KEY"))
+    session_set = bool(env_map.get("AWS_SESSION_TOKEN"))
+    mode = classify_env_credential_mode(raw_access_key, secret_set, session_set)
+
+    return {
+        "pid": pid,
+        "env_readable": True,
+        "error": None,
+        "aws_access_key_id": short_key(raw_access_key) if raw_access_key else None,
+        "aws_secret_access_key_set": secret_set,
+        "aws_session_token_set": session_set,
+        "credential_mode": mode,
+        "_raw_access_key": raw_access_key,
+    }, raw_access_key
+
+
+def inspect_process_chain(max_depth: int = 12) -> list[dict]:
+    chain: list[dict] = []
+    seen: set[int] = set()
+    pid = os.getpid()
+
+    for _ in range(max_depth):
+        if pid <= 0 or pid in seen:
+            break
+        seen.add(pid)
+
+        ppid, command = _read_proc_pid_metadata(pid)
+        env_entry, _ = _read_proc_env_entry(pid)
+        env_entry.update({"ppid": ppid, "command": command})
+        chain.append(env_entry)
+
+        if not ppid or ppid <= 0:
+            break
+        pid = ppid
+
+    return chain
+
+
+def load_process_chain() -> list[dict]:
+    mock_json = os.environ.get("BL17_INVENTORY_PROCESS_CHAIN_JSON")
+    if not mock_json:
+        return inspect_process_chain()
+
+    try:
+        payload = json.loads(mock_json)
+    except json.JSONDecodeError:
+        return []
+
+    if not isinstance(payload, list):
+        return []
+
+    normalized: list[dict] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        raw_access_key = str(item.get("aws_access_key_id_raw") or item.get("aws_access_key_id") or "")
+        secret_set = bool(item.get("aws_secret_access_key_set"))
+        session_set = bool(item.get("aws_session_token_set"))
+        mode = item.get("credential_mode")
+        if mode is None:
+            mode = classify_env_credential_mode(raw_access_key, secret_set, session_set)
+
+        normalized.append(
+            {
+                "pid": item.get("pid"),
+                "ppid": item.get("ppid"),
+                "command": sanitize_command(str(item.get("command") or "")),
+                "env_readable": bool(item.get("env_readable", True)),
+                "error": item.get("error"),
+                "aws_access_key_id": short_key(raw_access_key) if raw_access_key else None,
+                "aws_secret_access_key_set": secret_set,
+                "aws_session_token_set": session_set,
+                "credential_mode": str(mode) if mode else None,
+                "_raw_access_key": raw_access_key,
+            }
+        )
+
+    return normalized
+
+
+def runtime_wrapper_hint_paths() -> list[Path]:
+    override = os.environ.get("BL17_RUNTIME_WRAPPER_HINT_PATHS", "").strip()
+    if not override:
+        return DEFAULT_RUNTIME_WRAPPER_HINT_PATHS
+
+    paths = [Path(token) for token in override.split(os.pathsep) if token.strip()]
+    return paths or DEFAULT_RUNTIME_WRAPPER_HINT_PATHS
+
+
+def scan_runtime_wrapper_hints() -> list[dict]:
+    hits: list[dict] = []
+    for path in runtime_wrapper_hint_paths():
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+
+        marker_patterns = [pattern.pattern for pattern in RUNTIME_WRAPPER_MARKERS if pattern.search(text)]
+        if not marker_patterns:
+            continue
+
+        hits.append(
+            {
+                "path": str(path),
+                "markers": marker_patterns,
+                "marker_count": len(marker_patterns),
+            }
+        )
+
+    return hits
+
+
+def _sanitize_chain_for_report(chain: list[dict]) -> list[dict]:
+    sanitized: list[dict] = []
+    for entry in chain:
+        item = dict(entry)
+        item.pop("_raw_access_key", None)
+        sanitized.append(item)
+    return sanitized
+
+
+def _detect_process_chain_inheritance(
+    process_chain: list[dict],
+    env_access_key: str,
+    env_credential_mode: str,
+) -> tuple[bool, dict]:
+    if env_credential_mode not in STATIC_OR_RISKY_ENV_MODES:
+        return False, {
+            "env_credential_mode": env_credential_mode,
+            "matched_parent_pids": [],
+            "note": "runtime env is not in static/risky mode",
+            "process_chain": _sanitize_chain_for_report(process_chain),
+        }
+
+    parent_matches: list[int] = []
+    parent_static_modes: list[dict] = []
+    for entry in process_chain[1:]:
+        mode = entry.get("credential_mode")
+        if mode in STATIC_OR_RISKY_ENV_MODES and entry.get("env_readable"):
+            parent_static_modes.append(
+                {
+                    "pid": entry.get("pid"),
+                    "ppid": entry.get("ppid"),
+                    "command": entry.get("command"),
+                    "credential_mode": mode,
+                    "aws_access_key_id": entry.get("aws_access_key_id"),
+                }
+            )
+            raw_parent_key = str(entry.get("_raw_access_key") or "")
+            if env_access_key and raw_parent_key and raw_parent_key == env_access_key:
+                pid = entry.get("pid")
+                if isinstance(pid, int):
+                    parent_matches.append(pid)
+
+    detected = bool(parent_matches)
+    if not detected and env_access_key:
+        detected = bool(parent_static_modes)
+
+    evidence = {
+        "env_credential_mode": env_credential_mode,
+        "matched_parent_pids": parent_matches,
+        "parent_static_modes": parent_static_modes,
+        "process_chain": _sanitize_chain_for_report(process_chain),
+    }
+    return detected, evidence
+
+
 def build_report(repo_root: Path) -> tuple[dict, int]:
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     caller_arn, caller_classification = detect_caller_arn()
@@ -189,7 +428,17 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
             Path("/data/.openclaw/cron/jobs.json.bak"),
         ]
     )
-    system_cron_dirs = [p for p in [Path("/etc/cron.d"), Path("/etc/cron.daily"), Path("/etc/cron.hourly"), Path("/etc/cron.weekly"), Path("/etc/cron.monthly")] if p.is_dir()]
+    system_cron_dirs = [
+        p
+        for p in [
+            Path("/etc/cron.d"),
+            Path("/etc/cron.daily"),
+            Path("/etc/cron.hourly"),
+            Path("/etc/cron.weekly"),
+            Path("/etc/cron.monthly"),
+        ]
+        if p.is_dir()
+    ]
     systemd_dirs = [p for p in [Path.home() / ".config/systemd/user", Path("/etc/systemd/system")] if p.is_dir()]
 
     profile_hits = scan_file_matches(profile_files)
@@ -209,6 +458,16 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
         session_token_set=env_session_token_set,
     )
 
+    process_chain = load_process_chain()
+    inheritance_detected, inheritance_evidence = _detect_process_chain_inheritance(
+        process_chain=process_chain,
+        env_access_key=env_access_key,
+        env_credential_mode=env_credential_mode,
+    )
+
+    wrapper_hint_hits = scan_runtime_wrapper_hints()
+    startpath_passthrough_detected = bool(wrapper_hint_hits) and env_credential_mode in STATIC_OR_RISKY_ENV_MODES
+
     detections: list[Detection] = [
         Detection(
             id="runtime-caller-legacy-user",
@@ -223,7 +482,7 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
         ),
         Detection(
             id="runtime-env-static-keys",
-            detected=env_credential_mode in {"long-lived-static", "partial", "session-unknown-prefix"},
+            detected=env_credential_mode in STATIC_OR_RISKY_ENV_MODES,
             source_type="environment",
             source="process env",
             risk_level="high",
@@ -235,6 +494,32 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
                 "aws_secret_access_key_set": env_secret_key_set,
                 "aws_session_token_set": env_session_token_set,
                 "credential_mode": env_credential_mode,
+            },
+        ),
+        Detection(
+            id="runtime-env-inheritance-process-chain",
+            detected=inheritance_detected,
+            source_type="process-lineage",
+            source="/proc/<pid>/environ ancestry",
+            risk_level="high",
+            effect="Statische/riskante AWS-Credentials werden entlang der Prozesskette vererbt und nicht nur lokal in einer Shell gesetzt.",
+            migration_next_step="Credential-Injection im OpenClaw-Startpfad entfernen (Spawn-Umgebung sanitizen, nur AssumeRole/OIDC-kompatible Variablen weiterreichen).",
+            owner="platform-ops",
+            evidence=inheritance_evidence,
+        ),
+        Detection(
+            id="runtime-startpath-env-passthrough",
+            detected=startpath_passthrough_detected,
+            source_type="bootstrap-wrapper-hint",
+            source="known runtime wrappers",
+            risk_level="high",
+            effect="Bekannte Startpfad-Wrapper mit Env-Passthrough sind vorhanden; zusammen mit statischen Env-Keys ist Runtime-Injection wahrscheinlich persistent.",
+            migration_next_step="Wrapper/Service-Startpfad so anpassen, dass AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY nicht an OpenClaw Runtime vererbt werden.",
+            owner="platform-ops",
+            evidence={
+                "env_credential_mode": env_credential_mode,
+                "wrapper_hint_hits": wrapper_hint_hits,
+                "hint_paths_scanned": [str(p) for p in runtime_wrapper_hint_paths()],
             },
         ),
         Detection(
@@ -331,11 +616,7 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
         ),
     ]
 
-    risky_detected = [
-        d
-        for d in detections
-        if d.detected and d.risk_level in {"high", "medium"}
-    ]
+    risky_detected = [d for d in detections if d.detected and d.risk_level in {"high", "medium"}]
 
     report = {
         "version": 1,

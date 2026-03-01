@@ -1,6 +1,6 @@
 # BL-17 Runtime Credential Injection Inventory
 
-Stand: 2026-02-27
+Stand: 2026-03-01
 
 ## Ziel
 
@@ -31,6 +31,11 @@ Exit-Code-Interpretation:
 - `0` = keine riskanten Injection-Befunde erkannt
 - `10` = mindestens ein riskanter Befund erkannt (Legacy/Key-Injection)
 
+Hinweis für reproduzierbare Tests:
+- `BL17_INVENTORY_PROCESS_CHAIN_JSON` erlaubt einen kontrollierten Mock der Prozesskette.
+- `BL17_RUNTIME_WRAPPER_HINT_PATHS` erlaubt das gezielte Scannen von Test-Dateien für Wrapper-Hinweise.
+- Beide Variablen sind optional und für Produktivläufe nicht erforderlich.
+
 ## Evidence-Schema (JSON)
 
 Pflichtfelder im Report:
@@ -54,7 +59,9 @@ Die Inventarisierung deckt u. a. folgende Pfade ab:
 5. **AWS Config/Credentials Files** (`~/.aws/config`, `~/.aws/credentials`)
 6. **OpenClaw-Konfig-Dateien** (`/data/.openclaw/*.json`)
 7. **Scheduler-Pfade** (user/system `cron`, `systemd`)
-8. **Verfügbarer Migrationspfad** (`scripts/aws_exec_via_openclaw_ops.sh`)
+8. **Prozessketten-Vererbung** (`runtime-env-inheritance-process-chain` via `/proc/<pid>/environ`-Ancestry, redacted)
+9. **Startpfad-Wrapper-Hinweise** (`runtime-startpath-env-passthrough`, z. B. Env-Passthrough in bekannten Bootstrap-Dateien)
+10. **Verfügbarer Migrationspfad** (`scripts/aws_exec_via_openclaw_ops.sh`)
 
 ## Remediation-Leitlinie pro Befund
 
