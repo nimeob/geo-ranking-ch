@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib import error, request
 
@@ -396,6 +397,153 @@ class TestAsyncJobStoreTransitions(unittest.TestCase):
                     to_status="completed",
                     progress_percent=100,
                 )
+
+
+class TestAsyncJobStoreRetentionCleanup(unittest.TestCase):
+    @staticmethod
+    def _build_store_fixture(tmpdir: str):
+        store_path = Path(tmpdir) / "store.json"
+        store = AsyncJobStore(store_file=store_path)
+
+        terminal_job = store.create_job(
+            request_payload={"query": "terminal", "options": {}},
+            request_id="req-terminal",
+            query="terminal",
+            intelligence_mode="basic",
+        )
+        terminal_job_id = str(terminal_job["job_id"])
+        store.transition_job(job_id=terminal_job_id, to_status="running", progress_percent=5)
+        store.transition_job(job_id=terminal_job_id, to_status="completed", progress_percent=100)
+
+        terminal_old_result = store.create_result(
+            job_id=terminal_job_id,
+            result_payload={"kind": "old-terminal"},
+            result_kind="partial",
+        )
+        terminal_fresh_result = store.create_result(
+            job_id=terminal_job_id,
+            result_payload={"kind": "fresh-terminal"},
+            result_kind="final",
+        )
+
+        active_job = store.create_job(
+            request_payload={"query": "active", "options": {}},
+            request_id="req-active",
+            query="active",
+            intelligence_mode="basic",
+        )
+        active_job_id = str(active_job["job_id"])
+        store.transition_job(job_id=active_job_id, to_status="running", progress_percent=10)
+        active_result = store.create_result(
+            job_id=active_job_id,
+            result_payload={"kind": "active"},
+            result_kind="partial",
+        )
+
+        now = datetime(2026, 3, 1, 15, 0, tzinfo=timezone.utc)
+        old_iso = (now - timedelta(hours=3)).isoformat()
+        fresh_iso = (now - timedelta(minutes=15)).isoformat()
+
+        with store._lock:
+            store._state["results"][str(terminal_old_result["result_id"])]["created_at"] = old_iso
+            store._state["results"][str(terminal_fresh_result["result_id"])]["created_at"] = fresh_iso
+            store._state["results"][str(active_result["result_id"])]["created_at"] = old_iso
+
+            terminal_events = store._state["events"][terminal_job_id]
+            for idx, row in enumerate(terminal_events):
+                row["occurred_at"] = fresh_iso if idx == len(terminal_events) - 1 else old_iso
+
+            active_events = store._state["events"][active_job_id]
+            for row in active_events:
+                row["occurred_at"] = old_iso
+
+            store._persist_state_atomic(store._state)
+
+        return {
+            "store": store,
+            "now": now,
+            "terminal_job_id": terminal_job_id,
+            "active_job_id": active_job_id,
+            "terminal_old_result_id": str(terminal_old_result["result_id"]),
+            "terminal_fresh_result_id": str(terminal_fresh_result["result_id"]),
+            "active_result_id": str(active_result["result_id"]),
+            "terminal_event_count": len(store.list_events(terminal_job_id)),
+            "active_event_count": len(store.list_events(active_job_id)),
+        }
+
+    def test_cleanup_retention_deletes_only_expired_terminal_records(self):
+        with tempfile.TemporaryDirectory(prefix="async-job-retention-") as tmpdir:
+            fixture = self._build_store_fixture(tmpdir)
+            store: AsyncJobStore = fixture["store"]
+
+            summary = store.cleanup_retention(
+                results_ttl_seconds=3600,
+                events_ttl_seconds=3600,
+                now=fixture["now"],
+            )
+
+            self.assertEqual(summary["results"]["delete_count"], 1)
+            self.assertEqual(
+                summary["events"]["delete_count"],
+                fixture["terminal_event_count"] - 1,
+            )
+
+            terminal_results = store.list_results(fixture["terminal_job_id"])
+            terminal_result_ids = {str(row.get("result_id") or "") for row in terminal_results}
+            self.assertNotIn(fixture["terminal_old_result_id"], terminal_result_ids)
+            self.assertIn(fixture["terminal_fresh_result_id"], terminal_result_ids)
+
+            active_results = store.list_results(fixture["active_job_id"])
+            active_result_ids = {str(row.get("result_id") or "") for row in active_results}
+            self.assertIn(fixture["active_result_id"], active_result_ids)
+
+            terminal_events = store.list_events(fixture["terminal_job_id"])
+            self.assertEqual(len(terminal_events), 1)
+            self.assertEqual(terminal_events[0].get("event_type"), "job.completed")
+
+            active_events = store.list_events(fixture["active_job_id"])
+            self.assertEqual(len(active_events), fixture["active_event_count"])
+
+    def test_cleanup_retention_is_idempotent(self):
+        with tempfile.TemporaryDirectory(prefix="async-job-retention-") as tmpdir:
+            fixture = self._build_store_fixture(tmpdir)
+            store: AsyncJobStore = fixture["store"]
+
+            first = store.cleanup_retention(
+                results_ttl_seconds=3600,
+                events_ttl_seconds=3600,
+                now=fixture["now"],
+            )
+            second = store.cleanup_retention(
+                results_ttl_seconds=3600,
+                events_ttl_seconds=3600,
+                now=fixture["now"],
+            )
+
+            self.assertGreater(first["results"]["delete_count"], 0)
+            self.assertGreater(first["events"]["delete_count"], 0)
+            self.assertEqual(second["results"]["delete_count"], 0)
+            self.assertEqual(second["events"]["delete_count"], 0)
+
+    def test_cleanup_retention_dry_run_keeps_store_unchanged(self):
+        with tempfile.TemporaryDirectory(prefix="async-job-retention-") as tmpdir:
+            fixture = self._build_store_fixture(tmpdir)
+            store: AsyncJobStore = fixture["store"]
+
+            before_terminal_results = len(store.list_results(fixture["terminal_job_id"]))
+            before_terminal_events = len(store.list_events(fixture["terminal_job_id"]))
+
+            summary = store.cleanup_retention(
+                results_ttl_seconds=3600,
+                events_ttl_seconds=3600,
+                dry_run=True,
+                now=fixture["now"],
+            )
+
+            self.assertGreater(summary["results"]["delete_count"], 0)
+            self.assertGreater(summary["events"]["delete_count"], 0)
+            self.assertEqual(len(store.list_results(fixture["terminal_job_id"])), before_terminal_results)
+            self.assertEqual(len(store.list_events(fixture["terminal_job_id"])), before_terminal_events)
 
 
 if __name__ == "__main__":
