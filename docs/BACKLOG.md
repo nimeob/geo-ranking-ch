@@ -576,19 +576,20 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
-- **Status:** 🟡 in Umsetzung (2026-03-01, Parent #128 / BL-30.1 Parent #105)
+- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 abgeschlossen; Übergabe auf BL-30.2 vorbereitet)
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
   - [x] #459 — BL-30.1.wp2 Unit-Economics-Hypothesen je Tier/Segment strukturieren (abgeschlossen 2026-03-01)
   - [x] #460 — BL-30.1.wp3 Preisvalidierungs-Experimentkarten + Entscheidungslogik (abgeschlossen 2026-03-01)
-  - [ ] #461 — BL-30.1.wp4 Konsolidierter Abschluss + BL-30.2 Übergabe
+  - [x] #461 — BL-30.1.wp4 Konsolidierter Abschluss + BL-30.2 Übergabe (abgeschlossen 2026-03-01)
 - **Fortschritt (2026-03-01):**
   - ✅ #105 in atomare Child-Issues #458/#459/#460/#461 zerlegt (oldest-first Leaf-Umsetzung).
   - ✅ #458 abgeschlossen: neue Tier-/Limit-Matrix v1 in [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](PRICING_TIER_LIMIT_MATRIX_V1.md), GTM-Hypothesen-Doku verlinkt und Doku-Regression ergänzt.
   - ✅ #459 abgeschlossen: versionierte Unit-Economics-Doku in [`docs/UNIT_ECONOMICS_HYPOTHESES_V1.md`](UNIT_ECONOMICS_HYPOTHESES_V1.md) ergänzt (Tier-/Segment-Annahmen, Sensitivitätshebel, Go/Adjust/Stop-Schwellen) und via Regressionstest abgesichert.
   - ✅ #460 abgeschlossen: experimentfähige Pricing-Karten (3 Kandidaten inkl. Inputs/Outputs/Abbruchkriterien) und standardisierte Go/Adjust/Stop-Entscheidungslogik in [`docs/PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md`](PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md) ergänzt; Follow-up-Issue-Template für BL-30.1/30.2 in [`docs/testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md`](testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md) eingeführt; Doku-Regressionen erweitert.
-- **Nächster Schritt:** #461 (oldest-first, unblocked).
+  - ✅ #461 abgeschlossen: konsolidierter Entscheidungsabschluss in [`docs/BL30_1_CLOSEOUT_V1.md`](BL30_1_CLOSEOUT_V1.md) dokumentiert (Primärkandidat `CAND-API-PRO-390`, Sekundärkandidat `CAND-BIZ-API-890`) und BL-30.2-Handover via Follow-up-Issues #465/#466 plus Parent-Sync in #106 vorbereitet.
+- **Nächster Schritt:** oldest-first BL-30.2-Leaf-Umsetzung nach GTM-Freigabe (#457), beginnend mit #465.
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
