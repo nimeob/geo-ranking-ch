@@ -168,29 +168,38 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       .map-surface {
         position: relative;
         width: 100%;
-        min-height: 260px;
+        min-height: 320px;
         border: 1px solid var(--border);
         border-radius: 0.65rem;
-        cursor: crosshair;
         overflow: hidden;
-        background:
-          radial-gradient(circle at 24% 36%, rgba(22, 127, 68, 0.18) 0 18%, transparent 22%),
-          radial-gradient(circle at 62% 52%, rgba(22, 127, 68, 0.18) 0 22%, transparent 28%),
-          linear-gradient(145deg, #d6e7ff, #f4f8ff 50%, #eaf4ff);
+        background: #dfe8f5;
+        cursor: grab;
+        touch-action: none;
       }
-      .map-grid {
+      .map-surface.dragging {
+        cursor: grabbing;
+      }
+      .map-tile-layer {
         position: absolute;
         inset: 0;
-        background-image:
-          linear-gradient(to right, rgba(12, 55, 117, 0.13) 1px, transparent 1px),
-          linear-gradient(to bottom, rgba(12, 55, 117, 0.13) 1px, transparent 1px);
-        background-size: 28px 28px;
       }
-      .map-outline {
+      .map-tile {
         position: absolute;
-        inset: 9% 11% 13% 9%;
-        border: 2px solid rgba(10, 72, 40, 0.45);
-        border-radius: 18% 24% 20% 18%;
+        width: 256px;
+        height: 256px;
+        user-select: none;
+        -webkit-user-drag: none;
+        pointer-events: none;
+      }
+      .map-crosshair {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 2px solid rgba(14, 62, 122, 0.5);
+        transform: translate(-50%, -50%);
         pointer-events: none;
       }
       .map-marker {
@@ -212,6 +221,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
       .map-legend small {
         color: var(--muted);
+      }
+      .map-status {
+        font-size: 0.84rem;
       }
       .factor-list {
         margin: 0;
@@ -288,21 +300,25 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           <h2>Karteninteraktion</h2>
           <div class=\"map-shell\">
             <div
-              id=\"map-click-surface\"
-              class=\"map-surface\"
-              role=\"button\"
-              tabindex=\"0\"
-              aria-label=\"Schweiz-Kartenfläche: klicken um Koordinaten zu analysieren\"
+              id="map-click-surface"
+              class="map-surface"
+              role="application"
+              tabindex="0"
+              aria-label="Interaktive Karte: ziehen zum Verschieben, Mausrad für Zoom, Klick für Koordinatenanalyse"
             >
-              <div class=\"map-grid\"></div>
-              <div class=\"map-outline\"></div>
-              <div id=\"map-click-marker\" class=\"map-marker\" hidden></div>
+              <div id="map-tile-layer" class="map-tile-layer" aria-hidden="true"></div>
+              <div class="map-crosshair" aria-hidden="true"></div>
+              <div id="map-click-marker" class="map-marker" hidden></div>
             </div>
-            <div class=\"map-legend\">
-              <small>Bounds: CH WGS84 (45.8179..47.8084 / 5.9559..10.4921)</small>
-              <small id=\"click-hint\">Noch kein Kartenpunkt gewählt.</small>
+            <div class="map-legend">
+              <small id="map-view-meta">Zoom 8 · Zentrum 46.818200, 8.227500</small>
+              <small id="click-hint">Noch kein Kartenpunkt gewählt.</small>
             </div>
-            <div class=\"placeholder\">Klick in die Karte startet sofort eine Analyse über <code>POST /analyze</code> mit <code>coordinates.lat/lon</code> (inkl. <code>snap_mode=ch_bounds</code>).</div>
+            <div class="map-legend">
+              <small>Tiles: © OpenStreetMap contributors · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">ODbL/Attribution</a></small>
+              <small>Analyze-Payload nutzt <code>coordinates.lat/lon</code> + <code>snap_mode=ch_bounds</code>.</small>
+            </div>
+            <div id="map-status" class="placeholder map-status" hidden></div>
           </div>
         </article>
       </section>
@@ -337,6 +353,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         lonMin: 5.9559,
         lonMax: 10.4921,
       };
+      const TILE_SIZE = 256;
+      const MIN_ZOOM = 6;
+      const MAX_ZOOM = 17;
+      const INITIAL_MAP_VIEW = {
+        lat: 46.8182,
+        lon: 8.2275,
+        zoom: 8,
+      };
 
       const state = {
         phase: "idle",
@@ -345,6 +369,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         lastError: null,
         lastInput: null,
         coreFactors: [],
+      };
+
+      const mapState = {
+        centerLat: INITIAL_MAP_VIEW.lat,
+        centerLon: INITIAL_MAP_VIEW.lon,
+        zoom: INITIAL_MAP_VIEW.zoom,
+        marker: null,
       };
 
       const formEl = document.getElementById("analyze-form");
@@ -360,8 +391,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const coreFactorsEl = document.getElementById("core-factors");
 
       const mapSurface = document.getElementById("map-click-surface");
+      const mapTileLayer = document.getElementById("map-tile-layer");
       const mapMarker = document.getElementById("map-click-marker");
+      const mapStatus = document.getElementById("map-status");
+      const mapViewMeta = document.getElementById("map-view-meta");
       const clickHint = document.getElementById("click-hint");
+
+      let mapRenderToken = 0;
 
       function prettyPrint(payload) {
         return JSON.stringify(payload, null, 2);
@@ -490,12 +526,264 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         renderCoreFactors();
       }
 
-      function setMapMarker(lat, lon) {
-        const latRatio = (lat - CH_BOUNDS.latMin) / (CH_BOUNDS.latMax - CH_BOUNDS.latMin);
-        const lonRatio = (lon - CH_BOUNDS.lonMin) / (CH_BOUNDS.lonMax - CH_BOUNDS.lonMin);
+      function clampLatToMercator(lat) {
+        return clamp(lat, -85.05112878, 85.05112878);
+      }
+
+      function clampMapCenter(lat, lon) {
+        return {
+          lat: clamp(clampLatToMercator(lat), CH_BOUNDS.latMin - 0.85, CH_BOUNDS.latMax + 0.85),
+          lon: clamp(lon, CH_BOUNDS.lonMin - 1.25, CH_BOUNDS.lonMax + 1.25),
+        };
+      }
+
+      function worldSize(zoom) {
+        return TILE_SIZE * Math.pow(2, zoom);
+      }
+
+      function lonToWorldX(lon, zoom) {
+        return ((lon + 180) / 360) * worldSize(zoom);
+      }
+
+      function latToWorldY(lat, zoom) {
+        const clampedLat = clampLatToMercator(lat);
+        const radians = (clampedLat * Math.PI) / 180;
+        const mercator = Math.log(Math.tan(Math.PI / 4 + radians / 2));
+        return (0.5 - mercator / (2 * Math.PI)) * worldSize(zoom);
+      }
+
+      function worldXToLon(worldX, zoom) {
+        return (worldX / worldSize(zoom)) * 360 - 180;
+      }
+
+      function worldYToLat(worldY, zoom) {
+        const normalized = 0.5 - worldY / worldSize(zoom);
+        return (360 / Math.PI) * Math.atan(Math.exp(normalized * 2 * Math.PI)) - 90;
+      }
+
+      function latLonToWorld(lat, lon, zoom) {
+        return {
+          x: lonToWorldX(lon, zoom),
+          y: latToWorldY(lat, zoom),
+        };
+      }
+
+      function wrapWorldDeltaX(delta, size) {
+        let wrapped = delta;
+        while (wrapped > size / 2) wrapped -= size;
+        while (wrapped < -size / 2) wrapped += size;
+        return wrapped;
+      }
+
+      function centerWorld(zoomOverride) {
+        const zoom = Number.isFinite(zoomOverride) ? zoomOverride : mapState.zoom;
+        return latLonToWorld(mapState.centerLat, mapState.centerLon, zoom);
+      }
+
+      function containerPointToLatLon(x, y) {
+        const width = Math.max(1, mapSurface.clientWidth);
+        const height = Math.max(1, mapSurface.clientHeight);
+        const center = centerWorld();
+        const size = worldSize(mapState.zoom);
+
+        let worldX = center.x + (x - width / 2);
+        worldX = ((worldX % size) + size) % size;
+
+        const worldY = clamp(center.y + (y - height / 2), 0, size - 1);
+
+        return {
+          lat: worldYToLat(worldY, mapState.zoom),
+          lon: worldXToLon(worldX, mapState.zoom),
+        };
+      }
+
+      function centerToContainerPoint(lat, lon) {
+        const width = Math.max(1, mapSurface.clientWidth);
+        const height = Math.max(1, mapSurface.clientHeight);
+        const center = centerWorld();
+        const point = latLonToWorld(lat, lon, mapState.zoom);
+        const size = worldSize(mapState.zoom);
+
+        const dx = wrapWorldDeltaX(point.x - center.x, size);
+        const dy = point.y - center.y;
+
+        return {
+          x: width / 2 + dx,
+          y: height / 2 + dy,
+        };
+      }
+
+      function updateMapViewMeta() {
+        mapViewMeta.textContent = `Zoom ${mapState.zoom} · Zentrum ${formatCoord(mapState.centerLat)}, ${formatCoord(mapState.centerLon)}`;
+      }
+
+      function setMapStatus(message) {
+        if (!message) {
+          mapStatus.hidden = true;
+          mapStatus.textContent = "";
+          return;
+        }
+        mapStatus.hidden = false;
+        mapStatus.textContent = message;
+      }
+
+      function clearMapStatus() {
+        setMapStatus("");
+      }
+
+      function normalizeTileX(tileX, zoom) {
+        const modulo = Math.pow(2, zoom);
+        return ((tileX % modulo) + modulo) % modulo;
+      }
+
+      function buildOsmTileUrl(zoom, tileX, tileY) {
+        return `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+      }
+
+      function updateMarkerPosition() {
+        if (!mapState.marker) {
+          mapMarker.hidden = true;
+          return;
+        }
+
+        const point = centerToContainerPoint(mapState.marker.lat, mapState.marker.lon);
         mapMarker.hidden = false;
-        mapMarker.style.left = `${clamp(lonRatio * 100, 0, 100)}%`;
-        mapMarker.style.top = `${clamp((1 - latRatio) * 100, 0, 100)}%`;
+        mapMarker.style.left = `${point.x}px`;
+        mapMarker.style.top = `${point.y}px`;
+      }
+
+      function renderTiles() {
+        const width = Math.max(1, mapSurface.clientWidth);
+        const height = Math.max(1, mapSurface.clientHeight);
+        const zoom = mapState.zoom;
+        const center = centerWorld();
+
+        const topLeftX = center.x - width / 2;
+        const topLeftY = center.y - height / 2;
+
+        const minTileX = Math.floor(topLeftX / TILE_SIZE) - 1;
+        const maxTileX = Math.floor((topLeftX + width) / TILE_SIZE) + 1;
+        const minTileY = Math.floor(topLeftY / TILE_SIZE) - 1;
+        const maxTileY = Math.floor((topLeftY + height) / TILE_SIZE) + 1;
+        const maxTileIndex = Math.pow(2, zoom) - 1;
+
+        const token = ++mapRenderToken;
+        mapTileLayer.textContent = "";
+
+        const fragment = document.createDocumentFragment();
+        let tileCount = 0;
+        let loaded = 0;
+        let failed = 0;
+
+        const maybeFinalize = () => {
+          if (token !== mapRenderToken) {
+            return;
+          }
+          if (loaded + failed < tileCount) {
+            return;
+          }
+          if (tileCount > 0 && loaded === 0 && failed > 0) {
+            setMapStatus("Karten-Tiles konnten nicht geladen werden. Analyse via coordinates.lat/lon bleibt verfügbar.");
+            return;
+          }
+          clearMapStatus();
+        };
+
+        for (let tileX = minTileX; tileX <= maxTileX; tileX += 1) {
+          for (let tileY = minTileY; tileY <= maxTileY; tileY += 1) {
+            if (tileY < 0 || tileY > maxTileIndex) {
+              continue;
+            }
+
+            tileCount += 1;
+            const img = document.createElement("img");
+            img.className = "map-tile";
+            img.alt = "";
+            img.decoding = "async";
+            img.loading = "eager";
+            img.draggable = false;
+            img.style.left = `${tileX * TILE_SIZE - topLeftX}px`;
+            img.style.top = `${tileY * TILE_SIZE - topLeftY}px`;
+            img.width = TILE_SIZE;
+            img.height = TILE_SIZE;
+
+            img.addEventListener(
+              "load",
+              () => {
+                loaded += 1;
+                maybeFinalize();
+              },
+              { once: true }
+            );
+            img.addEventListener(
+              "error",
+              () => {
+                failed += 1;
+                maybeFinalize();
+              },
+              { once: true }
+            );
+
+            img.src = buildOsmTileUrl(zoom, normalizeTileX(tileX, zoom), tileY);
+            fragment.appendChild(img);
+          }
+        }
+
+        mapTileLayer.appendChild(fragment);
+        updateMapViewMeta();
+        updateMarkerPosition();
+        maybeFinalize();
+      }
+
+      function setMapCenter(lat, lon, { render = true } = {}) {
+        const bounded = clampMapCenter(lat, lon);
+        mapState.centerLat = bounded.lat;
+        mapState.centerLon = bounded.lon;
+        if (render) {
+          renderTiles();
+        }
+      }
+
+      function setMapCenterFromWorld(worldX, worldY, { render = true } = {}) {
+        const size = worldSize(mapState.zoom);
+        const wrappedX = ((worldX % size) + size) % size;
+        const clampedY = clamp(worldY, 0, size - 1);
+        setMapCenter(worldYToLat(clampedY, mapState.zoom), worldXToLon(wrappedX, mapState.zoom), { render });
+      }
+
+      function panMapByPixels(dx, dy) {
+        const center = centerWorld();
+        setMapCenterFromWorld(center.x - dx, center.y - dy, { render: true });
+      }
+
+      function zoomMapAtPoint(delta, clientX, clientY) {
+        const targetZoom = clamp(mapState.zoom + delta, MIN_ZOOM, MAX_ZOOM);
+        if (targetZoom === mapState.zoom) {
+          return;
+        }
+
+        const rect = mapSurface.getBoundingClientRect();
+        const x = clamp(clientX - rect.left, 0, rect.width);
+        const y = clamp(clientY - rect.top, 0, rect.height);
+
+        const focus = containerPointToLatLon(x, y);
+        mapState.zoom = targetZoom;
+
+        const focusWorld = latLonToWorld(focus.lat, focus.lon, targetZoom);
+        const width = Math.max(1, mapSurface.clientWidth);
+        const height = Math.max(1, mapSurface.clientHeight);
+        const nextCenterWorldX = focusWorld.x - (x - width / 2);
+        const nextCenterWorldY = focusWorld.y - (y - height / 2);
+
+        setMapCenterFromWorld(nextCenterWorldX, nextCenterWorldY, { render: true });
+      }
+
+      function setMapMarker(lat, lon) {
+        mapState.marker = {
+          lat: clampLatToMercator(lat),
+          lon,
+        };
+        updateMarkerPosition();
         clickHint.textContent = `Letzter Klick: lat ${formatCoord(lat)}, lon ${formatCoord(lon)}`;
       }
 
@@ -503,12 +791,145 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const rect = mapSurface.getBoundingClientRect();
         const x = clamp(event.clientX - rect.left, 0, rect.width);
         const y = clamp(event.clientY - rect.top, 0, rect.height);
-        const xRatio = rect.width > 0 ? x / rect.width : 0.5;
-        const yRatio = rect.height > 0 ? y / rect.height : 0.5;
+        return containerPointToLatLon(x, y);
+      }
 
-        const lon = CH_BOUNDS.lonMin + xRatio * (CH_BOUNDS.lonMax - CH_BOUNDS.lonMin);
-        const lat = CH_BOUNDS.latMax - yRatio * (CH_BOUNDS.latMax - CH_BOUNDS.latMin);
-        return { lat, lon };
+      async function analyzeFromMap(lat, lon, inputLabel) {
+        const payload = buildAnalyzePayload({
+          coordinates: {
+            lat: Number(lat.toFixed(6)),
+            lon: Number(lon.toFixed(6)),
+            snap_mode: "ch_bounds",
+          },
+        });
+        await startAnalyze(payload, inputLabel);
+      }
+
+      function initializeInteractiveMap() {
+        const dragState = {
+          active: false,
+          pointerId: null,
+          startX: 0,
+          startY: 0,
+          startCenterX: 0,
+          startCenterY: 0,
+          moved: false,
+        };
+        let suppressNextClick = false;
+
+        mapSurface.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0) {
+            return;
+          }
+          dragState.active = true;
+          dragState.pointerId = event.pointerId;
+          dragState.startX = event.clientX;
+          dragState.startY = event.clientY;
+          const center = centerWorld();
+          dragState.startCenterX = center.x;
+          dragState.startCenterY = center.y;
+          dragState.moved = false;
+          mapSurface.classList.add("dragging");
+          mapSurface.setPointerCapture(event.pointerId);
+        });
+
+        mapSurface.addEventListener("pointermove", (event) => {
+          if (!dragState.active || event.pointerId !== dragState.pointerId) {
+            return;
+          }
+          const dx = event.clientX - dragState.startX;
+          const dy = event.clientY - dragState.startY;
+          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            dragState.moved = true;
+          }
+          setMapCenterFromWorld(dragState.startCenterX - dx, dragState.startCenterY - dy, { render: true });
+        });
+
+        const endDrag = (event) => {
+          if (!dragState.active || event.pointerId !== dragState.pointerId) {
+            return;
+          }
+          mapSurface.classList.remove("dragging");
+          mapSurface.releasePointerCapture(event.pointerId);
+          dragState.active = false;
+          if (dragState.moved) {
+            suppressNextClick = true;
+            setTimeout(() => {
+              suppressNextClick = false;
+            }, 0);
+          }
+        };
+
+        mapSurface.addEventListener("pointerup", endDrag);
+        mapSurface.addEventListener("pointercancel", endDrag);
+
+        mapSurface.addEventListener("click", async (event) => {
+          if (suppressNextClick) {
+            return;
+          }
+          const { lat, lon } = mapEventToCoordinates(event);
+          setMapMarker(lat, lon);
+          await analyzeFromMap(lat, lon, `Kartenpunkt: ${formatCoord(lat)}, ${formatCoord(lon)}`);
+        });
+
+        mapSurface.addEventListener(
+          "wheel",
+          (event) => {
+            event.preventDefault();
+            const direction = event.deltaY < 0 ? 1 : -1;
+            zoomMapAtPoint(direction, event.clientX, event.clientY);
+          },
+          { passive: false }
+        );
+
+        mapSurface.addEventListener("keydown", async (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            const lat = mapState.centerLat;
+            const lon = mapState.centerLon;
+            setMapMarker(lat, lon);
+            await analyzeFromMap(lat, lon, `Kartenpunkt (Keyboard): ${formatCoord(lat)}, ${formatCoord(lon)}`);
+            return;
+          }
+
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            panMapByPixels(0, -90);
+            return;
+          }
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            panMapByPixels(0, 90);
+            return;
+          }
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            panMapByPixels(-90, 0);
+            return;
+          }
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            panMapByPixels(90, 0);
+            return;
+          }
+          if (event.key === "+" || event.key === "=") {
+            event.preventDefault();
+            const rect = mapSurface.getBoundingClientRect();
+            zoomMapAtPoint(1, rect.left + rect.width / 2, rect.top + rect.height / 2);
+            return;
+          }
+          if (event.key === "-") {
+            event.preventDefault();
+            const rect = mapSurface.getBoundingClientRect();
+            zoomMapAtPoint(-1, rect.left + rect.width / 2, rect.top + rect.height / 2);
+          }
+        });
+
+        window.addEventListener("resize", () => {
+          renderTiles();
+        });
+
+        renderTiles();
       }
 
       function timeoutSecondsForMode(mode) {
@@ -638,40 +1059,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         await startAnalyze(payload, `Adresse: ${query}`);
       });
 
-      mapSurface.addEventListener("click", async (event) => {
-        const { lat, lon } = mapEventToCoordinates(event);
-        setMapMarker(lat, lon);
-        const payload = buildAnalyzePayload({
-          coordinates: {
-            lat: Number(lat.toFixed(6)),
-            lon: Number(lon.toFixed(6)),
-            snap_mode: "ch_bounds",
-          },
-        });
-        await startAnalyze(payload, `Kartenpunkt: ${formatCoord(lat)}, ${formatCoord(lon)}`);
-      });
-
-      mapSurface.addEventListener("keydown", async (event) => {
-        if (event.key !== "Enter" && event.key !== " ") {
-          return;
-        }
-        event.preventDefault();
-        const simulatedEvent = {
-          clientX: mapSurface.getBoundingClientRect().left + mapSurface.clientWidth / 2,
-          clientY: mapSurface.getBoundingClientRect().top + mapSurface.clientHeight / 2,
-        };
-        const { lat, lon } = mapEventToCoordinates(simulatedEvent);
-        setMapMarker(lat, lon);
-        const payload = buildAnalyzePayload({
-          coordinates: {
-            lat: Number(lat.toFixed(6)),
-            lon: Number(lon.toFixed(6)),
-            snap_mode: "ch_bounds",
-          },
-        });
-        await startAnalyze(payload, `Kartenpunkt (Keyboard): ${formatCoord(lat)}, ${formatCoord(lon)}`);
-      });
-
+      initializeInteractiveMap();
       renderState();
     </script>
   </body>

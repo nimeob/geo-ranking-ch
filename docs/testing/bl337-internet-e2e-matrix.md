@@ -98,4 +98,4 @@ python3 scripts/run_bl337_ui_frontdoor_e2e.py \
 Ergebnis:
 - UI-Testfälle (`UI.*`) werden in der Matrix von `planned` auf `pass|fail|blocked` fortgeschrieben.
 - Pro Lauf werden drei Evidence-Artefakte erzeugt: `*-wp3-ui-frontdoor-e2e.json`, `*-home.html`, `*-api-probe.json`.
-- Die Checks decken Homepage-Load, Kernnavigation/Form-Render, Client-Side-Validierungsfehler und UI/API-Fehlerkonsistenz ab.
+- Die Checks decken Homepage-Load, Kernnavigation/Form-Render **inkl. Karten-Basemap-Marker (Tile-Layer/Zoom-Handler)**, Client-Side-Validierungsfehler und UI/API-Fehlerkonsistenz ab.

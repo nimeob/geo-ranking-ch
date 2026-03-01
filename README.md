@@ -21,7 +21,7 @@
 ### Webservice-Features (thematisch geordnet)
 
 - **API-Grundfunktionen**
-  - `GET /gui` als GUI-MVP-Shell (BL-20.6: Adresse + Kartenklick + Result-Panel, API-first)
+  - `GET /gui` als GUI-MVP-Shell (BL-20.6: Adresse + **interaktive OSM-Karte (Pan/Zoom/Klick)** + Result-Panel, API-first)
   - `GET /health` für Liveness-Checks
   - `GET /version` für Build-/Commit-Transparenz
   - `POST /analyze` für adressbasierte Standortanalyse
