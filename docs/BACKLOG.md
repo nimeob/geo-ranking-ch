@@ -19,13 +19,40 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#577](https://github.com/nimeob/geo-ranking-ch/issues/577) — BL-30/BL-15 Follow-up: GTM → Data Architecture Mapping v1 (Org/User/Billing/Entitlements) (priority:P2, status:in-progress)
-
-### Next
 - (leer)
 
+### Next
+- [#576](https://github.com/nimeob/geo-ranking-ch/issues/576) — BL-15.r2.wp2.b.prereq — optionales Wartungsfenster/Host-Zugriff (nur falls nötig) (priority:P0, status:todo)
+- [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
+- [#651](https://github.com/nimeob/geo-ranking-ch/issues/651) — WP: staging Terraform – Baseline Provisioning (VPC/ECS/ALB/Logs/Secrets) + Outputs (priority:P0, status:todo)
+- [#653](https://github.com/nimeob/geo-ranking-ch/issues/653) — WP: staging Smoke – POST /analyze => 200 (staging URL) + Evidence (priority:P0, status:todo)
+- [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:todo)
+- [#656](https://github.com/nimeob/geo-ranking-ch/issues/656) — WP: Async Result Pages/Permalinks – staging live (result_id Deep-Link) (priority:P0, status:todo)
+- [#657](https://github.com/nimeob/geo-ranking-ch/issues/657) — WP: Async Notifications – staging live + Verify (priority:P0, status:todo)
+- [#660](https://github.com/nimeob/geo-ranking-ch/issues/660) — WP: staging Terraform – Network (VPC/Subnets/SG) + ALB/Ingress skeleton (manage flags) (priority:P0, status:todo)
+- [#661](https://github.com/nimeob/geo-ranking-ch/issues/661) — WP: staging Terraform – ECS compute baseline (cluster/service/taskdef) skeleton (manage flags) (priority:P0, status:todo)
+- [#662](https://github.com/nimeob/geo-ranking-ch/issues/662) — WP: staging Terraform – Logs + Secrets baseline (SSM/Secrets Manager patterns) + outputs (priority:P0, status:todo)
+- [#665](https://github.com/nimeob/geo-ranking-ch/issues/665) — [Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen (priority:P0, status:todo)
+- [#567](https://github.com/nimeob/geo-ranking-ch/issues/567) — BL-15.r2.wp3: Legacy-Key Disable-Canary neu bewerten (optional statt Pflicht) (priority:P1, status:todo)
+- [#568](https://github.com/nimeob/geo-ranking-ch/issues/568) — BL-15.r2.wp4: Finale Go/No-Go-Entscheidung + Backlog/Parent-Sync (priority:P1, status:todo)
+- [#644](https://github.com/nimeob/geo-ranking-ch/issues/644) — VISION P1: Prod/Internet Smoke Tests automatisieren (sync + async) (priority:P1, status:todo)
+- [#646](https://github.com/nimeob/geo-ranking-ch/issues/646) — VISION P3: POI Coverage verbessern (OSM Kategorien + Fallback) (priority:P1, status:todo)
+- [#647](https://github.com/nimeob/geo-ranking-ch/issues/647) — VISION P3: POI Coverage Monitoring (Regression Guard) (priority:P1, status:todo)
+- [#600](https://github.com/nimeob/geo-ranking-ch/issues/600) — BL-30.wp4.r3.wp2: Retention-Cleanup für job_results/job_events implementieren (priority:P2, status:todo)
+- [#601](https://github.com/nimeob/geo-ranking-ch/issues/601) — BL-30.wp4.r3.wp3: In-App Notification-Pipeline für Async-Completion/Failure (priority:P2, status:todo)
+- [#602](https://github.com/nimeob/geo-ranking-ch/issues/602) — BL-30.wp4.r3.wp4: Ops-Runbook + Monitoring-Mindestmetriken für Async-Delivery (priority:P2, status:todo)
+- [#610](https://github.com/nimeob/geo-ranking-ch/issues/610) — CI: stündlicher Dev-Deploy fehlgeschlagen (priority:P2, status:todo)
+- [#645](https://github.com/nimeob/geo-ranking-ch/issues/645) — VISION P1: Monitoring/Alerting – CloudWatch Alarme + Telegram Verify (priority:P2, status:todo)
+- [#648](https://github.com/nimeob/geo-ranking-ch/issues/648) — VISION P3: Deep Mode – 1 echte Tiefenquelle integrieren + derived_from füllen (priority:P2, status:todo)
+
 ### Later
-- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:?, status:blocked)
+- [#658](https://github.com/nimeob/geo-ranking-ch/issues/658) — WP: Async UX – prod deploy/enable + Evidence (priority:P0, status:blocked)
+- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
+- [#639](https://github.com/nimeob/geo-ranking-ch/issues/639) — VISION P1: Terraform – staging Environment provisionieren (priority:P3, status:blocked)
+- [#640](https://github.com/nimeob/geo-ranking-ch/issues/640) — VISION P1: Promotion-Pfad dev → staging (Version/Trace Verify) (priority:P3, status:blocked)
+- [#641](https://github.com/nimeob/geo-ranking-ch/issues/641) — VISION P1: Terraform – prod Environment provisionieren (priority:P3, status:blocked)
+- [#642](https://github.com/nimeob/geo-ranking-ch/issues/642) — VISION P1: TLS + Custom Domain für prod (inkl. CORS Origins) (priority:P3, status:blocked)
+- [#649](https://github.com/nimeob/geo-ranking-ch/issues/649) — VISION P3: Scoring – Golden-Testset erweitern + Kalibrierungs-Loop (priority:P3, status:todo)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Backlog-Items
