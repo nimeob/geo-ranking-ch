@@ -12,7 +12,7 @@ import os
 import threading
 import uuid
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -32,6 +32,23 @@ _ALLOWED_TRANSITIONS = {
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _parse_iso_datetime(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = f"{text[:-1]}+00:00"
+
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _canonical_payload_hash(payload: dict[str, Any]) -> str:
@@ -560,3 +577,161 @@ class AsyncJobStore:
         with self._lock:
             events = self._state["events"].get(job_id, [])
             return deepcopy(events)
+
+    @staticmethod
+    def _normalize_ttl_seconds(value: float | int | None, *, field_name: str) -> float | None:
+        if value is None:
+            return None
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{field_name} must be a numeric value") from exc
+        if parsed < 0:
+            raise ValueError(f"{field_name} must be >= 0")
+        return parsed
+
+    def cleanup_retention(
+        self,
+        *,
+        results_ttl_seconds: float | int | None,
+        events_ttl_seconds: float | int | None,
+        dry_run: bool = False,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Räumt veraltete `job_results`/`job_events` für terminale Jobs auf.
+
+        Guardrails:
+        - Nur Jobs in terminalen Zuständen (`completed|failed|canceled`) werden bereinigt.
+        - Einträge ohne gültigen Timestamp bleiben erhalten (sicherheitsorientiert).
+        - Optionaler Dry-Run liefert Metriken ohne Persistenz.
+        """
+
+        with self._lock:
+            now_dt = now or datetime.now(timezone.utc)
+            if now_dt.tzinfo is None:
+                now_dt = now_dt.replace(tzinfo=timezone.utc)
+            now_dt = now_dt.astimezone(timezone.utc)
+
+            results_ttl = self._normalize_ttl_seconds(
+                results_ttl_seconds,
+                field_name="results_ttl_seconds",
+            )
+            events_ttl = self._normalize_ttl_seconds(
+                events_ttl_seconds,
+                field_name="events_ttl_seconds",
+            )
+
+            results_cutoff = (
+                now_dt - timedelta(seconds=results_ttl)
+                if results_ttl is not None
+                else None
+            )
+            events_cutoff = (
+                now_dt - timedelta(seconds=events_ttl)
+                if events_ttl is not None
+                else None
+            )
+
+            jobs_state_raw = self._state.get("jobs", {})
+            jobs_state = jobs_state_raw if isinstance(jobs_state_raw, dict) else {}
+            terminal_job_ids = {
+                str(job_id)
+                for job_id, row in jobs_state.items()
+                if isinstance(row, dict)
+                and str(row.get("status") or "") in _TERMINAL_STATES
+            }
+            active_job_count = max(0, len(jobs_state) - len(terminal_job_ids))
+
+            results_state_raw = self._state.get("results", {})
+            results_state = results_state_raw if isinstance(results_state_raw, dict) else {}
+            total_results = 0
+            eligible_results = 0
+            result_delete_ids: list[str] = []
+            results_missing_timestamp = 0
+            for result_id, row in list(results_state.items()):
+                if not isinstance(row, dict):
+                    continue
+                total_results += 1
+                job_id = str(row.get("job_id") or "")
+                if job_id not in terminal_job_ids:
+                    continue
+                eligible_results += 1
+                if results_cutoff is None:
+                    continue
+
+                created_at = _parse_iso_datetime(row.get("created_at"))
+                if created_at is None:
+                    results_missing_timestamp += 1
+                    continue
+                if created_at <= results_cutoff:
+                    result_delete_ids.append(str(result_id))
+
+            events_state_raw = self._state.get("events", {})
+            events_state = events_state_raw if isinstance(events_state_raw, dict) else {}
+            total_events = 0
+            eligible_events = 0
+            events_delete_count = 0
+            events_missing_timestamp = 0
+            for job_id, raw_events in list(events_state.items()):
+                if not isinstance(raw_events, list):
+                    continue
+
+                total_events += len(raw_events)
+                if str(job_id) not in terminal_job_ids:
+                    continue
+
+                eligible_events += len(raw_events)
+                if events_cutoff is None:
+                    continue
+
+                kept_events: list[Any] = []
+                for row in raw_events:
+                    occurred_at = (
+                        _parse_iso_datetime(row.get("occurred_at"))
+                        if isinstance(row, dict)
+                        else None
+                    )
+                    if occurred_at is None:
+                        events_missing_timestamp += 1
+                        kept_events.append(row)
+                        continue
+                    if occurred_at <= events_cutoff:
+                        events_delete_count += 1
+                        continue
+                    kept_events.append(row)
+
+                if not dry_run and len(kept_events) != len(raw_events):
+                    events_state[job_id] = kept_events
+
+            if not dry_run:
+                for result_id in result_delete_ids:
+                    results_state.pop(result_id, None)
+                if result_delete_ids or events_delete_count:
+                    self._persist_state_atomic(self._state)
+
+            return {
+                "now": now_dt.isoformat(),
+                "dry_run": bool(dry_run),
+                "terminal_job_count": len(terminal_job_ids),
+                "active_job_count": active_job_count,
+                "ttl_seconds": {
+                    "results": results_ttl,
+                    "events": events_ttl,
+                },
+                "results": {
+                    "total": total_results,
+                    "eligible_terminal": eligible_results,
+                    "delete_count": len(result_delete_ids),
+                    "kept_count": max(0, total_results - len(result_delete_ids)),
+                    "skipped_missing_timestamp": results_missing_timestamp,
+                    "cutoff": results_cutoff.isoformat() if results_cutoff else None,
+                },
+                "events": {
+                    "total": total_events,
+                    "eligible_terminal": eligible_events,
+                    "delete_count": events_delete_count,
+                    "kept_count": max(0, total_events - events_delete_count),
+                    "skipped_missing_timestamp": events_missing_timestamp,
+                    "cutoff": events_cutoff.isoformat() if events_cutoff else None,
+                },
+            }
