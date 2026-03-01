@@ -127,6 +127,49 @@ Technische Details: [`docs/api/deep-mode-contract-v1.md`](api/deep-mode-contract
 
 *Quelle: [`docs/GTM_TO_DB_ARCHITECTURE_V1.md`](GTM_TO_DB_ARCHITECTURE_V1.md) — Issue #585*
 
+### Glossar (v1)
+
+| Begriff | Kurzdefinition | Technische Anker (v1) |
+|---|---|---|
+| Org / Organization | Kanonischer **Tenant** (härteste Datengrenze). | `organizations` (alle produktiven Records sind direkt/indirekt auf `org_id` zurückführbar) |
+| User | Identität (menschlich/technisch), die sich authentifizieren kann. | `users` + AuthN; Zugriff erst via `memberships` |
+| Seat | Abrechenbare „Nutzereinheit“ innerhalb einer Org. | i. d. R. `memberships` (mit `role`/`status`), optional Seat-Counter als Derived Metric |
+| API-Key | Revokierbarer Credential für API-Zugriff (typ. server-to-server). | `api_keys` mit `org_id`, `fingerprint`, `status`, Rotation; Guards in Request-Middleware |
+| Plan | Versioniertes Pricing-/Packaging-Objekt (Free/Pro/Business …). | `plans` mit `plan_code` + `version` |
+| Subscription | Zugewiesener Plan pro Org + Lifecycle-/Provider-Metadaten. | `subscriptions` mit `org_id`, `plan_id`, `state`, `billing_provider`, `provider_ref` |
+| Entitlement | Effektiver, maschinenlesbarer Gate-/Limit-Wert (z. B. `entitlement.requests.monthly`). | `entitlements` (normierte `key`, `value`, `source`, `effective_from`) |
+| Capability | Produktfähigkeit (UI/Explainability/Trace etc.), oft als Entitlement-Key modelliert. | Gate-Evaluation im Runtime-Pfad, Auditierbarkeit über `audit_events` |
+| Usage | Gemessene Nutzung (Events/Counts), Grundlage für Limits und Billing. | `usage_counters` pro Zeitfenster; Scope `org|user|api_key` |
+| Metering | Aggregations-/Rollup-Logik aus Usage → abrechenbare Metriken/Limits. | Windowing (monatlich) + Burst-Rate-Limits; deterministische Idempotenz |
+| Invoice | Abrechenbares Dokument (Provider-Objekt), nicht zwingend als First-Class in v1. | Provider-Ref in `subscriptions` + `audit_events`; optional spätere `invoices`-Tabelle |
+| Payment | Zahlungsvorgang (Provider), nicht zwingend als First-Class in v1. | Idempotente Provider-Events; Fehler-/Retry-Pfade im Billing-Adapter |
+
+### Entscheidungs-Matrix (GTM → technische Konsequenzen, v1)
+
+| GTM-Entscheid | Domain-Regel (normativ) | Technische Konsequenz (DB/Domain/API) |
+|---|---|---|
+| B2B-Fokus mit Team-/Org-Kontext | **Org ist Primär-Tenant**; kein org-übergreifender Zugriff. | `organizations` + `memberships`; überall `org_id`-Guards (auch bei Result-Permalinks) |
+| „Auth reicht nicht“ (Zugriff nur via Org) | User ohne Membership hat **0 Tenant-Zugriff**. | AuthN (User) getrennt von AuthZ (Membership); API beantwortet konsistent `403`/`404` nach Guardrail-Policy |
+| Tiered Pricing (Free/Pro/Business) | Genau **eine aktive Subscription je Org** (Historie erlaubt). | `plans` versioniert, `subscriptions.state`; Planwechsel als Event-getriebene Transition |
+| Capability-/Entitlement-Gates sind produktentscheidend | Gates sind **deterministisch**, auditierbar, additive Evolution. | Normalisierte `entitlements` statt JSON-Blob; Runtime-Gate-Lookup (cached) + `audit_events` bei Gate-Entscheiden (wo nötig) |
+| Nutzungs-/Limit-Logik (monatlich + Burst) | Limits gelten je definierter Scope (Org/User/API-Key). | `usage_counters` mit `scope_type`/`scope_id` + Window (`window_start/end`); ergänzend Rate-Limit-Store (in-memory/redis später) |
+| API-Key Zugriff pro Tenant | API-Key gehört genau einer Org; Revocation muss sofort greifen. | `api_keys.status` + Fingerprint; Request-Auth kann `org_id` aus Key ableiten; Rotations-/Revocation-Runbook |
+| Billing-Events sind idempotent (Webhook-Realität) | Provider-Events dürfen mehrfach/out-of-order kommen. | Idempotenz-Key-Strategie (siehe Billing-Lifecycle Doc); persistierte Provider-Refs + kompensierende Events statt Mutation |
+| Audit/Nachvollziehbarkeit als Pflicht | Sicherheits-/Billingrelevante Aktionen sind nachvollziehbar. | Append-only `audit_events` (Actor/Scope/Action/Entity/Time); Korrekturen via kompensierende Events |
+| Async Analyze (Langläufer) muss UX-tauglich sein | Job-State-Machine ist konsistent und tenant-sicher. | **Nicht hier implementieren**; Referenz auf Async-Cluster #594 (Leafs #600/#601/#602) + Domain-Doc `docs/api/async-analyze-domain-design-v1.md` |
+
+### Referenzen
+
+- Vertiefung Datenmodell + Ownership-Regeln: [`docs/GTM_TO_DB_ARCHITECTURE_V1.md`](GTM_TO_DB_ARCHITECTURE_V1.md)
+- Billing-/Entitlement-Lifecycle: [`docs/api/entitlement-billing-lifecycle-v1.md`](api/entitlement-billing-lifecycle-v1.md)
+- Async Analyze Domain-Design: [`docs/api/async-analyze-domain-design-v1.md`](api/async-analyze-domain-design-v1.md) (Issue-Cluster: #594, Leafs #600/#601/#602)
+
+### Offene Fragen (v1, bewusst explizit)
+
+- **Seat-Semantik:** Ist „Seat“ exakt `membership` (aktiv) oder braucht es ein separates Seat-Objekt (z. B. für Invite-Pending/External Collaborators)?
+- **API-Key Policies:** Erlauben wir usergebundene Keys vs. nur org-gebundene Service-Keys? (Impact: Audit + Revocation UX)
+- **Invoice/Payment Persistenz:** Reicht Provider-Ref + Audit-Events (v1) oder brauchen wir früh eine `invoices`/`payments` Tabelle für Support/Disputes?
+
 ### Kanonisches Kern-Datenmodell v1 (Entitäten)
 
 | Entität | Zweck |
