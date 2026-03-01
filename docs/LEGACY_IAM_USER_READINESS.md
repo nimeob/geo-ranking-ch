@@ -241,6 +241,21 @@ Interpretation:
 - Der gekapselte AssumeRole-first Pfad ist reproduzierbar sauber (`posture=ok`, `runtime_inventory=ok`) und stellt den kontrollierten Standardpfad dar.
 - Offene Restarbeit liegt primär in externer Legacy-Nutzung laut CloudTrail (nicht im lokalen Wrapper-Pfad).
 
+### Source-Attribution-Update (2026-03-01, BL-15.r2.wp2.a / #572)
+
+Neue forensische Runtime-Evidence wurde ergänzt über:
+
+- `./scripts/inventory_bl17_runtime_credential_paths.py --output-json artifacts/bl17/runtime-credential-injection-inventory-20260301T114607Z-ambient.json` → Exit `10`
+
+Relevante neue Detection-IDs im Report:
+
+- `runtime-env-inheritance-process-chain` (detected=`true`): Prozesskette zeigt statische Key-Vererbung bis in OpenClaw-Parent-Prozesse (`openclaw-gateway` → `openclaw` → `node server.mjs`, redacted).
+- `runtime-startpath-env-passthrough` (detected=`true`): Wrapper-Hinweise auf Env-Passthrough in bekannten Startpfaden (`/entrypoint.sh`, `/hostinger/server.mjs`).
+
+Interpretation:
+- Die Ambient-Injection ist nicht nur ein Shell-Einzelfall, sondern folgt der Prozess-/Startpfad-Vererbung des laufenden OpenClaw-Stacks.
+- Damit ist die Quelle für wp2 technisch attribuiert; nächster Schritt ist die persistente Startpfad-Migration in #573.
+
 Temporäre Ausnahme-Klassifikation (wp2, evidenzpflichtig):
 
 | Feld | Wert |
