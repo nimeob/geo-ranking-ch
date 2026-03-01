@@ -22,8 +22,6 @@ Regelwerk:
 - (leer)
 
 ### Next
-- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: Optionaler OpenClaw AWS-Alarm-Inbound via Webhook-Gate (Hostinger) (priority:P2, status:todo)
-- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P2, status:todo)
 - [#562](https://github.com/nimeob/geo-ranking-ch/issues/562) — CI: stündlicher Dev-Deploy fehlgeschlagen (priority:P2, status:todo)
 
 ### Later
@@ -651,7 +649,7 @@ Regelwerk:
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
 - **Aufwand:** M
-- **Abhängigkeiten:** BL-20.6 (GUI-MVP vorhanden), BL-16/Ingress-Gates nicht verletzen
+- **Abhängigkeiten:** BL-20.6 (GUI-MVP vorhanden), interne Ingress-/Security-Gates nicht verletzen (kein externer OpenClaw-Inbound)
 - **Status:** ✅ Zielbild abgeschlossen (2026-02-28, Issue #326)
 - **Nachweis:**
   - Architektur-Zielbild inkl. Risiken/Trade-offs in [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) (Abschnitt „BL-31: 2-Container-Architektur").

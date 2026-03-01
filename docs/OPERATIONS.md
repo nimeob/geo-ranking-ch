@@ -752,11 +752,13 @@ aws sns publish \
 
 > **Secret-Hinweis:** Bot-Token wird in SSM Parameter Store als SecureString gespeichert (`/swisstopo/dev/telegram-bot-token`). Er erscheint weder im Repo noch als Klartext im Terraform-State.
 
-### Optional: AWS-Webhook-Gate vor OpenClaw (Hostinger)
+### Sicherheitsentscheid (2026-03-01): Kein externer Inbound auf OpenClaw
 
-Für den gehärteten Inbound-Pfad `https://<host>/aws-alarm` via NGINX-Gate (IP-Allowlist + `X-Alarm-Token`) liegt ein dediziertes Runbook unter [`docs/WEBHOOK_GATE_HOSTINGER_RUNBOOK.md`](WEBHOOK_GATE_HOSTINGER_RUNBOOK.md).
+Für dieses Projekt gilt verbindlich: **keine externen Inbound-Webhooks auf OpenClaw** (auch nicht via vorgeschaltetem Hostinger-Gate). Die OpenClaw-Umgebung bleibt vollständig ohne öffentliche Inbound-Fläche.
 
-**Wichtig:** Dieser Hostinger-Webhook-Gate ist **optional** und kein Runtime-Muss für das Projekt. Die Kernfunktion (API/UI + Monitoring) bleibt unabhängig davon lauffähig, auch wenn ein OpenClaw-Container zeitweise nicht läuft. Der Gate dient nur als zusätzlicher Alarm-Inbound-Kanal für OpenClaw.
+Alarmierung läuft stattdessen über interne/outbound Pfade (z. B. CloudWatch/SNS/Telegram) ohne externen Zugriff auf den Container.
+
+Historischer Referenzstand (archiviert): [`docs/WEBHOOK_GATE_HOSTINGER_RUNBOOK.md`](WEBHOOK_GATE_HOSTINGER_RUNBOOK.md)
 
 ### 3) HTTP Uptime Probe (`/health`)
 

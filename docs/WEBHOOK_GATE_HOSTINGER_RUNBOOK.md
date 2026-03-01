@@ -1,5 +1,7 @@
 # BL-16.wp1 — AWS-Webhook-Gate Runbook (Hostinger) · Issue #549
 
+> **Archiviert / nicht mehr Zielbild (seit 2026-03-01):** Externer Inbound auf OpenClaw wird aus Security-Gründen nicht betrieben. Dieses Dokument bleibt nur als historischer Referenzstand.
+
 Parent-Issue: [#1](https://github.com/nimeob/geo-ranking-ch/issues/1)  
 Follow-up (externes Rollout): [#550](https://github.com/nimeob/geo-ranking-ch/issues/550)
 
