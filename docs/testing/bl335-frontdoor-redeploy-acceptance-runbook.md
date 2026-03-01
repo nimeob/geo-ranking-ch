@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [RUNBOOKS.md](RUNBOOKS.md)
+
+---
+
 # BL-335 Frontdoor Redeploy-Abnahme (WP3 / Issue #379)
 
 ## Ziel

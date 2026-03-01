@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [entitlements-v1.md](entitlements-v1.md)
+
+---
+
 # BL-30.2.wp1 — Entitlement-Contract v1 + Gate-Semantik
 
 Stand: 2026-03-01  

@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [GTM.md](GTM.md)
+
+---
+
 # BL-30.1.wp3 — Preisvalidierungs-Experimentkarten + Entscheidungslogik (v1)
 
 Stand: 2026-03-01  

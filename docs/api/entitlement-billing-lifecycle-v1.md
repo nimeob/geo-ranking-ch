@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [entitlements-v1.md](entitlements-v1.md)
+
+---
+
 # Entitlement-/Billing-Lifecycle v1 (GTM Follow-up)
 
 Stand: 2026-03-01  

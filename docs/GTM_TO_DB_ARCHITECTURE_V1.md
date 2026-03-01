@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [GTM.md](GTM.md)
+
+---
+
 # GTM → Data Architecture Mapping v1
 
 Stand: 2026-03-01  

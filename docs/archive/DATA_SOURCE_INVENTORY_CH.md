@@ -64,7 +64,7 @@ Eine neue Quelle gilt erst als BL-20.2-konform integriert, wenn alle Punkte erf√
 
 ## Referenzen
 
-- Produktvision (BL-20): [`docs/VISION_PRODUCT.md`](VISION_PRODUCT.md)
-- Feld-Mapping (BL-20.2.b): [`docs/DATA_SOURCE_FIELD_MAPPING_CH.md`](DATA_SOURCE_FIELD_MAPPING_CH.md)
+- Produktvision (BL-20): [`docs/../VISION_PRODUCT.md`](../VISION_PRODUCT.md)
+- Feld-Mapping (BL-20.2.b): [`docs/../DATA_SOURCE_FIELD_MAPPING_CH.md`](../DATA_SOURCE_FIELD_MAPPING_CH.md)
 - GTM Claim-Gate: [`docs/GTM_DATA_SOURCE_LICENSES.md`](GTM_DATA_SOURCE_LICENSES.md)
-- Konsolidierter Backlog: [`docs/BACKLOG.md`](BACKLOG.md)
+- Konsolidierter Backlog: [`docs/../BACKLOG.md`](../BACKLOG.md)

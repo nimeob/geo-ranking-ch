@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [async-v1.md](async-v1.md)
+
+---
+
 # Async Analyze Worker-Pipeline v1
 
 Stand: 2026-03-01  

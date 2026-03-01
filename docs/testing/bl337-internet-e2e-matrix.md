@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [RUNBOOKS.md](RUNBOOKS.md)
+
+---
+
 # BL-337 Internet-E2E Matrix (WP1 / Issue #396)
 
 ## Ziel

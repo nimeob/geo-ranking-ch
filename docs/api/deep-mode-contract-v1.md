@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [deep-mode-v1.md](deep-mode-v1.md)
+
+---
+
 # BL-30.3.wp1 — Deep-Mode-Contract v1 (Request/Status/Fallback)
 
 Stand: 2026-03-01  

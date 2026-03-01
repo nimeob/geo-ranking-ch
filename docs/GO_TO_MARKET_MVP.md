@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [GTM.md](GTM.md)
+
+---
+
 # BL-20.7.b — Go-to-Market Artefakte (MVP)
 
 Stand: 2026-02-26

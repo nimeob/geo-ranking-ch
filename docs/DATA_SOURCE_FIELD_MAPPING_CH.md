@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [DATA_SOURCES.md](DATA_SOURCES.md)
+
+---
+
 # BL-20.2.b — Feld-Mapping Quelle -> Domain (CH, v1)
 
 Stand: 2026-02-26

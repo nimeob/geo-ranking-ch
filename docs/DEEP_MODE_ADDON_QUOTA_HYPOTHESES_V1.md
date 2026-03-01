@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [GTM.md](GTM.md)
+
+---
+
 # BL-30.3.wp3 — Deep-Mode Add-on-/Quota-Hypothesen + Transparenzrahmen (v1)
 
 Stand: 2026-03-01  

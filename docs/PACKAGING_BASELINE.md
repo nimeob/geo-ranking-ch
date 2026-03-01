@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [GTM.md](GTM.md)
+
+---
+
 # Packaging Baseline (BL-20.7.a)
 
 Ziel dieses Dokuments ist eine **reproduzierbare Build/Run-Basis** für das aktuelle API-only MVP.

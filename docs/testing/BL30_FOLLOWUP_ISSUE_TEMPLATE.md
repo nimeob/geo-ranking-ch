@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [RUNBOOKS.md](RUNBOOKS.md)
+
+---
+
 # BL-30 Follow-up-Issue Template (aus GTM-/Pricing-Entscheidungen)
 
 Stand: 2026-03-01  

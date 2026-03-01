@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [RUNBOOKS.md](RUNBOOKS.md)
+
+---
+
 # BL-31 Routing/TLS Smoke-Catch-up (Issue #336)
 
 ## Ziel

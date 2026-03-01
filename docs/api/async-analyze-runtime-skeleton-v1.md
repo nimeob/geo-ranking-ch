@@ -1,3 +1,7 @@
+> **Diese Datei wurde archiviert.** Inhalt jetzt in [async-v1.md](async-v1.md)
+
+---
+
 # Async Analyze Runtime Skeleton v1
 
 Stand: 2026-03-01  

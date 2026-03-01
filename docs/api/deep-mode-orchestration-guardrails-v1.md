@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [deep-mode-v1.md](deep-mode-v1.md)
+
+---
+
 # BL-30.3.wp2 — Deep-Mode-Orchestrierung + Runtime-Guardrails (Design v1)
 
 Stand: 2026-03-01  

@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [OPERATIONS.md](OPERATIONS.md)
+
+---
+
 # BL-31 Deploy-/Rollback-Runbook (API + UI getrennt) — Issue #330
 
 ## Ziel

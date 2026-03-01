@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [entitlements-v1.md](entitlements-v1.md)
+
+---
+
 # BL-30.2.wp2 — Checkout-/Lifecycle-Contract + idempotenter Entitlement-Sync v1
 
 Stand: 2026-03-01  

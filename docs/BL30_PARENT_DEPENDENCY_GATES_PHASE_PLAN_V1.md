@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [BACKLOG.md](BACKLOG.md)
+
+---
+
 # BL-30.parent.wp1 — Dependency-Gates + Reihenfolgeplan v1 (Issue #509)
 
 ## Zweck

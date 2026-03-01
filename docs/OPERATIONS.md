@@ -935,3 +935,104 @@ python scripts/check_compliance_ops_monitoring.py
 | Export-Fehlerquote | ≥ 10% | ≥ 25% | API-Service-Health prüfen, ggf. Incident |
 
 Detaillierte Reaktionswege → Runbook.
+
+---
+
+## BL-31 Deploy-/Rollback-Runbook (API + UI getrennt)
+
+*Konsolidiert aus `docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md` (Issue #330)*
+
+Verbindlicher Ablauf für API-only, UI-only, kombiniertes Deployment und service-lokalen Rollback.
+
+### Voraussetzungen
+
+```bash
+export AWS_REGION="eu-central-1"
+export ECS_CLUSTER="swisstopo-dev"
+export API_SERVICE="swisstopo-dev-api"
+export UI_SERVICE="swisstopo-dev-ui"
+export BL31_SMOKE_API_BASE_URL="https://api.<domain>"
+export BL31_SMOKE_APP_BASE_URL="https://app.<domain>"
+export BL31_SMOKE_CORS_ORIGIN="https://app.<domain>"
+```
+
+Kanonische Runtime-Entrypoints:
+- API: `python -m src.api.web_service` (Legacy-Wrapper: `src.web_service`)
+- UI: `python -m src.ui.service` (Legacy-Wrapper: `src.ui_service`)
+
+Pflicht-Preflight: `./scripts/check_bl334_split_smokes.sh`
+
+### API-only Deployment
+
+```bash
+# 1) Dry-Run-Plan prüfen
+python3 scripts/run_bl31_split_deploy.py --mode api
+# 2) Ausführen
+python3 scripts/run_bl31_split_deploy.py --mode api --execute
+```
+
+Guardrail: nur `swisstopo-dev-api` wird aktualisiert, UI TaskDef bleibt unverändert.
+
+### UI-only Deployment
+
+```bash
+python3 scripts/run_bl31_split_deploy.py --mode ui
+python3 scripts/run_bl31_split_deploy.py --mode ui --execute
+```
+
+Guardrail: nur `swisstopo-dev-ui` wird aktualisiert, API TaskDef bleibt unverändert.
+
+### Kombiniertes Deployment (API → UI)
+
+```bash
+python3 scripts/run_bl31_split_deploy.py --mode both
+python3 scripts/run_bl31_split_deploy.py --mode both --execute
+```
+
+Reihenfolge API → UI ist deterministisch im Runner erzwungen. Pro Step separates Strict-Smoke-Artefakt.
+
+### API-Rollback
+
+```bash
+PREV_API_TD="$(aws ecs list-task-definitions --family-prefix swisstopo-dev-api \
+  --sort DESC --max-items 2 --query 'taskDefinitionArns[1]' --output text --region "${AWS_REGION}")"
+aws ecs update-service --cluster "${ECS_CLUSTER}" --service "${API_SERVICE}" \
+  --task-definition "${PREV_API_TD}" --region "${AWS_REGION}"
+aws ecs wait services-stable --cluster "${ECS_CLUSTER}" --services "${API_SERVICE}" --region "${AWS_REGION}"
+BL31_STRICT_CORS=1 ./scripts/run_bl31_routing_tls_smoke.sh
+```
+
+### UI-Rollback
+
+```bash
+PREV_UI_TD="$(aws ecs list-task-definitions --family-prefix swisstopo-dev-ui \
+  --sort DESC --max-items 2 --query 'taskDefinitionArns[1]' --output text --region "${AWS_REGION}")"
+aws ecs update-service --cluster "${ECS_CLUSTER}" --service "${UI_SERVICE}" \
+  --task-definition "${PREV_UI_TD}" --region "${AWS_REGION}"
+aws ecs wait services-stable --cluster "${ECS_CLUSTER}" --services "${UI_SERVICE}" --region "${AWS_REGION}"
+BL31_STRICT_CORS=1 ./scripts/run_bl31_routing_tls_smoke.sh
+```
+
+Guardrail: nie beide Services blind zurückrollen. Immer zuerst betroffenen Service lokal stabilisieren.
+
+### Evidenzformat (verbindlich)
+
+```markdown
+### BL-31 Deploy/Rollback Evidence
+- Type: <deploy-api|deploy-ui|deploy-combined|rollback-api|rollback-ui>
+- Timestamp (UTC): <YYYY-MM-DDTHH:MM:SSZ>
+- Environment: <dev|staging|prod>
+- Service(s): <swisstopo-dev-api / swisstopo-dev-ui>
+- Before taskDefinition(s): <arn/revision>
+- After taskDefinition(s): <arn/revision>
+- Smoke artifact: `artifacts/bl31/<timestamp>-bl31-split-deploy-<api|ui>-smoke.json`
+- Smoke result: <pass|fail>
+- Run/Log refs: <GitHub Actions URL oder CLI-Logpfad>
+```
+
+Minimum: TaskDef-Delta (before/after) + Strict-Smoke-Nachweis + Run/Log-Referenz.
+
+Detail-Runbooks:
+- Routing/TLS Smoke: [`docs/testing/bl31-routing-tls-smoke-catchup.md`](testing/bl31-routing-tls-smoke-catchup.md)
+- Smoke-/Evidence-Matrix: [`docs/testing/bl31-smoke-evidence-matrix.md`](testing/bl31-smoke-evidence-matrix.md)
+- BL-335 Frontdoor Abnahme: [`docs/testing/bl335-frontdoor-redeploy-acceptance-runbook.md`](testing/bl335-frontdoor-redeploy-acceptance-runbook.md)

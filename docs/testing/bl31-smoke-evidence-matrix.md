@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [RUNBOOKS.md](RUNBOOKS.md)
+
+---
+
 # BL-31 Smoke-/Evidence-Matrix (API-only, UI-only, Combined)
 
 ## Ziel

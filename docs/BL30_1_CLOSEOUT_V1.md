@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [BACKLOG.md](BACKLOG.md)
+
+---
+
 # BL-30.1.wp4 — Konsolidierter Abschluss + BL-30.2 Übergabe (v1)
 
 Stand: 2026-03-01  

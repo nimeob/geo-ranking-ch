@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [GTM.md](GTM.md)
+
+---
+
 # BL-20.7.r3 - Packaging-/Pricing-Hypothesen mit Zielsegmenten
 
 Stand: 2026-02-28

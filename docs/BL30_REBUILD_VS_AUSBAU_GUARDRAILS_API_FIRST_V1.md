@@ -1,3 +1,7 @@
+> **Diese Datei wurde konsolidiert.** Aktuelle kanonische Version: [ARCHITECTURE.md](ARCHITECTURE.md)
+
+---
+
 # BL-30.parent.wp2 — Rebuild-vs-Ausbau-Guardrails + API-first Anschluss v1 (Issue #510)
 
 ## Zweck
