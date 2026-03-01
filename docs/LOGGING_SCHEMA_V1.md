@@ -351,3 +351,19 @@ Zusätzlich werden pattern-basiert maskiert:
 - Beispiel-Artefakt (inkl. Retry + Abort): `docs/testing/deep-mode-trace-evidence-sample.jsonl`
 - Regressionstests:
   - `tests/test_bl30_deep_mode_telemetry_events.py`
+
+## BL-30.6.wp3 Mobile-Geolocation Trace-/Privacy-Guardrails
+
+- v1-Guardrail-Dokument: `docs/testing/MOBILE_GEOLOCATION_TRACE_PRIVACY_V1.md`
+- Pflichtmarker für Mobile-Lifecycle:
+  - `ui.mobile.permission.state`
+  - `ui.mobile.locate.start`
+  - `ui.mobile.locate.end`
+  - `ui.mobile.offline.state`
+  - `ui.mobile.retry.triggered`
+- Privacy-Mindeststandard:
+  - keine Persistenz roher Präzisionskoordinaten (`coordinates.lat/lon`)
+  - Redaction für Secrets gemäß Schema (`authorization`, `token`, `api_key`, `cookie`)
+  - korrelierbare Evidence über `trace_id`/`request_id`/`session_id`
+- Regressionstest:
+  - `tests/test_bl30_mobile_geolocation_trace_privacy_docs.py`

@@ -108,7 +108,7 @@ Mindeststandard v1:
 - Dieser State-/Interaction-Contract bleibt additiv zum API-Contract aus [`docs/api/contract-v1.md`](../api/contract-v1.md).
 - Mobile-Metadaten werden weiterhin über `options.mobile_geolocation` und `result.status.mobile_geolocation` geführt.
 - Für GUI-Basisfluss und bestehende Analyze-State-Marker siehe [`docs/gui/GUI_MVP_STATE_FLOW.md`](./GUI_MVP_STATE_FLOW.md).
-- Telemetrie-/Privacy-Härtung folgt in #504.
+- Telemetrie-/Privacy-Härtung ist in #504 spezifiziert: [`docs/testing/MOBILE_GEOLOCATION_TRACE_PRIVACY_V1.md`](../testing/MOBILE_GEOLOCATION_TRACE_PRIVACY_V1.md).
 
 ## 7) Definition-of-Done-Check (#503)
 
