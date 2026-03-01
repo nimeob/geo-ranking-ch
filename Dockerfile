@@ -15,6 +15,7 @@ RUN apt-get update \
 COPY src/__init__.py ./src/__init__.py
 COPY src/gwr_codes.py ./src/gwr_codes.py
 COPY src/api ./src/api
+COPY src/compliance ./src/compliance
 COPY src/shared ./src/shared
 
 EXPOSE 8080
