@@ -1,10 +1,12 @@
-name: contract-tests (manual-fallback)
+name: contract-smoke
 
 on:
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  api-contract-v1:
+  contract-smoke:
+    name: contract-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

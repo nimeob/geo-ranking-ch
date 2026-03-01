@@ -317,32 +317,35 @@ Hinweise:
 
 ## GitHub-Actions-Cleanup + Required-Checks (BL-20.y.wp4)
 
-Stand nach WP4 / BL-336:
+Stand nach WP4 / BL-336 + BL-341.wp1:
 - **Automatisch aktiv auf GitHub**:
   - `.github/workflows/deploy.yml` (Push/Dispatch Deploy-Pfad)
   - `.github/workflows/worker-claim-priority.yml` (Issue-Event-Hybridpfad; Reaktivierung in #384, da Deaktivierungsmarker noch offen)
-- Ehemalige Kosten-/Qualitäts-Workflows bleiben als **manual fallback (`workflow_dispatch`)** bestehen:
-  - `.github/workflows/contract-tests.yml`
+  - `.github/workflows/contract-tests.yml` (PR-Gate `contract-smoke` + manueller Fallback)
+  - `.github/workflows/docs-quality.yml` (PR-Gate `docs-link-guard` + manueller Fallback)
+- Weiterhin **manual fallback (`workflow_dispatch`)**:
   - `.github/workflows/crawler-regression.yml`
-  - `.github/workflows/docs-quality.yml`
 - `.github/workflows/bl20-sequencer.yml` ist fachlich retired und wurde in #384 aus dem Repo entfernt.
 - `worker-claim-priority` darf erst final stillgelegt werden, wenn der dokumentierte Deaktivierungsmarker erfüllt ist (2 saubere Live-Hybrid-Runs + Drift-Nachweis; Designgrundlage in `docs/automation/openclaw-event-relay-design.md`, #227).
 
 ### Required-Checks Zielzustand (Branch Protection `main`)
 
-Für den OpenClaw-Migrationsbetrieb dürfen nur Checks als **required** gesetzt sein, die tatsächlich noch automatisch auf PRs laufen.
+Für den OpenClaw-Migrationsbetrieb dürfen nur Checks als **required** gesetzt sein, die tatsächlich automatisch auf PRs laufen.
 
 Empfohlener Minimalzustand:
+- `contract-smoke` (**required**)
+- `docs-link-guard` (**required**)
 - optional/required nach Teamentscheid: `deploy / Build & Test` (oder äquivalenter Deploy-Check)
-- **nicht required**: `contract-tests`, `crawler-regression`, `docs-quality`
+- **nicht required**: `crawler-regression` (läuft weiterhin nur on-demand)
 
 ### Administrative Anpassung (Repo-Owner)
 
 Die GitHub-App des Workers hat keinen Admin-Zugriff auf Branch-Protection. Deshalb gilt:
 
 1. `Settings` → `Branches` → Branch protection rule für `main`
-2. Unter **Require status checks to pass** alle nicht mehr auto-triggernden Checks entfernen
-3. Regel speichern und kurz mit Test-PR verifizieren (kein „Expected — Waiting for status to be reported“ auf retired/manual Checks)
+2. Unter **Require status checks to pass** mindestens `contract-smoke` und `docs-link-guard` als required setzen
+3. Sicherstellen, dass nur tatsächlich PR-triggernde Checks als required geführt werden (keine manual-only Workflows)
+4. Regel speichern und mit Test-PR verifizieren (beide required Checks erscheinen ohne „Expected — Waiting for status to be reported“)
 
 ### Recovery/Fallback bei OpenClaw-Störung
 
