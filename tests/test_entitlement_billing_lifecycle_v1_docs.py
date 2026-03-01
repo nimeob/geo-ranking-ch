@@ -47,7 +47,7 @@ class TestEntitlementBillingLifecycleV1Docs(unittest.TestCase):
             "[`docs/api/entitlement-billing-lifecycle-v1.md`](api/entitlement-billing-lifecycle-v1.md)",
             backlog,
         )
-        self.assertIn("BL-30-Follow-up #588", backlog)
+        self.assertIn("#592/#593/#594", backlog)
 
 
 if __name__ == "__main__":

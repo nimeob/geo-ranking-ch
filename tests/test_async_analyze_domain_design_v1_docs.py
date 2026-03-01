@@ -54,7 +54,7 @@ class TestAsyncAnalyzeDomainDesignV1Docs(unittest.TestCase):
             "[`docs/api/async-analyze-domain-design-v1.md`](api/async-analyze-domain-design-v1.md)",
             backlog,
         )
-        self.assertIn("BL-30-Follow-up #588", backlog)
+        self.assertIn("#592/#593/#594", backlog)
 
 
 if __name__ == "__main__":
