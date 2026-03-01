@@ -1,6 +1,6 @@
-# BL-20.7.r3 — Packaging-/Pricing-Hypothesen mit Zielsegmenten
+# BL-20.7.r3 - Packaging-/Pricing-Hypothesen mit Zielsegmenten
 
-Stand: 2026-02-28  
+Stand: 2026-02-28
 Bezug: #38 (Follow-up aus #35)
 
 ## Ziel
@@ -13,21 +13,21 @@ Eine testbare Entscheidungsgrundlage für den nächsten GTM-Sprint bereitstellen
 
 ## Segmentprofil + Top-3 Kaufkriterien
 
-### Segment A — Immobilienbewertung / Transaktionsvorbereitung
+### Segment A - Immobilienbewertung / Transaktionsvorbereitung
 
 Top-3 Kaufkriterien:
 1. **Zeitgewinn pro Objekt** (manuelle Abklärungen reduzieren)
 2. **Nachvollziehbarkeit für Kundengespräche** (Explainability-Felder)
 3. **Verlässliche Vergleichbarkeit über mehrere Objekte** (einheitlicher Analyse-Flow)
 
-### Segment B — Projektentwicklung / Bauvorprüfung
+### Segment B - Projektentwicklung / Bauvorprüfung
 
 Top-3 Kaufkriterien:
 1. **Frühe Machbarkeitsindikatoren** (Gebäude-/Umfeldsignal ohne Vollgutachten)
 2. **Risiko-Früherkennung** (Unsicherheiten/Confidence explizit sichtbar)
 3. **Schnelle Szenario-Vergleiche** (Adresse vs. Kartenpunkt)
 
-### Segment C — Makler-/Beratungs-Workflows
+### Segment C - Makler-/Beratungs-Workflows
 
 Top-3 Kaufkriterien:
 1. **Sofort nutzbares Frontend** (ohne eigene Integrationsarbeit)
@@ -46,6 +46,10 @@ Top-3 Kaufkriterien:
 
 ## Validierungsdesign für den nächsten GTM-Sprint
 
+Operative Ausführung (Template, Rollen, Outputpflichten):
+- [`docs/testing/GTM_VALIDATION_SPRINT_TEMPLATE.md`](testing/GTM_VALIDATION_SPRINT_TEMPLATE.md)
+- [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md)
+
 ### Stichprobe (MVP-tauglich)
 
 - 10 strukturierte Discovery-/Pricing-Gespräche
@@ -58,13 +62,16 @@ Top-3 Kaufkriterien:
 1. Welcher Teil des heutigen Workflows kostet am meisten Zeit?
 2. Welche drei Kriterien entscheiden über Kauf/Nichtkauf?
 3. Welches Paket (API-only vs GUI+API) passt besser und warum?
-4. Welche Preisbandbreite ist „prüfbar“, „zu hoch“, „zu niedrig“?
+4. Welche Preisbandbreite ist "prüfbar", "zu hoch", "zu niedrig"?
 
 ### Entscheidungsregel (Go/Adjust/Stop)
 
 - **Go:** Hypothese trifft Schwellenwert und kein kritischer Capability-Blocker
 - **Adjust:** Teiltreffer (Signal vorhanden, aber Preis/Paket-Form unklar)
-- **Stop:** klare Ablehnung oder wiederholtes „kein Budget/kein Fit“
+- **Stop:** klare Ablehnung oder wiederholtes „kein Budget/kein Fit"
+- Jede Sprint-Entscheidung wird verpflichtend im
+  [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md)
+  als nachvollziehbare BL-30-Priorisierungsableitung dokumentiert.
 
 ## Capability-Gates (Forward-Compatibility BL-30.1 / BL-30.2)
 
