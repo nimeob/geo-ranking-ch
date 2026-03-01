@@ -7,6 +7,7 @@ Endpoints:
 - GET /version
 - GET /api/v1/dictionaries
 - GET /api/v1/dictionaries/<domain>
+- GET /debug/trace?request_id=<id> (dev-only)
 - POST /analyze {"query": "...", "intelligence_mode": "basic|extended|risk"}
 """
 
@@ -26,10 +27,16 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import urlopen
 
 from src.api.address_intel import AddressIntelError, build_report
+from src.api.debug_trace import (
+    build_trace_timeline,
+    normalize_lookback_seconds,
+    normalize_max_events,
+    normalize_request_id,
+)
 from src.shared.gui_mvp import render_gui_mvp_html
 from src.shared.structured_logging import build_event, emit_event
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
@@ -175,6 +182,30 @@ _DICTIONARY_DOMAIN_TABLES: dict[str, dict[str, dict[int, str]]] = {
         "genh": GENH,
     },
 }
+
+_TRACE_DEBUG_ENABLED_ENV = "TRACE_DEBUG_ENABLED"
+_TRACE_DEBUG_LOG_PATH_ENV = "TRACE_DEBUG_LOG_PATH"
+_TRACE_DEBUG_LOOKBACK_SECONDS_ENV = "TRACE_DEBUG_LOOKBACK_SECONDS"
+_TRACE_DEBUG_MAX_EVENTS_ENV = "TRACE_DEBUG_MAX_EVENTS"
+
+
+def _env_flag_enabled(name: str, *, default: bool = False) -> bool:
+    raw_value = str(os.getenv(name, "")).strip().lower()
+    if not raw_value:
+        return default
+    return raw_value in {"1", "true", "yes", "on"}
+
+
+def _trace_debug_enabled() -> bool:
+    return _env_flag_enabled(_TRACE_DEBUG_ENABLED_ENV, default=False)
+
+
+def _trace_debug_default_lookback_seconds() -> int:
+    return normalize_lookback_seconds(os.getenv(_TRACE_DEBUG_LOOKBACK_SECONDS_ENV, ""))
+
+
+def _trace_debug_default_max_events() -> int:
+    return normalize_max_events(os.getenv(_TRACE_DEBUG_MAX_EVENTS_ENV, ""))
 
 
 def _normalize_dictionary_table(table: dict[int, str]) -> dict[str, str]:
@@ -1707,6 +1738,80 @@ class Handler(BaseHTTPRequestHandler):
                     request_id=request_id,
                 )
                 return
+            if request_path == "/debug/trace":
+                if not _trace_debug_enabled():
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "debug_trace_disabled",
+                            "message": "trace debug endpoint is disabled",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.FORBIDDEN,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                    return
+
+                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                trace_request_id = normalize_request_id(query_params.get("request_id", [""])[0])
+                if not trace_request_id:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "invalid_request_id",
+                            "message": "request_id query parameter is required",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.BAD_REQUEST,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                    return
+
+                default_lookback_seconds = _trace_debug_default_lookback_seconds()
+                default_max_events = _trace_debug_default_max_events()
+                lookback_seconds = normalize_lookback_seconds(
+                    query_params.get("lookback_seconds", [str(default_lookback_seconds)])[0]
+                )
+                max_events = normalize_max_events(
+                    query_params.get("max_events", [str(default_max_events)])[0]
+                )
+
+                trace_payload = build_trace_timeline(
+                    request_id=trace_request_id,
+                    log_path=os.getenv(_TRACE_DEBUG_LOG_PATH_ENV, ""),
+                    lookback_seconds=lookback_seconds,
+                    max_events=max_events,
+                )
+
+                if not trace_payload.get("ok"):
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": str(trace_payload.get("error") or "trace_unavailable"),
+                            "message": str(trace_payload.get("message") or "trace unavailable"),
+                            "request_id": request_id,
+                            "trace_request_id": trace_request_id,
+                        },
+                        status=HTTPStatus.SERVICE_UNAVAILABLE,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                    return
+
+                self._send_json(
+                    {
+                        "ok": True,
+                        "request_id": request_id,
+                        "trace_request_id": trace_request_id,
+                        "trace": trace_payload,
+                    },
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+
             self._send_json(
                 {"ok": False, "error": "not_found", "request_id": request_id},
                 status=HTTPStatus.NOT_FOUND,

@@ -259,6 +259,8 @@ Zusätzlich werden pattern-basiert maskiert:
   - API-Koordinatenauflösung in `src/api/web_service.py` (`wgs84tolv95`, `gwr_identify`)
   - Address-Intel-JSON-Provider in `src/api/address_intel.py` (`HttpClient.get_json`)
   - RSS-Provider in `src/api/address_intel.py` (`fetch_google_news_rss`)
+- Debug-Nutzung (BL-422.1): dev-only Trace-Lookup-API `GET /debug/trace` für `request_id`-Timelines,
+  dokumentiert in `docs/testing/TRACE_DEBUG_API.md`.
 
 ## BL-340.4 Nachweise
 
