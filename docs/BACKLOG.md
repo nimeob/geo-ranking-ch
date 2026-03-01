@@ -686,7 +686,7 @@
 - **Work-Packages (Parent #418):**
   - [x] #444 — BL-341.wp1 Pflicht-PR-Gates als required checks (abgeschlossen 2026-03-01)
   - [x] #445 — BL-341.wp2 Kritische Quality-Gates fail-closed (abgeschlossen 2026-03-01)
-  - [ ] #446 — BL-341.wp3 Staging-lite Promote-/Abort-/Rollback-Gate
+  - [x] #446 — BL-341.wp3 Staging-lite Promote-/Abort-/Rollback-Gate (abgeschlossen 2026-03-01)
   - [ ] #447 — BL-341.wp4 Backlog-/Issue-Statussync automatisieren
   - [ ] #448 — BL-341.wp5 GTM-Validierungssprint operationalisieren
 - **Fortschritt (2026-03-01):**
@@ -695,7 +695,8 @@
   - ✅ Required-Check-Zielzustand + Admin-Verifikation in `docs/OPERATIONS.md` synchronisiert.
   - ✅ Regressionstest für Workflow-/Doku-Sync ergänzt (`tests/test_pr_fast_gates_config.py`).
   - ✅ #445 abgeschlossen: Docs-Quality-Gate läuft jetzt fail-closed (`scripts/check_docs_quality_gate.sh` bricht bei venv-Fehler mit Exit 1 ab), inklusive Script-Regressionen und Doku-Sync (`tests/test_check_docs_quality_gate_script.py`, `docs/OPERATIONS.md`, `docs/automation/openclaw-job-mapping.md`).
-- **Nächster Schritt:** #446 (P0 Staging-lite Promote-/Abort-/Rollback-Gate).
+  - ✅ #446 abgeschlossen: Staging-lite Promote-Gate mit digest-basierter Entscheidungslogik + Smoke-Gate + Abort-/Rollback-Hinweisen als reproduzierbarer Runner eingeführt (`scripts/run_staging_lite_promote_gate.py`) inkl. Artefaktpfaden (`artifacts/staging-lite/*`), Runbook (`docs/testing/STAGING_LITE_PROMOTE_GATE.md`) und Regressionen (`tests/test_staging_lite_promote_gate.py`).
+- **Nächster Schritt:** #447 (P1 Backlog-/Issue-Statussync-Automation).
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
