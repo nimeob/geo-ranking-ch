@@ -372,7 +372,8 @@ CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (T
 2) API-/UI-TaskDef-Revisionen registrieren  
 3) API-Service deployen + warten + API-Smokes  
 4) UI-Service deployen + warten + UI-Smoke  
-5) optionaler Strict-Split-Smoke (`run_bl31_routing_tls_smoke.sh`, wenn Base-URLs gesetzt sind)
+5) optionaler Strict-Split-Smoke (`run_bl31_routing_tls_smoke.sh`, wenn Base-URLs gesetzt sind)  
+6) Post-Deploy-Verifikation (`scripts/check_deploy_version_trace.py`): UI-`/healthz`-Version == `${GITHUB_SHA::7}` und optionaler Trace-Debug-Sanity-Check (`/debug/trace`)
 
 Smoke-Verhalten:
 - API `/health` ist verpflichtend (über `SERVICE_HEALTH_URL` oder aus `SERVICE_API_BASE_URL` abgeleitet)
@@ -400,6 +401,7 @@ Smoke-Verhalten:
 | `SERVICE_API_BASE_URL` | API-Base-URL für Smokes (`https://api.<domain>`) |
 | `SERVICE_APP_BASE_URL` | UI-Base-URL für Smokes (`https://www.<domain>` oder `https://app.<domain>`) |
 | `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`), falls `SERVICE_API_BASE_URL` nicht genutzt wird |
+| `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Deploy-Workflow den zusätzlichen `/debug/trace`-Sanity-Check |
 
 **OIDC-Rollenbindung (AWS):**
 - Workflow verwendet `aws-actions/configure-aws-credentials@v4` mit
@@ -407,6 +409,8 @@ Smoke-Verhalten:
 - Erforderliche Minimalrechte siehe `infra/iam/deploy-policy.json`.
 
 > Hinweis: `SERVICE_HEALTH_URL` ist nur ein optionaler Override für den API-Health-Check. Fehlt der Wert, nutzt der Workflow `${SERVICE_API_BASE_URL}/health`. Der optionale Analyze-Smoke läuft nur, wenn `SERVICE_API_BASE_URL` gesetzt ist.
+>
+> Verbindliche Checkliste für Version-/Trace-Verifikation: [`docs/testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md`](testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md).
 
 ### BL-02 Verifikationsnachweise (historisch, vor Umstellung auf workflow_dispatch-only)
 
