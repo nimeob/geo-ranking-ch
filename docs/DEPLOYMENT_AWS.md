@@ -209,6 +209,18 @@ python3 scripts/run_bl31_split_deploy.py --mode both --execute
 |---|---|---|
 | `CORS_ALLOW_ORIGINS` | _(leer)_ | Komma-separierte CORS-Allowlist für `POST/OPTIONS /analyze` (z. B. `https://app.<domain>`). |
 
+### BL-30.5 Kartenbetrieb: OSM-Tile-/ODbL-Compliance (verbindlich)
+
+Referenzentscheidung: [`docs/gui/OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md`](gui/OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md) (Issue #498).
+
+Mindestregeln für Deploy/Betrieb:
+
+- `prod` darf **nicht** direkt gegen `tile.openstreetmap.org` laufen.
+- `prod` nutzt entweder einen professionellen Tile-Provider mit Vertrag/SLA oder einen betriebenen self-hosted Tile-Stack.
+- Tile-Caching muss aktiv sein (Edge/Server-TTL mindestens 24h), Bulk-Prefetch großer Regionen ist zu vermeiden.
+- UI/API-Attribution muss in jeder Runtime-Revision erhalten bleiben (keine Entfernung bei Frontend-Refactors).
+- Runtime-Checks/Evidence sollen die effektive Tile-Quelle und den Compliance-Modus dokumentieren.
+
 ### BL-31.2 Artefakt-Basis für UI-Service
 
 BL-31.2 legt die technische Basis für ein eigenes UI-Artefakt fest:

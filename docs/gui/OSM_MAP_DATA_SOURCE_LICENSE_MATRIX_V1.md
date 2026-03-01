@@ -36,7 +36,7 @@ Für BL-30.5 liegt mit #494 bereits der Karten-Workflow vor. Dieses Work-Package
 
 ## 3) Offene Risiken / Follow-ups
 
-- **#498** — OSM-Tile-/ODbL-Compliance-Entscheid für produktiven Kartenbetrieb (Tile-Strategie, Caching, Share-Alike-Trigger).
+- **#498 (abgeschlossen 2026-03-01)** — OSM-Tile-/ODbL-Compliance-Entscheid für produktiven Kartenbetrieb in [`docs/gui/OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md`](OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md) verankert (Tile-Strategie, Caching, Share-Alike-Trigger, Attribution).
 - **#496** — Response-Modell v1 muss pro Datenklasse source-/confidence-/license-nahe Felder additiv aufnehmen.
 - Für rechtsverbindliche Zufahrtsfreigaben bleibt der Scope im MVP bewusst **blocked**; nur indikative Klassifikation wird unterstützt.
 
