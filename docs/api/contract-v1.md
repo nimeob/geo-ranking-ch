@@ -236,6 +236,11 @@ Einführungsstrategie (non-breaking):
 2. Danach additive Schlüssel innerhalb des Envelopes ergänzen.
 3. Legacy-Clients ohne Envelope-Unterstützung bleiben lauffähig; Minimalprojektion darf sich nicht ändern.
 
+BL-30.3-Referenz (Deep-Mode, v1-Rahmen):
+- [`docs/api/deep-mode-contract-v1.md`](./deep-mode-contract-v1.md)
+- Deep-Mode bleibt im bestehenden Envelope (`options.capabilities`/`options.entitlements`) additiv modelliert.
+- Fehlende Entitlements/Quotas führen deterministisch zu `graceful downgrade` statt Contract-Break.
+
 ## 15) BL-20.4.c Preference-Profile Envelope
 
 Bezug: [#85](https://github.com/nimeob/geo-ranking-ch/issues/85), [#88](https://github.com/nimeob/geo-ranking-ch/issues/88)
