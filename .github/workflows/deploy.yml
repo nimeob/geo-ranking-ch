@@ -295,6 +295,52 @@ jobs:
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_UI_SERVICE"
 
+      - name: Verify ECS UI task definition wiring (image + APP_VERSION)
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_UI_SERVICE: ${{ vars.ECS_UI_SERVICE }}
+          ECS_UI_CONTAINER_NAME: ${{ vars.ECS_UI_CONTAINER_NAME }}
+          EXPECTED_UI_IMAGE_URI: ${{ steps.images.outputs.ui_image_uri }}
+        run: |
+          set -euo pipefail
+
+          APP_VERSION_EXPECTED="${GITHUB_SHA::7}"
+          if [ -z "${ECS_UI_CONTAINER_NAME:-}" ]; then
+            echo "::error::Missing ECS_UI_CONTAINER_NAME"
+            exit 1
+          fi
+
+          CURRENT_UI_TASKDEF=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_UI_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          aws ecs describe-task-definition \
+            --task-definition "$CURRENT_UI_TASKDEF" \
+            --query 'taskDefinition' > /tmp/current-ui-taskdef.json
+
+          if ! jq -e --arg CONTAINER "$ECS_UI_CONTAINER_NAME" '.containerDefinitions | any(.name == $CONTAINER)' /tmp/current-ui-taskdef.json >/dev/null; then
+            echo "::error::UI container '$ECS_UI_CONTAINER_NAME' not found in active task definition '$CURRENT_UI_TASKDEF'."
+            echo "Available containers: $(jq -r '.containerDefinitions[].name' /tmp/current-ui-taskdef.json | paste -sd, -)"
+            exit 1
+          fi
+
+          ACTUAL_UI_IMAGE=$(jq -r --arg CONTAINER "$ECS_UI_CONTAINER_NAME" '.containerDefinitions[] | select(.name == $CONTAINER) | .image' /tmp/current-ui-taskdef.json)
+          ACTUAL_APP_VERSION=$(jq -r --arg CONTAINER "$ECS_UI_CONTAINER_NAME" '.containerDefinitions[] | select(.name == $CONTAINER) | ((.environment // []) | map(select(.name == "APP_VERSION")) | .[0].value // "")' /tmp/current-ui-taskdef.json)
+
+          if [ "$ACTUAL_UI_IMAGE" != "$EXPECTED_UI_IMAGE_URI" ]; then
+            echo "::error::Active UI image mismatch. expected='$EXPECTED_UI_IMAGE_URI' actual='$ACTUAL_UI_IMAGE'"
+            exit 1
+          fi
+
+          if [ "$ACTUAL_APP_VERSION" != "$APP_VERSION_EXPECTED" ]; then
+            echo "::error::APP_VERSION mismatch in active UI taskdef. expected='$APP_VERSION_EXPECTED' actual='$ACTUAL_APP_VERSION'"
+            exit 1
+          fi
+
+          echo "UI task definition wiring verified (container=$ECS_UI_CONTAINER_NAME image=$ACTUAL_UI_IMAGE app_version=$ACTUAL_APP_VERSION)"
+
       - name: Smoke-Test UI /healthz
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
