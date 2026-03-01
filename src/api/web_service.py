@@ -7,6 +7,8 @@ Endpoints:
 - GET /version
 - GET /api/v1/dictionaries
 - GET /api/v1/dictionaries/<domain>
+- GET /analyze/jobs/<job_id>
+- GET /analyze/results/<result_id>
 - GET /debug/trace?request_id=<id> (dev-only)
 - POST /analyze {"query": "...", "intelligence_mode": "basic|extended|risk"}
 """
@@ -31,6 +33,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import urlopen
 
 from src.api.address_intel import AddressIntelError, build_report
+from src.api.async_jobs import AsyncJobStore
 from src.api.debug_trace import (
     build_trace_timeline,
     normalize_lookback_seconds,
@@ -214,6 +217,8 @@ _EXTERNAL_DIRECT_LOGIN_ERROR = "external_direct_login_disabled"
 _EXTERNAL_DIRECT_LOGIN_MESSAGE = (
     "direct login is disabled; access is only allowed via internal provisioning/export workflows"
 )
+
+_ASYNC_JOB_STORE = AsyncJobStore.from_env()
 
 
 def _env_flag_enabled(name: str, *, default: bool = False) -> bool:
@@ -1336,6 +1341,78 @@ def _reject_legacy_options(options: dict[str, Any]) -> None:
         )
 
 
+def _extract_async_mode_request(options: dict[str, Any]) -> bool:
+    """Liest den additiven Async-Mode-Schalter aus `options.async_mode.requested`."""
+    async_mode_raw = options.get("async_mode")
+    if async_mode_raw is None:
+        return False
+    if not isinstance(async_mode_raw, dict):
+        raise ValueError("options.async_mode must be an object when provided")
+
+    requested_raw = async_mode_raw.get("requested", False)
+    if isinstance(requested_raw, bool):
+        return requested_raw
+    raise ValueError("options.async_mode.requested must be a boolean")
+
+
+def _project_async_job_status(job: dict[str, Any], *, include_events: bool = False) -> dict[str, Any]:
+    projected = {
+        "job_id": job.get("job_id"),
+        "status": job.get("status"),
+        "progress_percent": int(job.get("progress_percent", 0) or 0),
+        "result_id": job.get("result_id"),
+        "queued_at": job.get("queued_at"),
+        "started_at": job.get("started_at"),
+        "finished_at": job.get("finished_at"),
+        "updated_at": job.get("updated_at"),
+        "error_code": job.get("error_code"),
+        "error_message": job.get("error_message"),
+    }
+    if include_events:
+        projected["events"] = _ASYNC_JOB_STORE.list_events(str(job.get("job_id") or ""))
+    return projected
+
+
+def _build_async_result_stub(*, query: str, intelligence_mode: str) -> dict[str, Any]:
+    return {
+        "ok": True,
+        "result": {
+            "status": {
+                "confidence": {
+                    "score": None,
+                    "max": 100,
+                    "level": "pending_implementation",
+                },
+                "sources": {
+                    "async_runtime": {
+                        "status": "stub",
+                    }
+                },
+                "source_attribution": {
+                    "match": ["async_runtime"],
+                },
+            },
+            "data": {
+                "entity": {
+                    "query": query,
+                },
+                "modules": {
+                    "runtime": {
+                        "status": "stub",
+                        "intelligence_mode": intelligence_mode,
+                        "message": "Async runtime skeleton placeholder result",
+                    }
+                },
+                "by_source": {
+                    "async_runtime": {
+                        "module_refs": ["runtime"],
+                    }
+                },
+            },
+        },
+    }
+
+
 def _as_non_negative_int(value: Any, field_name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{field_name} must be an integer >= 0")
@@ -2140,6 +2217,85 @@ class Handler(BaseHTTPRequestHandler):
                     request_id=request_id,
                 )
                 return
+            if request_path.startswith("/analyze/jobs/"):
+                job_id = request_path.removeprefix("/analyze/jobs/").strip()
+                if not job_id or "/" in job_id:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "not_found",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.NOT_FOUND,
+                        request_id=request_id,
+                    )
+                    return
+
+                job_record = _ASYNC_JOB_STORE.get_job(job_id)
+                if job_record is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "not_found",
+                            "message": "unknown job_id",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.NOT_FOUND,
+                        request_id=request_id,
+                    )
+                    return
+
+                self._send_json(
+                    {
+                        "ok": True,
+                        "job": _project_async_job_status(job_record, include_events=True),
+                        "request_id": request_id,
+                    },
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+            if request_path.startswith("/analyze/results/"):
+                result_id = request_path.removeprefix("/analyze/results/").strip()
+                if not result_id or "/" in result_id:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "not_found",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.NOT_FOUND,
+                        request_id=request_id,
+                    )
+                    return
+
+                result_record = _ASYNC_JOB_STORE.get_result(result_id)
+                if result_record is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "not_found",
+                            "message": "unknown result_id",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.NOT_FOUND,
+                        request_id=request_id,
+                    )
+                    return
+
+                self._send_json(
+                    {
+                        "ok": True,
+                        "result_id": result_record.get("result_id"),
+                        "job_id": result_record.get("job_id"),
+                        "result_kind": result_record.get("result_kind"),
+                        "result": result_record.get("result_payload", {}),
+                        "request_id": request_id,
+                    },
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
             if request_path == "/api/v1/dictionaries":
                 self._send_dictionary_payload(
                     deepcopy(_DICTIONARY_INDEX_PAYLOAD),
@@ -2360,6 +2516,8 @@ class Handler(BaseHTTPRequestHandler):
                 _reject_legacy_options(request_options)
                 response_mode = _extract_response_mode(request_options)
 
+                async_mode_requested = _extract_async_mode_request(request_options)
+
                 # Optionales Preference-Profil für BL-20.4-Personalisierung.
                 # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
                 preferences_supplied = "preferences" in data and data.get("preferences") is not None
@@ -2376,6 +2534,45 @@ class Handler(BaseHTTPRequestHandler):
                 req_timeout_raw = data.get("timeout_seconds", default_timeout)
                 timeout = _as_positive_finite_number(req_timeout_raw, "timeout_seconds")
                 timeout = min(timeout, max_timeout)
+
+                if async_mode_requested:
+                    created_job = _ASYNC_JOB_STORE.create_job(
+                        request_payload=data,
+                        request_id=request_id,
+                        query=query,
+                        intelligence_mode=mode,
+                    )
+                    _ASYNC_JOB_STORE.transition_job(
+                        job_id=str(created_job.get("job_id")),
+                        to_status="running",
+                        progress_percent=25,
+                    )
+                    final_result = _ASYNC_JOB_STORE.create_result(
+                        job_id=str(created_job.get("job_id")),
+                        result_payload=_build_async_result_stub(
+                            query=query,
+                            intelligence_mode=mode,
+                        ),
+                    )
+                    completed_job = _ASYNC_JOB_STORE.transition_job(
+                        job_id=str(created_job.get("job_id")),
+                        to_status="completed",
+                        progress_percent=100,
+                        result_id=str(final_result.get("result_id")),
+                    )
+
+                    self._send_json(
+                        {
+                            "ok": True,
+                            "accepted": True,
+                            "job": _project_async_job_status(completed_job, include_events=True),
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.ACCEPTED,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                    return
 
                 if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
                     if query == "__timeout__":
