@@ -810,7 +810,7 @@ Regelwerk:
   - [x] #524 — Externen Direktzugriff technisch unterbinden (abgeschlossen 2026-03-01)
   - [x] #525 — Export-Logging implementieren (wer/wann/Kanal) (abgeschlossen 2026-03-01)
   - [x] #526 — Backup/Restore-Guideline dokumentieren (abgeschlossen 2026-03-01)
-  - [ ] #527 — Abnahmetests für Minimum-Compliance-Set erstellen
+  - [x] #527 — Abnahmetests für Minimum-Compliance-Set erstellen (abgeschlossen 2026-03-01)
 - **Blocked Folgeschritte (abhängig von WP oben):**
   - [ ] #520 — Korrektur-Workflow implementieren (status:blocked)
   - [ ] #521 — Pflichtfeld Korrekturgrund erzwingen (status:blocked)
@@ -830,6 +830,7 @@ Regelwerk:
   - ✅ #525 abgeschlossen: Export-Logging-Standard v1 in [`docs/compliance/EXPORT_LOGGING_STANDARD_V1.md`](compliance/EXPORT_LOGGING_STANDARD_V1.md) dokumentiert; Runtime-Helper `src/compliance/export_logging.py` eingeführt und Batch-Exporte in `src/api/address_intel.py` (`--out-jsonl`, `--out-csv`, `--out-error-csv`) mit Pflichtfeldern `actor`/`exported_at_utc`/`channel` instrumentiert; Regressionen via `tests/test_compliance_export_logging.py`, `tests/test_address_intel_export_logging.py`, `tests/test_compliance_export_logging_docs.py` ergänzt.
   - ✅ #538 abgeschlossen: Runtime-Policy-Metadatenmodell v1 ergänzt (`src/compliance/policy_metadata.py`) inkl. Validierungs-/Serialisierungslogik und Regressionstest `tests/test_compliance_policy_metadata_model.py`; Parent #519 für risikoarme Iterationen in #538/#539/#540 atomisiert.
   - ✅ #526 abgeschlossen: Backup/Restore-Guideline v1 unter [`docs/compliance/BACKUP_RESTORE_GUIDELINE_V1.md`](compliance/BACKUP_RESTORE_GUIDELINE_V1.md) eingeführt (verbindliche RPO/RTO-Ziele, Backup-Policy, Restore-Workflow, quartalsweiser Restore-Drill, Nachweisformat `reports/compliance/backup-restore/<YYYY>/<MM>/<restore_run_id>/`) und per Doku-Regressionstest `tests/test_compliance_backup_restore_guideline_docs.py` abgesichert.
+  - ✅ #527 abgeschlossen: Abnahmetestkatalog v1 unter [`docs/compliance/ACCEPTANCE_TEST_CATALOG_V1.md`](compliance/ACCEPTANCE_TEST_CATALOG_V1.md) erstellt (Musskriterien-Matrix MCS-AT-001..010 inkl. Sign-off-/Evidenzschema) und über Doku-Regressionstest `tests/test_compliance_acceptance_test_catalog_docs.py` abgesichert.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
