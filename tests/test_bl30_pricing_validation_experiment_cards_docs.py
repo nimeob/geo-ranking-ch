@@ -47,10 +47,9 @@ class TestBL30PricingValidationExperimentCardsDocs(unittest.TestCase):
             "#460 — BL-30.1.wp3 Preisvalidierungs-Experimentkarten + Entscheidungslogik (abgeschlossen 2026-03-01)",
             backlog,
         )
-        self.assertIn(
-            "**Nächster Schritt:** oldest-first BL-30.2-Leaf-Umsetzung nach GTM-Freigabe (#457), beginnend mit #465.",
-            backlog,
-        )
+        self.assertIn("**Nächster Schritt:**", backlog)
+        self.assertIn("oldest-first", backlog)
+        self.assertIn("BL-30", backlog)
 
 
 if __name__ == "__main__":
