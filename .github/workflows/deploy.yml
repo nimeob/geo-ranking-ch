@@ -96,57 +96,14 @@ jobs:
           API_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_API_REPOSITORY}:${IMAGE_TAG}"
           UI_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_UI_REPOSITORY}:${IMAGE_TAG}"
 
-          # Diagnose and fix stale .dockerignore on reused runners.
-          # A stale runner artifact had 'src/api', 'src/compliance', 'src/shared'
-          # explicitly excluded, causing all COPY instructions for those dirs to
-          # fail. We explicitly write the correct .dockerignore here to be safe,
-          # regardless of what the runner filesystem contains.
-          echo "--- .dockerignore content (pre-build) ---"
-          cat -n .dockerignore || echo "(no .dockerignore)"
-          echo "-----------------------------------------"
-          # Write the authoritative .dockerignore inline so runner state is irrelevant.
-          cat > .dockerignore << 'EODIGNOREEOD'
-.git
-.gitignore
-.gitattributes
-.github/
-scripts/
-docs/
-*.md
-README*
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-*.egg
-tests/
-test_*.py
-*_test.py
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.vscode/
-.idea/
-*.swp
-*.swo
-.DS_Store
-.env
-.env.*
-*.env
-docker-compose*.yml
-src/ui/node_modules/
-node_modules/
-*.log
-tmp/
-EODIGNOREEOD
-          echo "--- .dockerignore content (post-write) ---"
-          cat -n .dockerignore
-          echo "------------------------------------------"
+          # Diagnose and remove stale .dockerignore on reused runners.
+          # A stale runner artifact excluded src/api, src/compliance, src/shared,
+          # causing COPY instructions to fail. Print the file before removal for
+          # diagnostics, then remove it entirely so Docker sends the full context.
+          echo "--- .dockerignore pre-build (removed before docker build) ---"
+          cat -n .dockerignore 2>/dev/null || echo "(no .dockerignore on this runner)"
+          echo "--------------------------------------------------------------"
+          rm -f .dockerignore
 
           echo "Building API image ${API_IMAGE_URI}"
           docker build -t "${API_IMAGE_URI}" .
