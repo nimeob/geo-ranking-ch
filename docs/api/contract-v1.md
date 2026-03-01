@@ -243,6 +243,11 @@ BL-30.3-Referenz (Deep-Mode, v1-Rahmen):
 - Deep-Mode bleibt im bestehenden Envelope (`options.capabilities`/`options.entitlements`) additiv modelliert.
 - Fehlende Entitlements/Quotas führen deterministisch zu `graceful downgrade` statt Contract-Break.
 
+BL-30.6-Referenz (Mobile Live-Geolocation, v1-Rahmen):
+- [`docs/api/mobile-live-geolocation-contract-v1.md`](./mobile-live-geolocation-contract-v1.md)
+- Mobile-Geolocation wird additiv über `options.mobile_geolocation` und `result.status.mobile_geolocation` modelliert.
+- Ohne Mobile-Envelope bleibt das bestehende `/analyze`-Verhalten unverändert.
+
 ## 15) BL-20.4.c Preference-Profile Envelope
 
 Bezug: [#85](https://github.com/nimeob/geo-ranking-ch/issues/85), [#88](https://github.com/nimeob/geo-ranking-ch/issues/88)
