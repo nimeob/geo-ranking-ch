@@ -2,10 +2,18 @@ name: Deploy to AWS (ECS dev)
 
 on:
   workflow_dispatch:
+  schedule:
+    # Every hour at minute 7 (UTC) to avoid top-of-hour congestion.
+    - cron: "7 * * * *"
 
 permissions:
   contents: read
   id-token: write
+  issues: write
+
+concurrency:
+  group: deploy-ecs-dev
+  cancel-in-progress: false
 
 env:
   AWS_REGION: eu-central-1
@@ -301,3 +309,65 @@ jobs:
           - API TaskDef: `${{ steps.taskdefs.outputs.api_task_def_arn }}`
           - UI TaskDef: `${{ steps.taskdefs.outputs.ui_task_def_arn }}`
           EOF
+
+  open-or-update-failure-issue:
+    name: Open/Update deployment failure issue
+    runs-on: ubuntu-latest
+    needs: [build-and-test, deploy-ecs-full-env]
+    if: ${{ failure() }}
+    steps:
+      - name: Open or update issue for failed deploy
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = 'CI: stündlicher Dev-Deploy fehlgeschlagen';
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const bodyAppend = [
+              `Neuer fehlgeschlagener Lauf: ${runUrl}`,
+              '',
+              `- Workflow: ${context.workflow}`,
+              `- Event: ${context.eventName}`,
+              `- Branch/Ref: ${context.ref}`,
+              `- SHA: ${context.sha}`,
+              `- UTC: ${new Date().toISOString()}`,
+              '',
+              'Bitte Root-Cause analysieren und fixen, dann Redeploy triggern.'
+            ].join('\n');
+
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const match = existing.find((i) => i.title === title);
+
+            if (match) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: match.number,
+                body: bodyAppend,
+              });
+              core.info(`Updated existing issue #${match.number}`);
+            } else {
+              const { data: issue } = await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body: [
+                  'Der automatische Dev-Deploy ist fehlgeschlagen.',
+                  '',
+                  bodyAppend,
+                  '',
+                  '## DoD',
+                  '- [ ] Fehlerursache identifiziert',
+                  '- [ ] Fix auf `main`',
+                  '- [ ] Redeploy grün',
+                ].join('\n'),
+              });
+              core.info(`Created issue #${issue.number}`);
+            }
