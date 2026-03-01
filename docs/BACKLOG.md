@@ -69,6 +69,7 @@ Regelwerk:
   - ECS-Rollout endet auf `services-stable`.
   - Smoke-Test über `SERVICE_HEALTH_URL` auf `/health` ist erfolgreich dokumentiert.
 - **Nachweis:** Run-URL + Ergebnis werden in `docs/DEPLOYMENT_AWS.md` oder `docs/OPERATIONS.md` festgehalten.
+  - ✅ 2026-03-01: #487 abgeschlossen — Deploy-Workflow härtet TaskDef-Containerauflösung gegen Name-Drift ab (Single-Container-Fallback + expliziter Multi-Container-Fehler), Doku/Test-Guardrails ergänzt und erfolgreicher Nachweis-Redeploy per `workflow_dispatch` Run `22540919242` (`main`, Erfolg inkl. Post-Deploy-Verifikation).
 
 ### BL-03 — Separaten Deploy-User mit Least-Privilege aufsetzen
 - **Priorität:** P0
