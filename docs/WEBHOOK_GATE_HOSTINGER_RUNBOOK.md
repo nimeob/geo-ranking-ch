@@ -8,6 +8,8 @@ Follow-up (externes Rollout): [#550](https://github.com/nimeob/geo-ranking-ch/is
 Dieses Runbook liefert den **repo-lokalen** Standard für einen vorgeschalteten NGINX-Webhook-Gate vor OpenClaw.
 Damit kann ein AWS-Alarm-POST auf einen gehärteten Endpunkt (`/aws-alarm`) zugestellt werden, ohne OpenClaw direkt öffentlich zu exponieren.
 
+**Scope-Klarstellung:** Der Webhook-Gate ist eine optionale Zusatzkomponente (Alarm-Inbound zu OpenClaw), **kein** Pflichtbaustein für die Kernverfügbarkeit des Projekts.
+
 ## Artefakte im Repo
 
 - NGINX-Template: `infra/webhook_gate/nginx.aws-alarm.conf.template`

@@ -756,6 +756,8 @@ aws sns publish \
 
 Für den gehärteten Inbound-Pfad `https://<host>/aws-alarm` via NGINX-Gate (IP-Allowlist + `X-Alarm-Token`) liegt ein dediziertes Runbook unter [`docs/WEBHOOK_GATE_HOSTINGER_RUNBOOK.md`](WEBHOOK_GATE_HOSTINGER_RUNBOOK.md).
 
+**Wichtig:** Dieser Hostinger-Webhook-Gate ist **optional** und kein Runtime-Muss für das Projekt. Die Kernfunktion (API/UI + Monitoring) bleibt unabhängig davon lauffähig, auch wenn ein OpenClaw-Container zeitweise nicht läuft. Der Gate dient nur als zusätzlicher Alarm-Inbound-Kanal für OpenClaw.
+
 ### 3) HTTP Uptime Probe (`/health`)
 
 **Status (2026-02-25):** ✅ Produktiv aktiv — Lambda-basierte Self-Resolving Probe

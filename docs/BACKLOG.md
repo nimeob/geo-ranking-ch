@@ -19,23 +19,19 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#554](https://github.com/nimeob/geo-ranking-ch/issues/554) — [Crawler][P0] Workstream-Balance: Development/Dokumentation/Testing angleichen (priority:P0, status:todo)
+- (leer)
 
 ### Next
 - (leer)
 
 ### Later
-- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: OpenClaw AWS-Webhook-Gate mit IP-Allowlist umsetzen (Hostinger) (priority:P2, status:blocked)
+- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: Optionaler OpenClaw AWS-Alarm-Inbound via Webhook-Gate (Hostinger) (priority:P2, status:blocked)
 - [#520](https://github.com/nimeob/geo-ranking-ch/issues/520) — Korrektur-Workflow implementieren (neue Version, Original unverändert) (priority:P2, status:blocked)
 - [#521](https://github.com/nimeob/geo-ranking-ch/issues/521) — Pflichtfeld Korrekturgrund erzwingen (priority:P2, status:blocked)
 - [#522](https://github.com/nimeob/geo-ranking-ch/issues/522) — Lösch-Scheduler mit Vorankündigung implementieren (priority:P2, status:blocked)
 - [#523](https://github.com/nimeob/geo-ranking-ch/issues/523) — Hold-Flag pro Dokument implementieren (priority:P2, status:blocked)
 - [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, status:blocked)
-- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Externes Hostinger-Rollout + E2E-Verifikation (priority:P2, status:blocked)
-- [#106](https://github.com/nimeob/geo-ranking-ch/issues/106) — BL-30.2: Shop + Payment + Entitlements für UI/API (Later) (priority:P3, status:todo)
-- [#128](https://github.com/nimeob/geo-ranking-ch/issues/128) — BL-30: Parent-Issue für Monetization/Deep-Mode/HTML5/Map/Mobile inkl. Dependency-Gates (priority:P3, status:todo)
-- [#465](https://github.com/nimeob/geo-ranking-ch/issues/465) — BL-30.2.wp1: Entitlement-Contract v1 + Gate-Semantik aus BL-30.1 konsolidieren (priority:P3, status:todo)
-- [#466](https://github.com/nimeob/geo-ranking-ch/issues/466) — BL-30.2.wp2: Checkout-/Lifecycle-Contract + idempotenter Entitlement-Sync (priority:P3, status:todo)
+- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P2, status:blocked)
 - [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, status:blocked)
 - [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, status:blocked)
 - [#530](https://github.com/nimeob/geo-ranking-ch/issues/530) — Go-Live-Checkliste und Entscheidungsmeeting durchführen (priority:P3, status:blocked)
