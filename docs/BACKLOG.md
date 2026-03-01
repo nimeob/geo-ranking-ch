@@ -25,13 +25,7 @@ Regelwerk:
 - (leer)
 
 ### Later
-
-- [#457](https://github.com/nimeob/geo-ranking-ch/issues/457) — BL-341.wp5.r1: GTM-Sprint gtm-validation-001 ausführen und BL-30-Entscheidung ableiten (priority:P1, status:blocked — extern: Interview-Termine ausstehend, 2026-03-01)
-- [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, ✅ abgeschlossen 2026-03-01, PR #617)
-- [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, ✅ abgeschlossen 2026-03-01, Evidence: ACC-MCS-2026-03-01-001, 31/31 Muss-Tests bestanden)
-- [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, ✅ abgeschlossen 2026-03-01, READINESS-BL342-2026-03-01-001: 16/16 Bereiche freigegeben)
-- [#530](https://github.com/nimeob/geo-ranking-ch/issues/530) — Go-Live-Checkliste und Entscheidungsmeeting durchführen (priority:P3, ✅ abgeschlossen 2026-03-01, GOLIVE-BL342-2026-03-01-001: GO, 10/10 Gates)
-- [#532](https://github.com/nimeob/geo-ranking-ch/issues/532) — Schulung für relevante Rollen durchführen (priority:P3, ✅ abgeschlossen 2026-03-01, SCHULUNG-BL342-2026-03-01-001: 5/5 Rollen geschult)
+- (leer — alle bekannten Items abgeschlossen oder geschlossen; Stand: 2026-03-01)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Backlog-Items
@@ -827,7 +821,7 @@ Regelwerk:
 - **Priorität:** P1
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-341.wp5 (#448) abgeschlossen
-- **Status:** 🟡 in Umsetzung (2026-03-01)
+- **Status:** ✅ abgeschlossen (2026-03-01) — alle Work-Packages + Folgeschritte erledigt, Go-Live GOLIVE-BL342-2026-03-01-001: GO, Monitoring aktiv (PR #617), Schulung abgeschlossen (SCHULUNG-BL342-2026-03-01-001)
 - **Ziel:** Governance-/Compliance-Vorgaben in verbindliche Policies, technische Controls und Abnahmetests überführen.
 - **Work-Packages:**
   - [x] #515 — Policy-Standard finalisieren (Version, Begründung, Wirksam-ab, Impact-Pflicht) (abgeschlossen 2026-03-01)
