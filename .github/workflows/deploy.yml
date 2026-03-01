@@ -96,6 +96,10 @@ jobs:
           API_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_API_REPOSITORY}:${IMAGE_TAG}"
           UI_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_UI_REPOSITORY}:${IMAGE_TAG}"
 
+          # Clear stale Docker build cache to prevent cache-key failures
+          # when new COPY instructions are added to the Dockerfile.
+          docker builder prune -f
+
           echo "Building API image ${API_IMAGE_URI}"
           docker build -t "${API_IMAGE_URI}" .
           docker push "${API_IMAGE_URI}"
