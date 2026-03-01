@@ -26,6 +26,7 @@ Regelwerk:
 
 ### Later
 
+- [#457](https://github.com/nimeob/geo-ranking-ch/issues/457) — BL-341.wp5.r1: GTM-Sprint gtm-validation-001 ausführen und BL-30-Entscheidung ableiten (priority:P1, status:blocked — extern: Interview-Termine ausstehend, 2026-03-01)
 - [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, status:blocked)
 - [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, status:blocked)
 - [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, status:blocked)
