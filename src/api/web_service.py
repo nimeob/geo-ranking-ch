@@ -30,6 +30,7 @@ from urllib.request import urlopen
 
 from src.api.address_intel import AddressIntelError, build_report
 from src.shared.gui_mvp import render_gui_mvp_html
+from src.shared.structured_logging import build_event, emit_event
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
 from src.api.personalized_scoring import compute_two_stage_scores
 
@@ -263,6 +264,32 @@ def _build_dictionary_payloads() -> tuple[dict[str, Any], dict[str, dict[str, An
 
 
 _DICTIONARY_INDEX_PAYLOAD, _DICTIONARY_DOMAIN_PAYLOADS = _build_dictionary_payloads()
+
+
+def _emit_structured_log(
+    *,
+    event: str,
+    level: str = "info",
+    trace_id: str = "",
+    request_id: str = "",
+    session_id: str = "",
+    **fields: Any,
+) -> None:
+    """Emit one schema-conform JSON event without breaking request handling."""
+    try:
+        emit_event(
+            build_event(
+                event,
+                level=level,
+                trace_id=trace_id,
+                request_id=request_id,
+                session_id=session_id,
+                **fields,
+            )
+        )
+    except Exception:
+        # Logging must never break primary service logic.
+        return
 
 
 def _dictionary_status_payload() -> dict[str, Any]:
@@ -1296,6 +1323,17 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         if request_path == "/health":
+            _emit_structured_log(
+                event="api.health.response",
+                trace_id=request_id,
+                request_id=request_id,
+                session_id=self.headers.get("X-Session-Id", "").strip(),
+                component="api.web_service",
+                direction="api->client",
+                status="ok",
+                route="/health",
+                method="GET",
+            )
             self._send_json(
                 {
                     "ok": True,
@@ -1810,11 +1848,28 @@ def main() -> None:
                 https_host_override=str(tls_settings.get("redirect_host") or ""),
             )
             setattr(httpd, "redirect_server", redirect_server)
+            _emit_structured_log(
+                event="service.redirect_listener.enabled",
+                level="info",
+                component="api.web_service",
+                direction="internal",
+                status="enabled",
+                redirect_from=f"http://{host}:{tls_settings['redirect_http_port']}",
+                redirect_to=f"https://{host}:{port}",
+            )
             print(
                 "geo-ranking-ch redirect listener active on "
                 f"http://{host}:{tls_settings['redirect_http_port']} -> https://{host}:{port}"
             )
 
+    _emit_structured_log(
+        event="service.startup",
+        level="info",
+        component="api.web_service",
+        direction="internal",
+        status="listening",
+        listen_url=f"{scheme}://{host}:{port}",
+    )
     print(f"geo-ranking-ch web service listening on {scheme}://{host}:{port}")
     httpd.serve_forever()
 

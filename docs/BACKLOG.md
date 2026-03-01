@@ -616,6 +616,21 @@
   - ✅ #390 via PR #393 (Merge `3cc6486`): `DEPLOYMENT_AWS.md` + `ARCHITECTURE.md` auf aktuellen Split-Deploy-Ist-Stand (`workflow_dispatch`-only, aktuelle Repo-Variablen/Smokes) harmonisiert.
   - ⏳ #391 offen: abschließender README/BACKLOG-Sync inkl. Restbereinigung.
 
+### BL-340 — End-to-End Request/Response Logging über UI + API + Upstream
+- **Priorität:** P1
+- **Aufwand:** L
+- **Abhängigkeiten:** keine
+- **Status:** 🟡 in Umsetzung (2026-03-01, Parent #409)
+- **Ziel:** Einheitliches, korrelierbares Logging-Schema inkl. Redaction über alle relevanten Flows.
+- **Work-Packages (Parent #409):**
+  - [x] #410 — BL-340.1 Logging-Kernschema v1 + Redaction-Policy + Shared Helper (abgeschlossen 2026-03-01)
+  - [ ] #411 — BL-340.2 API Ingress/Egress Logging mit korrelierten IDs
+  - [ ] #412 — BL-340.3 UI Interaktions- und UI->API Logging instrumentieren
+  - [ ] #413 — BL-340.4 Upstream-Provider Logging + Retry/Error Trace-Nachweise
+- **Fortschritt (2026-03-01):**
+  - ✅ #410 abgeschlossen: neues normatives Logging-Dokument [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md), Shared Helper [`src/shared/structured_logging.py`](../src/shared/structured_logging.py), erste API-Call-Sites (`service.startup`, `service.redirect_listener.enabled`, `api.health.response`) in [`src/api/web_service.py`](../src/api/web_service.py) sowie Regressionstests in `tests/test_structured_logging.py`.
+- **Nächster Schritt (oldest-first, unblocked):** #411.
+
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
 - **Aufwand:** L
