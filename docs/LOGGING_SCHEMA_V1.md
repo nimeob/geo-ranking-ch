@@ -230,7 +230,78 @@ Zusätzlich werden pattern-basiert maskiert:
 }
 ```
 
-## Implementierungsstand BL-340.1 + BL-340.2 + BL-340.3 + BL-340.4
+### 9) Deep-Mode Gate-Evaluierung (BL-30.3.wp2.r2)
+
+```json
+{
+  "ts": "2026-03-01T03:41:08.112Z",
+  "level": "info",
+  "event": "api.deep_mode.gate_evaluated",
+  "trace_id": "req-deep-001",
+  "request_id": "req-deep-001",
+  "session_id": "sess-deep-001",
+  "component": "api.web_service",
+  "direction": "internal",
+  "status": "evaluated",
+  "route": "/analyze",
+  "deep_requested": true,
+  "deep_effective": true,
+  "deep_profile": "analysis_plus",
+  "deep_budget_ms": 1250,
+  "deep_budget_tokens_effective": 8000,
+  "retry_count": 0
+}
+```
+
+### 10) Deep-Mode Execution-Retry (BL-30.3.wp2.r2)
+
+```json
+{
+  "ts": "2026-03-01T03:41:08.167Z",
+  "level": "warn",
+  "event": "api.deep_mode.execution.retry",
+  "trace_id": "req-deep-001",
+  "request_id": "req-deep-001",
+  "session_id": "sess-deep-001",
+  "component": "api.web_service",
+  "direction": "internal",
+  "status": "retrying",
+  "route": "/analyze",
+  "deep_requested": true,
+  "deep_effective": true,
+  "deep_profile": "analysis_plus",
+  "deep_budget_ms": 1250,
+  "deep_budget_tokens_effective": 8000,
+  "retry_count": 1
+}
+```
+
+### 11) Deep-Mode Execution-Abort (BL-30.3.wp2.r2)
+
+```json
+{
+  "ts": "2026-03-01T03:42:19.421Z",
+  "level": "warn",
+  "event": "api.deep_mode.execution.abort",
+  "trace_id": "req-deep-002",
+  "request_id": "req-deep-002",
+  "session_id": "sess-deep-002",
+  "component": "api.web_service",
+  "direction": "internal",
+  "status": "aborted",
+  "route": "/analyze",
+  "deep_requested": true,
+  "deep_effective": false,
+  "deep_profile": "analysis_plus",
+  "deep_budget_ms": 1250,
+  "deep_budget_tokens_effective": 8000,
+  "fallback_reason": "not_entitled",
+  "retry_count": 0,
+  "duration_ms": 3.117
+}
+```
+
+## Implementierungsstand BL-340.1 + BL-340.2 + BL-340.3 + BL-340.4 + BL-30.3.wp2.r2
 
 - Shared Helper: `src/shared/structured_logging.py`
   - `LOG_EVENT_SCHEMA_V1_REQUIRED_FIELDS` (normative Pflichtfelder)
@@ -245,6 +316,11 @@ Zusätzlich werden pattern-basiert maskiert:
   - `api.health.response`
   - `api.request.start` (Ingress, `GET/POST/OPTIONS`)
   - `api.request.end` (Egress inkl. `status_code`, `duration_ms`, `error_class`)
+  - `api.deep_mode.gate_evaluated`
+  - `api.deep_mode.execution.start`
+  - `api.deep_mode.execution.retry`
+  - `api.deep_mode.execution.abort`
+  - `api.deep_mode.execution.end`
 - UI-Call-Sites im GUI-MVP (`src/shared/gui_mvp.py`):
   - `ui.session.start`
   - `ui.interaction.form.submit`
@@ -268,3 +344,10 @@ Zusätzlich werden pattern-basiert maskiert:
 - Regressionstests:
   - `tests/test_address_intel_upstream_logging.py`
   - `tests/test_web_service_request_logging.py`
+
+## BL-30.3.wp2.r2 Nachweise
+
+- Deep-Mode Trace-Evidence Runbook: `docs/testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md`
+- Beispiel-Artefakt (inkl. Retry + Abort): `docs/testing/deep-mode-trace-evidence-sample.jsonl`
+- Regressionstests:
+  - `tests/test_bl30_deep_mode_telemetry_events.py`
