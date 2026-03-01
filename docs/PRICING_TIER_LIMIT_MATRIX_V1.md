@@ -66,5 +66,5 @@ Referenzen:
 ## Nächste Work-Packages
 
 - ✅ #459: Unit-Economics-Hypothesen je Tier/Segment strukturieren (abgeschlossen 2026-03-01, siehe [`docs/UNIT_ECONOMICS_HYPOTHESES_V1.md`](./UNIT_ECONOMICS_HYPOTHESES_V1.md))
-- #460: Preisvalidierungs-Experimentkarten + Entscheidungslogik
+- ✅ #460: Preisvalidierungs-Experimentkarten + Entscheidungslogik (abgeschlossen 2026-03-01, siehe [`docs/PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md`](./PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md))
 - #461: Konsolidierter Abschluss + BL-30.2 Übergabe

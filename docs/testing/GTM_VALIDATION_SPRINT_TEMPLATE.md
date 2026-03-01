@@ -73,6 +73,9 @@ Pflichtinhalt:
 
 Entscheidungen werden in `docs/testing/GTM_VALIDATION_DECISION_LOG.md` dokumentiert.
 
+Kandidatenlogik und Schwellen basieren auf:
+- [`docs/PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md`](../PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md)
+
 Jeder Eintrag muss enthalten:
 
 - verwendete Evidenz (Sprint-ID + Kernzahlen)
@@ -80,6 +83,8 @@ Jeder Eintrag muss enthalten:
 - abgeleitete BL-30-Reihenfolge
 - verworfene Optionen + Gegenargumente
 - Owner + Review-Status
+- Follow-up-Issues nach Template:
+  [`docs/testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md`](./BL30_FOLLOWUP_ISSUE_TEMPLATE.md)
 
 ## Mapping-Regel: Sprint-Signale -> BL-30-Reihenfolge
 

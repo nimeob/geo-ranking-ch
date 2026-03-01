@@ -49,6 +49,8 @@ Top-3 Kaufkriterien:
 Operative Ausführung (Template, Rollen, Outputpflichten):
 - [`docs/testing/GTM_VALIDATION_SPRINT_TEMPLATE.md`](testing/GTM_VALIDATION_SPRINT_TEMPLATE.md)
 - [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md)
+- [`docs/PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md`](./PRICING_VALIDATION_EXPERIMENT_CARDS_V1.md)
+- [`docs/testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md`](testing/BL30_FOLLOWUP_ISSUE_TEMPLATE.md)
 
 ### Stichprobe (MVP-tauglich)
 
