@@ -11,6 +11,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - Kartenklick-Flow via `POST /analyze` mit `coordinates.lat/lon` + `snap_mode=ch_bounds`
 - reproduzierbarer UI-State-Flow: `idle -> loading -> success|error`
 - clientseitiger Request-Timeout-Guard (`AbortController`): kein dauerhaftes `loading` bei ausbleibender API-Antwort
+- korrelierbares UI-Structured-Logging (`ui.state.transition`, `ui.api.request.start/end`) inkl. `X-Request-Id`/`X-Session-Id` für UI↔API-Tracing
 - sichtbare Kernfaktoren (Top-Faktoren aus Explainability) und rohe JSON-Antwort
 
 ## Struktur
@@ -47,6 +48,22 @@ Transitions:
 - `loading -> success` bei `HTTP 2xx` + `ok=true`
 - `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen`)
 - `error -> loading` beim nächsten Submit/Kartenklick (clean retry)
+
+## Logging & Korrelation (BL-340.3)
+
+Die GUI emittiert strukturierte Client-Events (JSONL via Browser-Console) und korreliert API-Requests über dieselbe Request-ID:
+
+- `ui.api.request.start` / `ui.api.request.end` mit `trace_id`, `request_id`, `session_id`, `status_code`, `duration_ms`
+- `ui.state.transition` für alle Zustandswechsel (`idle/loading/success/error`)
+- Input-/Interaktionsereignisse (`ui.interaction.form.submit`, `ui.interaction.map.analyze_trigger`, `ui.input.accepted`)
+- Validierungs-/Degraded-Signale (`ui.validation.error`, `ui.output.map_status`)
+
+Für die UI→API-Korrelation setzt der Client pro Analyze-Request:
+
+- `X-Request-Id`
+- `X-Session-Id`
+
+Damit lassen sich UI-Ereignisse direkt mit API-Lifecycle-Logs (`api.request.start/end`) verbinden.
 
 ## Manuelle E2E-Prüfung (BL-20.6.b)
 

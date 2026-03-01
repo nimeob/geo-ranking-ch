@@ -361,6 +361,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         lon: 8.2275,
         zoom: 8,
       };
+      const UI_LOG_COMPONENT = "ui.gui_mvp";
+      const UI_SESSION_STORAGE_KEY = "geo-ranking-ui-session-id";
 
       const state = {
         phase: "idle",
@@ -398,6 +400,107 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const clickHint = document.getElementById("click-hint");
 
       let mapRenderToken = 0;
+      let uiEventSequence = 0;
+
+      function utcTimestamp() {
+        return new Date().toISOString();
+      }
+
+      function createUiCorrelationId(prefix) {
+        const normalizedPrefix = String(prefix || "ui").replace(/[^a-z0-9_-]/gi, "").toLowerCase() || "ui";
+        const randomChunk = Math.random().toString(36).slice(2, 10);
+        return `${normalizedPrefix}-${Date.now().toString(36)}-${randomChunk}`;
+      }
+
+      function resolveUiSessionId() {
+        const fallbackSessionId = createUiCorrelationId("sess");
+        if (typeof window === "undefined" || !window.sessionStorage) {
+          return fallbackSessionId;
+        }
+
+        try {
+          const existing = String(window.sessionStorage.getItem(UI_SESSION_STORAGE_KEY) || "").trim();
+          if (existing) {
+            return existing;
+          }
+
+          window.sessionStorage.setItem(UI_SESSION_STORAGE_KEY, fallbackSessionId);
+          return fallbackSessionId;
+        } catch (error) {
+          return fallbackSessionId;
+        }
+      }
+
+      const uiSessionId = resolveUiSessionId();
+
+      function normalizeLogLevel(level) {
+        const normalized = String(level || "info").trim().toLowerCase();
+        if (normalized === "debug" || normalized === "info" || normalized === "warn" || normalized === "error") {
+          return normalized;
+        }
+        return "info";
+      }
+
+      function emitUiEvent(eventName, details = {}) {
+        try {
+          const eventPayload = {
+            ts: utcTimestamp(),
+            level: normalizeLogLevel(details.level),
+            event: String(eventName || "ui.event.unknown").trim() || "ui.event.unknown",
+            trace_id: String(details.traceId || "").trim(),
+            request_id: String(details.requestId || "").trim(),
+            session_id: String(details.sessionId || uiSessionId || "").trim(),
+            component: UI_LOG_COMPONENT,
+            event_seq: ++uiEventSequence,
+          };
+
+          Object.entries(details || {}).forEach(([key, value]) => {
+            if (["level", "traceId", "requestId", "sessionId"].includes(key)) {
+              return;
+            }
+            if (value === undefined) {
+              return;
+            }
+            eventPayload[key] = value;
+          });
+
+          console.log(JSON.stringify(eventPayload));
+        } catch (error) {
+          return;
+        }
+      }
+
+      function coarseCoord(value) {
+        const asNumber = Number(value);
+        if (!Number.isFinite(asNumber)) {
+          return null;
+        }
+        return Number(asNumber.toFixed(4));
+      }
+
+      function inferInputKind(payload) {
+        if (payload && typeof payload === "object" && payload.coordinates) {
+          return "coordinates";
+        }
+        return "query";
+      }
+
+      function setPhase(nextPhase, context = {}) {
+        const previousPhase = String(state.phase || "idle");
+        state.phase = nextPhase;
+
+        emitUiEvent("ui.state.transition", {
+          level: nextPhase === "error" ? "warn" : "info",
+          traceId: context.traceId,
+          requestId: context.requestId,
+          direction: "ui",
+          status: nextPhase,
+          previous_phase: previousPhase,
+          next_phase: nextPhase,
+          trigger: context.trigger || "",
+          error_code: context.errorCode || "",
+        });
+      }
 
       function prettyPrint(payload) {
         return JSON.stringify(payload, null, 2);
@@ -625,6 +728,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
         mapStatus.hidden = false;
         mapStatus.textContent = message;
+        emitUiEvent("ui.output.map_status", {
+          level: "warn",
+          direction: "ui->human",
+          status: "degraded",
+          message,
+        });
       }
 
       function clearMapStatus() {
@@ -795,6 +904,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       async function analyzeFromMap(lat, lon, inputLabel) {
+        emitUiEvent("ui.interaction.map.analyze_trigger", {
+          direction: "human->ui",
+          status: "triggered",
+          input_kind: "coordinates",
+          lat_coarse: coarseCoord(lat),
+          lon_coarse: coarseCoord(lon),
+          trigger: "map_click_or_keyboard",
+        });
+
         const payload = buildAnalyzePayload({
           coordinates: {
             lat: Number(lat.toFixed(6)),
@@ -943,11 +1061,68 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return 20;
       }
 
-      async function runAnalyze(payload, token) {
+      function requestLifecycleStatus(statusCode, errorCode) {
+        const normalizedError = String(errorCode || "").toLowerCase();
+        if (normalizedError === "timeout" || normalizedError === "abort") {
+          return "timeout";
+        }
+        if (normalizedError === "network_error") {
+          return "network_error";
+        }
+        if (normalizedError === "invalid_json") {
+          return "invalid_response";
+        }
+        if (statusCode >= 200 && statusCode < 400) {
+          return "ok";
+        }
+        if (statusCode >= 400 && statusCode < 500) {
+          return "client_error";
+        }
+        if (statusCode >= 500) {
+          return "server_error";
+        }
+        return "unknown";
+      }
+
+      function requestLifecycleLevel(statusCode, errorCode) {
+        const normalizedError = String(errorCode || "").toLowerCase();
+        if (normalizedError === "timeout" || normalizedError === "abort" || normalizedError === "network_error") {
+          return "warn";
+        }
+        if (normalizedError === "invalid_json") {
+          return "error";
+        }
+        if (statusCode >= 500) {
+          return "error";
+        }
+        if (statusCode >= 400) {
+          return "warn";
+        }
+        return "info";
+      }
+
+      async function runAnalyze(payload, token, context = {}) {
+        const traceId = String(context.traceId || "").trim();
+        const requestId = String(context.requestId || "").trim() || createUiCorrelationId("req");
+        const inputKind = String(context.inputKind || inferInputKind(payload));
+
         const headers = { "Content-Type": "application/json" };
         if (token) {
           headers["Authorization"] = `Bearer ${token}`;
         }
+        headers["X-Request-Id"] = requestId;
+        headers["X-Session-Id"] = uiSessionId;
+
+        emitUiEvent("ui.api.request.start", {
+          traceId,
+          requestId,
+          direction: "ui->api",
+          status: "sent",
+          route: "/analyze",
+          method: "POST",
+          input_kind: inputKind,
+          auth_present: Boolean(token),
+        });
 
         const timeoutSeconds = Number(payload && payload.timeout_seconds);
         const timeoutMs = Number.isFinite(timeoutSeconds) && timeoutSeconds > 0
@@ -956,6 +1131,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         const controller = new AbortController();
         const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+        const startedAt = performance.now();
 
         let response;
         try {
@@ -966,31 +1142,113 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             signal: controller.signal,
           });
         } catch (error) {
+          const durationMs = Number((performance.now() - startedAt).toFixed(3));
           if (error && error.name === "AbortError") {
+            emitUiEvent("ui.api.request.end", {
+              level: requestLifecycleLevel(504, "timeout"),
+              traceId,
+              requestId,
+              direction: "api->ui",
+              status: requestLifecycleStatus(504, "timeout"),
+              route: "/analyze",
+              method: "POST",
+              status_code: 504,
+              duration_ms: durationMs,
+              error_code: "timeout",
+              error_class: "timeout",
+            });
             throw new Error(`timeout: Anfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`);
           }
+
+          emitUiEvent("ui.api.request.end", {
+            level: requestLifecycleLevel(0, "network_error"),
+            traceId,
+            requestId,
+            direction: "api->ui",
+            status: requestLifecycleStatus(0, "network_error"),
+            route: "/analyze",
+            method: "POST",
+            status_code: 0,
+            duration_ms: durationMs,
+            error_code: "network_error",
+            error_class: "network_error",
+          });
           throw error;
         } finally {
           clearTimeout(timeoutHandle);
         }
 
+        const durationMs = Number((performance.now() - startedAt).toFixed(3));
+
         let parsed;
         try {
           parsed = await response.json();
         } catch (error) {
+          emitUiEvent("ui.api.request.end", {
+            level: requestLifecycleLevel(response.status, "invalid_json"),
+            traceId,
+            requestId,
+            direction: "api->ui",
+            status: requestLifecycleStatus(response.status, "invalid_json"),
+            route: "/analyze",
+            method: "POST",
+            status_code: response.status,
+            duration_ms: durationMs,
+            error_code: "invalid_json",
+            error_class: "invalid_json",
+          });
           throw new Error("Response ist kein gültiges JSON.");
         }
 
-        const requestId = parsed && parsed.request_id ? String(parsed.request_id) : null;
+        const responseRequestId = parsed && parsed.request_id ? String(parsed.request_id) : requestId;
         if (!response.ok || !parsed.ok) {
           const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
           const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
           const richError = `${errCode}: ${errMsg}`;
           const failingResponse = parsed || { ok: false, error: errCode, message: errMsg };
-          return { ok: false, requestId, response: failingResponse, errorMessage: richError };
+
+          emitUiEvent("ui.api.request.end", {
+            level: requestLifecycleLevel(response.status, errCode),
+            traceId,
+            requestId: responseRequestId,
+            direction: "api->ui",
+            status: requestLifecycleStatus(response.status, errCode),
+            route: "/analyze",
+            method: "POST",
+            status_code: response.status,
+            duration_ms: durationMs,
+            error_code: errCode,
+            error_class: errCode,
+          });
+
+          return {
+            ok: false,
+            requestId: responseRequestId,
+            response: failingResponse,
+            errorMessage: richError,
+            errorCode: errCode,
+          };
         }
 
-        return { ok: true, requestId, response: parsed, errorMessage: null };
+        emitUiEvent("ui.api.request.end", {
+          level: requestLifecycleLevel(response.status, ""),
+          traceId,
+          requestId: responseRequestId,
+          direction: "api->ui",
+          status: requestLifecycleStatus(response.status, ""),
+          route: "/analyze",
+          method: "POST",
+          status_code: response.status,
+          duration_ms: durationMs,
+        });
+
+        return {
+          ok: true,
+          requestId: responseRequestId,
+          response: parsed,
+          errorMessage: null,
+          errorCode: "",
+        };
       }
 
       function buildAnalyzePayload(base) {
@@ -1006,24 +1264,57 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       async function startAnalyze(payload, inputLabel) {
-        state.phase = "loading";
+        const requestId = createUiCorrelationId("req");
+        const traceId = requestId;
+        const inputKind = inferInputKind(payload);
+
+        emitUiEvent("ui.input.accepted", {
+          traceId,
+          requestId,
+          direction: "human->ui",
+          status: "accepted",
+          input_kind: inputKind,
+          input_label: inputKind,
+          intelligence_mode: String(payload && payload.intelligence_mode ? payload.intelligence_mode : "basic"),
+        });
+
+        setPhase("loading", {
+          traceId,
+          requestId,
+          trigger: "analyze_start",
+        });
         state.lastError = null;
         state.lastPayload = { ok: false, loading: true, request: payload };
-        state.lastRequestId = null;
+        state.lastRequestId = requestId;
         state.lastInput = inputLabel;
         state.coreFactors = [];
         submitBtn.disabled = true;
         renderState();
 
         try {
-          const result = await runAnalyze(payload, (tokenEl.value || "").trim());
-          state.lastRequestId = result.requestId;
+          const result = await runAnalyze(payload, (tokenEl.value || "").trim(), {
+            traceId,
+            requestId,
+            inputKind,
+          });
+
+          state.lastRequestId = result.requestId || requestId;
           state.lastPayload = result.response;
-          state.phase = result.ok ? "success" : "error";
+          setPhase(result.ok ? "success" : "error", {
+            traceId,
+            requestId: state.lastRequestId,
+            trigger: "analyze_result",
+            errorCode: result.errorCode || "",
+          });
           state.lastError = result.errorMessage;
           state.coreFactors = result.ok ? extractCoreFactors(result.response) : [];
         } catch (error) {
-          state.phase = "error";
+          setPhase("error", {
+            traceId,
+            requestId,
+            trigger: "network_or_runtime_error",
+            errorCode: "network_error",
+          });
           state.lastError = error instanceof Error ? error.message : "Netzwerkfehler";
           state.lastPayload = {
             ok: false,
@@ -1041,14 +1332,34 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         event.preventDefault();
 
         const query = (queryEl.value || "").trim();
+        emitUiEvent("ui.interaction.form.submit", {
+          direction: "human->ui",
+          status: "triggered",
+          input_kind: "query",
+          query_length: query.length,
+          intelligence_mode: String(modeEl.value || "basic").trim().toLowerCase() || "basic",
+        });
+
         if (!query) {
-          state.phase = "error";
+          setPhase("error", {
+            trigger: "validation_error",
+            errorCode: "validation",
+          });
           state.lastError = "Bitte eine Adresse eingeben.";
           state.lastPayload = {
             ok: false,
             error: "validation",
             message: "query darf nicht leer sein",
           };
+
+          emitUiEvent("ui.validation.error", {
+            level: "warn",
+            direction: "ui->human",
+            status: "error",
+            field: "query",
+            error_code: "validation",
+          });
+
           state.lastInput = null;
           state.coreFactors = [];
           renderState();
@@ -1057,6 +1368,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         const payload = buildAnalyzePayload({ query });
         await startAnalyze(payload, `Adresse: ${query}`);
+      });
+
+      emitUiEvent("ui.session.start", {
+        direction: "internal",
+        status: "ready",
+        route: "/gui",
       });
 
       initializeInteractiveMap();

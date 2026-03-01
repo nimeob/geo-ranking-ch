@@ -104,6 +104,12 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('function timeoutSecondsForMode(mode)', body)
         self.assertIn('const controller = new AbortController();', body)
         self.assertIn('timeout_seconds: timeoutSecondsForMode(mode)', body)
+        self.assertIn('function emitUiEvent(eventName, details = {})', body)
+        self.assertIn('function setPhase(nextPhase, context = {})', body)
+        self.assertIn('ui.api.request.start', body)
+        self.assertIn('ui.api.request.end', body)
+        self.assertIn('headers["X-Request-Id"] = requestId;', body)
+        self.assertIn('headers["X-Session-Id"] = uiSessionId;', body)
 
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
         status, body, _ = _http_text(f"{self.base_url}//gui///?probe=1")
