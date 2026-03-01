@@ -605,16 +605,16 @@
 - **Priorität:** P1
 - **Aufwand:** M
 - **Abhängigkeiten:** keine
-- **Status:** 🟡 in Umsetzung (2026-02-28, Parent #388)
+- **Status:** ✅ abgeschlossen (2026-03-01, Parent #388)
 - **Ziel:** Ist-Stand-Dokumente auf konsistente Entrypoints, Deploy-/Smoke-Realität und saubere README/BACKLOG-Referenzen bringen.
 - **Work-Packages (Parent #388):**
   - [x] #389 — BL-32.1 Kanonische API/UI-Entrypoints in Ist-Stand-Dokus konsolidieren (abgeschlossen 2026-02-28)
   - [x] #390 — BL-32.2 Operative Kern-Dokus (Deploy/Ops/Architektur) auf Ist-Stand harmonisieren (abgeschlossen 2026-02-28)
-  - [ ] #391 — BL-32.3 README/BACKLOG-Status- und Referenzkonsistenz bereinigen
-- **Fortschritt (2026-02-28):**
+  - [x] #391 — BL-32.3 README/BACKLOG-Status- und Referenzkonsistenz bereinigen (abgeschlossen 2026-03-01)
+- **Fortschritt (2026-03-01):**
   - ✅ #389 via PR #392 (Merge `39681d4`): kanonische Entrypoints (`src.api.web_service`, `src.ui.service`) in User-/Testing-/Packaging-Dokus konsolidiert, Legacy nur als Kompatibilitätshinweis.
   - ✅ #390 via PR #393 (Merge `3cc6486`): `DEPLOYMENT_AWS.md` + `ARCHITECTURE.md` auf aktuellen Split-Deploy-Ist-Stand (`workflow_dispatch`-only, aktuelle Repo-Variablen/Smokes) harmonisiert.
-  - ⏳ #391 offen: abschließender README/BACKLOG-Sync inkl. Restbereinigung.
+  - ✅ #391 via PR #394 (Merge `0c6c8c7`): README/BACKLOG-Referenzen auf Ist-Stand bereinigt; Reopen-Fix am 2026-03-01 mit erfüllter DoD-Checklist nachgezogen.
 
 ### BL-340 — End-to-End Request/Response Logging über UI + API + Upstream
 - **Priorität:** P1
