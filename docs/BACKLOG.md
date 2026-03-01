@@ -580,13 +580,14 @@ Regelwerk:
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
-  - [ ] #459 — BL-30.1.wp2 Unit-Economics-Hypothesen je Tier/Segment strukturieren
+  - [x] #459 — BL-30.1.wp2 Unit-Economics-Hypothesen je Tier/Segment strukturieren (abgeschlossen 2026-03-01)
   - [ ] #460 — BL-30.1.wp3 Preisvalidierungs-Experimentkarten + Entscheidungslogik
   - [ ] #461 — BL-30.1.wp4 Konsolidierter Abschluss + BL-30.2 Übergabe
 - **Fortschritt (2026-03-01):**
   - ✅ #105 in atomare Child-Issues #458/#459/#460/#461 zerlegt (oldest-first Leaf-Umsetzung).
   - ✅ #458 abgeschlossen: neue Tier-/Limit-Matrix v1 in [`docs/PRICING_TIER_LIMIT_MATRIX_V1.md`](PRICING_TIER_LIMIT_MATRIX_V1.md), GTM-Hypothesen-Doku verlinkt und Doku-Regression ergänzt.
-- **Nächster Schritt:** #459 (oldest-first, unblocked).
+  - ✅ #459 abgeschlossen: versionierte Unit-Economics-Doku in [`docs/UNIT_ECONOMICS_HYPOTHESES_V1.md`](UNIT_ECONOMICS_HYPOTHESES_V1.md) ergänzt (Tier-/Segment-Annahmen, Sensitivitätshebel, Go/Adjust/Stop-Schwellen) und via Regressionstest abgesichert.
+- **Nächster Schritt:** #460 (oldest-first, unblocked).
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
