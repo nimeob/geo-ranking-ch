@@ -1501,7 +1501,11 @@ def _apply_deep_mode_runtime_status(
     options: dict[str, Any],
     intelligence_mode: str,
     timeout_seconds: float,
+    request_id: str = "",
+    session_id: str = "",
+    execution_retry_count: int = 0,
 ) -> None:
+    started_at = time.perf_counter()
     deep_request = _extract_deep_mode_request(options, intelligence_mode=intelligence_mode)
     budget = _derive_deep_mode_budget(
         timeout_seconds=timeout_seconds,
@@ -1517,6 +1521,82 @@ def _apply_deep_mode_runtime_status(
         deep_budget_ms=int(budget["deep_budget_ms"]),
         deep_min_budget_ms=int(budget["deep_min_budget_ms"]),
     )
+
+    retry_count = 0
+    if isinstance(execution_retry_count, (int, float)) and not isinstance(execution_retry_count, bool):
+        retry_count = max(0, int(execution_retry_count))
+
+    deep_requested = bool(deep_request["requested"])
+    deep_profile = str(deep_request["profile"])
+    deep_budget_ms = int(budget["deep_budget_ms"])
+    deep_budget_tokens_effective = int(budget["deep_budget_tokens_effective"])
+
+    def _emit_deep_mode_event(
+        *,
+        event: str,
+        level: str,
+        status: str,
+        duration_ms: float | None = None,
+    ) -> None:
+        telemetry_fields: dict[str, Any] = {
+            "component": "api.web_service",
+            "direction": "internal",
+            "route": "/analyze",
+            "status": status,
+            "deep_requested": deep_requested,
+            "deep_effective": bool(deep_effective),
+            "deep_profile": deep_profile,
+            "deep_budget_ms": deep_budget_ms,
+            "deep_budget_tokens_effective": deep_budget_tokens_effective,
+            "retry_count": retry_count,
+        }
+        if fallback_reason:
+            telemetry_fields["fallback_reason"] = fallback_reason
+        if duration_ms is not None:
+            telemetry_fields["duration_ms"] = round(max(0.0, float(duration_ms)), 3)
+
+        _emit_structured_log(
+            event=event,
+            level=level,
+            trace_id=request_id,
+            request_id=request_id,
+            session_id=session_id,
+            **telemetry_fields,
+        )
+
+    _emit_deep_mode_event(
+        event="api.deep_mode.gate_evaluated",
+        level="info",
+        status="evaluated",
+    )
+
+    elapsed_ms = (time.perf_counter() - started_at) * 1000.0
+    if deep_requested:
+        if deep_effective:
+            _emit_deep_mode_event(
+                event="api.deep_mode.execution.start",
+                level="info",
+                status="started",
+            )
+            if retry_count > 0:
+                _emit_deep_mode_event(
+                    event="api.deep_mode.execution.retry",
+                    level="warn",
+                    status="retrying",
+                )
+            _emit_deep_mode_event(
+                event="api.deep_mode.execution.end",
+                level="info",
+                status="ok",
+                duration_ms=elapsed_ms,
+            )
+        else:
+            _emit_deep_mode_event(
+                event="api.deep_mode.execution.abort",
+                level="warn",
+                status="aborted",
+                duration_ms=elapsed_ms,
+            )
 
     quota_before = deep_request.get("quota_remaining")
     quota_consumed = 1 if deep_effective else 0
@@ -2260,6 +2340,8 @@ class Handler(BaseHTTPRequestHandler):
                             options=request_options,
                             intelligence_mode=mode,
                             timeout_seconds=timeout,
+                            request_id=request_id,
+                            session_id=session_id,
                         )
                         self._send_json(
                             {
@@ -2300,6 +2382,8 @@ class Handler(BaseHTTPRequestHandler):
                     options=request_options,
                     intelligence_mode=mode,
                     timeout_seconds=timeout,
+                    request_id=request_id,
+                    session_id=session_id,
                 )
                 self._send_json(
                     {

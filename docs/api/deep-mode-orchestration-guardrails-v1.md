@@ -160,18 +160,32 @@ andernfalls `effective=true` mit partiellem Deep-Hinweis in Telemetrie.
 
 ### Pflichtfelder je Event
 
-- `request_id`, `event`, `timestamp_utc`
+- `request_id`, `event`, `ts` (UTC-ISO8601)
 - `deep_requested`, `deep_effective`, `deep_profile`
 - `deep_budget_ms`, `deep_budget_tokens_effective`
 - `duration_ms` (für End-/Abort-Event)
 - `fallback_reason` (falls gesetzt)
-- `retry_count` (falls > 0)
+- `retry_count`
 
 ### Integrationsregel zu BL-340 Logging Schema v1
 
 - Event-Payloads müssen das bestehende Redaction-/Schema-Regelwerk aus
   `docs/LOGGING_SCHEMA_V1.md` einhalten.
 - Keine Prompt-Rohtexte oder Secrets im Klartext loggen.
+
+### Implementierungsstand (#473)
+
+Stand Telemetrie-/Trace-Härtung (`src/api/web_service.py`, BL-30.3.wp2.r2):
+
+- Deep-Mode emittiert jetzt strukturierte Gate-/Execution-Events unter
+  `api.deep_mode.gate_evaluated`, `api.deep_mode.execution.start`,
+  `api.deep_mode.execution.retry`, `api.deep_mode.execution.abort`,
+  `api.deep_mode.execution.end`.
+- Pflichtfelder (`deep_requested`, `deep_effective`, `deep_profile`,
+  `deep_budget_ms`, `deep_budget_tokens_effective`, `retry_count`) werden pro Event
+  konsistent gesetzt; `duration_ms` wird für `execution.end`/`execution.abort` geführt.
+- Operatives Nachweis-Runbook inkl. Beispiel-JSONL liegt unter
+  `docs/testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md`.
 
 ## Fallback-/Status-Matrix (Laufzeit)
 
@@ -196,7 +210,7 @@ andernfalls `effective=true` mit partiellem Deep-Hinweis in Telemetrie.
 
 - #470 — Add-on-/Quota-Hypothesen + Transparenzrahmen (Produkt-/GTM-Policy), siehe [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](../DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md)
 - #472 — ✅ BL-30.3.wp2.r1 Runtime-Orchestrator-Implementierung (Gate/Budget/Fallback in `/analyze`) abgeschlossen
-- #473 — BL-30.3.wp2.r2 Deep-Mode-Telemetrie + Trace-Evidence-Runbook
+- #473 — ✅ BL-30.3.wp2.r2 Deep-Mode-Telemetrie + Trace-Evidence-Runbook abgeschlossen
 
 ## DoD-Checklist #469 (Status)
 
