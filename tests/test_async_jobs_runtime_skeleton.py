@@ -163,6 +163,26 @@ class TestAsyncJobsRuntimeSkeleton(unittest.TestCase):
         self.assertIn("job.partial", event_types)
         self.assertIn("job.completed", event_types)
 
+        status_notifications, body_notifications = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/jobs/{job_id}/notifications?channel=in_app",
+        )
+        self.assertEqual(status_notifications, 200)
+        notifications = body_notifications.get("notifications", [])
+        self.assertGreaterEqual(len(notifications), 1)
+
+        completed_notifications = [
+            row for row in notifications if row.get("template_key") == "async.job.completed"
+        ]
+        self.assertEqual(len(completed_notifications), 1)
+        completed_notification = completed_notifications[0]
+        self.assertEqual(completed_notification.get("channel"), "in_app")
+        self.assertEqual(completed_notification.get("delivery_status"), "pending")
+        self.assertTrue(str(completed_notification.get("dedupe_key") or ""))
+        payload = completed_notification.get("payload_json", {})
+        self.assertEqual(payload.get("job_id"), job_id)
+        self.assertEqual(payload.get("status"), "completed")
+
         # Konsistenz zwischen Partial-Events und persisted Snapshots.
         store = AsyncJobStore(store_file=self._store_file)
         results = store.list_results(job_id)
@@ -229,6 +249,23 @@ class TestAsyncJobsRuntimeSkeleton(unittest.TestCase):
         )
         self.assertEqual(denied_job_status, 404)
         self.assertEqual(denied_job_body.get("error"), "not_found")
+
+        tenant_notification_status, tenant_notification_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/jobs/{job_id}/notifications?channel=in_app&limit=5",
+            headers={"X-Org-Id": "tenant-alpha"},
+        )
+        self.assertEqual(tenant_notification_status, 200)
+        self.assertTrue(tenant_notification_body.get("ok"))
+        self.assertTrue(tenant_notification_body.get("notifications"))
+
+        denied_notification_status, denied_notification_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/jobs/{job_id}/notifications",
+            headers={"X-Org-Id": "tenant-beta"},
+        )
+        self.assertEqual(denied_notification_status, 404)
+        self.assertEqual(denied_notification_body.get("error"), "not_found")
 
         store = AsyncJobStore(store_file=self._store_file)
         all_results = store.list_results(job_id)
@@ -364,6 +401,22 @@ class TestAsyncJobsRuntimeSkeleton(unittest.TestCase):
         event_types = [str(row.get("event_type") or "") for row in failed_job.get("events", [])]
         self.assertIn("job.failed", event_types)
 
+        notification_status, notification_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/jobs/{job_id}/notifications?channel=in_app",
+        )
+        self.assertEqual(notification_status, 200)
+        failed_notifications = [
+            row
+            for row in notification_body.get("notifications", [])
+            if row.get("template_key") == "async.job.failed"
+        ]
+        self.assertEqual(len(failed_notifications), 1)
+        failed_payload = failed_notifications[0].get("payload_json", {})
+        self.assertEqual(failed_payload.get("status"), "failed")
+        self.assertEqual(failed_payload.get("error_code"), "internal")
+        self.assertEqual(failed_payload.get("retry_hint"), "retry_with_backoff")
+
     def test_unknown_job_and_result_return_not_found(self):
         status_job, body_job = _http_json(
             "GET", f"{self.base_url}/analyze/jobs/does-not-exist"
@@ -376,6 +429,39 @@ class TestAsyncJobsRuntimeSkeleton(unittest.TestCase):
         )
         self.assertEqual(status_result, 404)
         self.assertEqual(body_result.get("error"), "not_found")
+
+    def test_notifications_endpoint_validates_query_params(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            headers={"Authorization": "Bearer async-token"},
+            payload={
+                "query": "Neugasse 5, 9000 St. Gallen",
+                "intelligence_mode": "basic",
+                "options": {
+                    "async_mode": {"requested": True},
+                },
+            },
+        )
+        self.assertEqual(status, 202)
+        job_id = str(body.get("job", {}).get("job_id") or "")
+        self.assertTrue(job_id)
+
+        self._poll_job(job_id=job_id, expected_statuses={"completed"}, timeout_seconds=12)
+
+        bad_channel_status, bad_channel_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/jobs/{job_id}/notifications?channel=sms",
+        )
+        self.assertEqual(bad_channel_status, 400)
+        self.assertEqual(bad_channel_body.get("error"), "bad_request")
+
+        bad_limit_status, bad_limit_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/jobs/{job_id}/notifications?limit=0",
+        )
+        self.assertEqual(bad_limit_status, 400)
+        self.assertEqual(bad_limit_body.get("error"), "bad_request")
 
 
 class TestAsyncJobStoreTransitions(unittest.TestCase):
@@ -397,6 +483,64 @@ class TestAsyncJobStoreTransitions(unittest.TestCase):
                     to_status="completed",
                     progress_percent=100,
                 )
+
+    def test_terminal_transitions_emit_deduplicable_in_app_notifications(self):
+        with tempfile.TemporaryDirectory(prefix="async-job-store-") as tmpdir:
+            store_path = Path(tmpdir) / "store.json"
+            store = AsyncJobStore(store_file=store_path)
+
+            completed_job = store.create_job(
+                request_payload={"query": "completed", "options": {}},
+                request_id="req-completed",
+                query="completed",
+                intelligence_mode="basic",
+            )
+            completed_job_id = str(completed_job["job_id"])
+            store.transition_job(job_id=completed_job_id, to_status="running", progress_percent=5)
+            final_result = store.create_result(
+                job_id=completed_job_id,
+                result_payload={"ok": True},
+                result_kind="final",
+            )
+            store.transition_job(
+                job_id=completed_job_id,
+                to_status="completed",
+                progress_percent=100,
+                result_id=str(final_result["result_id"]),
+            )
+
+            failed_job = store.create_job(
+                request_payload={"query": "failed", "options": {}},
+                request_id="req-failed",
+                query="failed",
+                intelligence_mode="basic",
+            )
+            failed_job_id = str(failed_job["job_id"])
+            store.transition_job(job_id=failed_job_id, to_status="running", progress_percent=5)
+            store.transition_job(
+                job_id=failed_job_id,
+                to_status="failed",
+                progress_percent=5,
+                error_code="internal",
+                error_message="boom",
+                retry_hint="retry_with_backoff",
+            )
+
+            completed_notifications = store.list_notifications(completed_job_id, channel="in_app")
+            failed_notifications = store.list_notifications(failed_job_id, channel="in_app")
+
+            self.assertEqual(len(completed_notifications), 1)
+            self.assertEqual(len(failed_notifications), 1)
+
+            completed_row = completed_notifications[0]
+            failed_row = failed_notifications[0]
+
+            self.assertEqual(completed_row.get("template_key"), "async.job.completed")
+            self.assertEqual(failed_row.get("template_key"), "async.job.failed")
+            self.assertTrue(str(completed_row.get("dedupe_key") or ""))
+            self.assertTrue(str(failed_row.get("dedupe_key") or ""))
+            self.assertEqual(completed_row.get("payload_json", {}).get("status"), "completed")
+            self.assertEqual(failed_row.get("payload_json", {}).get("status"), "failed")
 
 
 class TestAsyncJobStoreRetentionCleanup(unittest.TestCase):

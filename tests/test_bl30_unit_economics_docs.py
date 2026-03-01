@@ -44,6 +44,7 @@ class TestBL30UnitEconomicsDocs(unittest.TestCase):
         allowed_next_steps = [
             "**Nächster Schritt:** oldest-first nächstes unblocked BL-30-Leaf in #106/#113 identifizieren (ggf. zuerst atomisieren), da #498 abgeschlossen ist und #106-Childs (#465/#466) aktuell gate-blocked sind.",
             "**Nächster Schritt:** BL-30-Follow-up #600 (oldest-first innerhalb der #594-Child-Work-Packages) umsetzen; danach #601/#602 und anschließend Parent #594/#577 finalisieren.",
+            "**Nächster Schritt:** BL-30-Follow-up #602 (oldest-first innerhalb der #594-Child-Work-Packages) umsetzen; danach Parent #594/#577 finalisieren.",
             "**Nächster Schritt:** keiner (BL-30 vollständig abgeschlossen).",
         ]
         self.assertTrue(

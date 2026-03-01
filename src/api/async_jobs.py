@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-_SCHEMA_VERSION = 2
+_SCHEMA_VERSION = 3
 _DEFAULT_STORE_FILE = "runtime/async_jobs/store.v1.json"
 _TERMINAL_STATES = {"completed", "failed", "canceled"}
 _ALLOWED_TRANSITIONS = {
@@ -67,7 +67,7 @@ def _as_retry_hint(value: Any) -> str | None:
 
 
 class AsyncJobStore:
-    """File-backed Store für `jobs`, `job_events` und `job_results`."""
+    """File-backed Store für `jobs`, `job_events`, `job_results` und `notifications`."""
 
     def __init__(self, *, store_file: str | Path):
         self._store_file = Path(store_file)
@@ -105,6 +105,7 @@ class AsyncJobStore:
             "jobs": {},
             "results": {},
             "events": {},
+            "notifications": {},
         }
 
     def _migrate_state(self, state: dict[str, Any]) -> dict[str, Any]:
@@ -114,7 +115,7 @@ class AsyncJobStore:
         if schema_version < 1:
             migrated["schema_version"] = 1
 
-        for key in ("jobs", "results", "events"):
+        for key in ("jobs", "results", "events", "notifications"):
             value = migrated.get(key)
             if not isinstance(value, dict):
                 migrated[key] = {}
@@ -178,6 +179,27 @@ class AsyncJobStore:
                         continue
                     row["result_seq"] = index
 
+        notifications = migrated["notifications"]
+        if isinstance(notifications, dict):
+            for notification_id, raw_notification in list(notifications.items()):
+                if not isinstance(raw_notification, dict):
+                    notifications[notification_id] = {}
+                    raw_notification = notifications[notification_id]
+
+                now = _utc_now_iso()
+                raw_notification.setdefault("notification_id", str(notification_id))
+                raw_notification.setdefault("job_id", "")
+                raw_notification.setdefault("channel", "in_app")
+                raw_notification.setdefault("template_key", "async.job.completed")
+                raw_notification.setdefault("delivery_status", "pending")
+                raw_notification.setdefault("attempt_count", 0)
+                raw_notification.setdefault("last_error", None)
+                raw_notification.setdefault("dedupe_key", "")
+                raw_notification.setdefault("scheduled_at", now)
+                raw_notification.setdefault("sent_at", None)
+                raw_notification.setdefault("created_at", now)
+                raw_notification.setdefault("payload_json", {})
+
         migrated["schema_version"] = _SCHEMA_VERSION
         return migrated
 
@@ -211,6 +233,58 @@ class AsyncJobStore:
         }
         events_by_job.append(event)
         return deepcopy(event)
+
+    def _upsert_terminal_notification_locked(
+        self,
+        *,
+        job: dict[str, Any],
+        terminal_status: str,
+    ) -> dict[str, Any]:
+        normalized_status = str(terminal_status or "").strip().lower()
+        if normalized_status not in {"completed", "failed"}:
+            raise ValueError("terminal_status must be one of {'completed', 'failed'}")
+
+        job_id = str(job.get("job_id") or "")
+        if not job_id:
+            raise ValueError("job_id missing for terminal notification")
+
+        channel = "in_app"
+        template_key = f"async.job.{normalized_status}"
+        dedupe_key = f"{job_id}:{channel}:{template_key}"
+
+        notifications_by_id = self._state.setdefault("notifications", {})
+        for row in notifications_by_id.values():
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("dedupe_key") or "") == dedupe_key:
+                return deepcopy(row)
+
+        now = _utc_now_iso()
+        notification_id = str(uuid.uuid4())
+        record = {
+            "notification_id": notification_id,
+            "job_id": job_id,
+            "channel": channel,
+            "template_key": template_key,
+            "delivery_status": "pending",
+            "attempt_count": 0,
+            "last_error": None,
+            "dedupe_key": dedupe_key,
+            "scheduled_at": now,
+            "sent_at": None,
+            "created_at": now,
+            "payload_json": {
+                "job_id": job_id,
+                "status": normalized_status,
+                "result_id": job.get("result_id"),
+                "progress_percent": int(job.get("progress_percent", 0) or 0),
+                "error_code": job.get("error_code"),
+                "retry_hint": job.get("retry_hint"),
+                "finished_at": job.get("finished_at"),
+            },
+        }
+        notifications_by_id[notification_id] = record
+        return deepcopy(record)
 
     @staticmethod
     def _default_job_record(
@@ -347,6 +421,12 @@ class AsyncJobStore:
 
             job["status"] = to_status
             job["updated_at"] = now
+
+            if to_status in {"completed", "failed"}:
+                self._upsert_terminal_notification_locked(
+                    job=job,
+                    terminal_status=to_status,
+                )
 
             payload = {
                 "status": to_status,
@@ -577,6 +657,34 @@ class AsyncJobStore:
         with self._lock:
             events = self._state["events"].get(job_id, [])
             return deepcopy(events)
+
+    def list_notifications(
+        self,
+        job_id: str,
+        *,
+        channel: str | None = None,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            normalized_job_id = str(job_id)
+            normalized_channel = str(channel).strip().lower() if channel else None
+            rows = [
+                deepcopy(row)
+                for row in self._state.get("notifications", {}).values()
+                if isinstance(row, dict)
+                and str(row.get("job_id") or "") == normalized_job_id
+                and (
+                    normalized_channel is None
+                    or str(row.get("channel") or "").strip().lower() == normalized_channel
+                )
+            ]
+            rows.sort(
+                key=lambda row: (
+                    str(row.get("created_at") or ""),
+                    str(row.get("notification_id") or ""),
+                ),
+                reverse=True,
+            )
+            return rows
 
     @staticmethod
     def _normalize_ttl_seconds(value: float | int | None, *, field_name: str) -> float | None:

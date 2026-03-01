@@ -53,7 +53,7 @@ class TestAsyncAnalyzeRuntimeSkeletonDocs(unittest.TestCase):
         self.assertIn("#593 abgeschlossen", backlog)
         self.assertIn("#599 abgeschlossen", backlog)
         self.assertIn("#600 abgeschlossen", backlog)
-        self.assertIn("BL-30-Follow-up #601", backlog)
+        self.assertIn("BL-30-Follow-up #602", backlog)
         self.assertIn("docs/api/async-analyze-worker-pipeline-v1.md", backlog)
         self.assertIn("docs/api/async-retention-cleanup-v1.md", backlog)
 
