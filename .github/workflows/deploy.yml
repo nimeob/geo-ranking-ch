@@ -101,7 +101,9 @@ jobs:
           docker push "${API_IMAGE_URI}"
 
           echo "Building UI image ${UI_IMAGE_URI}"
-          docker build -f Dockerfile.ui -t "${UI_IMAGE_URI}" .
+          docker build -f Dockerfile.ui \
+            --build-arg APP_VERSION="${IMAGE_TAG}" \
+            -t "${UI_IMAGE_URI}" .
           docker push "${UI_IMAGE_URI}"
 
           echo "api_image_uri=${API_IMAGE_URI}" >> "$GITHUB_OUTPUT"
@@ -126,6 +128,9 @@ jobs:
             local image="$3"
             local outvar="$4"
 
+            local app_version="${GITHUB_SHA::7}"
+            local git_sha="${GITHUB_SHA}"
+
             local current_taskdef_arn
             current_taskdef_arn=$(aws ecs describe-services \
               --cluster "$ECS_CLUSTER" \
@@ -137,7 +142,11 @@ jobs:
               --task-definition "$current_taskdef_arn" \
               --query 'taskDefinition' > taskdef.json
 
-            jq --arg CONTAINER "$container" --arg IMAGE "$image" '
+            jq \
+              --arg CONTAINER "$container" \
+              --arg IMAGE "$image" \
+              --arg APP_VERSION "$app_version" \
+              --arg GIT_SHA "$git_sha" '
               del(
                 .taskDefinitionArn,
                 .revision,
@@ -149,7 +158,21 @@ jobs:
               )
               | .containerDefinitions = (
                   .containerDefinitions
-                  | map(if .name == $CONTAINER then .image = $IMAGE else . end)
+                  | map(
+                      if .name == $CONTAINER then
+                        .image = $IMAGE
+                        | .environment = (
+                            (.environment // [])
+                            | map(select(.name != "APP_VERSION" and .name != "GIT_SHA"))
+                            + [
+                                {"name": "APP_VERSION", "value": $APP_VERSION},
+                                {"name": "GIT_SHA", "value": $GIT_SHA}
+                              ]
+                          )
+                      else
+                        .
+                      end
+                    )
                 )
             ' taskdef.json > taskdef-new.json
 
