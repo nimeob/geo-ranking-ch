@@ -161,6 +161,7 @@ Technische Details: [`docs/api/deep-mode-contract-v1.md`](api/deep-mode-contract
 ### Referenzen
 
 - Vertiefung Datenmodell + Ownership-Regeln: [`docs/GTM_TO_DB_ARCHITECTURE_V1.md`](GTM_TO_DB_ARCHITECTURE_V1.md)
+- Datenmodell-Details (Entities/Constraints/ERD): [`docs/DATA_MODEL_v1.md`](DATA_MODEL_v1.md)
 - Billing-/Entitlement-Lifecycle: [`docs/api/entitlement-billing-lifecycle-v1.md`](api/entitlement-billing-lifecycle-v1.md)
 - Async Analyze Domain-Design: [`docs/api/async-analyze-domain-design-v1.md`](api/async-analyze-domain-design-v1.md) (Issue-Cluster: #594, Leafs #600/#601/#602)
 
