@@ -583,7 +583,7 @@ Regelwerk:
 - **Priorität:** P3
 - **Aufwand:** L
 - **Abhängigkeiten:** BL-20 Forward-Compatibility (#6), Capability-/Entitlement-Bridge (#127)
-- **Status:** 🟡 in Umsetzung (2026-03-01, BL-30.1 und BL-30.3 abgeschlossen; BL-30.4 vollständig abgeschlossen mit wp1/#479, wp2/#480, wp3/#481 und wp4/#482; BL-30.5-Leafs #494/#495/#496/#498 abgeschlossen; BL-30.6-Leafs #502/#503/#504 abgeschlossen und Parent #113 finalisiert/geschlossen; BL-30.2-Leafs #465/#466 abgeschlossen, Parent-Sync #106/#128 noch offen)
+- **Status:** ✅ abgeschlossen (2026-03-01, BL-30.1 bis BL-30.6 inkl. BL-30.2-Leafs #465/#466 sowie Parent-Sync #106/#128 abgeschlossen)
 - **Ziel:** GTM-validierte Monetarisierungs-/Packaging-Linie mit sauberer technischer Entitlement-Übergabe aufbauen.
 - **Work-Packages (BL-30.1 Parent #105):**
   - [x] #458 — BL-30.1.wp1 Pricing-Tier-/Limit-Matrix v1 inkl. Capability-Gates (abgeschlossen 2026-03-01)
@@ -624,6 +624,8 @@ Regelwerk:
   - ✅ #461 abgeschlossen: konsolidierter Entscheidungsabschluss in [`docs/BL30_1_CLOSEOUT_V1.md`](BL30_1_CLOSEOUT_V1.md) dokumentiert (Primärkandidat `CAND-API-PRO-390`, Sekundärkandidat `CAND-BIZ-API-890`) und BL-30.2-Handover via Follow-up-Issues #465/#466 plus Parent-Sync in #106 vorbereitet.
   - ✅ #465 abgeschlossen: technischer Entitlement-Contract v1 in [`docs/api/bl30-entitlement-contract-v1.md`](api/bl30-entitlement-contract-v1.md) ergänzt (normativer Gate-Katalog `entitlement.requests.monthly`, `entitlement.requests.rate_limit`, `capability.explainability.level`, `capability.gui.access`, `capability.trace.debug`), additive API-/UI-Auswirkungen und Forward-Compatibility-Guardrails (#6/#127) konsolidiert sowie über `tests/test_bl30_entitlement_contract_docs.py` regressionsgesichert.
   - ✅ #466 abgeschlossen: Checkout-/Lifecycle-Contract v1 in [`docs/api/bl30-checkout-lifecycle-contract-v1.md`](api/bl30-checkout-lifecycle-contract-v1.md) ergänzt (kanonisches Event-Mapping für `created|upgraded|downgraded|canceled`, Idempotenz-Key `provider:<provider_name>:event_id:<id>`, Out-of-order-Schutz, API-Key-Provisioning-/Rotation-Policy), additive API/UI-Statuswirkung dokumentiert und via `tests/test_bl30_checkout_lifecycle_contract_docs.py` regressionsgesichert.
+  - ✅ #106 abgeschlossen: BL-30.2 Parent-Checklist auf vollständig erledigt synchronisiert (`#465` + `#466`) und als abgeschlossener Later-Track geschlossen.
+  - ✅ #128 abgeschlossen: BL-30-Parent-Checklist finalisiert (`[x] #106`, Parent-DoD vollständig erfüllt) und Issue geordnet geschlossen.
   - ℹ️ Historischer Zwischenstand direkt nach #459/#460 (vor den später abgeschlossenen BL-30.5/30.6-Leafs): BL-30.2 war temporär gate-blocked; nach dokumentiertem GTM-Entscheid (`GTM-DEC-002`) wurde #465 oldest-first wieder aufgenommen.
   - ✅ #107 atomisiert und finalisiert: Work-Packages #468/#469/#470/#472/#473 vollständig abgeschlossen, Parent geschlossen und Parent-Sync in #128 fortgeschrieben (2026-03-01).
   - ✅ #108 atomisiert: Parent-Scope in die Leaf-Work-Packages #479/#480/#481/#482 zerlegt und Parent-Checklist synchronisiert (2026-03-01).
@@ -648,7 +650,7 @@ Regelwerk:
   - ✅ #470 abgeschlossen: Hypothesenblatt + Entitlement-/Quota-Kopplung + Transparenzrahmen in [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md) dokumentiert, GTM-Decision-Input in [`docs/testing/GTM_VALIDATION_DECISION_LOG.md`](testing/GTM_VALIDATION_DECISION_LOG.md) als `GTM-IN-30.3-001` verankert und durch `tests/test_bl30_deep_mode_addon_quota_hypotheses_docs.py` regressionsgesichert.
   - ✅ #472 abgeschlossen: Runtime-Orchestrator in `src/api/web_service.py` umgesetzt (Eligibility-Gate inkl. `requested/allowed/quota/budget`, deterministische Statusprojektion nach `result.status.capabilities.deep_mode` + `result.status.entitlements.deep_mode`), Design-Doku in [`docs/api/deep-mode-orchestration-guardrails-v1.md`](api/deep-mode-orchestration-guardrails-v1.md) auf Implementierungsstand ergänzt und Fallback-Matrix per `tests/test_bl30_deep_mode_runtime_orchestrator.py` abgesichert.
   - ✅ #473 abgeschlossen: Deep-Mode-Telemetrie im Analyze-Flow ergänzt (`api.deep_mode.gate_evaluated|execution.start|execution.retry|execution.abort|execution.end` inkl. Pflichtfelder `deep_*`, `retry_count`, `duration_ms`), Logging-Schema in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) verankert, operatives Nachweis-Runbook [`docs/testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md`](testing/DEEP_MODE_TRACE_EVIDENCE_RUNBOOK.md) + Beispielartefakt [`docs/testing/deep-mode-trace-evidence-sample.jsonl`](testing/deep-mode-trace-evidence-sample.jsonl) ergänzt und per `tests/test_bl30_deep_mode_telemetry_events.py` / `tests/test_bl30_deep_mode_telemetry_docs.py` regressionsgesichert.
-- **Nächster Schritt:** BL-30.2-Leafs (#465/#466) sind abgeschlossen; als nächster Move bleibt der Parent-Sync in #106 und #128 (Checklist/Closeout für den BL-30-Later-Track).
+- **Nächster Schritt:** keiner (BL-30 vollständig abgeschlossen).
 
 ### BL-31 — Zielbild Webinterface als 2-Container-Architektur (UI + API)
 - **Priorität:** P2
