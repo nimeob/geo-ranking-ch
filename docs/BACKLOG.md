@@ -22,16 +22,16 @@ Regelwerk:
 - (leer)
 
 ### Next
-- (leer)
+- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: Optionaler OpenClaw AWS-Alarm-Inbound via Webhook-Gate (Hostinger) (priority:P2, status:todo)
+- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P2, status:todo)
+- [#562](https://github.com/nimeob/geo-ranking-ch/issues/562) — CI: stündlicher Dev-Deploy fehlgeschlagen (priority:P2, status:todo)
 
 ### Later
-- [#1](https://github.com/nimeob/geo-ranking-ch/issues/1) — BL-16: Optionaler OpenClaw AWS-Alarm-Inbound via Webhook-Gate (Hostinger) (priority:P2, status:blocked)
 - [#520](https://github.com/nimeob/geo-ranking-ch/issues/520) — Korrektur-Workflow implementieren (neue Version, Original unverändert) (priority:P2, status:blocked)
 - [#521](https://github.com/nimeob/geo-ranking-ch/issues/521) — Pflichtfeld Korrekturgrund erzwingen (priority:P2, status:blocked)
 - [#522](https://github.com/nimeob/geo-ranking-ch/issues/522) — Lösch-Scheduler mit Vorankündigung implementieren (priority:P2, status:blocked)
 - [#523](https://github.com/nimeob/geo-ranking-ch/issues/523) — Hold-Flag pro Dokument implementieren (priority:P2, status:blocked)
 - [#531](https://github.com/nimeob/geo-ranking-ch/issues/531) — Monitoring aktivieren (Löschjobs/Hold-Bestand/Fehlerquote) (priority:P2, status:blocked)
-- [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P2, status:blocked)
 - [#528](https://github.com/nimeob/geo-ranking-ch/issues/528) — Go-Live-Testlauf durchführen (Policy/Korrektur/Export/Löschung/Hold) (priority:P3, status:blocked)
 - [#529](https://github.com/nimeob/geo-ranking-ch/issues/529) — Pre-Go-Live-Readiness-Review durchführen (priority:P3, status:blocked)
 - [#530](https://github.com/nimeob/geo-ranking-ch/issues/530) — Go-Live-Checkliste und Entscheidungsmeeting durchführen (priority:P3, status:blocked)
