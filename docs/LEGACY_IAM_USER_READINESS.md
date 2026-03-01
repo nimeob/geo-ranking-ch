@@ -281,6 +281,24 @@ Temporäre Ausnahme-Klassifikation (wp2, evidenzpflichtig):
 | Follow-up | #570 |
 | Evidenz | `artifacts/bl15/runtime-audit-20260301-default.log`, `artifacts/bl15/runtime-audit-20260301-assumerole.log`, `artifacts/bl17/oidc-only-guard-20260301-default.json`, `artifacts/bl17/oidc-only-guard-20260301-assumerole.json` |
 
+### BL-15.r2.wp3-Entscheid (2026-03-01, #567)
+
+Neubewertung des bisherigen Legacy-Key-Disable-Canary im Kontext der bestätigten Zielarchitektur:
+
+- **Entscheid:** Disable-Canary ist für BL-15.r2 **kein Pflicht-Blocker** und wird im Standardpfad als **entfällt** bewertet.
+- **Begründung:** Der Canary war an einen Decommission-/Runtime-OIDC-Pfad gekoppelt, der für OpenClaw-Runtime nicht mehr Zielzustand ist (Runtime bleibt Key/Secret; OIDC bleibt Deploy-only).
+- **Governance-Regel:** Ein Disable-Canary bleibt als optionaler Härtungs-/Failover-Test zulässig, aber nur bei explizitem Bedarf, dokumentiertem Nutzen und vorbereitetem Rollback.
+
+Entscheidungsmatrix für die Praxis:
+
+| Entscheidungspfad | Trigger | Mindestnachweis |
+|---|---|---|
+| `entfällt` (Default) | Kein akuter Security-/Incident-Treiber für Disable-Experiment | Verweis auf diese Policy-Entscheidung + Parent-Sync (#564) |
+| `optional durchführen` | Konkreter Bedarf (z. B. Incident-Learning, Audit-Auflage, gezielter Failover-Test) | Ziel/Hypothese, Wartungsfenster falls persistente Startpfad-Änderung nötig, Rollback-Plan, Evidenzpfade |
+
+Konsequenz für BL-15.r2:
+- Das offene Abschlusskriterium liegt weiterhin bei externer Consumer-Zuordnung/Governance (insb. Gate G3), **nicht** bei einem verpflichtenden Disable-Canary-Lauf.
+
 ### Read-only Abschluss-Recheck (2026-03-01, BL-15.r2.wp2.c)
 
 Reproduzierbarer Recheck mit aktueller Zielarchitektur (**Runtime = Key/Secret als bewusste Policy**):
