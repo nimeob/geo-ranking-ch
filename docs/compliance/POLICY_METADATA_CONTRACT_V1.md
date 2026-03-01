@@ -47,6 +47,22 @@ Die Artefakte sind so gewählt, dass sowohl gültige (`URL`, `issue:`-Referenz) 
 - Regressionstests (Modell): `tests/test_compliance_policy_metadata_model.py`
 - Regressionstests (Contract + Beispiele): `tests/test_compliance_policy_metadata_contract_docs.py`
 
+## Betriebs-/Rollout-Hinweise (v1)
+
+1. **Policy-Änderung vorbereiten:** Metadaten anhand des Contract-Schemas erstellen (mindestens `policy_id`, `version`, `begruendung`, `wirksam_ab`, `impact_referenz`).
+2. **Lokale Validierung durchführen:** Beispiel- oder Produktivpayload gegen `src/compliance/policy_metadata.py` prüfen (direkt oder über Tests).
+3. **Doku-/Backlog-Sync sicherstellen:** Änderungen in `docs/compliance/POLICY_STANDARD_V1.md`, `docs/BACKLOG.md` und betroffenen BL-Items nachvollziehbar verlinken.
+4. **Regression laufen lassen:**
+
+```bash
+python3 -m pytest -q \
+  tests/test_compliance_policy_metadata_model.py \
+  tests/test_compliance_policy_metadata_contract_docs.py \
+  tests/test_compliance_policy_metadata_rollout_sync_docs.py
+```
+
+5. **Merge-Gate:** Kein Merge ohne grünen Doku-/Contract-Regressionen und referenzierte Nachweisartefakte.
+
 ## Abgrenzung / Nicht-Ziele
 
 - Dieser Contract deckt bewusst nur den technischen Kern-Envelope für Runtime-Validierung ab.
@@ -55,4 +71,4 @@ Die Artefakte sind so gewählt, dass sowohl gültige (`URL`, `issue:`-Referenz) 
 ## Nachweis
 
 - Backlog-Sync: `docs/BACKLOG.md`
-- Claim-/Umsetzungshistorie: `https://github.com/nimeob/geo-ranking-ch/issues/539`
+- Claim-/Umsetzungshistorie: `https://github.com/nimeob/geo-ranking-ch/issues/539`, `https://github.com/nimeob/geo-ranking-ch/issues/540`

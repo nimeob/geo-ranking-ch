@@ -34,7 +34,7 @@ Er stellt sicher, dass alle Muss-Kriterien aus Governance, Runtime-Controls und 
 | MCS-AT-007 | Backup/Restore-Guideline mit RPO/RTO und Nachweisformat ist vorhanden | `docs/compliance/BACKUP_RESTORE_GUIDELINE_V1.md` / #526 | automatisiert (`tests/test_compliance_backup_restore_guideline_docs.py`) | Guideline-Marker + Backlog-Sync erfüllt |
 | MCS-AT-008 | Policy-Metadatenmodell v1 validiert Pflichtfelder robust | `src/compliance/policy_metadata.py` / #538 | automatisiert (`tests/test_compliance_policy_metadata_model.py`) | Validierung akzeptiert gültige Payloads und lehnt ungültige strikt ab |
 | MCS-AT-009 | Policy-Metadaten-Contract/Doku-Artefakte vollständig und konsistent | `docs/compliance/POLICY_METADATA_CONTRACT_V1.md` + Beispiele / #539 (Child aus #519) | automatisiert (`tests/test_compliance_policy_metadata_contract_docs.py`) | Contract- und Beispielartefakte liegen vollständig vor |
-| MCS-AT-010 | Backlog-/Rollout-Sync für Policy-Metadaten ist dokumentiert | #540 (Child aus #519) | gate-vorbereitend (nach Umsetzung #540 automatisiert) | BL-342-Status und Rollout-Hinweise sind synchronisiert |
+| MCS-AT-010 | Backlog-/Rollout-Sync für Policy-Metadaten ist dokumentiert | `docs/BACKLOG.md` + `docs/compliance/POLICY_METADATA_CONTRACT_V1.md` / #540 (Child aus #519) | automatisiert (`tests/test_compliance_policy_metadata_rollout_sync_docs.py`) | BL-342-Status und Rollout-Hinweise sind synchronisiert |
 
 ## Automatisierter Abnahmelauf (Baseline)
 
@@ -52,6 +52,7 @@ python3 -m unittest \
   tests.test_compliance_backup_restore_guideline_docs \
   tests.test_compliance_policy_metadata_model \
   tests.test_compliance_policy_metadata_contract_docs \
+  tests.test_compliance_policy_metadata_rollout_sync_docs \
   tests.test_compliance_acceptance_test_catalog_docs
 ```
 
