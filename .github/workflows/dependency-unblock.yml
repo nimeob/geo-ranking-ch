@@ -1,0 +1,121 @@
+name: dependency-unblock
+
+on:
+  issues:
+    types: [opened, reopened, closed, edited, labeled, unlabeled]
+  issue_comment:
+    types: [created, edited, deleted]
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  issues: write
+
+jobs:
+  unblock-when-dependencies-closed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Unblock issues when all referenced dependencies are closed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const allOpen = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const blocked = allOpen
+              .filter((i) => !i.pull_request)
+              .map((i) => ({
+                issue: i,
+                labels: (i.labels || []).map((l) => (typeof l === 'string' ? l : l.name)),
+              }))
+              .filter((x) => x.labels.includes('status:blocked') && x.labels.includes('depends-on'));
+
+            if (blocked.length === 0) {
+              core.info('No blocked dependency issues found.');
+              return;
+            }
+
+            // cache states to avoid repeated API calls
+            const stateCache = new Map();
+            const getIssueState = async (number) => {
+              if (stateCache.has(number)) return stateCache.get(number);
+              try {
+                const r = await github.rest.issues.get({ owner, repo, issue_number: number });
+                const s = r.data.state;
+                stateCache.set(number, s);
+                return s;
+              } catch (e) {
+                core.warning(`Could not fetch #${number}: ${e.message}`);
+                stateCache.set(number, 'open');
+                return 'open';
+              }
+            };
+
+            const depRegex = /#(\d+)/g;
+
+            for (const item of blocked) {
+              const number = item.issue.number;
+              let text = `${item.issue.title}\n${item.issue.body || ''}`;
+
+              // include comments (where dependency notes are often documented)
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: number,
+                per_page: 100,
+              });
+              for (const c of comments) text += `\n${c.body || ''}`;
+
+              const deps = new Set();
+              let m;
+              while ((m = depRegex.exec(text)) !== null) {
+                const n = Number(m[1]);
+                if (n && n !== number) deps.add(n);
+              }
+
+              if (deps.size === 0) {
+                core.info(`#${number}: no dependency references found, skip.`);
+                continue;
+              }
+
+              const states = [];
+              for (const d of deps) {
+                states.push({ dep: d, state: await getIssueState(d) });
+              }
+
+              const openDeps = states.filter((x) => x.state !== 'closed');
+              if (openDeps.length > 0) {
+                core.info(`#${number}: still blocked by ${openDeps.map((x) => `#${x.dep}`).join(', ')}`);
+                continue;
+              }
+
+              // all dependencies closed -> unblock
+              const newLabels = Array.from(new Set([
+                ...item.labels.filter((l) => l !== 'status:blocked'),
+                'status:todo',
+              ]));
+
+              await github.rest.issues.setLabels({
+                owner,
+                repo,
+                issue_number: number,
+                labels: newLabels,
+              });
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: number,
+                body: `✅ Automatisch entblockt: Alle referenzierten Abhängigkeiten sind geschlossen (${Array.from(deps).map((d) => `#${d}`).join(', ')}). Status wurde auf \`status:todo\` gesetzt.`,
+              });
+
+              core.info(`#${number}: unblocked.`);
+            }
