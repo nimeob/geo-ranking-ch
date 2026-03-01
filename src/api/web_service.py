@@ -1267,6 +1267,7 @@ def _build_cors_headers(
     *,
     allowed_origins: set[str],
     include_preflight: bool,
+    allow_methods: str = _CORS_ALLOW_METHODS,
 ) -> dict[str, str] | None:
     """Ermittelt CORS-Response-Header.
 
@@ -1291,7 +1292,7 @@ def _build_cors_headers(
     if include_preflight:
         headers.update(
             {
-                "Access-Control-Allow-Methods": _CORS_ALLOW_METHODS,
+                "Access-Control-Allow-Methods": allow_methods,
                 "Access-Control-Allow-Headers": _CORS_ALLOW_HEADERS,
                 "Access-Control-Max-Age": _CORS_MAX_AGE_SECONDS,
             }
@@ -2040,6 +2041,15 @@ class Handler(BaseHTTPRequestHandler):
             self.headers.get("Origin", ""),
             allowed_origins=_resolve_cors_allow_origins(),
             include_preflight=include_preflight,
+            allow_methods=_CORS_ALLOW_METHODS,
+        )
+
+    def _cors_headers_for_debug_trace(self, *, include_preflight: bool) -> dict[str, str] | None:
+        return _build_cors_headers(
+            self.headers.get("Origin", ""),
+            allowed_origins=_resolve_cors_allow_origins(),
+            include_preflight=include_preflight,
+            allow_methods="GET, OPTIONS",
         )
 
     def _send_external_direct_login_disabled(
@@ -2080,6 +2090,8 @@ class Handler(BaseHTTPRequestHandler):
         self._begin_request_lifecycle(method="GET", request_path=request_path, request_id=request_id)
 
         try:
+            self._cors_response_headers = None
+
             if _is_external_direct_login_path(request_path):
                 self._send_external_direct_login_disabled(
                     request_id=request_id,
@@ -2155,6 +2167,21 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             if request_path == "/debug/trace":
+                cors_headers = self._cors_headers_for_debug_trace(include_preflight=False)
+                if cors_headers is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "cors_origin_not_allowed",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.FORBIDDEN,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                    return
+                self._cors_response_headers = cors_headers
+
                 if not _trace_debug_enabled():
                     self._send_json(
                         {
@@ -2539,7 +2566,7 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            if request_path != "/analyze":
+            if request_path not in {"/analyze", "/debug/trace"}:
                 self._send_json(
                     {"ok": False, "error": "not_found", "request_id": request_id},
                     status=HTTPStatus.NOT_FOUND,
@@ -2547,7 +2574,10 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            cors_headers = self._cors_headers_for_analyze(include_preflight=True)
+            if request_path == "/debug/trace":
+                cors_headers = self._cors_headers_for_debug_trace(include_preflight=True)
+            else:
+                cors_headers = self._cors_headers_for_analyze(include_preflight=True)
             if cors_headers is None:
                 self._send_json(
                     {
