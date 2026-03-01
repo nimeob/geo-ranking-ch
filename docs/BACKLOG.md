@@ -644,10 +644,12 @@
 - **Work-Packages (Parent #421):**
   - [x] #422 — BL-421.wp1 Workstream-Balance Audit als Script + Test (abgeschlossen 2026-03-01)
   - [x] #423 — BL-421.wp2 Development-Catch-up-Issues oldest-first freigeben (abgeschlossen 2026-03-01)
-  - [ ] #424 — BL-421.wp3 Parent-Tracking + BACKLOG-Sync für Workstream-Balance abschließen
+  - [x] #424 — BL-421.wp3 Parent-Tracking + BACKLOG-Sync für Workstream-Balance abschließen (abgeschlossen 2026-03-01)
 - **Fortschritt (2026-03-01):**
   - ✅ #422 abgeschlossen: `scripts/github_repo_crawler.py --print-workstream-balance` unterstützt jetzt optional persistente Artefakt-Ausgabe via `--output-file` (relative Pfade ab Repo-Root), inklusive neuer Regression `test_print_workstream_balance_report_json_writes_output_file` in `tests/test_github_repo_crawler.py` und nachgezogener Nutzungsdoku in `docs/WORKSTREAM_BALANCE_BASELINE.md`.
   - ✅ #423 abgeschlossen: aktuelle Baseline per `python3 scripts/github_repo_crawler.py --print-workstream-balance --format markdown` verifiziert (Dev=11, Doku=14, Testing=14; Catch-up +1 Dev), oldest-first auf das älteste unblocked Development-Issue #410 angewendet und daraus das atomare Follow-up #426 (`BL-340.1.wp1`) mit klarer DoD/Abhängigkeit erstellt.
+  - ✅ #424 abgeschlossen: Parent-Tracking #421 und BACKLOG-Status synchronisiert; Restarbeit explizit auf das offene Development-Follow-up #426 gelegt (Next Step für sichtbare Gap-Reduktion).
+- **Nächster Schritt (oldest-first, unblocked):** #426 claimen/umsetzen, danach Balance erneut messen und Parent #421 entsprechend fortschreiben.
 
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
