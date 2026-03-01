@@ -84,6 +84,7 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn("geo-ranking.ch GUI MVP", body)
         self.assertIn('id="gui-shell-nav"', body)
         self.assertIn('id="analyze-form"', body)
+        self.assertIn('id="trace-debug"', body)
         self.assertIn("Version test-gui-v1", body)
 
     def test_gui_shell_exposes_state_machine_markers(self):
@@ -110,6 +111,17 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('ui.api.request.end', body)
         self.assertIn('headers["X-Request-Id"] = requestId;', body)
         self.assertIn('headers["X-Session-Id"] = uiSessionId;', body)
+        self.assertIn('id="trace-debug-form"', body)
+        self.assertIn('id="trace-phase-pill"', body)
+        self.assertIn('id="trace-timeline"', body)
+        self.assertIn('const TRACE_DEBUG_ENDPOINT = "/debug/trace";', body)
+        self.assertIn('function restoreTraceDeepLinkInput()', body)
+        self.assertIn('function buildTraceLookupUrl(requestId)', body)
+        self.assertIn('function normalizeTraceEvents(rawEvents)', body)
+        self.assertIn('function renderTraceState()', body)
+        self.assertIn('ui.trace.request.start', body)
+        self.assertIn('ui.trace.request.end', body)
+        self.assertIn('startTraceLookup(deepLinkTraceRequestId, "trace_deep_link")', body)
 
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
         status, body, _ = _http_text(f"{self.base_url}//gui///?probe=1")

@@ -96,6 +96,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn("geo-ranking.ch GUI MVP", body)
         self.assertIn("Version ui-test-v1", body)
         self.assertIn('fetch("https://api.example.test/analyze"', body)
+        self.assertIn('const TRACE_DEBUG_ENDPOINT = "https://api.example.test/debug/trace";', body)
 
     def test_unknown_endpoint_returns_not_found_payload(self):
         status, body, _ = _http(f"{self.base_url}/not-here")
