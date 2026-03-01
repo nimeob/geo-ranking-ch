@@ -51,7 +51,7 @@ SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
 _CORS_ALLOW_ORIGINS_ENV = "CORS_ALLOW_ORIGINS"
 _CORS_ALLOW_METHODS = "POST, OPTIONS"
-_CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Request-Id, X-Session-Id"
+_CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Org-Id, X-Tenant-Id"
 _CORS_MAX_AGE_SECONDS = "600"
 _TOP_LEVEL_STATUS_KEYS = {
     "confidence",
@@ -1373,6 +1373,52 @@ def _extract_async_mode_request(options: dict[str, Any]) -> bool:
     raise ValueError("options.async_mode.requested must be a boolean")
 
 
+def _normalize_async_org_id(raw_value: Any) -> str:
+    value = str(raw_value or "").strip()
+    if not value:
+        return "default-org"
+    if len(value) > 128:
+        raise ValueError("x-org-id header is too long")
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", value):
+        raise ValueError("x-org-id header contains unsupported characters")
+    return value
+
+
+def _resolve_result_projection_mode(raw_value: str | None) -> str:
+    mode = str(raw_value or "latest").strip().lower() or "latest"
+    if mode not in {"latest", "requested"}:
+        raise ValueError("view must be one of ['latest', 'requested']")
+    return mode
+
+
+def _select_async_result_snapshot(
+    *,
+    requested_result: dict[str, Any],
+    all_results_for_job: list[dict[str, Any]],
+    projection_mode: str,
+) -> dict[str, Any]:
+    if projection_mode == "requested":
+        return deepcopy(requested_result)
+
+    if not all_results_for_job:
+        return deepcopy(requested_result)
+
+    ordered = sorted(
+        [row for row in all_results_for_job if isinstance(row, dict)],
+        key=lambda row: (
+            int(row.get("result_seq", 0) or 0),
+            str(row.get("created_at") or ""),
+            str(row.get("result_id") or ""),
+        ),
+    )
+    if not ordered:
+        return deepcopy(requested_result)
+
+    final_results = [row for row in ordered if str(row.get("result_kind") or "") == "final"]
+    selected = final_results[-1] if final_results else ordered[-1]
+    return deepcopy(selected)
+
+
 def _project_async_job_status(job: dict[str, Any], *, include_events: bool = False) -> dict[str, Any]:
     projected = {
         "job_id": job.get("job_id"),
@@ -2006,6 +2052,37 @@ class Handler(BaseHTTPRequestHandler):
                 return request_id
         return f"req-{uuid.uuid4().hex[:16]}"
 
+    def _request_org_id(self) -> str:
+        raw_candidates = (
+            self.headers.get("X-Org-Id", ""),
+            self.headers.get("X_Org_Id", ""),
+            self.headers.get("X-Tenant-Id", ""),
+            self.headers.get("X_Tenant_Id", ""),
+        )
+        for raw_value in raw_candidates:
+            if str(raw_value or "").strip():
+                return _normalize_async_org_id(raw_value)
+        return "default-org"
+
+    @staticmethod
+    def _job_visible_for_org(job_record: dict[str, Any], request_org_id: str) -> bool:
+        job_org_id = _normalize_async_org_id(job_record.get("org_id"))
+        return job_org_id == request_org_id
+
+    def _send_not_found(self, *, request_id: str, message: str | None = None) -> None:
+        payload: dict[str, Any] = {
+            "ok": False,
+            "error": "not_found",
+            "request_id": request_id,
+        }
+        if message:
+            payload["message"] = message
+        self._send_json(
+            payload,
+            status=HTTPStatus.NOT_FOUND,
+            request_id=request_id,
+        )
+
     def _begin_request_lifecycle(self, *, method: str, request_path: str, request_id: str) -> None:
         self._request_lifecycle_started_at = time.perf_counter()
         self._request_lifecycle_method = str(method or "").strip().upper() or "GET"
@@ -2246,29 +2323,27 @@ class Handler(BaseHTTPRequestHandler):
             if request_path.startswith("/analyze/jobs/"):
                 job_id = request_path.removeprefix("/analyze/jobs/").strip()
                 if not job_id or "/" in job_id:
+                    self._send_not_found(request_id=request_id)
+                    return
+
+                try:
+                    request_org_id = self._request_org_id()
+                except ValueError as exc:
                     self._send_json(
                         {
                             "ok": False,
-                            "error": "not_found",
+                            "error": "bad_request",
+                            "message": str(exc),
                             "request_id": request_id,
                         },
-                        status=HTTPStatus.NOT_FOUND,
+                        status=HTTPStatus.BAD_REQUEST,
                         request_id=request_id,
                     )
                     return
 
                 job_record = _ASYNC_JOB_STORE.get_job(job_id)
-                if job_record is None:
-                    self._send_json(
-                        {
-                            "ok": False,
-                            "error": "not_found",
-                            "message": "unknown job_id",
-                            "request_id": request_id,
-                        },
-                        status=HTTPStatus.NOT_FOUND,
-                        request_id=request_id,
-                    )
+                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                    self._send_not_found(request_id=request_id, message="unknown job_id")
                     return
 
                 self._send_json(
@@ -2284,38 +2359,54 @@ class Handler(BaseHTTPRequestHandler):
             if request_path.startswith("/analyze/results/"):
                 result_id = request_path.removeprefix("/analyze/results/").strip()
                 if not result_id or "/" in result_id:
+                    self._send_not_found(request_id=request_id)
+                    return
+
+                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                try:
+                    request_org_id = self._request_org_id()
+                    projection_mode = _resolve_result_projection_mode(query_params.get("view", [""])[0])
+                except ValueError as exc:
                     self._send_json(
                         {
                             "ok": False,
-                            "error": "not_found",
+                            "error": "bad_request",
+                            "message": str(exc),
                             "request_id": request_id,
                         },
-                        status=HTTPStatus.NOT_FOUND,
+                        status=HTTPStatus.BAD_REQUEST,
                         request_id=request_id,
                     )
                     return
 
-                result_record = _ASYNC_JOB_STORE.get_result(result_id)
-                if result_record is None:
-                    self._send_json(
-                        {
-                            "ok": False,
-                            "error": "not_found",
-                            "message": "unknown result_id",
-                            "request_id": request_id,
-                        },
-                        status=HTTPStatus.NOT_FOUND,
-                        request_id=request_id,
-                    )
+                requested_result = _ASYNC_JOB_STORE.get_result(result_id)
+                if requested_result is None:
+                    self._send_not_found(request_id=request_id, message="unknown result_id")
                     return
+
+                job_id = str(requested_result.get("job_id") or "")
+                job_record = _ASYNC_JOB_STORE.get_job(job_id) if job_id else None
+                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    return
+
+                all_results_for_job = _ASYNC_JOB_STORE.list_results(job_id)
+                selected_result = _select_async_result_snapshot(
+                    requested_result=requested_result,
+                    all_results_for_job=all_results_for_job,
+                    projection_mode=projection_mode,
+                )
 
                 self._send_json(
                     {
                         "ok": True,
-                        "result_id": result_record.get("result_id"),
-                        "job_id": result_record.get("job_id"),
-                        "result_kind": result_record.get("result_kind"),
-                        "result": result_record.get("result_payload", {}),
+                        "result_id": selected_result.get("result_id"),
+                        "job_id": selected_result.get("job_id"),
+                        "result_kind": selected_result.get("result_kind"),
+                        "requested_result_id": requested_result.get("result_id"),
+                        "requested_result_kind": requested_result.get("result_kind"),
+                        "projection_mode": projection_mode,
+                        "result": selected_result.get("result_payload", {}),
                         "request_id": request_id,
                     },
                     request_id=request_id,
@@ -2633,12 +2724,14 @@ class Handler(BaseHTTPRequestHandler):
                 timeout = min(timeout, max_timeout)
 
                 if async_mode_requested:
+                    request_org_id = self._request_org_id()
                     _ensure_async_runtime_started()
                     created_job = _ASYNC_JOB_STORE.create_job(
                         request_payload=data,
                         request_id=request_id,
                         query=query,
                         intelligence_mode=mode,
+                        org_id=request_org_id,
                     )
                     created_job_id = str(created_job.get("job_id") or "")
                     if created_job_id:

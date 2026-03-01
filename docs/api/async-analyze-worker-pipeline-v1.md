@@ -55,3 +55,10 @@ Für E2E-/Smoke-Zwecke (bei `ENABLE_E2E_FAULT_INJECTION=1`):
   - deterministischer `failed`-Pfad inkl. Retry-Hinweis
 - `tests/test_async_analyze_runtime_skeleton_docs.py`
   - Marker-Checks für Doku-/Backlog-Sync
+
+## Follow-up nach v1
+
+- #599 ergänzt den produktionsnahen Read-Pfad für Result-Permalinks:
+  - Tenant-Guard über `X-Org-Id`/`X-Tenant-Id` auf Job-/Result-Reads
+  - Snapshot-Projektion (`view=latest|requested`) für Result-Pages
+  - Details in [`docs/api/async-result-permalink-tenant-guard-v1.md`](async-result-permalink-tenant-guard-v1.md)

@@ -48,10 +48,11 @@ class TestAsyncAnalyzeRuntimeSkeletonDocs(unittest.TestCase):
         ):
             self.assertIn(marker, content, msg=f"Pflichtmarker fehlt: {marker}")
 
-    def test_backlog_tracks_issue_593_completion_and_next_step(self):
+    def test_backlog_tracks_issue_593_and_599_progress(self):
         backlog = (REPO_ROOT / "docs" / "BACKLOG.md").read_text(encoding="utf-8")
         self.assertIn("#593 abgeschlossen", backlog)
-        self.assertIn("BL-30-Follow-up #594", backlog)
+        self.assertIn("#599 abgeschlossen", backlog)
+        self.assertIn("BL-30-Follow-up #600", backlog)
         self.assertIn("docs/api/async-analyze-worker-pipeline-v1.md", backlog)
 
 
