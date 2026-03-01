@@ -635,6 +635,19 @@
   - ✅ Parent #409 abgeschlossen/geschlossen: Work-Package-Checklist + Akzeptanzkriterien synchronisiert.
 - **Nächster Schritt (oldest-first, unblocked):** aktuell kein weiteres unblocked Child in BL-340 offen.
 
+### BL-421 — Workstream-Balance Catch-up (Crawler P0)
+- **Priorität:** P0
+- **Aufwand:** S
+- **Abhängigkeiten:** keine
+- **Status:** 🟡 in Umsetzung (2026-03-01, Parent #421)
+- **Ziel:** Reproduzierbare Balance-Evidenz liefern und daraus konkrete Development-Catch-up-Tasks + Parent-Sync ableiten.
+- **Work-Packages (Parent #421):**
+  - [x] #422 — BL-421.wp1 Workstream-Balance Audit als Script + Test (abgeschlossen 2026-03-01)
+  - [ ] #423 — BL-421.wp2 Development-Catch-up-Issues oldest-first freigeben
+  - [ ] #424 — BL-421.wp3 Parent-Tracking + BACKLOG-Sync für Workstream-Balance abschließen
+- **Fortschritt (2026-03-01):**
+  - ✅ #422 abgeschlossen: `scripts/github_repo_crawler.py --print-workstream-balance` unterstützt jetzt optional persistente Artefakt-Ausgabe via `--output-file` (relative Pfade ab Repo-Root), inklusive neuer Regression `test_print_workstream_balance_report_json_writes_output_file` in `tests/test_github_repo_crawler.py` und nachgezogener Nutzungsdoku in `docs/WORKSTREAM_BALANCE_BASELINE.md`.
+
 ### BL-21 — Tech Debt Reset vor Go-Live (Legacy-Cut)
 - **Priorität:** P1
 - **Aufwand:** L

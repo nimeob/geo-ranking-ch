@@ -241,6 +241,34 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
         self.assertEqual(payload["counts"]["testing"], 1)
         self.assertFalse(payload["needs_catchup"])
 
+    def test_print_workstream_balance_report_json_writes_output_file(self):
+        issues = [
+            {"title": "Implement API feature", "body": "", "labels": []},
+            {"title": "Docs guide", "body": "", "labels": []},
+            {"title": "Regression test", "body": "", "labels": []},
+        ]
+
+        with TemporaryDirectory() as tmpdir:
+            output_file = Path(tmpdir) / "workstream-balance.json"
+
+            with patch.object(crawler, "get_open_issues_for_workstream_balance", return_value=issues):
+                with patch.object(crawler, "now_iso", return_value="2026-02-26T21:11:00+00:00"):
+                    with patch("builtins.print") as mocked_print:
+                        crawler.print_workstream_balance_report(
+                            report_format="json",
+                            output_file=str(output_file),
+                        )
+
+            printed = mocked_print.call_args[0][0]
+            written = output_file.read_text(encoding="utf-8")
+            self.assertEqual(written.strip(), printed.strip())
+
+            payload = json.loads(written)
+            self.assertEqual(payload["generated_at"], "2026-02-26T21:11:00+00:00")
+            self.assertEqual(payload["counts"]["development"], 1)
+            self.assertEqual(payload["counts"]["documentation"], 1)
+            self.assertEqual(payload["counts"]["testing"], 1)
+
 
 class TestGithubRepoCrawlerVisionIssueCoverage(unittest.TestCase):
     def test_parse_vision_requirements_extracts_scope_modules(self):

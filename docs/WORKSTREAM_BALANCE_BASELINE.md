@@ -12,6 +12,12 @@ python3 scripts/github_repo_crawler.py --print-workstream-balance --format markd
 
 # JSON-Report (für Automatisierung/Weiterverarbeitung)
 python3 scripts/github_repo_crawler.py --print-workstream-balance --format json
+
+# Optional: persistenter Artefakt-Export (relativer Pfad ab Repo-Root)
+python3 scripts/github_repo_crawler.py \
+  --print-workstream-balance \
+  --format json \
+  --output-file artifacts/workstream/workstream-balance-latest.json
 ```
 
 Methodik (aus `scripts/github_repo_crawler.py`):
