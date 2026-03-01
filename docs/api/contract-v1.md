@@ -239,6 +239,7 @@ Einführungsstrategie (non-breaking):
 BL-30.3-Referenz (Deep-Mode, v1-Rahmen):
 - [`docs/api/deep-mode-contract-v1.md`](./deep-mode-contract-v1.md)
 - [`docs/api/deep-mode-orchestration-guardrails-v1.md`](./deep-mode-orchestration-guardrails-v1.md)
+- [`docs/DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md`](../DEEP_MODE_ADDON_QUOTA_HYPOTHESES_V1.md)
 - Deep-Mode bleibt im bestehenden Envelope (`options.capabilities`/`options.entitlements`) additiv modelliert.
 - Fehlende Entitlements/Quotas führen deterministisch zu `graceful downgrade` statt Contract-Break.
 
