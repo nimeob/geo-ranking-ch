@@ -19,19 +19,14 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- (leer)
+- [#703](https://github.com/nimeob/geo-ranking-ch/issues/703) — WP: Explainability – derived_from in grouped response (alias/projection) (priority:P2, status:todo)
 
 ### Next
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
 - [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:todo)
 - [#656](https://github.com/nimeob/geo-ranking-ch/issues/656) — WP: Async Result Pages/Permalinks – staging live (result_id Deep-Link) (priority:P0, status:todo)
-- [#594](https://github.com/nimeob/geo-ranking-ch/issues/594) — BL-30.wp4.r3: Result-Page Delivery + Retention/Notification Jobs (priority:P2, status:todo)
-- [#601](https://github.com/nimeob/geo-ranking-ch/issues/601) — BL-30.wp4.r3.wp3: In-App Notification-Pipeline für Async-Completion/Failure (priority:P2, status:todo)
-- [#602](https://github.com/nimeob/geo-ranking-ch/issues/602) — BL-30.wp4.r3.wp4: Ops-Runbook + Monitoring-Mindestmetriken für Async-Delivery (priority:P2, status:todo)
-- [#610](https://github.com/nimeob/geo-ranking-ch/issues/610) — CI: stündlicher Dev-Deploy fehlgeschlagen (priority:P2, status:todo)
-- [#645](https://github.com/nimeob/geo-ranking-ch/issues/645) — VISION P1: Monitoring/Alerting – CloudWatch Alarme + Telegram Verify (priority:P2, status:todo)
 - [#648](https://github.com/nimeob/geo-ranking-ch/issues/648) — VISION P3: Deep Mode – 1 echte Tiefenquelle integrieren + derived_from füllen (priority:P2, status:todo)
-- [#681](https://github.com/nimeob/geo-ranking-ch/issues/681) — [Catch-up] Development: API – async analyze response correlation_id (priority:P2, status:todo)
+- [#704](https://github.com/nimeob/geo-ranking-ch/issues/704) — WP: Deep-Mode – integrate 1 open data deep source (Open-Meteo climate) (priority:P2, status:todo)
 
 ### Later
 - [#653](https://github.com/nimeob/geo-ranking-ch/issues/653) — WP: staging Smoke – POST /analyze => 200 (staging URL) + Evidence (priority:P0, status:blocked)

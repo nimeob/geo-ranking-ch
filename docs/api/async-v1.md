@@ -56,7 +56,7 @@ Stand: 2026-03-01
 - Store-Inhalt (v1): `schema_version`, `jobs`, `events`, `results`, `notifications`
 
 ### Job-Record (Pflichtfelder)
-`job_id`, `org_id`, `status`, `progress_percent` (monoton, 0..100), `result_id`, `started_at`, `partial_count`, `event_seq`
+`job_id`, `correlation_id`, `org_id`, `status`, `progress_percent` (monoton, 0..100), `result_id`, `started_at`, `partial_count`, `event_seq`
 
 ### Result-Record
 `result_id`, `job_id`, `result_kind` (`partial|final`), `result_seq` (monoton, je Job strikt)
