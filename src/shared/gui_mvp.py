@@ -353,6 +353,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
                 <input id=\"api-token\" type=\"password\" placeholder=\"Bearer-Token für geschützte Deployments\" autocomplete=\"off\" />
               </label>
             </div>
+            <label>
+              Async Mode (optional)
+              <input id="async-mode-requested" type="checkbox" />
+            </label>
             <button id=\"submit-btn\" type=\"submit\">Analyse per Adresse starten</button>
           </form>
           <p class=\"meta\">State-Flow: <code>idle -> loading -> success/error</code>. Kartenklick löst denselben Analyze-Pfad additiv über <code>coordinates</code> aus.</p>
@@ -411,6 +415,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             <p class=\"meta\" id=\"request-id-feedback\" aria-live=\"polite\">Noch keine Request-ID vorhanden.</p>
           </div>
           <p class=\"meta\" id=\"input-meta\">Input: —</p>
+          <div id="async-job-box" class="placeholder" hidden>
+            <p class="meta" style="margin: 0 0 0.35rem;">Async Job (202 Accepted)</p>
+            <div class="request-id-row">
+              <code id="async-job-id" class="request-id-value">—</code>
+              <a id="async-job-link" class="trace-link-btn" href="#" target="_self" rel="noopener noreferrer">Job ansehen</a>
+              <a id="async-result-link" class="trace-link-btn" href="#" target="_self" rel="noopener noreferrer" hidden>Result öffnen</a>
+            </div>
+            <p class="meta" id="async-job-meta">Polling: off</p>
+          </div>
           <div id=\"error-box\" class=\"error-box\" hidden></div>
         </article>
 
@@ -475,6 +488,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const UI_LOG_COMPONENT = "ui.gui_mvp";
       const UI_SESSION_STORAGE_KEY = "geo-ranking-ui-session-id";
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
+      const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
 
       const state = {
         phase: "idle",
@@ -517,6 +531,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const resultJson = document.getElementById("result-json");
       const errorBox = document.getElementById("error-box");
       const coreFactorsEl = document.getElementById("core-factors");
+
+      const asyncModeRequestedEl = document.getElementById("async-mode-requested");
+      const asyncJobBoxEl = document.getElementById("async-job-box");
+      const asyncJobIdEl = document.getElementById("async-job-id");
+      const asyncJobLinkEl = document.getElementById("async-job-link");
+      const asyncResultLinkEl = document.getElementById("async-result-link");
+      const asyncJobMetaEl = document.getElementById("async-job-meta");
 
       const traceFormEl = document.getElementById("trace-debug-form");
       const traceRequestIdEl = document.getElementById("trace-request-id");
@@ -851,6 +872,46 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
 
         inputMeta.textContent = state.lastInput ? `Input: ${state.lastInput}` : "Input: —";
+
+        if (asyncJobBoxEl && asyncJobIdEl && asyncJobLinkEl && asyncResultLinkEl && asyncJobMetaEl) {
+          const rawPayload = state.lastPayload && typeof state.lastPayload === "object" ? state.lastPayload : null;
+          const jobPayload =
+            rawPayload && rawPayload.accepted && rawPayload.job && typeof rawPayload.job === "object"
+              ? rawPayload.job
+              : null;
+          const jobId = jobPayload && jobPayload.job_id ? String(jobPayload.job_id).trim() : "";
+
+          if (jobId) {
+            asyncJobBoxEl.hidden = false;
+            asyncJobIdEl.textContent = jobId;
+
+            asyncJobLinkEl.href = `/jobs/${encodeURIComponent(jobId)}`;
+
+            const status = String(jobPayload.status || "").trim().toLowerCase() || "queued";
+            const progressRaw = Number(jobPayload.progress_percent);
+            const progressPercent = Number.isFinite(progressRaw)
+              ? Math.max(0, Math.min(100, Math.round(progressRaw)))
+              : null;
+            const progressText = progressPercent == null ? "" : ` · ${progressPercent}%`;
+            asyncJobMetaEl.textContent = `Status: ${status}${progressText}`;
+
+            const resultId = jobPayload.result_id ? String(jobPayload.result_id).trim() : "";
+            if (resultId) {
+              asyncResultLinkEl.hidden = false;
+              asyncResultLinkEl.href = `/results/${encodeURIComponent(resultId)}`;
+            } else {
+              asyncResultLinkEl.hidden = true;
+              asyncResultLinkEl.href = "#";
+            }
+          } else {
+            asyncJobBoxEl.hidden = true;
+            asyncJobIdEl.textContent = "—";
+            asyncJobLinkEl.href = "#";
+            asyncResultLinkEl.hidden = true;
+            asyncResultLinkEl.href = "#";
+            asyncJobMetaEl.textContent = "Polling: off";
+          }
+        }
 
         if (state.lastError) {
           errorBox.hidden = false;
@@ -1729,13 +1790,20 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       function buildAnalyzePayload(base) {
         const mode = String(modeEl.value || "basic").trim().toLowerCase() || "basic";
+        const asyncRequested = Boolean(asyncModeRequestedEl && asyncModeRequestedEl.checked);
+
+        const options = {
+          response_mode: "compact",
+        };
+        if (asyncRequested) {
+          options.async_mode = { requested: true };
+        }
+
         return {
           ...base,
           intelligence_mode: mode,
           timeout_seconds: timeoutSecondsForMode(mode),
-          options: {
-            response_mode: "compact",
-          },
+          options,
         };
       }
 
@@ -2060,6 +2128,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           input_kind: "query",
           query_length: query.length,
           intelligence_mode: String(modeEl.value || "basic").trim().toLowerCase() || "basic",
+          async_mode_requested: Boolean(asyncModeRequestedEl && asyncModeRequestedEl.checked),
         });
 
         if (!query) {
