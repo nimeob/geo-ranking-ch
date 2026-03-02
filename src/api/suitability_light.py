@@ -27,6 +27,73 @@ def _as_finite_float(value: Any) -> Optional[float]:
     return parsed
 
 
+def _signed_normalized_contribution(*, score: float, weight: float) -> float:
+    """Signed + normalized contribution.
+
+    Interpretation (dev-only explainability convenience):
+    - score 50 => neutral (0 contribution)
+    - score 0..100 => mapped to -1..+1 relative to 50
+    - weight scales the magnitude; resulting contribution is typically in [-sum(weights), +sum(weights)].
+
+    The resulting value is NOT the same as the absolute points contribution used to compute
+    base_score/personalized_score; it's intended as a compact driver indicator.
+    """
+
+    centered = (float(score) - 50.0) / 50.0
+    centered = max(-1.0, min(1.0, centered))
+    return float(weight) * centered
+
+
+def _derive_top_factors(
+    factors: List[Dict[str, Any]],
+    *,
+    limit: int = 5,
+) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+
+    weights: List[float] = []
+    for factor in factors:
+        if not isinstance(factor, dict):
+            continue
+        weight = _as_finite_float(factor.get("weight"))
+        if weight is None or weight < 0:
+            continue
+        weights.append(float(weight))
+
+    total_weight = sum(weights)
+    if not math.isfinite(total_weight) or total_weight <= 0:
+        total_weight = 1.0
+
+    for factor in factors:
+        if not isinstance(factor, dict):
+            continue
+        key = str(factor.get("key") or "").strip()
+        if not key:
+            continue
+
+        score = _as_finite_float(factor.get("score"))
+        weight = _as_finite_float(factor.get("weight"))
+        if score is None or weight is None:
+            continue
+
+        name = str(factor.get("label") or key).strip() or key
+
+        contribution = _signed_normalized_contribution(score=float(score), weight=float(weight)) / total_weight
+        if not math.isfinite(contribution):
+            continue
+
+        rows.append(
+            {
+                "key": key,
+                "name": name,
+                "contribution": round(float(contribution), 4),
+            }
+        )
+
+    rows.sort(key=lambda row: (-abs(float(row.get("contribution") or 0.0)), str(row.get("key") or "")))
+    return rows[: max(0, int(limit))]
+
+
 def _score_topography(elevation_m: Optional[float]) -> Tuple[float, str, bool]:
     if elevation_m is None:
         return 50.0, "Keine belastbare Höhenlage vorhanden (neutral angesetzt).", True
@@ -168,6 +235,8 @@ def evaluate_suitability_light(
         },
     ]
 
+    top_factors = _derive_top_factors(factors, limit=5)
+
     base_score = sum(float(row["contribution"]) for row in factors)
 
     uncertainty_reasons: List[str] = []
@@ -229,6 +298,7 @@ def evaluate_suitability_light(
             "reasons": uncertainty_reasons,
         },
         "factors": factors,
+        "top_factors": top_factors,
         "limitations": limitations,
         "next_steps": [
             "Bei kritischem/gelbem Ergebnis: Hangneigung, Zufahrt und Bauzonenregime fachlich nachprüfen.",
