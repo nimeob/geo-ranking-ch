@@ -30,6 +30,24 @@ LOG_EVENT_SCHEMA_V1_RECOMMENDED_FIELDS = (
     "duration_ms",
 )
 
+# Key-based redaction rules.
+#
+# We keep two tiers:
+# - exact keys: safe and targeted for PII-like request payload fields
+# - marker substrings: broader for credential-ish headers and secrets
+_SENSITIVE_KEYS_EXACT = frozenset(
+    {
+        # Address/query inputs (PII-ish).
+        "query",
+        "resolved_query",
+        "matched_address",
+        "street",
+        "house_number",
+        "postal_code",
+        "postcode",
+    }
+)
+
 _SENSITIVE_KEY_MARKERS = (
     "authorization",
     "token",
@@ -52,6 +70,8 @@ def utc_timestamp() -> str:
 
 def _looks_sensitive_key(key: str) -> bool:
     lowered = str(key or "").strip().lower()
+    if lowered in _SENSITIVE_KEYS_EXACT:
+        return True
     return any(marker in lowered for marker in _SENSITIVE_KEY_MARKERS)
 
 

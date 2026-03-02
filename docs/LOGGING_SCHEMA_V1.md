@@ -30,12 +30,23 @@ Optionale, aber empfohlene Kontextfelder:
 
 Die folgenden Schlüssel/Feldnamen werden key-basiert vollständig maskiert (`[REDACTED]`), case-insensitive und auch für verschachtelte Objekte:
 
+**Credential-/Header-ish (Marker-Substring):**
+
 - enthält `authorization`
 - enthält `token`
 - enthält `secret`
 - enthält `password`
 - enthält `api_key` / `apikey`
 - enthält `cookie` / `set-cookie`
+
+**Address-/Query-Inputs (Exact Keys):**
+
+- `query`
+- `matched_address`
+- `resolved_query`
+- `street`
+- `house_number`
+- `postal_code` / `postcode`
 
 Zusätzlich werden pattern-basiert maskiert:
 
