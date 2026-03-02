@@ -25,6 +25,21 @@ manage_staging_ingress = false
 # Voraussetzung (aktuell): Staging Network/Subnets werden via manage_staging_network gemanagt.
 manage_staging_ecs_compute = false
 
+# --- Staging DB (INFRA-DB-0.wp1) ---
+# Default: deaktiviert. Guard: wirkt nur bei environment="staging" und nur wenn manage_staging_network=true.
+manage_staging_db = false
+
+# Optional: Override DB Sizing/Naming
+# staging_db_instance_identifier   = "swisstopo-staging-postgres"
+# staging_db_instance_class        = "db.t4g.micro"
+# staging_db_allocated_storage_gb  = 20
+# staging_db_storage_type          = "gp3"
+# staging_db_name                  = "swisstopo"
+# staging_db_master_username       = "swisstopo"
+# staging_db_ingress_source_security_group_ids = ["sg-0123456789abcdef0"]
+# staging_db_engine_version        = ""   # "" => AWS Default
+# staging_db_backup_retention_days = 7
+
 # Optional: Override Container Image/Ports/Roles (Defaults sind bewusst "safe" / placeholder)
 # staging_container_image = "<ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/<repo>:<tag>"
 # staging_container_port  = 8080

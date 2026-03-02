@@ -121,6 +121,7 @@ output "resource_management_flags" {
     manage_staging_network         = var.manage_staging_network
     manage_staging_ingress         = var.manage_staging_ingress
     manage_staging_ecs_compute     = var.manage_staging_ecs_compute
+    manage_staging_db              = var.manage_staging_db
   }
 }
 
@@ -173,4 +174,33 @@ output "health_probe_alarm_name" {
 output "health_probe_schedule_rule_arn" {
   description = "ARN der EventBridge-Rule für die Health-Probe (leer wenn nicht gemanagt)."
   value       = try(aws_cloudwatch_event_rule.health_probe_schedule[0].arn, null)
+}
+
+# ---------------------------------------------------------------------------
+# Staging DB Outputs (INFRA-DB-0.wp1)
+# ---------------------------------------------------------------------------
+
+output "staging_db_endpoint" {
+  description = "RDS Endpoint (Hostname) der staging Postgres DB (leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.staging_postgres[0].address, null)
+}
+
+output "staging_db_port" {
+  description = "Port der staging Postgres DB (leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.staging_postgres[0].port, null)
+}
+
+output "staging_db_name" {
+  description = "DB Name (db_name) der staging Postgres DB (leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.staging_postgres[0].db_name, null)
+}
+
+output "staging_db_master_username" {
+  description = "Master Username (kein Secret; leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.staging_postgres[0].username, null)
+}
+
+output "staging_db_master_user_secret_arn" {
+  description = "Secrets Manager ARN für das automatisch gemanagte Master-User-Passwort (leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.staging_postgres[0].master_user_secret[0].secret_arn, null)
 }
