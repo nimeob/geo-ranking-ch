@@ -91,7 +91,8 @@ pre-commit run --all-files
 # API-Service starten (kanonischer Entrypoint; ECS-ready)
 python -m src.api.web_service
 # optionaler Port via ENV: PORT (primär) oder WEB_PORT (Fallback für Legacy-Wrapper)
-# Healthcheck: http://localhost:8080/health
+# Healthcheck (ECS/Liveness): http://localhost:8080/health
+# Dev-Healthcheck (mit Build-Info, dev-only): http://localhost:8080/healthz
 
 # Optional: Dev-TLS mit self-signed Zertifikat
 # (bevorzugt reproduzierbar via Helper-Script)
@@ -107,7 +108,8 @@ TLS_CERT_FILE=/tmp/geo-dev.crt \
 TLS_KEY_FILE=/tmp/geo-dev.key \
 PORT=8443 \
 python -m src.api.web_service
-# Healthcheck: https://localhost:8443/health
+# Healthcheck (ECS/Liveness): https://localhost:8443/health
+# Dev-Healthcheck (mit Build-Info, dev-only): https://localhost:8443/healthz
 
 # Optional: zusätzlicher HTTP->HTTPS Redirect-Listener (Dev)
 TLS_CERT_FILE=/tmp/geo-dev.crt \
@@ -124,8 +126,10 @@ python -m src.api.web_service
 # API-Image (service-lokaler Build-Kontext via Dockerfile.dockerignore)
 docker build -f Dockerfile -t geo-ranking-ch:api-dev .
 docker run --rm -p 8080:8080 geo-ranking-ch:api-dev
-# Healthcheck
+# Healthcheck (ECS/Liveness)
 curl http://localhost:8080/health
+# Dev-Healthcheck (mit Build-Info, dev-only)
+curl http://localhost:8080/healthz
 
 # UI-Image (service-lokaler Build-Kontext via Dockerfile.ui.dockerignore)
 docker build -f Dockerfile.ui -t geo-ranking-ch:ui-dev .
@@ -149,7 +153,8 @@ curl http://localhost:8081/healthz
 | Methode | Pfad | Zweck |
 |---|---|---|
 | `GET` | `/gui` | GUI-MVP-Shell (Adresseingabe + Kartenklick + Result-Panel inkl. Kernfaktoren) |
-| `GET` | `/health` | Liveness/Healthcheck |
+| `GET` | `/health` | Liveness/Healthcheck (ECS) |
+| `GET` | `/healthz` | Dev-Healthcheck (dev-only, no-store): Status + Build-Info + Timestamp |
 | `GET` | `/version` | Build/Commit-Metadaten |
 | `POST` | `/analyze` | Adressanalyse (`{"query":"...","intelligence_mode":"basic|extended|risk","timeout_seconds":15,"preferences":{...}}`) |
 
