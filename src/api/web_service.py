@@ -1646,6 +1646,19 @@ def _resolve_notification_limit(raw_value: str | None) -> int:
     return min(parsed, 200)
 
 
+def _resolve_history_limit(raw_value: str | None) -> int:
+    normalized = str(raw_value or "").strip()
+    if not normalized:
+        return 50
+    try:
+        parsed = int(normalized)
+    except ValueError as exc:
+        raise ValueError("limit must be an integer >= 1") from exc
+    if parsed < 1:
+        raise ValueError("limit must be an integer >= 1")
+    return min(parsed, 200)
+
+
 def _select_async_result_snapshot(
     *,
     requested_result: dict[str, Any],
@@ -3058,6 +3071,72 @@ class Handler(BaseHTTPRequestHandler):
                         "request_id": request_id,
                     },
                     request_id=request_id,
+                )
+                return
+            if request_path == "/analyze/history":
+                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                try:
+                    request_org_id = self._request_org_id()
+                    limit = _resolve_history_limit(query_params.get("limit", [""])[0])
+                except ValueError as exc:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "bad_request",
+                            "message": str(exc),
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.BAD_REQUEST,
+                        request_id=request_id,
+                    )
+                    return
+
+                history_rows: list[dict[str, Any]] = []
+                for job_id in _ASYNC_JOB_STORE.list_job_ids():
+                    job_record = _ASYNC_JOB_STORE.get_job(job_id)
+                    if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                        continue
+
+                    results = _ASYNC_JOB_STORE.list_results(job_id)
+                    if not results:
+                        continue
+
+                    selected_result = results[-1]
+                    created_at = str(
+                        selected_result.get("created_at")
+                        or job_record.get("finished_at")
+                        or job_record.get("updated_at")
+                        or job_record.get("queued_at")
+                        or ""
+                    )
+                    history_rows.append(
+                        {
+                            "result_id": selected_result.get("result_id"),
+                            "job_id": job_id,
+                            "created_at": created_at,
+                            "query": job_record.get("query", ""),
+                            "intelligence_mode": job_record.get("intelligence_mode", "basic"),
+                            "status": job_record.get("status"),
+                        }
+                    )
+
+                history_rows.sort(
+                    key=lambda row: (
+                        str(row.get("created_at") or ""),
+                        str(row.get("result_id") or ""),
+                        str(row.get("job_id") or ""),
+                    ),
+                    reverse=True,
+                )
+
+                self._send_json(
+                    {
+                        "ok": True,
+                        "history": history_rows[:limit],
+                        "request_id": request_id,
+                    },
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
                 )
                 return
             if request_path.startswith("/analyze/jobs/") and request_path.endswith("/notifications"):
