@@ -19,7 +19,7 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#727](https://github.com/nimeob/geo-ranking-ch/issues/727) — WP: Refresh docs/BACKLOG.md Now/Next/Later board (priority:P1, status:todo)
+- [#730](https://github.com/nimeob/geo-ranking-ch/issues/730) — WP: Sync docs/BACKLOG.md Now/Next/Later after closing #727 (priority:P1, status:todo)
 
 ### Next
 - (leer)
