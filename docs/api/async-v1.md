@@ -114,6 +114,9 @@ Response additiv: `requested_result_id`, `requested_result_kind`, `projection_mo
 | `ASYNC_JOB_RESULTS_RETENTION_SECONDS` | `604800` (7 Tage) | TTL für `job_results` |
 | `ASYNC_JOB_EVENTS_RETENTION_SECONDS` | `259200` (3 Tage) | TTL für `job_events` |
 
+Hinweis: TTL-Werte können als Sekunden-Zahl (z.B. `604800`) oder als Duration mit Suffix `s|m|h|d`
+(z.B. `30m`, `24h`, `7d`) angegeben werden. Ungültige Werte → Cleanup-Script bricht mit Exit-Code `1` ab.
+
 ### Cleanup-Script
 ```bash
 # Dry-Run
