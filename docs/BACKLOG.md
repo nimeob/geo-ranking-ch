@@ -31,6 +31,7 @@ Regelwerk:
 ## Dev-Engineering (non-BL)
 
 - ✅ abgeschlossen (2026-03-02): [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen)
+- ✅ abgeschlossen (2026-03-02): [#733](https://github.com/nimeob/geo-ranking-ch/issues/733) — WP: Retention-Cleanup prep — TTL-Config Parsing + Validation (ENV/CLI akzeptiert jetzt `7d`/`24h`/`15m`, fail-fast bei invaliden Werten)
 
 ## Backlog-Items
 
