@@ -26,7 +26,12 @@ Regelwerk:
 - [#800](https://github.com/nimeob/geo-ranking-ch/issues/800) — EPIC: DB Minimalslice + OIDC delegated access (Cognito) (priority:P1, status:todo)
 - [#801](https://github.com/nimeob/geo-ranking-ch/issues/801) — DB-0: Core Tables (organizations/users/memberships/api_keys) + Migrations (priority:P1, status:todo)
 - [#802](https://github.com/nimeob/geo-ranking-ch/issues/802) — OIDC-0: Cognito Setup + API JWT Validation (delegated user access) (priority:P1, status:todo)
-- [#803](https://github.com/nimeob/geo-ranking-ch/issues/803) — ASYNC-DB-0: Persist Async Job History in DB + S3 payload pointers (cutover from file-store) (priority:P1, status:todo)
+- [#803](https://github.com/nimeob/geo-ranking-ch/issues/803) — ASYNC-DB-0: Persist Async Job History in DB + S3 payload pointers — atomisiert in WPs #838–#842 (priority:P1, status:in-progress)
+  - [#838](https://github.com/nimeob/geo-ranking-ch/issues/838) — ASYNC-DB-0.wp1: Schema migration (job_results + user_id + S3 refs) — **in-progress (Worker B)**
+  - [#839](https://github.com/nimeob/geo-ranking-ch/issues/839) — ASYNC-DB-0.wp2: DB-backed AsyncJobStore (priority:P1, status:todo)
+  - [#840](https://github.com/nimeob/geo-ranking-ch/issues/840) — ASYNC-DB-0.wp3: Feature-flag cutover (priority:P1, status:todo)
+  - [#841](https://github.com/nimeob/geo-ranking-ch/issues/841) — ASYNC-DB-0.wp4: API /analyze/history per user_id + tenant guards (priority:P1, status:todo)
+  - [#842](https://github.com/nimeob/geo-ranking-ch/issues/842) — ASYNC-DB-0.wp5: Backfill-Script + Cutover-Runbook (priority:P1, status:todo)
 - [#804](https://github.com/nimeob/geo-ranking-ch/issues/804) — INFRA-DB-0: Staging Postgres (RDS) + Secrets wiring for ECS (priority:P1, status:todo)
 - [#806](https://github.com/nimeob/geo-ranking-ch/issues/806) — BFF-0: Portal Backend-for-Frontend (FastAPI) with server-side OIDC session + user-token delegation (priority:P1, status:todo)
 - ~~[#833](https://github.com/nimeob/geo-ranking-ch/issues/833) — INFRA-DB-0.wp4: Lokale Dev-DB (docker-compose Postgres) für Dev/Test-Harness~~ (closed)
