@@ -201,6 +201,15 @@ class TestAsyncJobsRuntimeSkeleton(unittest.TestCase):
         self.assertTrue(body_result.get("ok"))
         self.assertEqual(body_result.get("result_id"), result_id)
 
+        status_history, body_history = _http_json("GET", f"{self.base_url}/analyze/history")
+        self.assertEqual(status_history, 200)
+        self.assertTrue(body_history.get("ok"))
+        history_rows = body_history.get("history", [])
+        self.assertTrue(
+            any(str(row.get("result_id") or "") == result_id for row in history_rows),
+            "/analyze/history sollte das soeben erzeugte result_id enthalten",
+        )
+
         runtime_module = (
             body_result.get("result", {})
             .get("result", {})
@@ -278,6 +287,36 @@ class TestAsyncJobsRuntimeSkeleton(unittest.TestCase):
         final_result_id = str(final_results[0].get("result_id") or "")
         self.assertTrue(partial_result_id)
         self.assertTrue(final_result_id)
+
+        tenant_history_status, tenant_history_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/history?limit=10",
+            headers={"X-Org-Id": "tenant-alpha"},
+        )
+        self.assertEqual(tenant_history_status, 200)
+        self.assertTrue(tenant_history_body.get("ok"))
+        self.assertTrue(
+            any(
+                str(row.get("result_id") or "") == final_result_id
+                for row in tenant_history_body.get("history", [])
+            ),
+            "tenant-alpha muss seinen Result-Eintrag in /analyze/history sehen",
+        )
+
+        denied_history_status, denied_history_body = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/history?limit=10",
+            headers={"X-Org-Id": "tenant-beta"},
+        )
+        self.assertEqual(denied_history_status, 200)
+        self.assertTrue(denied_history_body.get("ok"))
+        self.assertFalse(
+            any(
+                str(row.get("result_id") or "") == final_result_id
+                for row in denied_history_body.get("history", [])
+            ),
+            "tenant-beta darf tenant-alpha Result nicht in /analyze/history sehen",
+        )
 
         denied_result_status, denied_result_body = _http_json(
             "GET",
