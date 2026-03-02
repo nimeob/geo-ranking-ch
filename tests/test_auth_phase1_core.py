@@ -224,6 +224,53 @@ class TestAuthPhase1Core(unittest.TestCase):
         self.assertTrue(body_result_a.get("ok"))
         self.assertEqual(body_result_a.get("result_id"), result_id)
 
+    def test_default_deny_without_token_jobs_results_notifications(self):
+        """Unauthenticated access to jobs/results/notifications returns 401 (not 404) when phase1 auth is enabled."""
+        # Jobs: no token -> 401
+        status_job_anon, body_job_anon = _http_json(
+            "GET", f"{self.base_url}/analyze/jobs/some-fake-job-id"
+        )
+        self.assertEqual(status_job_anon, 401)
+        self.assertFalse(body_job_anon.get("ok"))
+        self.assertEqual(body_job_anon.get("error"), "unauthorized")
+
+        # Results: no token -> 401
+        status_result_anon, body_result_anon = _http_json(
+            "GET", f"{self.base_url}/analyze/results/some-fake-result-id"
+        )
+        self.assertEqual(status_result_anon, 401)
+        self.assertFalse(body_result_anon.get("ok"))
+        self.assertEqual(body_result_anon.get("error"), "unauthorized")
+
+        # Notifications: no token -> 401
+        status_notif_anon, body_notif_anon = _http_json(
+            "GET", f"{self.base_url}/analyze/jobs/some-fake-job-id/notifications"
+        )
+        self.assertEqual(status_notif_anon, 401)
+        self.assertFalse(body_notif_anon.get("ok"))
+        self.assertEqual(body_notif_anon.get("error"), "unauthorized")
+
+        # Cancel: no token -> 401
+        status_cancel_anon, body_cancel_anon = _http_json(
+            "POST",
+            f"{self.base_url}/analyze/jobs/some-fake-job-id/cancel",
+            payload={"reason": "test"},
+        )
+        self.assertEqual(status_cancel_anon, 401)
+        self.assertFalse(body_cancel_anon.get("ok"))
+        self.assertEqual(body_cancel_anon.get("error"), "unauthorized")
+
+        # History: no token -> 401 (pre-existing behavior, confirming consistency)
+        status_history_anon, body_history_anon = _http_json(
+            "GET", f"{self.base_url}/analyze/history"
+        )
+        self.assertEqual(status_history_anon, 401)
+        self.assertFalse(body_history_anon.get("ok"))
+        self.assertEqual(body_history_anon.get("error"), "unauthorized")
+
+        # Cross-user access with valid token but wrong owner -> 404 (enumeration protection preserved)
+        # (tested in test_phase1_auth_guards_and_per_user_isolation via user_b access to user_a's resources)
+
 
 if __name__ == "__main__":
     unittest.main()
