@@ -12,6 +12,13 @@
       "Tests für Response-Schema und Statuscodes.",
       "README/API Abschnitt kurz aktualisiert (dev-only)."
     ],
+    "acceptance_tests": [
+      "API-Smoke/Health-Check läuft lokal in dev durch (Command im Runbook/README dokumentiert)."
+    ],
+    "links": [
+      "README.md (API Abschnitt)",
+      "scripts/check_health_probe_dev.sh (falls vorhanden)"
+    ],
     "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:api"]
   },
   {
@@ -25,6 +32,13 @@
     "dod": [
       "Marker/Legende/Labels sind auch auf kleinen Screens gut lesbar (keine Überlappungen).",
       "Mind. ein minimaler Test (e2e oder Screenshot/Component) deckt den Flow ab."
+    ],
+    "acceptance_tests": [
+      "UI-Flow manuell verifiziert (kurz beschreiben: Browser + Schritte).",
+      "Optional: Screenshot-Test oder e2e läuft grün."
+    ],
+    "links": [
+      "UI Route/Komponente in src/ui/... (verlinken sobald klar)"
     ],
     "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:ui"]
   },
@@ -41,6 +55,13 @@
       "Tests für 3 typische Fehlerfälle (Validation, NotFound, Generic 5xx bleibt 5xx).",
       "Doku kurz ergänzen."
     ],
+    "acceptance_tests": [
+      "Unit-Tests + ein API-Smoke laufen lokal in dev grün."
+    ],
+    "links": [
+      "Error-Handling Code (src/...)",
+      "Tests (tests/...)"
+    ],
     "labels": ["backlog", "status:todo", "priority:P1", "bug", "area:api"]
   },
   {
@@ -56,6 +77,14 @@
       "Suche nach job_id.",
       "URL Query-Params spiegeln Filter, damit Links teilbar sind."
     ],
+    "acceptance_tests": [
+      "Manuell in dev getestet: Filter + Suche funktionieren und URL lässt sich teilen.",
+      "Optional: e2e Test deckt Filter-Flow ab."
+    ],
+    "links": [
+      "/jobs Route",
+      "Async jobs / API endpoint der Liste (falls relevant)"
+    ],
     "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:ui"]
   },
   {
@@ -68,6 +97,13 @@
     "dod": [
       "CONTRIBUTING.md (oder docs/…) mit: Setup, Dev-Start, Tests, Lint/Format.",
       "Keine Deploy/Infra Anleitungen für staging/prod."
+    ],
+    "acceptance_tests": [
+      "Ein frischer Checkout kann den Guide befolgen und kommt bis zum lokalen Dev-Start + Tests."
+    ],
+    "links": [
+      "README.md",
+      "requirements.txt / package.json (falls vorhanden)"
     ],
     "labels": ["backlog", "status:todo", "priority:P3", "documentation"]
   }

@@ -123,9 +123,11 @@ function normalizeItem(item) {
   const context = (item.context || '').toString();
   const scope = Array.isArray(item.scope) ? item.scope.map(String) : [];
   const dod = Array.isArray(item.dod) ? item.dod.map(String) : [];
+  const acceptanceTests = Array.isArray(item.acceptance_tests) ? item.acceptance_tests.map(String) : [];
+  const links = Array.isArray(item.links) ? item.links.map(String) : [];
   const notes = (item.notes || '').toString();
 
-  return { title, body, labels, env: envName, context, scope, dod, notes };
+  return { title, body, labels, env: envName, context, scope, dod, acceptanceTests, links, notes };
 }
 
 function renderIssueBody(item) {
@@ -156,6 +158,18 @@ function renderIssueBody(item) {
     lines.push('');
     lines.push('## DoD');
     for (const d of item.dod) lines.push(`- [ ] ${d}`);
+  }
+
+  if (item.acceptanceTests && item.acceptanceTests.length) {
+    lines.push('');
+    lines.push('## Acceptance Tests');
+    for (const t of item.acceptanceTests) lines.push(`- [ ] ${t}`);
+  }
+
+  if (item.links && item.links.length) {
+    lines.push('');
+    lines.push('## Links');
+    for (const u of item.links) lines.push(`- ${u}`);
   }
 
   if ((item.notes || '').trim()) {
