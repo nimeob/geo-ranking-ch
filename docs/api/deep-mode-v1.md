@@ -70,6 +70,21 @@ Stand: 2026-03-01
   -> Stage D: response projection + status envelope + telemetry flush
 ```
 
+### 4.1) Deep-Enrichment-Prototyp (Open Data, beta)
+
+Wenn `result.status.capabilities.deep_mode.effective == true`, kann der Analyze-Response **additiv** zusätzliche Module
+unter `result.data.modules` enthalten. Ein erster Prototyp ist ein Open-Data-Enrichment via **Open-Meteo**:
+
+- **Module-Key:** `deep_enrichment`
+- **Source-Name:** `open_meteo_forecast`
+- **Hauptfelder (v1):**
+  - `confidence` (0..1) — `>= 0.7` bei erfolgreichem Fetch/Parse
+  - `fetch.ok` / `fetch.from_cache` / `fetch.attempt`
+  - `forecast.current.*` (subset) + `coordinates`
+
+Hinweis: Module dürfen **keine** Schlüssel namens `status` / `*_status` enthalten, da diese im grouped Response
+für Daten-Payloads bewusst herausgefiltert werden (Status gehört in den Envelope `result.status.*`).
+
 ### Eligibility-Gate-Reihenfolge
 1. `requested == true`
 2. `profile/policy` check
