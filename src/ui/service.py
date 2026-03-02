@@ -833,11 +833,16 @@ def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
     normalized_base_url = api_base_url.rstrip("/")
     analyze_url = f"{normalized_base_url}/analyze"
     trace_debug_url = f"{normalized_base_url}/debug/trace"
+    analyze_jobs_base = f"{normalized_base_url}/analyze/jobs"
 
     html = html.replace('fetch("/analyze", {', f"fetch({json.dumps(analyze_url)}, {{")
     html = html.replace(
         'const TRACE_DEBUG_ENDPOINT = "/debug/trace";',
         f"const TRACE_DEBUG_ENDPOINT = {json.dumps(trace_debug_url)};",
+    )
+    html = html.replace(
+        'const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";',
+        f"const ANALYZE_JOBS_ENDPOINT_BASE = {json.dumps(analyze_jobs_base)};",
     )
     return html
 

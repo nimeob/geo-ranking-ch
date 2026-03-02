@@ -51,6 +51,18 @@ Transitions:
 - `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen`)
 - `error -> loading` beim nächsten Submit/Kartenklick (clean retry)
 
+## Async Submit (Async v1)
+
+Die GUI kann optional im **Async Mode** auslösen (Checkbox im Input-Panel). Dann sendet sie additiv:
+
+- `options.async_mode.requested=true`
+
+Erwartetes Verhalten:
+
+- API antwortet mit `HTTP 202 Accepted` und liefert ein `job`-Objekt inkl. `job_id`.
+- Das Result-Panel rendert den `job_id` sichtbar und bietet einen Deep-Link auf die UI-Service Job-Page: `GET /jobs/<job_id>`.
+- Sync-Requests (ohne Async Mode) bleiben unverändert.
+
 ## Trace-Debug-View (BL-422.2)
 
 Das Result-Column enthält zusätzlich ein dediziertes Trace-Debug-Panel:

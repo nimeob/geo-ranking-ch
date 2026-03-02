@@ -97,6 +97,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn("Version ui-test-v1", body)
         self.assertIn('fetch("https://api.example.test/analyze"', body)
         self.assertIn('const TRACE_DEBUG_ENDPOINT = "https://api.example.test/debug/trace";', body)
+        self.assertIn('const ANALYZE_JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
 
     def test_job_permalink_page_renders_and_targets_absolute_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/jobs/job-123")
