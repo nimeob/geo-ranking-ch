@@ -35,7 +35,7 @@ Regelwerk:
 - [#804](https://github.com/nimeob/geo-ranking-ch/issues/804) — INFRA-DB-0: Staging Postgres (RDS) + Secrets wiring for ECS (priority:P1, **status:blocked** — code-complete, pending operator: terraform apply via docs/STAGING_DB_RUNBOOK.md)
 - [#806](https://github.com/nimeob/geo-ranking-ch/issues/806) — BFF-0: Portal Backend-for-Frontend with server-side OIDC session + user-token delegation (priority:P1, status:in-progress — atomisiert in 5 WPs)
   - ~~[#850](https://github.com/nimeob/geo-ranking-ch/issues/850)~~ — BFF-0.wp1: BFF Session Store + httpOnly Cookie Middleware — **abgeschlossen 2026-03-02** (PR #856, 45 Tests)
-  - [#851](https://github.com/nimeob/geo-ranking-ch/issues/851) — BFF-0.wp2: OIDC Auth Code + PKCE Endpunkte (/auth/login, /auth/callback) (status:todo)
+  - ~~[#851](https://github.com/nimeob/geo-ranking-ch/issues/851)~~ — BFF-0.wp2: OIDC Auth Code + PKCE Endpunkte (/auth/login, /auth/callback) — **abgeschlossen 2026-03-02** (PR #861, 61 Tests)
   - [#852](https://github.com/nimeob/geo-ranking-ch/issues/852) — BFF-0.wp3: Token Delegation, Auto-Refresh + /me + /auth/logout (status:todo)
   - [#853](https://github.com/nimeob/geo-ranking-ch/issues/853) — BFF-0.wp4: Portal Proxy Endpoints + CSRF + Security Hardening (status:todo)
   - [#854](https://github.com/nimeob/geo-ranking-ch/issues/854) — BFF-0.wp5: BFF Dokumentation + Integration Smoke Tests (status:todo)
