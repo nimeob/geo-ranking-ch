@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-_SCHEMA_VERSION = 4
+_SCHEMA_VERSION = 5
 _DEFAULT_STORE_FILE = "runtime/async_jobs/store.v1.json"
 _TERMINAL_STATES = {"completed", "failed", "canceled"}
 _ALLOWED_TRANSITIONS = {
@@ -131,6 +131,8 @@ class AsyncJobStore:
                 raw_job.setdefault("job_id", str(job_id))
                 raw_job.setdefault("correlation_id", str(raw_job.get("job_id") or job_id))
                 raw_job.setdefault("org_id", "default-org")
+                raw_job.setdefault("owner_user_id", None)
+                raw_job.setdefault("owner_org_id", raw_job.get("org_id"))
                 raw_job.setdefault("status", "queued")
                 raw_job.setdefault("request_payload_hash", "")
                 raw_job.setdefault("request_payload_ref", f"inline:{job_id}")
@@ -164,6 +166,8 @@ class AsyncJobStore:
                 raw_result.setdefault("result_id", str(result_id))
                 raw_result.setdefault("result_kind", "final")
                 raw_result.setdefault("schema_version", "v1")
+                raw_result.setdefault("owner_user_id", None)
+                raw_result.setdefault("owner_org_id", None)
                 raw_result.setdefault("created_at", _utc_now_iso())
                 raw_result.setdefault("summary_json", {})
                 raw_result.setdefault("result_payload", {})
@@ -296,6 +300,8 @@ class AsyncJobStore:
         query: str,
         intelligence_mode: str,
         org_id: str,
+        owner_user_id: str | None,
+        owner_org_id: str | None,
     ) -> dict[str, Any]:
         now = _utc_now_iso()
         payload_copy = deepcopy(request_payload)
@@ -303,6 +309,8 @@ class AsyncJobStore:
             "job_id": job_id,
             "correlation_id": correlation_id,
             "org_id": org_id,
+            "owner_user_id": owner_user_id,
+            "owner_org_id": owner_org_id,
             "status": "queued",
             "request_payload_hash": _canonical_payload_hash(payload_copy),
             "request_payload_ref": f"inline:{job_id}",
@@ -335,10 +343,13 @@ class AsyncJobStore:
         query: str,
         intelligence_mode: str,
         org_id: str = "default-org",
+        owner_user_id: str | None = None,
+        owner_org_id: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             job_id = str(uuid.uuid4())
             correlation_id = str(uuid.uuid4())
+            resolved_owner_org_id = owner_org_id if owner_org_id is not None else org_id
             job = self._default_job_record(
                 job_id=job_id,
                 correlation_id=correlation_id,
@@ -346,6 +357,8 @@ class AsyncJobStore:
                 query=query,
                 intelligence_mode=intelligence_mode,
                 org_id=org_id,
+                owner_user_id=owner_user_id,
+                owner_org_id=resolved_owner_org_id,
             )
             self._state["jobs"][job_id] = job
             self._append_event_locked(
@@ -623,6 +636,12 @@ class AsyncJobStore:
             result_record = {
                 "result_id": result_id,
                 "job_id": job_id,
+                "owner_user_id": job.get("owner_user_id"),
+                "owner_org_id": (
+                    job.get("owner_org_id")
+                    if job.get("owner_org_id") is not None
+                    else job.get("org_id")
+                ),
                 "result_kind": normalized_kind,
                 "result_seq": next_seq,
                 "schema_version": schema_version,
