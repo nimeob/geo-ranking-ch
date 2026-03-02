@@ -1,0 +1,121 @@
+# --- Basis ---
+# Staging-Skeleton: Werte ggf. an reale Namen anpassen, sobald staging Ressourcen provisioniert sind.
+project_name = "swisstopo"
+environment  = "staging"
+aws_region   = "eu-central-1"
+owner        = "nico"
+managed_by   = "openclaw"
+
+# --- Sicherheitsmodus (Default): keine Ressourcen verwalten ---
+# Dadurch ist ein "terraform plan" zunächst read-only/neutral.
+lookup_existing_resources      = false
+manage_ecs_cluster             = false
+manage_ecr_repository          = false
+manage_cloudwatch_log_group    = false
+manage_cloudwatch_log_group_ui = false
+manage_s3_bucket               = false
+
+# --- Staging Network + Ingress Skeleton (WP #660) ---
+# Default: vollständig deaktiviert (kein Create/Destroy in plan).
+manage_staging_network = true
+manage_staging_ingress = false
+
+# --- Staging ECS Compute Skeleton (WP #661) ---
+# Default: deaktiviert. Wird zusätzlich nur bei environment="staging" aktiv.
+# Voraussetzung (aktuell): Staging Network/Subnets werden via manage_staging_network gemanagt.
+manage_staging_ecs_compute = true
+
+# --- Staging DB (INFRA-DB-0.wp1) ---
+# Default: deaktiviert. Guard: wirkt nur bei environment="staging" und nur wenn manage_staging_network=true.
+manage_staging_db = true
+
+# --- DB Secrets Wiring (INFRA-DB-0.wp2) ---
+# Wenn manage_staging_db=true: ARN wird automatisch aus aws_db_instance.staging_postgres gelesen.
+# Wenn RDS in einem anderen TF-Workspace liegt (Cross-Workspace): ARN hier explizit eintragen.
+# Format: arn:aws:secretsmanager:<region>:<account-id>:secret:<name>-<suffix>
+# staging_db_master_user_secret_arn_override = ""
+
+# Optional: Override DB Sizing/Naming
+# staging_db_instance_identifier   = "swisstopo-staging-postgres"
+# staging_db_instance_class        = "db.t4g.micro"
+# staging_db_allocated_storage_gb  = 20
+# staging_db_storage_type          = "gp3"
+# staging_db_name                  = "swisstopo"
+# staging_db_master_username       = "swisstopo"
+# staging_db_ingress_source_security_group_ids = ["sg-0123456789abcdef0"]
+# staging_db_engine_version        = ""   # "" => AWS Default
+# staging_db_backup_retention_days = 7
+
+# Optional: Override Container Image/Ports/Roles (Defaults sind bewusst "safe" / placeholder)
+# staging_container_image = "<ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/<repo>:<tag>"
+# staging_container_port  = 8080
+# staging_task_execution_role_arn = "arn:aws:iam::<account-id>:role/<role>"
+# staging_task_role_arn           = "arn:aws:iam::<account-id>:role/<role>"
+
+staging_vpc_cidr = "10.70.0.0/16"
+
+# Public Subnets (mind. 2 empfohlen, unterschiedliche AZs)
+staging_public_subnet_cidrs = ["10.70.0.0/24", "10.70.1.0/24"]
+
+# Private Subnets (optional; NAT ist in diesem WP bewusst nicht enthalten)
+staging_private_subnet_cidrs = ["10.70.10.0/24", "10.70.11.0/24"]
+
+staging_alb_name = "swisstopo-staging-alb"
+
+# HTTP 80 allowlist (nur relevant wenn manage_staging_ingress=true)
+staging_alb_ingress_cidr_blocks = ["0.0.0.0/0"]
+
+# --- Ziel-/Bestandsnamen (staging) ---
+# Konvention: <project>-<env>(-<component>)
+ecs_cluster_name               = "swisstopo-staging"
+ecs_container_insights_enabled = false
+
+ecr_repository_name       = "swisstopo-staging-api"
+cloudwatch_log_group_name    = "/swisstopo/staging/ecs/api"
+cloudwatch_log_group_ui_name = "/swisstopo/staging/ecs/ui"
+cloudwatch_log_retention_days = 30
+
+# Hinweis: Bucket-Name ist global eindeutig. Placeholder bis staging final ist.
+# Beispiel-Pattern: swisstopo-staging-<account-id>
+s3_bucket_name = "swisstopo-staging-523234426229"
+
+existing_ecs_cluster_name          = "swisstopo-staging"
+existing_ecr_repository_name       = "swisstopo-staging-api"
+existing_cloudwatch_log_group_name    = "/swisstopo/staging/ecs/api"
+existing_cloudwatch_log_group_ui_name = "/swisstopo/staging/ecs/ui"
+existing_s3_bucket_name               = "swisstopo-staging-523234426229"
+
+# --- Telegram Alerting (BL-08) ---
+# Voraussetzung: SSM-Parameter manuell anlegen (NICHT per Terraform, damit kein Token im State):
+#   aws ssm put-parameter \
+#     --region eu-central-1 \
+#     --name /swisstopo/staging/telegram-bot-token \
+#     --type SecureString \
+#     --value "<DEIN_BOT_TOKEN>" \
+#     --description "Telegram Bot Token für swisstopo-staging Alerting"
+manage_telegram_alerting = false
+
+# --- HTTP Health Probe (BL-14) ---
+manage_health_probe = false
+
+health_probe_ecs_cluster      = "swisstopo-staging"
+health_probe_ecs_service      = "swisstopo-staging-api"
+health_probe_port             = 8080
+health_probe_path             = "/health"
+health_probe_metric_namespace = "swisstopo/staging-api"
+
+health_probe_lambda_name = "swisstopo-staging-health-probe"
+health_probe_role_name   = "swisstopo-staging-health-probe-role"
+health_probe_rule_name   = "swisstopo-staging-health-probe-schedule"
+health_probe_alarm_name  = "swisstopo-staging-api-health-probe-fail"
+health_probe_schedule_expression = "rate(5 minutes)"
+
+aws_account_id   = "523234426229"
+# Placeholder: ARN ggf. an tatsächliches staging Topic anpassen.
+sns_topic_arn    = "arn:aws:sns:eu-central-1:523234426229:swisstopo-staging-alerts"
+telegram_chat_id = ""  # z.B. "8614377280" — kein Secret, nur numerische ID
+
+# --- Service URLs (Placeholder) ---
+# Sobald Ingress/ALB live ist, api_base_url setzen (z. B. https://<alb-dns-name>)
+api_base_url    = ""
+api_health_path = "/health"

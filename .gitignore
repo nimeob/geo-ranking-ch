@@ -29,6 +29,7 @@ cdk.out/
 *.tfstate
 *.tfstate.backup
 .terraform/
+*.tfplan
 
 # IDE
 .vscode/
