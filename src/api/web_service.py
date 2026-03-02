@@ -436,18 +436,25 @@ def _log_api_request_start(
     route: str,
     request_id: str,
     session_id: str,
+    correlation_id: str = "",
 ) -> None:
+    fields: dict[str, Any] = {
+        "component": "api.web_service",
+        "direction": "client->api",
+        "status": "received",
+        "route": route,
+        "method": method,
+    }
+    if str(correlation_id or "").strip():
+        fields["correlation_id"] = str(correlation_id).strip()
+
     _emit_structured_log(
         event="api.request.start",
         level="info",
         trace_id=request_id,
         request_id=request_id,
         session_id=session_id,
-        component="api.web_service",
-        direction="client->api",
-        status="received",
-        route=route,
-        method=method,
+        **fields,
     )
 
 
@@ -457,6 +464,7 @@ def _log_api_request_end(
     route: str,
     request_id: str,
     session_id: str,
+    correlation_id: str = "",
     status_code: int,
     duration_ms: float,
     error_code: str = "",
@@ -483,6 +491,8 @@ def _log_api_request_end(
         fields["error_code"] = error_code
     if error_class:
         fields["error_class"] = error_class
+    if str(correlation_id or "").strip():
+        fields["correlation_id"] = str(correlation_id).strip()
 
     _emit_structured_log(
         event="api.request.end",
@@ -1447,6 +1457,7 @@ def _select_async_result_snapshot(
 def _project_async_job_status(job: dict[str, Any], *, include_events: bool = False) -> dict[str, Any]:
     projected = {
         "job_id": job.get("job_id"),
+        "correlation_id": job.get("correlation_id"),
         "status": job.get("status"),
         "progress_percent": int(job.get("progress_percent", 0) or 0),
         "partial_count": int(job.get("partial_count", 0) or 0),
@@ -2108,6 +2119,38 @@ class Handler(BaseHTTPRequestHandler):
             request_id=request_id,
         )
 
+    def _resolve_correlation_id_for_route(self, request_path: str) -> str:
+        """Best-effort correlation_id lookup for async job/result routes.
+
+        Notes:
+        - This must never raise, otherwise request handling/logging would break.
+        - Used to enrich structured request lifecycle logs.
+        """
+        path = str(request_path or "").strip()
+        try:
+            if path.startswith("/analyze/jobs/"):
+                job_part = path.removeprefix("/analyze/jobs/").strip("/")
+                job_id = job_part.split("/", 1)[0].strip()
+                if job_id:
+                    job_record = _ASYNC_JOB_STORE.get_job(job_id)
+                    if isinstance(job_record, dict):
+                        return str(job_record.get("correlation_id") or "")
+
+            if path.startswith("/analyze/results/"):
+                result_part = path.removeprefix("/analyze/results/").strip("/")
+                result_id = result_part.split("/", 1)[0].strip()
+                if result_id:
+                    result_record = _ASYNC_JOB_STORE.get_result(result_id)
+                    if isinstance(result_record, dict):
+                        job_id = str(result_record.get("job_id") or "").strip()
+                        if job_id:
+                            job_record = _ASYNC_JOB_STORE.get_job(job_id)
+                            if isinstance(job_record, dict):
+                                return str(job_record.get("correlation_id") or "")
+        except Exception:
+            return ""
+        return ""
+
     def _begin_request_lifecycle(self, *, method: str, request_path: str, request_id: str) -> None:
         self._request_lifecycle_started_at = time.perf_counter()
         self._request_lifecycle_method = str(method or "").strip().upper() or "GET"
@@ -2116,12 +2159,16 @@ class Handler(BaseHTTPRequestHandler):
         self._request_lifecycle_session_id = str(self.headers.get("X-Session-Id", "") or "").strip()
         self._response_status_code: int | None = None
         self._response_error_code = ""
+        self._request_lifecycle_correlation_id = self._resolve_correlation_id_for_route(
+            self._request_lifecycle_route
+        )
 
         _log_api_request_start(
             method=self._request_lifecycle_method,
             route=self._request_lifecycle_route,
             request_id=self._request_lifecycle_request_id,
             session_id=self._request_lifecycle_session_id,
+            correlation_id=self._request_lifecycle_correlation_id,
         )
 
     def _capture_response_error(self, *, payload: dict[str, Any] | None, status: int) -> None:
@@ -2145,6 +2192,7 @@ class Handler(BaseHTTPRequestHandler):
             route=str(getattr(self, "_request_lifecycle_route", "/")),
             request_id=str(getattr(self, "_request_lifecycle_request_id", "")),
             session_id=str(getattr(self, "_request_lifecycle_session_id", "")),
+            correlation_id=str(getattr(self, "_request_lifecycle_correlation_id", "")),
             status_code=status_code,
             duration_ms=duration_ms,
             error_code=str(getattr(self, "_response_error_code", "")),
@@ -2395,6 +2443,7 @@ class Handler(BaseHTTPRequestHandler):
                     {
                         "ok": True,
                         "job_id": job_id,
+                        "correlation_id": job_record.get("correlation_id"),
                         "channel": channel,
                         "limit": limit,
                         "notifications": notifications[:limit],
@@ -2433,6 +2482,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(
                     {
                         "ok": True,
+                        "correlation_id": job_record.get("correlation_id"),
                         "job": _project_async_job_status(job_record, include_events=True),
                         "request_id": request_id,
                     },
@@ -2486,6 +2536,7 @@ class Handler(BaseHTTPRequestHandler):
                         "ok": True,
                         "result_id": selected_result.get("result_id"),
                         "job_id": selected_result.get("job_id"),
+                        "correlation_id": job_record.get("correlation_id"),
                         "result_kind": selected_result.get("result_kind"),
                         "requested_result_id": requested_result.get("result_id"),
                         "requested_result_kind": requested_result.get("result_kind"),
@@ -2773,6 +2824,7 @@ class Handler(BaseHTTPRequestHandler):
                         {
                             "ok": True,
                             "accepted": accepted,
+                            "correlation_id": current_job.get("correlation_id"),
                             "job": _project_async_job_status(current_job, include_events=True),
                             "request_id": request_id,
                         },
@@ -2845,10 +2897,12 @@ class Handler(BaseHTTPRequestHandler):
                     if created_job_id:
                         _ASYNC_JOB_RUNTIME.enqueue(created_job_id)
 
+                    self._request_lifecycle_correlation_id = str(created_job.get("correlation_id") or "")
                     self._send_json(
                         {
                             "ok": True,
                             "accepted": True,
+                            "correlation_id": created_job.get("correlation_id"),
                             "job": _project_async_job_status(created_job, include_events=True),
                             "request_id": request_id,
                         },

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
 _DEFAULT_STORE_FILE = "runtime/async_jobs/store.v1.json"
 _TERMINAL_STATES = {"completed", "failed", "canceled"}
 _ALLOWED_TRANSITIONS = {
@@ -129,6 +129,7 @@ class AsyncJobStore:
 
                 now = _utc_now_iso()
                 raw_job.setdefault("job_id", str(job_id))
+                raw_job.setdefault("correlation_id", str(raw_job.get("job_id") or job_id))
                 raw_job.setdefault("org_id", "default-org")
                 raw_job.setdefault("status", "queued")
                 raw_job.setdefault("request_payload_hash", "")
@@ -290,6 +291,7 @@ class AsyncJobStore:
     def _default_job_record(
         *,
         job_id: str,
+        correlation_id: str,
         request_payload: dict[str, Any],
         query: str,
         intelligence_mode: str,
@@ -299,6 +301,7 @@ class AsyncJobStore:
         payload_copy = deepcopy(request_payload)
         return {
             "job_id": job_id,
+            "correlation_id": correlation_id,
             "org_id": org_id,
             "status": "queued",
             "request_payload_hash": _canonical_payload_hash(payload_copy),
@@ -335,8 +338,10 @@ class AsyncJobStore:
     ) -> dict[str, Any]:
         with self._lock:
             job_id = str(uuid.uuid4())
+            correlation_id = str(uuid.uuid4())
             job = self._default_job_record(
                 job_id=job_id,
+                correlation_id=correlation_id,
                 request_payload=request_payload,
                 query=query,
                 intelligence_mode=intelligence_mode,
