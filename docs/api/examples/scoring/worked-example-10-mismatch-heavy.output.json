@@ -1,0 +1,44 @@
+{
+  "example_id": "score-worked-example-10-mismatch-heavy",
+  "methodology_version": "scoring-v1-draft",
+  "calculation": {
+    "match_component_points": 36.0,
+    "data_completeness_points": 26,
+    "cross_source_consistency_points": 18,
+    "required_source_health_points": 10,
+    "mismatch_penalty_points": 12,
+    "ambiguity_penalty_points": 4,
+    "score_raw": 74.0,
+    "score_rounded": 74,
+    "score_max": 100,
+    "level": "medium",
+    "legacy_confidence": 0.74
+  },
+  "result_projection": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 74,
+          "max": 100,
+          "level": "medium"
+        }
+      }
+    },
+    "data": {
+      "modules": {
+        "match": {
+          "selected_score": 0.9
+        }
+      }
+    },
+    "confidence": 0.74,
+    "context_profile": {
+      "pt_access_score": 58,
+      "noise_risk": "high"
+    },
+    "suitability_light": {
+      "score": 59,
+      "traffic_light": "yellow"
+    }
+  }
+}

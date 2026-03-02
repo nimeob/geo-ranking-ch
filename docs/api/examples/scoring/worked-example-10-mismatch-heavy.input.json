@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-10-mismatch-heavy",
+  "description": "Penalty Case: hoher mismatch_penalty drückt Score (medium)",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.9,
+    "data_completeness_points": 26,
+    "cross_source_consistency_points": 18,
+    "required_source_health_points": 10,
+    "mismatch_penalty_points": 12,
+    "ambiguity_penalty_points": 4,
+    "pt_access_score": 58,
+    "noise_risk": "high",
+    "suitability_score": 59
+  }
+}

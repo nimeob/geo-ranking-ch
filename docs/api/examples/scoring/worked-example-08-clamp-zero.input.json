@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-08-clamp-zero",
+  "description": "Edge Case: negative score_raw => clamp(0)",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.2,
+    "data_completeness_points": 0,
+    "cross_source_consistency_points": 0,
+    "required_source_health_points": 0,
+    "mismatch_penalty_points": 10,
+    "ambiguity_penalty_points": 10,
+    "pt_access_score": 40,
+    "noise_risk": "high",
+    "suitability_score": 38
+  }
+}

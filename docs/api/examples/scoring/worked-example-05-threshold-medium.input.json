@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-05-threshold-medium",
+  "description": "Edge Case: knapp unter High-Threshold (score=81 => medium)",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.87,
+    "data_completeness_points": 23,
+    "cross_source_consistency_points": 15,
+    "required_source_health_points": 8,
+    "mismatch_penalty_points": 0,
+    "ambiguity_penalty_points": 0,
+    "pt_access_score": 68,
+    "noise_risk": "medium",
+    "suitability_score": 63
+  }
+}

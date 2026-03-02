@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-06-threshold-medium-floor",
+  "description": "Edge Case: exakt am Medium-Floor (score=62)",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.7,
+    "data_completeness_points": 18,
+    "cross_source_consistency_points": 10,
+    "required_source_health_points": 6,
+    "mismatch_penalty_points": 0,
+    "ambiguity_penalty_points": 0,
+    "pt_access_score": 61,
+    "noise_risk": "medium",
+    "suitability_score": 56
+  }
+}

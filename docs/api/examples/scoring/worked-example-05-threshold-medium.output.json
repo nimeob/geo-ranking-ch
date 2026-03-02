@@ -1,0 +1,44 @@
+{
+  "example_id": "score-worked-example-05-threshold-medium",
+  "methodology_version": "scoring-v1-draft",
+  "calculation": {
+    "match_component_points": 34.8,
+    "data_completeness_points": 23,
+    "cross_source_consistency_points": 15,
+    "required_source_health_points": 8,
+    "mismatch_penalty_points": 0,
+    "ambiguity_penalty_points": 0,
+    "score_raw": 80.8,
+    "score_rounded": 81,
+    "score_max": 100,
+    "level": "medium",
+    "legacy_confidence": 0.81
+  },
+  "result_projection": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 81,
+          "max": 100,
+          "level": "medium"
+        }
+      }
+    },
+    "data": {
+      "modules": {
+        "match": {
+          "selected_score": 0.87
+        }
+      }
+    },
+    "confidence": 0.81,
+    "context_profile": {
+      "pt_access_score": 68,
+      "noise_risk": "medium"
+    },
+    "suitability_light": {
+      "score": 63,
+      "traffic_light": "yellow"
+    }
+  }
+}

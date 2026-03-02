@@ -33,6 +33,62 @@ EXPECTED_GOLDEN = {
         "selected_score": 0.51,
         "noise_risk": "high",
     },
+    "worked-example-04-threshold-high": {
+        "score": 82,
+        "level": "high",
+        "legacy_confidence": 0.82,
+        "selected_score": 0.9,
+        "noise_risk": "low",
+    },
+    "worked-example-05-threshold-medium": {
+        "score": 81,
+        "level": "medium",
+        "legacy_confidence": 0.81,
+        "selected_score": 0.87,
+        "noise_risk": "medium",
+    },
+    "worked-example-06-threshold-medium-floor": {
+        "score": 62,
+        "level": "medium",
+        "legacy_confidence": 0.62,
+        "selected_score": 0.7,
+        "noise_risk": "medium",
+    },
+    "worked-example-07-threshold-low-ceil": {
+        "score": 61,
+        "level": "low",
+        "legacy_confidence": 0.61,
+        "selected_score": 0.7,
+        "noise_risk": "high",
+    },
+    "worked-example-08-clamp-zero": {
+        "score": 0,
+        "level": "low",
+        "legacy_confidence": 0.0,
+        "selected_score": 0.2,
+        "noise_risk": "high",
+    },
+    "worked-example-09-max-score": {
+        "score": 100,
+        "level": "high",
+        "legacy_confidence": 1.0,
+        "selected_score": 1.0,
+        "noise_risk": "low",
+    },
+    "worked-example-10-mismatch-heavy": {
+        "score": 74,
+        "level": "medium",
+        "legacy_confidence": 0.74,
+        "selected_score": 0.9,
+        "noise_risk": "high",
+    },
+    "worked-example-11-ambiguity-heavy": {
+        "score": 58,
+        "level": "low",
+        "legacy_confidence": 0.58,
+        "selected_score": 0.75,
+        "noise_risk": "medium",
+    },
 }
 
 EXPLAINABILITY_E2E_CASES = {

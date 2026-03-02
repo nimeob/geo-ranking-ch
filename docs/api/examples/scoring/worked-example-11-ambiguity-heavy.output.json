@@ -1,0 +1,44 @@
+{
+  "example_id": "score-worked-example-11-ambiguity-heavy",
+  "methodology_version": "scoring-v1-draft",
+  "calculation": {
+    "match_component_points": 30.0,
+    "data_completeness_points": 18,
+    "cross_source_consistency_points": 12,
+    "required_source_health_points": 8,
+    "mismatch_penalty_points": 0,
+    "ambiguity_penalty_points": 10,
+    "score_raw": 58.0,
+    "score_rounded": 58,
+    "score_max": 100,
+    "level": "low",
+    "legacy_confidence": 0.58
+  },
+  "result_projection": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 58,
+          "max": 100,
+          "level": "low"
+        }
+      }
+    },
+    "data": {
+      "modules": {
+        "match": {
+          "selected_score": 0.75
+        }
+      }
+    },
+    "confidence": 0.58,
+    "context_profile": {
+      "pt_access_score": 62,
+      "noise_risk": "medium"
+    },
+    "suitability_light": {
+      "score": 54,
+      "traffic_light": "yellow"
+    }
+  }
+}

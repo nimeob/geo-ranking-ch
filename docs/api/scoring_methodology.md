@@ -319,10 +319,18 @@ Die folgenden Referenzfälle sind so aufgebaut, dass Integratoren die Methodik 1
 | Beispiel A | hoher Confidence-Case (klarer Match, geringe Penalties) | [`docs/api/examples/scoring/worked-example-01-high-confidence.input.json`](./examples/scoring/worked-example-01-high-confidence.input.json) | [`docs/api/examples/scoring/worked-example-01-high-confidence.output.json`](./examples/scoring/worked-example-01-high-confidence.output.json) |
 | Beispiel B | mittlerer Confidence-Case (teilweise Lücken, moderate Penalties) | [`docs/api/examples/scoring/worked-example-02-medium-confidence.input.json`](./examples/scoring/worked-example-02-medium-confidence.input.json) | [`docs/api/examples/scoring/worked-example-02-medium-confidence.output.json`](./examples/scoring/worked-example-02-medium-confidence.output.json) |
 | Beispiel C | niedriger Confidence-Case (hohe Ambiguität + Mismatch-Risiko) | [`docs/api/examples/scoring/worked-example-03-low-confidence.input.json`](./examples/scoring/worked-example-03-low-confidence.input.json) | [`docs/api/examples/scoring/worked-example-03-low-confidence.output.json`](./examples/scoring/worked-example-03-low-confidence.output.json) |
+| Beispiel D | Threshold-Case: exakt `high`-Grenze (`score=82`) | [`docs/api/examples/scoring/worked-example-04-threshold-high.input.json`](./examples/scoring/worked-example-04-threshold-high.input.json) | [`docs/api/examples/scoring/worked-example-04-threshold-high.output.json`](./examples/scoring/worked-example-04-threshold-high.output.json) |
+| Beispiel E | Threshold-Case: knapp unter `high` (`score=81`) | [`docs/api/examples/scoring/worked-example-05-threshold-medium.input.json`](./examples/scoring/worked-example-05-threshold-medium.input.json) | [`docs/api/examples/scoring/worked-example-05-threshold-medium.output.json`](./examples/scoring/worked-example-05-threshold-medium.output.json) |
+| Beispiel F | Threshold-Case: exakt `medium`-Floor (`score=62`) | [`docs/api/examples/scoring/worked-example-06-threshold-medium-floor.input.json`](./examples/scoring/worked-example-06-threshold-medium-floor.input.json) | [`docs/api/examples/scoring/worked-example-06-threshold-medium-floor.output.json`](./examples/scoring/worked-example-06-threshold-medium-floor.output.json) |
+| Beispiel G | Threshold-Case: knapp unter `medium` (`score=61`) | [`docs/api/examples/scoring/worked-example-07-threshold-low-ceil.input.json`](./examples/scoring/worked-example-07-threshold-low-ceil.input.json) | [`docs/api/examples/scoring/worked-example-07-threshold-low-ceil.output.json`](./examples/scoring/worked-example-07-threshold-low-ceil.output.json) |
+| Beispiel H | Clamp-Case: negativer `score_raw` → `score=0` | [`docs/api/examples/scoring/worked-example-08-clamp-zero.input.json`](./examples/scoring/worked-example-08-clamp-zero.input.json) | [`docs/api/examples/scoring/worked-example-08-clamp-zero.output.json`](./examples/scoring/worked-example-08-clamp-zero.output.json) |
+| Beispiel I | Max-Case: perfektes Signal → `score=100` | [`docs/api/examples/scoring/worked-example-09-max-score.input.json`](./examples/scoring/worked-example-09-max-score.input.json) | [`docs/api/examples/scoring/worked-example-09-max-score.output.json`](./examples/scoring/worked-example-09-max-score.output.json) |
+| Beispiel J | Penalty-Case: hoher `mismatch_penalty` (medium) | [`docs/api/examples/scoring/worked-example-10-mismatch-heavy.input.json`](./examples/scoring/worked-example-10-mismatch-heavy.input.json) | [`docs/api/examples/scoring/worked-example-10-mismatch-heavy.output.json`](./examples/scoring/worked-example-10-mismatch-heavy.output.json) |
+| Beispiel K | Penalty-Case: hohe Ambiguität (`ambiguity_penalty`) (low) | [`docs/api/examples/scoring/worked-example-11-ambiguity-heavy.input.json`](./examples/scoring/worked-example-11-ambiguity-heavy.input.json) | [`docs/api/examples/scoring/worked-example-11-ambiguity-heavy.output.json`](./examples/scoring/worked-example-11-ambiguity-heavy.output.json) |
 
 ### 8.1 Rechenweg (verbindliches Muster)
 
-Für alle drei Fälle gilt derselbe deterministische Ablauf:
+Für alle Referenzfälle gilt derselbe deterministische Ablauf:
 
 ```text
 match_component = selected_score * 40
@@ -343,6 +351,8 @@ Level-Mapping bleibt identisch zu Abschnitt 2.1 / 3.1:
 | A | `91.4` | `91` | `high` | `0.91` |
 | B | `64.6` | `65` | `medium` | `0.65` |
 | C | `34.4` | `34` | `low` | `0.34` |
+
+Hinweis: Tabelle zeigt die drei Kernfälle A–C; zusätzliche Edge-/Threshold-/Penalty-Referenzen sind in der Tabelle unter Abschnitt 8) verlinkt.
 
 ## 9) Methodik-Versionierung und Migrationsregeln
 
