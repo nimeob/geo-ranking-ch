@@ -4,7 +4,8 @@ Dieses Verzeichnis ist ein **sicherer Terraform-Einstieg** für die bestehenden 
 
 - ECS Cluster `swisstopo-dev`
 - ECR Repository `swisstopo-dev-api`
-- CloudWatch Log Group `/swisstopo/dev/ecs/api`
+- CloudWatch Log Group `/swisstopo/dev/ecs/api` (API)
+- CloudWatch Log Group `/swisstopo/dev/ecs/ui` (UI, falls UI-Service existiert)
 - S3 Bucket `swisstopo-dev-523234426229`
 
 Optionale Erweiterungen (ebenfalls import-first):
@@ -53,6 +54,31 @@ Für frühe Smoke-/Dokumentations-Workflows (bevor Ingress/ALB als Terraform-Res
 - Ressourcenblöcke setzen `lifecycle.prevent_destroy = true`.
 
 > **Kein blindes `terraform apply` auf bestehender Infrastruktur.**
+
+## Secrets / Parameter Store (SSM SecureString)
+
+Ziel: Secrets (z. B. Telegram Bot Token, API Bearer Token) **nicht** im Terraform-State halten.
+
+- Terraform kennt nur die **Namen/ARNs** (Outputs: `ssm_parameter_names`, `ssm_parameter_arns`)
+- Values werden **manuell** angelegt/rotiert (AWS CLI/Console)
+- Ressourcen (z. B. Lambda) referenzieren nur den Parameter-Namen; IAM erlaubt nur `ssm:GetParameter` auf exakt diesen ARN.
+
+Kanonische Defaults (overridebar in `*.tfvars`):
+- `telegram_bot_token_ssm_parameter_name` → `/<project>/<env>/telegram-bot-token`
+- `api_auth_token_ssm_parameter_name` → `/<project>/<env>/api-auth-token`
+
+Beispiel (staging):
+
+```bash
+aws ssm put-parameter \
+  --region eu-central-1 \
+  --name /swisstopo/staging/telegram-bot-token \
+  --type SecureString \
+  --value "<DEIN_BOT_TOKEN>" \
+  --overwrite
+```
+
+> Wichtig: Das Parameter-Value wird nie von Terraform gelesen (kein `data aws_ssm_parameter`), damit nichts im Plan/State landet.
 
 ### Staging Network / Ingress Skeleton (WP #660)
 
@@ -105,6 +131,7 @@ Die Terraform-Defaults sind darauf abgestimmt, um Drift direkt nach Import zu mi
 - `aws_ecs_cluster.dev` (optional managed)
 - `aws_ecr_repository.api` (optional managed)
 - `aws_cloudwatch_log_group.api` (optional managed)
+- `aws_cloudwatch_log_group.ui` (optional managed)
 - `aws_s3_bucket.dev` (optional managed)
 - `aws_lambda_function.sns_to_telegram` + IAM + SNS Subscription (`manage_telegram_alerting=true`)
 - `aws_lambda_function.health_probe` + IAM + EventBridge + Alarm (`manage_health_probe=true`)
@@ -130,6 +157,7 @@ In `terraform.tfvars` sicherstellen:
 - `manage_ecs_cluster = false`
 - `manage_ecr_repository = false`
 - `manage_cloudwatch_log_group = false`
+- `manage_cloudwatch_log_group_ui = false`
 - `manage_s3_bucket = false`
 
 Dann:
@@ -155,8 +183,9 @@ terraform import 'aws_ecs_cluster.dev[0]' swisstopo-dev
 # ECR Repository
 terraform import 'aws_ecr_repository.api[0]' swisstopo-dev-api
 
-# CloudWatch Log Group
+# CloudWatch Log Groups
 terraform import 'aws_cloudwatch_log_group.api[0]' /swisstopo/dev/ecs/api
+terraform import 'aws_cloudwatch_log_group.ui[0]' /swisstopo/dev/ecs/ui
 
 # S3 Bucket
 terraform import 'aws_s3_bucket.dev[0]' swisstopo-dev-523234426229

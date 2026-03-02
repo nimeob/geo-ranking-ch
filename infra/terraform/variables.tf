@@ -52,6 +52,12 @@ variable "manage_cloudwatch_log_group" {
   default     = false
 }
 
+variable "manage_cloudwatch_log_group_ui" {
+  description = "Wenn true, verwaltet Terraform die CloudWatch Log Group für den UI-Service (Import vor Apply empfohlen)."
+  type        = bool
+  default     = false
+}
+
 variable "manage_s3_bucket" {
   description = "Wenn true, verwaltet Terraform den dev-S3-Bucket (Import vor Apply empfohlen)."
   type        = bool
@@ -82,8 +88,14 @@ variable "cloudwatch_log_group_name" {
   default     = "/swisstopo/dev/ecs/api"
 }
 
+variable "cloudwatch_log_group_ui_name" {
+  description = "Zielname der CloudWatch Log Group für den UI-Service."
+  type        = string
+  default     = "/swisstopo/dev/ecs/ui"
+}
+
 variable "cloudwatch_log_retention_days" {
-  description = "Retention für neue CloudWatch Log Group (nur relevant bei manage_cloudwatch_log_group=true)."
+  description = "Retention für neue CloudWatch Log Groups (nur relevant bei manage_cloudwatch_log_group*=true)."
   type        = number
   default     = 30
 }
@@ -112,10 +124,32 @@ variable "existing_cloudwatch_log_group_name" {
   default     = "/swisstopo/dev/ecs/api"
 }
 
+variable "existing_cloudwatch_log_group_ui_name" {
+  description = "Name einer bereits existierenden CloudWatch Log Group für den UI-Service (Read-Only Lookup)."
+  type        = string
+  default     = "/swisstopo/dev/ecs/ui"
+}
+
 variable "existing_s3_bucket_name" {
   description = "Name eines bereits existierenden dev-S3-Buckets (Read-Only Lookup)."
   type        = string
   default     = "swisstopo-dev-523234426229"
+}
+
+# ---------------------------------------------------------------------------
+# SSM/Secrets Parameter Names (kein Secret im Terraform-State)
+# ---------------------------------------------------------------------------
+
+variable "telegram_bot_token_ssm_parameter_name" {
+  description = "Optionaler Override für den SSM SecureString Parameter-Namen des Telegram Bot Tokens. Leer => Default /<project>/<env>/telegram-bot-token."
+  type        = string
+  default     = ""
+}
+
+variable "api_auth_token_ssm_parameter_name" {
+  description = "Optionaler Override für den SSM SecureString Parameter-Namen des API Bearer Tokens (API_AUTH_TOKEN). Leer => Default /<project>/<env>/api-auth-token."
+  type        = string
+  default     = ""
 }
 
 # ---------------------------------------------------------------------------
