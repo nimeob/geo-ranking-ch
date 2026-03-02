@@ -23,7 +23,6 @@ Regelwerk:
 
 ### Next
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
-- [#651](https://github.com/nimeob/geo-ranking-ch/issues/651) — WP: staging Terraform – Baseline Provisioning (VPC/ECS/ALB/Logs/Secrets) + Outputs (priority:P0, status:todo)
 - [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:todo)
 - [#656](https://github.com/nimeob/geo-ranking-ch/issues/656) — WP: Async Result Pages/Permalinks – staging live (result_id Deep-Link) (priority:P0, status:todo)
 - [#567](https://github.com/nimeob/geo-ranking-ch/issues/567) — BL-15.r2.wp3: Legacy-Key Disable-Canary neu bewerten (optional statt Pflicht) (priority:P1, status:todo)
