@@ -129,6 +129,15 @@ Der Webservice projiziert auf:
 | Overpass `elements[].tags`, Distanz/Koordinaten | `intelligence.tenants_businesses.*` | `TR-01` + `TR-03` + regelbasierte Kategoriezuordnung |
 | Overpass `elements[]` (Signalgruppen) | `intelligence.environment_noise_risk.*` | gewichtete Heuristik + `TR-06` |
 
+**Konfiguration (Overpass Query):**
+
+- `OSM_POI_OVERPASS_TAG_KEYS` (CSV) – welche OSM-Tag-Keys abgefragt werden.
+  Default: `shop,amenity,office,leisure,tourism,craft`
+- `OSM_POI_OVERPASS_ELEMENT_TYPES` (CSV) – welche Element-Typen abgefragt werden.
+  Default: `node,way,relation`
+
+Ungültige Werte werden ignoriert; bei leerem Result fällt der Service auf Defaults zurück.
+
 ## 3.11 `google_news_rss` / `google_news_rss_city`
 
 | Quellfeld | Zielpfad(e) | Transformation |
