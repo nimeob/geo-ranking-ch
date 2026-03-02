@@ -124,6 +124,47 @@ class TestOidcGuardNegative(unittest.TestCase):
         self.assertEqual(status_analyze, 401)
         self.assertEqual(body_analyze.get("error"), "unauthorized")
 
+    def test_jobs_requires_bearer_token_when_oidc_enabled(self):
+        """GET /analyze/jobs/<id> without token must return 401, not 404, when OIDC auth is enabled."""
+        status, body = _http_json("GET", f"{self.base_url}/analyze/jobs/nonexistent-job-id")
+        self.assertEqual(status, 401)
+        self.assertFalse(body.get("ok"))
+        self.assertEqual(body.get("error"), "unauthorized")
+
+    def test_results_requires_bearer_token_when_oidc_enabled(self):
+        """GET /analyze/results/<id> without token must return 401, not 404, when OIDC auth is enabled."""
+        status, body = _http_json("GET", f"{self.base_url}/analyze/results/nonexistent-result-id")
+        self.assertEqual(status, 401)
+        self.assertFalse(body.get("ok"))
+        self.assertEqual(body.get("error"), "unauthorized")
+
+    def test_notifications_requires_bearer_token_when_oidc_enabled(self):
+        """GET /analyze/jobs/<id>/notifications without token must return 401 when OIDC auth is enabled."""
+        status, body = _http_json(
+            "GET", f"{self.base_url}/analyze/jobs/nonexistent-job-id/notifications"
+        )
+        self.assertEqual(status, 401)
+        self.assertFalse(body.get("ok"))
+        self.assertEqual(body.get("error"), "unauthorized")
+
+    def test_cancel_requires_bearer_token_when_oidc_enabled(self):
+        """POST /analyze/jobs/<id>/cancel without token must return 401 when OIDC auth is enabled."""
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze/jobs/nonexistent-job-id/cancel",
+            payload={"reason": "test"},
+        )
+        self.assertEqual(status, 401)
+        self.assertFalse(body.get("ok"))
+        self.assertEqual(body.get("error"), "unauthorized")
+
+    def test_health_remains_public_when_oidc_enabled(self):
+        """GET /health and /healthz must remain accessible without token even with OIDC enabled."""
+        for path in ("/health", "/healthz"):
+            status, body = _http_json("GET", f"{self.base_url}{path}")
+            self.assertEqual(status, 200, f"{path} should return 200 without auth")
+            self.assertTrue(body.get("ok"), f"{path} body should be ok")
+
 
 if __name__ == "__main__":
     unittest.main()

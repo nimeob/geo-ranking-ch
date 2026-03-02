@@ -3511,9 +3511,21 @@ class Handler(BaseHTTPRequestHandler):
 
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
 
-                auth_user = self._phase1_auth_user()
-                if _PHASE1_AUTH_ENABLED and auth_user is None:
-                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
+                auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
+                oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+                if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "unauthorized",
+                            "message": "missing or invalid bearer token",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.UNAUTHORIZED,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
                     return
 
                 try:
@@ -3567,9 +3579,21 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_not_found(request_id=request_id)
                     return
 
-                auth_user = self._phase1_auth_user()
-                if _PHASE1_AUTH_ENABLED and auth_user is None:
-                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
+                auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
+                oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+                if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "unauthorized",
+                            "message": "missing or invalid bearer token",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.UNAUTHORIZED,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
                     return
 
                 try:
@@ -3619,9 +3643,21 @@ class Handler(BaseHTTPRequestHandler):
 
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
 
-                auth_user = self._phase1_auth_user()
-                if _PHASE1_AUTH_ENABLED and auth_user is None:
-                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
+                auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
+                oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+                if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "unauthorized",
+                            "message": "missing or invalid bearer token",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.UNAUTHORIZED,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
                     return
 
                 try:

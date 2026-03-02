@@ -170,7 +170,26 @@ curl http://localhost:8081/healthz
 - Default-Store-Datei: `runtime/async_jobs/store.v1.json` (override via `ASYNC_JOBS_STORE_FILE`).
 - Sync-Requests (`POST /analyze` ohne Async-Mode) schreiben ebenfalls einen Job + Final-Result in den Store (steuerbar via `ENABLE_QUERY_HISTORY=0/1`, Default: `1`).
 
-**Auth (optional):** Wenn `API_AUTH_TOKEN` gesetzt ist, erfordert `POST /analyze` den Header `Authorization: Bearer <token>`.
+**Auth — default-deny (Phase 1):** Sobald `PHASE1_AUTH_USERS_JSON` oder `OIDC_JWKS_URL` gesetzt ist, gilt **default-deny**: alle protected Endpoints erfordern einen gültigen `Authorization: Bearer <token>` Header, sonst folgt `401 unauthorized`. Öffentlich bleiben nur `/health`, `/healthz`, `/version`.
+
+Protected Endpoints:
+- `POST /analyze`
+- `GET /analyze/history`
+- `GET /analyze/results/<result_id>`
+- `GET /analyze/jobs/<job_id>`
+- `GET /analyze/jobs/<job_id>/notifications`
+- `POST /analyze/jobs/<job_id>/cancel`
+
+Fehler-Response (401): `{"ok": false, "error": "unauthorized", "message": "missing or invalid bearer token", "request_id": "..."}`
+
+Beispiel curl:
+```bash
+curl -H "Authorization: Bearer <your-token>" http://localhost:8080/analyze/history
+curl -H "Authorization: Bearer <your-token>" http://localhost:8080/analyze/results/<result_id>
+curl -H "Authorization: Bearer <your-token>" http://localhost:8080/analyze/jobs/<job_id>
+```
+
+**Legacy-Auth:** `API_AUTH_TOKEN` (einzelner Token) wird weiterhin für `POST /analyze` unterstützt (Abwärtskompatibilität). Für neue Deployments `PHASE1_AUTH_USERS_JSON` oder OIDC verwenden.
 
 **Request-Korrelation:** Für `POST /analyze` wird die **erste gültige** ID aus `X-Request-Id`/`X_Request_Id`/`Request-Id`/`Request_Id` (primär) bzw. `X-Correlation-Id`/`X_Correlation_Id`/`Correlation-Id`/`Correlation_Id` (Fallback) in die Antwort gespiegelt (`X-Request-Id` Header + JSON-Feld `request_id`). Leere/whitespace-only IDs, IDs mit eingebettetem Whitespace, IDs mit Steuerzeichen, IDs mit Trennzeichen (`,`/`;`), Non-ASCII-IDs sowie IDs länger als 128 Zeichen werden verworfen; ohne gültige Header-ID erzeugt der Service automatisch eine Request-ID.
 
