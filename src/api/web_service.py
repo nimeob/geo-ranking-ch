@@ -19,6 +19,7 @@ Endpoints:
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import math
 import os
@@ -29,6 +30,7 @@ import time
 import uuid
 from collections import OrderedDict
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from http import HTTPStatus
@@ -55,6 +57,107 @@ from src.api.compliance_corrections import handle_correction_request
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
+
+_PHASE1_AUTH_USERS_JSON_ENV = "PHASE1_AUTH_USERS_JSON"
+_PHASE1_AUTH_USERS_FILE_ENV = "PHASE1_AUTH_USERS_FILE"
+
+
+@dataclass(frozen=True)
+class _Phase1AuthUser:
+    token: str
+    user_id: str
+    org_id: str
+
+
+def _normalize_phase1_auth_scalar(value: Any, *, field_name: str) -> str:
+    normalized = str(value or "").strip()
+    if not normalized:
+        raise ValueError(f"{field_name} must be a non-empty string")
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in normalized):
+        raise ValueError(f"{field_name} must not contain control characters")
+    return normalized
+
+
+def _load_phase1_auth_users_from_env() -> list[_Phase1AuthUser]:
+    """Loads Phase-1 auth users from env.
+
+    Supported env vars:
+    - PHASE1_AUTH_USERS_FILE: path to JSON file
+    - PHASE1_AUTH_USERS_JSON: inline JSON
+
+    JSON schema (flexible):
+    - {"users": [{"token": "...", "user_id": "...", "org_id": "..."}]}
+    - [{"token": "...", "user_id": "...", "org_id": "..."}]
+
+    Notes:
+    - org_id is optional; when omitted it defaults to user_id (per-user tenant).
+    - This function is intentionally stdlib-only and fail-fast if configured but invalid.
+    """
+
+    raw_file = str(os.getenv(_PHASE1_AUTH_USERS_FILE_ENV, "") or "").strip()
+    raw_json = str(os.getenv(_PHASE1_AUTH_USERS_JSON_ENV, "") or "").strip()
+
+    if not raw_file and not raw_json:
+        return []
+
+    if raw_file:
+        payload_text = Path(raw_file).read_text(encoding="utf-8")
+    else:
+        payload_text = raw_json
+
+    try:
+        parsed = json.loads(payload_text)
+    except json.JSONDecodeError as exc:
+        raise ValueError("PHASE1 auth users config must be valid JSON") from exc
+
+    if isinstance(parsed, dict) and "users" in parsed:
+        users_raw = parsed.get("users")
+    else:
+        users_raw = parsed
+
+    if not isinstance(users_raw, list):
+        raise ValueError("PHASE1 auth users config must be a list or {users:[...]} object")
+
+    users: list[_Phase1AuthUser] = []
+    for idx, row in enumerate(users_raw):
+        if not isinstance(row, dict):
+            raise ValueError(f"PHASE1 auth users entry #{idx+1} must be an object")
+        token = _normalize_phase1_auth_scalar(row.get("token"), field_name="token")
+        user_id = _normalize_phase1_auth_scalar(row.get("user_id"), field_name="user_id")
+        org_id_raw = str(row.get("org_id") or "").strip()
+        org_id = org_id_raw if org_id_raw else user_id
+        org_id = _normalize_phase1_auth_scalar(org_id, field_name="org_id")
+
+        users.append(_Phase1AuthUser(token=token, user_id=user_id, org_id=org_id))
+
+    if not users:
+        raise ValueError("PHASE1 auth users config must contain at least one user")
+
+    return users
+
+
+_PHASE1_AUTH_USERS: list[_Phase1AuthUser] = _load_phase1_auth_users_from_env()
+_PHASE1_AUTH_ENABLED = bool(_PHASE1_AUTH_USERS)
+
+
+def _resolve_phase1_auth_user(bearer_token: str) -> _Phase1AuthUser | None:
+    """Resolves a provided bearer token to a Phase-1 auth user.
+
+    Uses hmac.compare_digest and avoids early-exit on match to reduce trivial timing
+    differences (small N expected).
+    """
+
+    token = str(bearer_token or "").strip()
+    if not token or not _PHASE1_AUTH_USERS:
+        return None
+
+    match: _Phase1AuthUser | None = None
+    for user in _PHASE1_AUTH_USERS:
+        if hmac.compare_digest(token, user.token):
+            match = user
+    return match
+
+
 _CORS_ALLOW_ORIGINS_ENV = "CORS_ALLOW_ORIGINS"
 _CORS_ALLOW_METHODS = "POST, OPTIONS"
 _CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Org-Id, X-Tenant-Id"
@@ -2720,6 +2823,12 @@ class Handler(BaseHTTPRequestHandler):
                 return _normalize_async_org_id(raw_value)
         return "default-org"
 
+    def _phase1_auth_user(self) -> _Phase1AuthUser | None:
+        if not _PHASE1_AUTH_ENABLED:
+            return None
+        token = _extract_bearer_token(self.headers.get("Authorization", ""))
+        return _resolve_phase1_auth_user(token)
+
     @staticmethod
     def _job_visible_for_org(job_record: dict[str, Any], request_org_id: str) -> bool:
         job_org_id = _normalize_async_org_id(job_record.get("org_id"))
@@ -3111,8 +3220,24 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if request_path == "/analyze/history":
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+
+                auth_user = self._phase1_auth_user()
+                if _PHASE1_AUTH_ENABLED and auth_user is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "unauthorized",
+                            "message": "missing or invalid bearer token",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.UNAUTHORIZED,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                    return
+
                 try:
-                    request_org_id = self._request_org_id()
+                    request_org_id = auth_user.org_id if auth_user else self._request_org_id()
                     limit = _resolve_history_limit(query_params.get("limit", [""])[0])
                 except ValueError as exc:
                     self._send_json(
@@ -3124,6 +3249,7 @@ class Handler(BaseHTTPRequestHandler):
                         },
                         status=HTTPStatus.BAD_REQUEST,
                         request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
                     )
                     return
 
@@ -3186,8 +3312,14 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+
+                auth_user = self._phase1_auth_user()
+                if _PHASE1_AUTH_ENABLED and auth_user is None:
+                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    return
+
                 try:
-                    request_org_id = self._request_org_id()
+                    request_org_id = auth_user.org_id if auth_user else self._request_org_id()
                     channel = _resolve_notification_channel(query_params.get("channel", [""])[0])
                     limit = _resolve_notification_limit(query_params.get("limit", [""])[0])
                 except ValueError as exc:
@@ -3200,6 +3332,7 @@ class Handler(BaseHTTPRequestHandler):
                         },
                         status=HTTPStatus.BAD_REQUEST,
                         request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
                     )
                     return
 
@@ -3229,8 +3362,13 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_not_found(request_id=request_id)
                     return
 
+                auth_user = self._phase1_auth_user()
+                if _PHASE1_AUTH_ENABLED and auth_user is None:
+                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    return
+
                 try:
-                    request_org_id = self._request_org_id()
+                    request_org_id = auth_user.org_id if auth_user else self._request_org_id()
                 except ValueError as exc:
                     self._send_json(
                         {
@@ -3241,6 +3379,7 @@ class Handler(BaseHTTPRequestHandler):
                         },
                         status=HTTPStatus.BAD_REQUEST,
                         request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
                     )
                     return
 
@@ -3267,8 +3406,14 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+
+                auth_user = self._phase1_auth_user()
+                if _PHASE1_AUTH_ENABLED and auth_user is None:
+                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    return
+
                 try:
-                    request_org_id = self._request_org_id()
+                    request_org_id = auth_user.org_id if auth_user else self._request_org_id()
                     projection_mode = _resolve_result_projection_mode(query_params.get("view", [""])[0])
                 except ValueError as exc:
                     self._send_json(
@@ -3280,6 +3425,7 @@ class Handler(BaseHTTPRequestHandler):
                         },
                         status=HTTPStatus.BAD_REQUEST,
                         request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
                     )
                     return
 
@@ -3525,13 +3671,27 @@ class Handler(BaseHTTPRequestHandler):
             self._cors_response_headers = cors_headers
 
             required_token = os.getenv("API_AUTH_TOKEN", "").strip()
-            if required_token:
-                provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
-                if provided_token != required_token:
+            provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
+            phase1_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
+
+            legacy_token_ok = bool(required_token) and hmac.compare_digest(provided_token, required_token)
+            phase1_token_ok = phase1_user is not None
+
+            # Auth policy:
+            # - legacy: API_AUTH_TOKEN (single token) still supported
+            # - phase1: PHASE1_AUTH_USERS_* enables per-user tokens
+            if required_token or _PHASE1_AUTH_ENABLED:
+                if not (legacy_token_ok or phase1_token_ok):
                     self._send_json(
-                        {"ok": False, "error": "unauthorized", "request_id": request_id},
+                        {
+                            "ok": False,
+                            "error": "unauthorized",
+                            "message": "missing or invalid bearer token",
+                            "request_id": request_id,
+                        },
                         status=HTTPStatus.UNAUTHORIZED,
                         request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
                     )
                     return
 
@@ -3719,6 +3879,8 @@ class Handler(BaseHTTPRequestHandler):
 
                 if async_mode_requested:
                     request_org_id = self._request_org_id()
+                    if _PHASE1_AUTH_ENABLED and phase1_user is not None:
+                        request_org_id = phase1_user.org_id
                     _ensure_async_runtime_started()
                     created_job = _ASYNC_JOB_STORE.create_job(
                         request_payload=data,
@@ -3752,11 +3914,14 @@ class Handler(BaseHTTPRequestHandler):
                 sync_history_job_id: str | None = None
                 if os.getenv("ENABLE_QUERY_HISTORY", "1") != "0":
                     request_org_id = "default-org"
-                    try:
-                        request_org_id = self._request_org_id()
-                    except ValueError:
-                        # Best-effort: invalid tenant header must not break sync /analyze.
-                        request_org_id = "default-org"
+                    if _PHASE1_AUTH_ENABLED and phase1_user is not None:
+                        request_org_id = phase1_user.org_id
+                    else:
+                        try:
+                            request_org_id = self._request_org_id()
+                        except ValueError:
+                            # Best-effort: invalid tenant header must not break sync /analyze.
+                            request_org_id = "default-org"
 
                     try:
                         created_job = _ASYNC_JOB_STORE.create_job(
