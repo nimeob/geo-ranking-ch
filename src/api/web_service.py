@@ -1849,6 +1849,19 @@ def _resolve_history_limit(raw_value: str | None) -> int:
     return min(parsed, 200)
 
 
+def _resolve_history_offset(raw_value: str | None) -> int:
+    normalized = str(raw_value or "").strip()
+    if not normalized:
+        return 0
+    try:
+        parsed = int(normalized)
+    except ValueError as exc:
+        raise ValueError("offset must be a non-negative integer") from exc
+    if parsed < 0:
+        raise ValueError("offset must be a non-negative integer")
+    return parsed
+
+
 def _select_async_result_snapshot(
     *,
     requested_result: dict[str, Any],
@@ -3348,6 +3361,7 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     request_org_id = auth_user.org_id if auth_user else self._request_org_id()
                     limit = _resolve_history_limit(query_params.get("limit", [""])[0])
+                    offset = _resolve_history_offset(query_params.get("offset", [""])[0])
                 except ValueError as exc:
                     self._send_json(
                         {
@@ -3362,6 +3376,73 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
+                # ------------------------------------------------------------------
+                # DB-store path: efficient per-user paginated query with org guard
+                # ------------------------------------------------------------------
+                from src.shared.async_job_store_db import DbAsyncJobStore as _DbStore  # noqa: PLC0415
+                if isinstance(_ASYNC_JOB_STORE, _DbStore):
+                    # Resolve user_id for OIDC (sub) or phase1 auth
+                    db_user_id: str | None = None
+                    if oidc_claims:
+                        db_user_id = str(oidc_claims.get("sub") or "").strip() or None
+                    elif auth_user:
+                        db_user_id = str(auth_user.user_id or "").strip() or None
+
+                    if db_user_id:
+                        db_jobs = _ASYNC_JOB_STORE.list_jobs_for_user(
+                            db_user_id,
+                            org_id=request_org_id,
+                            limit=limit,
+                            offset=offset,
+                        )
+                        total = _ASYNC_JOB_STORE.count_jobs_for_user(
+                            db_user_id,
+                            org_id=request_org_id,
+                        )
+                    else:
+                        db_jobs = _ASYNC_JOB_STORE.list_jobs_for_org(
+                            request_org_id,
+                            limit=limit,
+                            offset=offset,
+                        )
+                        total = _ASYNC_JOB_STORE.count_jobs_for_org(request_org_id)
+
+                    db_history_rows: list[dict[str, Any]] = []
+                    for job_record in db_jobs:
+                        job_id = str(job_record.get("job_id") or "")
+                        db_history_rows.append(
+                            {
+                                "result_id": job_record.get("result_id"),
+                                "job_id": job_id,
+                                "created_at": str(
+                                    job_record.get("finished_at")
+                                    or job_record.get("updated_at")
+                                    or job_record.get("queued_at")
+                                    or ""
+                                ),
+                                "query": job_record.get("query", ""),
+                                "intelligence_mode": job_record.get("intelligence_mode", "basic"),
+                                "status": job_record.get("status"),
+                            }
+                        )
+
+                    self._send_json(
+                        {
+                            "ok": True,
+                            "history": db_history_rows,
+                            "total": total,
+                            "limit": limit,
+                            "offset": offset,
+                            "request_id": request_id,
+                        },
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                    return
+
+                # ------------------------------------------------------------------
+                # File-store path (legacy): iterate all jobs + in-memory filter
+                # ------------------------------------------------------------------
                 history_rows: list[dict[str, Any]] = []
                 for job_id in _ASYNC_JOB_STORE.list_job_ids():
                     job_record = _ASYNC_JOB_STORE.get_job(job_id)
@@ -3408,7 +3489,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(
                     {
                         "ok": True,
-                        "history": history_rows[:limit],
+                        "history": history_rows[offset : offset + limit],
+                        "total": len(history_rows),
+                        "limit": limit,
+                        "offset": offset,
                         "request_id": request_id,
                     },
                     request_id=request_id,
@@ -3557,7 +3641,15 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
-                requested_result = _ASYNC_JOB_STORE.get_result(result_id)
+                # DB-store path: use org-guarded result fetch (tenant guard at DB level)
+                from src.shared.async_job_store_db import DbAsyncJobStore as _DbStore2  # noqa: PLC0415
+                if isinstance(_ASYNC_JOB_STORE, _DbStore2):
+                    requested_result = _ASYNC_JOB_STORE.get_result_with_org_guard(
+                        result_id, org_id=request_org_id
+                    )
+                else:
+                    requested_result = _ASYNC_JOB_STORE.get_result(result_id)
+
                 if requested_result is None:
                     self._send_not_found(request_id=request_id, message="unknown result_id")
                     return
@@ -3567,13 +3659,15 @@ class Handler(BaseHTTPRequestHandler):
                 if job_record is None:
                     self._send_not_found(request_id=request_id, message="unknown result_id")
                     return
-                if auth_user is not None:
-                    if not self._job_visible_for_auth_user(job_record, auth_user):
+                if not isinstance(_ASYNC_JOB_STORE, _DbStore2):
+                    # File-store: enforce org guard in application layer
+                    if auth_user is not None:
+                        if not self._job_visible_for_auth_user(job_record, auth_user):
+                            self._send_not_found(request_id=request_id, message="unknown result_id")
+                            return
+                    elif not self._job_visible_for_org(job_record, request_org_id):
                         self._send_not_found(request_id=request_id, message="unknown result_id")
                         return
-                elif not self._job_visible_for_org(job_record, request_org_id):
-                    self._send_not_found(request_id=request_id, message="unknown result_id")
-                    return
 
                 all_results_for_job = _ASYNC_JOB_STORE.list_results(job_id)
                 selected_result = _select_async_result_snapshot(
