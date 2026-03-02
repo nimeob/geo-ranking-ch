@@ -45,9 +45,15 @@ class TestStructuredLoggingHelpers(unittest.TestCase):
     def test_redact_mapping_masks_sensitive_fields(self):
         payload = {
             "authorization": "Bearer super-secret-token",
+            "query": "Musterstrasse 1, 9000 St. Gallen",
+            "street": "Musterstrasse",
+            "house_number": "1",
+            "postal_code": "9000",
             "nested": {
                 "api_token": "abc123",
                 "email": "person@example.com",
+                "resolved_query": "Musterstrasse, 9000 St. Gallen",
+                "matched_address": "Musterstrasse 1, 9000 St. Gallen",
             },
             "notes": "contact person@example.com",
         }
@@ -55,7 +61,13 @@ class TestStructuredLoggingHelpers(unittest.TestCase):
         redacted = redact_mapping(payload)
 
         self.assertEqual(redacted["authorization"], "[REDACTED]")
+        self.assertEqual(redacted["query"], "[REDACTED]")
+        self.assertEqual(redacted["street"], "[REDACTED]")
+        self.assertEqual(redacted["house_number"], "[REDACTED]")
+        self.assertEqual(redacted["postal_code"], "[REDACTED]")
         self.assertEqual(redacted["nested"]["api_token"], "[REDACTED]")
+        self.assertEqual(redacted["nested"]["resolved_query"], "[REDACTED]")
+        self.assertEqual(redacted["nested"]["matched_address"], "[REDACTED]")
         self.assertEqual(redacted["nested"]["email"], "p***@example.com")
         self.assertIn("p***@example.com", redacted["notes"])
 
