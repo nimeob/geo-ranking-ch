@@ -106,6 +106,23 @@ Hinweise:
 - Container Image kann via `staging_container_image` überschrieben werden; leer bedeutet: wenn ECR via `lookup_existing_resources=true` auflösbar ist, wird `<ecr_repository_url>:latest` verwendet, sonst ein nginx Placeholder.
 - Routing (ALB Target Groups / Listener Rules) ist bewusst **nicht** Teil dieses Skeletons.
 
+### Staging DB (INFRA-DB-0.wp1)
+
+Für `staging` existiert ein optionales RDS-Postgres-Skeleton (DB Subnet Group + SG + RDS Instance), vollständig hinter Manage-Flag:
+
+- `manage_staging_db` (Default: `false`)
+
+Guardrails:
+- wirkt zusätzlich nur bei `environment = "staging"` (kein versehentliches Create in `dev`)
+- Voraussetzung: `manage_staging_network=true` (private Subnets aus WP #660)
+- `lifecycle.prevent_destroy = true` + `deletion_protection = true`
+
+Secret Handling (wichtig):
+- `manage_master_user_password = true` → Passwort wird von AWS Secrets Manager verwaltet
+- Terraform speichert **kein Klartext-Passwort** (nur Secret-ARN als Output)
+
+> Hinweis: `terraform apply` für DB-Ressourcen erzeugt kostenpflichtige Infrastruktur. Erst nach geprüftem Plan ausführen.
+
 ---
 
 ## Verifizierter Ist-Stand (read-only AWS-Checks, 2026-02-25)

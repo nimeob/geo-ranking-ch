@@ -2,16 +2,16 @@ locals {
   manage_staging_ecs_compute_effective = var.environment == "staging" && var.manage_staging_ecs_compute && var.manage_staging_network
 
   # Safe indirections (avoid invalid index errors when resources are not created)
-  staging_vpc_id           = try(aws_vpc.staging[0].id, null)
+  staging_vpc_id            = try(aws_vpc.staging[0].id, null)
   staging_public_subnet_ids = [for s in aws_subnet.staging_public : s.id]
 
-  ecs_cluster_arn_effective = try(aws_ecs_cluster.dev[0].arn, data.aws_ecs_cluster.existing[0].arn, null)
+  ecs_cluster_arn_effective    = try(aws_ecs_cluster.dev[0].arn, data.aws_ecs_cluster.existing[0].arn, null)
   ecr_repository_url_effective = try(aws_ecr_repository.api[0].repository_url, data.aws_ecr_repository.existing[0].repository_url, null)
 
-  staging_task_execution_role_arn_effective = trim(var.staging_task_execution_role_arn) != "" ? var.staging_task_execution_role_arn : null
-  staging_task_role_arn_effective           = trim(var.staging_task_role_arn) != "" ? var.staging_task_role_arn : null
+  staging_task_execution_role_arn_effective = trimspace(var.staging_task_execution_role_arn) != "" ? var.staging_task_execution_role_arn : null
+  staging_task_role_arn_effective           = trimspace(var.staging_task_role_arn) != "" ? var.staging_task_role_arn : null
 
-  staging_container_image_effective = trim(var.staging_container_image) != "" ? var.staging_container_image : (
+  staging_container_image_effective = trimspace(var.staging_container_image) != "" ? var.staging_container_image : (
     local.ecr_repository_url_effective != null ? "${local.ecr_repository_url_effective}:latest" : "public.ecr.aws/docker/library/nginx:latest"
   )
 

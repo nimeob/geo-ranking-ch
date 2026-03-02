@@ -381,3 +381,73 @@ variable "staging_task_role_arn" {
   type        = string
   default     = ""
 }
+
+# ---------------------------------------------------------------------------
+# Staging DB (INFRA-DB-0.wp1)
+# ---------------------------------------------------------------------------
+
+variable "manage_staging_db" {
+  description = "Wenn true, erstellt Terraform eine staging Postgres DB (RDS) inkl. SubnetGroup/SG. Guard: wirkt nur bei environment=staging und nur wenn manage_staging_network=true."
+  type        = bool
+  default     = false
+}
+
+variable "staging_db_instance_identifier" {
+  description = "RDS Instance Identifier für staging Postgres."
+  type        = string
+  default     = "swisstopo-staging-postgres"
+}
+
+variable "staging_db_engine_version" {
+  description = "Optional: explizite Postgres Engine Version (leer => AWS Default)."
+  type        = string
+  default     = ""
+}
+
+variable "staging_db_instance_class" {
+  description = "RDS Instance Class für staging Postgres (z. B. db.t4g.micro)."
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "staging_db_allocated_storage_gb" {
+  description = "Allocated Storage in GiB für staging Postgres."
+  type        = number
+  default     = 20
+}
+
+variable "staging_db_storage_type" {
+  description = "RDS Storage Type (z. B. gp3)."
+  type        = string
+  default     = "gp3"
+}
+
+variable "staging_db_name" {
+  description = "Initialer DB Name (db_name)."
+  type        = string
+  default     = "swisstopo"
+}
+
+variable "staging_db_port" {
+  description = "Postgres Port."
+  type        = number
+  default     = 5432
+}
+
+variable "staging_db_ingress_source_security_group_ids" {
+  description = "Liste von Security Group IDs, die auf den DB Port zugreifen dürfen (z. B. bestehende ECS Service SG). Zusätzlich wird (falls gemanagt) die staging ECS Service SG automatisch erlaubt."
+  type        = list(string)
+  default     = []
+}
+
+variable "staging_db_master_username" {
+  description = "Master Username (kein Secret). Passwort wird via Secrets Manager managed (manage_master_user_password=true)."
+  type        = string
+  default     = "swisstopo"
+}
+
+variable "staging_db_backup_retention_days" {
+  description = "Backup retention in Tagen."
+  type        = number
+  default     = 7
+}
