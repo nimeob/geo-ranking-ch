@@ -162,7 +162,12 @@ while (created.length < canCreate && queue.length > 0) {
     ? `--label ${item.labels.map((l) => JSON.stringify(l)).join(' --label ')}`
     : '';
 
-  const body = item.body || '(no description)';
+  // Normalize accidentally escaped markdown ("\\n", "\\t", "\\`") coming from JSON strings.
+  // We do this *before* creating the issue so the issue-body-format-guard usually doesn't need to.
+  const body = (item.body || '(no description)')
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t")
+    .replace(/\\`/g, "`");
 
   if (process.env.DRY_RUN === '1') {
     created.push({ title: item.title, dryRun: true });

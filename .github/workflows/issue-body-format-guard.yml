@@ -23,8 +23,10 @@ jobs:
             // whole markdown body serialized as escaped text ("\\n", "\\t", "\\`").
             const hasRealNewlines = body.includes("\n");
             const hasEscapedNewlines = body.includes("\\n");
-            const looksLikeEscapedMarkdown = /(^|\\n)##\s|Parent:\s*#\d+/.test(body);
-            const hasEscapedFormatting = body.includes("\\`") || body.includes("\\t") || body.includes("\\n-");
+            // Heuristic: we only auto-rewrite if the body is effectively a single-line string
+            // that *contains* escaped newlines ("\\n").
+            // We used to gate on headings/Parent markers; expand to common templates (DoD, bullets).
+            const looksLikeEscapedMarkdown = /(^|\\n)##\s|Parent:\s*#\d+|DoD:\\n|\\n-\s|\\n\*\s/.test(body);
 
             // Guardrail: only auto-rewrite if body is effectively single-line escaped markdown.
             if (hasRealNewlines || !hasEscapedNewlines || !looksLikeEscapedMarkdown) {
