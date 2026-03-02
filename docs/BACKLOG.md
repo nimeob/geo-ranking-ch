@@ -19,16 +19,10 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#725](https://github.com/nimeob/geo-ranking-ch/issues/725) — WP: Sync docs/BACKLOG.md Now/Next/Later board (priority:P0, status:todo)
+- [#727](https://github.com/nimeob/geo-ranking-ch/issues/727) — WP: Refresh docs/BACKLOG.md Now/Next/Later board (priority:P1, status:todo)
 
 ### Next
-- [#576](https://github.com/nimeob/geo-ranking-ch/issues/576) — BL-15.r2.wp2.b.prereq — optionales Wartungsfenster/Host-Zugriff (nur falls nötig) (priority:P0, status:todo)
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
-- [#567](https://github.com/nimeob/geo-ranking-ch/issues/567) — BL-15.r2.wp3: Legacy-Key Disable-Canary neu bewerten (optional statt Pflicht) (priority:P1, status:todo)
-- [#568](https://github.com/nimeob/geo-ranking-ch/issues/568) — BL-15.r2.wp4: Finale Go/No-Go-Entscheidung + Backlog/Parent-Sync (priority:P1, status:todo)
-- [#594](https://github.com/nimeob/geo-ranking-ch/issues/594) — BL-30.wp4.r3: Result-Page Delivery + Retention/Notification Jobs (priority:P2, status:todo)
-- [#600](https://github.com/nimeob/geo-ranking-ch/issues/600) — BL-30.wp4.r3.wp2: Retention-Cleanup für job_results/job_events implementieren (priority:P2, status:todo)
-- [#645](https://github.com/nimeob/geo-ranking-ch/issues/645) — VISION P1: Monitoring/Alerting – CloudWatch Alarme + Telegram Verify (priority:P2, status:todo)
 
 ### Later
 - [#653](https://github.com/nimeob/geo-ranking-ch/issues/653) — WP: staging Smoke – POST /analyze => 200 (staging URL) + Evidence (priority:P0, status:blocked)
