@@ -98,6 +98,21 @@ class TestUiService(unittest.TestCase):
         self.assertIn('fetch("https://api.example.test/analyze"', body)
         self.assertIn('const TRACE_DEBUG_ENDPOINT = "https://api.example.test/debug/trace";', body)
 
+    def test_job_permalink_page_renders_and_targets_absolute_api_endpoints(self):
+        status, body, headers = _http(f"{self.base_url}/jobs/job-123")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("content-type", ""))
+        self.assertIn("Async Job", body)
+        self.assertIn("job-123", body)
+        self.assertIn('const JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
+
+    def test_invalid_job_id_returns_not_found_payload(self):
+        status, body, _ = _http(f"{self.base_url}/jobs/!!!")
+        self.assertEqual(status, 404)
+        payload = json.loads(body)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"], "not_found")
+
     def test_unknown_endpoint_returns_not_found_payload(self):
         status, body, _ = _http(f"{self.base_url}/not-here")
         self.assertEqual(status, 404)
