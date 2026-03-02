@@ -23,11 +23,11 @@ Regelwerk:
 
 ### Next
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
-- [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:todo)
 - [#656](https://github.com/nimeob/geo-ranking-ch/issues/656) — WP: Async Result Pages/Permalinks – staging live (result_id Deep-Link) (priority:P0, status:todo)
 
 ### Later
 - [#653](https://github.com/nimeob/geo-ranking-ch/issues/653) — WP: staging Smoke – POST /analyze => 200 (staging URL) + Evidence (priority:P0, status:blocked)
+- [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:blocked)
 - [#657](https://github.com/nimeob/geo-ranking-ch/issues/657) — WP: Async Notifications – staging live + Verify (priority:P0, status:blocked)
 - [#658](https://github.com/nimeob/geo-ranking-ch/issues/658) — WP: Async UX – prod deploy/enable + Evidence (priority:P0, status:blocked)
 - [#675](https://github.com/nimeob/geo-ranking-ch/issues/675) — WP: Async Jobs API – Staging Evidence Run (curl + Output) (priority:P0, status:blocked)
