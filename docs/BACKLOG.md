@@ -1,7 +1,7 @@
 # Backlog (konsolidiert)
 
 > Quelle: konsolidierte offene Punkte aus `README.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_AWS.md`, `docs/OPERATIONS.md`.
-> Stand: 2026-03-01
+> Stand: 2026-03-02
 
 ## Legende
 
@@ -19,7 +19,7 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#662](https://github.com/nimeob/geo-ranking-ch/issues/662) — WP: staging Terraform – Logs + Secrets baseline (SSM/Secrets Manager patterns) + outputs (priority:P0, status:todo)
+- (leer)
 
 ### Next
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
