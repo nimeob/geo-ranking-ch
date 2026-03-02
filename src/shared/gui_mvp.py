@@ -924,8 +924,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           `;
         });
 
-        historyShell.innerHTML = rows.join("
-");
+        historyShell.innerHTML = rows.join("\\n");
       }
 
       async function loadHistory() {
