@@ -16,6 +16,34 @@ locals {
   )
 
   staging_cloudwatch_log_group_name_effective = local.cloudwatch_log_group_effective != null ? local.cloudwatch_log_group_effective : var.cloudwatch_log_group_name
+
+  # ---------------------------------------------------------------------------
+  # INFRA-DB-0.wp2: DB Secrets Wiring
+  #
+  # DB_HOST / DB_PORT / DB_NAME / DB_USERNAME → plain environment (non-secret)
+  # DB_PASSWORD → secrets block via SecretsManager ARN (JSON key "password")
+  #
+  # Secret ARN resolution order:
+  #   1) var.staging_db_master_user_secret_arn_override (explicit cross-workspace override)
+  #   2) aws_db_instance.staging_postgres[0].master_user_secret[0].secret_arn
+  #      (auto-managed by RDS via manage_master_user_password=true, available when manage_staging_db=true)
+  # If neither is set, the secrets block is omitted (no DB_PASSWORD injected).
+  # ---------------------------------------------------------------------------
+
+  staging_db_host_effective = try(aws_db_instance.staging_postgres[0].address, null)
+
+  staging_db_secret_arn_effective = trimspace(var.staging_db_master_user_secret_arn_override) != "" ? (
+    var.staging_db_master_user_secret_arn_override
+  ) : try(aws_db_instance.staging_postgres[0].master_user_secret[0].secret_arn, null)
+
+  # Secrets list: only populated when ARN is known.
+  # valueFrom format: "<SecretArn>:<JsonKey>::"
+  staging_db_secrets = local.staging_db_secret_arn_effective != null ? [
+    {
+      name      = "DB_PASSWORD"
+      valueFrom = "${local.staging_db_secret_arn_effective}:password::"
+    }
+  ] : []
 }
 
 # ---------------------------------------------------------------------------
@@ -83,12 +111,39 @@ resource "aws_ecs_task_definition" "staging_api" {
         }
       ]
 
-      environment = [
-        {
-          name  = "ENVIRONMENT"
-          value = var.environment
-        }
-      ]
+      environment = concat(
+        [
+          {
+            name  = "ENVIRONMENT"
+            value = var.environment
+          }
+        ],
+        # DB connection info (non-secret). Only added when DB host is known.
+        # DB_PORT and DB_NAME use the same variables as the RDS resource.
+        local.staging_db_host_effective != null ? [
+          {
+            name  = "DB_HOST"
+            value = local.staging_db_host_effective
+          },
+          {
+            name  = "DB_PORT"
+            value = tostring(var.staging_db_port)
+          },
+          {
+            name  = "DB_NAME"
+            value = var.staging_db_name
+          },
+          {
+            name  = "DB_USERNAME"
+            value = var.staging_db_master_username
+          }
+        ] : []
+      )
+
+      # DB_PASSWORD injected via Secrets Manager (no plaintext in task definition).
+      # Requires: Execution Role must have secretsmanager:GetSecretValue on the secret ARN.
+      # See: docs/STAGING_DB_ECS_SECRETS_RUNBOOK.md for full IAM requirements.
+      secrets = local.staging_db_secrets
 
       logConfiguration = {
         logDriver = "awslogs"
