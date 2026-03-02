@@ -48,6 +48,7 @@ from src.api.debug_trace import (
     normalize_max_events,
     normalize_request_id,
 )
+from src.api.oidc_jwt import JwksCache, JwtValidationError, OidcJwtConfig, OidcJwtValidator
 from src.shared.gui_mvp import render_gui_mvp_html
 from src.shared.ui_pages import build_history_page_html, build_result_tabs_page_html, normalize_result_id
 from src.shared.structured_logging import build_event, emit_event
@@ -156,6 +157,90 @@ def _resolve_phase1_auth_user(bearer_token: str) -> _Phase1AuthUser | None:
         if hmac.compare_digest(token, user.token):
             match = user
     return match
+
+
+_OIDC_JWKS_URL_ENV = "OIDC_JWKS_URL"
+_OIDC_JWT_ISSUER_ENV = "OIDC_JWT_ISSUER"
+_OIDC_JWT_AUDIENCE_ENV = "OIDC_JWT_AUDIENCE"
+_OIDC_JWKS_TTL_SECONDS_ENV = "OIDC_JWKS_TTL_SECONDS"
+_OIDC_JWKS_TIMEOUT_SECONDS_ENV = "OIDC_JWKS_TIMEOUT_SECONDS"
+_OIDC_CLOCK_SKEW_SECONDS_ENV = "OIDC_CLOCK_SKEW_SECONDS"
+
+
+def _load_oidc_jwt_validator_from_env() -> OidcJwtValidator | None:
+    """Build an OIDC JWT validator from environment configuration.
+
+    OIDC auth is enabled when `OIDC_JWKS_URL` is set.
+
+    Notes:
+    - This function must be safe at import time: it must not fetch the JWKS.
+    - If configured but invalid, we fail-fast (better crash than silently disable auth).
+    """
+
+    jwks_url = str(os.getenv(_OIDC_JWKS_URL_ENV, "") or "").strip()
+    if not jwks_url:
+        return None
+
+    issuer = str(os.getenv(_OIDC_JWT_ISSUER_ENV, "") or "").strip()
+    audience = str(os.getenv(_OIDC_JWT_AUDIENCE_ENV, "") or "").strip()
+
+    raw_ttl = str(os.getenv(_OIDC_JWKS_TTL_SECONDS_ENV, "300") or "300").strip()
+    raw_timeout = str(os.getenv(_OIDC_JWKS_TIMEOUT_SECONDS_ENV, "5") or "5").strip()
+    raw_skew = str(os.getenv(_OIDC_CLOCK_SKEW_SECONDS_ENV, "60") or "60").strip()
+
+    try:
+        ttl_seconds = float(raw_ttl)
+    except Exception as exc:
+        raise ValueError(f"{_OIDC_JWKS_TTL_SECONDS_ENV} must be a number") from exc
+    if not math.isfinite(ttl_seconds) or ttl_seconds < 0:
+        raise ValueError(f"{_OIDC_JWKS_TTL_SECONDS_ENV} must be finite and >= 0")
+
+    try:
+        timeout_seconds = float(raw_timeout)
+    except Exception as exc:
+        raise ValueError(f"{_OIDC_JWKS_TIMEOUT_SECONDS_ENV} must be a number") from exc
+    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+        raise ValueError(f"{_OIDC_JWKS_TIMEOUT_SECONDS_ENV} must be finite and > 0")
+
+    try:
+        clock_skew_seconds = int(raw_skew)
+    except Exception as exc:
+        raise ValueError(f"{_OIDC_CLOCK_SKEW_SECONDS_ENV} must be an integer") from exc
+    if clock_skew_seconds < 0:
+        raise ValueError(f"{_OIDC_CLOCK_SKEW_SECONDS_ENV} must be >= 0")
+
+    config = OidcJwtConfig(
+        issuer=issuer,
+        audience=audience,
+        clock_skew_seconds=clock_skew_seconds,
+        require_exp=True,
+    )
+    jwks_cache = JwksCache(
+        jwks_url=jwks_url,
+        ttl_seconds=ttl_seconds,
+        timeout_seconds=timeout_seconds,
+    )
+    return OidcJwtValidator(config=config, jwks=jwks_cache)
+
+
+_OIDC_JWT_VALIDATOR = _load_oidc_jwt_validator_from_env()
+_OIDC_AUTH_ENABLED = _OIDC_JWT_VALIDATOR is not None
+
+
+def _validate_oidc_bearer_token(bearer_token: str) -> dict[str, Any] | None:
+    if not _OIDC_JWT_VALIDATOR:
+        return None
+
+    token = str(bearer_token or "").strip()
+    if not token:
+        return None
+
+    try:
+        return _OIDC_JWT_VALIDATOR.validate(token)
+    except JwtValidationError:
+        return None
+    except Exception:
+        return None
 
 
 _CORS_ALLOW_ORIGINS_ENV = "CORS_ALLOW_ORIGINS"
@@ -3241,8 +3326,11 @@ class Handler(BaseHTTPRequestHandler):
             if request_path == "/analyze/history":
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
 
-                auth_user = self._phase1_auth_user()
-                if _PHASE1_AUTH_ENABLED and auth_user is None:
+                provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
+                auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
+                oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+
+                if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
                     self._send_json(
                         {
                             "ok": False,
@@ -3719,15 +3807,18 @@ class Handler(BaseHTTPRequestHandler):
             required_token = os.getenv("API_AUTH_TOKEN", "").strip()
             provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
             phase1_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
+            oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
 
             legacy_token_ok = bool(required_token) and hmac.compare_digest(provided_token, required_token)
             phase1_token_ok = phase1_user is not None
+            oidc_token_ok = oidc_claims is not None
 
             # Auth policy:
             # - legacy: API_AUTH_TOKEN (single token) still supported
             # - phase1: PHASE1_AUTH_USERS_* enables per-user tokens
-            if required_token or _PHASE1_AUTH_ENABLED:
-                if not (legacy_token_ok or phase1_token_ok):
+            # - oidc: OIDC_JWKS_URL enables RS256 JWT validation
+            if required_token or _PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED:
+                if not (legacy_token_ok or phase1_token_ok or oidc_token_ok):
                     self._send_json(
                         {
                             "ok": False,
