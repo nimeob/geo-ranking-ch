@@ -25,7 +25,6 @@ Regelwerk:
 - [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) (priority:P1, status:todo)
 - [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) (priority:P1, status:todo)
 - [#750](https://github.com/nimeob/geo-ranking-ch/issues/750) — Dev: Caching-Layer für Geo-Queries (Performance, ohne Infra) (priority:P2, status:todo)
-- [#752](https://github.com/nimeob/geo-ranking-ch/issues/752) — Dev: Frontend – Ergebnisliste sortier-/filterbar machen (priority:P2, status:todo)
 
 ### Later
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
@@ -33,6 +32,7 @@ Regelwerk:
 
 ## Dev-Engineering (non-BL)
 
+- ✅ abgeschlossen (2026-03-02): [#752](https://github.com/nimeob/geo-ranking-ch/issues/752) — Dev: Frontend – Ergebnisliste sortier-/filterbar machen — GUI MVP: Ergebnisliste (Session) inkl. Sortierung (Score/Distanz/Security-Subscore), KO-/Numeric-Filter + persistente URL Query-Params (`results_*`) + minimaler HTML-Smoke-Test (`tests/test_web_service_gui_mvp.py`). (PR #772)
 - ✅ abgeschlossen (2026-03-02): [#750](https://github.com/nimeob/geo-ranking-ch/issues/750) — Dev: Caching-Layer für Geo-Queries (Performance, ohne Infra) — opt-in dev-only LRU/TTL (+ optional disk) Cache für `_fetch_json_url` (`DEV_GEO_QUERY_CACHE_TTL_SECONDS`, `DEV_GEO_QUERY_CACHE_DISK`) + Unit-Tests (`tests/test_web_service_dev_geo_cache.py`) + Mini-Benchmark (`scripts/bench_dev_geo_query_cache.py`).
 - ✅ abgeschlossen (2026-03-02): [#767](https://github.com/nimeob/geo-ranking-ch/issues/767) — Dev(API): Fehlercodes vereinheitlichen (ValidationError -> 400, NotFound -> 404) — zentraler Error-Helper (`Handler._send_error`), konsistentes Mapping in GET/POST (bad_request/not_found/internal) + gezielte Regressiontests (`tests/test_web_service_request_validation.py`) + Doku-Ergänzung (`docs/api/async-v1.md`).
 - ✅ abgeschlossen (2026-03-02): [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) — HTTP-Regressiontests für `/analyze` (empty body, invalid JSON, non-object root, missing query, invalid intelligence_mode) + Error-Format-Referenz: `docs/user/api-usage.md`
