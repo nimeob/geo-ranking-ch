@@ -49,8 +49,9 @@ class TestAuthPhase1Core(unittest.TestCase):
         cls.port = _free_port()
         cls.base_url = f"http://127.0.0.1:{cls.port}"
 
-        cls.user_a = {"token": "token-user-a", "user_id": "user-a", "org_id": "org-a"}
-        cls.user_b = {"token": "token-user-b", "user_id": "user-b", "org_id": "org-b"}
+        # Both users share the same org_id; isolation must still be per-user.
+        cls.user_a = {"token": "token-user-a", "user_id": "user-a", "org_id": "org-shared"}
+        cls.user_b = {"token": "token-user-b", "user_id": "user-b", "org_id": "org-shared"}
 
         env = os.environ.copy()
         env.update(
@@ -175,6 +176,20 @@ class TestAuthPhase1Core(unittest.TestCase):
         self.assertTrue(
             any(str(row.get("result_id") or "") == result_id for row in history_rows_a),
             "User A history sollte das soeben erzeugte result_id enthalten",
+        )
+
+        # User B must NOT see User A's items in history (even with shared org_id).
+        status_history_b, body_history_b = _http_json(
+            "GET",
+            f"{self.base_url}/analyze/history",
+            headers=self._auth_headers(self.user_b["token"]),
+        )
+        self.assertEqual(status_history_b, 200)
+        self.assertTrue(body_history_b.get("ok"))
+        history_rows_b = body_history_b.get("history", [])
+        self.assertFalse(
+            any(str(row.get("result_id") or "") == result_id for row in history_rows_b),
+            "User B history darf das result_id von User A NICHT enthalten",
         )
 
         # User B cannot enumerate/access User A's job/result.

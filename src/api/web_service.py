@@ -2834,6 +2834,26 @@ class Handler(BaseHTTPRequestHandler):
         job_org_id = _normalize_async_org_id(job_record.get("org_id"))
         return job_org_id == request_org_id
 
+    @staticmethod
+    def _job_visible_for_auth_user(job_record: dict[str, Any], auth_user: _Phase1AuthUser) -> bool:
+        """Visibility rule for Phase-1 auth (per-user).
+
+        Legacy behavior:
+        - Jobs without `owner_user_id` are treated as NOT visible in auth mode
+          (conservative default to avoid cross-user enumeration when upgrading).
+        """
+
+        job_owner_user_id = str(job_record.get("owner_user_id") or "").strip()
+        if not job_owner_user_id:
+            return False
+        if job_owner_user_id != str(auth_user.user_id):
+            return False
+
+        job_owner_org_id = str(
+            job_record.get("owner_org_id") or job_record.get("org_id") or ""
+        ).strip()
+        return _normalize_async_org_id(job_owner_org_id) == str(auth_user.org_id)
+
     def _send_error(
         self,
         *,
@@ -3256,7 +3276,12 @@ class Handler(BaseHTTPRequestHandler):
                 history_rows: list[dict[str, Any]] = []
                 for job_id in _ASYNC_JOB_STORE.list_job_ids():
                     job_record = _ASYNC_JOB_STORE.get_job(job_id)
-                    if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                    if job_record is None:
+                        continue
+                    if auth_user is not None:
+                        if not self._job_visible_for_auth_user(job_record, auth_user):
+                            continue
+                    elif not self._job_visible_for_org(job_record, request_org_id):
                         continue
 
                     results = _ASYNC_JOB_STORE.list_results(job_id)
@@ -3337,7 +3362,14 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 job_record = _ASYNC_JOB_STORE.get_job(job_id)
-                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                if job_record is None:
+                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    return
+                if auth_user is not None:
+                    if not self._job_visible_for_auth_user(job_record, auth_user):
+                        self._send_not_found(request_id=request_id, message="unknown job_id")
+                        return
+                elif not self._job_visible_for_org(job_record, request_org_id):
                     self._send_not_found(request_id=request_id, message="unknown job_id")
                     return
 
@@ -3384,7 +3416,14 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 job_record = _ASYNC_JOB_STORE.get_job(job_id)
-                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                if job_record is None:
+                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    return
+                if auth_user is not None:
+                    if not self._job_visible_for_auth_user(job_record, auth_user):
+                        self._send_not_found(request_id=request_id, message="unknown job_id")
+                        return
+                elif not self._job_visible_for_org(job_record, request_org_id):
                     self._send_not_found(request_id=request_id, message="unknown job_id")
                     return
 
@@ -3436,7 +3475,14 @@ class Handler(BaseHTTPRequestHandler):
 
                 job_id = str(requested_result.get("job_id") or "")
                 job_record = _ASYNC_JOB_STORE.get_job(job_id) if job_id else None
-                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                if job_record is None:
+                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    return
+                if auth_user is not None:
+                    if not self._job_visible_for_auth_user(job_record, auth_user):
+                        self._send_not_found(request_id=request_id, message="unknown result_id")
+                        return
+                elif not self._job_visible_for_org(job_record, request_org_id):
                     self._send_not_found(request_id=request_id, message="unknown result_id")
                     return
 
