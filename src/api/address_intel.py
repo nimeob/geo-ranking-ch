@@ -61,6 +61,17 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for direct script exe
     def record_export_log_entry(**_: Any) -> dict[str, Any]:
         return {}
 
+try:
+    from src.api.osm_poi_config import (
+        build_osm_poi_overpass_query,
+        load_osm_poi_overpass_query_config,
+    )
+except ModuleNotFoundError:  # pragma: no cover - fallback for direct script execution
+    from osm_poi_config import (  # type: ignore[no-redef]
+        build_osm_poi_overpass_query,
+        load_osm_poi_overpass_query_config,
+    )
+
 UA = "openclaw-swisstopo-address-intel/2.2"
 DEFAULT_TIMEOUT = 15
 DEFAULT_RETRIES = 3
@@ -1568,21 +1579,14 @@ def fetch_osm_poi_overpass(
 
     lat_s = f"{float(lat):.6f}"
     lon_s = f"{float(lon):.6f}"
-    query = (
-        "[out:json][timeout:25];"
-        "("
-        f"node(around:{radius_m},{lat_s},{lon_s})[name][shop];"
-        f"node(around:{radius_m},{lat_s},{lon_s})[name][amenity];"
-        f"node(around:{radius_m},{lat_s},{lon_s})[name][office];"
-        f"node(around:{radius_m},{lat_s},{lon_s})[name][leisure];"
-        f"node(around:{radius_m},{lat_s},{lon_s})[name][tourism];"
-        f"way(around:{radius_m},{lat_s},{lon_s})[name][shop];"
-        f"way(around:{radius_m},{lat_s},{lon_s})[name][amenity];"
-        f"way(around:{radius_m},{lat_s},{lon_s})[name][office];"
-        f"relation(around:{radius_m},{lat_s},{lon_s})[name][shop];"
-        f"relation(around:{radius_m},{lat_s},{lon_s})[name][amenity];"
-        ");"
-        "out body center;"
+
+    cfg = load_osm_poi_overpass_query_config()
+    query = build_osm_poi_overpass_query(
+        radius_m=radius_m,
+        lat_s=lat_s,
+        lon_s=lon_s,
+        tag_keys=cfg.tag_keys,
+        element_types=cfg.element_types,
     )
 
     source_url = "https://overpass-api.de/api/interpreter?" + urllib.parse.urlencode({"data": query})
@@ -1613,7 +1617,7 @@ def fetch_osm_poi_overpass(
 
         category = None
         subcategory = None
-        for key in ("shop", "amenity", "office", "leisure", "tourism", "craft"):
+        for key in cfg.tag_keys:
             if tags.get(key):
                 category = key
                 subcategory = tags.get(key)
