@@ -1,7 +1,13 @@
-"""Minimal DB access layer — user/org/membership bootstrap.
+"""Minimal DB access layer — user/org/membership bootstrap + OIDC claim mapping.
 
-Issue: #814 (DB-0.wp3)
+Issues: #814 (DB-0.wp3 — bootstrap), #820 (OIDC-0.wp4 — claim mapping)
 Depends on: #813 (migration runner), #812 (schema v1)
+
+Public API:
+- ``get_or_create_user_by_external_subject`` — bootstrap (create-or-find user + membership)
+- ``get_or_create_default_org`` — auto_org bootstrap helper
+- ``ensure_membership`` — idempotent membership upsert
+- ``resolve_oidc_subject`` — read-only claim mapping: sub -> (user_id, org_id, roles)
 
 ## Bootstrap Policy
 
@@ -276,6 +282,143 @@ def ensure_membership(
             extra={"org_id": org_id, "user_id": user_id},
         )
         return membership
+
+
+# ---------------------------------------------------------------------------
+# OIDC Subject Resolution  (Issue: #820 — OIDC-0.wp4)
+# ---------------------------------------------------------------------------
+
+def resolve_oidc_subject(
+    conn: Any,
+    subject: str,
+) -> dict[str, Any] | None:
+    """Resolve an OIDC ``sub`` claim to internal user + org/role context.
+
+    This is the canonical "claim-mapping" function used by the auth layer to
+    turn an incoming JWT ``sub`` into an actionable identity:
+
+        (subject) -> { user_id, org_id, roles, memberships }
+
+    Behaviour:
+    - Returns ``None`` if the subject is unknown (user not yet registered).
+      The auth layer MUST treat ``None`` as a 401/403 (user not found /
+      no access).
+    - If the user exists but has **no membership**, returns a dict with
+      ``org_id=None`` and ``roles=[]``.  The auth layer MUST treat this as
+      a 403 (user exists but has no org — invite not yet accepted or
+      invite_only policy: no auto-org).
+    - If the user has **one membership** (common case), returns that org's
+      id and role list.
+    - If the user has **multiple memberships**, all are returned in
+      ``memberships``; ``org_id`` and ``roles`` reflect the **first** record
+      (oldest by ``created_at``).  Callers that need multi-org support should
+      inspect ``memberships`` directly and pick the correct org from request
+      context (e.g. a header or token claim).
+
+    ## Policy (invite_only vs auto_org)
+    This function is a **read-only lookup** — it never creates users or orgs.
+    Policy enforcement (whether to auto-create on miss) belongs to the
+    registration / bootstrap path (``get_or_create_user_by_external_subject``).
+    The auth layer should:
+    - ``invite_only`` (production default): return 403 if ``org_id`` is
+      ``None`` (user has no membership → invite not accepted).
+    - ``auto_org`` (dev/single-tenant): in the bootstrap path, ensure
+      membership via ``get_or_create_user_by_external_subject`` before the
+      first protected request; after that, ``resolve_oidc_subject`` returns
+      the created membership.
+
+    Args:
+        conn:    psycopg2 connection.
+        subject: Stable external identity from the OIDC JWT (``sub`` claim).
+                 Must be non-empty.
+
+    Returns:
+        ``None`` if the subject is not found, otherwise a dict:
+        - ``user_id``    (str UUID)
+        - ``org_id``     (str UUID | None)
+        - ``roles``      (list[str])
+        - ``memberships`` (list[dict] — each has ``org_id``, ``role``, ``id``)
+
+    Raises:
+        ValueError: if ``subject`` is empty.
+    """
+    subject = str(subject or "").strip()
+    if not subject:
+        raise ValueError("subject must be non-empty")
+
+    fp = _subject_fingerprint(subject)
+
+    with conn.cursor() as cur:
+        # Step 1: look up user by external_subject.
+        cur.execute(
+            """
+            SELECT id, external_subject, email, created_at, updated_at
+            FROM users
+            WHERE external_subject = %s
+            """,
+            (subject,),
+        )
+        user_row = cur.fetchone()
+
+    if user_row is None:
+        logger.debug(
+            "db_access.resolve_subject_not_found",
+            extra={"subject_fp": fp},
+        )
+        return None
+
+    # Build user dict manually (cursor is closed after 'with' block above).
+    # We only need the id; re-use the column order from the SELECT above.
+    user_id = str(user_row[0])
+
+    logger.debug(
+        "db_access.resolve_subject_found",
+        extra={"user_id": user_id, "subject_fp": fp},
+    )
+
+    # Step 2: fetch all memberships for this user (ordered oldest first).
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, org_id, user_id, role, created_at
+            FROM memberships
+            WHERE user_id = %s::uuid
+            ORDER BY created_at ASC
+            """,
+            (user_id,),
+        )
+        rows = cur.fetchall()
+        col_names = _col_names(cur)
+
+    memberships = [dict(zip(col_names, row)) for row in rows]
+    # Stringify UUIDs for consistency.
+    for m in memberships:
+        m["id"] = str(m["id"])
+        m["org_id"] = str(m["org_id"])
+        m["user_id"] = str(m["user_id"])
+
+    if memberships:
+        primary = memberships[0]
+        org_id: str | None = primary["org_id"]
+        roles: list[str] = [m["role"] for m in memberships]
+        logger.debug(
+            "db_access.resolve_memberships_found",
+            extra={"user_id": user_id, "count": len(memberships)},
+        )
+    else:
+        org_id = None
+        roles = []
+        logger.info(
+            "db_access.resolve_no_membership",
+            extra={"user_id": user_id},
+        )
+
+    return {
+        "user_id": user_id,
+        "org_id": org_id,
+        "roles": roles,
+        "memberships": memberships,
+    }
 
 
 # ---------------------------------------------------------------------------
