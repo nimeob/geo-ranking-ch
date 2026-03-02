@@ -1849,6 +1849,302 @@ def _apply_deep_mode_runtime_status(
     report["entitlements_status"] = existing_entitlements
 
 
+_OPEN_METEO_LOCK = threading.Lock()
+_OPEN_METEO_LAST_REQUEST_TS = 0.0
+_OPEN_METEO_CACHE: dict[tuple[float, float], tuple[float, dict[str, Any]]] = {}
+
+
+def _read_env_non_negative_float(name: str, *, default: float) -> float:
+    raw_value = str(os.getenv(name, "")).strip()
+    if not raw_value:
+        return default
+    try:
+        parsed = float(raw_value)
+    except ValueError:
+        return default
+    if not math.isfinite(parsed) or parsed < 0:
+        return default
+    return float(parsed)
+
+
+def _open_meteo_forecast_url(*, lat: float, lon: float) -> str:
+    params = {
+        "latitude": round(float(lat), 6),
+        "longitude": round(float(lon), 6),
+        "timezone": "UTC",
+        "forecast_days": 1,
+        "current": "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m",
+    }
+    return "https://api.open-meteo.com/v1/forecast?" + urlencode(params)
+
+
+def _apply_open_meteo_deep_enrichment(
+    report: dict[str, Any],
+    *,
+    options: dict[str, Any],
+    intelligence_mode: str,
+    timeout_seconds: float,
+    upstream_log_emitter: Callable[..., None] | None = None,
+    request_id: str = "",
+    session_id: str = "",
+) -> None:
+    """Additiver Deep-Mode-Enrichment-Prototyp via Open-Meteo.
+
+    Guardrails:
+    - Nur wenn Deep-Mode Gate effective ist.
+    - Nie hard-fail: Baseline-Report bleibt immer erhalten.
+    """
+
+    try:
+        deep_request = _extract_deep_mode_request(options, intelligence_mode=intelligence_mode)
+        budget = _derive_deep_mode_budget(
+            timeout_seconds=timeout_seconds,
+            profile=str(deep_request.get("profile") or ""),
+            requested_budget_tokens=deep_request.get("max_budget_tokens"),
+        )
+        deep_effective, _ = _evaluate_deep_mode_gate(
+            requested=bool(deep_request.get("requested")),
+            profile=str(deep_request.get("profile") or ""),
+            allowed=bool(deep_request.get("allowed")),
+            quota_remaining=deep_request.get("quota_remaining"),
+            deep_budget_ms=int(budget.get("deep_budget_ms") or 0),
+            deep_min_budget_ms=int(budget.get("deep_min_budget_ms") or 0),
+        )
+    except Exception:
+        # Deep-Mode request parsing should not break Analyze.
+        return
+
+    if not deep_effective:
+        return
+
+    source_name = "open_meteo_forecast"
+
+    coords = report.get("coordinates")
+    coords = coords if isinstance(coords, dict) else {}
+    lat_raw = coords.get("lat")
+    lon_raw = coords.get("lon")
+
+    lat = float(lat_raw) if isinstance(lat_raw, (int, float)) and not isinstance(lat_raw, bool) else float("nan")
+    lon = float(lon_raw) if isinstance(lon_raw, (int, float)) and not isinstance(lon_raw, bool) else float("nan")
+
+    module_payload: dict[str, Any] = {
+        "provider": "open-meteo",
+        "source": source_name,
+        "profile": str(deep_request.get("profile") or ""),
+        "confidence": 0.0,
+        "fetch": {"ok": False, "error_code": "missing_coordinates"},
+    }
+
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        report["deep_enrichment"] = module_payload
+        _attach_deep_source_metadata(report, source_name=source_name, group_name="deep_enrichment")
+        return
+
+    cache_ttl_seconds = _read_env_non_negative_float("DEEP_OPEN_METEO_CACHE_TTL_SECONDS", default=600.0)
+    min_interval_seconds = _read_env_non_negative_float("DEEP_OPEN_METEO_MIN_INTERVAL_SECONDS", default=0.25)
+    max_attempts = int(_read_env_non_negative_int("DEEP_OPEN_METEO_MAX_ATTEMPTS", default=2))
+    backoff_seconds = _read_env_non_negative_float("DEEP_OPEN_METEO_BACKOFF_SECONDS", default=0.15)
+
+    cache_key = (round(lat, 4), round(lon, 4))
+    now_ts = time.time()
+
+    cached: dict[str, Any] | None = None
+    if cache_ttl_seconds > 0:
+        with _OPEN_METEO_LOCK:
+            entry = _OPEN_METEO_CACHE.get(cache_key)
+            if entry and float(entry[0]) > now_ts:
+                cached = deepcopy(entry[1])
+
+    url = _open_meteo_forecast_url(lat=lat, lon=lon)
+
+    payload: dict[str, Any] | None = cached
+    from_cache = bool(cached)
+    duration_ms: float | None = None
+    attempt_count = 0
+    status_code: int | None = None
+    error_message = ""
+
+    if payload is None:
+        if min_interval_seconds > 0:
+            with _OPEN_METEO_LOCK:
+                global _OPEN_METEO_LAST_REQUEST_TS
+                elapsed = time.time() - float(_OPEN_METEO_LAST_REQUEST_TS)
+                wait_s = max(0.0, float(min_interval_seconds) - float(elapsed))
+                if wait_s > 0:
+                    time.sleep(wait_s)
+                _OPEN_METEO_LAST_REQUEST_TS = time.time()
+
+        timeout_budget_ms = int(budget.get("deep_budget_ms") or 0)
+        timeout_cap_seconds = min(2.0, max(0.6, float(timeout_budget_ms) / 1000.0))
+        per_attempt_timeout = min(timeout_cap_seconds, max(0.6, float(timeout_cap_seconds) / max(1, max_attempts)))
+
+        started_at = time.perf_counter()
+        for attempt in range(1, max_attempts + 1):
+            attempt_count = attempt
+            if upstream_log_emitter is not None:
+                target = urlsplit(url)
+                upstream_log_emitter(
+                    event="api.upstream.request.start",
+                    level="info",
+                    component="api.web_service",
+                    direction="api->upstream",
+                    status="sent",
+                    source=source_name,
+                    target_host=str(target.netloc or "").lower(),
+                    target_path=str(target.path or "/"),
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    retry_count=max(0, attempt - 1),
+                    timeout_seconds=round(float(per_attempt_timeout), 3),
+                )
+
+            try:
+                with urlopen(url, timeout=max(0.6, float(per_attempt_timeout))) as response:
+                    status_code = int(getattr(response, "status", 200) or 200)
+                    body = response.read().decode("utf-8")
+                candidate = json.loads(body)
+                if not isinstance(candidate, dict):
+                    raise ValueError("invalid json root")
+                payload = candidate
+
+                if cache_ttl_seconds > 0:
+                    with _OPEN_METEO_LOCK:
+                        _OPEN_METEO_CACHE[cache_key] = (time.time() + float(cache_ttl_seconds), deepcopy(payload))
+
+                if upstream_log_emitter is not None:
+                    target = urlsplit(url)
+                    upstream_log_emitter(
+                        event="api.upstream.request.end",
+                        level="info",
+                        component="api.web_service",
+                        direction="upstream->api",
+                        status="ok",
+                        source=source_name,
+                        target_host=str(target.netloc or "").lower(),
+                        target_path=str(target.path or "/"),
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        retry_count=max(0, attempt - 1),
+                        duration_ms=round((time.perf_counter() - started_at) * 1000.0, 3),
+                        status_code=status_code,
+                    )
+                break
+
+            except Exception as exc:
+                error_message = str(exc)
+                if upstream_log_emitter is not None:
+                    target = urlsplit(url)
+                    upstream_log_emitter(
+                        event="api.upstream.request.end",
+                        level="error",
+                        component="api.web_service",
+                        direction="upstream->api",
+                        status="error",
+                        source=source_name,
+                        target_host=str(target.netloc or "").lower(),
+                        target_path=str(target.path or "/"),
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        retry_count=max(0, attempt - 1),
+                        duration_ms=round((time.perf_counter() - started_at) * 1000.0, 3),
+                        status_code=status_code,
+                        error_class="network_error",
+                        error_message=error_message,
+                    )
+
+                if attempt < max_attempts and backoff_seconds > 0:
+                    time.sleep(float(backoff_seconds) * float(attempt))
+                payload = None
+
+        duration_ms = round((time.perf_counter() - started_at) * 1000.0, 3)
+
+    sources = report.get("sources")
+    if not isinstance(sources, dict):
+        sources = {}
+    sources[source_name] = {
+        "status": "ok" if payload is not None else "error",
+        "records": 1 if payload is not None else 0,
+        "url": url,
+        "from_cache": bool(from_cache),
+        "attempt": int(attempt_count or 0),
+        "max_attempts": int(max_attempts),
+    }
+    if status_code is not None:
+        sources[source_name]["status_code"] = int(status_code)
+    if duration_ms is not None:
+        sources[source_name]["duration_ms"] = float(duration_ms)
+    if payload is None and error_message:
+        sources[source_name]["error_message"] = str(error_message)
+    report["sources"] = sources
+
+    current = payload.get("current") if isinstance(payload, dict) else None
+    projected_current: dict[str, Any] = {}
+    if isinstance(current, dict):
+        for key in ("time", "temperature_2m", "relative_humidity_2m", "precipitation", "wind_speed_10m"):
+            if key in current:
+                projected_current[key] = deepcopy(current.get(key))
+
+    fetch_ok = payload is not None and bool(projected_current)
+    confidence = 0.8 if fetch_ok else 0.0
+
+    module_payload = {
+        "provider": "open-meteo",
+        "source": source_name,
+        "profile": str(deep_request.get("profile") or ""),
+        "confidence": confidence,
+        "fetch": {
+            "ok": bool(fetch_ok),
+            "from_cache": bool(from_cache),
+            "attempt": int(attempt_count or 0),
+            "max_attempts": int(max_attempts),
+        },
+        "coordinates": {"lat": round(lat, 6), "lon": round(lon, 6)},
+        "forecast": {
+            "current": projected_current,
+            "timezone": payload.get("timezone") if isinstance(payload, dict) else None,
+            "utc_offset_seconds": payload.get("utc_offset_seconds") if isinstance(payload, dict) else None,
+        },
+        "fetched_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+
+    report["deep_enrichment"] = module_payload
+    _attach_deep_source_metadata(report, source_name=source_name, group_name="deep_enrichment")
+
+
+def _attach_deep_source_metadata(
+    report: dict[str, Any],
+    *,
+    source_name: str,
+    group_name: str,
+) -> None:
+    source_classification = report.get("source_classification")
+    if not isinstance(source_classification, dict):
+        source_classification = {}
+
+    source_classification[source_name] = {
+        "source": source_name,
+        "authority": "web",
+        "tier": "deep",
+        "purpose": "deep_enrichment",
+        "present": True,
+    }
+    report["source_classification"] = source_classification
+
+    source_attribution = report.get("source_attribution")
+    if not isinstance(source_attribution, dict):
+        source_attribution = {}
+
+    existing = source_attribution.get(group_name)
+    if isinstance(existing, list):
+        group_sources = existing
+    else:
+        group_sources = []
+    if source_name not in group_sources:
+        group_sources.append(source_name)
+    source_attribution[group_name] = group_sources
+    report["source_attribution"] = source_attribution
+
+
 def _as_unit_interval_number(value: Any, field_name: str) -> float:
     """Validiert und normalisiert Präferenzgewichte robust auf den Bereich 0..1."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -2987,6 +3283,15 @@ class Handler(BaseHTTPRequestHandler):
                             request_id=request_id,
                             session_id=session_id,
                         )
+                        _apply_open_meteo_deep_enrichment(
+                            stub_report,
+                            options=request_options,
+                            intelligence_mode=mode,
+                            timeout_seconds=timeout,
+                            upstream_log_emitter=_emit_upstream_for_request,
+                            request_id=request_id,
+                            session_id=session_id,
+                        )
                         self._send_json(
                             {
                                 "ok": True,
@@ -3026,6 +3331,15 @@ class Handler(BaseHTTPRequestHandler):
                     options=request_options,
                     intelligence_mode=mode,
                     timeout_seconds=timeout,
+                    request_id=request_id,
+                    session_id=session_id,
+                )
+                _apply_open_meteo_deep_enrichment(
+                    report,
+                    options=request_options,
+                    intelligence_mode=mode,
+                    timeout_seconds=timeout,
+                    upstream_log_emitter=_emit_upstream_for_request,
                     request_id=request_id,
                     session_id=session_id,
                 )
