@@ -130,5 +130,43 @@ class TestGroupedResponseSchemaV1(unittest.TestCase):
             _assert_type(self, value, spec["type"], path)
 
 
+    def test_derived_from_projection_is_added_when_field_provenance_present(self):
+        report = {
+            "query": "Bahnhofstrasse 1, 8001 Zürich",
+            "matched_address": "Bahnhofstrasse 1, 8001 Zürich",
+            "ids": {"egid": "123"},
+            "coordinates": {"lat": 47.3769, "lon": 8.5417},
+            "match": {"selected_score": 0.99, "candidate_count": 3, "status": "ok"},
+            "confidence": {"score": 92, "max": 100, "level": "high"},
+            "sources": {"geoadmin_search": {"status": "ok", "records": 1}},
+            "source_attribution": {"match": ["geoadmin_search"]},
+            "field_provenance": {
+                "building.baujahr": {
+                    "sources": ["geoadmin_search"],
+                    "primary_source": "geoadmin_search",
+                    "present": True,
+                    "authority": "federal",
+                    "notes": "extra keys must not leak into derived_from",
+                }
+            },
+        }
+
+        grouped = _grouped_api_result(report)
+        source_meta = grouped.get("status", {}).get("source_meta", {})
+
+        self.assertIn("field_provenance", source_meta)
+        self.assertIn("derived_from", source_meta)
+
+        self.assertEqual(
+            source_meta["derived_from"].get("building.baujahr"),
+            {
+                "sources": ["geoadmin_search"],
+                "primary_source": "geoadmin_search",
+                "present": True,
+                "authority": "federal",
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

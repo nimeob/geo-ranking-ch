@@ -71,6 +71,10 @@ Diese Referenz ist die menschenlesbare Sicht auf den maschinenlesbaren Feldkatal
 | `result.status.source_meta.source_attribution.*[*]` | `string` | Ja | `stable` | `alle` | Zugeordnete Quellen je Modulgruppe. (`[*]` = Array-Element(e)) | `osm_reverse` |
 | `result.status.source_meta.field_provenance.*.primary_source` | `string` | Ja | `beta` | `alle` | Primärquelle im Feld-Provenance-Block. (`*` = dynamischer Key) | `geoadmin_search` |
 | `result.status.source_meta.field_provenance.*.present` | `boolean` | Ja | `beta` | `alle` | Kennzeichnet, ob das Feld in den Rohdaten vorhanden war. (`*` = dynamischer Key) | `true` |
+| `result.status.source_meta.derived_from.*.primary_source` | `string` | Bedingt (wenn `field_provenance` vorhanden) | `beta` | `alle` | Kurzprojektion (Explainability): Primärquelle je Feldpfad. (`*` = dynamischer Key) | `geoadmin_search` |
+| `result.status.source_meta.derived_from.*.present` | `boolean` | Bedingt (wenn `field_provenance` vorhanden) | `beta` | `alle` | Kurzprojektion (Explainability): Presence-Flag je Feldpfad. (`*` = dynamischer Key) | `true` |
+| `result.status.source_meta.derived_from.*.sources[*]` | `string` | Bedingt (wenn vorhanden) | `beta` | `alle` | Kurzprojektion (Explainability): Quellenliste je Feldpfad. (`*` = dynamischer Key; `[*]` = Array-Element(e)) | `geoadmin_gwr` |
+| `result.status.source_meta.derived_from.*.authority` | `string` | Bedingt (wenn bekannt) | `beta` | `alle` | Kurzprojektion (Explainability): Authority-Klassifikation der Primärquelle. (`*` = dynamischer Key) | `federal` |
 | `result.data.entity.query` | `string` | Ja | `stable` | `alle` | Eingangsquery im entity-Block. | `Bahnhofstrasse 1, 8001 Zürich` |
 | `result.data.entity.matched_address` | `string` | Ja | `stable` | `alle` | Normalisierte/gematchte Adresse. | `Bahnhofstrasse 1, 8001 Zürich` |
 | `result.data.entity.ids.egid` | `string` | Ja | `stable` | `alle` | EGID im grouped entity.ids-Block. | `123` |

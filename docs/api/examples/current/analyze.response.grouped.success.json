@@ -42,6 +42,12 @@
             "primary_source": "geoadmin_search",
             "present": true
           }
+        },
+        "derived_from": {
+          "building.baujahr": {
+            "primary_source": "geoadmin_search",
+            "present": true
+          }
         }
       }
     },

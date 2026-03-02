@@ -60,6 +60,20 @@
             "primary_source": "noise_model",
             "present": false
           }
+        },
+        "derived_from": {
+          "building.baujahr": {
+            "primary_source": "geoadmin_search",
+            "present": true
+          },
+          "intelligence.tenants_businesses": {
+            "primary_source": "osm_reverse",
+            "present": false
+          },
+          "context.noise": {
+            "primary_source": "noise_model",
+            "present": false
+          }
         }
       }
     },
