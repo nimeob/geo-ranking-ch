@@ -783,23 +783,39 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
             return;
           }
 
+          const status = groupedResult.status && typeof groupedResult.status === "object" ? groupedResult.status : {};
           const entity = groupedResult.data && groupedResult.data.entity ? groupedResult.data.entity : {};
-          const quality = groupedResult.status && groupedResult.status.quality ? groupedResult.status.quality : {};
-          const confidence = quality.confidence && typeof quality.confidence === "object" ? quality.confidence : {};
           const modules = groupedResult.data && groupedResult.data.modules ? groupedResult.data.modules : {};
-          const suitability = modules.suitability_light && typeof modules.suitability_light === "object" ? modules.suitability_light : {};
-          const summary = modules.summary_compact && typeof modules.summary_compact === "object" ? modules.summary_compact : {};
-          const summarySuitability = summary.suitability_light && typeof summary.suitability_light === "object" ? summary.suitability_light : {};
+          const summaryCompact = modules.summary_compact && typeof modules.summary_compact === "object" ? modules.summary_compact : {};
+
+          const executiveSummary = status.executive_summary || summaryCompact.executive_summary || "";
+          const confidence = status.confidence || (status.quality ? status.quality.confidence : null);
+          const coords = entity.coordinates || entity.coords || null;
+          const ids = entity.ids || null;
+          const admin = entity.administrative || entity.admin || null;
 
           const rows = [];
           rows.push(kvRow("Query", entity.query));
           rows.push(kvRow("Matched address", entity.matched_address));
-          rows.push(kvRow("Confidence", confidence.level || confidence.score));
-          rows.push(kvRow("Suitability score", suitability.score || summarySuitability.score));
-          rows.push(kvRow("Suitability class", suitability.classification || summarySuitability.classification));
-          rows.push(kvRow("Traffic light", suitability.traffic_light || summarySuitability.traffic_light));
+          rows.push(kvRow("Confidence", confidence && typeof confidence === "object" ? (confidence.level || confidence.score) : confidence));
+          rows.push(kvRow("Coordinates", coords ? prettyPrint(coords) : ""));
 
-          overviewEl.innerHTML = `<dl class="kv">${rows.join("")}</dl>`;
+          const headerParts = [];
+          if (String(executiveSummary || "").trim()) {
+            headerParts.push(`<p style="margin: 0 0 0.75rem;"><strong>Executive summary</strong><br>${escapeHtml(executiveSummary)}</p>`);
+          }
+
+          const overviewPayload = {
+            executive_summary: executiveSummary || null,
+            confidence: confidence || null,
+            matched_address: entity.matched_address || null,
+            coords: coords,
+            ids: ids,
+            admin: admin,
+            status: status,
+          };
+
+          overviewEl.innerHTML = `${headerParts.join("")}<dl class="kv">${rows.join("")}</dl><pre style="margin-top: 0.85rem;">${escapeHtml(prettyPrint(overviewPayload))}</pre>`;
         }
 
         function renderSources(groupedResult) {
@@ -812,9 +828,14 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
             sourcesEl.innerHTML = `<pre>${escapeHtml(prettyPrint(groupedResult))}</pre>`;
             return;
           }
+
+          const status = groupedResult.status && typeof groupedResult.status === "object" ? groupedResult.status : {};
           const payload = {
-            source_health: groupedResult.status ? groupedResult.status.source_health : null,
-            source_meta: groupedResult.status ? groupedResult.status.source_meta : null,
+            sources: status.sources || null,
+            source_attribution: status.source_attribution || null,
+            source_classification: status.source_classification || null,
+            source_health: status.source_health || null,
+            source_meta: status.source_meta || null,
             by_source: groupedResult.data ? groupedResult.data.by_source : null,
           };
           sourcesEl.innerHTML = `<pre>${escapeHtml(prettyPrint(payload))}</pre>`;
@@ -830,12 +851,39 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
             derivedEl.innerHTML = `<pre>${escapeHtml(prettyPrint(groupedResult))}</pre>`;
             return;
           }
-          const modules = groupedResult.data && groupedResult.data.modules ? groupedResult.data.modules : {};
-          const payload = {
-            suitability_light: modules.suitability_light,
-            summary_compact: modules.summary_compact,
-          };
-          derivedEl.innerHTML = `<pre>${escapeHtml(prettyPrint(payload))}</pre>`;
+
+          // Derived should focus on computed signals and exclude raw sources + summary views.
+          let payload;
+          try {
+            payload = JSON.parse(JSON.stringify(groupedResult));
+          } catch (error) {
+            payload = null;
+          }
+
+          if (payload && payload.status && typeof payload.status === "object") {
+            delete payload.status.sources;
+            delete payload.status.source_attribution;
+            delete payload.status.source_classification;
+            delete payload.status.source_health;
+            delete payload.status.source_meta;
+            delete payload.status.executive_summary;
+          }
+
+          if (payload && payload.data && typeof payload.data === "object") {
+            delete payload.data.by_source;
+            if (payload.data.modules && typeof payload.data.modules === "object") {
+              delete payload.data.modules.summary_compact;
+            }
+          }
+
+          const hasAnyContent = Boolean(
+            payload && typeof payload === "object" && (
+              (payload.status && Object.keys(payload.status || {}).length) ||
+              (payload.data && Object.keys(payload.data || {}).length)
+            )
+          );
+
+          derivedEl.innerHTML = `<pre>${escapeHtml(prettyPrint(hasAnyContent ? payload : groupedResult))}</pre>`;
         }
 
         async function loadResult() {

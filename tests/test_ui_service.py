@@ -115,6 +115,32 @@ class TestUiService(unittest.TestCase):
         self.assertIn("Historische Abfragen", body)
         self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "https://api.example.test/analyze/history"', body)
 
+    def test_result_permalink_page_renders_and_contains_tabs(self):
+        status, body, headers = _http(f"{self.base_url}/results/res-123")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("content-type", ""))
+        self.assertIn("Result", body)
+        self.assertIn("res-123", body)
+
+        # Tabs (Order is relevant for UX; keep assertions explicit.)
+        self.assertIn('data-tab="overview"', body)
+        self.assertIn('data-tab="sources"', body)
+        self.assertIn('data-tab="derived"', body)
+        self.assertIn('data-tab="raw"', body)
+        self.assertIn(">Overview<", body)
+        self.assertIn(">Sources / Evidence<", body)
+        self.assertIn(">Generated / Derived<", body)
+        self.assertIn(">Raw JSON<", body)
+
+        # Initial state: Overview visible, other panels hidden.
+        self.assertIn('<div id="tab-overview" class="tab-panel">', body)
+        self.assertIn('<div id="tab-sources" class="tab-panel" hidden>', body)
+        self.assertIn('<div id="tab-derived" class="tab-panel" hidden>', body)
+        self.assertIn('<div id="tab-raw" class="tab-panel" hidden>', body)
+
+        # API base URL must be wired for UI deployments.
+        self.assertIn('const RESULTS_ENDPOINT_BASE = "https://api.example.test/analyze/results";', body)
+
     def test_invalid_job_id_returns_not_found_payload(self):
         status, body, _ = _http(f"{self.base_url}/jobs/!!!")
         self.assertEqual(status, 404)
