@@ -8,11 +8,12 @@ managed_by   = "openclaw"
 
 # --- Sicherheitsmodus (Default): keine Ressourcen verwalten ---
 # Dadurch ist ein "terraform plan" zunächst read-only/neutral.
-lookup_existing_resources   = false
-manage_ecs_cluster          = false
-manage_ecr_repository       = false
-manage_cloudwatch_log_group = false
-manage_s3_bucket            = false
+lookup_existing_resources      = false
+manage_ecs_cluster             = false
+manage_ecr_repository          = false
+manage_cloudwatch_log_group    = false
+manage_cloudwatch_log_group_ui = false
+manage_s3_bucket               = false
 
 # --- Staging Network + Ingress Skeleton (WP #660) ---
 # Default: vollständig deaktiviert (kein Create/Destroy in plan).
@@ -49,7 +50,8 @@ ecs_cluster_name               = "swisstopo-staging"
 ecs_container_insights_enabled = false
 
 ecr_repository_name       = "swisstopo-staging-api"
-cloudwatch_log_group_name = "/swisstopo/staging/ecs/api"
+cloudwatch_log_group_name    = "/swisstopo/staging/ecs/api"
+cloudwatch_log_group_ui_name = "/swisstopo/staging/ecs/ui"
 cloudwatch_log_retention_days = 30
 
 # Hinweis: Bucket-Name ist global eindeutig. Placeholder bis staging final ist.
@@ -58,8 +60,9 @@ s3_bucket_name = "swisstopo-staging-523234426229"
 
 existing_ecs_cluster_name          = "swisstopo-staging"
 existing_ecr_repository_name       = "swisstopo-staging-api"
-existing_cloudwatch_log_group_name = "/swisstopo/staging/ecs/api"
-existing_s3_bucket_name            = "swisstopo-staging-523234426229"
+existing_cloudwatch_log_group_name    = "/swisstopo/staging/ecs/api"
+existing_cloudwatch_log_group_ui_name = "/swisstopo/staging/ecs/ui"
+existing_s3_bucket_name               = "swisstopo-staging-523234426229"
 
 # --- Telegram Alerting (BL-08) ---
 # Voraussetzung: SSM-Parameter manuell anlegen (NICHT per Terraform, damit kein Token im State):

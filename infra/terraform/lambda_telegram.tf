@@ -79,7 +79,7 @@ data "aws_iam_policy_document" "sns_to_telegram_inline" {
       "ssm:GetParameter",
     ]
     resources = [
-      "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/swisstopo/${var.environment}/telegram-bot-token",
+      "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${trimprefix(local.telegram_bot_token_ssm_parameter_name_effective, "/")}",
     ]
   }
 
@@ -124,7 +124,7 @@ resource "aws_lambda_function" "sns_to_telegram" {
   environment {
     variables = {
       TELEGRAM_CHAT_ID       = var.telegram_chat_id
-      TELEGRAM_BOT_TOKEN_SSM = "/swisstopo/${var.environment}/telegram-bot-token"
+      TELEGRAM_BOT_TOKEN_SSM = local.telegram_bot_token_ssm_parameter_name_effective
     }
   }
 

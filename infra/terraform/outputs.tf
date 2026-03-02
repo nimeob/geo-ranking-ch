@@ -87,6 +87,16 @@ output "cloudwatch_log_group_arn" {
   value       = try(aws_cloudwatch_log_group.api[0].arn, data.aws_cloudwatch_log_group.existing[0].arn, null)
 }
 
+output "cloudwatch_log_group_ui_name" {
+  description = "Effektiver CloudWatch Log Group Name für UI (managed oder read-only erkannt)."
+  value       = local.cloudwatch_log_group_ui_effective
+}
+
+output "cloudwatch_log_group_ui_arn" {
+  description = "CloudWatch Log Group ARN für UI (falls managed oder erfolgreich read-only aufgelöst)."
+  value       = try(aws_cloudwatch_log_group.ui[0].arn, data.aws_cloudwatch_log_group.existing_ui[0].arn, null)
+}
+
 output "s3_bucket_name" {
   description = "Effektiver S3-Bucket-Name (managed oder read-only erkannt)."
   value       = local.s3_bucket_name_effective
@@ -100,16 +110,33 @@ output "s3_bucket_arn" {
 output "resource_management_flags" {
   description = "Transparenz: welche Ressourcen aktuell von Terraform gemanagt werden."
   value = {
-    lookup_existing_resources   = var.lookup_existing_resources
-    manage_ecs_cluster          = var.manage_ecs_cluster
-    manage_ecr_repository       = var.manage_ecr_repository
-    manage_cloudwatch_log_group = var.manage_cloudwatch_log_group
-    manage_s3_bucket            = var.manage_s3_bucket
-    manage_telegram_alerting    = var.manage_telegram_alerting
-    manage_health_probe         = var.manage_health_probe
-    manage_staging_network      = var.manage_staging_network
-    manage_staging_ingress      = var.manage_staging_ingress
-    manage_staging_ecs_compute  = var.manage_staging_ecs_compute
+    lookup_existing_resources      = var.lookup_existing_resources
+    manage_ecs_cluster             = var.manage_ecs_cluster
+    manage_ecr_repository          = var.manage_ecr_repository
+    manage_cloudwatch_log_group    = var.manage_cloudwatch_log_group
+    manage_cloudwatch_log_group_ui = var.manage_cloudwatch_log_group_ui
+    manage_s3_bucket               = var.manage_s3_bucket
+    manage_telegram_alerting       = var.manage_telegram_alerting
+    manage_health_probe            = var.manage_health_probe
+    manage_staging_network         = var.manage_staging_network
+    manage_staging_ingress         = var.manage_staging_ingress
+    manage_staging_ecs_compute     = var.manage_staging_ecs_compute
+  }
+}
+
+output "ssm_parameter_names" {
+  description = "Kanonische SSM SecureString Parameter-Namen (Werte werden NICHT gelesen; nur Naming-Konvention/Referenzen)."
+  value = {
+    telegram_bot_token = local.telegram_bot_token_ssm_parameter_name_effective
+    api_auth_token     = local.api_auth_token_ssm_parameter_name_effective
+  }
+}
+
+output "ssm_parameter_arns" {
+  description = "SSM Parameter ARNs passend zu ssm_parameter_names (ableitbar ohne Secret-Reads)."
+  value = {
+    telegram_bot_token = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${trimprefix(local.telegram_bot_token_ssm_parameter_name_effective, "/")}"
+    api_auth_token     = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${trimprefix(local.api_auth_token_ssm_parameter_name_effective, "/")}"
   }
 }
 

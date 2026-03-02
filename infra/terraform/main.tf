@@ -9,7 +9,13 @@ locals {
   ecs_cluster_name_effective     = var.manage_ecs_cluster ? var.ecs_cluster_name : (var.lookup_existing_resources ? var.existing_ecs_cluster_name : null)
   ecr_repository_name_effective  = var.manage_ecr_repository ? var.ecr_repository_name : (var.lookup_existing_resources ? var.existing_ecr_repository_name : null)
   cloudwatch_log_group_effective = var.manage_cloudwatch_log_group ? var.cloudwatch_log_group_name : (var.lookup_existing_resources ? var.existing_cloudwatch_log_group_name : null)
+  cloudwatch_log_group_ui_effective = var.manage_cloudwatch_log_group_ui ? var.cloudwatch_log_group_ui_name : (var.lookup_existing_resources ? var.existing_cloudwatch_log_group_ui_name : null)
   s3_bucket_name_effective       = var.manage_s3_bucket ? var.s3_bucket_name : (var.lookup_existing_resources ? var.existing_s3_bucket_name : null)
+
+  # Canonical SSM parameter naming (keine Values im Terraform-State)
+  ssm_parameter_prefix = "/${var.project_name}/${var.environment}"
+  telegram_bot_token_ssm_parameter_name_effective = trim(var.telegram_bot_token_ssm_parameter_name) != "" ? var.telegram_bot_token_ssm_parameter_name : "${local.ssm_parameter_prefix}/telegram-bot-token"
+  api_auth_token_ssm_parameter_name_effective     = trim(var.api_auth_token_ssm_parameter_name) != "" ? var.api_auth_token_ssm_parameter_name : "${local.ssm_parameter_prefix}/api-auth-token"
 }
 
 # --- Read-only Lookups (optional) -------------------------------------------
@@ -32,6 +38,12 @@ data "aws_cloudwatch_log_group" "existing" {
   count = var.lookup_existing_resources && !var.manage_cloudwatch_log_group ? 1 : 0
 
   name = var.existing_cloudwatch_log_group_name
+}
+
+data "aws_cloudwatch_log_group" "existing_ui" {
+  count = var.lookup_existing_resources && !var.manage_cloudwatch_log_group_ui ? 1 : 0
+
+  name = var.existing_cloudwatch_log_group_ui_name
 }
 
 data "aws_s3_bucket" "existing" {
@@ -94,6 +106,19 @@ resource "aws_cloudwatch_log_group" "api" {
     prevent_destroy = true
   }
 }
+
+resource "aws_cloudwatch_log_group" "ui" {
+  count = var.manage_cloudwatch_log_group_ui ? 1 : 0
+
+  name              = var.cloudwatch_log_group_ui_name
+  retention_in_days = var.cloudwatch_log_retention_days
+  tags              = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "aws_s3_bucket" "dev" {
   count = var.manage_s3_bucket ? 1 : 0
 
