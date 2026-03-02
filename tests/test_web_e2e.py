@@ -1058,7 +1058,7 @@ class TestWebServiceE2E(unittest.TestCase):
             (
                 "malformed_json_trailing_comma",
                 b'{"query":"__ok__",}',
-                None,
+                "invalid json",
             ),
             (
                 "invalid_utf8_json",
@@ -1090,6 +1090,75 @@ class TestWebServiceE2E(unittest.TestCase):
                 self.assertIn("request_id", body)
                 if expected_message:
                     self.assertIn(expected_message, body.get("message", ""))
+
+    def test_bad_request_missing_query_and_coordinates(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={},
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("query is required", body.get("message", ""))
+
+    def test_bad_request_coordinates_must_be_object_when_query_missing(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={"coordinates": "47.0,8.0"},
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("coordinates must be an object", body.get("message", ""))
+
+    def test_bad_request_timeout_negative(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "Bahnhofstrasse 1, 8001 Zürich",
+                "timeout_seconds": -1,
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("timeout_seconds", body.get("message", ""))
+
+    def test_bad_request_async_mode_rejects_invalid_org_id_header(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "timeout_seconds": 2,
+                "options": {"async_mode": {"requested": True}},
+            },
+            headers={
+                "Authorization": "Bearer bl18-token",
+                "X-Org-Id": "invalid org",
+            },
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("x-org-id header", body.get("message", "").lower())
+
+    def test_bad_request_async_mode_requested_must_be_boolean(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "timeout_seconds": 2,
+                "options": {"async_mode": {"requested": "yes"}},
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("options.async_mode.requested", body.get("message", ""))
 
     def test_timeout_address_intel_and_internal_are_mapped(self):
         status, body = _http_json(
