@@ -95,6 +95,25 @@ Response additiv: `requested_result_id`, `requested_result_kind`, `projection_mo
 ### `GET /analyze/jobs/{job_id}/notifications`
 - Notifications read-only (kein Zustandswechsel im Endpoint)
 
+### Fehler-Envelope (Legacy `/analyze*`)
+
+Alle Fehlerantworten sind JSON und folgen einem einheitlichen Top-Level-Format:
+
+```json
+{
+  "ok": false,
+  "error": "bad_request|not_found|timeout|address_intel|internal|...",
+  "message": "…",
+  "details": [{"field": "…", "issue": "…"}],
+  "request_id": "req-…"
+}
+```
+
+Status-Code-Mapping (verbindlich):
+- **Validation/Request-Parsing** → `400` + `error=bad_request`
+- **Not Found / Tenant-Mismatch** → `404` + `error=not_found`
+- **Unerwarteter Fehler** → `500` + `error=internal`
+
 ---
 
 ## 4) Tenant-Guard

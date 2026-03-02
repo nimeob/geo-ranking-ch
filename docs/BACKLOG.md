@@ -33,6 +33,7 @@ Regelwerk:
 
 ## Dev-Engineering (non-BL)
 
+- ✅ abgeschlossen (2026-03-02): [#767](https://github.com/nimeob/geo-ranking-ch/issues/767) — Dev(API): Fehlercodes vereinheitlichen (ValidationError -> 400, NotFound -> 404) — zentraler Error-Helper (`Handler._send_error`), konsistentes Mapping in GET/POST (bad_request/not_found/internal) + gezielte Regressiontests (`tests/test_web_service_request_validation.py`) + Doku-Ergänzung (`docs/api/async-v1.md`).
 - ✅ abgeschlossen (2026-03-02): [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) — HTTP-Regressiontests für `/analyze` (empty body, invalid JSON, non-object root, missing query, invalid intelligence_mode) + Error-Format-Referenz: `docs/user/api-usage.md`
 - ✅ abgeschlossen (2026-03-02): [#753](https://github.com/nimeob/geo-ranking-ch/issues/753) — Dev: Logging-Redaction – keine PII in Logs — Redaction maskiert sensitive Keys jetzt auch dann vollständig, wenn Values verschachtelte Objekte oder Listen sind (`src/shared/structured_logging.py`), inkl. Regression in `tests/test_structured_logging.py`.
 - ✅ abgeschlossen (2026-03-02): [#733](https://github.com/nimeob/geo-ranking-ch/issues/733) — WP: Retention-Cleanup prep — TTL-Config Parsing + Validation (ENV/CLI akzeptiert jetzt `7d`/`24h`/`15m`, fail-fast bei invaliden Werten)

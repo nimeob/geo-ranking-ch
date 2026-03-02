@@ -2534,18 +2534,39 @@ class Handler(BaseHTTPRequestHandler):
         job_org_id = _normalize_async_org_id(job_record.get("org_id"))
         return job_org_id == request_org_id
 
-    def _send_not_found(self, *, request_id: str, message: str | None = None) -> None:
+    def _send_error(
+        self,
+        *,
+        request_id: str,
+        status: HTTPStatus,
+        error: str,
+        message: str | None = None,
+        details: list[dict[str, Any]] | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> None:
         payload: dict[str, Any] = {
             "ok": False,
-            "error": "not_found",
+            "error": str(error or "internal"),
             "request_id": request_id,
         }
         if message:
-            payload["message"] = message
+            payload["message"] = str(message)
+        if details is not None:
+            payload["details"] = details
+
         self._send_json(
             payload,
-            status=HTTPStatus.NOT_FOUND,
+            status=int(status),
             request_id=request_id,
+            extra_headers=extra_headers,
+        )
+
+    def _send_not_found(self, *, request_id: str, message: str | None = None) -> None:
+        self._send_error(
+            request_id=request_id,
+            status=HTTPStatus.NOT_FOUND,
+            error="not_found",
+            message=message,
         )
 
     def _resolve_correlation_id_for_route(self, request_path: str) -> str:
@@ -3094,10 +3115,25 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            self._send_json(
-                {"ok": False, "error": "not_found", "request_id": request_id},
-                status=HTTPStatus.NOT_FOUND,
+            self._send_not_found(request_id=request_id)
+        except ValueError as exc:
+            self._send_error(
                 request_id=request_id,
+                status=HTTPStatus.BAD_REQUEST,
+                error="bad_request",
+                message=str(exc),
+            )
+        except KeyError as exc:
+            self._send_not_found(
+                request_id=request_id,
+                message=str(exc),
+            )
+        except Exception as exc:  # pragma: no cover
+            self._send_error(
+                request_id=request_id,
+                status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                error="internal",
+                message=str(exc),
             )
         finally:
             self._finish_request_lifecycle()
@@ -3495,48 +3531,32 @@ class Handler(BaseHTTPRequestHandler):
                     request_id=request_id,
                 )
             except TimeoutError as e:
-                self._send_json(
-                    {
-                        "ok": False,
-                        "error": "timeout",
-                        "message": str(e),
-                        "request_id": request_id,
-                    },
-                    status=HTTPStatus.GATEWAY_TIMEOUT,
+                self._send_error(
                     request_id=request_id,
+                    status=HTTPStatus.GATEWAY_TIMEOUT,
+                    error="timeout",
+                    message=str(e),
                 )
             except AddressIntelError as e:
-                self._send_json(
-                    {
-                        "ok": False,
-                        "error": "address_intel",
-                        "message": str(e),
-                        "request_id": request_id,
-                    },
-                    status=422,
+                self._send_error(
                     request_id=request_id,
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    error="address_intel",
+                    message=str(e),
                 )
             except (ValueError, json.JSONDecodeError) as e:
-                self._send_json(
-                    {
-                        "ok": False,
-                        "error": "bad_request",
-                        "message": str(e),
-                        "request_id": request_id,
-                    },
-                    status=400,
+                self._send_error(
                     request_id=request_id,
+                    status=HTTPStatus.BAD_REQUEST,
+                    error="bad_request",
+                    message=str(e),
                 )
             except Exception as e:  # pragma: no cover
-                self._send_json(
-                    {
-                        "ok": False,
-                        "error": "internal",
-                        "message": str(e),
-                        "request_id": request_id,
-                    },
-                    status=500,
+                self._send_error(
                     request_id=request_id,
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                    error="internal",
+                    message=str(e),
                 )
 
         finally:
