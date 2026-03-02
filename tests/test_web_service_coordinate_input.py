@@ -105,6 +105,58 @@ class TestWebServiceCoordinateInput(unittest.TestCase):
 
         self.assertIn("coordinates.snap_mode", str(ctx.exception))
 
+    def test_rejects_non_finite_coordinate_values(self):
+        cases = [
+            (float("nan"), 8.0, "coordinates.lat must be a finite number"),
+            (47.0, float("inf"), "coordinates.lon must be a finite number"),
+            ("", 8.0, "coordinates.lat must be a finite number"),
+            ("nan", 8.0, "coordinates.lat must be a finite number"),
+            (47.0, "inf", "coordinates.lon must be a finite number"),
+        ]
+
+        for raw_lat, raw_lon, expected_error in cases:
+            with self.subTest(raw_lat=raw_lat, raw_lon=raw_lon):
+                with self.assertRaises(ValueError) as ctx:
+                    _extract_query_and_coordinate_context(
+                        {
+                            "coordinates": {
+                                "lat": raw_lat,
+                                "lon": raw_lon,
+                            }
+                        }
+                    )
+
+                self.assertIn(expected_error, str(ctx.exception))
+
+    def test_rejects_coordinates_missing_required_fields(self):
+        cases = [
+            ({"lon": 8.0}, "coordinates.lat and coordinates.lon are required"),
+            ({"lat": 47.0}, "coordinates.lat and coordinates.lon are required"),
+            ({"lng": 8.0}, "coordinates.lat and coordinates.lon are required"),
+        ]
+
+        for coordinates, expected_error in cases:
+            with self.subTest(coordinates=coordinates):
+                with self.assertRaises(ValueError) as ctx:
+                    _extract_query_and_coordinate_context({"coordinates": coordinates})
+
+                self.assertIn(expected_error, str(ctx.exception))
+
+    def test_rejects_coordinates_outside_lat_lon_range(self):
+        cases = [
+            ({"lat": 100.0, "lon": 8.0}, "coordinates.lat must be between -90 and 90"),
+            ({"lat": -100.0, "lon": 8.0}, "coordinates.lat must be between -90 and 90"),
+            ({"lat": 47.0, "lon": 200.0}, "coordinates.lon must be between -180 and 180"),
+            ({"lat": 47.0, "lon": -200.0}, "coordinates.lon must be between -180 and 180"),
+        ]
+
+        for coordinates, expected_error in cases:
+            with self.subTest(coordinates=coordinates):
+                with self.assertRaises(ValueError) as ctx:
+                    _extract_query_and_coordinate_context({"coordinates": coordinates})
+
+                self.assertIn(expected_error, str(ctx.exception))
+
     def test_attach_coordinate_resolution_context_is_additive(self):
         report = {
             "match": {
