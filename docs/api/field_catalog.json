@@ -501,6 +501,78 @@
       "example": true
     },
     {
+      "path": "result.status.source_meta.derived_from.*.sources[*]",
+      "response_shapes": [
+        "grouped"
+      ],
+      "type": "string",
+      "required": {
+        "legacy": false,
+        "grouped": false
+      },
+      "stability": "beta",
+      "description": "Quellenliste (Explainability-Projektion) je Feldpfad.",
+      "provenance_hint": "Derived-from projection",
+      "mode_conditions": [
+        "all"
+      ],
+      "example": "geoadmin_search"
+    },
+    {
+      "path": "result.status.source_meta.derived_from.*.primary_source",
+      "response_shapes": [
+        "grouped"
+      ],
+      "type": "string",
+      "required": {
+        "legacy": false,
+        "grouped": true
+      },
+      "stability": "beta",
+      "description": "Primärquelle (Explainability-Projektion) je Feldpfad.",
+      "provenance_hint": "Derived-from projection",
+      "mode_conditions": [
+        "all"
+      ],
+      "example": "geoadmin_search"
+    },
+    {
+      "path": "result.status.source_meta.derived_from.*.present",
+      "response_shapes": [
+        "grouped"
+      ],
+      "type": "boolean",
+      "required": {
+        "legacy": false,
+        "grouped": true
+      },
+      "stability": "beta",
+      "description": "Presence-Flag (Explainability-Projektion) je Feldpfad.",
+      "provenance_hint": "Derived-from projection",
+      "mode_conditions": [
+        "all"
+      ],
+      "example": true
+    },
+    {
+      "path": "result.status.source_meta.derived_from.*.authority",
+      "response_shapes": [
+        "grouped"
+      ],
+      "type": "string",
+      "required": {
+        "legacy": false,
+        "grouped": false
+      },
+      "stability": "beta",
+      "description": "Authority-Klassifikation der Primärquelle (falls vorhanden) je Feldpfad.",
+      "provenance_hint": "Derived-from projection",
+      "mode_conditions": [
+        "all"
+      ],
+      "example": "federal"
+    },
+    {
       "path": "result.data.entity.query",
       "response_shapes": [
         "grouped"

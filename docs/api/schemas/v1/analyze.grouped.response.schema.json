@@ -97,6 +97,9 @@
                 },
                 "field_provenance": {
                   "type": "object"
+                },
+                "derived_from": {
+                  "type": "object"
                 }
               }
             },

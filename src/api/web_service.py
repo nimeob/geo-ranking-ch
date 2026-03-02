@@ -536,6 +536,44 @@ def _strip_status_fields(payload: Any) -> Any:
     return payload
 
 
+_DERIVED_FROM_KEYS = ("sources", "primary_source", "present", "authority")
+
+
+def _derived_from_projection(field_provenance: Any) -> dict[str, Any]:
+    """Stable projection for explainability / provenance.
+
+    We keep this additive and tolerant: if field_provenance entries contain more keys,
+    derived_from will only expose a minimal subset.
+    """
+    if not isinstance(field_provenance, dict):
+        return {}
+
+    out: dict[str, Any] = {}
+    for field_path, meta in field_provenance.items():
+        if not isinstance(meta, dict):
+            continue
+        entry: dict[str, Any] = {}
+        for key in _DERIVED_FROM_KEYS:
+            if key not in meta:
+                continue
+
+            value = meta[key]
+            if key == "present":
+                entry[key] = bool(value)
+                continue
+            if value is None:
+                continue
+            if key in {"primary_source", "authority"} and isinstance(value, str) and not value.strip():
+                continue
+            if key == "sources" and isinstance(value, list) and not value:
+                continue
+
+            entry[key] = deepcopy(value)
+        if entry:
+            out[str(field_path)] = entry
+    return out
+
+
 def _build_status_block(report: dict[str, Any]) -> dict[str, Any]:
     quality: dict[str, Any] = {}
     confidence = report.get("confidence")
@@ -556,7 +594,12 @@ def _build_status_block(report: dict[str, Any]) -> dict[str, Any]:
     if source_attribution:
         source_meta["source_attribution"] = deepcopy(source_attribution)
     if field_provenance:
-        source_meta["field_provenance"] = deepcopy(field_provenance)
+        field_provenance_copy = deepcopy(field_provenance)
+        source_meta["field_provenance"] = field_provenance_copy
+
+        derived_from = _derived_from_projection(field_provenance_copy)
+        if derived_from:
+            source_meta["derived_from"] = derived_from
 
     status_block = {
         "quality": quality,
