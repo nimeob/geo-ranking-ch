@@ -28,6 +28,10 @@ Regelwerk:
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
 <!-- NOW_NEXT_LATER:END -->
 
+## Dev-Engineering (non-BL)
+
+- ✅ abgeschlossen (2026-03-02): [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen)
+
 ## Backlog-Items
 
 ### BL-01 — IaC als Source of Truth für `dev`

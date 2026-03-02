@@ -3090,7 +3090,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
             try:
-                length = int(self.headers.get("Content-Length", "0"))
+                raw_length = self.headers.get("Content-Length", "0")
+                try:
+                    length = int(raw_length)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("invalid content length") from exc
                 if length < 0:
                     raise ValueError("invalid content length")
 
@@ -3103,7 +3107,10 @@ class Handler(BaseHTTPRequestHandler):
                         decoded_body = raw.decode("utf-8")
                     except UnicodeDecodeError as exc:
                         raise ValueError("body must be valid utf-8 json") from exc
-                    data = json.loads(decoded_body)
+                    try:
+                        data = json.loads(decoded_body)
+                    except json.JSONDecodeError as exc:
+                        raise ValueError("invalid json") from exc
                 else:
                     data = {}
 
