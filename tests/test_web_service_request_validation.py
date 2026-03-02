@@ -152,6 +152,41 @@ class TestWebServiceRequestValidation(unittest.TestCase):
         )
         self._assert_bad_request(status, payload, message_contains="intelligence_mode must be one of")
 
+    def test_get_validation_errors_are_mapped_to_400(self):
+        status, _, payload = _http_raw(
+            "GET",
+            f"{self.base_url}/analyze/jobs/fake-job/notifications?limit=0",
+        )
+        self._assert_bad_request(status, payload, message_contains="limit must be")
+
+    def test_not_found_is_mapped_to_404(self):
+        status, _, payload = _http_raw(
+            "GET",
+            f"{self.base_url}/definitely-missing",
+        )
+        self.assertEqual(status, 404)
+        self.assertIsInstance(payload, dict)
+        assert isinstance(payload, dict)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "not_found")
+        self.assertIsInstance(payload.get("request_id"), str)
+        self.assertTrue(str(payload.get("request_id")).strip())
+
+    def test_internal_errors_remain_500(self):
+        status, _, payload = _http_raw(
+            "POST",
+            f"{self.base_url}/analyze",
+            headers={"Content-Type": "application/json"},
+            body=json.dumps({"query": "__internal__"}).encode("utf-8"),
+        )
+        self.assertEqual(status, 500)
+        self.assertIsInstance(payload, dict)
+        assert isinstance(payload, dict)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "internal")
+        self.assertIsInstance(payload.get("request_id"), str)
+        self.assertTrue(str(payload.get("request_id")).strip())
+
 
 if __name__ == "__main__":
     unittest.main()
