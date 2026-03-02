@@ -7,7 +7,7 @@ Controlled via the ``ASYNC_STORE_BACKEND`` environment variable:
 
 Usage::
 
-    from src.shared.async_store_factory import build_async_job_store
+    from src.api.async_store_factory import build_async_job_store
     store = build_async_job_store()
 
 Environment variables:

@@ -42,7 +42,7 @@ from urllib.request import urlopen
 from src.api.address_intel import AddressIntelError, build_report
 from src.api.async_jobs import AsyncJobStore
 from src.api.async_worker_runtime import AsyncJobRuntime
-from src.shared.async_store_factory import build_async_job_store
+from src.api.async_store_factory import build_async_job_store
 from src.api.debug_trace import (
     build_trace_timeline,
     normalize_lookback_seconds,

@@ -1,7 +1,7 @@
 """
 tests/test_async_store_factory.py
 
-Tests for src/shared/async_store_factory.py.
+Tests for src/api/async_store_factory.py.
 
 Verifies:
 - ASYNC_STORE_BACKEND=file (default) → AsyncJobStore
@@ -25,7 +25,7 @@ class TestBuildAsyncJobStore(unittest.TestCase):
     def _import_factory(self):
         # Re-import to avoid cached module state between tests
         import importlib
-        import src.shared.async_store_factory as mod
+        import src.api.async_store_factory as mod
         importlib.reload(mod)
         return mod.build_async_job_store
 
@@ -36,7 +36,7 @@ class TestBuildAsyncJobStore(unittest.TestCase):
         env.setdefault("ASYNC_JOBS_STORE_FILE", "/tmp/test_store_default.json")
 
         with patch.dict(os.environ, env, clear=True):
-            from src.shared.async_store_factory import build_async_job_store
+            from src.api.async_store_factory import build_async_job_store
             from src.api.async_jobs import AsyncJobStore
             store = build_async_job_store()
             self.assertIsInstance(store, AsyncJobStore)
@@ -48,7 +48,7 @@ class TestBuildAsyncJobStore(unittest.TestCase):
             "ASYNC_JOBS_STORE_FILE": "/tmp/test_store_file.json",
         }
         with patch.dict(os.environ, env, clear=True):
-            from src.shared.async_store_factory import build_async_job_store
+            from src.api.async_store_factory import build_async_job_store
             from src.api.async_jobs import AsyncJobStore
             store = build_async_job_store()
             self.assertIsInstance(store, AsyncJobStore)
@@ -62,14 +62,14 @@ class TestBuildAsyncJobStore(unittest.TestCase):
         env_clean["ASYNC_STORE_BACKEND"] = "db"
 
         with patch.dict(os.environ, env_clean, clear=True):
-            from src.shared.async_store_factory import build_async_job_store
+            from src.api.async_store_factory import build_async_job_store
             with self.assertRaises(RuntimeError):
                 build_async_job_store()
 
     def test_unknown_backend_raises_value_error(self):
         """Unknown ASYNC_STORE_BACKEND value → ValueError."""
         with patch.dict(os.environ, {"ASYNC_STORE_BACKEND": "redis"}):
-            from src.shared.async_store_factory import build_async_job_store
+            from src.api.async_store_factory import build_async_job_store
             with self.assertRaises(ValueError) as ctx:
                 build_async_job_store()
             self.assertIn("redis", str(ctx.exception))
@@ -84,7 +84,7 @@ class TestBuildAsyncJobStore(unittest.TestCase):
             # Mock psycopg2 so no real connection is attempted
             mock_psycopg2 = MagicMock()
             with patch.dict("sys.modules", {"psycopg2": mock_psycopg2}):
-                from src.shared.async_store_factory import build_async_job_store
+                from src.api.async_store_factory import build_async_job_store
                 from src.shared.async_job_store_db import DbAsyncJobStore
                 store = build_async_job_store()
                 self.assertIsInstance(store, DbAsyncJobStore)
@@ -97,7 +97,7 @@ class TestBuildAsyncJobStore(unittest.TestCase):
             "ASYNC_JOBS_STORE_FILE": "/tmp/test_store_fileonly.json",
         }
         with patch.dict(os.environ, env, clear=True):
-            from src.shared.async_store_factory import build_async_job_store
+            from src.api.async_store_factory import build_async_job_store
             from src.api.async_jobs import AsyncJobStore
             store = build_async_job_store()
             self.assertIsInstance(store, AsyncJobStore)
@@ -109,7 +109,7 @@ class TestBuildAsyncJobStore(unittest.TestCase):
             "ASYNC_JOBS_STORE_FILE": "/tmp/test_store_upper.json",
         }
         with patch.dict(os.environ, env, clear=True):
-            from src.shared.async_store_factory import build_async_job_store
+            from src.api.async_store_factory import build_async_job_store
             from src.api.async_jobs import AsyncJobStore
             store = build_async_job_store()
             self.assertIsInstance(store, AsyncJobStore)
