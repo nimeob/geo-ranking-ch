@@ -19,7 +19,7 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#691](https://github.com/nimeob/geo-ranking-ch/issues/691) — WP: POI Coverage – 5–10 Referenzpunkte als Regression-Guard (Tests) (priority:P1, status:todo)
+- (leer)
 
 ### Next
 - [#576](https://github.com/nimeob/geo-ranking-ch/issues/576) — BL-15.r2.wp2.b.prereq — optionales Wartungsfenster/Host-Zugriff (nur falls nötig) (priority:P0, status:todo)
