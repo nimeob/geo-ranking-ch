@@ -314,7 +314,22 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/api/contract-stability-policy.md](docs/api/contract-stability-policy.md) | Stabilitätsleitfaden (`stable`/`beta`/`internal`) + Breaking/Non-Breaking-Policy inkl. Changelog-/Release-Prozess (BL-20.1.d.wp4) |
 | [docs/GO_TO_MARKET_MVP.md](docs/GO_TO_MARKET_MVP.md) | GTM-MVP-Artefakte: Value Proposition, Scope, Demo-Storyline, offene Risiken (BL-20.7.b) |
 | [docs/PACKAGING_BASELINE.md](docs/PACKAGING_BASELINE.md) | Reproduzierbare Build/Run-Baseline für API-only Packaging inkl. Konfigurationsmatrix (Pflicht/Optional, Default/Beispiel), Verify-Checks und Basis-Release-Checkliste (BL-20.7.a.r1/r2/r3) |
+| [docs/BFF_FLOW.md](docs/BFF_FLOW.md) | BFF (Backend-for-Frontend): OIDC-Login-Flow, Session-Cookie-Lifecycle, Token-Delegation, CSRF, Env-Variablen-Tabelle (#806) |
 | [CHANGELOG.md](CHANGELOG.md) | Versions-History |
+
+---
+
+## BFF — Portal Authentication (Backend-for-Frontend)
+
+Das BFF-Modul (`src/api/bff_*.py`) implementiert sicheren Web-Login für das Portal-SPA ohne Browser-Tokens:
+
+- **Login:** OIDC Auth Code + PKCE gegen Cognito; nur httpOnly Session-Cookie zum Browser
+- **Session:** Opaker Session-ID-Cookie; Tokens ausschließlich serverseitig gespeichert
+- **Token Delegation:** `bff_api_call` injiziert `Authorization: Bearer <token>` automatisch; Auto-Refresh bei Ablauf
+- **CSRF-Schutz:** `X-BFF-CSRF: 1` Custom-Header-Check für alle State-ändernden Anfragen
+- **Logout:** Session invalidieren + Cookie löschen + (optional) Cognito-Redirect
+
+Dokumentation: [`docs/BFF_FLOW.md`](docs/BFF_FLOW.md)
 
 ---
 
