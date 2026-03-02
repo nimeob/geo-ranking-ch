@@ -109,6 +109,7 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('id="results-body"', body)
         self.assertIn('id="history-shell"', body)
         self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";', body)
+        self.assertIn('rows.join("\\n")', body)
         self.assertIn('function restoreResultsListDeepLinkInput()', body)
         self.assertIn('results_sort', body)
         self.assertIn('id="async-mode-requested"', body)
