@@ -28,6 +28,12 @@ file-basierte Async-Store (`runtime/async_jobs/store.v1.json`) nicht unbegrenzt 
 - `ASYNC_JOB_EVENTS_RETENTION_SECONDS` (default: `259200` = 3 Tage)
 - `ASYNC_JOBS_STORE_FILE` (optional, Default: `runtime/async_jobs/store.v1.json`)
 
+TTL-Format:
+- Sekunden als Zahl (z.B. `604800`)
+- oder mit Unit-Suffix `s|m|h|d` (z.B. `30m`, `24h`, `7d`)
+
+Ungültige Werte → Script bricht deterministisch mit Exit-Code `1` ab (fail-fast).
+
 ## Script Usage
 
 ### Dry-Run (empfohlen vor erstem produktiven Lauf)
@@ -35,8 +41,8 @@ file-basierte Async-Store (`runtime/async_jobs/store.v1.json`) nicht unbegrenzt 
 ```bash
 ./scripts/run_async_retention_cleanup.py \
   --store-file runtime/async_jobs/store.v1.json \
-  --results-ttl-seconds 604800 \
-  --events-ttl-seconds 259200 \
+  --results-ttl-seconds 7d \
+  --events-ttl-seconds 3d \
   --dry-run
 ```
 
@@ -45,8 +51,8 @@ file-basierte Async-Store (`runtime/async_jobs/store.v1.json`) nicht unbegrenzt 
 ```bash
 ./scripts/run_async_retention_cleanup.py \
   --store-file runtime/async_jobs/store.v1.json \
-  --results-ttl-seconds 604800 \
-  --events-ttl-seconds 259200 \
+  --results-ttl-seconds 7d \
+  --events-ttl-seconds 3d \
   --output-json artifacts/async/retention-latest.json
 ```
 

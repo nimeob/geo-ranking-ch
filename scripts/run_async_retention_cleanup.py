@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.api.async_jobs import AsyncJobStore
+from src.api.duration_parsing import parse_duration_seconds
 
 
 DEFAULT_RESULTS_TTL_SECONDS = 7 * 24 * 3600
@@ -23,15 +24,10 @@ DEFAULT_EVENTS_TTL_SECONDS = 3 * 24 * 3600
 
 def _read_ttl_from_env(var_name: str, default_value: float) -> float:
     raw = os.getenv(var_name)
-    if raw is None or not raw.strip():
+    if raw is None or not str(raw).strip():
         return float(default_value)
-    try:
-        parsed = float(raw)
-    except ValueError as exc:
-        raise ValueError(f"{var_name} must be numeric") from exc
-    if parsed < 0:
-        raise ValueError(f"{var_name} must be >= 0")
-    return parsed
+    # Fail-fast on invalid config: avoid accidentally deleting too much or too little.
+    return parse_duration_seconds(raw, field_name=var_name)
 
 
 def _build_parser(*, default_results_ttl: float, default_events_ttl: float) -> argparse.ArgumentParser:
@@ -48,20 +44,22 @@ def _build_parser(*, default_results_ttl: float, default_events_ttl: float) -> a
     )
     parser.add_argument(
         "--results-ttl-seconds",
-        type=float,
+        type=str,
         default=default_results_ttl,
         help=(
-            "TTL in Sekunden für job_results (default: ENV ASYNC_JOB_RESULTS_RETENTION_SECONDS "
-            f"oder {int(default_results_ttl)})"
+            "TTL für job_results (Sekunden oder Duration wie `7d`/`24h`/`15m`). "
+            "Default: ENV ASYNC_JOB_RESULTS_RETENTION_SECONDS oder "
+            f"{int(default_results_ttl)}"
         ),
     )
     parser.add_argument(
         "--events-ttl-seconds",
-        type=float,
+        type=str,
         default=default_events_ttl,
         help=(
-            "TTL in Sekunden für job_events (default: ENV ASYNC_JOB_EVENTS_RETENTION_SECONDS "
-            f"oder {int(default_events_ttl)})"
+            "TTL für job_events (Sekunden oder Duration wie `7d`/`24h`/`15m`). "
+            "Default: ENV ASYNC_JOB_EVENTS_RETENTION_SECONDS oder "
+            f"{int(default_events_ttl)}"
         ),
     )
     parser.add_argument(
@@ -87,12 +85,6 @@ def _build_parser(*, default_results_ttl: float, default_events_ttl: float) -> a
     return parser
 
 
-def _validate_non_negative(value: float | None, *, field_name: str) -> None:
-    if value is None:
-        return
-    if float(value) < 0:
-        raise ValueError(f"{field_name} must be >= 0")
-
 
 def _run(argv: list[str]) -> int:
     default_results_ttl = _read_ttl_from_env(
@@ -110,11 +102,22 @@ def _run(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     try:
-        _validate_non_negative(args.results_ttl_seconds, field_name="results_ttl_seconds")
-        _validate_non_negative(args.events_ttl_seconds, field_name="events_ttl_seconds")
-
-        results_ttl_seconds = None if args.disable_results_retention else args.results_ttl_seconds
-        events_ttl_seconds = None if args.disable_events_retention else args.events_ttl_seconds
+        results_ttl_seconds = (
+            None
+            if args.disable_results_retention
+            else parse_duration_seconds(
+                args.results_ttl_seconds,
+                field_name="results_ttl_seconds",
+            )
+        )
+        events_ttl_seconds = (
+            None
+            if args.disable_events_retention
+            else parse_duration_seconds(
+                args.events_ttl_seconds,
+                field_name="events_ttl_seconds",
+            )
+        )
 
         store_file = Path(args.store_file)
         store = AsyncJobStore(store_file=store_file)
