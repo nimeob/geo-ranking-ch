@@ -28,8 +28,11 @@ cdk.out/
 .cdk-staging/
 *.tfstate
 *.tfstate.backup
+*.tfstate.backup-*
 .terraform/
 *.tfplan
+*.tfvars
+!*.tfvars.example
 
 # IDE
 .vscode/
