@@ -19,10 +19,15 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- (leer)
+- [#727](https://github.com/nimeob/geo-ranking-ch/issues/727) — WP: Refresh docs/BACKLOG.md Now/Next/Later board (priority:P1, status:todo)
 
 ### Next
-- (leer)
+- [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) (priority:P1, status:todo)
+- [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) (priority:P1, status:todo)
+- [#753](https://github.com/nimeob/geo-ranking-ch/issues/753) — Dev: Logging-Redaction – keine PII in Logs (priority:P1, status:todo)
+- [#748](https://github.com/nimeob/geo-ranking-ch/issues/748) — Dev: Ranking-Response erweitern (Explainability: Top-Faktoren pro Score) (priority:P2, status:todo)
+- [#750](https://github.com/nimeob/geo-ranking-ch/issues/750) — Dev: Caching-Layer für Geo-Queries (Performance, ohne Infra) (priority:P2, status:todo)
+- [#752](https://github.com/nimeob/geo-ranking-ch/issues/752) — Dev: Frontend – Ergebnisliste sortier-/filterbar machen (priority:P2, status:todo)
 
 ### Later
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
