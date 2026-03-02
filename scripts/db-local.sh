@@ -82,9 +82,24 @@ cmd_status() {
 }
 
 cmd_migrate() {
-  echo "🔄 Applying SQL migrations..."
+  echo "🔄 Applying SQL migrations (via db-migrate.py)..."
   wait_healthy
 
+  # Export DATABASE_URL for the Python migration runner.
+  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD:-dev_only_change_me}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}"
+
+  PYTHON_RUNNER="${REPO_ROOT}/scripts/db-migrate.py"
+  if [[ -f "${PYTHON_RUNNER}" ]]; then
+    if python3 "${PYTHON_RUNNER}" --apply; then
+      return 0
+    else
+      echo "❌ db-migrate.py failed. Check DATABASE_URL or install: pip install psycopg2-binary" >&2
+      exit 1
+    fi
+  fi
+
+  # Fallback (legacy): apply docs/sql/*.sql directly via docker exec psql.
+  echo "⚠️  db-migrate.py not found — using legacy psql fallback."
   SQL_DIR="${REPO_ROOT}/docs/sql"
   if [[ ! -d "${SQL_DIR}" ]]; then
     echo "❌ No docs/sql/ directory found. Nothing to migrate." >&2
@@ -105,7 +120,7 @@ cmd_migrate() {
   if [[ "${applied}" -eq 0 ]]; then
     echo "⚠️  No .sql files found in ${SQL_DIR}."
   else
-    echo "✅ ${applied} migration file(s) applied."
+    echo "✅ ${applied} migration file(s) applied (legacy path)."
   fi
 }
 
