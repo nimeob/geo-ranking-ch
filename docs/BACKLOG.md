@@ -22,23 +22,10 @@ Regelwerk:
 - [#727](https://github.com/nimeob/geo-ranking-ch/issues/727) — WP: Refresh docs/BACKLOG.md Now/Next/Later board (priority:P1, status:todo)
 
 ### Next
-- [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
+- (leer)
 
 ### Later
-- [#653](https://github.com/nimeob/geo-ranking-ch/issues/653) — WP: staging Smoke – POST /analyze => 200 (staging URL) + Evidence (priority:P0, status:blocked)
-- [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:blocked)
-- [#656](https://github.com/nimeob/geo-ranking-ch/issues/656) — WP: Async Result Pages/Permalinks – staging live (result_id Deep-Link) (priority:P0, status:blocked)
-- [#657](https://github.com/nimeob/geo-ranking-ch/issues/657) — WP: Async Notifications – staging live + Verify (priority:P0, status:blocked)
-- [#658](https://github.com/nimeob/geo-ranking-ch/issues/658) — WP: Async UX – prod deploy/enable + Evidence (priority:P0, status:blocked)
-- [#675](https://github.com/nimeob/geo-ranking-ch/issues/675) — WP: Async Jobs API – Staging Evidence Run (curl + Output) (priority:P0, status:blocked)
-- [#686](https://github.com/nimeob/geo-ranking-ch/issues/686) — WP: Result-Page – staging verify + evidence (priority:P0, status:blocked)
-- [#719](https://github.com/nimeob/geo-ranking-ch/issues/719) — WP: Async Notifications – staging verify + evidence (priority:P0, status:blocked)
-- [#723](https://github.com/nimeob/geo-ranking-ch/issues/723) — WP: GitHub Environments staging+prod anlegen (placeholder) (priority:P0, status:blocked)
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
-- [#639](https://github.com/nimeob/geo-ranking-ch/issues/639) — VISION P1: Terraform – staging Environment provisionieren (priority:P3, status:blocked)
-- [#640](https://github.com/nimeob/geo-ranking-ch/issues/640) — VISION P1: Promotion-Pfad dev → staging (Version/Trace Verify) (priority:P3, status:blocked)
-- [#641](https://github.com/nimeob/geo-ranking-ch/issues/641) — VISION P1: Terraform – prod Environment provisionieren (priority:P3, status:blocked)
-- [#642](https://github.com/nimeob/geo-ranking-ch/issues/642) — VISION P1: TLS + Custom Domain für prod (inkl. CORS Origins) (priority:P3, status:blocked)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Backlog-Items
