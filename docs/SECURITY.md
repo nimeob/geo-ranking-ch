@@ -19,6 +19,21 @@ Stand: 2026-03-01
 
 **BL-15 ist abgeschlossen.** Gate G3 (Consumer-Migration) ist als «accepted/retained» klassifiziert.
 
+### BL-15.r2.wp3 — Legacy-Key Disable-Canary (Policy)
+
+Neubewertung des bisherigen Disable-Canary (Legacy-Key-Deaktivierung) im Kontext der bestätigten Zielarchitektur:
+
+- **Default-Entscheid:** **entfällt** (kein Pflicht-Blocker)
+- **Begründung:** Der Canary war an einen Decommission-/Runtime-OIDC-Pfad gekoppelt, der **nicht** Zielzustand ist (Runtime bleibt Key/Secret; OIDC bleibt Deploy-only).
+- **Governance-Regel:** Ein Disable-Canary ist als **optionaler** Härtungs-/Failover-Test zulässig, aber nur bei explizitem Bedarf, dokumentiertem Nutzen und vorbereitetem Rollback.
+
+Entscheidungsmatrix (Minimum):
+
+| Pfad | Trigger | Mindestnachweis |
+|---|---|---|
+| `entfällt` (Default) | Kein akuter Security-/Incident-Treiber | Verweis auf diese Policy + Parent-Sync (BL-15.r2) |
+| `optional durchführen` | Konkreter Bedarf (z. B. Incident-Learning, Audit-Auflage, gezielter Failover-Test) | Ziel/Hypothese, Rollback-Plan, Evidence-Refs (CloudTrail/Logs), ggf. Wartungsfenster falls persistente Änderungen nötig |
+
 ---
 
 ## 2) Consumer-Inventar (BL-15)
@@ -93,7 +108,7 @@ Zulässig **nur wenn alle** Bedingungen erfüllt:
 4. Zurück in regulären Betrieb + Recheck
 5. Log nach Template-Format (Pflichtfelder: `fallback_id`, `timestamp_utc`, `actor`, `reason`, `scope`, `started/ended_utc`, `duration_minutes`, `outcome`, `rollback_needed`, `evidence.cloudtrail_window_utc`, `evidence.refs`, `follow_up.issue`)
 
-Ablageort für Fallback-Log-Einträge: `docs/LEGACY_IAM_USER_READINESS.md` → Abschnitt "Fallback-Log Entries".
+Ablageort für Fallback-Log-Einträge: `docs/archive/LEGACY_IAM_USER_READINESS.md` → Abschnitt "Fallback-Log Entries".
 
 **Template:** `docs/archive/LEGACY_FALLBACK_LOG_TEMPLATE.md`
 
