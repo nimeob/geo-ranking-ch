@@ -113,13 +113,62 @@ function isAllowedEnv(item) {
 function normalizeItem(item) {
   if (!item || typeof item !== 'object') return null;
   const title = (item.title || '').toString().trim();
-  const body = (item.body || '').toString().trim();
   if (!title) return null;
 
   const labels = Array.isArray(item.labels) ? item.labels.map(String) : [];
   const envName = (item.env || 'dev').toString().trim();
 
-  return { title, body, labels, env: envName };
+  // Support either a free-form body or structured fields.
+  const body = (item.body || '').toString();
+  const context = (item.context || '').toString();
+  const scope = Array.isArray(item.scope) ? item.scope.map(String) : [];
+  const dod = Array.isArray(item.dod) ? item.dod.map(String) : [];
+  const notes = (item.notes || '').toString();
+
+  return { title, body, labels, env: envName, context, scope, dod, notes };
+}
+
+function renderIssueBody(item) {
+  // If a free-form body is provided, keep it (but normalize escaping).
+  const raw = (item.body || '').trim();
+  if (raw) {
+    return raw
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\`/g, "`");
+  }
+
+  const lines = [];
+  lines.push(`**Env:** ${item.env} (dev-only)`);
+  if ((item.context || '').trim()) {
+    lines.push('');
+    lines.push('## Kontext');
+    lines.push(item.context.trim());
+  }
+
+  if (item.scope && item.scope.length) {
+    lines.push('');
+    lines.push('## Scope');
+    for (const s of item.scope) lines.push(`- ${s}`);
+  }
+
+  if (item.dod && item.dod.length) {
+    lines.push('');
+    lines.push('## DoD');
+    for (const d of item.dod) lines.push(`- [ ] ${d}`);
+  }
+
+  if ((item.notes || '').trim()) {
+    lines.push('');
+    lines.push('## Notes');
+    lines.push(item.notes.trim());
+  }
+
+  lines.push('');
+  lines.push('---');
+  lines.push('**Guardrail:** Bitte keine Staging/Prod/Deploy/Promotion-Arbeit in diesem Issue.');
+
+  return lines.join('\n');
 }
 
 // 1) Count open issues.
@@ -162,12 +211,7 @@ while (created.length < canCreate && queue.length > 0) {
     ? `--label ${item.labels.map((l) => JSON.stringify(l)).join(' --label ')}`
     : '';
 
-  // Normalize accidentally escaped markdown ("\\n", "\\t", "\\`") coming from JSON strings.
-  // We do this *before* creating the issue so the issue-body-format-guard usually doesn't need to.
-  const body = (item.body || '(no description)')
-    .replace(/\\n/g, "\n")
-    .replace(/\\t/g, "\t")
-    .replace(/\\`/g, "`");
+  const body = renderIssueBody(item) || '(no description)';
 
   if (process.env.DRY_RUN === '1') {
     created.push({ title: item.title, dryRun: true });

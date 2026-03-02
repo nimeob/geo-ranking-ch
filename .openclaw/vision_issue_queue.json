@@ -2,25 +2,73 @@
   {
     "env": "dev",
     "title": "Dev(API): Health/Readiness Endpoint sauber machen (/healthz + Build-Info)",
-    "body": "Ziel: Dev-API bekommt ein kleines, stabiles Health-Response (ohne Secrets).\n\nDoD:\n- GET /healthz liefert status + build/version + timestamp.\n- Tests für Response-Schema.\n- Doku: README/API Abschnitt aktualisiert (dev-only).",
+    "context": "Wir wollen in der Dev-API einen kleinen, stabilen Health-Endpoint haben (ohne Secrets), der sich für lokale Checks/Smokes eignet.",
+    "scope": [
+      "Nur dev (kein staging/prod).",
+      "Keine zusätzlichen externen Services (in-process / existing runtime only)."
+    ],
+    "dod": [
+      "GET /healthz liefert {status, version/build, timestamp} (oder äquivalent).",
+      "Tests für Response-Schema und Statuscodes.",
+      "README/API Abschnitt kurz aktualisiert (dev-only)."
+    ],
     "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:api"]
   },
   {
     "env": "dev",
     "title": "Dev(UI): Ergebnis-Detailansicht – Karten/Marker Lesbarkeit verbessern",
-    "body": "Ziel: UI-Detailansicht in dev: Marker/Legende besser lesbar, keine Überlappungen.\n\nDoD:\n- Verbesserte Darstellung bei kleinen Screens.\n- Minimaler Test (Screenshot/Component oder e2e).",
+    "context": "In der Dev-UI sind Marker/Legende auf kleineren Screens schwer lesbar bzw. überlappen. Ziel: bessere Lesbarkeit ohne Layout-Breaks.",
+    "scope": [
+      "Nur Frontend/UI.",
+      "Kein staging/prod, keine Deploy-Themen."
+    ],
+    "dod": [
+      "Marker/Legende/Labels sind auch auf kleinen Screens gut lesbar (keine Überlappungen).",
+      "Mind. ein minimaler Test (e2e oder Screenshot/Component) deckt den Flow ab."
+    ],
     "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:ui"]
   },
   {
     "env": "dev",
     "title": "Dev(API): Fehlercodes vereinheitlichen (ValidationError -> 400, NotFound -> 404)",
-    "body": "Ziel: konsistente Fehlercodes und maschinenlesbare Fehlerobjekte.\n\nDoD:\n- Definiertes Error-Response-Format (code, message, details).\n- Tests für 3 typische Fehlerfälle.\n- Doku kurz ergänzen.",
+    "context": "Aktuell sind Fehlercodes/Responses inkonsistent. Ziel: ein maschinenlesbares Error-Format und klare 4xx statt 500 bei Validierungsfehlern.",
+    "scope": [
+      "Nur API/Backend.",
+      "Keine Infra/Deploy-Themen."
+    ],
+    "dod": [
+      "Definiertes Error-Response-Format (z.B. code, message, details).",
+      "Tests für 3 typische Fehlerfälle (Validation, NotFound, Generic 5xx bleibt 5xx).",
+      "Doku kurz ergänzen."
+    ],
     "labels": ["backlog", "status:todo", "priority:P1", "bug", "area:api"]
   },
   {
     "env": "dev",
     "title": "Dev(UI): /jobs Liste – Filtern nach Status + Suche nach Job-ID",
-    "body": "Ziel: In dev schneller Jobs finden.\n\nDoD:\n- Filter nach Status (running/failed/succeeded).\n- Suche nach job_id.\n- URL Query-Params spiegeln Filter.",
+    "context": "In dev wollen wir Jobs schneller finden: Filter + Suche, und das Ganze URL-sharebar.",
+    "scope": [
+      "Nur UI.",
+      "Keine staging/prod Themen."
+    ],
+    "dod": [
+      "Filter nach Status (running/failed/succeeded o.ä.).",
+      "Suche nach job_id.",
+      "URL Query-Params spiegeln Filter, damit Links teilbar sind."
+    ],
     "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:ui"]
+  },
+  {
+    "env": "dev",
+    "title": "Dev: Doku – CONTRIBUTING Kurzguide für Dev-Workflow",
+    "context": "Kurzer Contributor-Guide spart Zeit (Setup, Tests, typische Commands).",
+    "scope": [
+      "Doku only."
+    ],
+    "dod": [
+      "CONTRIBUTING.md (oder docs/…) mit: Setup, Dev-Start, Tests, Lint/Format.",
+      "Keine Deploy/Infra Anleitungen für staging/prod."
+    ],
+    "labels": ["backlog", "status:todo", "priority:P3", "documentation"]
   }
 ]
