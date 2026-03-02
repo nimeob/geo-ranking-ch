@@ -1,0 +1,153 @@
+{
+  "version": "v1",
+  "intent": "Deterministic regression-guard for POI coverage + (optionally) adaptive fallback behaviour (offline fixtures; no network calls).",
+  "mode": "extended",
+  "adaptive_settings": {
+    "base_radius_m": 190,
+    "thin_poi_threshold": 18,
+    "max_steps": 2,
+    "radius_growth": 1.6,
+    "max_radius_m": 900,
+    "expected_radii_m": [190, 304, 486]
+  },
+  "points": [
+    {
+      "id": "zurich_hb",
+      "label": "Zürich HB (Bahnhofplatz)",
+      "address_hint": "Bahnhofplatz, 8001 Zürich",
+      "lat": 47.378177,
+      "lon": 8.540192,
+      "expected": {
+        "always": {
+          "status": "ok",
+          "min_poi_total": 18
+        },
+        "when_fallback_supported": {
+          "status": "ok",
+          "min_poi_total": 18,
+          "low_confidence": false,
+          "expected_attempt_count": 1
+        }
+      },
+      "poi_counts_by_radius": {
+        "190": 26
+      }
+    },
+    {
+      "id": "st_gallen_bahnhof",
+      "label": "St. Gallen Bahnhof",
+      "address_hint": "Bahnhofplatz, 9000 St. Gallen",
+      "lat": 47.424481,
+      "lon": 9.369256,
+      "expected": {
+        "always": {
+          "status": "ok",
+          "min_poi_total": 1
+        },
+        "when_fallback_supported": {
+          "status": "ok",
+          "min_poi_total": 18,
+          "low_confidence": true,
+          "expected_attempt_count": 2
+        }
+      },
+      "poi_counts_by_radius": {
+        "190": 16,
+        "304": 25
+      }
+    },
+    {
+      "id": "bern_bahnhof",
+      "label": "Bern Bahnhof",
+      "address_hint": "Bahnhofplatz, 3011 Bern",
+      "lat": 46.948225,
+      "lon": 7.439135,
+      "expected": {
+        "always": {
+          "status": "ok",
+          "min_poi_total": 18
+        },
+        "when_fallback_supported": {
+          "status": "ok",
+          "min_poi_total": 18,
+          "low_confidence": false,
+          "expected_attempt_count": 1
+        }
+      },
+      "poi_counts_by_radius": {
+        "190": 22
+      }
+    },
+    {
+      "id": "lugano_center",
+      "label": "Lugano Zentrum",
+      "address_hint": "Piazza della Riforma, 6900 Lugano",
+      "lat": 46.0039,
+      "lon": 8.9517,
+      "expected": {
+        "always": {
+          "status": "ok",
+          "min_poi_total": 1
+        },
+        "when_fallback_supported": {
+          "status": "ok",
+          "min_poi_total": 18,
+          "low_confidence": true,
+          "expected_attempt_count": 2
+        }
+      },
+      "poi_counts_by_radius": {
+        "190": 10,
+        "304": 18
+      }
+    },
+    {
+      "id": "appenzell_rural",
+      "label": "Appenzell (rural reference)",
+      "address_hint": "9050 Appenzell",
+      "lat": 47.3319,
+      "lon": 9.4099,
+      "expected": {
+        "always": {
+          "status": "ok",
+          "min_poi_total": 1
+        },
+        "when_fallback_supported": {
+          "status": "ok",
+          "min_poi_total": 1,
+          "low_confidence": true,
+          "expected_attempt_count": 3
+        }
+      },
+      "poi_counts_by_radius": {
+        "190": 4,
+        "304": 6,
+        "486": 7
+      }
+    },
+    {
+      "id": "remote_mountain",
+      "label": "Remote mountain point (thin POI; expect no_data; fallback should flag low_confidence)",
+      "address_hint": "Alpine area (synthetic regression point)",
+      "lat": 46.5,
+      "lon": 8.0,
+      "expected": {
+        "always": {
+          "status": "no_data",
+          "min_poi_total": 0
+        },
+        "when_fallback_supported": {
+          "status": "no_data",
+          "min_poi_total": 0,
+          "low_confidence": true,
+          "expected_attempt_count": 3
+        }
+      },
+      "poi_counts_by_radius": {
+        "190": 0,
+        "304": 0,
+        "486": 0
+      }
+    }
+  ]
+}
