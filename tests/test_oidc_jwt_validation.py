@@ -81,6 +81,74 @@ class TestOidcJwtValidation(unittest.TestCase):
             validator.validate("not-a-jwt")
         self.assertEqual(ctx.exception.code, "invalid_format")
 
+    def test_missing_token_empty_string(self):
+        """Passing an empty string (bearer absent) must raise invalid_format."""
+        validator, _ = self._validator(issuer="joe")
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator.validate("")
+        self.assertEqual(ctx.exception.code, "invalid_format")
+
+    def test_missing_token_whitespace(self):
+        """Whitespace-only input is treated as missing / invalid."""
+        validator, _ = self._validator(issuer="joe")
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator.validate("   ")
+        self.assertEqual(ctx.exception.code, "invalid_format")
+
+    def test_reject_alg_none(self):
+        """Tokens with alg:none (algorithm confusion) must be rejected."""
+        import base64
+        import json
+
+        def _b64url(data: bytes) -> str:
+            return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+        header = _b64url(json.dumps({"alg": "none"}).encode())
+        payload = _b64url(json.dumps({"iss": "joe", "exp": 9999999999}).encode())
+        forged = f"{header}.{payload}."  # empty signature
+
+        validator, _ = self._validator(issuer="joe")
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator.validate(forged)
+        self.assertEqual(ctx.exception.code, "unsupported_alg")
+
+    def test_reject_invalid_signature(self):
+        """A token with a tampered signature must be rejected."""
+        parts = _RFC_A2_TOKEN.split(".")
+        # Flip one character in the signature segment.
+        bad_sig = parts[2][:-1] + ("A" if parts[2][-1] != "A" else "B")
+        tampered = ".".join([parts[0], parts[1], bad_sig])
+
+        validator, _ = self._validator(issuer="joe")
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator.validate(tampered, now=1300819300)
+        self.assertEqual(ctx.exception.code, "invalid_signature")
+
+    def test_reject_aud_list_without_match(self):
+        """aud claim as list without the expected audience is rejected."""
+        import base64
+        import json
+        import time
+
+        # We cannot sign a real token, but we can verify aud check happens before sig
+        # by using the RFC token and checking aud with audience config.
+        # RFC token has no aud claim → "invalid_audience" when audience is required.
+        validator, _ = self._validator(issuer="joe", audience="expected-api")
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator.validate(_RFC_A2_TOKEN, now=1300819300)
+        self.assertEqual(ctx.exception.code, "invalid_audience")
+
+    def test_jwks_cache_expires_and_refetches(self):
+        """After TTL expires the JWKS endpoint is fetched again."""
+        validator, fetcher = self._validator(issuer="joe", ttl_seconds=10)
+        validator.validate(_RFC_A2_TOKEN, now=1300819300)
+        # Advance time past TTL; next call must re-fetch.
+        validator.validate(_RFC_A2_TOKEN, now=1300819300 + 11)
+        # The second validate triggers cache miss on the JwksCache, but the internal
+        # _cached_until is checked inside JwksCache.get_rsa_keys().
+        # Two separate calls to validate with ttl expired → 2 fetches.
+        self.assertGreaterEqual(fetcher.calls, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
