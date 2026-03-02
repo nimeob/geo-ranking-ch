@@ -63,9 +63,9 @@ def elevation_at(lat: float, lon: float) -> Optional[float]:
     
     Returns: Höhe in Metern (ü.M.), oder None wenn außerhalb CH.
     """
-    e, n = wgs84_to_lv95(lat, lon)
-    url = f"{GEOADMIN_BASE}/height?easting={e}&northing={n}&sr=2056"
     try:
+        e, n = wgs84_to_lv95(lat, lon)
+        url = f"{GEOADMIN_BASE}/height?easting={e}&northing={n}&sr=2056"
         d = _get(url)
         h = d.get("height")
         return float(h) if h not in (None, "None") else None
