@@ -22,14 +22,10 @@ Regelwerk:
 - [#727](https://github.com/nimeob/geo-ranking-ch/issues/727) — WP: Refresh docs/BACKLOG.md Now/Next/Later board (priority:P1, status:todo)
 
 ### Next
-- [#594](https://github.com/nimeob/geo-ranking-ch/issues/594) — BL-30.wp4.r3: Result-Page Delivery + Retention/Notification Jobs (priority:P2, status:todo)
-- [#596](https://github.com/nimeob/geo-ranking-ch/issues/596) — CI: stündlicher Dev-Deploy fehlgeschlagen (priority:P2, status:todo)
-- [#600](https://github.com/nimeob/geo-ranking-ch/issues/600) — BL-30.wp4.r3.wp2: Retention-Cleanup für job_results/job_events implementieren (priority:P2, status:todo)
-- [#606](https://github.com/nimeob/geo-ranking-ch/issues/606) — CI: stündlicher Dev-Deploy fehlgeschlagen (priority:P2, status:todo)
+- (leer)
 
 ### Later
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
-- [#621](https://github.com/nimeob/geo-ranking-ch/issues/621) — ops: ECS_UI_CONTAINER_NAME mismatch — repo var 'ui' vs actual 'swisstopo-dev-ui' (priority:P3, status:todo)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Backlog-Items
