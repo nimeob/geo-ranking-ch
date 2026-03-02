@@ -25,14 +25,14 @@ PYTHONPATH="$(pwd)" \
 ```
 
 - `ENABLE_E2E_FAULT_INJECTION=1` aktiviert die deterministischen E2E-Fixtures.
-- Für die Smokes kann dann `SMOKE_QUERY="__ok__"` verwendet werden.
+- Wenn `DEV_BASE_URL` auf `localhost`/`127.0.0.1` zeigt und `SMOKE_QUERY` nicht gesetzt ist,
+  defaulten die Smoke-Skripte auf `__ok__` (fixe Fixture-Query).
 
 ### 1.2 Sync Smoke (POST /analyze)
 
 ```bash
 DEV_BASE_URL="http://127.0.0.1:8000" \
 DEV_API_AUTH_TOKEN="bl18-token" \
-SMOKE_QUERY="__ok__" \
 SMOKE_MODE="basic" \
 SMOKE_TIMEOUT_SECONDS="2" \
 SMOKE_OUTPUT_JSON="artifacts/dev-local-smoke-analyze.json" \
@@ -44,7 +44,6 @@ SMOKE_OUTPUT_JSON="artifacts/dev-local-smoke-analyze.json" \
 ```bash
 DEV_BASE_URL="http://127.0.0.1:8000" \
 DEV_API_AUTH_TOKEN="bl18-token" \
-SMOKE_QUERY="__ok__" \
 SMOKE_MODE="basic" \
 SMOKE_TIMEOUT_SECONDS="2" \
 ASYNC_SMOKE_POLL_TIMEOUT_SECONDS="15" \

@@ -293,6 +293,18 @@ def _resolve_config(args: argparse.Namespace) -> SmokeConfig:
     base_url = _normalize_base_url(str(args.api_base_url))
 
     query = _strip(str(args.query))
+
+    # Dev ergonomics: when running against a local instance without an explicit
+    # query override, default to the deterministic E2E fixture query.
+    #
+    # Rationale:
+    # - Local smokes should be fast and reproducible (no upstream/internet).
+    # - Remote dev/staging/prod endpoints may not support the __ok__ fixture.
+    if "SMOKE_QUERY" not in os.environ and query == DEFAULT_QUERY:
+        host = str(parse.urlsplit(base_url).hostname or "").lower()
+        if host in {"127.0.0.1", "localhost"}:
+            query = "__ok__"
+
     if not query:
         raise ValueError("query must not be empty")
     if _has_control_chars(query):
