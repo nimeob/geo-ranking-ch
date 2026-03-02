@@ -71,6 +71,24 @@ Grundsatz: `official > licensed > community > web > local_mapping > unknown` (si
 
 Implementierung: `intelligence_mode_settings(mode)` + Verzweigung in `build_intelligence_layers(...)`.
 
+### POI-Fallback bei dünner Datenlage (adaptiver Radius)
+
+Problem: In manchen Regionen ist die OSM-POI-Datenlage im Default-Radius sehr dünn. Damit `environment_profile`/Noise-/Tenant-Layer nicht auf einer quasi-leeren Stichprobe basieren, wird ein kleiner, deterministischer Fallback angewendet.
+
+**Trigger:** Wenn `poi_count < poi_fallback_min_pois`.
+
+**Fallback-Strategie:** bis zu `poi_fallback_max_steps` zusätzliche Overpass-Abfragen mit wachsendem Radius (`poi_fallback_radius_growth` pro Schritt), gedeckelt durch `poi_fallback_max_radius_m`.
+
+**Signal im Result:** Wenn Fallback aktiv war *oder* das Fallback-Limit erreicht wurde, setzt der Service in `intelligence.environment_profile`:
+- `low_confidence: true`
+- `low_confidence_reason: <string>`
+- `fallback: { threshold_min_pois, max_steps, radius_growth, max_radius_m, attempts[], ... }`
+
+**Default-Parameter (Stand März 2026):**
+- `risk`: `poi_fallback_min_pois=24`, `poi_fallback_max_steps=2`, `poi_fallback_radius_growth=1.6`, `poi_fallback_max_radius_m=900`
+- `extended`: `poi_fallback_min_pois=18`, `poi_fallback_max_steps=2`, `poi_fallback_radius_growth=1.6`, `poi_fallback_max_radius_m=900`
+- `basic`: Fallback deaktiviert (`poi_fallback_min_pois=0`, `poi_fallback_max_steps=0`)
+
 ## Fehler-Mapping (Service)
 
 `src/api/web_service.py` mappt Fehler deterministisch auf HTTP-Codes:

@@ -1536,11 +1536,29 @@ def fetch_osm_reverse(
 
 
 def intelligence_mode_settings(mode: str) -> Dict[str, Any]:
+    """Per-Mode Settings für externe Intelligence-Layer.
+
+    Hinweis POI-Fallback (WP #690):
+    - In manchen Regionen ist die POI-Datenlage im Default-Radius sehr dünn.
+    - Wir versuchen daher (max.) wenige Fallback-Schritte mit größerem Radius,
+      um leere/zu dünne POI-Profile zu vermeiden.
+
+    Die Parameter sind bewusst klein gehalten (Determinismus/Rate-Limits):
+    - poi_fallback_min_pois: Schwelle, ab wann wir die Datenlage nicht mehr als "dünn" werten.
+    - poi_fallback_max_steps: max. zusätzliche Attempts (base + steps).
+    - poi_fallback_radius_growth: Multiplikator pro Schritt.
+    - poi_fallback_max_radius_m: harter Cap.
+    """
+
     if mode == "risk":
         return {
             "enable_external": True,
             "poi_radius_m": 280,
             "poi_limit": 140,
+            "poi_fallback_min_pois": 24,
+            "poi_fallback_max_steps": 2,
+            "poi_fallback_radius_growth": 1.6,
+            "poi_fallback_max_radius_m": 900,
             "tenant_limit": 14,
             "incident_limit": 12,
             "news_focus": "address_and_incident",
@@ -1550,6 +1568,10 @@ def intelligence_mode_settings(mode: str) -> Dict[str, Any]:
             "enable_external": True,
             "poi_radius_m": 190,
             "poi_limit": 90,
+            "poi_fallback_min_pois": 18,
+            "poi_fallback_max_steps": 2,
+            "poi_fallback_radius_growth": 1.6,
+            "poi_fallback_max_radius_m": 900,
             "tenant_limit": 10,
             "incident_limit": 8,
             "news_focus": "address_and_incident",
@@ -1558,6 +1580,10 @@ def intelligence_mode_settings(mode: str) -> Dict[str, Any]:
         "enable_external": False,
         "poi_radius_m": 120,
         "poi_limit": 40,
+        "poi_fallback_min_pois": 0,
+        "poi_fallback_max_steps": 0,
+        "poi_fallback_radius_growth": 1.6,
+        "poi_fallback_max_radius_m": 900,
         "tenant_limit": 5,
         "incident_limit": 3,
         "news_focus": "address_only",
@@ -1647,6 +1673,145 @@ def fetch_osm_poi_overpass(
 
     pois.sort(key=lambda x: x.get("distance_m") or 999999)
     return {"source_url": source_url, "pois": pois[: max(0, max_items)]}
+
+
+def fetch_osm_poi_overpass_adaptive(
+    client: HttpClient,
+    sources: SourceRegistry,
+    *,
+    lat: Optional[float],
+    lon: Optional[float],
+    radius_m: int,
+    max_items: int,
+    thin_poi_threshold: int,
+    max_steps: int = 2,
+    radius_growth: float = 1.6,
+    max_radius_m: int = 900,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Fetch OSM POIs mit kleinem adaptiven Radius-Fallback.
+
+    Trigger:
+    - Wenn die Datenlage im Default-Radius "dünn" ist (POI-Anzahl < thin_poi_threshold),
+      versuchen wir bis zu `max_steps` zusätzliche Attempts mit größerem Radius.
+
+    Rückgabe:
+    - poi_payload: identisch zu `fetch_osm_poi_overpass`.
+    - fallback_meta: maschinenlesbares Signal (low_confidence + reason) inkl.
+      dokumentierter Schwelle/Limit.
+
+    Design-Ziele:
+    - deterministisch, wenige Attempts (Rate-Limits), klar dokumentiert.
+    """
+
+    threshold = int(max(0, thin_poi_threshold or 0))
+    steps = int(max(0, max_steps or 0))
+    growth = float(radius_growth or 1.6)
+    max_r = int(max_radius_m or 900)
+
+    base_radius = int(clamp(float(radius_m or 0), 60.0, float(max_r)))
+
+    radii: List[int] = [base_radius]
+    for _ in range(steps):
+        next_radius = int(round(float(radii[-1]) * growth))
+        next_radius = int(clamp(float(next_radius), float(radii[-1] + 1), float(max_r)))
+        if next_radius == radii[-1]:
+            break
+        radii.append(next_radius)
+
+    attempts: List[Dict[str, Any]] = []
+
+    # 1) Default Attempt
+    payload = fetch_osm_poi_overpass(
+        client,
+        sources,
+        lat=lat,
+        lon=lon,
+        radius_m=radii[0],
+        max_items=max_items,
+    )
+    pois = payload.get("pois") or []
+    attempts.append(
+        {
+            "radius_m": radii[0],
+            "poi_count": len(pois),
+            "source_url": payload.get("source_url"),
+        }
+    )
+
+    fallback_applied = False
+
+    # Fallback disabled or not needed
+    if threshold <= 0 or len(pois) >= threshold or len(radii) <= 1:
+        low_conf = len(pois) < threshold if threshold > 0 else False
+        reason = None
+        if low_conf:
+            reason = f"thin_poi_data: poi_count={len(pois)} < threshold={threshold} (radius={radii[0]}m)"
+        return payload, {
+            "threshold_min_pois": threshold,
+            "max_steps": steps,
+            "radius_growth": growth,
+            "max_radius_m": max_r,
+            "attempts": attempts,
+            "fallback_applied": fallback_applied,
+            "limit_reached": low_conf,
+            "low_confidence": low_conf,
+            "reason": reason,
+        }
+
+    # 2) Fallback Attempts
+    for radius in radii[1:]:
+        fallback_applied = True
+        try:
+            candidate = fetch_osm_poi_overpass(
+                client,
+                sources,
+                lat=lat,
+                lon=lon,
+                radius_m=radius,
+                max_items=max_items,
+            )
+            cand_pois = candidate.get("pois") or []
+            attempts.append(
+                {
+                    "radius_m": radius,
+                    "poi_count": len(cand_pois),
+                    "source_url": candidate.get("source_url"),
+                }
+            )
+            payload = candidate
+            pois = cand_pois
+        except Exception as ex:
+            attempts.append({"radius_m": radius, "error": str(ex)})
+            break
+
+        if len(pois) >= threshold:
+            break
+
+    limit_reached = len(pois) < threshold
+    low_confidence = fallback_applied or limit_reached
+
+    if limit_reached:
+        reason = (
+            f"fallback_limit_reached: poi_count={len(pois)} < threshold={threshold} "
+            f"(final_radius={attempts[-1].get('radius_m')}m)"
+        )
+    else:
+        reason = (
+            f"fallback_applied: poi_count={attempts[0].get('poi_count')} < threshold={threshold} "
+            f"(radius {attempts[0].get('radius_m')}m -> {attempts[-1].get('radius_m')}m)"
+        )
+
+    return payload, {
+        "threshold_min_pois": threshold,
+        "max_steps": steps,
+        "radius_growth": growth,
+        "max_radius_m": max_r,
+        "attempts": attempts,
+        "fallback_applied": fallback_applied,
+        "limit_reached": limit_reached,
+        "low_confidence": low_confidence,
+        "reason": reason,
+    }
 
 
 def fetch_google_news_rss(
@@ -5497,19 +5662,25 @@ def build_intelligence_layers(
     environment_profile: Dict[str, Any]
 
     poi_payload = {"source_url": None, "pois": []}
+    poi_fallback: Dict[str, Any] = {}
     if settings.get("enable_external"):
         try:
-            poi_payload = fetch_osm_poi_overpass(
+            poi_payload, poi_fallback = fetch_osm_poi_overpass_adaptive(
                 client,
                 sources,
                 lat=selected.lat,
                 lon=selected.lon,
                 radius_m=int(settings.get("poi_radius_m") or 180),
                 max_items=int(settings.get("poi_limit") or 80),
+                thin_poi_threshold=int(settings.get("poi_fallback_min_pois") or 0),
+                max_steps=int(settings.get("poi_fallback_max_steps") or 0),
+                radius_growth=float(settings.get("poi_fallback_radius_growth") or 1.6),
+                max_radius_m=int(settings.get("poi_fallback_max_radius_m") or 900),
             )
         except Exception as ex:
             sources.note_error("osm_poi_overpass", "https://overpass-api.de", str(ex), optional=True)
             poi_payload = {"source_url": "https://overpass-api.de/api/interpreter", "pois": [], "error": str(ex)}
+            poi_fallback = {}
 
         pois = poi_payload.get("pois") or []
         source_url = poi_payload.get("source_url")
@@ -5625,6 +5796,45 @@ def build_intelligence_layers(
                     )
                 ],
             }
+
+        if poi_fallback.get("low_confidence"):
+            # Signal für Clients: Fallback war aktiv / Datenlage bleibt dünn.
+            environment_profile["low_confidence"] = True
+            environment_profile["low_confidence_reason"] = poi_fallback.get("reason")
+            environment_profile["fallback"] = poi_fallback
+
+            try:
+                attempts = poi_fallback.get("attempts") or []
+                base = attempts[0] if attempts else {}
+                last = attempts[-1] if attempts else {}
+                base_r = base.get("radius_m")
+                last_r = last.get("radius_m")
+
+                msg = "POI-Datenlage dünn; adaptiver Radius-Fallback aktiv."
+                if isinstance(base_r, int) and isinstance(last_r, int) and base_r != last_r:
+                    msg = f"POI-Datenlage dünn; Radius erweitert ({base_r}m → {last_r}m)."
+                if poi_fallback.get("limit_reached"):
+                    msg += " (Fallback-Limit erreicht)"
+
+                environment_profile.setdefault("statements", []).insert(
+                    0,
+                    statement(
+                        msg,
+                        confidence=0.45,
+                        evidence=[
+                            evidence_item(
+                                source="osm_poi_overpass",
+                                confidence=0.45,
+                                url=source_url,
+                                snippet=str(poi_fallback.get("reason") or ""),
+                                field_path="intelligence.environment_profile.low_confidence",
+                            )
+                        ],
+                        field_path="intelligence.environment_profile",
+                    ),
+                )
+            except Exception:
+                pass
 
         try:
             incident_query = f'"{selected.label}" OR "{query.raw}"'
