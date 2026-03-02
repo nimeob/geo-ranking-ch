@@ -10,6 +10,44 @@ Security notes:
 - Comparisons use hmac.compare_digest when applicable.
 
 This is meant as a building block for issue #817 (OIDC-0.wp1).
+
+-----------------------------------------------------------------------
+Required configuration / environment variables
+-----------------------------------------------------------------------
+OIDC_ISSUER
+    Token issuer URL that must match the ``iss`` claim.
+    Example: ``https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_XXXXX``
+
+OIDC_AUDIENCE
+    Expected ``aud`` claim (client-id or API resource identifier).
+    Example: ``abc123clientid``  or  ``geo-ranking-api``
+
+OIDC_JWKS_URL
+    JWKS endpoint exposed by the Identity Provider.
+    Cognito example:
+    ``https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_XXXXX/.well-known/jwks.json``
+
+OIDC_CLOCK_SKEW   (optional, default: 60)
+    Allowed clock drift in seconds for ``exp``/``nbf`` checks.
+
+Usage example::
+
+    import os
+    from src.api.oidc_jwt import JwksCache, OidcJwtConfig, OidcJwtValidator
+
+    _validator = OidcJwtValidator(
+        config=OidcJwtConfig(
+            issuer=os.environ["OIDC_ISSUER"],
+            audience=os.environ["OIDC_AUDIENCE"],
+            clock_skew_seconds=int(os.getenv("OIDC_CLOCK_SKEW", "60")),
+        ),
+        jwks=JwksCache(jwks_url=os.environ["OIDC_JWKS_URL"]),
+    )
+
+    # Inside a FastAPI dependency:
+    #   claims = _validator.validate(bearer_token)
+    #   user_sub = claims["sub"]
+-----------------------------------------------------------------------
 """
 
 from __future__ import annotations
