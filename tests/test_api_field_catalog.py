@@ -201,6 +201,14 @@ class TestApiFieldCatalog(unittest.TestCase):
             "worked-example-01-high-confidence",
             "worked-example-02-medium-confidence",
             "worked-example-03-low-confidence",
+            "worked-example-04-threshold-high",
+            "worked-example-05-threshold-medium",
+            "worked-example-06-threshold-medium-floor",
+            "worked-example-07-threshold-low-ceil",
+            "worked-example-08-clamp-zero",
+            "worked-example-09-max-score",
+            "worked-example-10-mismatch-heavy",
+            "worked-example-11-ambiguity-heavy",
         ]
 
         for case in cases:

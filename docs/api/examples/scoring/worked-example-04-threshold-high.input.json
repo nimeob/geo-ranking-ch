@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-04-threshold-high",
+  "description": "Edge Case: exakt am High-Threshold (score=82)",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.9,
+    "data_completeness_points": 24,
+    "cross_source_consistency_points": 16,
+    "required_source_health_points": 8,
+    "mismatch_penalty_points": 1,
+    "ambiguity_penalty_points": 1,
+    "pt_access_score": 73,
+    "noise_risk": "low",
+    "suitability_score": 74
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "example_id": "score-worked-example-08-clamp-zero",
+  "methodology_version": "scoring-v1-draft",
+  "calculation": {
+    "match_component_points": 8.0,
+    "data_completeness_points": 0,
+    "cross_source_consistency_points": 0,
+    "required_source_health_points": 0,
+    "mismatch_penalty_points": 10,
+    "ambiguity_penalty_points": 10,
+    "score_raw": -12.0,
+    "score_rounded": 0,
+    "score_max": 100,
+    "level": "low",
+    "legacy_confidence": 0.0
+  },
+  "result_projection": {
+    "status": {
+      "quality": {
+        "confidence": {
+          "score": 0,
+          "max": 100,
+          "level": "low"
+        }
+      }
+    },
+    "data": {
+      "modules": {
+        "match": {
+          "selected_score": 0.2
+        }
+      }
+    },
+    "confidence": 0.0,
+    "context_profile": {
+      "pt_access_score": 40,
+      "noise_risk": "high"
+    },
+    "suitability_light": {
+      "score": 38,
+      "traffic_light": "red"
+    }
+  }
+}

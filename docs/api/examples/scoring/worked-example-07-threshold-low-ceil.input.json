@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-07-threshold-low-ceil",
+  "description": "Edge Case: knapp unter Medium (score=61 => low)",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.7,
+    "data_completeness_points": 18,
+    "cross_source_consistency_points": 9,
+    "required_source_health_points": 6,
+    "mismatch_penalty_points": 0,
+    "ambiguity_penalty_points": 0,
+    "pt_access_score": 55,
+    "noise_risk": "high",
+    "suitability_score": 51
+  }
+}

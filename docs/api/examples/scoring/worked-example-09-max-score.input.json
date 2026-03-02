@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-09-max-score",
+  "description": "Edge Case: maximaler Score (score=100)",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 1.0,
+    "data_completeness_points": 30,
+    "cross_source_consistency_points": 20,
+    "required_source_health_points": 10,
+    "mismatch_penalty_points": 0,
+    "ambiguity_penalty_points": 0,
+    "pt_access_score": 90,
+    "noise_risk": "low",
+    "suitability_score": 88
+  }
+}

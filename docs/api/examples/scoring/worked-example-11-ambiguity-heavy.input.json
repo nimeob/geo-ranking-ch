@@ -1,0 +1,16 @@
+{
+  "example_id": "score-worked-example-11-ambiguity-heavy",
+  "description": "Penalty Case: ambiguity_penalty dominiert (low)",
+  "methodology_version": "scoring-v1-draft",
+  "inputs": {
+    "match_selected_score": 0.75,
+    "data_completeness_points": 18,
+    "cross_source_consistency_points": 12,
+    "required_source_health_points": 8,
+    "mismatch_penalty_points": 0,
+    "ambiguity_penalty_points": 10,
+    "pt_access_score": 62,
+    "noise_risk": "medium",
+    "suitability_score": 54
+  }
+}
