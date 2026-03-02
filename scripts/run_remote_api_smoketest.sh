@@ -10,6 +10,9 @@ set -euo pipefail
 #   DEV_BASE_URL="https://<endpoint>/analyze" ./scripts/run_remote_api_smoketest.sh
 #   DEV_BASE_URL="https://<endpoint>" DEV_API_AUTH_TOKEN="<token>" ./scripts/run_remote_api_smoketest.sh
 #
+# Async-Flow (submit/status/result) siehe:
+#   DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_async_jobs_smoketest.sh
+#
 # Optionale Env-Variablen:
 #   SMOKE_QUERY="St. Leonhard-Strasse 40, St. Gallen"  # wird getrimmt; darf nicht leer sein
 #   SMOKE_MODE="basic"   # basic|extended|risk (case-insensitive, wird auf lowercase normalisiert)
