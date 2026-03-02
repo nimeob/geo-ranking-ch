@@ -792,6 +792,533 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
 """
 
 
+_JOBS_LIST_PAGE_TEMPLATE = """<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>geo-ranking.ch — Jobs (dev)</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --surface: #ffffff;
+        --ink: #1b2637;
+        --muted: #5a6474;
+        --border: #d5dbea;
+        --primary: #1957d2;
+        --danger: #b93a2f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      header {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 1rem 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: baseline;
+      }
+      header h1 { margin: 0; font-size: 1.05rem; }
+      header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+      header a {
+        text-decoration: none;
+        color: var(--primary);
+        border: 1px solid var(--border);
+        padding: 0.35rem 0.55rem;
+        border-radius: 0.5rem;
+        font-size: 0.86rem;
+        background: #f9fbff;
+      }
+      main {
+        padding: 1rem 1.25rem 1.5rem;
+        display: grid;
+        gap: 1rem;
+        max-width: 1100px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.85rem;
+        padding: 1rem;
+      }
+      .card h2 { margin: 0 0 0.75rem; font-size: 1rem; }
+      .meta { font-size: 0.84rem; color: var(--muted); }
+      label {
+        display: grid;
+        gap: 0.3rem;
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+      input, select, button {
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        padding: 0.55rem 0.6rem;
+        font: inherit;
+      }
+      button {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #fff;
+        color: var(--ink);
+        border-color: var(--border);
+      }
+      button.danger {
+        background: #fff;
+        color: var(--danger);
+        border-color: rgba(185, 58, 47, 0.35);
+      }
+      button[disabled] { opacity: 0.65; cursor: not-allowed; }
+      .grid-3 {
+        display: grid;
+        gap: 0.65rem;
+        grid-template-columns: 1fr 1fr 1fr;
+        align-items: end;
+      }
+      @media (max-width: 860px) {
+        .grid-3 { grid-template-columns: 1fr; }
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      th, td {
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        padding: 0.55rem 0.5rem;
+        vertical-align: top;
+      }
+      th { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+      td code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      .row-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .row-actions a {
+        color: var(--primary);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        background: #f9fbff;
+        padding: 0.25rem 0.45rem;
+        border-radius: 0.45rem;
+        font-size: 0.82rem;
+      }
+      .empty {
+        padding: 0.75rem;
+        border-radius: 0.65rem;
+        border: 1px dashed var(--border);
+        background: #f7f9fc;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Jobs (dev)</h1>
+        <p>Version __APP_VERSION__ · Liste basiert auf LocalStorage (Browser)</p>
+      </div>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <a href="/gui">GUI öffnen</a>
+        <a href="/history">History</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Controls</h2>
+        <p class="meta">Filter/Query werden als URL-Query-Params gespeichert (sharebar). Job-IDs werden lokal gespeichert.</p>
+        <div class="grid-3">
+          <label>
+            Status
+            <select id="jobs-status" aria-label="Filter nach Job-Status">
+              <option value="all">all</option>
+              <option value="queued">queued</option>
+              <option value="running">running</option>
+              <option value="partial">partial</option>
+              <option value="completed">completed</option>
+              <option value="failed">failed</option>
+              <option value="canceled">canceled</option>
+            </select>
+          </label>
+          <label>
+            Suche (job_id)
+            <input id="jobs-q" type="text" placeholder="job-123" autocomplete="off" />
+          </label>
+          <label>
+            Add job_id
+            <div style="display:flex; gap:0.5rem;">
+              <input id="jobs-add-id" type="text" placeholder="job-123" autocomplete="off" />
+              <button id="jobs-add-btn" type="button">Add</button>
+            </div>
+          </label>
+        </div>
+
+        <div class="grid-3" style="margin-top: 0.75rem;">
+          <label>
+            API Token (optional)
+            <input id="api-token" type="password" placeholder="Bearer-Token" autocomplete="off" />
+          </label>
+          <label>
+            X-Org-Id (Tenant)
+            <input id="org-id" type="text" placeholder="default-org" />
+          </label>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:end;">
+            <button id="jobs-refresh" type="button" class="secondary">Refresh</button>
+            <button id="jobs-clear" type="button" class="danger">Liste leeren</button>
+            <span id="jobs-meta" class="meta">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Job-Liste</h2>
+        <div style="overflow:auto;">
+          <table aria-label="Job-Liste">
+            <thead>
+              <tr>
+                <th>job_id</th>
+                <th>status</th>
+                <th>progress</th>
+                <th>updated</th>
+                <th>links</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-body">
+              <tr><td colspan="5"><div class="empty">Noch keine Jobs gespeichert. Tipp: starte einen Async-Analyze in /gui oder füge oben eine job_id hinzu.</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <script>
+        const JOBS_ENDPOINT_BASE = __JOBS_ENDPOINT_BASE_JSON__;
+        const TOKEN_STORAGE_KEY = "geo-ranking-ui-api-token";
+        const ORG_STORAGE_KEY = "geo-ranking-ui-org-id";
+        const JOB_IDS_STORAGE_KEY = "geo-ranking-ui-job-ids";
+
+        const statusEl = document.getElementById("jobs-status");
+        const qEl = document.getElementById("jobs-q");
+        const addIdEl = document.getElementById("jobs-add-id");
+        const addBtn = document.getElementById("jobs-add-btn");
+        const refreshBtn = document.getElementById("jobs-refresh");
+        const clearBtn = document.getElementById("jobs-clear");
+        const bodyEl = document.getElementById("jobs-body");
+        const metaEl = document.getElementById("jobs-meta");
+
+        const tokenEl = document.getElementById("api-token");
+        const orgEl = document.getElementById("org-id");
+
+        const state = {
+          ids: [],
+          status: "all",
+          q: "",
+          jobs: {},
+          phase: "idle",
+        };
+
+        function normalizeStatus(value) {
+          const normalized = String(value || "all").trim().toLowerCase();
+          const allowed = new Set(["all", "queued", "running", "partial", "completed", "failed", "canceled"]);
+          return allowed.has(normalized) ? normalized : "all";
+        }
+
+        function readStoredJobIds() {
+          try {
+            const raw = window.localStorage.getItem(JOB_IDS_STORAGE_KEY);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.map((item) => String(item || "").trim()).filter(Boolean);
+          } catch (error) {
+            return [];
+          }
+        }
+
+        function persistStoredJobIds(ids) {
+          try {
+            window.localStorage.setItem(JOB_IDS_STORAGE_KEY, JSON.stringify(ids));
+          } catch (error) {
+            // ignore
+          }
+        }
+
+        function rememberJobId(jobId) {
+          const normalized = String(jobId || "").trim();
+          if (!normalized) return;
+          const next = [normalized, ...state.ids.filter((id) => id !== normalized)].slice(0, 60);
+          state.ids = next;
+          persistStoredJobIds(next);
+        }
+
+        function clearJobIds() {
+          state.ids = [];
+          persistStoredJobIds([]);
+        }
+
+        function updateDeepLink() {
+          if (!window.history || !window.location) return;
+          const nextUrl = new URL(window.location.href);
+
+          const status = normalizeStatus(state.status);
+          const q = String(state.q || "").trim();
+
+          if (status !== "all") nextUrl.searchParams.set("jobs_status", status);
+          else nextUrl.searchParams.delete("jobs_status");
+
+          if (q) nextUrl.searchParams.set("jobs_q", q);
+          else nextUrl.searchParams.delete("jobs_q");
+
+          window.history.replaceState({}, "", nextUrl);
+        }
+
+        function restoreDeepLink() {
+          const url = new URL(window.location.href);
+          state.status = normalizeStatus(url.searchParams.get("jobs_status"));
+          state.q = String(url.searchParams.get("jobs_q") || "").trim();
+
+          statusEl.value = state.status;
+          qEl.value = state.q;
+        }
+
+        function applyTokenDefaults() {
+          try {
+            const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+            if (token) tokenEl.value = token;
+            const orgId = window.localStorage.getItem(ORG_STORAGE_KEY);
+            if (orgId) orgEl.value = orgId;
+          } catch (error) {
+            // ignore
+          }
+        }
+
+        function persistTokenInputs() {
+          try {
+            window.localStorage.setItem(TOKEN_STORAGE_KEY, String(tokenEl.value || "").trim());
+            window.localStorage.setItem(ORG_STORAGE_KEY, String(orgEl.value || "").trim());
+          } catch (error) {
+            // ignore
+          }
+        }
+
+        function jobUrl(jobId) {
+          return `${JOBS_ENDPOINT_BASE}/${encodeURIComponent(jobId)}`;
+        }
+
+        async function fetchJob(jobId) {
+          const headers = { "Accept": "application/json" };
+          const token = String(tokenEl.value || "").trim();
+          const orgId = String(orgEl.value || "").trim();
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+          if (orgId) headers["X-Org-Id"] = orgId;
+
+          const resp = await fetch(jobUrl(jobId), { method: "GET", headers });
+          if (!resp.ok) {
+            return { ok: false, status: resp.status };
+          }
+          const payload = await resp.json();
+          if (!payload || !payload.ok || !payload.job) {
+            return { ok: false, status: resp.status };
+          }
+          return { ok: true, status: resp.status, job: payload.job };
+        }
+
+        function passesSearch(jobId) {
+          const q = String(state.q || "").trim().toLowerCase();
+          if (!q) return true;
+          return String(jobId || "").toLowerCase().includes(q);
+        }
+
+        function passesStatus(job) {
+          const filter = normalizeStatus(state.status);
+          if (filter === "all") return true;
+          const status = job && job.status ? String(job.status).trim().toLowerCase() : "";
+          return status === filter;
+        }
+
+        function renderTable(rows) {
+          bodyEl.textContent = "";
+
+          if (!rows.length) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.colSpan = 5;
+            const box = document.createElement("div");
+            box.className = "empty";
+            box.textContent = state.ids.length
+              ? "Keine Treffer für aktuellen Filter/Suche."
+              : "Noch keine Jobs gespeichert. Tipp: starte einen Async-Analyze in /gui oder füge oben eine job_id hinzu.";
+            td.appendChild(box);
+            tr.appendChild(td);
+            bodyEl.appendChild(tr);
+            metaEl.textContent = state.ids.length ? `0/${state.ids.length} angezeigt` : "0 jobs";
+            return;
+          }
+
+          metaEl.textContent = `${rows.length}/${state.ids.length} angezeigt`;
+
+          rows.forEach((row) => {
+            const tr = document.createElement("tr");
+
+            const tdId = document.createElement("td");
+            const code = document.createElement("code");
+            code.textContent = row.jobId;
+            tdId.appendChild(code);
+            tr.appendChild(tdId);
+
+            const tdStatus = document.createElement("td");
+            tdStatus.textContent = row.statusText;
+            tr.appendChild(tdStatus);
+
+            const tdProgress = document.createElement("td");
+            tdProgress.textContent = row.progressText;
+            tr.appendChild(tdProgress);
+
+            const tdUpdated = document.createElement("td");
+            tdUpdated.textContent = row.updatedText;
+            tr.appendChild(tdUpdated);
+
+            const tdLinks = document.createElement("td");
+            const actions = document.createElement("div");
+            actions.className = "row-actions";
+
+            const viewLink = document.createElement("a");
+            viewLink.href = `/jobs/${encodeURIComponent(row.jobId)}`;
+            viewLink.textContent = "Open";
+            actions.appendChild(viewLink);
+
+            if (row.resultId) {
+              const resultLink = document.createElement("a");
+              resultLink.href = `/results/${encodeURIComponent(row.resultId)}`;
+              resultLink.textContent = "Result";
+              actions.appendChild(resultLink);
+            }
+
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className = "secondary";
+            removeBtn.textContent = "Remove";
+            removeBtn.addEventListener("click", () => {
+              state.ids = state.ids.filter((id) => id !== row.jobId);
+              persistStoredJobIds(state.ids);
+              void refresh();
+            });
+            actions.appendChild(removeBtn);
+
+            tdLinks.appendChild(actions);
+            tr.appendChild(tdLinks);
+
+            bodyEl.appendChild(tr);
+          });
+        }
+
+        async function refresh() {
+          persistTokenInputs();
+
+          const filteredIds = state.ids.filter((id) => passesSearch(id));
+          if (!filteredIds.length) {
+            renderTable([]);
+            return;
+          }
+
+          metaEl.textContent = "Loading…";
+
+          const results = await Promise.all(
+            filteredIds.map(async (jobId) => {
+              const fetched = await fetchJob(jobId);
+              if (!fetched.ok) {
+                return {
+                  jobId,
+                  statusText: fetched.status === 404 ? "not_found" : `error (${fetched.status})`,
+                  progressText: "—",
+                  updatedText: "—",
+                  resultId: "",
+                  _pass: true,
+                };
+              }
+
+              const job = fetched.job || {};
+              const statusText = String(job.status || "").trim().toLowerCase() || "queued";
+              const progress = Number(job.progress_percent);
+              const progressText = Number.isFinite(progress) ? `${Math.round(progress)}%` : "—";
+              const updatedText = String(job.updated_at || job.finished_at || job.started_at || job.queued_at || "").trim();
+              const resultId = String(job.result_id || "").trim();
+
+              return {
+                jobId,
+                statusText,
+                progressText,
+                updatedText,
+                resultId,
+                _pass: passesStatus(job),
+              };
+            })
+          );
+
+          const visible = results.filter((row) => row._pass);
+          renderTable(visible);
+        }
+
+        function syncStateFromControls() {
+          state.status = normalizeStatus(statusEl.value);
+          state.q = String(qEl.value || "").trim();
+          updateDeepLink();
+        }
+
+        statusEl.addEventListener("change", () => {
+          syncStateFromControls();
+          void refresh();
+        });
+
+        qEl.addEventListener("input", () => {
+          syncStateFromControls();
+          void refresh();
+        });
+
+        addBtn.addEventListener("click", () => {
+          rememberJobId(addIdEl.value);
+          addIdEl.value = "";
+          void refresh();
+        });
+
+        refreshBtn.addEventListener("click", () => {
+          syncStateFromControls();
+          void refresh();
+        });
+
+        clearBtn.addEventListener("click", () => {
+          clearJobIds();
+          void refresh();
+        });
+
+        tokenEl.addEventListener("change", persistTokenInputs);
+        orgEl.addEventListener("change", persistTokenInputs);
+
+        state.ids = readStoredJobIds();
+        restoreDeepLink();
+        applyTokenDefaults();
+        syncStateFromControls();
+        void refresh();
+      </script>
+    </main>
+  </body>
+</html>
+"""
+
+
 def _normalize_path(path: str) -> str:
     """Normalisiert doppelte Slashes und entfernt Trailing-Slash (außer Root)."""
 
@@ -902,6 +1429,18 @@ def _build_job_permalink_html(*, app_version: str, api_base_url: str, job_id: st
     return html
 
 
+def _build_jobs_list_html(*, app_version: str, api_base_url: str) -> str:
+    normalized_base_url = api_base_url.rstrip("/")
+    jobs_endpoint_base = (
+        f"{normalized_base_url}/analyze/jobs" if normalized_base_url else "/analyze/jobs"
+    )
+
+    html = _JOBS_LIST_PAGE_TEMPLATE
+    html = html.replace("__APP_VERSION__", escape(app_version))
+    html = html.replace("__JOBS_ENDPOINT_BASE_JSON__", json.dumps(jobs_endpoint_base))
+    return html
+
+
 class _UiHandler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ui/1.0"
 
@@ -937,6 +1476,14 @@ class _UiHandler(BaseHTTPRequestHandler):
 
         if request_path == "/history":
             html = build_history_page_html(
+                app_version=self.server.app_version,
+                api_base_url=self.server.ui_api_base_url,
+            )
+            self._send_html(html)
+            return
+
+        if request_path == "/jobs":
+            html = _build_jobs_list_html(
                 app_version=self.server.app_version,
                 api_base_url=self.server.ui_api_base_url,
             )
