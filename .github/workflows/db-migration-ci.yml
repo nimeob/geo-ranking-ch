@@ -1,0 +1,73 @@
+name: DB Migrations CI
+
+on:
+  push:
+    paths:
+      - "db/migrations/**"
+      - "scripts/db-migrate.py"
+      - ".github/workflows/db-migration-ci.yml"
+  pull_request:
+    paths:
+      - "db/migrations/**"
+      - "scripts/db-migrate.py"
+      - ".github/workflows/db-migration-ci.yml"
+
+# Issue: #813 (DB-0.wp2 — migration runner + CI harness)
+
+jobs:
+  migration-smoke:
+    name: Apply migrations (Postgres ${{ matrix.postgres }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        postgres: ["15", "16"]
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}-alpine
+        env:
+          POSTGRES_DB: georanking_ci
+          POSTGRES_USER: georanking
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U georanking -d georanking_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://georanking:ci_test_password@localhost:5432/georanking_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Show migration status (pre-apply)
+        run: python scripts/db-migrate.py --status
+
+      - name: Apply all migrations (dry-run first)
+        run: python scripts/db-migrate.py --dry-run
+
+      - name: Apply all migrations
+        run: python scripts/db-migrate.py --apply
+
+      - name: Verify idempotency (re-apply should be no-op)
+        run: python scripts/db-migrate.py --apply
+
+      - name: Show migration status (post-apply)
+        run: python scripts/db-migrate.py --status
+
+      - name: Check gate — no pending migrations
+        run: python scripts/db-migrate.py --check
