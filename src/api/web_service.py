@@ -3888,6 +3888,8 @@ class Handler(BaseHTTPRequestHandler):
                         query=query,
                         intelligence_mode=mode,
                         org_id=request_org_id,
+                        owner_user_id=phase1_user.user_id if phase1_user else None,
+                        owner_org_id=phase1_user.org_id if phase1_user else request_org_id,
                     )
                     created_job_id = str(created_job.get("job_id") or "")
                     if created_job_id:
@@ -3930,6 +3932,8 @@ class Handler(BaseHTTPRequestHandler):
                             query=query,
                             intelligence_mode=mode,
                             org_id=request_org_id,
+                            owner_user_id=phase1_user.user_id if phase1_user else None,
+                            owner_org_id=phase1_user.org_id if phase1_user else request_org_id,
                         )
                         sync_history_job_id = str(created_job.get("job_id") or "") or None
                         if sync_history_job_id:

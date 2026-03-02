@@ -139,11 +139,21 @@ class TestAuthPhase1Core(unittest.TestCase):
         job_record = store.get_job(job_id)
         self.assertIsInstance(job_record, dict)
         self.assertEqual(job_record.get("org_id"), self.user_a["org_id"])
+        self.assertEqual(job_record.get("owner_user_id"), self.user_a["user_id"])
+        self.assertEqual(job_record.get("owner_org_id"), self.user_a["org_id"])
 
         status_job, body_job = self._poll_job_completed(job_id=job_id, token=self.user_a["token"])
         self.assertEqual(status_job, 200)
         result_id = str(body_job.get("job", {}).get("result_id") or "")
         self.assertTrue(result_id)
+
+        # Result record must carry owner metadata as well (derived from job owner).
+        store_after = AsyncJobStore(store_file=self._store_file)
+        results = store_after.list_results(job_id)
+        self.assertTrue(results)
+        final_result = results[-1]
+        self.assertEqual(final_result.get("owner_user_id"), self.user_a["user_id"])
+        self.assertEqual(final_result.get("owner_org_id"), self.user_a["org_id"])
 
         # /analyze/history: 401 without token
         status_history_anon, body_history_anon = _http_json(
