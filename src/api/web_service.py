@@ -3536,6 +3536,48 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
             try:
+                # Ensure history-persistence hooks exist even when request parsing
+                # fails early (before sync-history setup). Otherwise, exception
+                # handlers may hit an UnboundLocalError and drop the connection.
+                sync_history_job_id: str | None = None
+
+                def _persist_sync_history_success(grouped_result_payload: dict[str, Any]) -> None:
+                    if not sync_history_job_id:
+                        return
+                    try:
+                        result_record = _ASYNC_JOB_STORE.create_result(
+                            job_id=sync_history_job_id,
+                            result_payload=grouped_result_payload,
+                            result_kind="final",
+                        )
+                        result_id = str(result_record.get("result_id") or "")
+                        _ASYNC_JOB_STORE.transition_job(
+                            job_id=sync_history_job_id,
+                            to_status="completed",
+                            progress_percent=100,
+                            result_id=result_id or None,
+                            actor_type="system",
+                        )
+                    except Exception:
+                        return
+
+                def _persist_sync_history_failure(*, error_code: str, error_message: str) -> None:
+                    if not sync_history_job_id:
+                        return
+                    try:
+                        _ASYNC_JOB_STORE.transition_job(
+                            job_id=sync_history_job_id,
+                            to_status="failed",
+                            progress_percent=5,
+                            error_code=str(error_code or "internal"),
+                            error_message=str(error_message or "sync analyze failed"),
+                            retryable=False,
+                            retry_hint=None,
+                            actor_type="system",
+                        )
+                    except Exception:
+                        return
+
                 raw_length = self.headers.get("Content-Length", "0")
                 try:
                     length = int(raw_length)
