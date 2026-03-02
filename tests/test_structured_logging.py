@@ -71,6 +71,20 @@ class TestStructuredLoggingHelpers(unittest.TestCase):
         self.assertEqual(redacted["nested"]["email"], "p***@example.com")
         self.assertIn("p***@example.com", redacted["notes"])
 
+    def test_redact_mapping_masks_api_key_hash_artifacts(self):
+        payload = {
+            "key_fingerprint": "deadbeefcafe",
+            "key_hash": "0123456789abcdef",
+            "hash_scheme": "hmac_sha256_v1",
+        }
+
+        redacted = redact_mapping(payload)
+
+        # Fingerprint is intentionally *not* redacted (identifier), but derived hashes must be.
+        self.assertEqual(redacted["key_fingerprint"], "deadbeefcafe")
+        self.assertEqual(redacted["key_hash"], "[REDACTED]")
+        self.assertEqual(redacted["hash_scheme"], "hmac_sha256_v1")
+
     def test_redact_mapping_fully_masks_sensitive_keys_even_when_nested(self):
         payload = {
             "query": {"raw": "Musterstrasse 1, 9000 St. Gallen"},
