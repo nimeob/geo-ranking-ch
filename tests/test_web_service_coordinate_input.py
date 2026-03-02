@@ -108,9 +108,13 @@ class TestWebServiceCoordinateInput(unittest.TestCase):
     def test_rejects_non_finite_coordinate_values(self):
         cases = [
             (float("nan"), 8.0, "coordinates.lat must be a finite number"),
+            (float("-inf"), 8.0, "coordinates.lat must be a finite number"),
             (47.0, float("inf"), "coordinates.lon must be a finite number"),
             ("", 8.0, "coordinates.lat must be a finite number"),
+            ("   ", 8.0, "coordinates.lat must be a finite number"),
             ("nan", 8.0, "coordinates.lat must be a finite number"),
+            (47.0, "", "coordinates.lon must be a finite number"),
+            (47.0, "   ", "coordinates.lon must be a finite number"),
             (47.0, "inf", "coordinates.lon must be a finite number"),
         ]
 

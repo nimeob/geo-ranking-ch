@@ -47,14 +47,20 @@ def _http_json(
                 )
             return resp.status, parsed
     except error.HTTPError as e:
-        body = e.read().decode("utf-8")
-        parsed = json.loads(body) if body else {}
-        if return_headers:
-            header_map = {
-                k.lower(): v for k, v in (e.headers.items() if e.headers else [])
-            }
-            return e.code, parsed, header_map
-        return e.code, parsed
+        try:
+            body = e.read().decode("utf-8")
+            parsed = json.loads(body) if body else {}
+            if return_headers:
+                header_map = {
+                    k.lower(): v for k, v in (e.headers.items() if e.headers else [])
+                }
+                return e.code, parsed, header_map
+            return e.code, parsed
+        finally:
+            try:
+                e.close()
+            except Exception:
+                pass
 
 
 def _http_raw_json(
@@ -74,9 +80,15 @@ def _http_raw_json(
             body = resp.read().decode("utf-8")
             return resp.status, json.loads(body)
     except error.HTTPError as e:
-        body = e.read().decode("utf-8")
-        parsed = json.loads(body) if body else {}
-        return e.code, parsed
+        try:
+            body = e.read().decode("utf-8")
+            parsed = json.loads(body) if body else {}
+            return e.code, parsed
+        finally:
+            try:
+                e.close()
+            except Exception:
+                pass
 
 
 def _collect_status_like_paths(payload, prefix=""):
@@ -1112,6 +1124,84 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(body.get("error"), "bad_request")
         self.assertIn("coordinates must be an object", body.get("message", ""))
+
+    def test_bad_request_coordinates_missing_required_fields(self):
+        cases = [
+            ({"lon": 8.0}, "coordinates.lat and coordinates.lon are required"),
+            ({"lat": 47.0}, "coordinates.lat and coordinates.lon are required"),
+            ({"lng": 8.0}, "coordinates.lat and coordinates.lon are required"),
+        ]
+
+        for coordinates, expected_message in cases:
+            with self.subTest(coordinates=coordinates):
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload={"coordinates": coordinates},
+                    headers={"Authorization": "Bearer bl18-token"},
+                )
+                self.assertEqual(status, 400)
+                self.assertFalse(body.get("ok"))
+                self.assertEqual(body.get("error"), "bad_request")
+                self.assertIn("request_id", body)
+                self.assertIn(expected_message, body.get("message", ""))
+
+    def test_bad_request_coordinates_out_of_lat_lon_range(self):
+        cases = [
+            ({"lat": 100.0, "lon": 8.0}, "coordinates.lat must be between -90 and 90"),
+            ({"lat": -100.0, "lon": 8.0}, "coordinates.lat must be between -90 and 90"),
+            ({"lat": 47.0, "lon": 200.0}, "coordinates.lon must be between -180 and 180"),
+            ({"lat": 47.0, "lon": -200.0}, "coordinates.lon must be between -180 and 180"),
+        ]
+
+        for coordinates, expected_message in cases:
+            with self.subTest(coordinates=coordinates):
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload={"coordinates": coordinates},
+                    headers={"Authorization": "Bearer bl18-token"},
+                )
+                self.assertEqual(status, 400)
+                self.assertFalse(body.get("ok"))
+                self.assertEqual(body.get("error"), "bad_request")
+                self.assertIn("request_id", body)
+                self.assertIn(expected_message, body.get("message", ""))
+
+    def test_bad_request_coordinates_rejects_non_finite_and_whitespace_values(self):
+        cases = [
+            ({"lat": float("nan"), "lon": 8.0}, "coordinates.lat must be a finite number"),
+            ({"lat": "   ", "lon": 8.0}, "coordinates.lat must be a finite number"),
+            ({"lat": 47.0, "lon": float("inf")}, "coordinates.lon must be a finite number"),
+            ({"lat": 47.0, "lon": "   "}, "coordinates.lon must be a finite number"),
+        ]
+
+        for coordinates, expected_message in cases:
+            with self.subTest(coordinates=coordinates):
+                status, body = _http_json(
+                    "POST",
+                    f"{self.base_url}/analyze",
+                    payload={"coordinates": coordinates},
+                    headers={"Authorization": "Bearer bl18-token"},
+                )
+                self.assertEqual(status, 400)
+                self.assertFalse(body.get("ok"))
+                self.assertEqual(body.get("error"), "bad_request")
+                self.assertIn("request_id", body)
+                self.assertIn(expected_message, body.get("message", ""))
+
+    def test_bad_request_coordinates_swapped_values_fail_fast(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={"coordinates": {"lat": 8.0, "lon": 47.0}},
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 400)
+        self.assertFalse(body.get("ok"))
+        self.assertEqual(body.get("error"), "bad_request")
+        self.assertIn("request_id", body)
+        self.assertIn("outside Swiss coverage bounds", body.get("message", ""))
 
     def test_bad_request_timeout_negative(self):
         status, body = _http_json(
