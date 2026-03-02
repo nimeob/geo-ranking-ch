@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "env": "dev",
+    "title": "Dev(API): Health/Readiness Endpoint sauber machen (/healthz + Build-Info)",
+    "body": "Ziel: Dev-API bekommt ein kleines, stabiles Health-Response (ohne Secrets).\n\nDoD:\n- GET /healthz liefert status + build/version + timestamp.\n- Tests für Response-Schema.\n- Doku: README/API Abschnitt aktualisiert (dev-only).",
+    "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:api"]
+  },
+  {
+    "env": "dev",
+    "title": "Dev(UI): Ergebnis-Detailansicht – Karten/Marker Lesbarkeit verbessern",
+    "body": "Ziel: UI-Detailansicht in dev: Marker/Legende besser lesbar, keine Überlappungen.\n\nDoD:\n- Verbesserte Darstellung bei kleinen Screens.\n- Minimaler Test (Screenshot/Component oder e2e).",
+    "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:ui"]
+  },
+  {
+    "env": "dev",
+    "title": "Dev(API): Fehlercodes vereinheitlichen (ValidationError -> 400, NotFound -> 404)",
+    "body": "Ziel: konsistente Fehlercodes und maschinenlesbare Fehlerobjekte.\n\nDoD:\n- Definiertes Error-Response-Format (code, message, details).\n- Tests für 3 typische Fehlerfälle.\n- Doku kurz ergänzen.",
+    "labels": ["backlog", "status:todo", "priority:P1", "bug", "area:api"]
+  },
+  {
+    "env": "dev",
+    "title": "Dev(UI): /jobs Liste – Filtern nach Status + Suche nach Job-ID",
+    "body": "Ziel: In dev schneller Jobs finden.\n\nDoD:\n- Filter nach Status (running/failed/succeeded).\n- Suche nach job_id.\n- URL Query-Params spiegeln Filter.",
+    "labels": ["backlog", "status:todo", "priority:P2", "enhancement", "area:ui"]
+  }
+]
