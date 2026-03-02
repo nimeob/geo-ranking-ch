@@ -33,7 +33,6 @@ Regelwerk:
 - [#644](https://github.com/nimeob/geo-ranking-ch/issues/644) — VISION P1: Prod/Internet Smoke Tests automatisieren (sync + async) (priority:P1, status:todo)
 - [#646](https://github.com/nimeob/geo-ranking-ch/issues/646) — VISION P3: POI Coverage verbessern (OSM Kategorien + Fallback) (priority:P1, status:todo)
 - [#647](https://github.com/nimeob/geo-ranking-ch/issues/647) — VISION P3: POI Coverage Monitoring (Regression Guard) (priority:P1, status:todo)
-- [#600](https://github.com/nimeob/geo-ranking-ch/issues/600) — BL-30.wp4.r3.wp2: Retention-Cleanup für job_results/job_events implementieren (priority:P2, status:todo)
 - [#601](https://github.com/nimeob/geo-ranking-ch/issues/601) — BL-30.wp4.r3.wp3: In-App Notification-Pipeline für Async-Completion/Failure (priority:P2, status:todo)
 - [#602](https://github.com/nimeob/geo-ranking-ch/issues/602) — BL-30.wp4.r3.wp4: Ops-Runbook + Monitoring-Mindestmetriken für Async-Delivery (priority:P2, status:todo)
 - [#645](https://github.com/nimeob/geo-ranking-ch/issues/645) — VISION P1: Monitoring/Alerting – CloudWatch Alarme + Telegram Verify (priority:P2, status:todo)
