@@ -101,9 +101,19 @@ def redact_scalar(*, key: str, value: Any) -> Any:
 
 
 def redact_mapping(payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Return a recursively redacted copy of a mapping payload."""
+    """Return a recursively redacted copy of a mapping payload.
+
+    Policy: when a key is considered sensitive, we redact the *entire* value
+    regardless of whether it is a scalar, list or nested mapping. This matches
+    the logging schema contract ("fully masked") and prevents accidental leaks
+    through structured sub-objects.
+    """
+
     redacted: dict[str, Any] = {}
     for key, value in payload.items():
+        if _looks_sensitive_key(str(key)):
+            redacted[key] = "[REDACTED]"
+            continue
         if isinstance(value, Mapping):
             redacted[key] = redact_mapping(value)
             continue
@@ -111,11 +121,11 @@ def redact_mapping(payload: Mapping[str, Any]) -> dict[str, Any]:
             redacted[key] = [
                 redact_mapping(item)
                 if isinstance(item, Mapping)
-                else redact_scalar(key=key, value=item)
+                else redact_scalar(key=str(key), value=item)
                 for item in value
             ]
             continue
-        redacted[key] = redact_scalar(key=key, value=value)
+        redacted[key] = redact_scalar(key=str(key), value=value)
     return redacted
 
 
