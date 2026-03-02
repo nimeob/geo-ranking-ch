@@ -62,18 +62,38 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         color: var(--muted);
         font-size: 0.9rem;
       }
-      nav {
-        display: flex;
-        gap: 0.5rem;
+      .burger { position: relative; }
+      #burger-btn {
+        background: #fff;
+        color: var(--ink);
+        border: 1px solid var(--border);
+        border-radius: 0.6rem;
+        padding: 0.45rem 0.7rem;
+        font-size: 0.9rem;
+        cursor: pointer;
       }
-      nav a {
+      .burger-menu {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        right: 0;
+        min-width: 240px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 0.35rem;
+        box-shadow: 0 12px 28px rgba(27, 38, 55, 0.12);
+        display: grid;
+        gap: 0.15rem;
+        z-index: 30;
+      }
+      .burger-menu a {
         text-decoration: none;
         color: var(--primary);
-        border: 1px solid var(--border);
-        padding: 0.35rem 0.55rem;
-        border-radius: 0.5rem;
-        font-size: 0.86rem;
+        padding: 0.55rem 0.65rem;
+        border-radius: 0.55rem;
+        font-size: 0.9rem;
       }
+      .burger-menu a:hover { background: #f3f7ff; }
       main {
         display: grid;
         grid-template-columns: minmax(300px, 460px) minmax(360px, 1fr);
@@ -381,12 +401,17 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           <h1>geo-ranking.ch — GUI MVP</h1>
           <p>BL-20.6 · Adresse + Kartenklick + Result-Panel · Version __APP_VERSION__</p>
         </div>
-        <nav id=\"gui-shell-nav\" aria-label=\"Kernnavigation\">
-          <a href=\"#input\">Input</a>
-          <a href=\"#map\">Karte</a>
-          <a href=\"#result\">Result-Panel</a>
-          <a href=\"#trace-debug\">Trace-Debug</a>
-        </nav>
+        <div class=\"burger\" id=\"burger-shell\">
+          <button id=\"burger-btn\" type=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"burger-menu\">☰ Menü</button>
+          <div id=\"burger-menu\" class=\"burger-menu\" role=\"menu\" hidden>
+            <a role=\"menuitem\" href=\"/gui\">Abfrage</a>
+            <a role=\"menuitem\" href=\"/history\">Historische Abfragen</a>
+            <a role=\"menuitem\" href=\"#input\">Input</a>
+            <a role=\"menuitem\" href=\"#map\">Karte</a>
+            <a role=\"menuitem\" href=\"#result\">Result-Panel</a>
+            <a role=\"menuitem\" href=\"#trace-debug\">Trace-Debug</a>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -558,9 +583,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           </div>
         </article>
 
-        <article class=\"card\">
-          <h2>API-Response (JSON)</h2>
-          <pre id=\"result-json\">{\n  \"hint\": \"Sende eine Anfrage per Adresse oder Kartenklick.\"\n}</pre>
+        <article class=\"card\" id=\"history\">
+          <h2>Historische Abfragen</h2>
+          <p class=\"meta\">Letzte Ergebnisse (Deep-Link öffnet eine separate Result-Seite).</p>
+          <div id=\"history-shell\" class=\"stack\">
+            <div class=\"placeholder\">Lade Historie…</div>
+          </div>
         </article>
 
         <article class=\"card\" id=\"trace-debug\">
@@ -613,6 +641,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const UI_SESSION_STORAGE_KEY = "geo-ranking-ui-session-id";
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
+      const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
 
       const state = {
         phase: "idle",
@@ -662,7 +691,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const requestIdCopyBtnEl = document.getElementById("request-id-copy-btn");
       const requestIdFeedbackEl = document.getElementById("request-id-feedback");
       const inputMeta = document.getElementById("input-meta");
-      const resultJson = document.getElementById("result-json");
+      const historyShell = document.getElementById("history-shell");
       const errorBox = document.getElementById("error-box");
       const coreFactorsEl = document.getElementById("core-factors");
 
@@ -808,6 +837,80 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       function prettyPrint(payload) {
         return JSON.stringify(payload, null, 2);
+      }
+
+      function escapeHtml(text) {
+        const raw = String(text == null ? "" : text);
+        return raw
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function formatLocalTime(isoText) {
+        const normalized = String(isoText || "").trim();
+        if (!normalized) return "";
+        const date = new Date(normalized);
+        if (Number.isNaN(date.getTime())) return normalized;
+        return date.toLocaleString();
+      }
+
+      function renderHistoryItems(items) {
+        if (!historyShell) return;
+        if (!Array.isArray(items) || items.length === 0) {
+          historyShell.innerHTML = `<div class="placeholder">Noch keine historischen Results vorhanden.</div>`;
+          return;
+        }
+
+        const rows = items.map((item) => {
+          const resultId = String(item && item.result_id ? item.result_id : "").trim();
+          const query = String(item && item.query ? item.query : "").trim() || "(ohne Query)";
+          const when = formatLocalTime(item && item.created_at ? item.created_at : "");
+          const mode = String(item && item.intelligence_mode ? item.intelligence_mode : "basic").trim();
+          const status = String(item && item.status ? item.status : "").trim();
+
+          const href = resultId ? `/results/${encodeURIComponent(resultId)}` : "#";
+          const disabledAttr = resultId ? "" : 'aria-disabled="true"';
+          const metaParts = [when, mode];
+          if (status) metaParts.push(status);
+
+          return `
+            <div class="pill" style="justify-content: space-between; width: 100%;">
+              <div style="display:flex; flex-direction: column; gap: 0.1rem;">
+                <strong style="font-size:0.9rem;">${escapeHtml(query)}</strong>
+                <span class="meta">${escapeHtml(metaParts.filter(Boolean).join(" · "))}</span>
+              </div>
+              <a class="trace-link-btn" href="${href}" ${disabledAttr}>Open</a>
+            </div>
+          `;
+        });
+
+        historyShell.innerHTML = rows.join("
+");
+      }
+
+      async function loadHistory() {
+        if (!historyShell) return;
+        const token = (tokenEl && tokenEl.value ? tokenEl.value : "").trim();
+        const headers = { "Accept": "application/json", "X-Session-Id": uiSessionId };
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        try {
+          const response = await fetch(`${ANALYZE_HISTORY_ENDPOINT}?limit=50`, { headers });
+          const data = await response.json();
+          if (!response.ok || !data || data.ok !== true) {
+            throw new Error((data && data.message) || `history fetch failed (${response.status})`);
+          }
+          renderHistoryItems(data.history);
+        } catch (error) {
+          historyShell.innerHTML = `<div class="error">Historie konnte nicht geladen werden: ${escapeHtml(
+            error instanceof Error ? error.message : "unknown"
+          )}</div>`;
+        }
       }
 
       function formatCoord(value) {
@@ -1476,10 +1579,6 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         } else {
           errorBox.hidden = true;
           errorBox.textContent = "";
-        }
-
-        if (state.lastPayload) {
-          resultJson.textContent = prettyPrint(state.lastPayload);
         }
 
         renderCoreFactors();
@@ -2417,6 +2516,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             const entry = extractResultsListEntry(result.response, { inputLabel });
             if (entry) {
               addResultsEntry(entry);
+              loadHistory();
             }
           }
         } catch (error) {
@@ -2799,6 +2899,32 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         });
       }
 
+
+      const burgerBtn = document.getElementById("burger-btn");
+      const burgerMenu = document.getElementById("burger-menu");
+      function closeBurger() {
+        if (!burgerBtn || !burgerMenu) return;
+        burgerMenu.hidden = true;
+        burgerBtn.setAttribute("aria-expanded", "false");
+      }
+      function toggleBurger() {
+        if (!burgerBtn || !burgerMenu) return;
+        const next = Boolean(burgerMenu.hidden);
+        burgerMenu.hidden = !next;
+        burgerBtn.setAttribute("aria-expanded", next ? "true" : "false");
+      }
+      if (burgerBtn && burgerMenu) {
+        burgerBtn.addEventListener("click", () => toggleBurger());
+        document.addEventListener("click", (event) => {
+          if (!event || !(event.target instanceof Element)) return;
+          if (burgerBtn.contains(event.target) || burgerMenu.contains(event.target)) return;
+          closeBurger();
+        });
+        burgerMenu.querySelectorAll("a").forEach((link) => {
+          link.addEventListener("click", () => closeBurger());
+        });
+      }
+
       emitUiEvent("ui.session.start", {
         direction: "internal",
         status: "ready",
@@ -2811,6 +2937,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       initializeInteractiveMap();
       renderState();
       renderTraceState();
+      loadHistory();
 
       const deepLinkTraceRequestId = restoreTraceDeepLinkInput();
       if (deepLinkTraceRequestId) {

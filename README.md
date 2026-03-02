@@ -152,11 +152,21 @@ curl http://localhost:8081/healthz
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| `GET` | `/gui` | GUI-MVP-Shell (Adresseingabe + Kartenklick + Result-Panel inkl. Kernfaktoren) |
+| `GET` | `/gui` | GUI-MVP-Shell (Adresseingabe + Kartenklick + Result-Panel inkl. Kernfaktoren + Burger-Menü) |
+| `GET` | `/history` | Historische Abfragen (persistiert; Links zu separater Result-Page) |
+| `GET` | `/results/<result_id>` | Result-Page mit Tabs (Overview, Sources/Evidence, Generated/Derived, Raw JSON) |
+| `GET` | `/analyze/history` | History-JSON für UI (`?limit=...`) |
+| `GET` | `/analyze/results/<result_id>` | Result-JSON für Result-Pages (`?view=latest|requested`) |
 | `GET` | `/health` | Liveness/Healthcheck (ECS) |
 | `GET` | `/healthz` | Dev-Healthcheck (dev-only, no-store): Status + Build-Info + Timestamp |
 | `GET` | `/version` | Build/Commit-Metadaten |
 | `POST` | `/analyze` | Adressanalyse (`{"query":"...","intelligence_mode":"basic|extended|risk","timeout_seconds":15,"preferences":{...}}`) |
+
+#### Historische Abfragen (persistiert)
+
+- Persistenz erfolgt über den bestehenden file-backed Store `src/api/async_jobs.py`.
+- Default-Store-Datei: `runtime/async_jobs/store.v1.json` (override via `ASYNC_JOBS_STORE_FILE`).
+- Sync-Requests (`POST /analyze` ohne Async-Mode) schreiben ebenfalls einen Job + Final-Result in den Store (steuerbar via `ENABLE_QUERY_HISTORY=0/1`, Default: `1`).
 
 **Auth (optional):** Wenn `API_AUTH_TOKEN` gesetzt ist, erfordert `POST /analyze` den Header `Authorization: Bearer <token>`.
 

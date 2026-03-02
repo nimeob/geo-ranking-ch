@@ -27,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 from src.shared.gui_mvp import render_gui_mvp_html
+from src.shared.ui_pages import build_history_page_html, build_result_tabs_page_html
 
 _RESULT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 _JOB_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
@@ -835,6 +836,8 @@ def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
     trace_debug_url = f"{normalized_base_url}/debug/trace"
     analyze_jobs_base = f"{normalized_base_url}/analyze/jobs"
 
+    analyze_history_url = f"{normalized_base_url}/analyze/history"
+
     html = html.replace('fetch("/analyze", {', f"fetch({json.dumps(analyze_url)}, {{")
     html = html.replace(
         'const TRACE_DEBUG_ENDPOINT = "/debug/trace";',
@@ -844,31 +847,34 @@ def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
         'const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";',
         f"const ANALYZE_JOBS_ENDPOINT_BASE = {json.dumps(analyze_jobs_base)};",
     )
+    html = html.replace(
+        'const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";',
+        f"const ANALYZE_HISTORY_ENDPOINT = {json.dumps(analyze_history_url)};",
+    )
     return html
 
 
 def _build_result_permalink_html(*, app_version: str, api_base_url: str, result_id: str) -> str:
-    """Rendert eine minimalistische Result-Page.
+    """Rendert eine Result-Page mit Tabs.
 
-    Die Page lädt JSON asynchron vom API-Endpunkt und zeigt es an.
+    Tabs:
+    - Overview
+    - Sources / Evidence
+    - Generated / Derived
+    - Raw JSON
+
+    Die Page lädt JSON asynchron über `GET /analyze/results/<result_id>`.
     """
 
     normalized_result_id = _normalize_result_id(result_id)
     if not normalized_result_id:
         raise ValueError("invalid result_id")
 
-    safe_result_id = escape(normalized_result_id)
-    normalized_base_url = api_base_url.rstrip("/")
-    results_endpoint_base = (
-        f"{normalized_base_url}/analyze/results" if normalized_base_url else "/analyze/results"
+    return build_result_tabs_page_html(
+        app_version=app_version,
+        api_base_url=api_base_url,
+        result_id=normalized_result_id,
     )
-
-    html = _RESULT_PAGE_TEMPLATE
-    html = html.replace("__RESULT_ID__", safe_result_id)
-    html = html.replace("__APP_VERSION__", escape(app_version))
-    html = html.replace("__RESULT_ID_JSON__", json.dumps(normalized_result_id))
-    html = html.replace("__RESULTS_ENDPOINT_BASE_JSON__", json.dumps(results_endpoint_base))
-    return html
 
 
 def _build_job_permalink_html(*, app_version: str, api_base_url: str, job_id: str) -> str:
@@ -923,6 +929,14 @@ class _UiHandler(BaseHTTPRequestHandler):
 
         if request_path in {"/", "/gui"}:
             html = _build_gui_html(
+                app_version=self.server.app_version,
+                api_base_url=self.server.ui_api_base_url,
+            )
+            self._send_html(html)
+            return
+
+        if request_path == "/history":
+            html = build_history_page_html(
                 app_version=self.server.app_version,
                 api_base_url=self.server.ui_api_base_url,
             )

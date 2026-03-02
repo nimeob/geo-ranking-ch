@@ -47,6 +47,7 @@ from src.api.debug_trace import (
     normalize_request_id,
 )
 from src.shared.gui_mvp import render_gui_mvp_html
+from src.shared.ui_pages import build_history_page_html, build_result_tabs_page_html, normalize_result_id
 from src.shared.structured_logging import build_event, emit_event
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
 from src.api.personalized_scoring import compute_two_stage_scores
@@ -3012,6 +3013,41 @@ class Handler(BaseHTTPRequestHandler):
                     extra_headers={"Cache-Control": "no-store"},
                 )
                 return
+
+            if request_path == "/history":
+                self._send_html(
+                    build_history_page_html(
+                        app_version=os.getenv("APP_VERSION", "dev"),
+                        api_base_url="",
+                    ),
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+
+            if request_path.startswith("/results/"):
+                raw_result_id = request_path.removeprefix("/results/").strip("/")
+                normalized_result_id = normalize_result_id(raw_result_id)
+                if not normalized_result_id:
+                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    return
+
+                try:
+                    html = build_result_tabs_page_html(
+                        app_version=os.getenv("APP_VERSION", "dev"),
+                        api_base_url="",
+                        result_id=normalized_result_id,
+                    )
+                except ValueError:
+                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    return
+
+                self._send_html(
+                    html,
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
             if request_path == "/healthz":
                 _emit_structured_log(
                     event="api.healthz.response",
@@ -3668,6 +3704,74 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
+
+                # Sync-Requests ebenfalls in den persistenten Job/Result-Store schreiben,
+                # damit "Historische Abfragen" ohne neue Infrastruktur funktioniert.
+                sync_history_job_id: str | None = None
+                if os.getenv("ENABLE_QUERY_HISTORY", "1") != "0":
+                    request_org_id = "default-org"
+                    try:
+                        request_org_id = self._request_org_id()
+                    except ValueError:
+                        # Best-effort: invalid tenant header must not break sync /analyze.
+                        request_org_id = "default-org"
+
+                    try:
+                        created_job = _ASYNC_JOB_STORE.create_job(
+                            request_payload=data,
+                            request_id=request_id,
+                            query=query,
+                            intelligence_mode=mode,
+                            org_id=request_org_id,
+                        )
+                        sync_history_job_id = str(created_job.get("job_id") or "") or None
+                        if sync_history_job_id:
+                            _ASYNC_JOB_STORE.transition_job(
+                                job_id=sync_history_job_id,
+                                to_status="running",
+                                progress_percent=5,
+                                actor_type="system",
+                            )
+                    except Exception:
+                        sync_history_job_id = None
+
+                def _persist_sync_history_success(grouped_result_payload: dict[str, Any]) -> None:
+                    if not sync_history_job_id:
+                        return
+                    try:
+                        result_record = _ASYNC_JOB_STORE.create_result(
+                            job_id=sync_history_job_id,
+                            result_payload=grouped_result_payload,
+                            result_kind="final",
+                        )
+                        result_id = str(result_record.get("result_id") or "")
+                        _ASYNC_JOB_STORE.transition_job(
+                            job_id=sync_history_job_id,
+                            to_status="completed",
+                            progress_percent=100,
+                            result_id=result_id or None,
+                            actor_type="system",
+                        )
+                    except Exception:
+                        return
+
+                def _persist_sync_history_failure(*, error_code: str, error_message: str) -> None:
+                    if not sync_history_job_id:
+                        return
+                    try:
+                        _ASYNC_JOB_STORE.transition_job(
+                            job_id=sync_history_job_id,
+                            to_status="failed",
+                            progress_percent=5,
+                            error_code=str(error_code or "internal"),
+                            error_message=str(error_message or "sync analyze failed"),
+                            retryable=False,
+                            retry_hint=None,
+                            actor_type="system",
+                        )
+                    except Exception:
+                        return
+
                 if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
                     if query == "__timeout__":
                         raise TimeoutError("forced timeout for e2e")
@@ -3752,13 +3856,15 @@ class Handler(BaseHTTPRequestHandler):
                             request_id=request_id,
                             session_id=session_id,
                         )
+                        grouped_result = _grouped_api_result(
+                            stub_report,
+                            response_mode=response_mode,
+                        )
+                        _persist_sync_history_success(grouped_result)
                         self._send_json(
                             {
                                 "ok": True,
-                                "result": _grouped_api_result(
-                                    stub_report,
-                                    response_mode=response_mode,
-                                ),
+                                "result": grouped_result,
                                 "request_id": request_id,
                             },
                             request_id=request_id,
@@ -3803,18 +3909,21 @@ class Handler(BaseHTTPRequestHandler):
                     request_id=request_id,
                     session_id=session_id,
                 )
+                grouped_result = _grouped_api_result(
+                    report,
+                    response_mode=response_mode,
+                )
+                _persist_sync_history_success(grouped_result)
                 self._send_json(
                     {
                         "ok": True,
-                        "result": _grouped_api_result(
-                            report,
-                            response_mode=response_mode,
-                        ),
+                        "result": grouped_result,
                         "request_id": request_id,
                     },
                     request_id=request_id,
                 )
             except TimeoutError as e:
+                _persist_sync_history_failure(error_code="timeout", error_message=str(e))
                 self._send_error(
                     request_id=request_id,
                     status=HTTPStatus.GATEWAY_TIMEOUT,
@@ -3822,6 +3931,7 @@ class Handler(BaseHTTPRequestHandler):
                     message=str(e),
                 )
             except AddressIntelError as e:
+                _persist_sync_history_failure(error_code="address_intel", error_message=str(e))
                 self._send_error(
                     request_id=request_id,
                     status=HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -3829,6 +3939,7 @@ class Handler(BaseHTTPRequestHandler):
                     message=str(e),
                 )
             except (ValueError, json.JSONDecodeError) as e:
+                _persist_sync_history_failure(error_code="bad_request", error_message=str(e))
                 self._send_error(
                     request_id=request_id,
                     status=HTTPStatus.BAD_REQUEST,
@@ -3836,6 +3947,7 @@ class Handler(BaseHTTPRequestHandler):
                     message=str(e),
                 )
             except Exception as e:  # pragma: no cover
+                _persist_sync_history_failure(error_code="internal", error_message=str(e))
                 self._send_error(
                     request_id=request_id,
                     status=HTTPStatus.INTERNAL_SERVER_ERROR,
