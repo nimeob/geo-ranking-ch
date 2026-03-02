@@ -142,6 +142,40 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
 
+    def test_smoke_script_defaults_to_e2e_fixture_query_on_localhost(self):
+        """Guardrail: local smoke should not depend on upstream/internet."""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke-default-query.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "CURL_MAX_TIME": "10",
+                    "CURL_RETRY_COUNT": "1",
+                    "CURL_RETRY_DELAY": "1",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "SMOKE_REQUEST_ID": "bl18-smoke-default-query",
+                }
+            )
+            env.pop("SMOKE_QUERY", None)
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+            data = json.loads(out_json.read_text(encoding="utf-8"))
+            self.assertEqual(data.get("status"), "pass")
+            self.assertEqual(data.get("reason"), "ok")
+
     def test_smoke_script_passes_against_self_signed_https_with_ca_cert(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cert_dir = Path(tmpdir) / "certs"

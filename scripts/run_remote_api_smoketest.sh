@@ -57,7 +57,24 @@ then
   exit 2
 fi
 
-SMOKE_QUERY="${SMOKE_QUERY:-St. Leonhard-Strasse 40, St. Gallen}"
+# Deterministic dev fixtures: when targeting localhost without an explicit SMOKE_QUERY,
+# default to the E2E stub query (requires ENABLE_E2E_FAULT_INJECTION=1 on the service).
+if [[ -n "${SMOKE_QUERY+x}" ]]; then
+  SMOKE_QUERY="${SMOKE_QUERY-}"
+else
+  SMOKE_QUERY="$(python3 - "${DEV_BASE_URL_TRIMMED}" <<'PY'
+import sys
+from urllib.parse import urlsplit
+
+raw = sys.argv[1].strip()
+host = (urlsplit(raw).hostname or "").lower()
+if host in {"127.0.0.1", "localhost"}:
+    print("__ok__")
+else:
+    print("St. Leonhard-Strasse 40, St. Gallen")
+PY
+)"
+fi
 SMOKE_MODE="${SMOKE_MODE:-basic}"
 SMOKE_TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-20}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-45}"
