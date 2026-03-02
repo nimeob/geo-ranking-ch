@@ -639,6 +639,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       };
       const UI_LOG_COMPONENT = "ui.gui_mvp";
       const UI_SESSION_STORAGE_KEY = "geo-ranking-ui-session-id";
+      const JOB_IDS_STORAGE_KEY = "geo-ranking-ui-job-ids";
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
@@ -765,6 +766,42 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       const uiSessionId = resolveUiSessionId();
+
+      function readStoredJobIds() {
+        if (typeof window === "undefined" || !window.localStorage) {
+          return [];
+        }
+        try {
+          const raw = String(window.localStorage.getItem(JOB_IDS_STORAGE_KEY) || "").trim();
+          if (!raw) {
+            return [];
+          }
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) {
+            return [];
+          }
+          return parsed.map((item) => String(item || "").trim()).filter(Boolean);
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function rememberJobId(jobId) {
+        const normalized = String(jobId || "").trim();
+        if (!normalized) {
+          return;
+        }
+        if (typeof window === "undefined" || !window.localStorage) {
+          return;
+        }
+        try {
+          const existing = readStoredJobIds();
+          const next = [normalized, ...existing.filter((id) => id !== normalized)].slice(0, 60);
+          window.localStorage.setItem(JOB_IDS_STORAGE_KEY, JSON.stringify(next));
+        } catch (error) {
+          return;
+        }
+      }
 
       function normalizeLogLevel(level) {
         const normalized = String(level || "info").trim().toLowerCase();
@@ -1544,6 +1581,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           if (jobId) {
             asyncJobBoxEl.hidden = false;
             asyncJobIdEl.textContent = jobId;
+            rememberJobId(jobId);
 
             asyncJobLinkEl.href = `/jobs/${encodeURIComponent(jobId)}`;
 

@@ -108,6 +108,18 @@ class TestUiService(unittest.TestCase):
         self.assertIn("job-123", body)
         self.assertIn('const JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
 
+    def test_jobs_list_page_renders_and_targets_absolute_api_endpoints(self):
+        status, body, headers = _http(f"{self.base_url}/jobs")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("content-type", ""))
+        self.assertIn("Jobs (dev)", body)
+        self.assertIn('id="jobs-status"', body)
+        self.assertIn('id="jobs-q"', body)
+        self.assertIn('id="jobs-add-id"', body)
+        self.assertIn('const JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
+        self.assertIn("jobs_status", body)
+        self.assertIn("jobs_q", body)
+
     def test_history_page_renders_and_targets_absolute_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/history")
         self.assertEqual(status, 200)
