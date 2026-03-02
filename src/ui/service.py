@@ -271,10 +271,15 @@ _RESULT_PAGE_TEMPLATE = """<!doctype html>
           payloadEl.textContent = prettyPrint(parsed);
 
           if (!response.ok || !parsed || !parsed.ok) {
-            const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
-            const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
             setStatus("error");
-            setError(`${errCode}: ${errMsg}`);
+            if (response.status === 401) {
+              const hasToken = Boolean(String(tokenEl.value || "").trim());
+              setError(hasToken ? "Authorization fehlgeschlagen — Token ungültig oder abgelaufen" : "Bitte Bearer-Token setzen — API erfordert Authentifizierung");
+            } else {
+              const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
+              const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
+              setError(`${errCode}: ${errMsg}`);
+            }
             loadBtn.disabled = false;
             return;
           }
@@ -659,6 +664,10 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
           }
 
           if (!response.ok || !parsed || !parsed.ok) {
+            if (response.status === 401) {
+              const hasToken = Boolean(headersFromInputs()["Authorization"]);
+              throw new Error(hasToken ? "Authorization fehlgeschlagen — Token ungültig oder abgelaufen" : "Bitte Bearer-Token setzen — API erfordert Authentifizierung");
+            }
             const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
             const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
             throw new Error(`${errCode}: ${errMsg}`);
