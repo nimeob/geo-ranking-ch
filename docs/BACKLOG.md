@@ -22,7 +22,7 @@ Regelwerk:
 - (leer)
 
 ### Next
-- [#780](https://github.com/nimeob/geo-ranking-ch/issues/780) — Auth/Prod: Benutzerverwaltung + per-user Abfragehistorie (no crawler access) (priority:P1, status:todo)
+- ~~[#780](https://github.com/nimeob/geo-ranking-ch/issues/780) — Auth/Prod: Benutzerverwaltung + per-user Abfragehistorie (no crawler access)~~ ✅ abgeschlossen (2026-03-02): Alle 4 Phase-1 WPs done — #782 Core, #783 Store, #784 UI (PR #849), #786 default-deny (PR #848).
 - [#800](https://github.com/nimeob/geo-ranking-ch/issues/800) — EPIC: DB Minimalslice + OIDC delegated access (Cognito) (priority:P1, status:todo)
 - ~~[#801](https://github.com/nimeob/geo-ranking-ch/issues/801)~~ — DB-0: Core Tables (organizations/users/memberships/api_keys) + Migrations — **abgeschlossen 2026-03-02** (4 WPs: #812 PR#816, #813 PR#836, #814 PR#837, #815 PR#823)
 - [#802](https://github.com/nimeob/geo-ranking-ch/issues/802) — OIDC-0: Cognito Setup + API JWT Validation (priority:P1, **status:blocked** — code-complete, 4 WPs done, pending staging deployment + Cognito setup via runbooks)
@@ -41,7 +41,7 @@ Regelwerk:
 - ~~[#813](https://github.com/nimeob/geo-ranking-ch/issues/813) — DB-0.wp2: Postgres migration runner + local/CI harness~~ ✅ abgeschlossen (2026-03-02): PR #836 merged — db-migrate.py + db/migrations/ + CI harness (Postgres 15+16 green)
 - ~~[#814](https://github.com/nimeob/geo-ranking-ch/issues/814) — DB-0.wp3: Minimal DB access layer (org/user/membership bootstrap)~~ ✅ abgeschlossen (2026-03-02): PR #837 merged — src/shared/db_access.py (get_or_create_user_by_external_subject + ensure_membership + get_or_create_default_org) + 25 Unit-Tests + Bootstrap-Policy (invite_only/auto_org)
 - ~~[#820](https://github.com/nimeob/geo-ranking-ch/issues/820)~~ — OIDC-0.wp4: Claim mapping plan (sub -> user) + membership lookup contract — **abgeschlossen 2026-03-02** (`resolve_oidc_subject` in db_access.py + 15 tests, Commit 94f676a)
-- [#784](https://github.com/nimeob/geo-ranking-ch/issues/784) — Auth Phase 1 (UI): Pages nutzen Token, keine privaten Daten ohne Auth (priority:P2, status:blocked)
+- ~~[#784](https://github.com/nimeob/geo-ranking-ch/issues/784) — Auth Phase 1 (UI): Pages nutzen Token, keine privaten Daten ohne Auth~~ ✅ abgeschlossen (2026-03-02): PR #849 merged — 401-UX-Hint auf /gui, /history, /results/<id>, /jobs/<id>; 4 neue Tests (token input + Authorization header code). #780 (Auth/Prod Phase 1) komplett geschlossen.
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
 <!-- NOW_NEXT_LATER:END -->
 
