@@ -31,6 +31,8 @@ Regelwerk:
 
 ## Dev-Engineering (non-BL)
 
+- ✅ abgeschlossen (2026-03-02): [#769](https://github.com/nimeob/geo-ranking-ch/issues/769) — Dev: Doku – CONTRIBUTING Kurzguide für Dev-Workflow — `CONTRIBUTING.md` (Setup, lokaler Dev-Start, Tests, Lint/Format via pre-commit) + README-Link. (PR #810)
+
 - ✅ abgeschlossen (2026-03-02): [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) — Localhost-Smokes defaulten jetzt ohne explizites `SMOKE_QUERY` auf die deterministische Fixture-Query `__ok__` (sync + async) + Runbook-Sync (`docs/testing/DEV_API_SMOKE_RUNBOOK.md`) + Testabdeckung (`tests/test_async_jobs_smoke_script.py`, `tests/test_remote_smoke_script.py`). (PR #788)
 
 - ✅ abgeschlossen (2026-03-02): [#766](https://github.com/nimeob/geo-ranking-ch/issues/766) — Dev(UI): Ergebnis-Detailansicht – Karten/Marker Lesbarkeit verbessern — GUI MVP: höherer Marker-/Crosshair-Kontrast + Legend-Layout-Wrapping für Mobile (<=520px) + HTML-Smoke-Assertions (`tests/test_web_service_gui_mvp.py`). (PR #787)
