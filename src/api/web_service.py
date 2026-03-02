@@ -2999,6 +2999,34 @@ class Handler(BaseHTTPRequestHandler):
                     extra_headers={"Cache-Control": "no-store"},
                 )
                 return
+            if request_path == "/healthz":
+                _emit_structured_log(
+                    event="api.healthz.response",
+                    trace_id=request_id,
+                    request_id=request_id,
+                    session_id=self.headers.get("X-Session-Id", "").strip(),
+                    component="api.web_service",
+                    direction="api->client",
+                    status="ok",
+                    route="/healthz",
+                    method="GET",
+                )
+                self._send_json(
+                    {
+                        "ok": True,
+                        "status": "ok",
+                        "service": "geo-ranking-ch",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "build": {
+                            "version": os.getenv("APP_VERSION", "dev"),
+                            "commit": os.getenv("GIT_SHA", "unknown"),
+                        },
+                        "request_id": request_id,
+                    },
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
             if request_path == "/health":
                 _emit_structured_log(
                     event="api.health.response",
