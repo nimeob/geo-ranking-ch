@@ -33,8 +33,8 @@ Regelwerk:
 
 ### Later
 - [#786](https://github.com/nimeob/geo-ranking-ch/issues/786) — Auth Phase 1 (Policy): API default-deny — nur noch via Bearer Token nutzbar (priority:P1, status:blocked)
-- [#813](https://github.com/nimeob/geo-ranking-ch/issues/813) — DB-0.wp2: Postgres migration runner + local/CI harness (priority:P1, status:blocked)
-- [#814](https://github.com/nimeob/geo-ranking-ch/issues/814) — DB-0.wp3: Minimal DB access layer (org/user/membership bootstrap) (priority:P1, status:blocked)
+- ~~[#813](https://github.com/nimeob/geo-ranking-ch/issues/813) — DB-0.wp2: Postgres migration runner + local/CI harness~~ ✅ abgeschlossen (2026-03-02): PR #836 merged — db-migrate.py + db/migrations/ + CI harness (Postgres 15+16 green)
+- [#814](https://github.com/nimeob/geo-ranking-ch/issues/814) — DB-0.wp3: Minimal DB access layer (org/user/membership bootstrap) (priority:P1, status:todo — unblocked by #813)
 - [#820](https://github.com/nimeob/geo-ranking-ch/issues/820) — OIDC-0.wp4: Claim mapping plan (sub -> user) + membership lookup contract (DB dependency) (priority:P1, status:blocked)
 - [#784](https://github.com/nimeob/geo-ranking-ch/issues/784) — Auth Phase 1 (UI): Pages nutzen Token, keine privaten Daten ohne Auth (priority:P2, status:blocked)
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
