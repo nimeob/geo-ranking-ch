@@ -24,7 +24,6 @@ Regelwerk:
 ### Next
 - [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) (priority:P1, status:todo)
 - [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) (priority:P1, status:todo)
-- [#748](https://github.com/nimeob/geo-ranking-ch/issues/748) — Dev: Ranking-Response erweitern (Explainability: Top-Faktoren pro Score) (priority:P2, status:todo)
 - [#750](https://github.com/nimeob/geo-ranking-ch/issues/750) — Dev: Caching-Layer für Geo-Queries (Performance, ohne Infra) (priority:P2, status:todo)
 - [#752](https://github.com/nimeob/geo-ranking-ch/issues/752) — Dev: Frontend – Ergebnisliste sortier-/filterbar machen (priority:P2, status:todo)
 
@@ -39,6 +38,7 @@ Regelwerk:
 - ✅ abgeschlossen (2026-03-02): [#733](https://github.com/nimeob/geo-ranking-ch/issues/733) — WP: Retention-Cleanup prep — TTL-Config Parsing + Validation (ENV/CLI akzeptiert jetzt `7d`/`24h`/`15m`, fail-fast bei invaliden Werten)
 - ✅ abgeschlossen (2026-03-02): [#734](https://github.com/nimeob/geo-ranking-ch/issues/734) — WP: Retention-Cleanup — Deletion Candidate Selection (terminal-only, TTL-guards + idempotente Metriken via `cleanup_retention` + Ops-Script)
 - ✅ abgeschlossen (2026-03-02): [#735](https://github.com/nimeob/geo-ranking-ch/issues/735) — Testing: Coordinate-Input Validation — NaN/Inf/Bounds/Whitespace + HTTP-400 bad_request Error-Schema Regression
+- ✅ abgeschlossen (2026-03-02): [#748](https://github.com/nimeob/geo-ranking-ch/issues/748) — Dev: Ranking-Response erweitern (Explainability: Top-Faktoren pro Score) — `suitability_light.top_factors` (max 5, signiert/normalisiert) + Propagation nach `summary_compact`; Unit-Tests (`tests/test_suitability_light.py`, `tests/test_top_factors_projection.py`). Merged via PR #764 (commit `ba87780`).
 
 ## Backlog-Items
 
