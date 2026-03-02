@@ -268,6 +268,46 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         font-size: 0.88rem;
         line-height: 1.3;
       }
+      .grid-3 {
+        display: grid;
+        gap: 0.65rem;
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      @media (max-width: 960px) {
+        .grid-3 { grid-template-columns: 1fr; }
+      }
+      .results-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .results-table th,
+      .results-table td {
+        padding: 0.45rem 0.5rem;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+      .results-table th {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+      .results-table td {
+        font-size: 0.86rem;
+      }
+      .results-table td code {
+        font-size: 0.82rem;
+      }
+      .results-table .actions {
+        white-space: nowrap;
+      }
+      .results-empty {
+        color: var(--muted);
+        font-size: 0.86rem;
+        padding: 0.65rem 0.25rem;
+      }
       pre {
         margin: 0;
         white-space: pre-wrap;
@@ -434,6 +474,70 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           </ul>
         </article>
 
+        <article class=\"card\" id=\"results-list\">
+          <h2>Ergebnisliste (dev)</h2>
+          <p class=\"meta\">Sammelt erfolgreiche Analyse-Ergebnisse in dieser Session, um Varianten schnell zu vergleichen. Sortierung/Filter werden als Query-Params in der URL gespeichert.</p>
+          <div class=\"grid-3\" style=\"align-items: end;\">
+            <label>
+              Sortierung
+              <select id=\"results-sort\">
+                <option value=\"score\">Score</option>
+                <option value=\"distance_m\">Distanz</option>
+                <option value=\"security_subscore\">Sicherheits-Subscore</option>
+              </select>
+            </label>
+            <label>
+              Richtung
+              <select id=\"results-dir\">
+                <option value=\"desc\">desc</option>
+                <option value=\"asc\">asc</option>
+              </select>
+            </label>
+            <label>
+              K.O.-Filter
+              <select id=\"results-ko\">
+                <option value=\"off\">off</option>
+                <option value=\"on\">on</option>
+              </select>
+            </label>
+          </div>
+          <div class=\"grid-3\" style=\"align-items: end; margin-top: 0.65rem;\">
+            <label>
+              Min Score
+              <input id=\"results-min-score\" type=\"number\" min=\"0\" max=\"100\" placeholder=\"\" />
+            </label>
+            <label>
+              Max Distanz (m)
+              <input id=\"results-max-distance\" type=\"number\" min=\"0\" max=\"5000\" placeholder=\"\" />
+            </label>
+            <label>
+              Min Sicherheits-Subscore
+              <input id=\"results-min-security\" type=\"number\" min=\"0\" max=\"100\" placeholder=\"\" />
+            </label>
+          </div>
+          <div style=\"display:flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-top: 0.85rem;\">
+            <button id=\"results-clear\" class=\"copy-btn\" type=\"button\">Liste leeren</button>
+            <span class=\"meta\" id=\"results-meta\">Noch keine Ergebnisse gesammelt.</span>
+          </div>
+          <div style=\"overflow:auto; margin-top: 0.65rem;\">
+            <table class=\"results-table\" aria-label=\"Ergebnisliste\">
+              <thead>
+                <tr>
+                  <th>Zeit</th>
+                  <th>Input</th>
+                  <th>Score</th>
+                  <th>Dist (m)</th>
+                  <th>Sec</th>
+                  <th class=\"actions\">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody id=\"results-body\">
+                <tr><td colspan=\"6\" class=\"results-empty\">Noch keine Ergebnisse gesammelt.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
         <article class=\"card\">
           <h2>API-Response (JSON)</h2>
           <pre id=\"result-json\">{\n  \"hint\": \"Sende eine Anfrage per Adresse oder Kartenklick.\"\n}</pre>
@@ -499,6 +603,16 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         coreFactors: [],
       };
 
+      const resultsListState = {
+        entries: [],
+        sortKey: "score",
+        sortDir: "desc",
+        koFilter: "off",
+        minScore: null,
+        maxDistance: null,
+        minSecurity: null,
+      };
+
       const traceState = {
         phase: "idle",
         requestId: "",
@@ -531,6 +645,16 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const resultJson = document.getElementById("result-json");
       const errorBox = document.getElementById("error-box");
       const coreFactorsEl = document.getElementById("core-factors");
+
+      const resultsSortEl = document.getElementById("results-sort");
+      const resultsDirEl = document.getElementById("results-dir");
+      const resultsKoEl = document.getElementById("results-ko");
+      const resultsMinScoreEl = document.getElementById("results-min-score");
+      const resultsMaxDistanceEl = document.getElementById("results-max-distance");
+      const resultsMinSecurityEl = document.getElementById("results-min-security");
+      const resultsClearBtnEl = document.getElementById("results-clear");
+      const resultsMetaEl = document.getElementById("results-meta");
+      const resultsBodyEl = document.getElementById("results-body");
 
       const asyncModeRequestedEl = document.getElementById("async-mode-requested");
       const asyncJobBoxEl = document.getElementById("async-job-box");
@@ -705,6 +829,32 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return Array.isArray(current) ? current : null;
       }
 
+      function getNestedValue(source, path) {
+        let current = source;
+        for (const key of path) {
+          if (!current || typeof current !== "object" || !(key in current)) {
+            return null;
+          }
+          current = current[key];
+        }
+        return current;
+      }
+
+      function getNestedNumber(source, path) {
+        const value = getNestedValue(source, path);
+        const num = Number(value);
+        return Number.isFinite(num) ? num : null;
+      }
+
+      function getNestedString(source, path) {
+        const value = getNestedValue(source, path);
+        if (value == null) {
+          return null;
+        }
+        const text = String(value).trim();
+        return text ? text : null;
+      }
+
       function extractCoreFactors(payload) {
         const candidates = [
           ["result", "data", "modules", "explainability", "personalized", "factors"],
@@ -760,6 +910,393 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           item.textContent = `${factor.key} (${factor.direction}, ${contributionText}) — ${factor.reason} [${factor.source}]`;
           coreFactorsEl.appendChild(item);
         });
+      }
+
+      function normalizeResultsSortKey(value) {
+        const normalized = String(value || "score").trim().toLowerCase();
+        if (normalized === "distance_m") return "distance_m";
+        if (normalized === "security_subscore") return "security_subscore";
+        return "score";
+      }
+
+      function normalizeResultsSortDir(value) {
+        const normalized = String(value || "desc").trim().toLowerCase();
+        if (normalized === "asc") return "asc";
+        return "desc";
+      }
+
+      function normalizeResultsKo(value) {
+        const normalized = String(value || "off").trim().toLowerCase();
+        if (normalized === "on") return "on";
+        return "off";
+      }
+
+      function updateResultsListDeepLink() {
+        if (typeof window === "undefined" || !window.history || !window.location) {
+          return;
+        }
+
+        const nextUrl = new URL(window.location.href);
+
+        const sortKey = normalizeResultsSortKey(resultsListState.sortKey);
+        const sortDir = normalizeResultsSortDir(resultsListState.sortDir);
+        const koFilter = normalizeResultsKo(resultsListState.koFilter);
+
+        if (sortKey !== "score") {
+          nextUrl.searchParams.set("results_sort", sortKey);
+        } else {
+          nextUrl.searchParams.delete("results_sort");
+        }
+
+        if (sortDir !== "desc") {
+          nextUrl.searchParams.set("results_dir", sortDir);
+        } else {
+          nextUrl.searchParams.delete("results_dir");
+        }
+
+        if (koFilter !== "off") {
+          nextUrl.searchParams.set("results_ko", koFilter);
+        } else {
+          nextUrl.searchParams.delete("results_ko");
+        }
+
+        if (resultsListState.minScore != null) {
+          nextUrl.searchParams.set("results_min_score", String(resultsListState.minScore));
+        } else {
+          nextUrl.searchParams.delete("results_min_score");
+        }
+
+        if (resultsListState.maxDistance != null) {
+          nextUrl.searchParams.set("results_max_distance", String(resultsListState.maxDistance));
+        } else {
+          nextUrl.searchParams.delete("results_max_distance");
+        }
+
+        if (resultsListState.minSecurity != null) {
+          nextUrl.searchParams.set("results_min_security", String(resultsListState.minSecurity));
+        } else {
+          nextUrl.searchParams.delete("results_min_security");
+        }
+
+        window.history.replaceState({}, "", nextUrl);
+      }
+
+      function restoreResultsListDeepLinkInput() {
+        if (typeof window === "undefined" || !window.location) {
+          return;
+        }
+
+        const url = new URL(window.location.href);
+
+        const sortKey = normalizeResultsSortKey(url.searchParams.get("results_sort"));
+        const sortDir = normalizeResultsSortDir(url.searchParams.get("results_dir"));
+        const koFilter = normalizeResultsKo(url.searchParams.get("results_ko"));
+
+        const minScore = parseBoundedInteger(url.searchParams.get("results_min_score"), { min: 0, max: 100 });
+        const maxDistance = parseBoundedInteger(url.searchParams.get("results_max_distance"), { min: 0, max: 5000 });
+        const minSecurity = parseBoundedInteger(url.searchParams.get("results_min_security"), { min: 0, max: 100 });
+
+        resultsListState.sortKey = sortKey;
+        resultsListState.sortDir = sortDir;
+        resultsListState.koFilter = koFilter;
+        resultsListState.minScore = minScore;
+        resultsListState.maxDistance = maxDistance;
+        resultsListState.minSecurity = minSecurity;
+
+        if (resultsSortEl) resultsSortEl.value = sortKey;
+        if (resultsDirEl) resultsDirEl.value = sortDir;
+        if (resultsKoEl) resultsKoEl.value = koFilter;
+
+        if (resultsMinScoreEl) resultsMinScoreEl.value = minScore == null ? "" : String(minScore);
+        if (resultsMaxDistanceEl) resultsMaxDistanceEl.value = maxDistance == null ? "" : String(maxDistance);
+        if (resultsMinSecurityEl) resultsMinSecurityEl.value = minSecurity == null ? "" : String(minSecurity);
+      }
+
+      function extractResultsListEntry(payload, context = {}) {
+        if (!payload || typeof payload !== "object" || !payload.ok) {
+          return null;
+        }
+
+        const requestId = payload.request_id ? String(payload.request_id).trim() : "";
+
+        const resultBlock = payload.result && typeof payload.result === "object" ? payload.result : null;
+        const modulesBlock = resultBlock && resultBlock.data && typeof resultBlock.data === "object" ? resultBlock.data.modules : null;
+        if (!modulesBlock || typeof modulesBlock !== "object") {
+          return null;
+        }
+
+        const matchedAddress =
+          getNestedString(payload, ["result", "data", "entity", "matched_address"]) ||
+          getNestedString(payload, ["result", "data", "entity", "query"]) ||
+          "";
+
+        let suitabilityScore = getNestedNumber(payload, ["result", "data", "modules", "suitability_light", "score"]);
+        if (suitabilityScore == null) {
+          suitabilityScore = getNestedNumber(payload, ["result", "data", "modules", "summary_compact", "suitability_light", "score"]);
+        }
+
+        const suitabilityTraffic =
+          getNestedString(payload, ["result", "data", "modules", "suitability_light", "traffic_light"]) ||
+          getNestedString(payload, ["result", "data", "modules", "summary_compact", "suitability_light", "traffic_light"]) ||
+          "";
+
+        const distanceM = getNestedNumber(payload, [
+          "result",
+          "data",
+          "modules",
+          "match",
+          "resolution",
+          "coordinate_input",
+          "resolved",
+          "distance_m",
+        ]);
+
+        const confidenceLevel =
+          getNestedString(payload, ["result", "status", "quality", "confidence", "level"]) || "";
+
+        let riskScore = getNestedNumber(payload, ["result", "data", "modules", "intelligence", "executive_risk_summary", "risk_score"]);
+        if (riskScore == null) {
+          riskScore = getNestedNumber(payload, ["result", "data", "modules", "summary_compact", "intelligence", "executive_risk", "risk_score"]);
+        }
+
+        const riskTraffic =
+          getNestedString(payload, ["result", "data", "modules", "intelligence", "executive_risk_summary", "traffic_light"]) ||
+          getNestedString(payload, ["result", "data", "modules", "summary_compact", "intelligence", "executive_risk", "traffic_light"]) ||
+          "";
+
+        const securitySubscore = riskScore == null ? null : Math.round(clamp(100 - riskScore, 0, 100));
+
+        const ts = utcTimestamp();
+        const inputLabel = String(context.inputLabel || "").trim();
+
+        return {
+          key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          ts,
+          requestId,
+          inputLabel,
+          matchedAddress,
+          score: suitabilityScore == null ? null : Math.round(suitabilityScore),
+          distanceM: distanceM == null ? null : Math.round(distanceM),
+          riskScore: riskScore == null ? null : Math.round(riskScore),
+          securitySubscore,
+          suitabilityTraffic,
+          confidenceLevel,
+          riskTraffic,
+          payload,
+        };
+      }
+
+      function isResultsEntryKo(entry) {
+        if (!entry || typeof entry !== "object") {
+          return false;
+        }
+        if (String(entry.suitabilityTraffic || "").toLowerCase() === "red") {
+          return true;
+        }
+        if (String(entry.riskTraffic || "").toLowerCase() === "red") {
+          return true;
+        }
+        if (String(entry.confidenceLevel || "").toLowerCase() === "low") {
+          return true;
+        }
+        return false;
+      }
+
+      function entryPassesNumericFilters(entry) {
+        if (resultsListState.minScore != null) {
+          const score = Number(entry.score);
+          if (!Number.isFinite(score) || score < resultsListState.minScore) {
+            return false;
+          }
+        }
+        if (resultsListState.maxDistance != null) {
+          const dist = Number(entry.distanceM);
+          if (!Number.isFinite(dist) || dist > resultsListState.maxDistance) {
+            return false;
+          }
+        }
+        if (resultsListState.minSecurity != null) {
+          const sec = Number(entry.securitySubscore);
+          if (!Number.isFinite(sec) || sec < resultsListState.minSecurity) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function sortValueForEntry(entry, sortKey) {
+        const key = normalizeResultsSortKey(sortKey);
+        if (key === "distance_m") {
+          const dist = Number(entry.distanceM);
+          return Number.isFinite(dist) ? dist : Number.POSITIVE_INFINITY;
+        }
+        if (key === "security_subscore") {
+          const sec = Number(entry.securitySubscore);
+          return Number.isFinite(sec) ? sec : Number.NEGATIVE_INFINITY;
+        }
+        const score = Number(entry.score);
+        return Number.isFinite(score) ? score : Number.NEGATIVE_INFINITY;
+      }
+
+      function formatResultTime(tsIso) {
+        const text = String(tsIso || "").trim();
+        if (text.length >= 19 && text.includes("T")) {
+          return text.slice(11, 19);
+        }
+        return text || "—";
+      }
+
+      function showResultsEntry(entry) {
+        if (!entry || typeof entry !== "object" || !entry.payload) {
+          return;
+        }
+
+        const requestId = normalizeTraceRequestId(entry.requestId);
+        const traceId = requestId || createUiCorrelationId("req");
+
+        state.lastPayload = entry.payload;
+        state.lastRequestId = requestId || state.lastRequestId;
+        state.lastInput = entry.inputLabel || state.lastInput;
+        state.lastError = null;
+        state.coreFactors = extractCoreFactors(entry.payload);
+
+        setPhase("success", {
+          traceId,
+          requestId: requestId || state.lastRequestId,
+          trigger: "results_list_show",
+        });
+        renderState();
+
+        try {
+          document.getElementById("result").scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (error) {
+          // ignore
+        }
+      }
+
+      function renderResultsList() {
+        if (!resultsBodyEl || !resultsMetaEl) {
+          return;
+        }
+
+        const total = resultsListState.entries.length;
+        let rows = resultsListState.entries.slice();
+
+        if (normalizeResultsKo(resultsListState.koFilter) === "on") {
+          rows = rows.filter((entry) => !isResultsEntryKo(entry));
+        }
+
+        rows = rows.filter((entry) => entryPassesNumericFilters(entry));
+
+        const sortKey = normalizeResultsSortKey(resultsListState.sortKey);
+        const sortDir = normalizeResultsSortDir(resultsListState.sortDir);
+
+        rows.sort((a, b) => {
+          const aVal = sortValueForEntry(a, sortKey);
+          const bVal = sortValueForEntry(b, sortKey);
+          if (aVal !== bVal) {
+            return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+          }
+          return String(a.ts || "").localeCompare(String(b.ts || "")) * (sortDir === "asc" ? 1 : -1);
+        });
+
+        resultsBodyEl.textContent = "";
+
+        if (!rows.length) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 6;
+          td.className = "results-empty";
+          td.textContent = total ? "Keine Treffer für aktuelle Filter." : "Noch keine Ergebnisse gesammelt.";
+          tr.appendChild(td);
+          resultsBodyEl.appendChild(tr);
+          resultsMetaEl.textContent = total ? `0/${total} angezeigt` : "Noch keine Ergebnisse gesammelt.";
+          return;
+        }
+
+        resultsMetaEl.textContent = `${rows.length}/${total} angezeigt`;
+
+        rows.forEach((entry) => {
+          const tr = document.createElement("tr");
+
+          const tdTs = document.createElement("td");
+          tdTs.textContent = formatResultTime(entry.ts);
+          tr.appendChild(tdTs);
+
+          const tdInput = document.createElement("td");
+          const inputText = entry.inputLabel || entry.matchedAddress || "—";
+          tdInput.textContent = inputText.length > 80 ? `${inputText.slice(0, 77)}…` : inputText;
+          tr.appendChild(tdInput);
+
+          const tdScore = document.createElement("td");
+          tdScore.textContent = entry.score == null ? "—" : String(entry.score);
+          tr.appendChild(tdScore);
+
+          const tdDist = document.createElement("td");
+          tdDist.textContent = entry.distanceM == null ? "—" : String(entry.distanceM);
+          tr.appendChild(tdDist);
+
+          const tdSec = document.createElement("td");
+          tdSec.textContent = entry.securitySubscore == null ? "—" : String(entry.securitySubscore);
+          tr.appendChild(tdSec);
+
+          const tdActions = document.createElement("td");
+          tdActions.className = "actions";
+
+          const showBtn = document.createElement("button");
+          showBtn.type = "button";
+          showBtn.className = "copy-btn";
+          showBtn.textContent = "Anzeigen";
+          showBtn.addEventListener("click", () => showResultsEntry(entry));
+          tdActions.appendChild(showBtn);
+
+          const traceLink = document.createElement("a");
+          traceLink.className = "trace-link-btn";
+          traceLink.textContent = "Trace";
+          traceLink.href = buildGuiTraceDeepLink(entry.requestId);
+          traceLink.style.marginLeft = "0.35rem";
+          traceLink.hidden = !normalizeTraceRequestId(entry.requestId);
+          tdActions.appendChild(traceLink);
+
+          tr.appendChild(tdActions);
+          resultsBodyEl.appendChild(tr);
+        });
+      }
+
+      function syncResultsListStateFromControls() {
+        if (resultsSortEl) resultsListState.sortKey = normalizeResultsSortKey(resultsSortEl.value);
+        if (resultsDirEl) resultsListState.sortDir = normalizeResultsSortDir(resultsDirEl.value);
+        if (resultsKoEl) resultsListState.koFilter = normalizeResultsKo(resultsKoEl.value);
+
+        if (resultsMinScoreEl) {
+          resultsListState.minScore = parseBoundedInteger(resultsMinScoreEl.value, { min: 0, max: 100 });
+        }
+        if (resultsMaxDistanceEl) {
+          resultsListState.maxDistance = parseBoundedInteger(resultsMaxDistanceEl.value, { min: 0, max: 5000 });
+        }
+        if (resultsMinSecurityEl) {
+          resultsListState.minSecurity = parseBoundedInteger(resultsMinSecurityEl.value, { min: 0, max: 100 });
+        }
+
+        updateResultsListDeepLink();
+        renderResultsList();
+      }
+
+      function addResultsEntry(entry) {
+        if (!entry) {
+          return;
+        }
+
+        resultsListState.entries.unshift(entry);
+        if (resultsListState.entries.length > 60) {
+          resultsListState.entries = resultsListState.entries.slice(0, 60);
+        }
+        renderResultsList();
+      }
+
+      function clearResultsEntries() {
+        resultsListState.entries = [];
+        renderResultsList();
       }
 
       function buildGuiTraceDeepLink(requestId) {
@@ -1852,6 +2389,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           });
           state.lastError = result.errorMessage;
           state.coreFactors = result.ok ? extractCoreFactors(result.response) : [];
+
+          if (result.ok) {
+            const entry = extractResultsListEntry(result.response, { inputLabel });
+            if (entry) {
+              addResultsEntry(entry);
+            }
+          }
         } catch (error) {
           setPhase("error", {
             traceId,
@@ -2214,11 +2758,32 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         await startTraceLookup(traceRequestId, "trace_form_submit");
       });
 
+      if (resultsSortEl) resultsSortEl.addEventListener("change", syncResultsListStateFromControls);
+      if (resultsDirEl) resultsDirEl.addEventListener("change", syncResultsListStateFromControls);
+      if (resultsKoEl) resultsKoEl.addEventListener("change", syncResultsListStateFromControls);
+
+      if (resultsMinScoreEl) resultsMinScoreEl.addEventListener("change", syncResultsListStateFromControls);
+      if (resultsMaxDistanceEl) resultsMaxDistanceEl.addEventListener("change", syncResultsListStateFromControls);
+      if (resultsMinSecurityEl) resultsMinSecurityEl.addEventListener("change", syncResultsListStateFromControls);
+
+      if (resultsClearBtnEl) {
+        resultsClearBtnEl.addEventListener("click", () => {
+          clearResultsEntries();
+          emitUiEvent("ui.interaction.results_list.clear", {
+            direction: "human->ui",
+            status: "cleared",
+          });
+        });
+      }
+
       emitUiEvent("ui.session.start", {
         direction: "internal",
         status: "ready",
         route: "/gui",
       });
+
+      restoreResultsListDeepLinkInput();
+      renderResultsList();
 
       initializeInteractiveMap();
       renderState();
