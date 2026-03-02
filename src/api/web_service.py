@@ -27,8 +27,10 @@ import ssl
 import threading
 import time
 import uuid
+from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime, timezone
+from pathlib import Path
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable
@@ -865,6 +867,151 @@ def _extract_postal_prefix(value: Any) -> str:
     return match.group(1) if match else ""
 
 
+# Dev-only in-process/disk cache for geo/admin JSON lookups.
+#
+# Guardrail: default disabled. Enable explicitly in dev via ENV.
+_DEV_GEO_QUERY_CACHE_TTL_ENV = "DEV_GEO_QUERY_CACHE_TTL_SECONDS"
+_DEV_GEO_QUERY_CACHE_MAX_ENTRIES_ENV = "DEV_GEO_QUERY_CACHE_MAX_ENTRIES"
+_DEV_GEO_QUERY_CACHE_DISK_ENV = "DEV_GEO_QUERY_CACHE_DISK"
+_DEV_GEO_QUERY_CACHE_DIR_ENV = "DEV_GEO_QUERY_CACHE_DIR"
+_DEV_GEO_QUERY_CACHE_MAX_AGE_SECONDS = 7 * 24 * 3600.0
+
+_DEV_GEO_QUERY_CACHE: "OrderedDict[str, tuple[float, dict[str, Any]]]" = OrderedDict()
+_DEV_GEO_QUERY_CACHE_LOCK = threading.Lock()
+
+
+def _dev_geo_query_cache_ttl_seconds() -> float:
+    raw_value = str(os.getenv(_DEV_GEO_QUERY_CACHE_TTL_ENV, "")).strip()
+    if not raw_value:
+        return 0.0
+    try:
+        value = float(raw_value)
+    except ValueError:
+        return 0.0
+    if not math.isfinite(value) or value <= 0:
+        return 0.0
+    return min(float(value), float(_DEV_GEO_QUERY_CACHE_MAX_AGE_SECONDS))
+
+
+def _dev_geo_query_cache_max_entries() -> int:
+    raw_value = str(os.getenv(_DEV_GEO_QUERY_CACHE_MAX_ENTRIES_ENV, "256")).strip() or "256"
+    try:
+        value = int(raw_value)
+    except ValueError:
+        return 256
+    if value <= 0:
+        return 256
+    return max(16, min(value, 4096))
+
+
+def _dev_geo_query_cache_disk_enabled() -> bool:
+    return _env_flag_enabled(_DEV_GEO_QUERY_CACHE_DISK_ENV, default=True)
+
+
+def _dev_geo_query_cache_dir() -> Path:
+    raw_path = str(os.getenv(_DEV_GEO_QUERY_CACHE_DIR_ENV, "")).strip()
+    if raw_path:
+        return Path(raw_path)
+
+    # repo-root/runtime/.cache/dev_geo_query
+    repo_root = Path(__file__).resolve().parents[2]
+    return repo_root / "runtime" / ".cache" / "dev_geo_query"
+
+
+def _dev_geo_query_cache_file(url: str, *, cache_dir: Path) -> Path:
+    digest = hashlib.sha1(url.encode("utf-8", errors="ignore")).hexdigest()
+    return cache_dir / f"{digest}.json"
+
+
+def _dev_geo_query_cache_read_disk(url: str, *, ttl_seconds: float) -> dict[str, Any] | None:
+    if ttl_seconds <= 0 or not _dev_geo_query_cache_disk_enabled():
+        return None
+
+    cache_dir = _dev_geo_query_cache_dir()
+    cache_file = _dev_geo_query_cache_file(url, cache_dir=cache_dir)
+    if not cache_file.exists():
+        return None
+
+    try:
+        age = time.time() - cache_file.stat().st_mtime
+    except OSError:
+        return None
+
+    if age < 0:
+        age = 0.0
+    if age > ttl_seconds:
+        return None
+
+    try:
+        payload = json.loads(cache_file.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _dev_geo_query_cache_write_disk(url: str, payload: dict[str, Any]) -> None:
+    if not _dev_geo_query_cache_disk_enabled():
+        return
+
+    cache_dir = _dev_geo_query_cache_dir()
+    cache_file = _dev_geo_query_cache_file(url, cache_dir=cache_dir)
+
+    try:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = cache_file.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(cache_file)
+    except Exception:
+        return
+
+
+def _dev_geo_query_cache_get(url: str, *, ttl_seconds: float) -> tuple[dict[str, Any], str] | None:
+    if ttl_seconds <= 0:
+        return None
+
+    now = time.time()
+    with _DEV_GEO_QUERY_CACHE_LOCK:
+        cached = _DEV_GEO_QUERY_CACHE.get(url)
+        if cached is not None:
+            cached_at, payload = cached
+            if now - cached_at <= ttl_seconds:
+                _DEV_GEO_QUERY_CACHE.move_to_end(url)
+                return payload, "memory"
+            del _DEV_GEO_QUERY_CACHE[url]
+
+    disk_payload = _dev_geo_query_cache_read_disk(url, ttl_seconds=ttl_seconds)
+    if disk_payload is None:
+        return None
+
+    with _DEV_GEO_QUERY_CACHE_LOCK:
+        _DEV_GEO_QUERY_CACHE[url] = (now, disk_payload)
+        _DEV_GEO_QUERY_CACHE.move_to_end(url)
+        max_entries = _dev_geo_query_cache_max_entries()
+        while len(_DEV_GEO_QUERY_CACHE) > max_entries:
+            _DEV_GEO_QUERY_CACHE.popitem(last=False)
+
+    return disk_payload, "disk"
+
+
+def _dev_geo_query_cache_put(url: str, payload: dict[str, Any]) -> None:
+    ttl_seconds = _dev_geo_query_cache_ttl_seconds()
+    if ttl_seconds <= 0:
+        return
+
+    now = time.time()
+    with _DEV_GEO_QUERY_CACHE_LOCK:
+        _DEV_GEO_QUERY_CACHE[url] = (now, payload)
+        _DEV_GEO_QUERY_CACHE.move_to_end(url)
+        max_entries = _dev_geo_query_cache_max_entries()
+        while len(_DEV_GEO_QUERY_CACHE) > max_entries:
+            _DEV_GEO_QUERY_CACHE.popitem(last=False)
+
+    _dev_geo_query_cache_write_disk(url, payload)
+
+
 def _fetch_json_url(
     url: str,
     *,
@@ -877,6 +1024,33 @@ def _fetch_json_url(
     target_path = str(target.path or "/")
     if not target_path.startswith("/"):
         target_path = f"/{target_path}"
+
+    ttl_seconds = _dev_geo_query_cache_ttl_seconds()
+    if ttl_seconds > 0:
+        cached = _dev_geo_query_cache_get(url, ttl_seconds=ttl_seconds)
+        if cached is not None:
+            payload, cache_kind = cached
+            result_records = payload.get("results") if isinstance(payload, dict) else None
+            records = len(result_records) if isinstance(result_records, list) else 1
+            if upstream_log_emitter is not None:
+                upstream_log_emitter(
+                    event="api.upstream.response.summary",
+                    level="info",
+                    component="api.web_service",
+                    direction="upstream->api",
+                    status="cache_hit",
+                    source=source,
+                    target_host=target_host,
+                    target_path=target_path,
+                    status_code=200,
+                    cache=cache_kind,
+                    records=records,
+                    payload_kind=type(payload).__name__,
+                    attempt=1,
+                    max_attempts=1,
+                    retry_count=0,
+                )
+            return payload
 
     started_at = time.perf_counter()
     if upstream_log_emitter is not None:
@@ -963,6 +1137,9 @@ def _fetch_json_url(
                 error_message="payload is not an object",
             )
         raise ValueError(f"coordinate resolution returned invalid payload at {source}")
+
+    if ttl_seconds > 0:
+        _dev_geo_query_cache_put(url, payload)
 
     duration_ms = round((time.perf_counter() - started_at) * 1000.0, 3)
     result_records = payload.get("results") if isinstance(payload, dict) else None
