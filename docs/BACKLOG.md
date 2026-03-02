@@ -37,7 +37,7 @@ Regelwerk:
   - ~~[#850](https://github.com/nimeob/geo-ranking-ch/issues/850)~~ — BFF-0.wp1: BFF Session Store + httpOnly Cookie Middleware — **abgeschlossen 2026-03-02** (PR #856, 45 Tests)
   - ~~[#851](https://github.com/nimeob/geo-ranking-ch/issues/851)~~ — BFF-0.wp2: OIDC Auth Code + PKCE Endpunkte (/auth/login, /auth/callback) — **abgeschlossen 2026-03-02** (PR #861, 61 Tests)
   - ~~[#852](https://github.com/nimeob/geo-ranking-ch/issues/852)~~ — BFF-0.wp3: Token Delegation, Auto-Refresh + /me + /auth/logout — **abgeschlossen 2026-03-02** (PR #862, 32 Tests)
-  - [#853](https://github.com/nimeob/geo-ranking-ch/issues/853) — BFF-0.wp4: Portal Proxy Endpoints + CSRF + Security Hardening (status:todo)
+  - ~~[#853](https://github.com/nimeob/geo-ranking-ch/issues/853)~~ — BFF-0.wp4: Portal Proxy Endpoints + CSRF + Security Hardening — **abgeschlossen 2026-03-02** (PR #863, 51 Tests)
   - [#854](https://github.com/nimeob/geo-ranking-ch/issues/854) — BFF-0.wp5: BFF Dokumentation + Integration Smoke Tests (status:todo)
 - ~~[#833](https://github.com/nimeob/geo-ranking-ch/issues/833) — INFRA-DB-0.wp4: Lokale Dev-DB (docker-compose Postgres) für Dev/Test-Harness~~ (closed)
 
