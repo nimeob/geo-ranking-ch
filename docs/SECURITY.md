@@ -34,6 +34,15 @@ Entscheidungsmatrix (Minimum):
 | `entfällt` (Default) | Kein akuter Security-/Incident-Treiber | Verweis auf diese Policy + Parent-Sync (BL-15.r2) |
 | `optional durchführen` | Konkreter Bedarf (z. B. Incident-Learning, Audit-Auflage, gezielter Failover-Test) | Ziel/Hypothese, Rollback-Plan, Evidence-Refs (CloudTrail/Logs), ggf. Wartungsfenster falls persistente Änderungen nötig |
 
+### BL-15.r2.wp4 — Finale Go/No-Go-Entscheidung (Legacy-Key Decommission)
+
+- **Entscheid (Default): NO-GO** für eine Legacy-Key-Deaktivierung / Decommission im Standardpfad.
+- **Begründung:** Die OpenClaw-Runtime ist als aktiver Consumer **accepted/retained** und bleibt bewusst auf Key/Secret; OIDC ist Deploy-only.
+- **Konsequenz:** BL-15 wird als **abgeschlossen** betrachtet (Policy + Evidence dokumentiert), ohne erzwungene Runtime-OIDC-Migration.
+
+Referenzen:
+- Vollständiger Entscheid-Log / Evidenz-Historie: `docs/archive/LEGACY_IAM_USER_READINESS.md`
+
 ---
 
 ## 2) Consumer-Inventar (BL-15)
