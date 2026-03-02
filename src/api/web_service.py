@@ -56,6 +56,14 @@ from src.shared.structured_logging import build_event, emit_event
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
 from src.api.personalized_scoring import compute_two_stage_scores
 from src.api.compliance_corrections import handle_correction_request
+from src.api.bff_oidc import (
+    OidcCallbackError,
+    build_login_redirect,
+    build_oidc_config_from_env,
+    handle_callback,
+    is_bff_oidc_enabled,
+)
+from src.api.bff_session import get_session_store
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -3218,6 +3226,163 @@ class Handler(BaseHTTPRequestHandler):
             extra_headers={"Cache-Control": "no-store"},
         )
 
+    # ------------------------------------------------------------------
+    # BFF OIDC helpers
+    # ------------------------------------------------------------------
+
+    def _handle_bff_oidc_get(self, *, request_path: str, request_id: str) -> None:
+        """Route ``GET /auth/login`` and ``GET /auth/callback`` to the BFF OIDC handler."""
+        try:
+            oidc_cfg = build_oidc_config_from_env()
+        except ValueError as exc:
+            _emit_structured_log(
+                event="api.bff.oidc.config_error",
+                level="error",
+                trace_id=request_id,
+                request_id=request_id,
+                component="api.web_service",
+                route=request_path,
+                error=str(exc),
+            )
+            self._send_json(
+                {"ok": False, "error": "bff_oidc_config_error", "message": str(exc), "request_id": request_id},
+                status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                request_id=request_id,
+                extra_headers={"Cache-Control": "no-store"},
+            )
+            return
+
+        if oidc_cfg is None:
+            # Should not happen (caller guards with is_bff_oidc_enabled), but be safe.
+            self._send_external_direct_login_disabled(
+                request_id=request_id,
+                request_path=request_path,
+                method="GET",
+            )
+            return
+
+        store = get_session_store()
+
+        if request_path == "/auth/login":
+            try:
+                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                next_path = (query_params.get("next") or ["/"])[0]
+                login_result = build_login_redirect(oidc_cfg, store, next_path=next_path)
+            except Exception as exc:  # noqa: BLE001
+                _emit_structured_log(
+                    event="api.bff.oidc.login_error",
+                    level="error",
+                    trace_id=request_id,
+                    request_id=request_id,
+                    component="api.web_service",
+                    route=request_path,
+                    error=str(exc),
+                )
+                self._send_json(
+                    {"ok": False, "error": "bff_login_error", "request_id": request_id},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+
+            _emit_structured_log(
+                event="api.bff.oidc.login_redirect",
+                level="info",
+                trace_id=request_id,
+                request_id=request_id,
+                session_id=login_result.session.session_id,
+                component="api.web_service",
+                direction="client->api",
+                status="redirect",
+                route=request_path,
+            )
+            self._capture_response_error(payload=None, status=302)
+            self.send_response(302)
+            self.send_header("Location", login_result.redirect_url)
+            self.send_header("Set-Cookie", login_result.set_cookie_header)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Request-Id", request_id)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            self._finish_request_lifecycle()
+            return
+
+        if request_path == "/auth/callback":
+            cookie_header = self.headers.get("Cookie")
+            query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+            try:
+                cb_result = handle_callback(
+                    oidc_cfg,
+                    store,
+                    cookie_header=cookie_header,
+                    query_params=query_params,
+                )
+            except OidcCallbackError as exc:
+                _emit_structured_log(
+                    event="api.bff.oidc.callback_error",
+                    level="warn",
+                    trace_id=request_id,
+                    request_id=request_id,
+                    component="api.web_service",
+                    direction="client->api",
+                    route=request_path,
+                    error_code=exc.error_code,
+                    status=str(exc.http_status),
+                )
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": exc.error_code,
+                        "message": exc.message,
+                        "request_id": request_id,
+                    },
+                    status=exc.http_status,
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+            except Exception as exc:  # noqa: BLE001
+                _emit_structured_log(
+                    event="api.bff.oidc.callback_error",
+                    level="error",
+                    trace_id=request_id,
+                    request_id=request_id,
+                    component="api.web_service",
+                    direction="client->api",
+                    route=request_path,
+                    error=str(exc),
+                )
+                self._send_json(
+                    {"ok": False, "error": "bff_callback_error", "request_id": request_id},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+
+            _emit_structured_log(
+                event="api.bff.oidc.callback_success",
+                level="info",
+                trace_id=request_id,
+                request_id=request_id,
+                session_id=cb_result.session.session_id,
+                component="api.web_service",
+                direction="client->api",
+                status="authenticated",
+                route=request_path,
+            )
+            self._capture_response_error(payload=None, status=302)
+            self.send_response(302)
+            self.send_header("Location", cb_result.redirect_path)
+            self.send_header("Set-Cookie", cb_result.set_cookie_header)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Request-Id", request_id)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            self._finish_request_lifecycle()
+            return
+
     def do_GET(self) -> None:  # noqa: N802
         request_id = self._request_id()
         request_path = self._normalized_path()
@@ -3225,6 +3390,14 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             self._cors_response_headers = None
+
+            # --- BFF OIDC: /auth/login and /auth/callback (when BFF is enabled) ---
+            if request_path in ("/auth/login", "/auth/callback") and is_bff_oidc_enabled():
+                self._handle_bff_oidc_get(
+                    request_path=request_path,
+                    request_id=request_id,
+                )
+                return
 
             if _is_external_direct_login_path(request_path):
                 self._send_external_direct_login_disabled(
