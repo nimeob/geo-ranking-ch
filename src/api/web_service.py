@@ -42,6 +42,7 @@ from urllib.request import urlopen
 from src.api.address_intel import AddressIntelError, build_report
 from src.api.async_jobs import AsyncJobStore
 from src.api.async_worker_runtime import AsyncJobRuntime
+from src.shared.async_store_factory import build_async_job_store
 from src.api.debug_trace import (
     build_trace_timeline,
     normalize_lookback_seconds,
@@ -414,7 +415,7 @@ _EXTERNAL_DIRECT_LOGIN_MESSAGE = (
     "direct login is disabled; access is only allowed via internal provisioning/export workflows"
 )
 
-_ASYNC_JOB_STORE = AsyncJobStore.from_env()
+_ASYNC_JOB_STORE = build_async_job_store()
 _ASYNC_JOB_RUNTIME = AsyncJobRuntime(store=_ASYNC_JOB_STORE)
 _ASYNC_RUNTIME_START_LOCK = threading.Lock()
 _ASYNC_RUNTIME_STARTED = False
