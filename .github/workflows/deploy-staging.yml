@@ -353,6 +353,25 @@ jobs:
             DEV_BASE_URL="${BASE_URL}" SMOKE_OUTPUT_JSON="/tmp/bl18.1-smoke.json" ./scripts/run_remote_api_smoketest.sh
           fi
 
+      - name: Smoke-Test Async Jobs API (optional)
+        env:
+          SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
+          SERVICE_API_AUTH_TOKEN: ${{ secrets.SERVICE_API_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${SERVICE_API_BASE_URL:-}"
+          if [ -z "${BASE_URL}" ]; then
+            echo "::notice::SERVICE_API_BASE_URL not set. Async jobs smoke skipped."
+            echo "- Async-Jobs-Smoke: ⏭️ skipped (SERVICE_API_BASE_URL missing)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ -n "${SERVICE_API_AUTH_TOKEN:-}" ]; then
+            SERVICE_API_BASE_URL="${BASE_URL}" SERVICE_API_AUTH_TOKEN="${SERVICE_API_AUTH_TOKEN}" ASYNC_SMOKE_OUTPUT_JSON="/tmp/async-jobs-smoke.json" python3 scripts/run_async_jobs_smoketest.py
+          else
+            SERVICE_API_BASE_URL="${BASE_URL}" ASYNC_SMOKE_OUTPUT_JSON="/tmp/async-jobs-smoke.json" python3 scripts/run_async_jobs_smoketest.py
+          fi
+
       - name: Deploy UI service and wait for stability
         env:
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
