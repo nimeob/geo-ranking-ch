@@ -25,7 +25,6 @@ Regelwerk:
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
 - [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:todo)
 - [#656](https://github.com/nimeob/geo-ranking-ch/issues/656) — WP: Async Result Pages/Permalinks – staging live (result_id Deep-Link) (priority:P0, status:todo)
-- [#567](https://github.com/nimeob/geo-ranking-ch/issues/567) — BL-15.r2.wp3: Legacy-Key Disable-Canary neu bewerten (optional statt Pflicht) (priority:P1, status:todo)
 - [#568](https://github.com/nimeob/geo-ranking-ch/issues/568) — BL-15.r2.wp4: Finale Go/No-Go-Entscheidung + Backlog/Parent-Sync (priority:P1, status:todo)
 - [#646](https://github.com/nimeob/geo-ranking-ch/issues/646) — VISION P3: POI Coverage verbessern (OSM Kategorien + Fallback) (priority:P1, status:todo)
 - [#647](https://github.com/nimeob/geo-ranking-ch/issues/647) — VISION P3: POI Coverage Monitoring (Regression Guard) (priority:P1, status:todo)
