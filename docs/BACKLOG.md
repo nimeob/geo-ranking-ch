@@ -24,7 +24,6 @@ Regelwerk:
 ### Next
 - [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) (priority:P1, status:todo)
 - [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) (priority:P1, status:todo)
-- [#753](https://github.com/nimeob/geo-ranking-ch/issues/753) — Dev: Logging-Redaction – keine PII in Logs (priority:P1, status:todo)
 - [#748](https://github.com/nimeob/geo-ranking-ch/issues/748) — Dev: Ranking-Response erweitern (Explainability: Top-Faktoren pro Score) (priority:P2, status:todo)
 - [#750](https://github.com/nimeob/geo-ranking-ch/issues/750) — Dev: Caching-Layer für Geo-Queries (Performance, ohne Infra) (priority:P2, status:todo)
 - [#752](https://github.com/nimeob/geo-ranking-ch/issues/752) — Dev: Frontend – Ergebnisliste sortier-/filterbar machen (priority:P2, status:todo)
@@ -36,6 +35,7 @@ Regelwerk:
 ## Dev-Engineering (non-BL)
 
 - ✅ abgeschlossen (2026-03-02): [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) — HTTP-Regressiontests für `/analyze` (empty body, invalid JSON, non-object root, missing query, invalid intelligence_mode) + Error-Format-Referenz: `docs/user/api-usage.md`
+- ✅ abgeschlossen (2026-03-02): [#753](https://github.com/nimeob/geo-ranking-ch/issues/753) — Dev: Logging-Redaction – keine PII in Logs — Redaction maskiert sensitive Keys jetzt auch dann vollständig, wenn Values verschachtelte Objekte oder Listen sind (`src/shared/structured_logging.py`), inkl. Regression in `tests/test_structured_logging.py`.
 - ✅ abgeschlossen (2026-03-02): [#733](https://github.com/nimeob/geo-ranking-ch/issues/733) — WP: Retention-Cleanup prep — TTL-Config Parsing + Validation (ENV/CLI akzeptiert jetzt `7d`/`24h`/`15m`, fail-fast bei invaliden Werten)
 - ✅ abgeschlossen (2026-03-02): [#734](https://github.com/nimeob/geo-ranking-ch/issues/734) — WP: Retention-Cleanup — Deletion Candidate Selection (terminal-only, TTL-guards + idempotente Metriken via `cleanup_retention` + Ops-Script)
 - ✅ abgeschlossen (2026-03-02): [#735](https://github.com/nimeob/geo-ranking-ch/issues/735) — Testing: Coordinate-Input Validation — NaN/Inf/Bounds/Whitespace + HTTP-400 bad_request Error-Schema Regression
@@ -774,7 +774,7 @@ Regelwerk:
   - ✅ #412 abgeschlossen: GUI-MVP (`src/shared/gui_mvp.py`) emittiert jetzt strukturierte UI-Events für Input/Interaktion, State-Transitions und UI→API-Lifecycle (`ui.api.request.start/end` inkl. Fehler/Timeout-Klassen) und setzt `X-Request-Id` + `X-Session-Id` für direkte UI↔API-Korrelation; Doku-Sync in [`docs/LOGGING_SCHEMA_V1.md`](LOGGING_SCHEMA_V1.md) + [`docs/gui/GUI_MVP_STATE_FLOW.md`](gui/GUI_MVP_STATE_FLOW.md), Regressionserweiterung in `tests/test_web_service_gui_mvp.py`.
   - ✅ #413 abgeschlossen: Upstream-Lifecycle-Events (`api.upstream.request.start/end`, `api.upstream.response.summary`) für API-Koordinatenauflösung und Address-Intel-Providerpfade ergänzt (`src/api/web_service.py`, `src/api/address_intel.py`), Trace-Artefakte dokumentiert ([`docs/testing/BL-340_UPSTREAM_TRACE_EVIDENCE.md`](testing/BL-340_UPSTREAM_TRACE_EVIDENCE.md), `artifacts/bl340/*.jsonl`) und Regressionstests erweitert (`tests/test_address_intel_upstream_logging.py`, `tests/test_web_service_request_logging.py`).
   - ✅ #426 abgeschlossen: Schema-Contract-Feldkonstanten (`LOG_EVENT_SCHEMA_V1_REQUIRED_FIELDS`, `LOG_EVENT_SCHEMA_V1_RECOMMENDED_FIELDS`) + dedizierte Header-Redaction (`redact_headers`) im Shared Helper ergänzt; Regressionen via `tests/test_structured_logging.py` + `tests/test_web_service_request_logging.py` erneut verifiziert.
-  - ✅ 2026-03-02: #753 abgeschlossen (Logging-Redaction – keine PII in Logs): Address-/Query-Keys (`query`, `street`, `house_number`, `postal_code`, `resolved_query`, `matched_address`) werden jetzt key-basiert maskiert; Doku-Sync in `docs/LOGGING_SCHEMA_V1.md` + Regressionen in `tests/test_structured_logging.py` (PR #756, Merge `a235ee3`).
+  - ✅ 2026-03-02: #753 abgeschlossen (Logging-Redaction – keine PII in Logs): Address-/Query-Keys (`query`, `street`, `house_number`, `postal_code`, `resolved_query`, `matched_address`) werden key-basiert vollständig maskiert – auch wenn Values verschachtelte Objekte/Listen sind; Regressionen in `tests/test_structured_logging.py` (PR #763).
   - ✅ Parent #409 abgeschlossen/geschlossen: Work-Package-Checklist + Akzeptanzkriterien synchronisiert.
 - **Nächster Schritt:** keiner (BL-340 vollständig abgeschlossen).
 

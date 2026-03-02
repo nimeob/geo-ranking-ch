@@ -71,6 +71,27 @@ class TestStructuredLoggingHelpers(unittest.TestCase):
         self.assertEqual(redacted["nested"]["email"], "p***@example.com")
         self.assertIn("p***@example.com", redacted["notes"])
 
+    def test_redact_mapping_fully_masks_sensitive_keys_even_when_nested(self):
+        payload = {
+            "query": {"raw": "Musterstrasse 1, 9000 St. Gallen"},
+            "street": ["Musterstrasse"],
+            "house_number": {"value": "1"},
+            "nested": {
+                "query": ["Bahnhofstrasse 2, 9000 St. Gallen"],
+                "details": {
+                    "postal_code": 9000,
+                },
+            },
+        }
+
+        redacted = redact_mapping(payload)
+
+        self.assertEqual(redacted["query"], "[REDACTED]")
+        self.assertEqual(redacted["street"], "[REDACTED]")
+        self.assertEqual(redacted["house_number"], "[REDACTED]")
+        self.assertEqual(redacted["nested"]["query"], "[REDACTED]")
+        self.assertEqual(redacted["nested"]["details"]["postal_code"], "[REDACTED]")
+
     def test_redact_headers_masks_auth_and_cookie_values(self):
         redacted = redact_headers(
             {
