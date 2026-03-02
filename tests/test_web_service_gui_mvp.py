@@ -144,6 +144,15 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('ui.trace.request.end', body)
         self.assertIn('startTraceLookup(deepLinkTraceRequestId, "trace_deep_link")', body)
 
+    def test_gui_map_marker_legibility_styles_present(self):
+        status, body, _ = _http_text(f"{self.base_url}/gui")
+        self.assertEqual(status, 200)
+        self.assertIn(".map-surface.has-marker .map-crosshair", body)
+        self.assertIn('mapSurface.classList.add("has-marker")', body)
+        self.assertIn("overflow-wrap: anywhere", body)
+        self.assertIn("@media (max-width: 520px)", body)
+        self.assertIn("flex-direction: column", body)
+
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
         status, body, _ = _http_text(f"{self.base_url}//gui///?probe=1")
         self.assertEqual(status, 200)
