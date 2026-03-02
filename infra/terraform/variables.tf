@@ -468,3 +468,206 @@ variable "staging_db_master_user_secret_arn_override" {
   type        = string
   default     = ""
 }
+
+# ---------------------------------------------------------------------------
+# Dev Network Baseline (INFRA-NET-0-dev)
+# ---------------------------------------------------------------------------
+
+variable "manage_dev_network" {
+  description = "Wenn true, erstellt Terraform die dev Network-Baseline (VPC/Subnets/Route Tables/IGW). Guard: wirkt nur bei environment=dev."
+  type        = bool
+  default     = false
+}
+
+variable "manage_dev_ingress" {
+  description = "Wenn true, erstellt Terraform ein dev ALB/Ingress-Skeleton (ALB + SG + HTTP listener fixed-response). Guard: wirkt nur bei environment=dev und nur wenn manage_dev_network=true."
+  type        = bool
+  default     = false
+}
+
+variable "dev_vpc_cidr" {
+  description = "CIDR Block für die dev VPC."
+  type        = string
+  default     = "10.80.0.0/16"
+}
+
+variable "dev_public_subnet_cidrs" {
+  description = "CIDR Blocks für dev Public Subnets (mind. 2 empfohlen, unterschiedliche AZs)."
+  type        = list(string)
+  default     = ["10.80.0.0/24", "10.80.1.0/24"]
+}
+
+variable "dev_private_subnet_cidrs" {
+  description = "CIDR Blocks für dev Private Subnets (optional; NAT ist in diesem WP bewusst nicht enthalten)."
+  type        = list(string)
+  default     = ["10.80.10.0/24", "10.80.11.0/24"]
+}
+
+variable "dev_alb_name" {
+  description = "Name des dev Application Load Balancers (<= 32 Zeichen)."
+  type        = string
+  default     = "swisstopo-dev-alb"
+}
+
+variable "dev_alb_ingress_cidr_blocks" {
+  description = "CIDR Blocks, von denen HTTP (80) auf das dev ALB erlaubt ist (nur relevant bei manage_dev_ingress=true)."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+# ---------------------------------------------------------------------------
+# Dev ECS Compute Baseline (INFRA-NET-0-dev)
+# ---------------------------------------------------------------------------
+
+variable "manage_dev_ecs_compute" {
+  description = "Wenn true, erstellt Terraform ein dev ECS compute skeleton (SG + TaskDef + Service). Guard: wirkt nur bei environment=dev."
+  type        = bool
+  default     = false
+}
+
+variable "dev_service_name" {
+  description = "Name des ECS Services in dev."
+  type        = string
+  default     = "swisstopo-dev-api"
+}
+
+variable "dev_task_family" {
+  description = "Task Definition Family für dev."
+  type        = string
+  default     = "swisstopo-dev-api"
+}
+
+variable "dev_task_cpu" {
+  description = "CPU für Fargate Task Definition (String; z. B. 256/512/1024)."
+  type        = string
+  default     = "256"
+}
+
+variable "dev_task_memory" {
+  description = "Memory für Fargate Task Definition (String; z. B. 512/1024/2048)."
+  type        = string
+  default     = "512"
+}
+
+variable "dev_desired_count" {
+  description = "Desired Count für den dev ECS Service."
+  type        = number
+  default     = 1
+}
+
+variable "dev_container_name" {
+  description = "Container-Name im dev Task Definition Container Definitions JSON."
+  type        = string
+  default     = "api"
+}
+
+variable "dev_container_image" {
+  description = "Container Image für dev. Leer => auto: <ecr_repository_url>:latest (wenn verfügbar), sonst nginx Placeholder."
+  type        = string
+  default     = ""
+}
+
+variable "dev_container_port" {
+  description = "Container Port für dev (z. B. 8080)."
+  type        = number
+  default     = 8080
+}
+
+variable "dev_task_execution_role_arn" {
+  description = "Optional: Execution Role ARN für die dev ECS Task Definition (leer => null)."
+  type        = string
+  default     = ""
+}
+
+variable "dev_task_role_arn" {
+  description = "Optional: Task Role ARN für die dev ECS Task Definition (leer => null)."
+  type        = string
+  default     = ""
+}
+
+# ---------------------------------------------------------------------------
+# Dev DB (INFRA-NET-0-dev)
+# ---------------------------------------------------------------------------
+
+variable "manage_dev_db" {
+  description = "Wenn true, erstellt Terraform eine dev Postgres DB (RDS) inkl. SubnetGroup/SG. Guard: wirkt nur bei environment=dev und nur wenn manage_dev_network=true."
+  type        = bool
+  default     = false
+}
+
+variable "dev_db_instance_identifier" {
+  description = "RDS Instance Identifier für dev Postgres."
+  type        = string
+  default     = "swisstopo-dev-postgres"
+}
+
+variable "dev_db_engine_version" {
+  description = "Optional: explizite Postgres Engine Version (leer => AWS Default)."
+  type        = string
+  default     = ""
+}
+
+variable "dev_db_instance_class" {
+  description = "RDS Instance Class für dev Postgres (z. B. db.t4g.micro)."
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "dev_db_allocated_storage_gb" {
+  description = "Allocated Storage in GiB für dev Postgres."
+  type        = number
+  default     = 20
+}
+
+variable "dev_db_storage_type" {
+  description = "RDS Storage Type (z. B. gp3)."
+  type        = string
+  default     = "gp3"
+}
+
+variable "dev_db_name" {
+  description = "Initialer DB Name (db_name)."
+  type        = string
+  default     = "swisstopo"
+}
+
+variable "dev_db_port" {
+  description = "Postgres Port."
+  type        = number
+  default     = 5432
+}
+
+variable "dev_db_ingress_source_security_group_ids" {
+  description = "Liste von Security Group IDs, die auf den DB Port zugreifen dürfen (z. B. bestehende ECS Service SG). Zusätzlich wird (falls gemanagt) die dev ECS Service SG automatisch erlaubt."
+  type        = list(string)
+  default     = []
+}
+
+variable "dev_db_master_username" {
+  description = "Master Username (kein Secret). Passwort wird via Secrets Manager managed (manage_master_user_password=true)."
+  type        = string
+  default     = "swisstopo"
+}
+
+variable "dev_db_backup_retention_days" {
+  description = "Backup retention in Tagen."
+  type        = number
+  default     = 7
+}
+
+# ---------------------------------------------------------------------------
+# Dev ECS DB Secrets Wiring
+# ---------------------------------------------------------------------------
+
+variable "dev_db_master_user_secret_arn_override" {
+  description = <<-EOT
+    Optional: Secrets Manager ARN für den RDS-Master-User-Secret (JSON mit u.a. "password"-Feld).
+    Wird in der ECS Task Definition als DB_PASSWORD-Secret referenziert.
+    - Wenn leer (default): ARN wird direkt aus aws_db_instance.dev_postgres[0] gelesen
+      (nur wenn manage_dev_db=true, d.h. RDS wird in diesem Workspace verwaltet).
+    - Explizit setzen wenn RDS in einem anderen Workspace verwaltet wird (Cross-Workspace-Wiring).
+    Namenskonvention: arn:aws:secretsmanager:<region>:<account>:secret:<project>/<env>/db-master-<suffix>
+  EOT
+  type        = string
+  default     = ""
+}
