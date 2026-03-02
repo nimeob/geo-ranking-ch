@@ -384,6 +384,8 @@ Bei jeder methodischen Änderung sind folgende Schritte Pflicht:
 Verifikation:
 - `pytest -q tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py`
 - `python3 scripts/validate_field_catalog.py`
+- Optional (Drift-Report als Artefakt, Default-Output: `reports/scoring/golden_drift/`):
+  - `python3 scripts/run_scoring_golden_drift_report.py`
 
 ## 10) Explainability v2 — annotierte E2E-Präferenzbeispiele (BL-20.1.g.wp2)
 
