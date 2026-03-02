@@ -555,6 +555,10 @@ pre-commit install
 
 # Lokale Checks
 pytest tests/ -v
+
+# POI Coverage Regression Guard (WP #691)
+pytest -q tests/test_poi_coverage_reference_points.py
+
 pre-commit run --all-files
 
 # BL-19.8 Doku-Qualitätsgate (frisches Setup + Link-/Strukturcheck)
