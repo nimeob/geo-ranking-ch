@@ -1,7 +1,7 @@
 # Backlog (konsolidiert)
 
 > Quelle: konsolidierte offene Punkte aus `README.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_AWS.md`, `docs/OPERATIONS.md`.
-> Stand: 2026-03-02
+> Stand: 2026-03-03
 
 ## Legende
 
@@ -20,6 +20,7 @@ Regelwerk:
 
 ### Now
 - (leer)
+- ✅ abgeschlossen (2026-03-03): [#866](https://github.com/nimeob/geo-ranking-ch/issues/866) — INFRA: Add *.tfplan to .gitignore + commit secret-free dev/staging tfvars (Commit 10a8d33)
 
 ### Next
 - ~~[#780](https://github.com/nimeob/geo-ranking-ch/issues/780) — Auth/Prod: Benutzerverwaltung + per-user Abfragehistorie (no crawler access)~~ ✅ abgeschlossen (2026-03-02): Alle 4 Phase-1 WPs done — #782 Core, #783 Store, #784 UI (PR #849), #786 default-deny (PR #848).
