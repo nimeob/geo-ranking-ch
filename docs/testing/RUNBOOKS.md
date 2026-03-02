@@ -297,6 +297,16 @@ python3 scripts/run_bl337_ui_frontdoor_e2e.py \
 
 ---
 
+## Remote / Internet Smoke (staging/prod, sync + async)
+
+*Quelle: `REMOTE_API_SMOKE_RUNBOOK.md`*
+
+Reproduzierbare Entry-Points für Remote-Smokes (ohne BL-spezifischen Kontext), inkl. Evidence-Artefakte:
+- Sync: `./scripts/run_staging_api_smoketest.sh`, `./scripts/run_prod_api_smoketest.sh`, `./scripts/run_remote_api_smoketest.sh`
+- Async: `./scripts/run_staging_async_jobs_smoketest.sh`, `./scripts/run_prod_async_jobs_smoketest.sh`, `./scripts/run_remote_async_jobs_smoketest.sh`
+
+---
+
 ## Dev: Self-Signed TLS + `/analyze` Smoke
 
 *Quelle: `dev-self-signed-tls-smoke.md`*
