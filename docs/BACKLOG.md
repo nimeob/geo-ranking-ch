@@ -19,13 +19,24 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#727](https://github.com/nimeob/geo-ranking-ch/issues/727) — WP: Refresh docs/BACKLOG.md Now/Next/Later board (priority:P1, status:todo)
+- (leer)
 
 ### Next
-- [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) (priority:P1, status:todo)
-- [#750](https://github.com/nimeob/geo-ranking-ch/issues/750) — Dev: Caching-Layer für Geo-Queries (Performance, ohne Infra) (priority:P2, status:todo)
+- [#780](https://github.com/nimeob/geo-ranking-ch/issues/780) — Auth/Prod: Benutzerverwaltung + per-user Abfragehistorie (no crawler access) (priority:P1, status:todo)
+- [#800](https://github.com/nimeob/geo-ranking-ch/issues/800) — EPIC: DB Minimalslice + OIDC delegated access (Cognito) (priority:P1, status:todo)
+- [#801](https://github.com/nimeob/geo-ranking-ch/issues/801) — DB-0: Core Tables (organizations/users/memberships/api_keys) + Migrations (priority:P1, status:todo)
+- [#802](https://github.com/nimeob/geo-ranking-ch/issues/802) — OIDC-0: Cognito Setup + API JWT Validation (delegated user access) (priority:P1, status:todo)
+- [#803](https://github.com/nimeob/geo-ranking-ch/issues/803) — ASYNC-DB-0: Persist Async Job History in DB + S3 payload pointers (cutover from file-store) (priority:P1, status:todo)
+- [#804](https://github.com/nimeob/geo-ranking-ch/issues/804) — INFRA-DB-0: Staging Postgres (RDS) + Secrets wiring for ECS (priority:P1, status:todo)
+- [#806](https://github.com/nimeob/geo-ranking-ch/issues/806) — BFF-0: Portal Backend-for-Frontend (FastAPI) with server-side OIDC session + user-token delegation (priority:P1, status:todo)
+- [#833](https://github.com/nimeob/geo-ranking-ch/issues/833) — INFRA-DB-0.wp4: Lokale Dev-DB (docker-compose Postgres) für Dev/Test-Harness (priority:P1, status:todo)
 
 ### Later
+- [#786](https://github.com/nimeob/geo-ranking-ch/issues/786) — Auth Phase 1 (Policy): API default-deny — nur noch via Bearer Token nutzbar (priority:P1, status:blocked)
+- [#813](https://github.com/nimeob/geo-ranking-ch/issues/813) — DB-0.wp2: Postgres migration runner + local/CI harness (priority:P1, status:blocked)
+- [#814](https://github.com/nimeob/geo-ranking-ch/issues/814) — DB-0.wp3: Minimal DB access layer (org/user/membership bootstrap) (priority:P1, status:blocked)
+- [#820](https://github.com/nimeob/geo-ranking-ch/issues/820) — OIDC-0.wp4: Claim mapping plan (sub -> user) + membership lookup contract (DB dependency) (priority:P1, status:blocked)
+- [#784](https://github.com/nimeob/geo-ranking-ch/issues/784) — Auth Phase 1 (UI): Pages nutzen Token, keine privaten Daten ohne Auth (priority:P2, status:blocked)
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
 <!-- NOW_NEXT_LATER:END -->
 
@@ -51,6 +62,7 @@ Regelwerk:
 - ✅ abgeschlossen (2026-03-02): [#818](https://github.com/nimeob/geo-ranking-ch/issues/818) — OIDC-0.wp2: Protect /analyze + /analyze/history with OIDC guard (negative tests) — OIDC-Guard (aktiv via `OIDC_JWKS_URL`) erzwingt Bearer-Token für `POST /analyze` und `GET /analyze/history` (401 bei missing/malformed/invalid) + Integrationstest `tests/test_oidc_guard_negative.py`. (PR #824)
 - ✅ abgeschlossen (2026-03-02): [#825](https://github.com/nimeob/geo-ranking-ch/issues/825) — INFRA-DB-0.wp1: Terraform staging RDS Postgres skeleton (`manage_staging_db`) + Guardrails + `trimspace` Fix (Terraform validate). (PR #828)
 - ✅ abgeschlossen (2026-03-02): [#826](https://github.com/nimeob/geo-ranking-ch/issues/826) — INFRA-DB-0.wp2: ECS wiring für DB Secrets (SSM/Secrets Manager refs) + IAM Notes — `staging_ecs_compute.tf`: DB_HOST/PORT/NAME/USERNAME als plain env, DB_PASSWORD via SecretsManager secrets-Block (`<ARN>:password::`), graceful omit wenn kein ARN; neue Variable `staging_db_master_user_secret_arn_override`; `docs/STAGING_DB_ECS_SECRETS_RUNBOOK.md` (IAM Minimal-Policy, Wiring-Übersicht, Smoke-Checks, Namenskonventionen). (PR #834)
+- ✅ abgeschlossen (2026-03-02): [#827](https://github.com/nimeob/geo-ranking-ch/issues/827) — INFRA-DB-0.wp3: Runbook staging DB (apply, secrets anlegen, migrations, smoke) — `docs/STAGING_DB_RUNBOOK.md`: 4-Phasen-Runbook (Terraform Apply / Secrets Management / Migration via psql / Smoke Checks: ECS exec, /healthz, /analyze/history, CloudWatch no-leakage) + Troubleshooting. (PR #835)
 - ✅ abgeschlossen (2026-03-02): [#819](https://github.com/nimeob/geo-ranking-ch/issues/819) — OIDC-0.wp3: Staging Cognito User Pool + App Client Runbook — `docs/OIDC_COGNITO_STAGING_RUNBOOK.md`: Auth Code + PKCE, Hosted UI, Token TTLs, SSM-Secrets-Konvention, API Env Vars (`OIDC_JWKS_URL`/`OIDC_JWT_ISSUER`/`OIDC_JWT_AUDIENCE`), Smoke Checks; IaC-Follow-up separat erfasst.
 - ✅ abgeschlossen (2026-03-02): [#752](https://github.com/nimeob/geo-ranking-ch/issues/752) — Dev: Frontend – Ergebnisliste sortier-/filterbar machen — GUI MVP: Ergebnisliste (Session) inkl. Sortierung (Score/Distanz/Security-Subscore), KO-/Numeric-Filter + persistente URL Query-Params (`results_*`) + minimaler HTML-Smoke-Test (`tests/test_web_service_gui_mvp.py`). (PR #772)
 - ✅ abgeschlossen (2026-03-02): [#768](https://github.com/nimeob/geo-ranking-ch/issues/768) — Dev(UI): /jobs Liste – Filtern nach Status + Suche nach Job-ID — UI-Service Endpoint `GET /jobs` (LocalStorage Job-ID Liste) inkl. Status-Filter + Job-ID Suche + URL Query-Params (`jobs_status`, `jobs_q`) + /gui merkt sich neue Async-Job-IDs (`localStorage[geo-ranking-ui-job-ids]`) + Smoke-Test (`tests/test_ui_service.py`). (PR #794)
