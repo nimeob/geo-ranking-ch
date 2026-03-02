@@ -37,7 +37,7 @@ Regelwerk:
 - ~~[#833](https://github.com/nimeob/geo-ranking-ch/issues/833) — INFRA-DB-0.wp4: Lokale Dev-DB (docker-compose Postgres) für Dev/Test-Harness~~ (closed)
 
 ### Later
-- [#786](https://github.com/nimeob/geo-ranking-ch/issues/786) — Auth Phase 1 (Policy): API default-deny — nur noch via Bearer Token nutzbar (priority:P1, status:blocked)
+- ~~[#786](https://github.com/nimeob/geo-ranking-ch/issues/786) — Auth Phase 1 (Policy): API default-deny — nur noch via Bearer Token nutzbar~~ ✅ abgeschlossen (2026-03-02): PR #848 merged — GET /analyze/jobs/<id>, /analyze/results/<id>, /analyze/jobs/<id>/notifications → 401 unauthorized (war 404); beide Auth-Systeme (Phase1 + OIDC) konsistent; 10 neue Tests; README.md auth docs.
 - ~~[#813](https://github.com/nimeob/geo-ranking-ch/issues/813) — DB-0.wp2: Postgres migration runner + local/CI harness~~ ✅ abgeschlossen (2026-03-02): PR #836 merged — db-migrate.py + db/migrations/ + CI harness (Postgres 15+16 green)
 - ~~[#814](https://github.com/nimeob/geo-ranking-ch/issues/814) — DB-0.wp3: Minimal DB access layer (org/user/membership bootstrap)~~ ✅ abgeschlossen (2026-03-02): PR #837 merged — src/shared/db_access.py (get_or_create_user_by_external_subject + ensure_membership + get_or_create_default_org) + 25 Unit-Tests + Bootstrap-Policy (invite_only/auto_org)
 - ~~[#820](https://github.com/nimeob/geo-ranking-ch/issues/820)~~ — OIDC-0.wp4: Claim mapping plan (sub -> user) + membership lookup contract — **abgeschlossen 2026-03-02** (`resolve_oidc_subject` in db_access.py + 15 tests, Commit 94f676a)
