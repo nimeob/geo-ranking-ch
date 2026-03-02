@@ -35,7 +35,7 @@ Regelwerk:
 
 ## Dev-Engineering (non-BL)
 
-- ✅ abgeschlossen (2026-03-02): [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen)
+- ✅ abgeschlossen (2026-03-02): [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) — HTTP-Regressiontests für `/analyze` (empty body, invalid JSON, non-object root, missing query, invalid intelligence_mode) + Error-Format-Referenz: `docs/user/api-usage.md`
 - ✅ abgeschlossen (2026-03-02): [#733](https://github.com/nimeob/geo-ranking-ch/issues/733) — WP: Retention-Cleanup prep — TTL-Config Parsing + Validation (ENV/CLI akzeptiert jetzt `7d`/`24h`/`15m`, fail-fast bei invaliden Werten)
 - ✅ abgeschlossen (2026-03-02): [#734](https://github.com/nimeob/geo-ranking-ch/issues/734) — WP: Retention-Cleanup — Deletion Candidate Selection (terminal-only, TTL-guards + idempotente Metriken via `cleanup_retention` + Ops-Script)
 - ✅ abgeschlossen (2026-03-02): [#735](https://github.com/nimeob/geo-ranking-ch/issues/735) — Testing: Coordinate-Input Validation — NaN/Inf/Bounds/Whitespace + HTTP-400 bad_request Error-Schema Regression
