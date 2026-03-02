@@ -25,7 +25,6 @@ Regelwerk:
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
 - [#655](https://github.com/nimeob/geo-ranking-ch/issues/655) — WP: Async Jobs API – staging deploy/enable + Evidence (priority:P0, status:todo)
 - [#656](https://github.com/nimeob/geo-ranking-ch/issues/656) — WP: Async Result Pages/Permalinks – staging live (result_id Deep-Link) (priority:P0, status:todo)
-- [#647](https://github.com/nimeob/geo-ranking-ch/issues/647) — VISION P3: POI Coverage Monitoring (Regression Guard) (priority:P1, status:todo)
 - [#594](https://github.com/nimeob/geo-ranking-ch/issues/594) — BL-30.wp4.r3: Result-Page Delivery + Retention/Notification Jobs (priority:P2, status:todo)
 - [#600](https://github.com/nimeob/geo-ranking-ch/issues/600) — BL-30.wp4.r3.wp2: Retention-Cleanup für job_results/job_events implementieren (priority:P2, status:todo)
 - [#601](https://github.com/nimeob/geo-ranking-ch/issues/601) — BL-30.wp4.r3.wp3: In-App Notification-Pipeline für Async-Completion/Failure (priority:P2, status:todo)
