@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-_SCHEMA_VERSION = 4
+_SCHEMA_VERSION = 5
 _DEFAULT_STORE_FILE = "runtime/async_jobs/store.v1.json"
 _TERMINAL_STATES = {"completed", "failed", "canceled"}
 _ALLOWED_TRANSITIONS = {
@@ -131,6 +131,8 @@ class AsyncJobStore:
                 raw_job.setdefault("job_id", str(job_id))
                 raw_job.setdefault("correlation_id", str(raw_job.get("job_id") or job_id))
                 raw_job.setdefault("org_id", "default-org")
+                raw_job.setdefault("owner_user_id", None)
+                raw_job.setdefault("owner_org_id", raw_job.get("org_id") or "default-org")
                 raw_job.setdefault("status", "queued")
                 raw_job.setdefault("request_payload_hash", "")
                 raw_job.setdefault("request_payload_ref", f"inline:{job_id}")
@@ -170,6 +172,17 @@ class AsyncJobStore:
                 job_id = str(raw_result.get("job_id") or "")
                 if not job_id:
                     continue
+
+                job_record = jobs.get(job_id) if isinstance(jobs, dict) else None
+                owner_user_id = None
+                owner_org_id = None
+                if isinstance(job_record, dict):
+                    owner_user_id = job_record.get("owner_user_id")
+                    owner_org_id = job_record.get("owner_org_id") or job_record.get("org_id")
+
+                raw_result.setdefault("owner_user_id", owner_user_id)
+                raw_result.setdefault("owner_org_id", owner_org_id)
+
                 results_by_job.setdefault(job_id, []).append(raw_result)
 
             for rows in results_by_job.values():
@@ -296,6 +309,8 @@ class AsyncJobStore:
         query: str,
         intelligence_mode: str,
         org_id: str,
+        owner_user_id: str | None = None,
+        owner_org_id: str | None = None,
     ) -> dict[str, Any]:
         now = _utc_now_iso()
         payload_copy = deepcopy(request_payload)
@@ -303,6 +318,8 @@ class AsyncJobStore:
             "job_id": job_id,
             "correlation_id": correlation_id,
             "org_id": org_id,
+            "owner_user_id": owner_user_id,
+            "owner_org_id": owner_org_id or org_id,
             "status": "queued",
             "request_payload_hash": _canonical_payload_hash(payload_copy),
             "request_payload_ref": f"inline:{job_id}",
@@ -335,6 +352,8 @@ class AsyncJobStore:
         query: str,
         intelligence_mode: str,
         org_id: str = "default-org",
+        owner_user_id: str | None = None,
+        owner_org_id: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             job_id = str(uuid.uuid4())
@@ -346,6 +365,8 @@ class AsyncJobStore:
                 query=query,
                 intelligence_mode=intelligence_mode,
                 org_id=org_id,
+                owner_user_id=owner_user_id,
+                owner_org_id=owner_org_id,
             )
             self._state["jobs"][job_id] = job
             self._append_event_locked(
@@ -584,6 +605,97 @@ class AsyncJobStore:
             rows.sort(key=lambda item: (item[0], item[1]))
             return [job_id for _, job_id in rows]
 
+    def list_recent_results_summary(
+        self,
+        *,
+        owner_org_id: str | None = None,
+        owner_user_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Returns a UI-friendly summary list for /analyze/history.
+
+        Notes:
+        - Filters by owner_user_id when provided (strict per-user).
+        - Additionally supports owner_org_id filtering (tenant).
+        - When owner fields are missing (legacy data), falls back to org_id.
+        """
+
+        normalized_owner_org_id = str(owner_org_id or "").strip() or None
+        normalized_owner_user_id = str(owner_user_id or "").strip() or None
+        normalized_limit = int(limit) if isinstance(limit, int) else 50
+        if normalized_limit < 1:
+            normalized_limit = 1
+
+        with self._lock:
+            history_rows: list[dict[str, Any]] = []
+            jobs = self._state.get("jobs", {})
+            results = self._state.get("results", {})
+
+            for job_id, job_record in jobs.items():
+                if not isinstance(job_record, dict):
+                    continue
+
+                if normalized_owner_user_id:
+                    job_owner_user = str(job_record.get("owner_user_id") or "").strip()
+                    if not job_owner_user or job_owner_user != normalized_owner_user_id:
+                        continue
+
+                if normalized_owner_org_id:
+                    job_owner_org = str(
+                        job_record.get("owner_org_id")
+                        or job_record.get("org_id")
+                        or ""
+                    ).strip()
+                    if not job_owner_org or job_owner_org != normalized_owner_org_id:
+                        continue
+
+                job_results = [
+                    row
+                    for row in results.values()
+                    if isinstance(row, dict) and str(row.get("job_id") or "") == str(job_id)
+                ]
+                if not job_results:
+                    continue
+
+                job_results.sort(
+                    key=lambda row: (
+                        int(row.get("result_seq", 0) or 0),
+                        str(row.get("created_at") or ""),
+                        str(row.get("result_id") or ""),
+                    )
+                )
+                selected_result = job_results[-1]
+
+                created_at = str(
+                    selected_result.get("created_at")
+                    or job_record.get("finished_at")
+                    or job_record.get("updated_at")
+                    or job_record.get("queued_at")
+                    or ""
+                )
+
+                history_rows.append(
+                    {
+                        "result_id": selected_result.get("result_id"),
+                        "job_id": str(job_id),
+                        "created_at": created_at,
+                        "query": job_record.get("query", ""),
+                        "intelligence_mode": job_record.get("intelligence_mode", "basic"),
+                        "status": job_record.get("status"),
+                    }
+                )
+
+            history_rows.sort(
+                key=lambda row: (
+                    str(row.get("created_at") or ""),
+                    str(row.get("result_id") or ""),
+                    str(row.get("job_id") or ""),
+                ),
+                reverse=True,
+            )
+
+            return deepcopy(history_rows[:normalized_limit])
+
     def create_result(
         self,
         *,
@@ -623,6 +735,8 @@ class AsyncJobStore:
             result_record = {
                 "result_id": result_id,
                 "job_id": job_id,
+                "owner_user_id": job.get("owner_user_id"),
+                "owner_org_id": job.get("owner_org_id") or job.get("org_id"),
                 "result_kind": normalized_kind,
                 "result_seq": next_seq,
                 "schema_version": schema_version,

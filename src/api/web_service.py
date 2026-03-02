@@ -2830,8 +2830,18 @@ class Handler(BaseHTTPRequestHandler):
         return _resolve_phase1_auth_user(token)
 
     @staticmethod
-    def _job_visible_for_org(job_record: dict[str, Any], request_org_id: str) -> bool:
-        job_org_id = _normalize_async_org_id(job_record.get("org_id"))
+    def _job_visible_for_org(
+        job_record: dict[str, Any],
+        request_org_id: str,
+        request_user_id: str | None = None,
+    ) -> bool:
+        normalized_request_user_id = str(request_user_id or "").strip()
+        if normalized_request_user_id:
+            job_owner_user_id = str(job_record.get("owner_user_id") or "").strip()
+            if job_owner_user_id:
+                return job_owner_user_id == normalized_request_user_id
+
+        job_org_id = _normalize_async_org_id(job_record.get("owner_org_id") or job_record.get("org_id"))
         return job_org_id == request_org_id
 
     def _send_error(
@@ -3253,42 +3263,11 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
-                history_rows: list[dict[str, Any]] = []
-                for job_id in _ASYNC_JOB_STORE.list_job_ids():
-                    job_record = _ASYNC_JOB_STORE.get_job(job_id)
-                    if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
-                        continue
-
-                    results = _ASYNC_JOB_STORE.list_results(job_id)
-                    if not results:
-                        continue
-
-                    selected_result = results[-1]
-                    created_at = str(
-                        selected_result.get("created_at")
-                        or job_record.get("finished_at")
-                        or job_record.get("updated_at")
-                        or job_record.get("queued_at")
-                        or ""
-                    )
-                    history_rows.append(
-                        {
-                            "result_id": selected_result.get("result_id"),
-                            "job_id": job_id,
-                            "created_at": created_at,
-                            "query": job_record.get("query", ""),
-                            "intelligence_mode": job_record.get("intelligence_mode", "basic"),
-                            "status": job_record.get("status"),
-                        }
-                    )
-
-                history_rows.sort(
-                    key=lambda row: (
-                        str(row.get("created_at") or ""),
-                        str(row.get("result_id") or ""),
-                        str(row.get("job_id") or ""),
-                    ),
-                    reverse=True,
+                request_user_id = auth_user.user_id if auth_user else None
+                history_rows = _ASYNC_JOB_STORE.list_recent_results_summary(
+                    owner_org_id=request_org_id,
+                    owner_user_id=request_user_id,
+                    limit=limit,
                 )
 
                 self._send_json(
@@ -3337,7 +3316,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 job_record = _ASYNC_JOB_STORE.get_job(job_id)
-                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                if job_record is None or not self._job_visible_for_org(
+                    job_record,
+                    request_org_id,
+                    request_user_id=auth_user.user_id if auth_user else None,
+                ):
                     self._send_not_found(request_id=request_id, message="unknown job_id")
                     return
 
@@ -3384,7 +3367,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 job_record = _ASYNC_JOB_STORE.get_job(job_id)
-                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                if job_record is None or not self._job_visible_for_org(
+                    job_record,
+                    request_org_id,
+                    request_user_id=auth_user.user_id if auth_user else None,
+                ):
                     self._send_not_found(request_id=request_id, message="unknown job_id")
                     return
 
@@ -3436,7 +3423,11 @@ class Handler(BaseHTTPRequestHandler):
 
                 job_id = str(requested_result.get("job_id") or "")
                 job_record = _ASYNC_JOB_STORE.get_job(job_id) if job_id else None
-                if job_record is None or not self._job_visible_for_org(job_record, request_org_id):
+                if job_record is None or not self._job_visible_for_org(
+                    job_record,
+                    request_org_id,
+                    request_user_id=auth_user.user_id if auth_user else None,
+                ):
                     self._send_not_found(request_id=request_id, message="unknown result_id")
                     return
 
@@ -3888,6 +3879,8 @@ class Handler(BaseHTTPRequestHandler):
                         query=query,
                         intelligence_mode=mode,
                         org_id=request_org_id,
+                        owner_user_id=phase1_user.user_id if phase1_user else None,
+                        owner_org_id=phase1_user.org_id if phase1_user else None,
                     )
                     created_job_id = str(created_job.get("job_id") or "")
                     if created_job_id:
@@ -3930,6 +3923,8 @@ class Handler(BaseHTTPRequestHandler):
                             query=query,
                             intelligence_mode=mode,
                             org_id=request_org_id,
+                            owner_user_id=phase1_user.user_id if phase1_user else None,
+                            owner_org_id=phase1_user.org_id if phase1_user else None,
                         )
                         sync_history_job_id = str(created_job.get("job_id") or "") or None
                         if sync_history_job_id:
