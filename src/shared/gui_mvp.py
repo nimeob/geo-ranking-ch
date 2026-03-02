@@ -228,21 +228,28 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         position: absolute;
         left: 50%;
         top: 50%;
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
-        border: 2px solid rgba(14, 62, 122, 0.5);
+        border: 2px solid rgba(14, 62, 122, 0.55);
+        background: rgba(255, 255, 255, 0.65);
+        box-shadow: 0 1px 3px rgba(27, 38, 55, 0.18);
         transform: translate(-50%, -50%);
         pointer-events: none;
       }
+      .map-surface.has-marker .map-crosshair {
+        opacity: 0.28;
+      }
       .map-marker {
         position: absolute;
-        width: 14px;
-        height: 14px;
+        width: 18px;
+        height: 18px;
         border-radius: 50%;
-        border: 2px solid #fff;
+        border: 3px solid rgba(255, 255, 255, 0.95);
         background: #bd2f24;
-        box-shadow: 0 0 0 2px rgba(189, 47, 36, 0.25);
+        box-shadow:
+          0 0 0 3px rgba(189, 47, 36, 0.22),
+          0 2px 6px rgba(27, 38, 55, 0.22);
         transform: translate(-50%, -50%);
         pointer-events: none;
       }
@@ -251,9 +258,22 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         justify-content: space-between;
         gap: 0.6rem;
         flex-wrap: wrap;
+        line-height: 1.25;
       }
       .map-legend small {
         color: var(--muted);
+        font-size: 0.86rem;
+        overflow-wrap: anywhere;
+      }
+      .map-legend code {
+        font-size: 0.86em;
+      }
+      @media (max-width: 520px) {
+        .map-legend {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.25rem;
+        }
       }
       .map-status {
         font-size: 0.84rem;
@@ -1966,6 +1986,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           lat: clampLatToMercator(lat),
           lon,
         };
+        if (mapSurface) {
+          mapSurface.classList.add("has-marker");
+        }
         updateMarkerPosition();
         clickHint.textContent = `Letzter Klick: lat ${formatCoord(lat)}, lon ${formatCoord(lon)}`;
       }
