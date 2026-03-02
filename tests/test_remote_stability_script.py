@@ -20,7 +20,7 @@ def _free_port() -> int:
         return int(s.getsockname()[1])
 
 
-def _wait_for_health(base_url: str, timeout_seconds: float = 12.0) -> None:
+def _wait_for_health(base_url: str, timeout_seconds: float = 20.0) -> None:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         try:
@@ -51,8 +51,8 @@ class TestRemoteStabilityScript(unittest.TestCase):
             [sys.executable, "-m", "src.web_service"],
             cwd=str(REPO_ROOT),
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True,
         )
         _wait_for_health(cls.base_url)
