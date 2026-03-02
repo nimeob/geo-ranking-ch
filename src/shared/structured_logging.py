@@ -45,6 +45,9 @@ _SENSITIVE_KEYS_EXACT = frozenset(
         "house_number",
         "postal_code",
         "postcode",
+
+        # Credential artifacts (must never leak, even though they are derived).
+        "key_hash",
     }
 )
 
