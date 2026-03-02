@@ -22,7 +22,6 @@ Regelwerk:
 - [#727](https://github.com/nimeob/geo-ranking-ch/issues/727) — WP: Refresh docs/BACKLOG.md Now/Next/Later board (priority:P1, status:todo)
 
 ### Next
-- [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) (priority:P1, status:todo)
 - [#751](https://github.com/nimeob/geo-ranking-ch/issues/751) — Dev: Validierung der Request-Inputs härten (saubere Fehlermeldungen) (priority:P1, status:todo)
 - [#750](https://github.com/nimeob/geo-ranking-ch/issues/750) — Dev: Caching-Layer für Geo-Queries (Performance, ohne Infra) (priority:P2, status:todo)
 
@@ -31,6 +30,8 @@ Regelwerk:
 <!-- NOW_NEXT_LATER:END -->
 
 ## Dev-Engineering (non-BL)
+
+- ✅ abgeschlossen (2026-03-02): [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) — Localhost-Smokes defaulten jetzt ohne explizites `SMOKE_QUERY` auf die deterministische Fixture-Query `__ok__` (sync + async) + Runbook-Sync (`docs/testing/DEV_API_SMOKE_RUNBOOK.md`) + Testabdeckung (`tests/test_async_jobs_smoke_script.py`, `tests/test_remote_smoke_script.py`). (PR #788)
 
 - ✅ abgeschlossen (2026-03-02): [#766](https://github.com/nimeob/geo-ranking-ch/issues/766) — Dev(UI): Ergebnis-Detailansicht – Karten/Marker Lesbarkeit verbessern — GUI MVP: höherer Marker-/Crosshair-Kontrast + Legend-Layout-Wrapping für Mobile (<=520px) + HTML-Smoke-Assertions (`tests/test_web_service_gui_mvp.py`). (PR #787)
 
@@ -518,7 +519,6 @@ Regelwerk:
   - ✅ 2026-03-02: #735 abgeschlossen (Testing Catch-up): Coordinate-Input-Validation um zusätzliche negative/edge-case Tests ergänzt (NaN/Inf, Welt-Bounds, fehlende Pflichtfelder). Re-Validation: `pytest -q tests/test_web_service_coordinate_input.py`.
   - ✅ 2026-03-02: #736 abgeschlossen (Testing Catch-up): Mocked Unit Tests für geo_utils.py (Reframe/GeoAdmin Calls) ergänzt (deterministisch, keine echten Network-Calls). Re-Validation: `.venv/bin/python -m pytest -q tests/test_geo_utils_mocked_http.py`.
   - ✅ 2026-03-02: #737 abgeschlossen (Testing Catch-up): Edge-Case Unit Tests für gwr_codes.py (decode/summarize_building) ergänzt. Re-Validation: `.venv/bin/python -m pytest -q tests/test_gwr_codes_edge_cases.py`.
-  - ✅ 2026-03-02: #749 abgeschlossen (API Smoke-Test stabilisiert): lokale Smoke-Tests capturen Webservice-Logs nicht mehr via `stdout/stderr=PIPE` (Deadlock-Vermeidung), Startup-Waits auf 20s gehärtet, Async-Jobs Smoke-Polltimeout auf 15s erhöht; neues Dev-Runbook [`docs/testing/DEV_API_SMOKE_RUNBOOK.md`](testing/DEV_API_SMOKE_RUNBOOK.md) + Cross-Link im Remote-Smoke-Runbook. Re-Validation: `.venv/bin/python -m pytest -q tests/test_async_jobs_smoke_script.py tests/test_remote_smoke_script.py::TestRemoteSmokeScript::test_smoke_script_passes_with_valid_token tests/test_remote_stability_script.py::TestRemoteStabilityScript::test_stability_runner_passes_for_two_successful_runs`.
   - ✅ 2026-02-28: #16 (BL-20.5 Parent) finalisiert und geschlossen, nachdem die Child-Work-Packages #30/#31 vollständig abgeschlossen, die Parent-Checklist synchronisiert und der Backlog-Status konsolidiert wurden.
   - ✅ 2026-02-28: #32 abgeschlossen (BL-20.6.a GUI-Grundlayout + State-Flow) mit neuer GUI-MVP-Shell unter `GET /gui` (`src/gui_mvp.py` + Routing in `src/web_service.py`), dokumentiertem Zustands-/Architekturpfad in [`docs/gui/GUI_MVP_STATE_FLOW.md`](gui/GUI_MVP_STATE_FLOW.md), README-Sync (Endpoint-/Dokuindex) sowie regressionssichernden Service-Tests in `tests/test_web_service_gui_mvp.py`.
   - ✅ 2026-02-28: #33 abgeschlossen (BL-20.6.b Karteninteraktion + Ergebnispanel) mit klickbarer CH-Kartenfläche in `src/gui_mvp.py` (Koordinatenprojektion auf WGS84-Bounds, `coordinates`-Analyze-Flow inkl. Marker/Accessibility), erweiterten Kernfaktor-/Input-Metadaten im Result-Panel, aktualisierter GUI-State-/E2E-Doku in [`docs/gui/GUI_MVP_STATE_FLOW.md`](gui/GUI_MVP_STATE_FLOW.md), README-Sync und regressionssichernden Marker-Checks in `tests/test_web_service_gui_mvp.py`.
