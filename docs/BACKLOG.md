@@ -20,7 +20,6 @@ Regelwerk:
 
 ### Now
 - [#662](https://github.com/nimeob/geo-ranking-ch/issues/662) — WP: staging Terraform – Logs + Secrets baseline (SSM/Secrets Manager patterns) + outputs (priority:P0, status:todo)
-- [#674](https://github.com/nimeob/geo-ranking-ch/issues/674) — WP: Async Jobs API – Smoke-Runner (submit/status/result) + Workflow Hook (priority:P0, status:todo)
 
 ### Next
 - [#643](https://github.com/nimeob/geo-ranking-ch/issues/643) — VISION P1: Async UX in staging/prod deployen (Jobs, Result-Pages, Notifications) (priority:P0, status:todo)
