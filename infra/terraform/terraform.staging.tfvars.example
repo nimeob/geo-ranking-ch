@@ -29,6 +29,12 @@ manage_staging_ecs_compute = false
 # Default: deaktiviert. Guard: wirkt nur bei environment="staging" und nur wenn manage_staging_network=true.
 manage_staging_db = false
 
+# --- DB Secrets Wiring (INFRA-DB-0.wp2) ---
+# Wenn manage_staging_db=true: ARN wird automatisch aus aws_db_instance.staging_postgres gelesen.
+# Wenn RDS in einem anderen TF-Workspace liegt (Cross-Workspace): ARN hier explizit eintragen.
+# Format: arn:aws:secretsmanager:<region>:<account-id>:secret:<name>-<suffix>
+# staging_db_master_user_secret_arn_override = ""
+
 # Optional: Override DB Sizing/Naming
 # staging_db_instance_identifier   = "swisstopo-staging-postgres"
 # staging_db_instance_class        = "db.t4g.micro"

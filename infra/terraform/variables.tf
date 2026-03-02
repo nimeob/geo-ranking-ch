@@ -451,3 +451,20 @@ variable "staging_db_backup_retention_days" {
   type        = number
   default     = 7
 }
+
+# ---------------------------------------------------------------------------
+# INFRA-DB-0.wp2: ECS DB Secrets Wiring
+# ---------------------------------------------------------------------------
+
+variable "staging_db_master_user_secret_arn_override" {
+  description = <<-EOT
+    Optional: Secrets Manager ARN für den RDS-Master-User-Secret (JSON mit u.a. "password"-Feld).
+    Wird in der ECS Task Definition als DB_PASSWORD-Secret referenziert.
+    - Wenn leer (default): ARN wird direkt aus aws_db_instance.staging_postgres[0] gelesen
+      (nur wenn manage_staging_db=true, d.h. RDS wird in diesem Workspace verwaltet).
+    - Explizit setzen wenn RDS in einem anderen Workspace verwaltet wird (Cross-Workspace-Wiring).
+    Namenskonvention: arn:aws:secretsmanager:<region>:<account>:secret:<project>/<env>/db-master-<suffix>
+  EOT
+  type        = string
+  default     = ""
+}
