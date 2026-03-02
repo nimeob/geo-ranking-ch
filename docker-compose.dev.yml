@@ -1,0 +1,31 @@
+# docker-compose.dev.yml
+# Local development Postgres for geo-ranking-ch.
+# Usage: docker compose -f docker-compose.dev.yml up -d
+#
+# Issue: #833 (INFRA-DB-0.wp4)
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: georanking_dev_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-georanking_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-georanking}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_only_change_me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - georanking_dev_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-georanking} -d ${POSTGRES_DB:-georanking_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  georanking_dev_pgdata:
+    driver: local
