@@ -2,6 +2,8 @@
 
 Ziel: Reproduzierbare **Internet-Smokes** für `staging`/`prod` (und optional dev) mit klarer PASS/FAIL-Ausgabe und optionaler Evidence als JSON-Artefakt.
 
+Für lokale dev-Smokes (inkl. deterministischer E2E-Fixtures via `__ok__`) siehe: [`DEV_API_SMOKE_RUNBOOK.md`](DEV_API_SMOKE_RUNBOOK.md)
+
 > Hinweis: Secrets/Tokens niemals in Issues/PRs posten.
 
 ---

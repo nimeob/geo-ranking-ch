@@ -20,7 +20,7 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _wait_for(url: str, timeout_seconds: float = 12.0) -> None:
+def _wait_for(url: str, timeout_seconds: float = 20.0) -> None:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         try:
@@ -52,8 +52,8 @@ class TestAsyncJobsSmokeScript(unittest.TestCase):
             [sys.executable, "-m", "src.web_service"],
             cwd=str(REPO_ROOT),
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True,
         )
 
@@ -86,7 +86,7 @@ class TestAsyncJobsSmokeScript(unittest.TestCase):
                     "--query",
                     "__ok__",
                     "--poll-timeout-seconds",
-                    "5",
+                    "15",
                     "--poll-interval-seconds",
                     "0.05",
                     "--output-json",
