@@ -163,6 +163,10 @@ curl http://localhost:8081/healthz
 
 **Preferences-Input (optional):** `preferences` muss ein Objekt sein; erlaubte Enum-Dimensionen sind `lifestyle_density`, `noise_tolerance`, `nightlife_preference`, `school_proximity`, `family_friendly_focus`, `commute_priority`. Alternativ kann mit `preferences.preset` + `preferences.preset_version` (`v1`) gestartet werden. Optionale Gewichte liegen unter `preferences.weights` und müssen numerisch im Bereich `0..1` liegen. Ungültige oder unbekannte Keys führen zu `400 bad_request`.
 
+**Ranking/Explainability (dev-only):** `suitability_light` liefert zusätzlich `top_factors` (max. 5) als kompakte Treiberliste pro Ergebnis (Sortierung nach `abs(contribution)` absteigend). `contribution` ist **signiert & normalisiert** relativ zu `score=50` (neutral). Pfade:
+- `result.data.modules.suitability_light.top_factors`
+- `result.data.modules.summary_compact.suitability_light.top_factors`
+
 **Routing-Kompatibilität:** Die Endpunkte tolerieren optionale trailing Slashes, kollabieren doppelte Slash-Segmente (`//`) auf einen Slash und ignorieren Query/Fragment-Teile bei der Routenauflösung (z. B. `/gui/?probe=1`, `/health/?probe=1`, `//version///?ts=1`, `//analyze//?trace=1`).
 
 👉 Detaillierte API-Referenz: [`docs/user/api-usage.md`](docs/user/api-usage.md)

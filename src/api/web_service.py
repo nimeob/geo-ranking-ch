@@ -2380,6 +2380,92 @@ def _apply_personalized_suitability_scores(
     }
     report["personalization_status"] = deepcopy(personalization_status)
 
+    # Dev-only Explainability-Shortcut: kompakte Top-Faktoren ableiten (max 5)
+    # für Ranking-/Listen-Views, ohne dass Clients die vollständigen Factor-Arrays
+    # erneut sortieren/normalisieren müssen.
+    weights_payload = two_stage.get("weights") if isinstance(two_stage, dict) else {}
+    if not isinstance(weights_payload, dict):
+        weights_payload = {}
+
+    base_weights = weights_payload.get("base")
+    if not isinstance(base_weights, dict):
+        base_weights = {}
+
+    personalized_weights = weights_payload.get("personalized")
+    if not isinstance(personalized_weights, dict):
+        personalized_weights = {}
+
+    effective_weights = base_weights if fallback_applied else personalized_weights
+
+    total_weight = 0.0
+    for value in effective_weights.values():
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        parsed = float(value)
+        if not math.isfinite(parsed) or parsed < 0:
+            continue
+        total_weight += parsed
+
+    if total_weight <= 0:
+        for row in factors:
+            value = row.get("weight")
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                continue
+            parsed = float(value)
+            if not math.isfinite(parsed) or parsed < 0:
+                continue
+            total_weight += parsed
+
+    if total_weight <= 0:
+        total_weight = 1.0
+
+    top_factors: list[dict[str, Any]] = []
+    for row in raw_factors:
+        if not isinstance(row, dict):
+            continue
+
+        key = str(row.get("key") or "").strip()
+        if not key:
+            continue
+
+        score = row.get("score")
+        if isinstance(score, bool) or not isinstance(score, (int, float)):
+            continue
+        score_value = float(score)
+        if not math.isfinite(score_value):
+            continue
+
+        weight_value = effective_weights.get(key)
+        if weight_value is None:
+            weight_value = row.get("weight")
+        if isinstance(weight_value, bool) or not isinstance(weight_value, (int, float)):
+            continue
+        weight_float = float(weight_value)
+        if not math.isfinite(weight_float) or weight_float < 0:
+            continue
+
+        centered = (score_value - 50.0) / 50.0
+        if centered > 1.0:
+            centered = 1.0
+        elif centered < -1.0:
+            centered = -1.0
+
+        contribution = (weight_float * centered) / total_weight
+        if not math.isfinite(contribution):
+            continue
+
+        name = str(row.get("label") or key).strip() or key
+        top_factors.append(
+            {
+                "key": key,
+                "name": name,
+                "contribution": round(float(contribution), 4),
+            }
+        )
+
+    top_factors.sort(key=lambda item: (-abs(float(item.get("contribution") or 0.0)), str(item.get("key") or "")))
+    suitability["top_factors"] = top_factors[:5]
+
     summary_compact = report.get("summary_compact")
     if not isinstance(summary_compact, dict):
         return
@@ -2391,6 +2477,10 @@ def _apply_personalized_suitability_scores(
     compact_suitability["base_score"] = round(base_score, 4)
     compact_suitability["personalized_score"] = round(personalized_score, 4)
     compact_suitability["personalization"] = deepcopy(suitability["personalization"])
+
+    top_factors_payload = suitability.get("top_factors")
+    if isinstance(top_factors_payload, list):
+        compact_suitability["top_factors"] = deepcopy(top_factors_payload)
 
 
 class Handler(BaseHTTPRequestHandler):
