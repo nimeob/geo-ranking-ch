@@ -1,4 +1,5 @@
 import json
+import difflib
 import re
 import unittest
 from pathlib import Path
@@ -123,6 +124,78 @@ REQUIRED_EXPLAINABILITY_FACTOR_KEYS = {
     "reason",
     "source",
 }
+
+
+def _stable_json(obj) -> str:
+    return json.dumps(obj, sort_keys=True, indent=2, ensure_ascii=False)
+
+
+def _engine_components_snapshot(*, factors, engine_output):
+    '''Create a compact, diff-friendly snapshot for golden drift debugging.
+
+    The snapshot focuses on per-factor weights + contributions so drift is visible
+    without scanning the whole engine output payload.
+    '''
+
+    weights = engine_output.get("weights") if isinstance(engine_output, dict) else {}
+    base_weights = (weights or {}).get("base") or {}
+    personalized_weights = (weights or {}).get("personalized") or {}
+    delta_weights = (weights or {}).get("delta") or {}
+
+    rows = []
+    for raw in sorted((factors or []), key=lambda item: str((item or {}).get("key", ""))):
+        if not isinstance(raw, dict):
+            continue
+        key = str(raw.get("key") or "").strip()
+        if not key:
+            continue
+        try:
+            score = float(raw.get("score", 0.0))
+        except (TypeError, ValueError):
+            score = 0.0
+        try:
+            fallback_weight = float(raw.get("weight", 0.0))
+        except (TypeError, ValueError):
+            fallback_weight = 0.0
+
+        def _get_weight(mapping, fallback):
+            try:
+                return float(mapping.get(key, fallback))
+            except (TypeError, ValueError, AttributeError):
+                return float(fallback)
+
+        base_w = _get_weight(base_weights, fallback_weight)
+        pers_w = _get_weight(personalized_weights, base_w)
+        delta = _get_weight(delta_weights, 0.0)
+
+        rows.append(
+            {
+                "key": key,
+                "score": round(score, 4),
+                "base_weight": round(base_w, 6),
+                "personalized_weight": round(pers_w, 6),
+                "delta": round(delta, 6),
+                "base_contribution": round(score * base_w, 4),
+                "personalized_contribution": round(score * pers_w, 4),
+            }
+        )
+
+    base_total_weight = round(sum(row["base_weight"] for row in rows), 6)
+    personalized_total_weight = round(sum(row["personalized_weight"] for row in rows), 6)
+
+    snapshot = {
+        "totals": {
+            "base_total_weight": base_total_weight,
+            "personalized_total_weight": personalized_total_weight,
+            "base_score": engine_output.get("base_score") if isinstance(engine_output, dict) else None,
+            "personalized_score": engine_output.get("personalized_score") if isinstance(engine_output, dict) else None,
+            "fallback_applied": engine_output.get("fallback_applied") if isinstance(engine_output, dict) else None,
+            "signal_strength": engine_output.get("signal_strength") if isinstance(engine_output, dict) else None,
+        },
+        "factors": rows,
+    }
+
+    return snapshot
 
 
 class TestScoringMethodologyGolden(unittest.TestCase):
@@ -377,9 +450,35 @@ class TestScoringMethodologyGolden(unittest.TestCase):
             first = compute_two_stage_scores(factors, preferences)
             second = compute_two_stage_scores(factors, preferences)
             self.assertEqual(first, second, msg=f"Nicht-deterministischer Runtime-Output in {case}")
-
             expected_engine_output = output_payload.get("engine_output")
-            self.assertEqual(first, expected_engine_output, msg=f"Golden-Drift erkannt für {case}")
+
+            if first != expected_engine_output:
+                expected_snapshot = _engine_components_snapshot(
+                    factors=factors,
+                    engine_output=expected_engine_output or {},
+                )
+                actual_snapshot = _engine_components_snapshot(
+                    factors=factors,
+                    engine_output=first or {},
+                )
+
+                expected_json = _stable_json(expected_snapshot).splitlines()
+                actual_json = _stable_json(actual_snapshot).splitlines()
+                diff = "\n".join(
+                    difflib.unified_diff(
+                        expected_json,
+                        actual_json,
+                        fromfile=f"{case}: expected components",
+                        tofile=f"{case}: actual components",
+                        lineterm="",
+                    )
+                )
+                raise AssertionError(
+                    "Golden-Drift erkannt für "
+                    + case
+                    + "\n\nExplainability snapshot diff (weights + contributions):\n"
+                    + diff
+                )
 
             delta = round(first["personalized_score"] - first["base_score"], 4)
             deltas.append(delta)
