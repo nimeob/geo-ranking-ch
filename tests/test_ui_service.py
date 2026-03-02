@@ -126,6 +126,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("Historische Abfragen", body)
         self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "https://api.example.test/analyze/history"', body)
+        self.assertIn("/results/", body)
 
     def test_result_permalink_page_renders_and_contains_tabs(self):
         status, body, headers = _http(f"{self.base_url}/results/res-123")
