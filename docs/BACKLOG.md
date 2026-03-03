@@ -21,6 +21,7 @@ Regelwerk:
 ### Now
 - (leer)
 - ✅ abgeschlossen (2026-03-03): [#866](https://github.com/nimeob/geo-ranking-ch/issues/866) — INFRA: Add *.tfplan to .gitignore + commit secret-free dev/staging tfvars (Commit 10a8d33)
+- ✅ abgeschlossen (2026-03-03): [#867](https://github.com/nimeob/geo-ranking-ch/issues/867) — DEV-WIRE-0: Wire dev RDS into ECS task def (DB env + secrets + migrations + smoke) — ECS Task-Def rev 168 mit DB_HOST/PORT/NAME/USERNAME (plain env) + DB_PASSWORD (SecretsManager valueFrom); Migrations 001–003 via ECS-Task-Override angewendet (jobs/job_events/job_results/organizations/users/memberships/api_keys + schema_migrations); ECS Service auf rev 168 deployt (DEPLOYMENT COMPLETED); `/health` → 200, `/analyze/history` → 200, kein DB_PASSWORD in Logs. (2026-03-03 02:22)
 
 ### Next
 - ~~[#780](https://github.com/nimeob/geo-ranking-ch/issues/780) — Auth/Prod: Benutzerverwaltung + per-user Abfragehistorie (no crawler access)~~ ✅ abgeschlossen (2026-03-02): Alle 4 Phase-1 WPs done — #782 Core, #783 Store, #784 UI (PR #849), #786 default-deny (PR #848).
