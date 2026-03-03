@@ -152,13 +152,20 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertEqual(status, 302)
         self.assertEqual(headers.get("location"), "/auth/login?next=%2Fhistory%3Flimit%3D5")
 
-    def test_logout_endpoint_clears_cookie_and_redirects_to_idp(self):
+    def test_logout_endpoint_clears_cookie_and_redirects_to_idp_with_defined_return_path(self):
         status, _, headers = _http_get(f"{self.base_url}/auth/logout", follow_redirects=False)
         self.assertEqual(status, 302)
+        location = headers.get("location", "")
         self.assertIn(
             "https://issuer.example.test/pool/logout?client_id=test-client-id",
-            headers.get("location", ""),
+            location,
         )
+        self.assertIn(
+            "logout_uri=http%3A%2F%2F127.0.0.1",
+            location,
+        )
+        self.assertIn("%2Fauth%2Flogin", location)
+        self.assertNotIn("%2Fauth%2Fcallback", location)
         cookie_header = headers.get("set-cookie", "")
         self.assertIn("Max-Age=0", cookie_header)
         self.assertIn("HttpOnly", cookie_header)

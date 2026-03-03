@@ -131,7 +131,7 @@ Prüfe mindestens zwei Fehlerszenarien:
 
 1. Eingeloggt `GET/POST /auth/logout` über UI auslösen.
 2. Redirect-Ziel prüfen:
-   - mit IdP-Logout-Konfiguration: Provider-Logout-URL (`.../logout?client_id=...&logout_uri=...`)
+   - mit IdP-Logout-Konfiguration: Provider-Logout-URL (`.../logout?client_id=...&logout_uri=...`), wobei `logout_uri` aus `BFF_OIDC_POST_LOGOUT_REDIRECT_URI` oder aus dem abgeleiteten `.../auth/login` stammt.
    - ohne IdP-Logout-Konfiguration: lokaler Logout/Cookie-Clear ohne externen Redirect
 3. Direkt danach geschützte Seite (`/gui`, `/history`) öffnen.
 4. Erwartung: Kein Zugriff ohne erneuten Login.
