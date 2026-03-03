@@ -1,0 +1,30 @@
+name: dev-smoke-required
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  dev-smoke-required:
+    name: dev-smoke-required
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run required dev smoke gate (PR profile)
+        run: |
+          python3 ./scripts/run_deploy_smoke.py \
+            --profile pr \
+            --flow sync \
+            --output-json artifacts/pr-dev-smoke-required.json

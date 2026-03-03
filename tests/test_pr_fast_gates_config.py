@@ -9,6 +9,16 @@ class TestPrFastGatesConfig(unittest.TestCase):
     def _read(self, relative_path: str) -> str:
         return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
 
+    def test_dev_smoke_required_workflow_triggers_on_pull_request(self):
+        content = self._read(".github/workflows/dev-smoke-required.yml")
+        self.assertIn("name: dev-smoke-required", content)
+        self.assertIn("on:", content)
+        self.assertIn("pull_request:", content)
+        self.assertIn("workflow_dispatch:", content)
+        self.assertIn("jobs:", content)
+        self.assertIn("dev-smoke-required:", content)
+        self.assertIn("--profile pr", content)
+
     def test_contract_smoke_workflow_triggers_on_pull_request(self):
         content = self._read(".github/workflows/contract-tests.yml")
         self.assertIn("name: contract-smoke", content)
@@ -29,8 +39,15 @@ class TestPrFastGatesConfig(unittest.TestCase):
 
     def test_operations_required_checks_documented(self):
         content = self._read("docs/OPERATIONS.md")
+        self.assertIn("`dev-smoke-required` (**required", content)
         self.assertIn("`contract-smoke` (**required**)", content)
         self.assertIn("`docs-link-guard` (**required", content)
+
+    def test_deploy_test_tiers_documents_stable_required_check_names(self):
+        content = self._read("docs/testing/DEPLOY_TEST_TIERS.md")
+        self.assertIn("`dev-smoke-required`", content)
+        self.assertIn("`contract-smoke`", content)
+        self.assertIn("`docs-link-guard`", content)
 
 
 if __name__ == "__main__":

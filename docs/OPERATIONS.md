@@ -343,6 +343,7 @@ Stand nach WP4 / BL-336 + BL-341.wp1:
 - **Automatisch aktiv auf GitHub**:
   - `.github/workflows/deploy.yml` (Push/Dispatch Deploy-Pfad)
   - `.github/workflows/worker-claim-priority.yml` (Issue-Event-Hybridpfad; Reaktivierung in #384, da Deaktivierungsmarker noch offen)
+  - `.github/workflows/dev-smoke-required.yml` (PR-Gate `dev-smoke-required` + manueller Fallback)
   - `.github/workflows/contract-tests.yml` (PR-Gate `contract-smoke` + manueller Fallback)
   - `.github/workflows/docs-quality.yml` (PR-Gate `docs-link-guard` + manueller Fallback)
 - Weiterhin **manual fallback (`workflow_dispatch`)**:
@@ -355,6 +356,7 @@ Stand nach WP4 / BL-336 + BL-341.wp1:
 Für den OpenClaw-Migrationsbetrieb dürfen nur Checks als **required** gesetzt sein, die tatsächlich automatisch auf PRs laufen.
 
 Empfohlener Minimalzustand:
+- `dev-smoke-required` (**required**, kritischer Dev-Smoke, stabiler Jobname ohne Matrix)
 - `contract-smoke` (**required**)
 - `docs-link-guard` (**required**, fail-closed bei nicht reproduzierbarer Laufumgebung)
 - optional/required nach Teamentscheid: `deploy / Build & Test` (oder äquivalenter Deploy-Check)
@@ -369,15 +371,15 @@ Fail-Closed-Regel (kritische Quality-Gates):
 Die GitHub-App des Workers hat keinen Admin-Zugriff auf Branch-Protection. Deshalb gilt:
 
 1. `Settings` → `Branches` → Branch protection rule für `main`
-2. Unter **Require status checks to pass** mindestens `contract-smoke` und `docs-link-guard` als required setzen
+2. Unter **Require status checks to pass** mindestens `dev-smoke-required`, `contract-smoke` und `docs-link-guard` als required setzen
 3. Sicherstellen, dass nur tatsächlich PR-triggernde Checks als required geführt werden (keine manual-only Workflows)
-4. Regel speichern und mit Test-PR verifizieren (beide required Checks erscheinen ohne „Expected — Waiting for status to be reported“)
+4. Regel speichern und mit Test-PR verifizieren (alle required Checks erscheinen ohne „Expected — Waiting for status to be reported“)
 
 ### Recovery/Fallback bei OpenClaw-Störung
 
 Wenn OpenClaw-Jobs temporär ausfallen, können die migrierten Checks manuell gestartet werden:
 
-1. GitHub → `Actions` → gewünschter Workflow (`contract-tests`, `crawler-regression`, `docs-quality`)
+1. GitHub → `Actions` → gewünschter Workflow (`dev-smoke-required`, `contract-tests`, `crawler-regression`, `docs-quality`)
 2. `Run workflow` ausführen
 3. Ergebnis in Issue/PR als temporären Fallback-Nachweis dokumentieren
 4. Nach Stabilisierung wieder auf OpenClaw-Evidenzpfade (`reports/automation/...`) zurückgehen
