@@ -2334,6 +2334,16 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return "info";
       }
 
+      function buildAuthorizationUxErrorMessage(statusCode, token, fallbackMessage) {
+        if (Number(statusCode) !== 401) {
+          return String(fallbackMessage || "Unbekannter Fehler");
+        }
+        const hasToken = Boolean(String(token || "").trim());
+        return hasToken
+          ? "Authorization fehlgeschlagen — Token ungültig oder abgelaufen"
+          : "Bitte Bearer-Token setzen — API erfordert Authentifizierung";
+      }
+
       async function runAnalyze(payload, token, context = {}) {
         const traceId = String(context.traceId || "").trim();
         const requestId = String(context.requestId || "").trim() || createUiCorrelationId("req");
@@ -2437,7 +2447,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         if (!response.ok || !parsed.ok) {
           const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
           const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
-          const richError = `${errCode}: ${errMsg}`;
+          const richError = buildAuthorizationUxErrorMessage(response.status, token, `${errCode}: ${errMsg}`);
           const failingResponse = parsed || { ok: false, error: errCode, message: errMsg };
 
           emitUiEvent("ui.api.request.end", {
@@ -2688,7 +2698,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             traceRequestId: normalizedTraceRequestId,
             response: parsed || { ok: false, error: errCode, message: errMsg },
             errorCode: errCode,
-            errorMessage: `${errCode}: ${errMsg}`,
+            errorMessage: buildAuthorizationUxErrorMessage(response.status, token, `${errCode}: ${errMsg}`),
           };
         }
 
