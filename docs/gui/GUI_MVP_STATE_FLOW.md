@@ -66,6 +66,8 @@ Erwartetes Verhalten:
 
 - API antwortet mit `HTTP 202 Accepted` und liefert ein `job`-Objekt inkl. `job_id`.
 - Das Result-Panel rendert den `job_id` sichtbar und bietet einen Deep-Link auf die UI-Service Job-Page: `GET /jobs/<job_id>`.
+- Die Job-Liste unter `GET /jobs` unterstützt Status-Filter (`queued`, `running`, `partial`, `succeeded`, `failed`, `canceled`) sowie freie Suche über `job_id`.
+- Filterzustand ist sharebar über URL-Query-Params (`jobs_status`, `jobs_q`); Legacy-Link-Parameter `jobs_status=completed` werden kompatibel als `succeeded` interpretiert.
 - Sync-Requests (ohne Async Mode) bleiben unverändert.
 
 ## Trace-Debug-View (BL-422.2)
