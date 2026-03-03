@@ -76,6 +76,19 @@ Erwartung:
 - `GET /history?limit=5` ohne Session -> `302` nach `/auth/login?next=%2Fhistory%3Flimit%3D5`
 - `GET /auth/logout` löscht Session-Cookie (`Max-Age=0`) und liefert IdP-Logout-Redirect
 
+## Automatisierter Guard- und Session-Proxy-Nachweis (Issue #997)
+
+Für das Work-Package „Protected Routes + session-basierter `/analyze`/`/analyze/history`-Flow" wird zusätzlich folgende Regression-Suite ausgeführt:
+
+```bash
+python3 -m pytest -q tests/test_web_service_bff_gui_guard.py tests/test_bff_integration.py
+```
+
+Abgedeckte Kernpunkte:
+- Ungültige Session-Cookies auf `/gui` und `/history` führen deterministisch auf `/auth/login?next=...` zurück.
+- Eingeloggte Session kann `GET /portal/api/analyze/history` und `POST /portal/api/analyze` über den BFF-Proxy ausführen.
+- Downstream-Delegation enthält `Authorization: Bearer <token>` (kein Browser-Token-Handling notwendig).
+
 ## Cookie-Security-Evidenz (Issue #947)
 
 | Attribut | Nachweis | Quelle |

@@ -22,6 +22,19 @@ Nicht im Scope:
 - Last-/Performance-Tests
 - Vollständige API-Funktionstests außerhalb GUI-Auth
 
+### 1.1 Automatisierte Guard-/Session-Regression (WP #997)
+
+Vor oder parallel zum manuellen Smoke soll die folgende Regression laufen:
+
+```bash
+python3 -m pytest -q tests/test_web_service_bff_gui_guard.py tests/test_bff_integration.py
+```
+
+Diese Suite deckt insbesondere ab:
+- Protected-Route-Redirects (`/gui`, `/history`) auch bei ungültigem Session-Cookie
+- Session-basierte BFF-Delegation für `GET /portal/api/analyze/history`
+- Session-basierte BFF-Delegation für `POST /portal/api/analyze` (inkl. CSRF-Header-Pfad)
+
 ---
 
 ## 2) Standardisierte Evidence-Pfade
