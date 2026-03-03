@@ -94,6 +94,8 @@ class TestWebServiceHealthz(unittest.TestCase):
         self.assertEqual(payload.get("service"), "geo-ranking-ch")
         self.assertIsInstance(payload.get("timestamp"), str)
         self.assertTrue(str(payload.get("timestamp")).strip())
+        self.assertEqual(payload.get("version"), "dev-test")
+        self.assertEqual(payload.get("commit"), "deadbeef")
 
         build = payload.get("build")
         self.assertIsInstance(build, dict)
