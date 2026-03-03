@@ -1,0 +1,87 @@
+{
+  "issue": 912,
+  "generated_at": "2026-03-03T11:41:07Z",
+  "resources": {
+    "load_balancer_arn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:loadbalancer/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f",
+    "listener_443_arn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/46d3483d42eb8d13",
+    "api_target_group_arn_frontdoor": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+    "api_service_security_group": "sg-092e0616ffb0663c3",
+    "frontdoor_security_group": "sg-02d1c720c9b0adc7b"
+  },
+  "changes": [
+    "Created HTTPS listener :443 on swisstopo-dev-vpc-alb with ACM cert and default forward to swisstopo-dev-vpc-api-tg.",
+    "Authorized tcp/8080 ingress on swisstopo-dev-api-sg from swisstopo-dev-frontdoor-sg via active peering pcx-0ec189e6248290214.",
+    "Updated ECS service swisstopo-dev-api to register in both API target groups and forced deployment."
+  ],
+  "evidence": {
+    "listeners_before": [
+      {
+        "ListenerArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/b7ffe241130b0613",
+        "Port": 80,
+        "Protocol": "HTTP"
+      }
+    ],
+    "listeners_after": [
+      {
+        "ListenerArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/46d3483d42eb8d13",
+        "Port": 443,
+        "Protocol": "HTTPS"
+      },
+      {
+        "ListenerArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/b7ffe241130b0613",
+        "Port": 80,
+        "Protocol": "HTTP"
+      }
+    ],
+    "target_health_before": [],
+    "target_health_after": [
+      {
+        "Target": {
+          "Id": "172.31.41.89",
+          "Port": 8080,
+          "AvailabilityZone": "eu-central-1b"
+        },
+        "HealthCheckPort": "8080",
+        "TargetHealth": {
+          "State": "healthy"
+        },
+        "AdministrativeOverride": {
+          "State": "no_override",
+          "Reason": "AdministrativeOverride.NoOverride",
+          "Description": "No override is currently active on target"
+        }
+      }
+    ],
+    "ecs_service_update": {
+      "serviceName": "swisstopo-dev-api",
+      "loadBalancers": [
+        {
+          "targetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-api-tg/7983af4d3cadb49a",
+          "containerName": "api",
+          "containerPort": 8080
+        },
+        {
+          "targetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+          "containerName": "api",
+          "containerPort": 8080
+        }
+      ],
+      "deployments": [
+        {
+          "status": "PRIMARY",
+          "rolloutState": "IN_PROGRESS",
+          "taskDefinition": "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-api:184"
+        },
+        {
+          "status": "ACTIVE",
+          "rolloutState": "COMPLETED",
+          "taskDefinition": "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-api:184"
+        }
+      ]
+    },
+    "external_checks": {
+      "https://api.dev.georanking.ch/health": "200",
+      "https://api.dev.geo-ranking.ch/health": "200"
+    }
+  }
+}
