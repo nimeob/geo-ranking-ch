@@ -377,7 +377,7 @@ CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (T
 
 Smoke-Verhalten:
 - API `/health` ist verpflichtend (über `SERVICE_HEALTH_URL` oder aus `SERVICE_API_BASE_URL` abgeleitet)
-- API `/analyze` läuft optional (wenn `SERVICE_API_BASE_URL` gesetzt)
+- API `/analyze` läuft optional (nur wenn `SERVICE_API_BASE_URL` **und** `SERVICE_API_AUTH_TOKEN` gesetzt sind; sonst wird der Schritt als `skipped` markiert)
 - UI `/healthz` ist verpflichtend über `SERVICE_APP_BASE_URL`
 
 **Benötigte GitHub Secrets (zu setzen unter Settings → Secrets):**
@@ -448,7 +448,7 @@ Für `staging` existiert ein separater Workflow:
 |---|---|
 | `SERVICE_API_AUTH_TOKEN` | Optional: Bearer-Token für den API-Analyze-Smoke (`run_remote_api_smoketest.sh`) |
 
-> Hinweis: `SERVICE_HEALTH_URL` ist nur ein optionaler Override für den API-Health-Check. Fehlt der Wert, nutzt der Workflow `${SERVICE_API_BASE_URL}/health`. Der optionale Analyze-Smoke läuft nur, wenn `SERVICE_API_BASE_URL` gesetzt ist.
+> Hinweis: `SERVICE_HEALTH_URL` ist nur ein optionaler Override für den API-Health-Check. Fehlt der Wert, nutzt der Workflow `${SERVICE_API_BASE_URL}/health`. Der optionale Analyze-Smoke läuft nur, wenn **beide** Werte gesetzt sind: `SERVICE_API_BASE_URL` und `SERVICE_API_AUTH_TOKEN`.
 >
 > Lokaler Smoke (Evidence): [`docs/testing/STAGING_ANALYZE_SMOKE_RUNBOOK.md`](testing/STAGING_ANALYZE_SMOKE_RUNBOOK.md) (Wrapper: `./scripts/run_staging_api_smoketest.sh`).
 >
