@@ -38,9 +38,30 @@ Details + Feldliste: [`DEPLOY_SMOKE_JSON_SCHEMA.md`](DEPLOY_SMOKE_JSON_SCHEMA.md
 Für **deploy/nightly auth-required Smokes** ist der Preflight verpflichtend und wird über
 `python3 ./scripts/run_deploy_smoke.py ...` automatisch als erster Gate-Step ausgeführt.
 
+Referenz auf den tatsächlich genutzten Pipeline-Pfad:
+- Runner: [`scripts/run_deploy_smoke.py`](../../scripts/run_deploy_smoke.py)
+- Preflight: [`scripts/smoke/auth_preflight.sh`](../../scripts/smoke/auth_preflight.sh)
+- Deploy-Workflow: [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)
+
 Standardmodus im Deploy-Runner:
 - `SMOKE_AUTH_MODE=oidc_client_credentials` (default)
 - `SMOKE_AUTH_OUTPUT_FILE=artifacts/smoke_auth.env` (default)
+
+### ENV-Contract (Input + Output)
+
+Pflicht-Input für `SMOKE_AUTH_MODE=oidc_client_credentials`:
+- `OIDC_TOKEN_URL` (http/https Token-Endpoint)
+- `OIDC_CLIENT_ID`
+- `OIDC_CLIENT_SECRET` **oder** `OIDC_CLIENT_SECRET_FILE`
+
+Optionale Inputs:
+- `OIDC_SCOPE`
+- `OIDC_AUDIENCE`
+- `SMOKE_AUTH_OUTPUT_FILE` (Default `artifacts/smoke_auth.env`)
+
+Ausgabe-Contract (`SMOKE_AUTH_OUTPUT_FILE`):
+- `SMOKE_AUTH_MODE`
+- `SMOKE_BEARER_TOKEN`
 
 Beispiel (manuell):
 
@@ -161,3 +182,89 @@ ASYNC_SMOKE_POLL_TIMEOUT_SECONDS="60" \
 ASYNC_SMOKE_POLL_INTERVAL_SECONDS="0.5" \
   ... <async script>
 ```
+
+---
+
+## 4) Lokale Verifikation (Quick Path)
+
+Schneller End-to-End-Check des Deploy-Gates ohne echten Remote-Call:
+
+```bash
+python3 ./scripts/run_deploy_smoke.py \
+  --profile deploy \
+  --target dev \
+  --flow sync \
+  --dry-run \
+  --output-json artifacts/deploy-smoke-dryrun.json
+```
+
+Erwartung:
+- Report enthält `runner=deploy-smoke-entrypoint`
+- erster Check hat `kind=auth_preflight`
+- bei `--dry-run`: `status=planned`, `reason=dry_run`
+
+Optionaler Auth-Preflight-Only Check:
+
+```bash
+SMOKE_AUTH_MODE=none ./scripts/smoke/auth_preflight.sh
+cat artifacts/smoke_auth.env
+```
+
+Erwartung:
+- Exit `0`
+- `SMOKE_AUTH_MODE=none`
+- `SMOKE_BEARER_TOKEN=` (leer)
+
+---
+
+## 5) Troubleshooting (häufige Fehler)
+
+### A) `auth-preflight-failed` + Exit 42
+Symptom:
+- Preflight bricht sofort mit Marker `auth-preflight-failed` ab.
+
+Typische Ursachen:
+- `SMOKE_AUTH_MODE` ungültig/leer
+- Pflichtvariablen (`OIDC_TOKEN_URL`, `OIDC_CLIENT_ID`, Secret) fehlen
+- `OIDC_CLIENT_SECRET_FILE` zeigt auf nicht-lesbare/nicht vorhandene Datei
+
+Fix:
+1. `printenv | grep -E '^SMOKE_AUTH_MODE|^OIDC_'` prüfen
+2. `SMOKE_AUTH_MODE=oidc_client_credentials|none` korrigieren
+3. Secret-Quelle korrigieren (`OIDC_CLIENT_SECRET` oder `OIDC_CLIENT_SECRET_FILE`)
+
+### B) Report `reason=blocked-by-auth`
+Symptom:
+- `run_deploy_smoke.py --output-json ...` endet mit `status=fail`, `reason=blocked-by-auth`.
+
+Bedeutung:
+- Kein API-Funktionsdefekt, sondern Auth-Provisioning vor den Smoke-Schritten fehlgeschlagen.
+
+Fix:
+1. In `checks[]` den `kind=auth_preflight` Eintrag prüfen
+2. Fehlertext aus `error` lesen (z. B. HTTP 401/403 am Token-Endpoint)
+3. OIDC-Credentials/Issuer-Config korrigieren und Lauf wiederholen
+
+### C) Token-Endpoint antwortet nicht erfolgreich (curl/HTTP-Fehler)
+Symptom:
+- Meldungen wie `Token-Request ... fehlgeschlagen` oder `HTTP 4xx/5xx`.
+
+Typische Ursachen:
+- Falscher `OIDC_TOKEN_URL`
+- Netzwerk-/Egress-Problem vom Runner
+- Falsche Client-Credentials oder fehlender Scope/Audience
+
+Fix:
+1. Endpoint separat testen (`curl -i -X POST <OIDC_TOKEN_URL> ...`)
+2. `OIDC_SCOPE` / `OIDC_AUDIENCE` entsprechend IdP-Contract setzen
+3. Bei 401/403 Credentials rotieren/prüfen, dann Preflight erneut starten
+
+---
+
+## 6) Minimaler Abschlussnachweis für Deploy/Auth-Issues
+
+Für Issue-Abschluss mindestens verlinken:
+1. PR/Commit mit Runbook-Änderung
+2. ausgeführten Verify-Command + Ergebnis
+3. JSON-Evidence (`--output-json`) oder nachvollziehbare Log-Snippets
+4. klare Trennung zwischen `blocked-by-auth` und echter API-Regression
