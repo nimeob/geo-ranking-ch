@@ -21,6 +21,18 @@ Kurzregeln:
 
 Die environment-spezifischen Wrapper (`run_staging_*`, `run_prod_*`) delegieren intern auf diesen Entrypoint.
 
+### JSON-Schema (Issue #992)
+
+Smoke-Artefakte nutzen das gemeinsame Schema `deploy-smoke-report/v1` mit den Kernfeldern:
+
+- `schema_version`
+- `runner`
+- `classification` (`must-pass` oder `informational`)
+- `status` (`pass`/`fail`/`planned`)
+- `reason`
+
+Details + Feldliste: [`DEPLOY_SMOKE_JSON_SCHEMA.md`](DEPLOY_SMOKE_JSON_SCHEMA.md)
+
 ---
 
 ## 1) Sync Flow — `POST /analyze` (HTTP 200)

@@ -100,10 +100,51 @@ class TestAsyncJobsSmokeScript(unittest.TestCase):
 
             self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
             payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload.get("schema_version"), "deploy-smoke-report/v1")
+            self.assertEqual(payload.get("runner"), "remote-async-jobs-smoke")
+            self.assertEqual(payload.get("classification"), "must-pass")
+            self.assertEqual(payload.get("status"), "pass")
             self.assertIs(payload.get("ok"), True)
             self.assertEqual(payload["job"]["status"], "completed")
             self.assertTrue(payload["job"]["job_id"])
             self.assertTrue(payload["job"]["result_id"])
+
+    def test_script_respects_classification_env_override(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "async-jobs-smoke-informational.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PYTHONPATH": str(REPO_ROOT),
+                    "ASYNC_SMOKE_CLASSIFICATION": " informational ",
+                }
+            )
+
+            cp = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--api-base-url",
+                    self.api_base_url,
+                    "--query",
+                    "__ok__",
+                    "--poll-timeout-seconds",
+                    "15",
+                    "--poll-interval-seconds",
+                    "0.05",
+                    "--output-json",
+                    str(output_path),
+                ],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload.get("classification"), "informational")
+            self.assertEqual(payload.get("status"), "pass")
 
     def test_script_defaults_to_e2e_fixture_query_on_localhost(self):
         """Guardrail: local dev smokes should not depend on upstream/internet."""
@@ -135,6 +176,8 @@ class TestAsyncJobsSmokeScript(unittest.TestCase):
 
             self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
             payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload.get("schema_version"), "deploy-smoke-report/v1")
+            self.assertEqual(payload.get("status"), "pass")
             self.assertIs(payload.get("ok"), True)
             self.assertEqual(payload["job"]["status"], "completed")
 
