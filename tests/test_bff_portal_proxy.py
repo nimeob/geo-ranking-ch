@@ -421,6 +421,50 @@ class TestHandlePortalProxy:
         )
         assert result.http_status == 401
 
+    def test_401_refresh_grant_error_code_passthrough(self):
+        """Refresh-grant failures should surface as refresh_grant_error (for UI re-login handling)."""
+        store = _make_store()
+        session = _make_session(store, access_token="AT-expired")
+        session.access_token_expires_at = time.time() - 10  # force refresh path
+        cookie = _cookie_header(session.session_id)
+
+        def _refresh_fn(*_args, **_kwargs):
+            return {"error": "invalid_grant", "error_description": "refresh token revoked"}
+
+        result = handle_portal_proxy(
+            store,
+            cookie,
+            "GET",
+            "/portal/api/health",
+            _portal_api_base_override="http://api.internal",
+            _token_endpoint_override="https://issuer.example.test/oauth2/token",
+            _client_id_override="client-id-test",
+            _client_secret="client-secret-test",
+            _refresh_fn=_refresh_fn,
+        )
+        assert result.http_status == 401
+        assert result.error == "refresh_grant_error"
+        assert b'"refresh_grant_error"' in result.body
+
+    def test_401_no_refresh_token_error_code_passthrough(self):
+        """Expired access-token without refresh-token should surface no_refresh_token."""
+        store = _make_store()
+        session = _make_session(store, access_token="AT-expired")
+        session.access_token_expires_at = time.time() - 10  # force refresh path
+        session.refresh_token = ""
+        cookie = _cookie_header(session.session_id)
+
+        result = handle_portal_proxy(
+            store,
+            cookie,
+            "GET",
+            "/portal/api/health",
+            _portal_api_base_override="http://api.internal",
+        )
+        assert result.http_status == 401
+        assert result.error == "no_refresh_token"
+        assert b'"no_refresh_token"' in result.body
+
     def test_cookie_header_not_forwarded_downstream(self):
         """Session Cookie must not be forwarded to the downstream API."""
         store = _make_store()

@@ -696,6 +696,27 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
+      const SESSION_RECOVERY_ERROR_CODES = new Set([
+        "no_session_cookie",
+        "session_not_found",
+        "no_access_token",
+        "no_refresh_token",
+        "refresh_grant_error",
+        "refresh_http_error",
+        "refresh_network_error",
+        "refresh_invalid_response",
+        "refresh_missing_token",
+        "token_error",
+        "unauthorized",
+      ]);
+      const SESSION_REFRESH_ERROR_CODES = new Set([
+        "no_refresh_token",
+        "refresh_grant_error",
+        "refresh_http_error",
+        "refresh_network_error",
+        "refresh_invalid_response",
+        "refresh_missing_token",
+      ]);
 
       const state = {
         phase: "idle",
@@ -789,6 +810,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       let mapRenderToken = 0;
       let uiEventSequence = 0;
       let requestIdFeedbackResetHandle = null;
+      let authRecoveryRedirectScheduled = false;
 
       function utcTimestamp() {
         return new Date().toISOString();
@@ -989,8 +1011,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           const response = await fetch(`${ANALYZE_HISTORY_ENDPOINT}?limit=50`, { headers });
           const data = await response.json();
           if (!response.ok || !data || data.ok !== true) {
+            const errCode = data && data.error ? String(data.error) : `http_${response.status}`;
             const fallbackMessage = (data && data.message) || `history fetch failed (${response.status})`;
-            throw new Error(buildAuthorizationUxErrorMessage(response.status, fallbackMessage));
+            const richError = buildAuthorizationUxErrorMessage(response.status, fallbackMessage, errCode);
+            if (isSessionRecoveryRequired(response.status, errCode)) {
+              scheduleReLoginRedirect(errCode, data && data.request_id ? String(data.request_id) : "");
+            }
+            throw new Error(richError);
           }
           renderHistoryItems(data.history);
         } catch (error) {
@@ -2436,9 +2463,61 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return "info";
       }
 
-      function buildAuthorizationUxErrorMessage(statusCode, fallbackMessage) {
+      function normalizeErrorCode(errorCode) {
+        return String(errorCode || "").trim().toLowerCase();
+      }
+
+      function isSessionRecoveryRequired(statusCode, errorCode) {
         const normalizedStatus = Number(statusCode);
+        const normalizedCode = normalizeErrorCode(errorCode);
         if (normalizedStatus === 401) {
+          return true;
+        }
+        return SESSION_RECOVERY_ERROR_CODES.has(normalizedCode);
+      }
+
+      function buildLoginRedirectUrl() {
+        if (typeof window === "undefined" || !window.location) {
+          return "/auth/login";
+        }
+        const nextPath = `${window.location.pathname || "/gui"}${window.location.search || ""}`;
+        return `/auth/login?next=${encodeURIComponent(nextPath || "/gui")}`;
+      }
+
+      function scheduleReLoginRedirect(errorCode, requestId) {
+        if (authRecoveryRedirectScheduled) {
+          return;
+        }
+        authRecoveryRedirectScheduled = true;
+
+        const loginUrl = buildLoginRedirectUrl();
+        const hint = "Session wird neu aufgebaut — Weiterleitung zum Login…";
+
+        setPhase("error", {
+          trigger: "auth_recovery_redirect",
+          requestId: String(requestId || "").trim(),
+          errorCode: normalizeErrorCode(errorCode),
+        });
+        state.lastError = hint;
+        renderState();
+
+        if (typeof window === "undefined" || !window.setTimeout || !window.location) {
+          authRecoveryRedirectScheduled = false;
+          return;
+        }
+
+        window.setTimeout(() => {
+          window.location.assign(loginUrl);
+        }, 250);
+      }
+
+      function buildAuthorizationUxErrorMessage(statusCode, fallbackMessage, errorCode) {
+        const normalizedStatus = Number(statusCode);
+        const normalizedCode = normalizeErrorCode(errorCode);
+        if (isSessionRecoveryRequired(normalizedStatus, normalizedCode)) {
+          if (SESSION_REFRESH_ERROR_CODES.has(normalizedCode)) {
+            return "Session konnte nicht erneuert werden — bitte erneut einloggen.";
+          }
           return "Session ungültig oder abgelaufen — bitte erneut einloggen.";
         }
         if (normalizedStatus === 403) {
@@ -2547,8 +2626,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         if (!response.ok || !parsed.ok) {
           const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
           const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
-          const richError = buildAuthorizationUxErrorMessage(response.status, `${errCode}: ${errMsg}`);
+          const richError = buildAuthorizationUxErrorMessage(response.status, `${errCode}: ${errMsg}`, errCode);
           const failingResponse = parsed || { ok: false, error: errCode, message: errMsg };
+          const requiresLoginRecovery = isSessionRecoveryRequired(response.status, errCode);
 
           emitUiEvent("ui.api.request.end", {
             level: requestLifecycleLevel(response.status, errCode),
@@ -2562,6 +2642,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             duration_ms: durationMs,
             error_code: errCode,
             error_class: errCode,
+            auth_recovery_required: requiresLoginRecovery,
           });
 
           return {
@@ -2570,6 +2651,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             response: failingResponse,
             errorMessage: richError,
             errorCode: errCode,
+            requiresLoginRecovery,
           };
         }
 
@@ -2658,6 +2740,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           });
           state.lastError = result.errorMessage;
           state.coreFactors = result.ok ? extractCoreFactors(result.response) : [];
+
+          if (!result.ok && result.requiresLoginRecovery) {
+            scheduleReLoginRedirect(result.errorCode, state.lastRequestId);
+          }
 
           if (result.ok) {
             const entry = extractResultsListEntry(result.response, { inputLabel });
@@ -2795,7 +2881,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             traceRequestId: normalizedTraceRequestId,
             response: parsed || { ok: false, error: errCode, message: errMsg },
             errorCode: errCode,
-            errorMessage: buildAuthorizationUxErrorMessage(response.status, `${errCode}: ${errMsg}`),
+            errorMessage: buildAuthorizationUxErrorMessage(response.status, `${errCode}: ${errMsg}`, errCode),
+            requiresLoginRecovery: isSessionRecoveryRequired(response.status, errCode),
           };
         }
 
@@ -2907,6 +2994,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             trigger,
             errorCode: result.ok ? "" : result.errorCode || "",
           });
+
+          if (!result.ok && result.requiresLoginRecovery) {
+            scheduleReLoginRedirect(result.errorCode, traceState.apiRequestId);
+          }
         } catch (error) {
           setTracePhase("error", {
             traceId,

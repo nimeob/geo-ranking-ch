@@ -177,7 +177,11 @@ class TestUiService(unittest.TestCase):
         self.assertNotIn('id="api-token"', body, "/gui darf kein manuelles Token-Input mehr enthalten")
         self.assertNotIn('headers["Authorization"]', body, "/gui darf keinen Browser-Authorization-Header setzen")
         self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
+        self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
         self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
+        self.assertIn('function isSessionRecoveryRequired(statusCode, errorCode)', body)
+        self.assertIn('refresh_grant_error', body)
+        self.assertIn('window.location.assign(loginUrl);', body)
 
     def test_history_page_uses_session_flow_without_token_storage(self):
         """GET /history: kein Token-Input/-Storage, 401/403 UX verweist auf Session/Login."""
@@ -187,7 +191,11 @@ class TestUiService(unittest.TestCase):
         self.assertNotIn('geo-ranking-ui-api-token', body, "/history darf keinen Access-Token-Storage-Key enthalten")
         self.assertNotIn('headers["Authorization"]', body, "/history darf keinen Browser-Authorization-Header setzen")
         self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
+        self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
         self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
+        self.assertIn('function isSessionRecoveryRequired(statusCode, errorCode)', body)
+        self.assertIn('refresh_grant_error', body)
+        self.assertIn('window.location.assign(loginUrl);', body)
 
     def test_results_page_has_token_input_and_sets_authorization_header(self):
         """GET /results/<id>: Token input vorhanden + JS setzt Authorization: Bearer <token> Header."""
