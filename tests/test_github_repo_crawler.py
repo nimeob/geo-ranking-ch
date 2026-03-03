@@ -165,6 +165,20 @@ class TestGithubRepoCrawlerWorkstreamBalance(unittest.TestCase):
 
         self.assertEqual(created, [])
 
+    def test_close_issue_comment_contains_evidence_token_for_closed_issue_audit(self):
+        with patch.object(crawler, "now_iso", return_value="2026-03-03T03:45:00+00:00"):
+            with patch.object(crawler, "run") as mocked_run:
+                crawler.close_issue(869, "Keine Catch-up-Lücke mehr erkannt", dry_run=False)
+
+        self.assertEqual(mocked_run.call_count, 2)
+
+        comment_call = mocked_run.call_args_list[0].args[0]
+        close_call = mocked_run.call_args_list[1].args[0]
+
+        self.assertEqual(comment_call[0:4], ["issue", "comment", "869", "--body"])
+        self.assertIn("Fixes #869", comment_call[4])
+        self.assertEqual(close_call, ["issue", "close", "869"])
+
     def test_build_workstream_balance_baseline_computes_gap_and_target(self):
         issues = [
             {"title": "Implement API feature", "body": "", "labels": []},
