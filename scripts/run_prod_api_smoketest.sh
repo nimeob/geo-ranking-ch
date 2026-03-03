@@ -22,15 +22,10 @@ if [[ -z "${PROD_BASE_URL_INPUT}" ]]; then
   exit 2
 fi
 
-# Default evidence artefact path (may be overridden by SMOKE_OUTPUT_JSON).
-if [[ -z "${SMOKE_OUTPUT_JSON:-}" ]]; then
-  export SMOKE_OUTPUT_JSON="artifacts/prod-smoke-analyze.json"
-fi
-
-export DEV_BASE_URL="${PROD_BASE_URL_INPUT}"
+export PROD_BASE_URL="${PROD_BASE_URL_INPUT}"
 
 if [[ -n "${PROD_API_AUTH_TOKEN_INPUT}" ]]; then
-  export DEV_API_AUTH_TOKEN="${PROD_API_AUTH_TOKEN_INPUT}"
+  export PROD_API_AUTH_TOKEN="${PROD_API_AUTH_TOKEN_INPUT}"
 fi
 
-./scripts/run_remote_api_smoketest.sh
+python3 ./scripts/run_deploy_smoke.py --profile deploy --target prod --flow sync

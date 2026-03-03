@@ -6,6 +6,21 @@ Für lokale dev-Smokes (inkl. deterministischer E2E-Fixtures via `__ok__`) siehe
 
 > Hinweis: Secrets/Tokens niemals in Issues/PRs posten.
 
+## 0) Kanonischer Entrypoint (Profile `pr` / `deploy` / `nightly`)
+
+Der konsolidierte Smoke-Entrypoint ist:
+
+```bash
+python3 ./scripts/run_deploy_smoke.py --profile <pr|deploy|nightly> [--target <dev|remote|staging|prod>] [--flow <sync|async|both>]
+```
+
+Kurzregeln:
+- `--profile pr` → lokaler PR-Split-Smoke (`check_bl334_split_smokes.sh`)
+- `--profile deploy` → Remote-Smoke(s) für ein Ziel (`--target ...`, default `--flow sync`)
+- `--profile nightly` → periodischer Remote-Smoke (default `--target dev`, default `--flow both`)
+
+Die environment-spezifischen Wrapper (`run_staging_*`, `run_prod_*`) delegieren intern auf diesen Entrypoint.
+
 ---
 
 ## 1) Sync Flow — `POST /analyze` (HTTP 200)
