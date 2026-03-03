@@ -110,6 +110,44 @@ class TestOidcJwtValidation(unittest.TestCase):
             validator.validate(_RFC_A2_TOKEN, now=1300819300)
         self.assertEqual(ctx.exception.code, "invalid_audience")
 
+    def test_accepts_cognito_access_token_client_id_when_audience_matches(self):
+        validator, _ = self._validator(issuer="issuer.example", audience="cognito-client-id")
+        claims = {
+            "iss": "issuer.example",
+            "exp": 9999999999,
+            "token_use": "access",
+            "client_id": "cognito-client-id",
+        }
+
+        # Should not raise: Cognito-style access token without `aud`.
+        validator._validate_claims(claims, now=1300819300)
+
+    def test_rejects_cognito_access_token_when_client_id_mismatches_audience(self):
+        validator, _ = self._validator(issuer="issuer.example", audience="expected-client-id")
+        claims = {
+            "iss": "issuer.example",
+            "exp": 9999999999,
+            "token_use": "access",
+            "client_id": "different-client-id",
+        }
+
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator._validate_claims(claims, now=1300819300)
+        self.assertEqual(ctx.exception.code, "invalid_audience")
+
+    def test_rejects_non_access_token_without_aud_even_if_client_id_matches(self):
+        validator, _ = self._validator(issuer="issuer.example", audience="client-id")
+        claims = {
+            "iss": "issuer.example",
+            "exp": 9999999999,
+            "token_use": "id",
+            "client_id": "client-id",
+        }
+
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator._validate_claims(claims, now=1300819300)
+        self.assertEqual(ctx.exception.code, "invalid_audience")
+
     def test_reject_expired(self):
         validator, _ = self._validator(issuer="joe")
         with self.assertRaises(JwtValidationError) as ctx:
