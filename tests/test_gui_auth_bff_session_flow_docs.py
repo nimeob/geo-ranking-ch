@@ -1,0 +1,49 @@
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+class TestGuiAuthBffSessionFlowDocs(unittest.TestCase):
+    def test_gui_auth_flow_doc_exists_with_required_sections(self):
+        doc_path = REPO_ROOT / "docs" / "gui" / "GUI_AUTH_BFF_SESSION_FLOW.md"
+        self.assertTrue(doc_path.is_file(), msg="GUI Auth BFF Flow Doku fehlt")
+
+        content = doc_path.read_text(encoding="utf-8")
+        required_markers = [
+            "# GUI Auth BFF Session Flow",
+            "## End-to-End Flow",
+            "## Session-Lebenszyklus",
+            "## Logout-Flow",
+            "## Failure-Modes (Kurzmatrix)",
+            "## Security-Guardrails (verbindlich)",
+        ]
+        for marker in required_markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt: {marker}")
+
+        for keyword in ["httpOnly", "SameSite", "Secure", "CSRF"]:
+            self.assertIn(keyword, content, msg=f"Security-Keyword fehlt: {keyword}")
+
+    def test_cross_links_from_gui_state_flow_and_api_usage(self):
+        gui_state_flow = (REPO_ROOT / "docs" / "gui" / "GUI_MVP_STATE_FLOW.md").read_text(
+            encoding="utf-8"
+        )
+        api_usage = (REPO_ROOT / "docs" / "user" / "api-usage.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md",
+            gui_state_flow,
+            msg="GUI State Flow muss auf die GUI Auth BFF Session-Flow-Doku verlinken",
+        )
+        self.assertIn(
+            "docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md",
+            api_usage,
+            msg="User API Usage muss auf die GUI Auth BFF Session-Flow-Doku verlinken",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

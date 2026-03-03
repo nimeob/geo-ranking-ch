@@ -310,6 +310,9 @@ Technische Tiefendoku (vollständige Regelmatrix + Rule-IDs `TR-01` bis `TR-08`)
 - `API_AUTH_TOKEN` gesetzt → Header `Authorization: Bearer <token>` ist Pflicht.
 - Fehlender/falscher Token → `401 unauthorized`.
 
+GUI-spezifischer, session-basierter BFF-Flow (Login/Callback/Logout, Session-Lifecycle, Security-Guardrails):
+[`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](../gui/GUI_AUTH_BFF_SESSION_FLOW.md)
+
 ---
 
 ## Request-ID-Korrelation
