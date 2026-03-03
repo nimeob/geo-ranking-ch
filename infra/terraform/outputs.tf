@@ -204,3 +204,32 @@ output "staging_db_master_user_secret_arn" {
   description = "Secrets Manager ARN für das automatisch gemanagte Master-User-Passwort (leer wenn nicht gemanagt)."
   value       = try(aws_db_instance.staging_postgres[0].master_user_secret[0].secret_arn, null)
 }
+
+# ---------------------------------------------------------------------------
+# Dev DB Outputs (INFRA-DB-0-dev.wp1)
+# ---------------------------------------------------------------------------
+
+output "dev_db_endpoint" {
+  description = "RDS Endpoint (Hostname) der dev Postgres DB (leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.dev_postgres[0].address, null)
+}
+
+output "dev_db_port" {
+  description = "Port der dev Postgres DB (leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.dev_postgres[0].port, null)
+}
+
+output "dev_db_name" {
+  description = "DB Name (db_name) der dev Postgres DB (leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.dev_postgres[0].db_name, null)
+}
+
+output "dev_db_master_username" {
+  description = "Master Username (kein Secret; leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.dev_postgres[0].username, null)
+}
+
+output "dev_db_master_user_secret_arn" {
+  description = "Secrets Manager ARN für das automatisch gemanagte Master-User-Passwort (leer wenn nicht gemanagt)."
+  value       = try(aws_db_instance.dev_postgres[0].master_user_secret[0].secret_arn, null)
+}

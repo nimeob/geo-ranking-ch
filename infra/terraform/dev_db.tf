@@ -149,8 +149,8 @@ resource "aws_db_instance" "dev_postgres" {
 resource "aws_vpc_peering_connection" "dev_ecs_to_db" {
   count = local.manage_dev_vpc_peering_effective ? 1 : 0
 
-  vpc_id      = var.dev_ecs_vpc_id   # original ECS VPC (requester)
-  peer_vpc_id = aws_vpc.dev[0].id    # Terraform dev VPC (accepter)
+  vpc_id      = var.dev_ecs_vpc_id # original ECS VPC (requester)
+  peer_vpc_id = aws_vpc.dev[0].id  # Terraform dev VPC (accepter)
 
   # Same-account/same-region peering: auto-accept via accepter block.
   accepter {
