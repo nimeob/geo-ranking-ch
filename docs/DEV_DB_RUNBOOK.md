@@ -303,3 +303,7 @@ Für lokale Terraform-Lint/Validierung:
 ```bash
 terraform -chdir=infra/terraform validate
 ```
+
+Für NAT-Egress-Rollout (Import/Plan/Apply/Checks) siehe zusätzlich:
+
+- [DEV_NETWORK_NAT_ROLLOUT_RUNBOOK.md](./DEV_NETWORK_NAT_ROLLOUT_RUNBOOK.md)
