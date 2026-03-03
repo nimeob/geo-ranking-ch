@@ -119,6 +119,9 @@ class TestUiService(unittest.TestCase):
         self.assertIn('const JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
         self.assertIn("jobs_status", body)
         self.assertIn("jobs_q", body)
+        self.assertIn('<option value="succeeded">succeeded</option>', body)
+        self.assertIn("function canonicalJobStatus", body)
+        self.assertIn('normalized === "completed" || normalized === "success"', body)
 
     def test_history_page_renders_and_targets_absolute_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/history")

@@ -958,7 +958,7 @@ _JOBS_LIST_PAGE_TEMPLATE = """<!doctype html>
               <option value="queued">queued</option>
               <option value="running">running</option>
               <option value="partial">partial</option>
-              <option value="completed">completed</option>
+              <option value="succeeded">succeeded</option>
               <option value="failed">failed</option>
               <option value="canceled">canceled</option>
             </select>
@@ -1039,9 +1039,17 @@ _JOBS_LIST_PAGE_TEMPLATE = """<!doctype html>
           phase: "idle",
         };
 
+        function canonicalJobStatus(value) {
+          const normalized = String(value || "").trim().toLowerCase();
+          if (!normalized) return "";
+          if (normalized === "completed" || normalized === "success") return "succeeded";
+          if (normalized === "cancelled") return "canceled";
+          return normalized;
+        }
+
         function normalizeStatus(value) {
-          const normalized = String(value || "all").trim().toLowerCase();
-          const allowed = new Set(["all", "queued", "running", "partial", "completed", "failed", "canceled"]);
+          const normalized = canonicalJobStatus(String(value || "all").trim().toLowerCase()) || "all";
+          const allowed = new Set(["all", "queued", "running", "partial", "succeeded", "failed", "canceled"]);
           return allowed.has(normalized) ? normalized : "all";
         }
 
@@ -1154,7 +1162,7 @@ _JOBS_LIST_PAGE_TEMPLATE = """<!doctype html>
         function passesStatus(job) {
           const filter = normalizeStatus(state.status);
           if (filter === "all") return true;
-          const status = job && job.status ? String(job.status).trim().toLowerCase() : "";
+          const status = canonicalJobStatus(job && job.status ? String(job.status).trim().toLowerCase() : "");
           return status === filter;
         }
 
@@ -1260,7 +1268,7 @@ _JOBS_LIST_PAGE_TEMPLATE = """<!doctype html>
               }
 
               const job = fetched.job || {};
-              const statusText = String(job.status || "").trim().toLowerCase() || "queued";
+              const statusText = canonicalJobStatus(String(job.status || "").trim().toLowerCase()) || "queued";
               const progress = Number(job.progress_percent);
               const progressText = Number.isFinite(progress) ? `${Math.round(progress)}%` : "—";
               const updatedText = String(job.updated_at || job.finished_at || job.started_at || job.queued_at || "").trim();
