@@ -31,8 +31,11 @@ Diese Matrix trennt **schnelle PR-Gates**, **verpflichtende Deploy-Gates** und *
   - API Health (`/health`) via `SERVICE_HEALTH_URL` oder `${SERVICE_API_BASE_URL}/health`
   - UI Health (`/healthz`) via `${SERVICE_APP_BASE_URL}/healthz`
 - **Post-Deploy-Verifikation:** `python3 scripts/check_deploy_version_trace.py`
+- **Auth-required Deploy-Smokes (sync/async):**
+  - laufen über `python3 ./scripts/run_deploy_smoke.py --profile deploy|nightly ...`
+  - enthalten verpflichtend `./scripts/smoke/auth_preflight.sh` als ersten Gate-Step
+  - bei fehlender Auth-Konfiguration: fail-fast mit `reason=blocked-by-auth` (statt irreführender API-Regression)
 - **Optional, aber vorgesehen:**
-  - API `/analyze` Smoke (`./scripts/run_remote_api_smoketest.sh`) nur bei gesetztem `SERVICE_API_AUTH_TOKEN`
   - Strict Split Smoke (`./scripts/run_bl31_routing_tls_smoke.sh`) nur wenn Base-URLs vorhanden
 
 ### 3) Nightly/Periodic

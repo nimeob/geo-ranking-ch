@@ -33,9 +33,16 @@ Smoke-Artefakte nutzen das gemeinsame Schema `deploy-smoke-report/v1` mit den Ke
 
 Details + Feldliste: [`DEPLOY_SMOKE_JSON_SCHEMA.md`](DEPLOY_SMOKE_JSON_SCHEMA.md)
 
-### Auth-Preflight Contract (Issue #1024)
+### Auth-Preflight Contract (Issue #1024 / #1025)
 
-Für auth-required Smokes kann vorab der Preflight-Runner verwendet werden:
+Für **deploy/nightly auth-required Smokes** ist der Preflight verpflichtend und wird über
+`python3 ./scripts/run_deploy_smoke.py ...` automatisch als erster Gate-Step ausgeführt.
+
+Standardmodus im Deploy-Runner:
+- `SMOKE_AUTH_MODE=oidc_client_credentials` (default)
+- `SMOKE_AUTH_OUTPUT_FILE=artifacts/smoke_auth.env` (default)
+
+Beispiel (manuell):
 
 ```bash
 SMOKE_AUTH_MODE="oidc_client_credentials" \
@@ -52,6 +59,7 @@ DEV_API_AUTH_TOKEN="${SMOKE_BEARER_TOKEN}" ./scripts/run_remote_api_smoketest.sh
 Fail-fast-Signal bei fehlender/ungültiger Auth-Konfiguration:
 - Exit-Code: `42`
 - Stderr enthält: `auth-preflight-failed`
+- Deploy-Report (`run_deploy_smoke.py --output-json ...`) markiert den Lauf mit `reason=blocked-by-auth`
 
 ---
 

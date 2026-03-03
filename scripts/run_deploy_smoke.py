@@ -3,6 +3,7 @@
 
 Issue: #991
 Issue: #992 (JSON schema/classification alignment)
+Issue: #1025 (auth preflight deploy-gate integration)
 
 This runner consolidates smoke execution routing and keeps legacy wrappers as
 thin profile selectors.
@@ -33,6 +34,7 @@ class PlannedCommand:
     command: list[str]
     env: dict[str, str]
     classification: str
+    kind: str = "smoke"  # smoke | auth_preflight
 
 
 def _pick_env(environ: Mapping[str, str], keys: tuple[str, ...]) -> str:
@@ -86,6 +88,15 @@ def _classification_for_profile(profile: str) -> str:
     return "must-pass"
 
 
+def _resolve_preflight_env(environ: Mapping[str, str]) -> dict[str, str]:
+    mode = (environ.get("SMOKE_AUTH_MODE") or "").strip() or "oidc_client_credentials"
+    output_file = (environ.get("SMOKE_AUTH_OUTPUT_FILE") or "").strip() or "artifacts/smoke_auth.env"
+    return {
+        "SMOKE_AUTH_MODE": mode,
+        "SMOKE_AUTH_OUTPUT_FILE": output_file,
+    }
+
+
 def _plan_commands(args: argparse.Namespace, environ: Mapping[str, str]) -> list[PlannedCommand]:
     profile = args.profile
     flow = args.flow
@@ -120,7 +131,15 @@ def _plan_commands(args: argparse.Namespace, environ: Mapping[str, str]) -> list
 
     base_url, token, sync_defaults, async_defaults = _resolve_target_config(target, environ)
 
-    planned: list[PlannedCommand] = []
+    planned: list[PlannedCommand] = [
+        PlannedCommand(
+            name=f"{profile}-{target}-auth-preflight",
+            command=["./scripts/smoke/auth_preflight.sh"],
+            env=_resolve_preflight_env(environ),
+            classification=classification,
+            kind="auth_preflight",
+        )
+    ]
 
     if normalized_flow in {"sync", "both"}:
         env = {"DEV_BASE_URL": base_url}
@@ -180,6 +199,31 @@ def _write_json_report(path: str, payload: dict[str, object]) -> None:
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def _read_contract_env(path: str) -> dict[str, str]:
+    env_path = Path(path)
+    if not env_path.is_absolute():
+        env_path = REPO_ROOT / env_path
+    payload: dict[str, str] = {}
+    if not env_path.exists():
+        raise FileNotFoundError(f"auth contract not found at {env_path}")
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        payload[key] = value
+    return payload
+
+
+def _preview(text: str, limit: int = 300) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return ""
+    return stripped[:limit]
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
@@ -192,13 +236,17 @@ def main(argv: list[str] | None = None) -> int:
     started = datetime.now(timezone.utc)
     started_perf = time.perf_counter()
 
+    flow_resolved = args.flow or (
+        "sync" if args.profile == "deploy" else "both" if args.profile == "nightly" else "sync"
+    )
+
     if args.dry_run:
         payload = {
             "schema_version": SCHEMA_VERSION,
             "runner": ENTRYPOINT_RUNNER,
             "profile": args.profile,
             "target": args.target,
-            "flow": args.flow or ("sync" if args.profile == "deploy" else "both" if args.profile == "nightly" else "sync"),
+            "flow": flow_resolved,
             "classification": _classification_for_profile(args.profile),
             "status": "planned",
             "reason": "dry_run",
@@ -208,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
                     "command": item.command,
                     "env": item.env,
                     "classification": item.classification,
+                    "kind": item.kind,
                     "status": "planned",
                 }
                 for item in planned
@@ -222,18 +271,81 @@ def main(argv: list[str] | None = None) -> int:
     overall_status = "pass"
     overall_reason = "ok"
     failure_code = 0
+    auth_contract: dict[str, str] = {}
 
     for item in planned:
         print(f"[deploy-smoke] running {item.name}: {' '.join(item.command)}")
         env = os.environ.copy()
         env.update(item.env)
+
+        if item.kind == "auth_preflight":
+            completed = subprocess.run(
+                item.command,
+                cwd=str(REPO_ROOT),
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+            item_status = "pass" if completed.returncode == 0 else "fail"
+            item_reason = "ok" if completed.returncode == 0 else "blocked-by-auth"
+            check_payload: dict[str, object] = {
+                "name": item.name,
+                "classification": item.classification,
+                "kind": item.kind,
+                "status": item_status,
+                "reason": item_reason,
+                "exit_code": int(completed.returncode),
+                "command": item.command,
+            }
+
+            if completed.returncode == 0:
+                output_file = env.get("SMOKE_AUTH_OUTPUT_FILE", "")
+                try:
+                    auth_contract = _read_contract_env(output_file)
+                except Exception as exc:  # pragma: no cover - defensive branch
+                    check_payload["status"] = "fail"
+                    check_payload["reason"] = "auth-contract-invalid"
+                    check_payload["error"] = str(exc)
+                    checks.append(check_payload)
+                    overall_status = "fail"
+                    overall_reason = "blocked-by-auth"
+                    failure_code = 1
+                    print(f"[deploy-smoke] auth preflight contract invalid: {exc}", file=sys.stderr)
+                    break
+
+                check_payload["auth_mode"] = auth_contract.get("SMOKE_AUTH_MODE", env.get("SMOKE_AUTH_MODE", ""))
+            else:
+                stderr_preview = _preview(completed.stderr)
+                if stderr_preview:
+                    check_payload["error"] = stderr_preview
+                print(
+                    f"[deploy-smoke] auth preflight failed ({item.name}) with exit={completed.returncode}",
+                    file=sys.stderr,
+                )
+                if stderr_preview:
+                    print(f"[deploy-smoke] auth preflight detail: {stderr_preview}", file=sys.stderr)
+                overall_status = "fail"
+                overall_reason = "blocked-by-auth"
+                failure_code = int(completed.returncode or 1)
+
+            checks.append(check_payload)
+            if completed.returncode != 0:
+                break
+            continue
+
+        minted_token = (auth_contract.get("SMOKE_BEARER_TOKEN") or "").strip()
+        if minted_token:
+            env["DEV_API_AUTH_TOKEN"] = minted_token
+
         completed = subprocess.run(item.command, cwd=str(REPO_ROOT), env=env)
         item_status = "pass" if completed.returncode == 0 else "fail"
         checks.append(
             {
                 "name": item.name,
                 "classification": item.classification,
+                "kind": item.kind,
                 "status": item_status,
+                "reason": "ok" if completed.returncode == 0 else "command_failed",
                 "exit_code": int(completed.returncode),
                 "command": item.command,
             }
@@ -256,7 +368,7 @@ def main(argv: list[str] | None = None) -> int:
         "runner": ENTRYPOINT_RUNNER,
         "profile": args.profile,
         "target": args.target,
-        "flow": args.flow or ("sync" if args.profile == "deploy" else "both" if args.profile == "nightly" else "sync"),
+        "flow": flow_resolved,
         "classification": _classification_for_profile(args.profile),
         "status": overall_status,
         "reason": overall_reason,

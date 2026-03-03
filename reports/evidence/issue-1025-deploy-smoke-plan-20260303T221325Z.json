@@ -1,0 +1,51 @@
+{
+  "schema_version": "deploy-smoke-report/v1",
+  "runner": "deploy-smoke-entrypoint",
+  "profile": "nightly",
+  "target": null,
+  "flow": "both",
+  "classification": "informational",
+  "status": "planned",
+  "reason": "dry_run",
+  "checks": [
+    {
+      "name": "nightly-dev-auth-preflight",
+      "command": [
+        "./scripts/smoke/auth_preflight.sh"
+      ],
+      "env": {
+        "SMOKE_AUTH_MODE": "oidc_client_credentials",
+        "SMOKE_AUTH_OUTPUT_FILE": "artifacts/smoke_auth.env"
+      },
+      "classification": "informational",
+      "kind": "auth_preflight",
+      "status": "planned"
+    },
+    {
+      "name": "nightly-dev-sync",
+      "command": [
+        "./scripts/run_remote_api_smoketest.sh"
+      ],
+      "env": {
+        "DEV_BASE_URL": "https://api.dev.example.test",
+        "SMOKE_CLASSIFICATION": "informational"
+      },
+      "classification": "informational",
+      "kind": "smoke",
+      "status": "planned"
+    },
+    {
+      "name": "nightly-dev-async",
+      "command": [
+        "./scripts/run_remote_async_jobs_smoketest.sh"
+      ],
+      "env": {
+        "DEV_BASE_URL": "https://api.dev.example.test",
+        "ASYNC_SMOKE_CLASSIFICATION": "informational"
+      },
+      "classification": "informational",
+      "kind": "smoke",
+      "status": "planned"
+    }
+  ]
+}
