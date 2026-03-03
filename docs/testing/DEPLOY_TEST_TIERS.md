@@ -12,7 +12,7 @@ Diese Matrix trennt **schnelle PR-Gates**, **verpflichtende Deploy-Gates** und *
 | Tier | Trigger | Blocking | Muss bestehen (must-pass) | Primäre Entrypoints / Workflows | Verantwortlich |
 |---|---|---|---|---|---|
 | **PR Gate** | `pull_request` | Ja (für Merge) | schnelle deterministische Vertrags-/Smoke-Checks + Doku-Link-Guard | `.github/workflows/contract-tests.yml` (`./scripts/check_bl334_split_smokes.sh`, API-Contract-Tests), `.github/workflows/docs-quality.yml` (`./scripts/check_docs_quality_gate.sh`) | Repo-CI (GitHub Actions) |
-| **Deploy Gate (dev)** | `workflow_dispatch` (on-demand) + stündlich per `schedule` | Ja (für erfolgreichen Deploy-Run) | Build/Test + ECS-Rollout + verpflichtende Health-Smokes + Post-Deploy-Verifikation | `.github/workflows/deploy.yml` (`pytest tests/ -v`, API `/health`, UI `/healthz`, `python3 scripts/check_deploy_version_trace.py`) | Deploy-Workflow + Operator |
+| **Deploy Gate (dev)** | `workflow_dispatch` (on-demand) + stündlich per `schedule` | Ja (für erfolgreichen Deploy-Run) | Build/Test + ECS-Rollout + verpflichtende Health-Smokes + Post-Deploy-Verifikation | `.github/workflows/deploy.yml` (`pytest tests/ -v`, API `/health`, UI `/healthz`, Readiness-Gate API `/health` + GUI `/gui`, `python3 scripts/check_deploy_version_trace.py`) | Deploy-Workflow + Operator |
 | **Nightly/Periodic** | `schedule` (zeitgesteuert) | Lauf-spezifisch (nicht PR-blocking) | periodische Stabilitäts-/Betriebschecks und automatische Entblockung | `.github/workflows/deploy.yml` (stündlicher Dev-Deploy), `.github/workflows/dependency-unblock.yml` (alle 30 min) | Repo-Automation |
 
 ## Pflicht-Checks je Tier
@@ -30,6 +30,7 @@ Diese Matrix trennt **schnelle PR-Gates**, **verpflichtende Deploy-Gates** und *
 - **Pflicht-Smokes:**
   - API Health (`/health`) via `SERVICE_HEALTH_URL` oder `${SERVICE_API_BASE_URL}/health`
   - UI Health (`/healthz`) via `${SERVICE_APP_BASE_URL}/healthz`
+  - Readiness-Gate: API `/health` + GUI `/gui` müssen innerhalb des Retry-Fensters erfolgreich sein (Default: max. 90s)
 - **Post-Deploy-Verifikation:** `python3 scripts/check_deploy_version_trace.py`
 - **Auth-required Deploy-Smokes (sync/async):**
   - laufen über `python3 ./scripts/run_deploy_smoke.py --profile deploy|nightly ...`

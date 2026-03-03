@@ -375,14 +375,16 @@ Ablauf im Deploy-Gate:
 1) API- und UI-Image bauen/pushen (ECR)  
 2) API-/UI-TaskDef-Revisionen registrieren  
 3) API-Service deployen + warten + API-Smokes  
-4) UI-Service deployen + warten + UI-Smoke  
-5) optionaler Strict-Split-Smoke (`run_bl31_routing_tls_smoke.sh`, wenn Base-URLs gesetzt sind)  
-6) Post-Deploy-Verifikation (`scripts/check_deploy_version_trace.py`): UI-`/healthz`-Version == `${GITHUB_SHA::7}` und optionaler Trace-Debug-Sanity-Check (`/debug/trace`)
+4) UI-Service deployen + warten + UI-Smoke (`/healthz`)  
+5) verbindliches Readiness-Gate: API-`/health` **und** GUI-`/gui` müssen innerhalb des Retry-Fensters grün werden (Default: max. 90s)  
+6) optionaler Strict-Split-Smoke (`run_bl31_routing_tls_smoke.sh`, wenn Base-URLs gesetzt sind)  
+7) Post-Deploy-Verifikation (`scripts/check_deploy_version_trace.py`): UI-`/healthz`-Version == `${GITHUB_SHA::7}` und optionaler Trace-Debug-Sanity-Check (`/debug/trace`)
 
 Smoke-Verhalten:
 - API `/health` ist verpflichtend (über `SERVICE_HEALTH_URL` oder aus `SERVICE_API_BASE_URL` abgeleitet)
 - API `/analyze` läuft optional (nur wenn `SERVICE_API_BASE_URL` **und** `SERVICE_API_AUTH_TOKEN` gesetzt sind; sonst wird der Schritt als `skipped` markiert)
 - UI `/healthz` ist verpflichtend über `SERVICE_APP_BASE_URL`
+- Deploy-Readiness-Gate prüft zusätzlich API `/health` + GUI `/gui` mit Retry und protokolliert pro Versuch URL + HTTP-Code im Workflow-Log
 
 **Benötigte GitHub Secrets (zu setzen unter Settings → Secrets):**
 
@@ -409,6 +411,8 @@ Smoke-Verhalten:
 | `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`), falls `SERVICE_API_BASE_URL` nicht genutzt wird |
 | `API_HEALTH_SMOKE_MAX_ATTEMPTS` | Optional: Anzahl Health-Smoke-Readiness-Versuche nach Deploy; Default `12` |
 | `API_HEALTH_SMOKE_RETRY_DELAY_SECONDS` | Optional: Pause (Sekunden) zwischen API-Health-Smoke-Retries; Default `10` |
+| `DEPLOY_GATE_MAX_WAIT_SECONDS` | Optional: maximales Retry-Fenster für das Readiness-Gate (API `/health` + GUI `/gui`); Default `90` |
+| `DEPLOY_GATE_RETRY_DELAY_SECONDS` | Optional: Pause (Sekunden) zwischen Readiness-Gate-Versuchen; Default `5` |
 | `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Deploy-Workflow den zusätzlichen `/debug/trace`-Sanity-Check |
 
 > Hinweis zur Container-Auflösung (ECS):
