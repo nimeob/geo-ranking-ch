@@ -297,12 +297,8 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
     <main>
       <section class="card">
         <h2>Loader</h2>
-        <p class="meta">Lädt via <code>GET /analyze/history</code>. Optional: Bearer-Token + Tenant (<code>X-Org-Id</code>).</p>
+        <p class="meta">Lädt via <code>GET /analyze/history</code>. Auth läuft über Login/Session-Cookie; optional Tenant-Header via <code>X-Org-Id</code>.</p>
         <div class="grid-3">
-          <label>
-            API Token (optional)
-            <input id="api-token" type="password" placeholder="Bearer-Token" autocomplete="off" />
-          </label>
           <label>
             X-Org-Id (Tenant)
             <input id="org-id" type="text" placeholder="default-org" />
@@ -332,10 +328,8 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
 
       <script>
         const ANALYZE_HISTORY_ENDPOINT = __ANALYZE_HISTORY_ENDPOINT_JSON__;
-        const TOKEN_STORAGE_KEY = "geo-ranking-ui-api-token";
         const ORG_STORAGE_KEY = "geo-ranking-ui-org-id";
 
-        const tokenEl = document.getElementById("api-token");
         const orgEl = document.getElementById("org-id");
         const limitEl = document.getElementById("limit");
         const statusEl = document.getElementById("status");
@@ -382,10 +376,6 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         function persistInputs() {
           try {
             if (typeof window !== "undefined" && window.sessionStorage) {
-              const token = String(tokenEl.value || "").trim();
-              if (token) window.sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
-              else window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-
               const orgId = String(orgEl.value || "").trim();
               if (orgId) window.sessionStorage.setItem(ORG_STORAGE_KEY, orgId);
               else window.sessionStorage.removeItem(ORG_STORAGE_KEY);
@@ -398,8 +388,6 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         function applyInitialState() {
           try {
             if (typeof window !== "undefined" && window.sessionStorage) {
-              const token = String(window.sessionStorage.getItem(TOKEN_STORAGE_KEY) || "").trim();
-              if (token) tokenEl.value = token;
               const orgId = String(window.sessionStorage.getItem(ORG_STORAGE_KEY) || "").trim();
               if (orgId) orgEl.value = orgId;
             }
@@ -411,8 +399,6 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
 
         function headersFromInputs() {
           const headers = { "Accept": "application/json" };
-          const token = String(tokenEl.value || "").trim();
-          if (token) headers["Authorization"] = `Bearer ${token}`;
           const orgId = String(orgEl.value || "").trim();
           if (orgId) headers["X-Org-Id"] = orgId;
           return headers;
@@ -474,8 +460,9 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           if (!response.ok || !parsed || !parsed.ok) {
             setStatus("error");
             if (response.status === 401) {
-              const hasToken = Boolean(String(tokenEl.value || "").trim());
-              setError(hasToken ? "Authorization fehlgeschlagen — Token ungültig oder abgelaufen" : "Bitte Bearer-Token setzen — API erfordert Authentifizierung");
+              setError("Session ungültig oder abgelaufen — bitte erneut einloggen.");
+            } else if (response.status === 403) {
+              setError("Zugriff verweigert — bitte Berechtigungen/Session prüfen.");
             } else {
               setError((parsed && parsed.message) ? String(parsed.message) : `http_${response.status}`);
             }

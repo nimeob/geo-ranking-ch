@@ -168,28 +168,26 @@ class TestUiService(unittest.TestCase):
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"], "not_found")
 
-    # --- Auth Phase 1 (UI): #784 — Token input present + Authorization header code on all pages ---
+    # --- GUI Auth UX wp2: Session-Flow statt Bearer-Paste für /analyze + /analyze/history ---
 
-    def test_gui_page_has_token_input_and_sets_authorization_header(self):
-        """GET /gui: Token input vorhanden + JS setzt Authorization: Bearer <token> Header."""
+    def test_gui_page_uses_session_flow_without_token_input(self):
+        """GET /gui: kein Bearer-Token-Input, keine Authorization-Header-Injektion, Session-UX-Texte vorhanden."""
         status, body, _ = _http(f"{self.base_url}/gui")
         self.assertEqual(status, 200)
-        self.assertIn('id="api-token"', body, "/gui muss Token-Input #api-token haben")
-        self.assertIn('type="password"', body, "Token-Input muss type=password sein")
-        self.assertIn('Authorization', body, "/gui muss Authorization Header-Code enthalten")
-        self.assertIn('Bearer', body, "/gui muss Bearer-Token-Code enthalten")
-        self.assertIn('Bitte Bearer-Token setzen', body, "/gui muss 401-UX-Hint enthalten")
+        self.assertNotIn('id="api-token"', body, "/gui darf kein manuelles Token-Input mehr enthalten")
+        self.assertNotIn('headers["Authorization"]', body, "/gui darf keinen Browser-Authorization-Header setzen")
+        self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
+        self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
 
-    def test_history_page_has_token_input_and_sets_authorization_header(self):
-        """GET /history: Token input vorhanden + JS setzt Authorization: Bearer <token> Header."""
+    def test_history_page_uses_session_flow_without_token_storage(self):
+        """GET /history: kein Token-Input/-Storage, 401/403 UX verweist auf Session/Login."""
         status, body, _ = _http(f"{self.base_url}/history")
         self.assertEqual(status, 200)
-        self.assertIn('id="api-token"', body, "/history muss Token-Input #api-token haben")
-        self.assertIn('type="password"', body, "Token-Input muss type=password sein")
-        self.assertIn('Authorization', body, "/history muss Authorization Header-Code enthalten")
-        self.assertIn('Bearer', body, "/history muss Bearer-Token-Code enthalten")
-        # UX: 401-spezifische Fehlermeldung muss im Code vorhanden sein
-        self.assertIn('Bitte Bearer-Token setzen', body, "/history muss 401-UX-Hint enthalten")
+        self.assertNotIn('id="api-token"', body, "/history darf kein manuelles Token-Input mehr enthalten")
+        self.assertNotIn('geo-ranking-ui-api-token', body, "/history darf keinen Access-Token-Storage-Key enthalten")
+        self.assertNotIn('headers["Authorization"]', body, "/history darf keinen Browser-Authorization-Header setzen")
+        self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
+        self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
 
     def test_results_page_has_token_input_and_sets_authorization_header(self):
         """GET /results/<id>: Token input vorhanden + JS setzt Authorization: Bearer <token> Header."""
