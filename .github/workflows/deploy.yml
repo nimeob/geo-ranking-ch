@@ -345,8 +345,10 @@ jobs:
           fi
 
           HTTP_CODE="000"
+          CURL_EXIT=0
           ATTEMPT=1
           while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+            set +e
             HTTP_CODE=$(curl -sS -L \
               --max-time 15 \
               --retry 2 \
@@ -355,12 +357,20 @@ jobs:
               -o /tmp/smoke-api-health-response.txt \
               -w "%{http_code}" \
               "${API_HEALTH_URL}")
+            CURL_EXIT=$?
+            set -e
 
-            if [ "$HTTP_CODE" = "200" ]; then
+            HTTP_CODE="${HTTP_CODE:-000}"
+            if [ "$CURL_EXIT" -eq 0 ] && [ "$HTTP_CODE" = "200" ]; then
               break
             fi
 
-            echo "::warning::API smoke attempt ${ATTEMPT}/${MAX_ATTEMPTS} failed (${API_HEALTH_URL} -> HTTP ${HTTP_CODE}); retrying in ${RETRY_DELAY_SECONDS}s"
+            if [ "$CURL_EXIT" -ne 0 ]; then
+              echo "::warning::API smoke attempt ${ATTEMPT}/${MAX_ATTEMPTS} failed (${API_HEALTH_URL} -> curl exit ${CURL_EXIT}, HTTP ${HTTP_CODE}); retrying in ${RETRY_DELAY_SECONDS}s"
+            else
+              echo "::warning::API smoke attempt ${ATTEMPT}/${MAX_ATTEMPTS} failed (${API_HEALTH_URL} -> HTTP ${HTTP_CODE}); retrying in ${RETRY_DELAY_SECONDS}s"
+            fi
+
             if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
               sleep "$RETRY_DELAY_SECONDS"
             fi
@@ -368,7 +378,11 @@ jobs:
           done
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::API smoke failed after ${MAX_ATTEMPTS} attempts: ${API_HEALTH_URL} returned HTTP ${HTTP_CODE}"
+            if [ "$CURL_EXIT" -ne 0 ]; then
+              echo "::error::API smoke failed after ${MAX_ATTEMPTS} attempts: ${API_HEALTH_URL} not reachable (last curl exit ${CURL_EXIT}, HTTP ${HTTP_CODE})"
+            else
+              echo "::error::API smoke failed after ${MAX_ATTEMPTS} attempts: ${API_HEALTH_URL} returned HTTP ${HTTP_CODE}"
+            fi
             head -c 1000 /tmp/smoke-api-health-response.txt || true
             exit 1
           fi
