@@ -63,6 +63,36 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 - Refresh-Fehlercodes (`refresh_*`, `no_refresh_token`) triggern denselben Re-Login-Recovery-Flow wie Session-Expiry.
 - Keine sensitiven Tokenwerte in UI-Logs/Devtools-Network-Payloads.
 
+## Reproduzierbarer Dev-E2E-Nachweis (Issue #947)
+
+Die folgenden Checks liefern einen wiederholbaren Nachweis für den GUI-Auth-Flow (Login-Redirect -> geschützter Zugriff -> Logout inklusive Cookie-Clear):
+
+```bash
+python3 -m unittest tests.test_web_service_bff_gui_guard
+```
+
+Erwartung:
+- `GET /gui` ohne Session -> `302` nach `/auth/login?next=%2Fgui`
+- `GET /history?limit=5` ohne Session -> `302` nach `/auth/login?next=%2Fhistory%3Flimit%3D5`
+- `GET /auth/logout` löscht Session-Cookie (`Max-Age=0`) und liefert IdP-Logout-Redirect
+
+## Cookie-Security-Evidenz (Issue #947)
+
+| Attribut | Nachweis | Quelle |
+|---|---|---|
+| `HttpOnly` | Logout-Cookie enthält `HttpOnly`; Session-Set/Clear-Helper sind regressionsgetestet | `tests/test_web_service_bff_gui_guard.py`, `tests/test_bff_session.py` |
+| `SameSite` | Logout-Header nutzt `SameSite=Lax`; Session-Cookies prüfen `SameSite=Lax` | `tests/test_web_service_bff_gui_guard.py`, `tests/test_bff_session.py` |
+| `Secure` | `Secure` wird bei aktiviertem `BFF_SESSION_SECURE_COOKIE=1` gesetzt und bei `0` nicht gesetzt | `tests/test_bff_session.py` |
+
+Konkreter Test-/Output-Nachweis: [`reports/evidence/issue-947-gui-auth-e2e-cookie-evidence-20260303T171208Z.md`](../../reports/evidence/issue-947-gui-auth-e2e-cookie-evidence-20260303T171208Z.md)
+
+## Parent-Acceptance-Referenz (#939)
+
+Dieses Work-Package deckt den E2E-/Security-Dokumentationsanteil von #939 ab:
+
+- Parent-AC "Kurzer E2E-Nachweis in dev dokumentiert" -> erfüllt über obigen Dev-E2E-Nachweis + Evidence-Artefakt.
+- Parent-AC "Session-Cookie ist `HttpOnly`, `Secure`, `SameSite` konfiguriert" -> erfüllt über Cookie-Attribut-Matrix + Regressionstests.
+
 ## Verweise
 
 - GUI State Flow: [`docs/gui/GUI_MVP_STATE_FLOW.md`](./GUI_MVP_STATE_FLOW.md)
