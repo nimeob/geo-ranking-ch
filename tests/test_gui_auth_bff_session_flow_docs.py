@@ -16,6 +16,7 @@ class TestGuiAuthBffSessionFlowDocs(unittest.TestCase):
             "## End-to-End Flow",
             "## Session-Lebenszyklus",
             "## Logout-Flow",
+            "## UX-/Redirect-Konvention (Issue #998)",
             "## Failure-Modes (Kurzmatrix)",
             "## Security-Guardrails (verbindlich)",
             "## Reproduzierbarer Dev-E2E-Nachweis (Issue #947)",
@@ -27,6 +28,9 @@ class TestGuiAuthBffSessionFlowDocs(unittest.TestCase):
 
         for keyword in ["httpOnly", "SameSite", "Secure", "CSRF"]:
             self.assertIn(keyword, content, msg=f"Security-Keyword fehlt: {keyword}")
+
+        for ux_keyword in ["reason=", "refresh_failed", "consent_denied"]:
+            self.assertIn(ux_keyword, content, msg=f"Auth-Recovery-Keyword fehlt: {ux_keyword}")
 
         self.assertIn(
             "reports/evidence/issue-947-gui-auth-e2e-cookie-evidence-",
@@ -72,6 +76,7 @@ class TestGuiAuthBffSessionFlowDocs(unittest.TestCase):
             "## Gap-Bewertung",
             "keine neuen funktionalen Gaps",
             "issue-995-auth-ac-matrix-20260303T185411Z.md",
+            "issue-998-auth-ux-runbook-sync-20260303T1949Z.md",
         ]
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt in AC-Matrix: {marker}")

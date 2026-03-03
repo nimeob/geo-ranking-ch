@@ -2,7 +2,7 @@
 
 Diese Matrix prüft die ACs aus [#978](https://github.com/nimeob/geo-ranking-ch/issues/978) gegen den aktuellen Repo-Stand.
 
-Stand: 2026-03-03 (Issue #995)
+Stand: 2026-03-03 (Issue #995 + #998)
 
 ## Quellen
 
@@ -10,6 +10,7 @@ Stand: 2026-03-03 (Issue #995)
 - E2E-Smoke-Runbook: [`docs/testing/GUI_AUTH_SMOKE_RUNBOOK.md`](../testing/GUI_AUTH_SMOKE_RUNBOOK.md)
 - BFF-Implementierung: `src/api/bff_oidc.py`, `src/api/bff_session.py`, `src/api/bff_portal_proxy.py`, `src/api/web_service.py`
 - Reproduzierbarer Verifikationslauf: [`reports/evidence/issue-995-auth-ac-matrix-20260303T185411Z.md`](../../reports/evidence/issue-995-auth-ac-matrix-20260303T185411Z.md)
+- UX-/Runbook-Sync-Nachweis (Issue #998): [`reports/evidence/issue-998-auth-ux-runbook-sync-20260303T1949Z.md`](../../reports/evidence/issue-998-auth-ux-runbook-sync-20260303T1949Z.md)
 
 ## AC-Matrix
 
@@ -31,11 +32,11 @@ Stand: 2026-03-03 (Issue #995)
 
 5. **Expired/invalid Session führt sauber zurück auf Login**  
    **Status:** erfüllt  
-   **Nachweis:** Recovery-/Failure-Flow dokumentiert (`GUI_AUTH_BFF_SESSION_FLOW.md`, `GUI_AUTH_SMOKE_RUNBOOK.md`), Guard/Redirect-Tests in `tests/test_web_service_bff_gui_guard.py` und `tests/test_bff_portal_proxy.py`.
+   **Nachweis:** Recovery-/Failure-Flow dokumentiert (`GUI_AUTH_BFF_SESSION_FLOW.md`, Abschnitt „UX-/Redirect-Konvention"), inklusive konsolidiertem Redirect-Contract `/auth/login?next=...&reason=...`; Guard/Redirect-Tests in `tests/test_web_service_bff_gui_guard.py` und `tests/test_bff_portal_proxy.py`.
 
 6. **Kurze Doku im README/Runbook ergänzt (lokal + dev)**  
    **Status:** erfüllt  
-   **Nachweis:** README enthält BFF-Auth-Abschnitt + Dokuverweise; dediziertes Runbook unter `docs/testing/GUI_AUTH_SMOKE_RUNBOOK.md`; diese AC-Matrix ergänzt die Parent-Nachweisspur.
+   **Nachweis:** README enthält aktualisierten BFF-Auth-Abschnitt (Auth-Recovery + Logout-Varianten); Runbook unter `docs/testing/GUI_AUTH_SMOKE_RUNBOOK.md` deckt `reason`-Redirects sowie IdP-vs-lokalen Logout ab; diese AC-Matrix ergänzt die Parent-Nachweisspur.
 
 ## Gap-Bewertung
 

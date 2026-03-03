@@ -181,8 +181,11 @@ class TestUiService(unittest.TestCase):
         self.assertNotIn('headers["Authorization"]', body, "/gui darf keinen Browser-Authorization-Header setzen")
         self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
         self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
+        self.assertIn('Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.', body)
         self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
         self.assertIn('function isSessionRecoveryRequired(statusCode, errorCode)', body)
+        self.assertIn('function resolveAuthRecoveryReason(statusCode, errorCode)', body)
+        self.assertIn('params.set("reason", normalizedReason);', body)
         self.assertIn('refresh_grant_error', body)
         self.assertIn('window.location.assign(loginUrl);', body)
 
@@ -195,8 +198,11 @@ class TestUiService(unittest.TestCase):
         self.assertNotIn('headers["Authorization"]', body, "/history darf keinen Browser-Authorization-Header setzen")
         self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
         self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
+        self.assertIn('Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.', body)
         self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
         self.assertIn('function isSessionRecoveryRequired(statusCode, errorCode)', body)
+        self.assertIn('function resolveAuthRecoveryReason(statusCode, errorCode)', body)
+        self.assertIn('params.set("reason", normalizedReason);', body)
         self.assertIn('refresh_grant_error', body)
         self.assertIn('window.location.assign(loginUrl);', body)
 
