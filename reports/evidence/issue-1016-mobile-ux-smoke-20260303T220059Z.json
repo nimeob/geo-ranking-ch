@@ -1,0 +1,44 @@
+{
+  "issue": 1016,
+  "targetUrl": "http://127.0.0.1:8877/gui",
+  "checks": {
+    "burgerMenuUx": {
+      "openState": {
+        "expanded": "true",
+        "menuHidden": false,
+        "menuAriaHidden": "false",
+        "backdropHidden": false,
+        "bodyBurgerOpen": true
+      },
+      "closeState": {
+        "expanded": "false",
+        "menuHidden": true,
+        "menuAriaHidden": "true",
+        "backdropHidden": true,
+        "bodyBurgerOpen": false,
+        "activeElementId": ""
+      },
+      "passed": true
+    },
+    "pinchZoomSmoothness": {
+      "before": {
+        "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+        "zoom": 8
+      },
+      "after": {
+        "text": "Zoom 10 · Zentrum 46.815381, 8.232135",
+        "zoom": 10
+      },
+      "perf": {
+        "maxRafDelta": 16.80000001192093,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0
+      },
+      "passed": true
+    }
+  },
+  "artifacts": {
+    "screenshot": "reports/evidence/issue-1016-mobile-ux-20260303T220059Z.png"
+  },
+  "ok": true
+}
