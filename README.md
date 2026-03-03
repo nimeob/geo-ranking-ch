@@ -427,7 +427,8 @@ Der Deploy-Workflow ist service-getrennt: API und UI werden nacheinander ausgero
 
 ## Beitragen
 
-Siehe [`docs/OPERATIONS.md`](docs/OPERATIONS.md) für Commit-Konventionen, PR-Regeln und die Release-Checkliste.
+- Dev-Setup, lokaler Start, Tests, Lint/Format: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Commit-Konventionen, PR-Regeln, Release-Checkliste: [`docs/OPERATIONS.md`](docs/OPERATIONS.md)
 
 ---
 
