@@ -60,7 +60,9 @@ Issue: #853 (BFF-0.wp4)
 
 from __future__ import annotations
 
+import json
 import os
+import uuid
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin
@@ -310,6 +312,63 @@ class PortalProxyResult:
     error: str
 
 
+def _resolve_request_id_from_headers(headers: dict[str, str] | None) -> str:
+    candidates = (
+        "X-Request-Id",
+        "X_Request_Id",
+        "Request-Id",
+        "Request_Id",
+        "X-Correlation-Id",
+        "X_Correlation_Id",
+    )
+    source = dict(headers or {})
+    for key in candidates:
+        raw = _get_header_ci(source, key)
+        value = str(raw or "").strip()
+        if value:
+            return value
+    return f"req-{uuid.uuid4().hex[:16]}"
+
+
+def _stable_auth_code_for_status(http_status: int) -> str:
+    if int(http_status) == 401:
+        return "unauthorized"
+    if int(http_status) == 403:
+        return "forbidden"
+    return "auth_error"
+
+
+def _build_auth_error_result(
+    *,
+    http_status: int,
+    error: str,
+    request_id: str,
+    message: str,
+    detail: str = "",
+) -> PortalProxyResult:
+    normalized_error = str(error or "auth_error").strip().lower() or "auth_error"
+    stable_code = _stable_auth_code_for_status(http_status)
+    payload: dict[str, Any] = {
+        "ok": False,
+        "error": normalized_error,
+        "code": stable_code,
+        "message": str(message or "auth error").strip() or "auth error",
+        "request_id": str(request_id or "").strip(),
+    }
+    if normalized_error != stable_code:
+        payload["auth_reason"] = normalized_error
+    detail_text = str(detail or "").strip()
+    if detail_text:
+        payload["detail"] = detail_text
+
+    return PortalProxyResult(
+        http_status=int(http_status),
+        body=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        content_type="application/json",
+        error=normalized_error,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Portal Proxy handler
 # ---------------------------------------------------------------------------
@@ -357,35 +416,37 @@ def handle_portal_proxy(
         content-type. On auth/CSRF error, returns the appropriate error status.
     """
     rh = dict(request_headers or {})
+    request_id = _resolve_request_id_from_headers(rh)
 
     # --- 1. Session check ---
     session_id = parse_session_id_from_cookie(cookie_header)
     if not session_id:
-        return PortalProxyResult(
+        return _build_auth_error_result(
             http_status=401,
-            body=b'{"error": "no_session_cookie"}',
-            content_type="application/json",
             error="no_session_cookie",
+            message="session missing or expired",
+            request_id=request_id,
         )
 
     session = session_store.get(session_id)
     if session is None:
-        return PortalProxyResult(
+        return _build_auth_error_result(
             http_status=401,
-            body=b'{"error": "session_not_found"}',
-            content_type="application/json",
             error="session_not_found",
+            message="session missing or expired",
+            request_id=request_id,
         )
 
     # --- 2. CSRF check (state-changing methods) ---
     try:
         require_csrf_header(method, rh)
     except CsrfError as exc:
-        return PortalProxyResult(
+        return _build_auth_error_result(
             http_status=403,
-            body=f'{{"error": "csrf_check_failed", "detail": "{exc.message}"}}'.encode(),
-            content_type="application/json",
             error="csrf_check_failed",
+            message="csrf check failed",
+            detail=exc.message,
+            request_id=request_id,
         )
 
     # --- 3. Build downstream URL ---
@@ -420,13 +481,20 @@ def handle_portal_proxy(
             _urlopen_fn=_urlopen_fn,
         )
     except BffTokenError as exc:
-        return PortalProxyResult(
+        return _build_auth_error_result(
             http_status=401,
-            body=f'{{"error": "{exc.error_code}"}}'.encode(),
-            content_type="application/json",
             error=exc.error_code,
+            message="missing or invalid auth session",
+            request_id=request_id,
         )
     except BffApiCallError as exc:
+        if int(exc.http_status) in {401, 403}:
+            return _build_auth_error_result(
+                http_status=int(exc.http_status),
+                error=exc.error_code,
+                message="upstream auth check failed",
+                request_id=request_id,
+            )
         return PortalProxyResult(
             http_status=exc.http_status,
             body=f'{{"error": "{exc.error_code}"}}'.encode(),

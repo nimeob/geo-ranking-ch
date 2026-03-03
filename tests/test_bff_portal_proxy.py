@@ -20,6 +20,7 @@ Coverage:
 
 from __future__ import annotations
 
+import json
 import time
 from io import BytesIO
 from typing import Any
@@ -293,6 +294,12 @@ class TestHandlePortalProxy:
         )
         assert result.http_status == 401
         assert result.error == "no_session_cookie"
+        payload = json.loads(result.body.decode("utf-8"))
+        assert payload.get("code") == "unauthorized"
+        assert payload.get("error") == "no_session_cookie"
+        assert payload.get("auth_reason") == "no_session_cookie"
+        assert isinstance(payload.get("request_id"), str)
+        assert payload.get("request_id", "").strip()
 
     def test_401_missing_session(self):
         store = _make_store()
@@ -306,6 +313,12 @@ class TestHandlePortalProxy:
         )
         assert result.http_status == 401
         assert result.error == "session_not_found"
+        payload = json.loads(result.body.decode("utf-8"))
+        assert payload.get("code") == "unauthorized"
+        assert payload.get("error") == "session_not_found"
+        assert payload.get("auth_reason") == "session_not_found"
+        assert isinstance(payload.get("request_id"), str)
+        assert payload.get("request_id", "").strip()
 
     def test_403_csrf_failure_on_post(self):
         store = _make_store()
@@ -321,6 +334,12 @@ class TestHandlePortalProxy:
         )
         assert result.http_status == 403
         assert result.error == "csrf_check_failed"
+        payload = json.loads(result.body.decode("utf-8"))
+        assert payload.get("code") == "forbidden"
+        assert payload.get("error") == "csrf_check_failed"
+        assert payload.get("auth_reason") == "csrf_check_failed"
+        assert isinstance(payload.get("request_id"), str)
+        assert payload.get("request_id", "").strip()
 
     def test_200_get_success_passthrough(self):
         store = _make_store()

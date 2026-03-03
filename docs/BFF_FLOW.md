@@ -84,6 +84,15 @@ Runtime guardrails:
 - Invalid cookie names fall back to `__Host-session`.
 - If `Secure` is disabled for local HTTP dev, `__Host-*` names auto-downgrade to `bff-session` to prevent browser-side cookie rejection.
 
+### Auth-Error Envelope (Dev-Stabilität, ab #1036)
+
+Auth-Guard-Fehler liefern ein einheitliches JSON-Schema mit stabilem `code`:
+
+- `401` → `code: "unauthorized"`
+- `403` → `code: "forbidden"`
+
+Zusätzliche Ursachen bleiben über `error`/`auth_reason` erhalten (z. B. `no_session_cookie`, `session_not_found`, `csrf_check_failed`), damit UI-Flow und Troubleshooting weiterhin präzise reagieren können.
+
 ---
 
 ## 4. Token Delegation Path
