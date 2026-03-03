@@ -177,6 +177,10 @@ class TestHistoryNavigationIntegration(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("Historische Abfragen", body)
+        self.assertIn('aria-label="Navigation umschalten"', body)
+        self.assertIn('aria-label="Hauptnavigation"', body)
+        self.assertIn('function setBurgerOpen(nextOpen)', body)
+        self.assertIn('"pointerdown",', body)
         self.assertIn(f'const ANALYZE_HISTORY_ENDPOINT = "{self.api_base_url}/analyze/history"', body)
 
     def test_ui_result_page_renders_tabs_and_targets_api_base(self) -> None:
@@ -187,6 +191,10 @@ class TestHistoryNavigationIntegration(unittest.TestCase):
         self.assertIn("Sources / Evidence", body)
         self.assertIn("Generated / Derived", body)
         self.assertIn("Raw JSON", body)
+        self.assertIn('aria-label="Navigation umschalten"', body)
+        self.assertIn('aria-label="Hauptnavigation"', body)
+        self.assertIn('if (event.key === "ArrowDown")', body)
+        self.assertIn('window.addEventListener("keydown"', body)
         self.assertIn(f'const RESULTS_ENDPOINT_BASE = "{self.api_base_url}/analyze/results"', body)
 
 

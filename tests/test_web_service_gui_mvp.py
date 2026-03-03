@@ -84,6 +84,9 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn("geo-ranking.ch GUI MVP", body)
         self.assertIn('id="burger-shell"', body)
         self.assertIn('id="burger-btn"', body)
+        self.assertIn('aria-label="Navigation umschalten"', body)
+        self.assertIn('id="burger-menu"', body)
+        self.assertIn('aria-label="Hauptnavigation"', body)
         self.assertIn('id="analyze-form"', body)
         self.assertIn('id="trace-debug"', body)
         self.assertIn('href="/auth/logout"', body)
@@ -153,6 +156,11 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('ui.trace.request.start', body)
         self.assertIn('ui.trace.request.end', body)
         self.assertIn('startTraceLookup(deepLinkTraceRequestId, "trace_deep_link")', body)
+        self.assertIn('function setBurgerOpen(nextOpen)', body)
+        self.assertIn('document.addEventListener(', body)
+        self.assertIn('"pointerdown",', body)
+        self.assertIn('if (event.key === "ArrowDown")', body)
+        self.assertIn('window.addEventListener("keydown"', body)
 
     def test_gui_map_marker_legibility_styles_present(self):
         status, body, _ = _http_text(f"{self.base_url}/gui")
