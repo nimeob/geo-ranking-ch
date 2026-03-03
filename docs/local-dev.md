@@ -87,19 +87,23 @@ Expected output:
 ./scripts/db-local.sh migrate
 ```
 
-This applies all `.sql` files in `docs/sql/` in alphabetical order via `psql`.
+By default this delegates to `scripts/db-migrate.py --apply` (DB migration runner from #813, source: `db/migrations/*.sql`).
+If `db-migrate.py` is not available, `db-local.sh` falls back to applying `docs/sql/*.sql` directly via `psql`.
 
-Current migration files:
-- `docs/sql/db_core_schema_v1.sql` — Core tables (organizations, users, memberships, api_keys)
-- `docs/sql/async_jobs_schema_v1.sql` — Async job history tables
+Current migration files (runner path):
+- `db/migrations/001_core_schema.sql` — Core tables (organizations, users, memberships, api_keys)
+- `db/migrations/002_async_jobs_schema.sql` — Async jobs + events
+- `db/migrations/003_async_jobs_results.sql` — Result metadata / payload pointers
 
-Expected output:
+Expected output (example):
 ```
-🔄 Applying SQL migrations...
+🔄 Applying SQL migrations (via db-migrate.py)...
 ✅ Postgres is ready.
-  → Applying async_jobs_schema_v1.sql...
-  → Applying db_core_schema_v1.sql...
-✅ 2 migration file(s) applied.
+Applying 3 migration(s)...
+  → 001_core_schema ... ✓
+  → 002_async_jobs_schema ... ✓
+  → 003_async_jobs_results ... ✓
+✅ 3 migration(s) applied successfully.
 ```
 
 ### Step 4 — Smoke Check
