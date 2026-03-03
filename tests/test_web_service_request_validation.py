@@ -103,7 +103,13 @@ class TestWebServiceRequestValidation(unittest.TestCase):
         assert isinstance(payload, dict)
         self.assertFalse(payload.get("ok"))
         self.assertEqual(payload.get("error"), "bad_request")
+        self.assertEqual(payload.get("code"), "bad_request")
         self.assertIn(message_contains, str(payload.get("message")))
+        details = payload.get("details")
+        self.assertIsInstance(details, list)
+        self.assertGreaterEqual(len(details), 1)
+        self.assertEqual(details[0].get("field"), "request")
+        self.assertIn(message_contains, str(details[0].get("issue")))
         self.assertIsInstance(payload.get("request_id"), str)
         self.assertTrue(str(payload.get("request_id")).strip())
 
@@ -169,6 +175,9 @@ class TestWebServiceRequestValidation(unittest.TestCase):
         assert isinstance(payload, dict)
         self.assertFalse(payload.get("ok"))
         self.assertEqual(payload.get("error"), "not_found")
+        self.assertEqual(payload.get("code"), "not_found")
+        self.assertIsInstance(payload.get("message"), str)
+        self.assertTrue(str(payload.get("message")).strip())
         self.assertIsInstance(payload.get("request_id"), str)
         self.assertTrue(str(payload.get("request_id")).strip())
 
@@ -184,6 +193,9 @@ class TestWebServiceRequestValidation(unittest.TestCase):
         assert isinstance(payload, dict)
         self.assertFalse(payload.get("ok"))
         self.assertEqual(payload.get("error"), "internal")
+        self.assertEqual(payload.get("code"), "internal")
+        self.assertIsInstance(payload.get("message"), str)
+        self.assertIn("forced internal error", str(payload.get("message")))
         self.assertIsInstance(payload.get("request_id"), str)
         self.assertTrue(str(payload.get("request_id")).strip())
 
