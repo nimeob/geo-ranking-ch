@@ -1,0 +1,849 @@
+{
+  "generated_at": "2026-03-03T12:04:27Z",
+  "issue": 896,
+  "service_after": {
+    "taskDefinition": "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-api:185",
+    "desiredCount": 1,
+    "runningCount": 1,
+    "deployments": [
+      {
+        "id": "ecs-svc/3619221839968329305",
+        "status": "PRIMARY",
+        "rolloutState": "COMPLETED",
+        "rolloutStateReason": "ECS deployment ecs-svc/3619221839968329305 completed.",
+        "taskDefinition": "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-api:185",
+        "runningCount": 1,
+        "pendingCount": 0,
+        "failedTasks": 0,
+        "createdAt": "2026-03-03T12:58:20.336000+01:00",
+        "updatedAt": "2026-03-03T13:02:05.966000+01:00"
+      }
+    ],
+    "networkConfiguration": {
+      "subnets": [
+        "subnet-04d5ddec3c5b06d7a",
+        "subnet-0cd8553a1fedbf183"
+      ],
+      "securityGroups": [
+        "sg-02d1c720c9b0adc7b"
+      ],
+      "assignPublicIp": "DISABLED"
+    },
+    "loadBalancers": [
+      {
+        "targetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+        "containerName": "api",
+        "containerPort": 8080
+      }
+    ],
+    "recentEvents": [
+      {
+        "createdAt": "2026-03-03T13:02:05.973000+01:00",
+        "message": "(service swisstopo-dev-api) has reached a steady state."
+      },
+      {
+        "createdAt": "2026-03-03T13:02:05.972000+01:00",
+        "message": "(service swisstopo-dev-api) (deployment ecs-svc/3619221839968329305) deployment completed."
+      },
+      {
+        "createdAt": "2026-03-03T13:00:21.924000+01:00",
+        "message": "(service swisstopo-dev-api, taskSet ecs-svc/6828258151872593034) has begun draining connections on 2 tasks."
+      },
+      {
+        "createdAt": "2026-03-03T13:00:21.919000+01:00",
+        "message": "(service swisstopo-dev-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b)"
+      },
+      {
+        "createdAt": "2026-03-03T13:00:21.869000+01:00",
+        "message": "(service swisstopo-dev-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-api-tg/7983af4d3cadb49a)"
+      },
+      {
+        "createdAt": "2026-03-03T13:00:12.654000+01:00",
+        "message": "(service swisstopo-dev-api) has stopped 1 running tasks: (task d01d8f235e4d47ebb7975b9a777dd876)."
+      },
+      {
+        "createdAt": "2026-03-03T12:59:21.135000+01:00",
+        "message": "(service swisstopo-dev-api) registered 1 targets in (target-group arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b)"
+      },
+      {
+        "createdAt": "2026-03-03T12:59:00.700000+01:00",
+        "message": "(service swisstopo-dev-api) has started 1 tasks: (task 1a6da832db1f49ab97de32c3b0d6fddf)."
+      },
+      {
+        "createdAt": "2026-03-03T12:52:35.983000+01:00",
+        "message": "(service swisstopo-dev-api, taskSet ecs-svc/5026885012375053528) has begun draining connections on 2 tasks."
+      },
+      {
+        "createdAt": "2026-03-03T12:52:35.976000+01:00",
+        "message": "(service swisstopo-dev-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-api-tg/7983af4d3cadb49a)"
+      },
+      {
+        "createdAt": "2026-03-03T12:52:35.925000+01:00",
+        "message": "(service swisstopo-dev-api) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b)"
+      },
+      {
+        "createdAt": "2026-03-03T12:52:24.994000+01:00",
+        "message": "(service swisstopo-dev-api) has stopped 1 running tasks: (task 7baa769b47cb473ca917a848dc44697b)."
+      }
+    ]
+  },
+  "task_after": {
+    "taskArn": "arn:aws:ecs:eu-central-1:523234426229:task/swisstopo-dev/1a6da832db1f49ab97de32c3b0d6fddf",
+    "lastStatus": "RUNNING",
+    "healthStatus": "HEALTHY",
+    "launchType": "FARGATE",
+    "startedAt": "2026-03-03T12:59:27.249000+01:00",
+    "availabilityZone": "eu-central-1b",
+    "subnetId": "subnet-04d5ddec3c5b06d7a",
+    "networkInterfaceId": "eni-0b572a27c7fd1ad5c",
+    "privateIPv4Address": "10.80.11.190"
+  },
+  "log_probe": {
+    "log_group": "/swisstopo/dev/ecs/api",
+    "log_stream": "api/api/1a6da832db1f49ab97de32c3b0d6fddf",
+    "tail_events": [
+      {
+        "timestamp": 1772539160109,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"internal\", \"event\": \"service.startup\", \"level\": \"info\", \"listen_url\": \"http://0.0.0.0:8080\", \"request_id\": \"\", \"session_id\": \"\", \"status\": \"listening\", \"trace_id\": \"\", \"ts\": \"2026-03-03T11:59:20.109551Z\"}",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539160110,
+        "message": "geo-ranking-ch web service listening on http://0.0.0.0:8080",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539161283,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-fe3770627ff84a7e\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-fe3770627ff84a7e\", \"ts\": \"2026-03-03T11:59:21.282944Z\"}",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539161283,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-fe3770627ff84a7e\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-fe3770627ff84a7e\", \"ts\": \"2026-03-03T11:59:21.283101Z\"}",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539161283,
+        "message": "10.80.1.182 - - [03/Mar/2026 11:59:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539161283,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.651, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-fe3770627ff84a7e\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-fe3770627ff84a7e\", \"ts\": \"2026-03-03T11:59:21.283613Z\"}",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539161412,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-e8c399274e434987\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-e8c399274e434987\", \"ts\": \"2026-03-03T11:59:21.412284Z\"}",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539161412,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-e8c399274e434987\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-e8c399274e434987\", \"ts\": \"2026-03-03T11:59:21.412453Z\"}",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539161412,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.432, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-e8c399274e434987\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-e8c399274e434987\", \"ts\": \"2026-03-03T11:59:21.412724Z\"}",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539161412,
+        "message": "10.80.0.222 - - [03/Mar/2026 11:59:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539161754
+      },
+      {
+        "timestamp": 1772539187263,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-1774c3a9a3964610\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-1774c3a9a3964610\", \"ts\": \"2026-03-03T11:59:47.263511Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539187263,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-1774c3a9a3964610\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-1774c3a9a3964610\", \"ts\": \"2026-03-03T11:59:47.263811Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539187264,
+        "message": "127.0.0.1 - - [03/Mar/2026 11:59:47] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539187264,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.686, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-1774c3a9a3964610\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-1774c3a9a3964610\", \"ts\": \"2026-03-03T11:59:47.264208Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539191281,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-f30c8ba5b4d44e9c\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-f30c8ba5b4d44e9c\", \"ts\": \"2026-03-03T11:59:51.281684Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539191282,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-f30c8ba5b4d44e9c\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-f30c8ba5b4d44e9c\", \"ts\": \"2026-03-03T11:59:51.281846Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539191282,
+        "message": "10.80.1.182 - - [03/Mar/2026 11:59:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539191282,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.508, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-f30c8ba5b4d44e9c\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-f30c8ba5b4d44e9c\", \"ts\": \"2026-03-03T11:59:51.282208Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539191426,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-36a75599e1814f23\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-36a75599e1814f23\", \"ts\": \"2026-03-03T11:59:51.426710Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539191427,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-36a75599e1814f23\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-36a75599e1814f23\", \"ts\": \"2026-03-03T11:59:51.426870Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539191427,
+        "message": "10.80.0.222 - - [03/Mar/2026 11:59:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539191427,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.524, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-36a75599e1814f23\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-36a75599e1814f23\", \"ts\": \"2026-03-03T11:59:51.427245Z\"}",
+        "ingestionTime": 1772539191714
+      },
+      {
+        "timestamp": 1772539217255,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-0079db50bcb44362\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-0079db50bcb44362\", \"ts\": \"2026-03-03T12:00:17.255241Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539217255,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-0079db50bcb44362\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-0079db50bcb44362\", \"ts\": \"2026-03-03T12:00:17.255408Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539217255,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:00:17] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539217255,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.573, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-0079db50bcb44362\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-0079db50bcb44362\", \"ts\": \"2026-03-03T12:00:17.255828Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539221282,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d7a4c97333774b32\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-d7a4c97333774b32\", \"ts\": \"2026-03-03T12:00:21.282386Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539221282,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d7a4c97333774b32\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-d7a4c97333774b32\", \"ts\": \"2026-03-03T12:00:21.282640Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539221282,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:00:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539221283,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.618, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d7a4c97333774b32\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-d7a4c97333774b32\", \"ts\": \"2026-03-03T12:00:21.283005Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539221442,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-7deb87a8e7c64d76\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-7deb87a8e7c64d76\", \"ts\": \"2026-03-03T12:00:21.442210Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539221442,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-7deb87a8e7c64d76\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-7deb87a8e7c64d76\", \"ts\": \"2026-03-03T12:00:21.442516Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539221442,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:00:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539221443,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.732, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-7deb87a8e7c64d76\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-7deb87a8e7c64d76\", \"ts\": \"2026-03-03T12:00:21.442984Z\"}",
+        "ingestionTime": 1772539221713
+      },
+      {
+        "timestamp": 1772539247251,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d67004a4904f4590\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-d67004a4904f4590\", \"ts\": \"2026-03-03T12:00:47.251090Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539247251,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d67004a4904f4590\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-d67004a4904f4590\", \"ts\": \"2026-03-03T12:00:47.251242Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539247251,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:00:47] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539247251,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.608, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d67004a4904f4590\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-d67004a4904f4590\", \"ts\": \"2026-03-03T12:00:47.251718Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539251283,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9117c9ad14bc403b\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-9117c9ad14bc403b\", \"ts\": \"2026-03-03T12:00:51.283027Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539251283,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9117c9ad14bc403b\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-9117c9ad14bc403b\", \"ts\": \"2026-03-03T12:00:51.283253Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539251283,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:00:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539251284,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.913, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9117c9ad14bc403b\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-9117c9ad14bc403b\", \"ts\": \"2026-03-03T12:00:51.283969Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539251458,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-020180364dc441fc\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-020180364dc441fc\", \"ts\": \"2026-03-03T12:00:51.457904Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539251458,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-020180364dc441fc\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-020180364dc441fc\", \"ts\": \"2026-03-03T12:00:51.458083Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539251458,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:00:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539251458,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.739, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-020180364dc441fc\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-020180364dc441fc\", \"ts\": \"2026-03-03T12:00:51.458664Z\"}",
+        "ingestionTime": 1772539251712
+      },
+      {
+        "timestamp": 1772539277249,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9f68af70c6ca4db9\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-9f68af70c6ca4db9\", \"ts\": \"2026-03-03T12:01:17.249714Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539277250,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9f68af70c6ca4db9\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-9f68af70c6ca4db9\", \"ts\": \"2026-03-03T12:01:17.249980Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539277250,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:01:17] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539277250,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.559, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9f68af70c6ca4db9\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-9f68af70c6ca4db9\", \"ts\": \"2026-03-03T12:01:17.250282Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539281314,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-53557db3032c437a\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-53557db3032c437a\", \"ts\": \"2026-03-03T12:01:21.314719Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539281315,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-53557db3032c437a\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-53557db3032c437a\", \"ts\": \"2026-03-03T12:01:21.314880Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539281315,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:01:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539281315,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.546, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-53557db3032c437a\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-53557db3032c437a\", \"ts\": \"2026-03-03T12:01:21.315285Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539281469,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-4dbecc3fee284160\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-4dbecc3fee284160\", \"ts\": \"2026-03-03T12:01:21.469734Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539281470,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-4dbecc3fee284160\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-4dbecc3fee284160\", \"ts\": \"2026-03-03T12:01:21.469972Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539281470,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:01:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539281470,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.575, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-4dbecc3fee284160\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-4dbecc3fee284160\", \"ts\": \"2026-03-03T12:01:21.470340Z\"}",
+        "ingestionTime": 1772539281715
+      },
+      {
+        "timestamp": 1772539302168,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9dad912c8b8a4965\", \"route\": \"/healthz\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-9dad912c8b8a4965\", \"ts\": \"2026-03-03T12:01:42.168677Z\"}",
+        "ingestionTime": 1772539306709
+      },
+      {
+        "timestamp": 1772539302168,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.healthz.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9dad912c8b8a4965\", \"route\": \"/healthz\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-9dad912c8b8a4965\", \"ts\": \"2026-03-03T12:01:42.168863Z\"}",
+        "ingestionTime": 1772539306709
+      },
+      {
+        "timestamp": 1772539302169,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:01:42] \"GET /healthz HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539306709
+      },
+      {
+        "timestamp": 1772539302169,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.656, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9dad912c8b8a4965\", \"route\": \"/healthz\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-9dad912c8b8a4965\", \"ts\": \"2026-03-03T12:01:42.169335Z\"}",
+        "ingestionTime": 1772539306709
+      },
+      {
+        "timestamp": 1772539307248,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-f1531e9a2b9040c8\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-f1531e9a2b9040c8\", \"ts\": \"2026-03-03T12:01:47.248666Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307249,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-f1531e9a2b9040c8\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-f1531e9a2b9040c8\", \"ts\": \"2026-03-03T12:01:47.248857Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307249,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:01:47] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307249,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.801, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-f1531e9a2b9040c8\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-f1531e9a2b9040c8\", \"ts\": \"2026-03-03T12:01:47.249482Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307253,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-8f29448db9704a8f\", \"route\": \"/gui\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-8f29448db9704a8f\", \"ts\": \"2026-03-03T12:01:47.253020Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307254,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:01:47] \"GET /gui?view=trace&request_id=req-mm9bwngd-73j5itnb HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307254,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 1.099, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-8f29448db9704a8f\", \"route\": \"/gui\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-8f29448db9704a8f\", \"ts\": \"2026-03-03T12:01:47.254135Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307317,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-caa50ad24c61419b\", \"route\": \"/analyze/history\", \"session_id\": \"sess-mmajd064-k7h2e03c\", \"status\": \"received\", \"trace_id\": \"req-caa50ad24c61419b\", \"ts\": \"2026-03-03T12:01:47.317274Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307317,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:01:47] \"GET /analyze/history?limit=50 HTTP/1.1\" 401 -",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307317,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.506, \"error_class\": \"unauthorized\", \"error_code\": \"unauthorized\", \"event\": \"api.request.end\", \"level\": \"warn\", \"method\": \"GET\", \"request_id\": \"req-caa50ad24c61419b\", \"route\": \"/analyze/history\", \"session_id\": \"sess-mmajd064-k7h2e03c\", \"status\": \"client_error\", \"status_code\": 401, \"trace_id\": \"req-caa50ad24c61419b\", \"ts\": \"2026-03-03T12:01:47.317788Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539307318,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-mmak4ys7-ap07w2i1\", \"route\": \"/debug/trace\", \"session_id\": \"sess-mmajd064-k7h2e03c\", \"status\": \"received\", \"trace_id\": \"req-mmak4ys7-ap07w2i1\", \"ts\": \"2026-03-03T12:01:47.318773Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539311318,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9d4afbe9725b45f0\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-9d4afbe9725b45f0\", \"ts\": \"2026-03-03T12:01:51.317941Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539311318,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9d4afbe9725b45f0\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-9d4afbe9725b45f0\", \"ts\": \"2026-03-03T12:01:51.318181Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539311318,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:01:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539311319,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.874, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-9d4afbe9725b45f0\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-9d4afbe9725b45f0\", \"ts\": \"2026-03-03T12:01:51.318830Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539311490,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-87fe7e16d1cb45b1\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-87fe7e16d1cb45b1\", \"ts\": \"2026-03-03T12:01:51.489908Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539311490,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-87fe7e16d1cb45b1\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-87fe7e16d1cb45b1\", \"ts\": \"2026-03-03T12:01:51.490082Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539311490,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:01:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539311490,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.595, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-87fe7e16d1cb45b1\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-87fe7e16d1cb45b1\", \"ts\": \"2026-03-03T12:01:51.490511Z\"}",
+        "ingestionTime": 1772539311694
+      },
+      {
+        "timestamp": 1772539333203,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:02:13] \"GET /debug/trace?request_id=req-mm9bwngd-73j5itnb HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539336716
+      },
+      {
+        "timestamp": 1772539333203,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 25884.838, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-mmak4ys7-ap07w2i1\", \"route\": \"/debug/trace\", \"session_id\": \"sess-mmajd064-k7h2e03c\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-mmak4ys7-ap07w2i1\", \"ts\": \"2026-03-03T12:02:13.203626Z\"}",
+        "ingestionTime": 1772539336716
+      },
+      {
+        "timestamp": 1772539337254,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-8f5ad29b1b514698\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-8f5ad29b1b514698\", \"ts\": \"2026-03-03T12:02:17.254717Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539337255,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-8f5ad29b1b514698\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-8f5ad29b1b514698\", \"ts\": \"2026-03-03T12:02:17.254908Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539337255,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:02:17] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539337255,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.454, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-8f5ad29b1b514698\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-8f5ad29b1b514698\", \"ts\": \"2026-03-03T12:02:17.255177Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539341348,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-63591d012c6b4514\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-63591d012c6b4514\", \"ts\": \"2026-03-03T12:02:21.348442Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539341348,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-63591d012c6b4514\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-63591d012c6b4514\", \"ts\": \"2026-03-03T12:02:21.348650Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539341348,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:02:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539341349,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.481, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-63591d012c6b4514\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-63591d012c6b4514\", \"ts\": \"2026-03-03T12:02:21.348926Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539341520,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-88cf2719a2b34af1\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-88cf2719a2b34af1\", \"ts\": \"2026-03-03T12:02:21.520697Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539341521,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-88cf2719a2b34af1\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-88cf2719a2b34af1\", \"ts\": \"2026-03-03T12:02:21.520943Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539341521,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:02:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539341521,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.746, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-88cf2719a2b34af1\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-88cf2719a2b34af1\", \"ts\": \"2026-03-03T12:02:21.521450Z\"}",
+        "ingestionTime": 1772539341697
+      },
+      {
+        "timestamp": 1772539367252,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-059037a002d649b5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-059037a002d649b5\", \"ts\": \"2026-03-03T12:02:47.252204Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539367252,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-059037a002d649b5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-059037a002d649b5\", \"ts\": \"2026-03-03T12:02:47.252360Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539367252,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:02:47] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539367252,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.469, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-059037a002d649b5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-059037a002d649b5\", \"ts\": \"2026-03-03T12:02:47.252693Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539371375,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-a9750dbc85684de5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-a9750dbc85684de5\", \"ts\": \"2026-03-03T12:02:51.374839Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539371375,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-a9750dbc85684de5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-a9750dbc85684de5\", \"ts\": \"2026-03-03T12:02:51.375002Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539371375,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:02:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539371375,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.531, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-a9750dbc85684de5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-a9750dbc85684de5\", \"ts\": \"2026-03-03T12:02:51.375381Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539371550,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-1f1db35de0bc4f26\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-1f1db35de0bc4f26\", \"ts\": \"2026-03-03T12:02:51.549913Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539371550,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-1f1db35de0bc4f26\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-1f1db35de0bc4f26\", \"ts\": \"2026-03-03T12:02:51.550168Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539371550,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:02:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539371550,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.742, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-1f1db35de0bc4f26\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-1f1db35de0bc4f26\", \"ts\": \"2026-03-03T12:02:51.550672Z\"}",
+        "ingestionTime": 1772539371719
+      },
+      {
+        "timestamp": 1772539384794,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-81d84c38c22a40d0\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-81d84c38c22a40d0\", \"ts\": \"2026-03-03T12:03:04.794460Z\"}",
+        "ingestionTime": 1772539386718
+      },
+      {
+        "timestamp": 1772539384794,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-81d84c38c22a40d0\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-81d84c38c22a40d0\", \"ts\": \"2026-03-03T12:03:04.794752Z\"}",
+        "ingestionTime": 1772539386718
+      },
+      {
+        "timestamp": 1772539384795,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:03:04] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539386718
+      },
+      {
+        "timestamp": 1772539384795,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.68, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-81d84c38c22a40d0\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-81d84c38c22a40d0\", \"ts\": \"2026-03-03T12:03:04.795135Z\"}",
+        "ingestionTime": 1772539386718
+      },
+      {
+        "timestamp": 1772539397251,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d6e1512132f94f04\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-d6e1512132f94f04\", \"ts\": \"2026-03-03T12:03:17.251081Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539397251,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d6e1512132f94f04\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-d6e1512132f94f04\", \"ts\": \"2026-03-03T12:03:17.251246Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539397251,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:03:17] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539397251,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.592, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-d6e1512132f94f04\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-d6e1512132f94f04\", \"ts\": \"2026-03-03T12:03:17.251690Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539401404,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-3ba43bbaef424090\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-3ba43bbaef424090\", \"ts\": \"2026-03-03T12:03:21.404433Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539401404,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-3ba43bbaef424090\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-3ba43bbaef424090\", \"ts\": \"2026-03-03T12:03:21.404607Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539401404,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:03:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539401405,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.526, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-3ba43bbaef424090\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-3ba43bbaef424090\", \"ts\": \"2026-03-03T12:03:21.404968Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539401572,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-6ed5bf35843d470c\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-6ed5bf35843d470c\", \"ts\": \"2026-03-03T12:03:21.571837Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539401572,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-6ed5bf35843d470c\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-6ed5bf35843d470c\", \"ts\": \"2026-03-03T12:03:21.571997Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539401572,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:03:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539401572,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.505, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-6ed5bf35843d470c\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-6ed5bf35843d470c\", \"ts\": \"2026-03-03T12:03:21.572349Z\"}",
+        "ingestionTime": 1772539401715
+      },
+      {
+        "timestamp": 1772539427251,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-0b631013d63e47c3\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-0b631013d63e47c3\", \"ts\": \"2026-03-03T12:03:47.251344Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539427251,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-0b631013d63e47c3\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-0b631013d63e47c3\", \"ts\": \"2026-03-03T12:03:47.251586Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539427251,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:03:47] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539427252,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.683, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-0b631013d63e47c3\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-0b631013d63e47c3\", \"ts\": \"2026-03-03T12:03:47.252043Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539431433,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-b2a83649b5104b3f\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-b2a83649b5104b3f\", \"ts\": \"2026-03-03T12:03:51.433616Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539431434,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-b2a83649b5104b3f\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-b2a83649b5104b3f\", \"ts\": \"2026-03-03T12:03:51.434005Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539431434,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:03:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539431434,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.717, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-b2a83649b5104b3f\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-b2a83649b5104b3f\", \"ts\": \"2026-03-03T12:03:51.434360Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539431602,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-379b77aed9d041d5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-379b77aed9d041d5\", \"ts\": \"2026-03-03T12:03:51.601966Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539431602,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-379b77aed9d041d5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-379b77aed9d041d5\", \"ts\": \"2026-03-03T12:03:51.602138Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539431602,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:03:51] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539431602,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.544, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-379b77aed9d041d5\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-379b77aed9d041d5\", \"ts\": \"2026-03-03T12:03:51.602530Z\"}",
+        "ingestionTime": 1772539431716
+      },
+      {
+        "timestamp": 1772539457252,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-5479a381fdcc4391\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-5479a381fdcc4391\", \"ts\": \"2026-03-03T12:04:17.252063Z\"}",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539457252,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-5479a381fdcc4391\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-5479a381fdcc4391\", \"ts\": \"2026-03-03T12:04:17.252220Z\"}",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539457252,
+        "message": "127.0.0.1 - - [03/Mar/2026 12:04:17] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539457252,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.599, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-5479a381fdcc4391\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-5479a381fdcc4391\", \"ts\": \"2026-03-03T12:04:17.252671Z\"}",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539461463,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-3831722d3ee64e7f\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-3831722d3ee64e7f\", \"ts\": \"2026-03-03T12:04:21.462997Z\"}",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539461463,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-3831722d3ee64e7f\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-3831722d3ee64e7f\", \"ts\": \"2026-03-03T12:04:21.463266Z\"}",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539461463,
+        "message": "10.80.1.182 - - [03/Mar/2026 12:04:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539461463,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.569, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-3831722d3ee64e7f\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-3831722d3ee64e7f\", \"ts\": \"2026-03-03T12:04:21.463575Z\"}",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539461630,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"client->api\", \"event\": \"api.request.start\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-b1f56ebca3764003\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"received\", \"trace_id\": \"req-b1f56ebca3764003\", \"ts\": \"2026-03-03T12:04:21.629889Z\"}",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539461630,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"event\": \"api.health.response\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-b1f56ebca3764003\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"trace_id\": \"req-b1f56ebca3764003\", \"ts\": \"2026-03-03T12:04:21.630057Z\"}",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539461630,
+        "message": "10.80.0.222 - - [03/Mar/2026 12:04:21] \"GET /health HTTP/1.1\" 200 -",
+        "ingestionTime": 1772539461719
+      },
+      {
+        "timestamp": 1772539461631,
+        "message": "{\"component\": \"api.web_service\", \"direction\": \"api->client\", \"duration_ms\": 0.593, \"event\": \"api.request.end\", \"level\": \"info\", \"method\": \"GET\", \"request_id\": \"req-b1f56ebca3764003\", \"route\": \"/health\", \"session_id\": \"\", \"status\": \"ok\", \"status_code\": 200, \"trace_id\": \"req-b1f56ebca3764003\", \"ts\": \"2026-03-03T12:04:21.630495Z\"}",
+        "ingestionTime": 1772539461719
+      }
+    ],
+    "contains_db_timeout_or_operational_error": false
+  },
+  "probes": {
+    "health_https_status": 200,
+    "health_https_body": "{\"ok\": true, \"service\": \"geo-ranking-ch\", \"ts\": \"2026-03-03T12:04:29.774920+00:00\", \"request_id\": \"req-e873ac36ccd843a2\"}",
+    "analyze_noauth_status": 401,
+    "analyze_noauth_body": "{\"ok\": false, \"error\": \"unauthorized\", \"message\": \"missing or invalid bearer token\", \"request_id\": \"req-3df0b03d0bf547fc\"}"
+  }
+}

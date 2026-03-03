@@ -1,0 +1,45 @@
+{
+  "actual": {
+    "assignPublicIp": "DISABLED",
+    "deployments": [
+      {
+        "id": "ecs-svc/3619221839968329305",
+        "pendingCount": 0,
+        "rolloutState": "COMPLETED",
+        "rolloutStateReason": "ECS deployment ecs-svc/3619221839968329305 completed.",
+        "runningCount": 1,
+        "status": "PRIMARY"
+      }
+    ],
+    "subnets": [
+      "subnet-04d5ddec3c5b06d7a",
+      "subnet-0cd8553a1fedbf183"
+    ],
+    "targetGroupArns": [
+      "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b"
+    ]
+  },
+  "checked_at": "2026-03-03T12:05:51+00:00",
+  "checks": {
+    "assign_public_ip_matches": true,
+    "expected_target_group_attached": true,
+    "primary_rollout_completed": true,
+    "single_target_group_attached": true,
+    "subnets_match_expected": true
+  },
+  "expected": {
+    "assignPublicIp": "DISABLED",
+    "subnets": [
+      "subnet-04d5ddec3c5b06d7a",
+      "subnet-0cd8553a1fedbf183"
+    ],
+    "targetGroupArnContains": "targetgroup/swisstopo-dev-vpc-api-tg/"
+  },
+  "ok": true,
+  "service": {
+    "desiredCount": 1,
+    "runningCount": 1,
+    "serviceArn": "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-dev/swisstopo-dev-api",
+    "taskDefinition": "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-api:185"
+  }
+}
