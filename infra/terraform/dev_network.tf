@@ -1,6 +1,7 @@
 locals {
   manage_dev_network_effective = var.environment == "dev" && var.manage_dev_network
   manage_dev_ingress_effective = var.environment == "dev" && var.manage_dev_network && var.manage_dev_ingress
+  manage_dev_nat_effective     = var.environment == "dev" && var.manage_dev_network && var.manage_dev_nat_gateway
 }
 
 # ---------------------------------------------------------------------------
@@ -107,6 +108,61 @@ resource "aws_route_table_association" "dev_public" {
 
   subnet_id      = aws_subnet.dev_public[count.index].id
   route_table_id = aws_route_table.dev_public[0].id
+}
+
+resource "aws_eip" "dev_nat" {
+  count = local.manage_dev_nat_effective ? 1 : 0
+
+  domain = "vpc"
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-dev-nat-eip"
+  })
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_nat_gateway" "dev" {
+  count = local.manage_dev_nat_effective ? 1 : 0
+
+  allocation_id = aws_eip.dev_nat[0].id
+  subnet_id     = aws_subnet.dev_public[0].id
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-dev-nat"
+  })
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_route_table" "dev_private" {
+  count = local.manage_dev_nat_effective ? 1 : 0
+
+  vpc_id = aws_vpc.dev[0].id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.dev[0].id
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-dev-private-rt"
+  })
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_route_table_association" "dev_private" {
+  count = local.manage_dev_nat_effective ? length(aws_subnet.dev_private) : 0
+
+  subnet_id      = aws_subnet.dev_private[count.index].id
+  route_table_id = aws_route_table.dev_private[0].id
 }
 
 resource "aws_security_group" "dev_alb" {

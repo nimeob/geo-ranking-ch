@@ -17,8 +17,9 @@ manage_s3_bucket               = false
 
 # --- Dev Network + Ingress Skeleton (INFRA-NET-0-dev) ---
 # Default: vollständig deaktiviert (kein Create/Destroy in plan).
-manage_dev_network = false
-manage_dev_ingress = false
+manage_dev_network     = false
+manage_dev_ingress     = false
+manage_dev_nat_gateway = false  # optional: NAT Egress für private Subnets
 
 # --- Dev ECS Compute Skeleton ---
 # Default: deaktiviert. Wird zusätzlich nur bei environment="dev" aktiv.
@@ -57,7 +58,7 @@ dev_vpc_cidr = "10.80.0.0/16"
 # Public Subnets (mind. 2 empfohlen, unterschiedliche AZs)
 dev_public_subnet_cidrs = ["10.80.0.0/24", "10.80.1.0/24"]
 
-# Private Subnets (optional; NAT ist in diesem WP bewusst nicht enthalten)
+# Private Subnets (NAT-Egress optional via manage_dev_nat_gateway=true)
 dev_private_subnet_cidrs = ["10.80.10.0/24", "10.80.11.0/24"]
 
 dev_alb_name = "swisstopo-dev-alb"

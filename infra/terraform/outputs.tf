@@ -76,6 +76,21 @@ output "dev_private_subnet_ids" {
   value       = [for s in aws_subnet.dev_private : s.id]
 }
 
+output "dev_nat_gateway_id" {
+  description = "NAT Gateway ID für dev private egress (leer wenn manage_dev_nat_gateway=false)."
+  value       = try(aws_nat_gateway.dev[0].id, null)
+}
+
+output "dev_nat_eip_allocation_id" {
+  description = "Elastic-IP Allocation ID des dev NAT Gateways (leer wenn manage_dev_nat_gateway=false)."
+  value       = try(aws_eip.dev_nat[0].id, null)
+}
+
+output "dev_private_route_table_id" {
+  description = "Route-Table-ID für dev private Subnets mit NAT default route (leer wenn manage_dev_nat_gateway=false)."
+  value       = try(aws_route_table.dev_private[0].id, null)
+}
+
 output "dev_alb_security_group_id" {
   description = "Security Group ID des dev ALB (leer wenn manage_dev_ingress=false)."
   value       = try(aws_security_group.dev_alb[0].id, null)

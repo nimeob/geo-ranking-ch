@@ -485,6 +485,12 @@ variable "manage_dev_ingress" {
   default     = false
 }
 
+variable "manage_dev_nat_gateway" {
+  description = "Wenn true, erstellt Terraform NAT Egress für dev private Subnets (EIP + NAT Gateway + private Route Table). Guard: wirkt nur bei environment=dev und nur wenn manage_dev_network=true."
+  type        = bool
+  default     = false
+}
+
 variable "dev_vpc_cidr" {
   description = "CIDR Block für die dev VPC."
   type        = string
@@ -498,7 +504,7 @@ variable "dev_public_subnet_cidrs" {
 }
 
 variable "dev_private_subnet_cidrs" {
-  description = "CIDR Blocks für dev Private Subnets (optional; NAT ist in diesem WP bewusst nicht enthalten)."
+  description = "CIDR Blocks für dev Private Subnets (NAT-Egress optional via manage_dev_nat_gateway=true)."
   type        = list(string)
   default     = ["10.80.10.0/24", "10.80.11.0/24"]
 }
