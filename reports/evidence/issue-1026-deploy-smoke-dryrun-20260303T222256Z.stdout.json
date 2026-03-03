@@ -1,0 +1,38 @@
+{
+  "schema_version": "deploy-smoke-report/v1",
+  "runner": "deploy-smoke-entrypoint",
+  "profile": "deploy",
+  "target": "dev",
+  "flow": "sync",
+  "classification": "must-pass",
+  "status": "planned",
+  "reason": "dry_run",
+  "checks": [
+    {
+      "name": "deploy-dev-auth-preflight",
+      "command": [
+        "./scripts/smoke/auth_preflight.sh"
+      ],
+      "env": {
+        "SMOKE_AUTH_MODE": "oidc_client_credentials",
+        "SMOKE_AUTH_OUTPUT_FILE": "artifacts/smoke_auth.env"
+      },
+      "classification": "must-pass",
+      "kind": "auth_preflight",
+      "status": "planned"
+    },
+    {
+      "name": "deploy-dev-sync",
+      "command": [
+        "./scripts/run_remote_api_smoketest.sh"
+      ],
+      "env": {
+        "DEV_BASE_URL": "https://api.dev.example.invalid",
+        "SMOKE_CLASSIFICATION": "must-pass"
+      },
+      "classification": "must-pass",
+      "kind": "smoke",
+      "status": "planned"
+    }
+  ]
+}
