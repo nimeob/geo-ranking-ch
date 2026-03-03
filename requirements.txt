@@ -5,5 +5,10 @@
 
 boto3>=1.34,<2
 
+# DB-backed AsyncJobStore (ASYNC_STORE_BACKEND=db → Postgres via psycopg2).
+# Benötigt wenn ECS Task mit ASYNC_STORE_BACKEND=db läuft.
+# Ref: src/shared/async_job_store_db.py, #867
+psycopg2-binary>=2.9
+
 # Optional (für Karten-PNG-Rendering in address_intel.py):
 # pycairo>=1.24
