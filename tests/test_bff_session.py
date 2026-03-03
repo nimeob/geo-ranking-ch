@@ -123,6 +123,10 @@ class TestBffSessionStore:
         store = BffSessionStore(ttl_seconds=3600)
         assert store.get("nonexistent") is None
 
+    def test_get_invalid_id_returns_none(self) -> None:
+        store = BffSessionStore(ttl_seconds=3600)
+        assert store.get("bad id with space") is None
+
     def test_get_expired_session_returns_none(self) -> None:
         store = BffSessionStore(ttl_seconds=3600)
         s = store.create()
@@ -147,6 +151,12 @@ class TestBffSessionStore:
         store = BffSessionStore(ttl_seconds=3600)
         store.delete("nonexistent")  # must not raise
 
+    def test_delete_invalid_id_is_ignored(self) -> None:
+        store = BffSessionStore(ttl_seconds=3600)
+        session = store.create()
+        store.delete("invalid id")
+        assert store.get(session.session_id) is not None
+
     def test_renew_extends_expiry(self) -> None:
         store = BffSessionStore(ttl_seconds=100)
         s = store.create()
@@ -159,6 +169,10 @@ class TestBffSessionStore:
     def test_renew_nonexistent_returns_false(self) -> None:
         store = BffSessionStore(ttl_seconds=3600)
         assert store.renew("nonexistent") is False
+
+    def test_renew_invalid_id_returns_false(self) -> None:
+        store = BffSessionStore(ttl_seconds=3600)
+        assert store.renew("invalid id") is False
 
     def test_renew_expired_session_returns_false(self) -> None:
         store = BffSessionStore(ttl_seconds=3600)
@@ -243,6 +257,12 @@ class TestBuildSetCookieHeader:
         hdr = build_set_cookie_header("sid", ttl_seconds=3600)
         assert "Secure" not in hdr
 
+    def test_host_cookie_name_downgrades_when_secure_disabled(self, monkeypatch) -> None:
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "0")
+        monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        hdr = build_set_cookie_header("sid", ttl_seconds=3600)
+        assert hdr.startswith("bff-session=sid")
+
     def test_custom_cookie_name(self, monkeypatch) -> None:
         monkeypatch.setenv("BFF_SESSION_COOKIE_NAME", "my-session")
         hdr = build_set_cookie_header("sid", ttl_seconds=3600)
@@ -250,8 +270,18 @@ class TestBuildSetCookieHeader:
 
     def test_default_cookie_name_is_host_prefixed(self, monkeypatch) -> None:
         monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "1")
         hdr = build_set_cookie_header("sid", ttl_seconds=3600)
         assert hdr.startswith("__Host-session=sid")
+
+    def test_invalid_cookie_name_falls_back_to_default(self, monkeypatch) -> None:
+        monkeypatch.setenv("BFF_SESSION_COOKIE_NAME", "bad;name")
+        hdr = build_set_cookie_header("sid", ttl_seconds=3600)
+        assert hdr.startswith("__Host-session=sid")
+
+    def test_rejects_invalid_session_id(self) -> None:
+        with pytest.raises(ValueError):
+            build_set_cookie_header("bad;sid", ttl_seconds=3600)
 
 
 class TestBuildClearCookieHeader:
@@ -265,23 +295,33 @@ class TestBuildClearCookieHeader:
 
     def test_cookie_name_present(self, monkeypatch) -> None:
         monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "1")
         hdr = build_clear_cookie_header()
         assert "__Host-session=deleted" in hdr
+
+    def test_cookie_name_downgrades_when_secure_disabled(self, monkeypatch) -> None:
+        monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "0")
+        hdr = build_clear_cookie_header()
+        assert "bff-session=deleted" in hdr
 
 
 class TestParseSessionIdFromCookie:
     def test_single_cookie(self, monkeypatch) -> None:
         monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "1")
         sid = parse_session_id_from_cookie("__Host-session=abc123")
         assert sid == "abc123"
 
     def test_multiple_cookies(self, monkeypatch) -> None:
         monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "1")
         sid = parse_session_id_from_cookie("other=val; __Host-session=myid; another=x")
         assert sid == "myid"
 
     def test_missing_cookie_returns_none(self, monkeypatch) -> None:
         monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "1")
         assert parse_session_id_from_cookie("other=val") is None
 
     def test_none_header_returns_none(self) -> None:
@@ -297,7 +337,19 @@ class TestParseSessionIdFromCookie:
 
     def test_empty_value_returns_none(self, monkeypatch) -> None:
         monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "1")
         assert parse_session_id_from_cookie("__Host-session=") is None
+
+    def test_invalid_value_with_separator_returns_none(self, monkeypatch) -> None:
+        monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "1")
+        assert parse_session_id_from_cookie("__Host-session=bad\\nvalue") is None
+
+    def test_overlong_value_returns_none(self, monkeypatch) -> None:
+        monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        monkeypatch.setenv("BFF_SESSION_SECURE_COOKIE", "1")
+        oversized = "a" * 300
+        assert parse_session_id_from_cookie(f"__Host-session={oversized}") is None
 
 
 # ---------------------------------------------------------------------------

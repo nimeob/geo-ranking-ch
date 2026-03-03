@@ -87,6 +87,13 @@ _PORTAL_API_BASE_ENV = "BFF_PORTAL_API_BASE_URL"
 
 _DEFAULT_CSRF_HEADER = "X-BFF-CSRF"
 _DEFAULT_CSRF_VALUE = "1"
+_DEFAULT_SECURE_COOKIE_NAME = "__Host-session"
+_DEFAULT_INSECURE_COOKIE_NAME = "bff-session"
+_MAX_SESSION_ID_LENGTH = 256
+_COOKIE_NAME_ALLOWED_CHARS = frozenset(
+    "!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+)
+_SESSION_ID_ALLOWED_CHARS = frozenset("-._~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
 # Methods that require CSRF protection
 _CSRF_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -199,6 +206,23 @@ def get_secure_cookie_flag(request_headers: dict[str, str]) -> bool:
     return is_https_request(request_headers)
 
 
+def _resolve_cookie_name(*, secure: bool, cookie_name: str | None = None) -> str:
+    raw_name = str(cookie_name or os.environ.get("BFF_SESSION_COOKIE_NAME", _DEFAULT_SECURE_COOKIE_NAME) or "").strip()
+    if not raw_name or any(ch not in _COOKIE_NAME_ALLOWED_CHARS for ch in raw_name):
+        raw_name = _DEFAULT_SECURE_COOKIE_NAME
+    if raw_name.startswith("__Host-") and not secure:
+        return _DEFAULT_INSECURE_COOKIE_NAME
+    return raw_name
+
+
+def _assert_valid_session_id(session_id: str) -> None:
+    value = str(session_id or "")
+    if not value or value != value.strip() or len(value) > _MAX_SESSION_ID_LENGTH:
+        raise ValueError("invalid session_id for Set-Cookie header")
+    if any(ch not in _SESSION_ID_ALLOWED_CHARS for ch in value):
+        raise ValueError("invalid session_id for Set-Cookie header")
+
+
 def build_strict_set_cookie_header(
     session_id: str,
     *,
@@ -223,7 +247,8 @@ def build_strict_set_cookie_header(
     Returns:
         A ``Set-Cookie`` header value string.
     """
-    name = cookie_name or os.environ.get("BFF_SESSION_COOKIE_NAME", "__Host-session")
+    _assert_valid_session_id(session_id)
+    name = _resolve_cookie_name(secure=secure, cookie_name=cookie_name)
     max_age = ttl_seconds if ttl_seconds is not None else int(
         os.environ.get("BFF_SESSION_TTL_SECONDS", "3600") or "3600"
     )

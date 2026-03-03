@@ -82,7 +82,8 @@ Erwartung:
 |---|---|---|
 | `HttpOnly` | Logout-Cookie enthält `HttpOnly`; Session-Set/Clear-Helper sind regressionsgetestet | `tests/test_web_service_bff_gui_guard.py`, `tests/test_bff_session.py` |
 | `SameSite` | Logout-Header nutzt `SameSite=Lax`; Session-Cookies prüfen `SameSite=Lax` | `tests/test_web_service_bff_gui_guard.py`, `tests/test_bff_session.py` |
-| `Secure` | `Secure` wird bei aktiviertem `BFF_SESSION_SECURE_COOKIE=1` gesetzt und bei `0` nicht gesetzt | `tests/test_bff_session.py` |
+| `Secure` | `Secure` wird bei aktiviertem `BFF_SESSION_SECURE_COOKIE=1` gesetzt und bei `0` nicht gesetzt; `__Host-*`-Namen werden bei `Secure=0` auf `bff-session` gedowngraded (kein ungültiger Host-Prefix-Cookie) | `tests/test_bff_session.py`, `tests/test_bff_portal_proxy.py` |
+| Session-Store Guards | Session-ID/Cookie-Name werden auf zulässiges Token-Format geprüft; invalide Werte werden verworfen bzw. als `ValueError` geblockt | `src/api/bff_session.py`, `src/api/bff_portal_proxy.py`, `tests/test_bff_session.py`, `tests/test_bff_portal_proxy.py` |
 
 Konkreter Test-/Output-Nachweis: [`reports/evidence/issue-947-gui-auth-e2e-cookie-evidence-20260303T171208Z.md`](../../reports/evidence/issue-947-gui-auth-e2e-cookie-evidence-20260303T171208Z.md)
 

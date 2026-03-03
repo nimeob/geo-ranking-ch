@@ -36,6 +36,13 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 _REDACTED = "[REDACTED]"
+_DEFAULT_SECURE_COOKIE_NAME = "__Host-session"
+_DEFAULT_INSECURE_COOKIE_NAME = "bff-session"
+_MAX_SESSION_ID_LENGTH = 256
+_COOKIE_NAME_ALLOWED_CHARS = frozenset(
+    "!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+)
+_SESSION_ID_ALLOWED_CHARS = frozenset("-._~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
 
 @dataclass
@@ -126,6 +133,8 @@ class BffSessionStore:
 
     def get(self, session_id: str) -> BffSession | None:
         """Return the session for *session_id*, or None if missing/expired."""
+        if not _is_valid_session_id(session_id):
+            return None
         with self._lock:
             session = self._sessions.get(session_id)
             if session is None:
@@ -137,6 +146,8 @@ class BffSessionStore:
 
     def delete(self, session_id: str) -> None:
         """Remove session from store (idempotent)."""
+        if not _is_valid_session_id(session_id):
+            return
         with self._lock:
             self._sessions.pop(session_id, None)
 
@@ -145,6 +156,8 @@ class BffSessionStore:
 
         Returns True if session existed and was renewed, False otherwise.
         """
+        if not _is_valid_session_id(session_id):
+            return False
         with self._lock:
             session = self._sessions.get(session_id)
             if session is None or session.is_expired():
@@ -174,7 +187,17 @@ import os as _os
 
 
 def _bff_cookie_name() -> str:
-    return _os.environ.get("BFF_SESSION_COOKIE_NAME", "__Host-session")
+    raw_name = str(_os.environ.get("BFF_SESSION_COOKIE_NAME", _DEFAULT_SECURE_COOKIE_NAME) or "").strip()
+    if not raw_name or any(ch not in _COOKIE_NAME_ALLOWED_CHARS for ch in raw_name):
+        raw_name = _DEFAULT_SECURE_COOKIE_NAME
+
+    # ``__Host-`` cookies are only valid with Secure + Path=/ and no Domain.
+    # We always enforce Path=/ and no Domain; when Secure is explicitly disabled
+    # (local dev), downgrade to a non-prefixed cookie name so browsers don't
+    # silently reject an invalid ``__Host-`` cookie.
+    if raw_name.startswith("__Host-") and not _bff_secure_cookie():
+        return _DEFAULT_INSECURE_COOKIE_NAME
+    return raw_name
 
 
 def _bff_ttl_seconds() -> int:
@@ -193,6 +216,18 @@ def _bff_secure_cookie() -> bool:
     return _os.environ.get("BFF_SESSION_SECURE_COOKIE", "1") not in ("0", "false", "False", "no")
 
 
+def _is_valid_session_id(session_id: str) -> bool:
+    value = str(session_id or "")
+    if not value or value != value.strip() or len(value) > _MAX_SESSION_ID_LENGTH:
+        return False
+    return all(ch in _SESSION_ID_ALLOWED_CHARS for ch in value)
+
+
+def _assert_valid_session_id(session_id: str) -> None:
+    if not _is_valid_session_id(session_id):
+        raise ValueError("invalid session_id for Set-Cookie header")
+
+
 def build_set_cookie_header(session_id: str, *, ttl_seconds: int | None = None) -> str:
     """Return a Set-Cookie header value for the given session ID.
 
@@ -206,6 +241,7 @@ def build_set_cookie_header(session_id: str, *, ttl_seconds: int | None = None) 
     - ``Secure`` (HTTPS only; disable via BFF_SESSION_SECURE_COOKIE=0 for local dev)
     - ``Path=/`` (required for ``__Host-`` prefix)
     """
+    _assert_valid_session_id(session_id)
     name = _bff_cookie_name()
     max_age = ttl_seconds if ttl_seconds is not None else _bff_ttl_seconds()
     parts = [
@@ -250,7 +286,10 @@ def parse_session_id_from_cookie(cookie_header: str | None) -> str | None:
             continue
         k, _, v = part.partition("=")
         if k.strip() == name:
-            return v.strip() or None
+            candidate = v.strip()
+            if not _is_valid_session_id(candidate):
+                return None
+            return candidate
     return None
 
 

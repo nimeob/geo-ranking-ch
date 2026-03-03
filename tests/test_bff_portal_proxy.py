@@ -205,6 +205,11 @@ class TestBuildStrictSetCookieHeader:
         header = build_strict_set_cookie_header("sess-abc", secure=False)
         assert "Secure" not in header
 
+    def test_host_cookie_name_downgrades_when_secure_false(self, monkeypatch):
+        monkeypatch.delenv("BFF_SESSION_COOKIE_NAME", raising=False)
+        header = build_strict_set_cookie_header("sess-abc", secure=False)
+        assert header.startswith("bff-session=sess-abc")
+
     def test_contains_path_root(self):
         header = build_strict_set_cookie_header("sess-abc")
         assert "Path=/" in header
@@ -220,6 +225,15 @@ class TestBuildStrictSetCookieHeader:
     def test_custom_cookie_name(self):
         header = build_strict_set_cookie_header("sid", cookie_name="my-bff-session")
         assert header.startswith("my-bff-session=sid")
+
+    def test_invalid_cookie_name_falls_back_to_default(self, monkeypatch):
+        monkeypatch.setenv("BFF_SESSION_COOKIE_NAME", "bad;name")
+        header = build_strict_set_cookie_header("sid", secure=True)
+        assert header.startswith("__Host-session=sid")
+
+    def test_invalid_session_id_raises(self):
+        with pytest.raises(ValueError):
+            build_strict_set_cookie_header("bad;sid")
 
 
 # ---------------------------------------------------------------------------
