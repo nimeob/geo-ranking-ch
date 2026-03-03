@@ -1,7 +1,7 @@
 # Backlog (konsolidiert)
 
 > Quelle: konsolidierte offene Punkte aus `README.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_AWS.md`, `docs/OPERATIONS.md`.
-> Stand: 2026-03-03
+> Stand: 2026-03-04
 
 ## Legende
 
@@ -59,6 +59,7 @@ Regelwerk:
 
 ## Dev-Engineering (non-BL)
 
+- ✅ abgeschlossen (2026-03-04): [#1040](https://github.com/nimeob/geo-ranking-ch/issues/1040) — Smoke-Härtung: Kritische Dev-Smokes als required Job markieren — neuer PR-Gate-Workflow `.github/workflows/dev-smoke-required.yml` mit stabilem Status-Check `dev-smoke-required` (kanonischer Entrypoint `python3 ./scripts/run_deploy_smoke.py --profile pr --flow sync`), Required-Check-Doku in `docs/testing/DEPLOY_TEST_TIERS.md` + `docs/OPERATIONS.md` ergänzt, Guard-Tests erweitert (`tests/test_pr_fast_gates_config.py`); Nachweise: PR #1049 (Merge `949a36d`), GH-Run `22647112804`, lokale Evidence `reports/evidence/issue-1040-required-dev-smoke-20260303T231210Z.md`, `pytest -q tests/test_pr_fast_gates_config.py tests/test_markdown_links.py tests/test_user_docs.py` (14 passed).
 - ✅ abgeschlossen (2026-03-03): [#990](https://github.com/nimeob/geo-ranking-ch/issues/990) — BL-976.wp1: Test-Tier-Matrix für PR/Deploy/Nightly dokumentiert — neues Referenzdokument `docs/testing/DEPLOY_TEST_TIERS.md` (Trigger/Blocking/must-pass/Verantwortlichkeiten), Verlinkung aus `docs/DEPLOYMENT_AWS.md` + `docs/testing/RUNBOOKS.md`; Nachweis: PR #994 (Merge `4084470`), `pytest -q tests/test_markdown_links.py tests/test_user_docs.py` (9 passed).
 - ✅ abgeschlossen (2026-03-03): [#991](https://github.com/nimeob/geo-ranking-ch/issues/991) — BL-976.wp2: Gemeinsamer Smoke-Runner-Entrypoint mit Profilen (`pr|deploy|nightly`) umgesetzt — neues Script `scripts/run_deploy_smoke.py`, Environment-Wrapper (`run_staging_*`, `run_prod_*`) auf Delegation umgestellt, Runbook um kanonische Entrypoint-Parameter ergänzt (`docs/testing/REMOTE_API_SMOKE_RUNBOOK.md`), Regressionen via `tests/test_run_deploy_smoke.py` + `tests/test_remote_internet_smoke_wrappers.py`; Nachweis: PR #1005 (Merge `f67fdbe`), `pytest -q tests/test_run_deploy_smoke.py tests/test_remote_internet_smoke_wrappers.py tests/test_markdown_links.py tests/test_user_docs.py` (16 passed).
 - ✅ abgeschlossen (2026-03-03): [#992](https://github.com/nimeob/geo-ranking-ch/issues/992) — BL-976.wp3: Einheitliches Smoke-JSON-Schema (`deploy-smoke-report/v1`) inkl. `classification` (`must-pass|informational`) und standardisierten `status`/`reason`-Feldern für Entry-Point + Sync/Async-Smokes; neue Schema-Doku `docs/testing/DEPLOY_SMOKE_JSON_SCHEMA.md`, Runbook-Sync in `docs/testing/REMOTE_API_SMOKE_RUNBOOK.md`, Implementierung in `scripts/run_deploy_smoke.py`, `scripts/run_remote_api_smoketest.sh`, `scripts/run_remote_async_jobs_smoketest.sh`, `scripts/run_async_jobs_smoketest.py`; Regressionen: `.venv/bin/python -m pytest -q tests/test_run_deploy_smoke.py tests/test_remote_smoke_script.py tests/test_async_jobs_smoke_script.py tests/test_remote_internet_smoke_wrappers.py tests/test_markdown_links.py` (90 passed).
