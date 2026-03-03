@@ -1,0 +1,73 @@
+{
+  "generated_at_utc": "2026-03-03T16:21:35.614Z",
+  "host": "api.dev.georanking.ch",
+  "zone": "georanking.ch",
+  "expected_cname": "swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com",
+  "nameservers": [
+    {
+      "name": "ns1.easyname.eu",
+      "ip": "77.244.243.4"
+    },
+    {
+      "name": "ns2.easyname.eu",
+      "ip": "77.244.244.138"
+    }
+  ],
+  "authoritative_answers": [
+    {
+      "nameserver": "ns1.easyname.eu",
+      "nameserver_ip": "77.244.243.4",
+      "cname": {
+        "ok": true,
+        "result": [
+          "swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com"
+        ]
+      },
+      "soa": {
+        "ok": true,
+        "result": {
+          "nsname": "ns1.easyname.eu",
+          "hostmaster": "hostmaster.easyname.eu",
+          "serial": 2026030302,
+          "refresh": 10800,
+          "retry": 3600,
+          "expire": 604800,
+          "minttl": 600
+        }
+      }
+    },
+    {
+      "nameserver": "ns2.easyname.eu",
+      "nameserver_ip": "77.244.244.138",
+      "cname": {
+        "ok": true,
+        "result": [
+          "swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com"
+        ]
+      },
+      "soa": {
+        "ok": true,
+        "result": {
+          "nsname": "ns1.easyname.eu",
+          "hostmaster": "hostmaster.easyname.eu",
+          "serial": 2026030302,
+          "refresh": 10800,
+          "retry": 3600,
+          "expire": 604800,
+          "minttl": 600
+        }
+      }
+    }
+  ],
+  "consistency": {
+    "same_cname_on_all_authoritative_ns": true,
+    "expected_cname_matches": true
+  },
+  "target_resolution": {
+    "target": "swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com",
+    "ips": [
+      "35.156.158.122",
+      "63.182.86.48"
+    ]
+  }
+}
