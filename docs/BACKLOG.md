@@ -27,7 +27,7 @@ Regelwerk:
 ### Next
 - ~~[#780](https://github.com/nimeob/geo-ranking-ch/issues/780) — Auth/Prod: Benutzerverwaltung + per-user Abfragehistorie (no crawler access)~~ ✅ abgeschlossen (2026-03-02): Alle 4 Phase-1 WPs done — #782 Core, #783 Store, #784 UI (PR #849), #786 default-deny (PR #848).
 - [#800](https://github.com/nimeob/geo-ranking-ch/issues/800) — EPIC: DB Minimalslice + OIDC delegated access (Cognito) (priority:P1, status:todo)
-- [#892](https://github.com/nimeob/geo-ranking-ch/issues/892) — INFRA-NET-dev.followup.wp5: Frontdoor/VPC alignment for private ECS subnets (priority:P1, status:todo; unblocks #889/#886)
+- [#892](https://github.com/nimeob/geo-ranking-ch/issues/892) — INFRA-NET-dev.followup.wp5: Frontdoor/VPC alignment for private ECS subnets (priority:P1, status:todo; Fortschritt: wp1 #895 abgeschlossen, offen: #896/#897; unblocks #889/#886)
 - ~~[#801](https://github.com/nimeob/geo-ranking-ch/issues/801)~~ — DB-0: Core Tables (organizations/users/memberships/api_keys) + Migrations — **abgeschlossen 2026-03-02** (4 WPs: #812 PR#816, #813 PR#836, #814 PR#837, #815 PR#823)
 - [#802](https://github.com/nimeob/geo-ranking-ch/issues/802) — OIDC-0: Cognito Setup + API JWT Validation (priority:P1, **status:blocked** — code-complete, 4 WPs done, pending staging deployment + Cognito setup via runbooks)
 - ~~[#803](https://github.com/nimeob/geo-ranking-ch/issues/803)~~ — ASYNC-DB-0: Persist Async Job History in DB + S3 payload pointers — **abgeschlossen 2026-03-02** (5 WPs, PRs #843–#847)
@@ -60,6 +60,7 @@ Regelwerk:
 ## Dev-Engineering (non-BL)
 
 - ✅ abgeschlossen (2026-03-03): [#891](https://github.com/nimeob/geo-ranking-ch/issues/891) — DEV-OIDC-1: Deploy OIDC guard config to dev API + verify auth path — Dev Cognito User Pool + App Client angelegt, ECS Task-Def auf OIDC-Guard (rev 176) aktualisiert, Auth-Matrix verifiziert (`/analyze` + `/analyze/history`: 401 ohne/invalid Token, 200 mit validem Cognito Bearer), sowie Follow-up-Fix für multi-key JWKS/KID-Selection in `src/api/oidc_jwt.py` inkl. Tests.
+- ✅ abgeschlossen (2026-03-03): [#895](https://github.com/nimeob/geo-ranking-ch/issues/895) — INFRA-NET-dev.followup.wp5.wp1: Dev-VPC frontdoor resources (ALB/TG) — neuer Dev-VPC Frontdoor-Stack (`swisstopo-dev-vpc-alb` + `swisstopo-dev-vpc-api-tg`, `ip`-Targets), Listener :80, Healthy-Testtarget per one-off ECS Task, `/health` über ALB mit HTTP 200; Rollback-Notiz im Issue dokumentiert.
 - ✅ abgeschlossen (2026-03-02): [#769](https://github.com/nimeob/geo-ranking-ch/issues/769) — Dev: Doku – CONTRIBUTING Kurzguide für Dev-Workflow — `CONTRIBUTING.md` (Setup, lokaler Dev-Start, Tests, Lint/Format via pre-commit) + README-Link. (PR #810)
 
 - ✅ abgeschlossen (2026-03-02): [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) — Localhost-Smokes defaulten jetzt ohne explizites `SMOKE_QUERY` auf die deterministische Fixture-Query `__ok__` (sync + async) + Runbook-Sync (`docs/testing/DEV_API_SMOKE_RUNBOOK.md`) + Testabdeckung (`tests/test_async_jobs_smoke_script.py`, `tests/test_remote_smoke_script.py`). (PR #788)
