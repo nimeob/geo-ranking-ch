@@ -36,6 +36,7 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 3. Session-Cookie wird im Browser gelöscht (`Max-Age=0`).
 4. Redirect-Verhalten:
    - **mit IdP-Logout-Konfiguration** (`BFF_OIDC_ISSUER` + `BFF_OIDC_CLIENT_ID`): 302 auf den Provider-Logout-Endpunkt (`.../logout?client_id=...&logout_uri=...`).
+   - `logout_uri` kommt bevorzugt aus `BFF_OIDC_POST_LOGOUT_REDIRECT_URI`; wenn nicht gesetzt, wird aus `BFF_OIDC_REDIRECT_URI=.../auth/callback` deterministisch `.../auth/login` abgeleitet.
    - **ohne IdP-Logout-Konfiguration:** lokaler Clear-Cookie-Logout ohne externen Provider-Redirect.
 
 ## UX-/Redirect-Konvention (Issue #998)

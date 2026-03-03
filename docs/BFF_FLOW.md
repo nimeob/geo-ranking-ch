@@ -151,6 +151,7 @@ All BFF env vars are optional by default (BFF OIDC is disabled when `BFF_OIDC_IS
 | `BFF_OIDC_CLIENT_ID` | Yes | `3abc123xyz` | Cognito App Client ID. |
 | `BFF_OIDC_CLIENT_SECRET` | No | *(empty)* | Client secret for confidential clients. Leave empty for PKCE-only (public) clients. |
 | `BFF_OIDC_REDIRECT_URI` | Yes | `https://myapp.example.com/auth/callback` | Callback URL registered in the Cognito App Client. |
+| `BFF_OIDC_POST_LOGOUT_REDIRECT_URI` | No (recommended) | `https://myapp.example.com/auth/login` | Deterministic post-logout return URL (`logout_uri`). If unset, runtime derives `/auth/login` from `BFF_OIDC_REDIRECT_URI` when possible. |
 | `BFF_OIDC_SCOPES` | No | `openid email profile` | Space-separated OAuth 2.0 scopes. Default: `openid email profile`. |
 | `BFF_OIDC_AUTH_ENDPOINT` | No | `{ISSUER}/oauth2/authorize` | Authorization endpoint override. Default: `{BFF_OIDC_ISSUER}/oauth2/authorize`. |
 | `BFF_OIDC_TOKEN_ENDPOINT` | No | `{ISSUER}/oauth2/token` | Token endpoint override. Default: `{BFF_OIDC_ISSUER}/oauth2/token`. |
@@ -174,7 +175,7 @@ When registering the BFF in Cognito:
 2. **Allowed OAuth Flows:** Authorization Code Grant ✅
 3. **Allowed OAuth Scopes:** `openid`, `email`, `profile` (match `BFF_OIDC_SCOPES`)
 4. **Callback URLs:** Add exactly `BFF_OIDC_REDIRECT_URI` (e.g. `https://myapp.example.com/auth/callback`)
-5. **Sign-out URLs:** Add the post-logout redirect URI (e.g. `https://myapp.example.com/`)
+5. **Sign-out URLs:** Add `BFF_OIDC_POST_LOGOUT_REDIRECT_URI` (or den abgeleiteten `/auth/login`-Pfad), z. B. `https://myapp.example.com/auth/login`
 6. **PKCE:** Cognito enforces PKCE for public clients automatically; for confidential clients it is optional but the BFF always sends `code_challenge`.
 
 **Staging callback URL example:**

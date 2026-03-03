@@ -41,8 +41,12 @@ BFF_OIDC_TOKEN_ENDPOINT
     Override token endpoint (default: ``{BFF_OIDC_ISSUER}/oauth2/token``).
 BFF_OIDC_LOGOUT_ENDPOINT
     Override logout endpoint (default: ``{BFF_OIDC_ISSUER}/logout``).
+BFF_OIDC_POST_LOGOUT_REDIRECT_URI
+    Optional absolute return URL for IdP logout (preferred).
 BFF_OIDC_REDIRECT_URI
-    Used as ``logout_uri`` / ``redirect_uri`` for post-logout redirect.
+    Login callback URL. If no explicit post-logout URL is configured and this
+    value points to ``.../auth/callback``, logout derives ``.../auth/login`` as
+    deterministic return target.
 BFF_API_CALL_TIMEOUT_SECONDS
     Timeout in seconds for ``bff_api_call``. Default: 10.
 
@@ -57,7 +61,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from src.api.bff_session import (
@@ -94,8 +98,29 @@ def _client_id() -> str:
     return os.environ.get("BFF_OIDC_CLIENT_ID", "").strip()
 
 
-def _redirect_uri() -> str:
-    return os.environ.get("BFF_OIDC_REDIRECT_URI", "").strip()
+def _derived_post_logout_uri_from_callback(callback_uri: str) -> str:
+    """Derive ``.../auth/login`` from an absolute ``.../auth/callback`` URL."""
+    candidate = str(callback_uri or "").strip()
+    if not candidate:
+        return ""
+
+    parsed = urlsplit(candidate)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+
+    path = parsed.path or ""
+    if path.rstrip("/") != "/auth/callback":
+        return ""
+
+    return urlunsplit((parsed.scheme, parsed.netloc, "/auth/login", "", ""))
+
+
+def _post_logout_redirect_uri() -> str:
+    explicit = os.environ.get("BFF_OIDC_POST_LOGOUT_REDIRECT_URI", "").strip()
+    if explicit:
+        return explicit
+    callback_uri = os.environ.get("BFF_OIDC_REDIRECT_URI", "").strip()
+    return _derived_post_logout_uri_from_callback(callback_uri)
 
 
 def _api_call_timeout() -> int:
@@ -463,7 +488,7 @@ def handle_logout(
     *,
     _logout_endpoint_override: str = "",
     _client_id_override: str = "",
-    _redirect_uri_override: str = "",
+    _post_logout_redirect_uri_override: str = "",
 ) -> LogoutResult:
     """Invalidate the BFF session and optionally redirect to IdP logout.
 
@@ -495,7 +520,7 @@ def handle_logout(
     # Build IdP logout redirect if configured
     logout_ep = _logout_endpoint_override or _logout_endpoint()
     cid = _client_id_override or _client_id()
-    post_logout_uri = _redirect_uri_override or _redirect_uri()
+    post_logout_uri = _post_logout_redirect_uri_override or _post_logout_redirect_uri()
 
     if logout_ep and cid:
         params: dict[str, str] = {"client_id": cid}

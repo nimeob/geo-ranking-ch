@@ -417,7 +417,7 @@ class TestHandleLogout:
             cookie,
             _logout_endpoint_override="https://auth.test/logout",
             _client_id_override="cid-test",
-            _redirect_uri_override="https://app.test/",
+            _post_logout_redirect_uri_override="https://app.test/",
         )
 
         assert result.http_status == 302
@@ -436,9 +436,43 @@ class TestHandleLogout:
             cookie,
             _logout_endpoint_override="https://auth.test/logout",
             _client_id_override="cid",
-            _redirect_uri_override="https://app.test/post-logout",
+            _post_logout_redirect_uri_override="https://app.test/post-logout",
         )
         assert "logout_uri=https%3A%2F%2Fapp.test%2Fpost-logout" in result.redirect_url
+
+    def test_logout_prefers_explicit_post_logout_env(self, monkeypatch):
+        store = _make_store()
+        session = _make_session(store)
+        cookie = _cookie_header(session.session_id)
+
+        monkeypatch.setenv("BFF_OIDC_POST_LOGOUT_REDIRECT_URI", "https://app.test/bye")
+        monkeypatch.setenv("BFF_OIDC_REDIRECT_URI", "https://app.test/auth/callback")
+
+        result = handle_logout(
+            store,
+            cookie,
+            _logout_endpoint_override="https://auth.test/logout",
+            _client_id_override="cid",
+        )
+
+        assert "logout_uri=https%3A%2F%2Fapp.test%2Fbye" in result.redirect_url
+
+    def test_logout_derives_login_path_from_callback_when_no_post_logout_env(self, monkeypatch):
+        store = _make_store()
+        session = _make_session(store)
+        cookie = _cookie_header(session.session_id)
+
+        monkeypatch.delenv("BFF_OIDC_POST_LOGOUT_REDIRECT_URI", raising=False)
+        monkeypatch.setenv("BFF_OIDC_REDIRECT_URI", "https://app.test/auth/callback")
+
+        result = handle_logout(
+            store,
+            cookie,
+            _logout_endpoint_override="https://auth.test/logout",
+            _client_id_override="cid",
+        )
+
+        assert "logout_uri=https%3A%2F%2Fapp.test%2Fauth%2Flogin" in result.redirect_url
 
     def test_logout_missing_cookie_still_clears(self):
         """Even without a session cookie, logout returns a clear-cookie header."""
