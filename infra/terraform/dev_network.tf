@@ -104,7 +104,7 @@ resource "aws_route_table" "dev_public" {
 }
 
 resource "aws_route_table_association" "dev_public" {
-  count = local.manage_dev_network_effective ? length(aws_subnet.dev_public) : 0
+  count = local.manage_dev_network_effective ? length(var.dev_public_subnet_cidrs) : 0
 
   subnet_id      = aws_subnet.dev_public[count.index].id
   route_table_id = aws_route_table.dev_public[0].id
@@ -159,7 +159,7 @@ resource "aws_route_table" "dev_private" {
 }
 
 resource "aws_route_table_association" "dev_private" {
-  count = local.manage_dev_nat_effective ? length(aws_subnet.dev_private) : 0
+  count = local.manage_dev_nat_effective ? length(var.dev_private_subnet_cidrs) : 0
 
   subnet_id      = aws_subnet.dev_private[count.index].id
   route_table_id = aws_route_table.dev_private[0].id
