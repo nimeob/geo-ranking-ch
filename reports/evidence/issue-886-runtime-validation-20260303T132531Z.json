@@ -1,0 +1,42 @@
+{
+  "issue": 886,
+  "timestamp_utc": "20260303T132531Z",
+  "ecs_network": {
+    "service": "swisstopo-dev-api",
+    "desired": 1,
+    "running": 1,
+    "assignPublicIp": "DISABLED",
+    "subnets": [
+      "subnet-04d5ddec3c5b06d7a",
+      "subnet-0cd8553a1fedbf183"
+    ],
+    "security_groups": [
+      "sg-02d1c720c9b0adc7b"
+    ]
+  },
+  "nat_and_routes": {
+    "nat_available_ids": [
+      "nat-01c348d29cf09e2f1"
+    ],
+    "default_routes": [
+      {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": "nat-01c348d29cf09e2f1",
+        "Origin": "CreateRoute",
+        "State": "active"
+      }
+    ],
+    "private_route_table_id": "rtb-0a1fdbf9c13782310"
+  },
+  "egress_proof": {
+    "analyze_http": 200,
+    "analyze_ok": true,
+    "geoadmin_search_status": "ok",
+    "geoadmin_search_successes": 1,
+    "geoadmin_search_last_url": "https://api3.geo.admin.ch/rest/services/api/SearchServer?searchText=St.+Leonhard-Strasse+40%2C+St.+Gallen&type=locations&limit=8&lang=de&origins=address"
+  },
+  "inbound_hardening": {
+    "app_port": 8080,
+    "world_open_app_ingress_rules": []
+  }
+}
