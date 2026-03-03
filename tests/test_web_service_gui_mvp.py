@@ -168,7 +168,12 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn(".map-surface.has-marker .map-crosshair", body)
         self.assertIn('mapSurface.classList.add("has-marker")', body)
         self.assertIn("overflow-wrap: anywhere", body)
+        self.assertIn("flex: 1 1 260px", body)
+        self.assertIn(".map-legend small + small", body)
+        self.assertIn("word-break: break-word", body)
         self.assertIn("@media (max-width: 520px)", body)
+        self.assertIn("min-height: 280px", body)
+        self.assertIn("width: 22px", body)
         self.assertIn("flex-direction: column", body)
 
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
