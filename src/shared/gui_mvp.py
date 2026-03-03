@@ -28,6 +28,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         --primary: #1957d2;
         --danger: #b93a2f;
         --success: #1f8a3b;
+        --touch-target-min: 44px;
       }
       * { box-sizing: border-box; }
       body {
@@ -76,7 +77,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         color: var(--ink);
         border: 1px solid var(--border);
         border-radius: 0.6rem;
-        padding: 0.45rem 0.7rem;
+        padding: 0.5rem 0.75rem;
         font-size: 0.9rem;
         line-height: 1.2;
         cursor: pointer;
@@ -111,6 +112,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         z-index: 24;
       }
       .burger-menu a {
+        display: inline-flex;
+        align-items: center;
         text-decoration: none;
         color: var(--primary);
         padding: 0.55rem 0.65rem;
@@ -171,6 +174,20 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         padding: 0.55rem 0.6rem;
         font: inherit;
       }
+      input[type="checkbox"],
+      input[type="radio"] {
+        width: 1.05rem;
+        height: 1.05rem;
+        min-width: 1.05rem;
+        min-height: 1.05rem;
+        margin: 0;
+        padding: 0;
+      }
+      .touch-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
       input:focus,
       select:focus,
       button:focus,
@@ -222,6 +239,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         font-size: 0.84rem;
       }
       .trace-link-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         text-decoration: none;
         border: 1px solid var(--border);
         color: var(--primary);
@@ -231,6 +251,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         background: #f9fbff;
       }
       .copy-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         background: #fff;
         color: var(--ink);
         border-color: var(--border);
@@ -350,8 +373,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         z-index: 3;
       }
       .map-zoom-btn {
-        width: 2rem;
-        height: 2rem;
+        width: 2.2rem;
+        height: 2.2rem;
         padding: 0;
         display: inline-flex;
         align-items: center;
@@ -398,6 +421,22 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       @media (max-width: 680px) {
         .map-legend small + small {
           text-align: left;
+        }
+      }
+      @media (max-width: 768px) {
+        #burger-btn,
+        .burger-menu a,
+        button,
+        select,
+        input:not([type="checkbox"]):not([type="radio"]),
+        .trace-link-btn,
+        .copy-btn,
+        .touch-toggle {
+          min-height: var(--touch-target-min);
+        }
+        .map-zoom-btn {
+          width: var(--touch-target-min);
+          height: var(--touch-target-min);
         }
       }
       @media (max-width: 520px) {
@@ -567,7 +606,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             </label>
             <p class=\"meta\">Auth im GUI-Flow läuft session-basiert über Login/Cookie (kein Bearer-Token-Eingabefeld).</p>
             <p class=\"meta\" id=\"auth-login-meta\">Nicht eingeloggt? <a id=\"auth-login-inline\" href=\"/auth/login\">Login starten</a></p>
-            <label>
+            <label class="touch-toggle">
               Async Mode (optional)
               <input id="async-mode-requested" type="checkbox" />
             </label>

@@ -16,12 +16,14 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - Trace-Debug-Panel mit Deep-Link-Unterstützung (`/gui?view=trace&request_id=<id>`) und Timeline-Lookup via `GET /debug/trace`
 - Kanonischer GUI-Auth-Flow für BFF-Session-Betrieb dokumentiert unter [`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](./GUI_AUTH_BFF_SESSION_FLOW.md)
 - Burger-Menü-Navigation robust für Desktop/Mobile (sauberes Open/Close, Outside-Click/Touch-Close, Keyboard `ArrowDown`/`Escape`, konsistente `aria-expanded`-States)
+- Mobile Touch-Target-Contract (`<=768px`): interaktive Kern-Controls nutzen zentralisierte Mindestgröße `44x44 CSS px` (inkl. Burger, Formular-Buttons/-Selects, Zoom-Controls)
 
 ## Struktur
 
 1. **Input-Panel**
    - Adresse, Intelligence-Mode, optionaler API-Token
    - Submit triggert deterministisch eine Analyze-Anfrage
+   - Mobile Touch-Target-Guardrail: Buttons/Selects/Text-Inputs erhalten auf kleinen Viewports zentral `min-height: 44px`
 2. **Kartenpanel**
    - echte, interaktive OSM-Basemap (Tile-Render) mit deterministischem Pan/Zoom
    - Zoom ist über Mausrad/Trackpad, **Pinch-to-Zoom auf Touch-Geräten** und sichtbare `+/-` Zoom-Controls verfügbar (zusätzlich Keyboard `+/-`)

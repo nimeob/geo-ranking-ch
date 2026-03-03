@@ -203,6 +203,18 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn("width: 22px", body)
         self.assertIn("flex-direction: column", body)
 
+    def test_gui_mobile_touch_target_css_contract_present(self):
+        status, body, _ = _http_text(f"{self.base_url}/gui")
+        self.assertEqual(status, 200)
+        self.assertIn("--touch-target-min: 44px", body)
+        self.assertIn("@media (max-width: 768px)", body)
+        self.assertIn("#burger-btn,", body)
+        self.assertIn(".touch-toggle", body)
+        self.assertIn("id=\"async-mode-requested\"", body)
+        self.assertIn("min-height: var(--touch-target-min)", body)
+        self.assertIn("width: var(--touch-target-min)", body)
+        self.assertIn('id="map-zoom-in"', body)
+
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
         status, body, _ = _http_text(f"{self.base_url}//gui///?probe=1")
         self.assertEqual(status, 200)
