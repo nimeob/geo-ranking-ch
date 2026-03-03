@@ -386,11 +386,13 @@ jobs:
             exit 0
           fi
 
-          if [ -n "${SERVICE_API_AUTH_TOKEN:-}" ]; then
-            DEV_BASE_URL="${BASE_URL}" DEV_API_AUTH_TOKEN="${SERVICE_API_AUTH_TOKEN}" SMOKE_OUTPUT_JSON="/tmp/bl18.1-smoke.json" ./scripts/run_remote_api_smoketest.sh
-          else
-            DEV_BASE_URL="${BASE_URL}" SMOKE_OUTPUT_JSON="/tmp/bl18.1-smoke.json" ./scripts/run_remote_api_smoketest.sh
+          if [ -z "${SERVICE_API_AUTH_TOKEN:-}" ]; then
+            echo "::notice::SERVICE_API_AUTH_TOKEN not set. Analyze smoke skipped (endpoint requires auth)."
+            echo "- Analyze-Smoke: ⏭️ skipped (SERVICE_API_AUTH_TOKEN missing)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
+
+          DEV_BASE_URL="${BASE_URL}" DEV_API_AUTH_TOKEN="${SERVICE_API_AUTH_TOKEN}" SMOKE_OUTPUT_JSON="/tmp/bl18.1-smoke.json" ./scripts/run_remote_api_smoketest.sh
 
       - name: Deploy UI service and wait for stability
         env:
