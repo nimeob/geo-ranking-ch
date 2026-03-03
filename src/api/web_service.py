@@ -2987,7 +2987,13 @@ def _normalize_error_payload(payload: dict[str, Any], *, status: int) -> dict[st
 
     normalized = dict(payload)
     code = _coerce_error_code(normalized)
-    normalized["error"] = code
+
+    raw_error = normalized.get("error")
+    explicit_error = str(raw_error).strip().lower() if isinstance(raw_error, str) else ""
+    if explicit_error:
+        normalized["error"] = explicit_error
+    else:
+        normalized["error"] = code
     normalized["code"] = code
 
     message = str(normalized.get("message") or "").strip()
@@ -3593,11 +3599,14 @@ class Handler(BaseHTTPRequestHandler):
                         extra_headers={"Cache-Control": "no-store"},
                     )
                 else:
+                    auth_reason = str(me_result.error or "unauthorized").strip().lower() or "unauthorized"
                     self._send_json(
                         {
                             "ok": False,
                             "authenticated": False,
-                            "error": me_result.error or "unauthorized",
+                            "error": auth_reason,
+                            "code": "unauthorized",
+                            "auth_reason": auth_reason,
                             "message": "session missing or expired",
                             "request_id": request_id,
                         },

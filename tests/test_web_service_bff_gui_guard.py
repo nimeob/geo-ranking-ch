@@ -129,6 +129,10 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertFalse(payload.get("ok"))
         self.assertFalse(payload.get("authenticated"))
         self.assertEqual(payload.get("error"), "no_session_cookie")
+        self.assertEqual(payload.get("code"), "unauthorized")
+        self.assertEqual(payload.get("auth_reason"), "no_session_cookie")
+        self.assertIsInstance(payload.get("request_id"), str)
+        self.assertTrue(str(payload.get("request_id")).strip())
 
     def test_auth_me_returns_401_for_invalid_session_cookie(self):
         status, body, _ = _http_get(
@@ -142,6 +146,10 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertFalse(payload.get("ok"))
         self.assertFalse(payload.get("authenticated"))
         self.assertEqual(payload.get("error"), "session_not_found")
+        self.assertEqual(payload.get("code"), "unauthorized")
+        self.assertEqual(payload.get("auth_reason"), "session_not_found")
+        self.assertIsInstance(payload.get("request_id"), str)
+        self.assertTrue(str(payload.get("request_id")).strip())
 
     def test_history_redirects_to_login_when_session_cookie_is_invalid(self):
         status, _, headers = _http_get(
