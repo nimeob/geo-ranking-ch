@@ -57,6 +57,55 @@ output "staging_alb_http_url" {
   value       = try("http://${aws_lb.staging[0].dns_name}", null)
 }
 
+# ---------------------------------------------------------------------------
+# Dev Network / Ingress Outputs (INFRA-NET-0-dev)
+# ---------------------------------------------------------------------------
+
+output "dev_vpc_id" {
+  description = "VPC ID der dev VPC (leer wenn manage flags deaktiviert sind oder environment != dev)."
+  value       = try(aws_vpc.dev[0].id, null)
+}
+
+output "dev_public_subnet_ids" {
+  description = "Subnet IDs der dev Public Subnets (leer wenn nicht gemanagt)."
+  value       = [for s in aws_subnet.dev_public : s.id]
+}
+
+output "dev_private_subnet_ids" {
+  description = "Subnet IDs der dev Private Subnets (leer wenn nicht gemanagt)."
+  value       = [for s in aws_subnet.dev_private : s.id]
+}
+
+output "dev_alb_security_group_id" {
+  description = "Security Group ID des dev ALB (leer wenn manage_dev_ingress=false)."
+  value       = try(aws_security_group.dev_alb[0].id, null)
+}
+
+output "dev_alb_dns_name" {
+  description = "DNS Name des dev ALB (leer wenn manage_dev_ingress=false)."
+  value       = try(aws_lb.dev[0].dns_name, null)
+}
+
+output "dev_alb_zone_id" {
+  description = "Zone ID des dev ALB (Route53 Alias Target)."
+  value       = try(aws_lb.dev[0].zone_id, null)
+}
+
+output "dev_alb_http_url" {
+  description = "HTTP Base-URL auf Basis des dev ALB DNS Names (Skeleton; TLS/Custom-Domain ist separate Arbeit)."
+  value       = try("http://${aws_lb.dev[0].dns_name}", null)
+}
+
+output "dev_db_security_group_id" {
+  description = "Security Group ID der dev DB (leer wenn manage_dev_db=false)."
+  value       = try(aws_security_group.dev_db[0].id, null)
+}
+
+output "dev_ecs_service_security_group_id" {
+  description = "Security Group ID des dev ECS Service (leer wenn manage_dev_ecs_compute=false)."
+  value       = try(aws_security_group.dev_ecs_service[0].id, null)
+}
+
 output "ecs_cluster_name" {
   description = "Effektiver ECS-Clustername (managed oder read-only erkannt)."
   value       = local.ecs_cluster_name_effective
