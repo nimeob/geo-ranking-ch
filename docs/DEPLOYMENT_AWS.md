@@ -403,6 +403,8 @@ Smoke-Verhalten:
 | `SERVICE_API_BASE_URL` | API-Base-URL für Smokes (`https://api.<domain>`) |
 | `SERVICE_APP_BASE_URL` | UI-Base-URL für Smokes (`https://www.<domain>` oder `https://app.<domain>`) |
 | `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`), falls `SERVICE_API_BASE_URL` nicht genutzt wird |
+| `API_HEALTH_SMOKE_MAX_ATTEMPTS` | Optional: Anzahl Health-Smoke-Readiness-Versuche nach Deploy; Default `12` |
+| `API_HEALTH_SMOKE_RETRY_DELAY_SECONDS` | Optional: Pause (Sekunden) zwischen API-Health-Smoke-Retries; Default `10` |
 | `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Deploy-Workflow den zusätzlichen `/debug/trace`-Sanity-Check |
 
 > Hinweis zur Container-Auflösung (ECS):

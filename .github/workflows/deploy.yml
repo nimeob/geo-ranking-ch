@@ -319,6 +319,8 @@ jobs:
         env:
           SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
           SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}
+          API_HEALTH_SMOKE_MAX_ATTEMPTS: ${{ vars.API_HEALTH_SMOKE_MAX_ATTEMPTS }}
+          API_HEALTH_SMOKE_RETRY_DELAY_SECONDS: ${{ vars.API_HEALTH_SMOKE_RETRY_DELAY_SECONDS }}
         run: |
           set -euo pipefail
           API_HEALTH_URL="${SERVICE_HEALTH_URL:-}"
@@ -331,17 +333,42 @@ jobs:
             exit 1
           fi
 
-          HTTP_CODE=$(curl -sS -L \
-            --max-time 15 \
-            --retry 5 \
-            --retry-delay 5 \
-            --retry-connrefused \
-            -o /tmp/smoke-api-health-response.txt \
-            -w "%{http_code}" \
-            "${API_HEALTH_URL}")
+          MAX_ATTEMPTS="${API_HEALTH_SMOKE_MAX_ATTEMPTS:-12}"
+          RETRY_DELAY_SECONDS="${API_HEALTH_SMOKE_RETRY_DELAY_SECONDS:-10}"
+          if ! [[ "$MAX_ATTEMPTS" =~ ^[0-9]+$ ]] || [ "$MAX_ATTEMPTS" -lt 1 ]; then
+            echo "::error::API_HEALTH_SMOKE_MAX_ATTEMPTS must be an integer >= 1 (got '$MAX_ATTEMPTS')."
+            exit 1
+          fi
+          if ! [[ "$RETRY_DELAY_SECONDS" =~ ^[0-9]+$ ]] || [ "$RETRY_DELAY_SECONDS" -lt 1 ]; then
+            echo "::error::API_HEALTH_SMOKE_RETRY_DELAY_SECONDS must be an integer >= 1 (got '$RETRY_DELAY_SECONDS')."
+            exit 1
+          fi
+
+          HTTP_CODE="000"
+          ATTEMPT=1
+          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+            HTTP_CODE=$(curl -sS -L \
+              --max-time 15 \
+              --retry 2 \
+              --retry-delay 3 \
+              --retry-connrefused \
+              -o /tmp/smoke-api-health-response.txt \
+              -w "%{http_code}" \
+              "${API_HEALTH_URL}")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              break
+            fi
+
+            echo "::warning::API smoke attempt ${ATTEMPT}/${MAX_ATTEMPTS} failed (${API_HEALTH_URL} -> HTTP ${HTTP_CODE}); retrying in ${RETRY_DELAY_SECONDS}s"
+            if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+              sleep "$RETRY_DELAY_SECONDS"
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+          done
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::API smoke failed: ${API_HEALTH_URL} returned HTTP ${HTTP_CODE}"
+            echo "::error::API smoke failed after ${MAX_ATTEMPTS} attempts: ${API_HEALTH_URL} returned HTTP ${HTTP_CODE}"
             head -c 1000 /tmp/smoke-api-health-response.txt || true
             exit 1
           fi
