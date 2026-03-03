@@ -42,6 +42,7 @@ def test_pr_profile_dry_run_routes_to_split_smoke() -> None:
             "command": ["./scripts/check_bl334_split_smokes.sh"],
             "env": {},
             "classification": "must-pass",
+            "kind": "smoke",
             "status": "planned",
         }
     ]
@@ -64,8 +65,17 @@ def test_deploy_staging_sync_dry_run_uses_staging_env_defaults() -> None:
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
     checks = payload["checks"]
-    assert len(checks) == 1
-    planned = checks[0]
+    assert len(checks) == 2
+
+    preflight = checks[0]
+    assert preflight["name"] == "deploy-staging-auth-preflight"
+    assert preflight["kind"] == "auth_preflight"
+    assert preflight["command"] == ["./scripts/smoke/auth_preflight.sh"]
+    assert preflight["env"]["SMOKE_AUTH_MODE"] == "oidc_client_credentials"
+    assert preflight["env"]["SMOKE_AUTH_OUTPUT_FILE"] == "artifacts/smoke_auth.env"
+
+    planned = checks[1]
+    assert planned["kind"] == "smoke"
     assert planned["classification"] == "must-pass"
     assert planned["command"] == ["./scripts/run_remote_api_smoketest.sh"]
     assert planned["env"]["DEV_BASE_URL"] == "https://api.staging.example.test"
@@ -84,24 +94,30 @@ def test_nightly_profile_defaults_to_dev_both_flows() -> None:
     assert payload["classification"] == "informational"
     checks = payload["checks"]
     assert [item["command"] for item in checks] == [
+        ["./scripts/smoke/auth_preflight.sh"],
         ["./scripts/run_remote_api_smoketest.sh"],
         ["./scripts/run_remote_async_jobs_smoketest.sh"],
     ]
     for item in checks:
         assert item["classification"] == "informational"
-        assert item["env"]["DEV_BASE_URL"] == "https://api.dev.example.test"
+
+    assert checks[1]["env"]["DEV_BASE_URL"] == "https://api.dev.example.test"
+    assert checks[2]["env"]["DEV_BASE_URL"] == "https://api.dev.example.test"
 
 
 def test_dry_run_can_write_output_json_file() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         out = Path(tmpdir) / "deploy-smoke-plan.json"
-        proc = _run([
-            "--profile",
-            "nightly",
-            "--dry-run",
-            "--output-json",
-            str(out),
-        ], env={"DEV_BASE_URL": "https://api.dev.example.test"})
+        proc = _run(
+            [
+                "--profile",
+                "nightly",
+                "--dry-run",
+                "--output-json",
+                str(out),
+            ],
+            env={"DEV_BASE_URL": "https://api.dev.example.test"},
+        )
 
         assert proc.returncode == 0, proc.stderr
         assert out.exists()
@@ -110,3 +126,34 @@ def test_dry_run_can_write_output_json_file() -> None:
         assert payload["schema_version"] == "deploy-smoke-report/v1"
         assert payload["status"] == "planned"
         assert payload["classification"] == "informational"
+
+
+def test_deploy_run_reports_blocked_by_auth_when_preflight_fails() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out = Path(tmpdir) / "deploy-smoke-result.json"
+        proc = _run(
+            [
+                "--profile",
+                "deploy",
+                "--target",
+                "dev",
+                "--flow",
+                "sync",
+                "--output-json",
+                str(out),
+            ],
+            env={
+                "DEV_BASE_URL": "https://api.dev.example.test",
+                "SMOKE_AUTH_MODE": "oidc_client_credentials",
+            },
+        )
+
+        assert proc.returncode == 42
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        assert payload["status"] == "fail"
+        assert payload["reason"] == "blocked-by-auth"
+        assert len(payload["checks"]) == 1
+        check = payload["checks"][0]
+        assert check["kind"] == "auth_preflight"
+        assert check["status"] == "fail"
+        assert check["reason"] == "blocked-by-auth"
