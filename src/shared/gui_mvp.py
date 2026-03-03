@@ -478,20 +478,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               Adresse
               <input id=\"query\" name=\"query\" type=\"text\" placeholder=\"z. B. Bahnhofstrasse 1, 8001 Zürich\" required />
             </label>
-            <div class=\"grid-2\">
-              <label>
-                Intelligence-Mode
-                <select id=\"intelligence-mode\" name=\"intelligence_mode\">
-                  <option value=\"basic\">basic</option>
-                  <option value=\"extended\">extended</option>
-                  <option value=\"risk\">risk</option>
-                </select>
-              </label>
-              <label>
-                API Token (optional)
-                <input id=\"api-token\" type=\"password\" placeholder=\"Bearer-Token für geschützte Deployments\" autocomplete=\"off\" />
-              </label>
-            </div>
+            <label>
+              Intelligence-Mode
+              <select id=\"intelligence-mode\" name=\"intelligence_mode\">
+                <option value=\"basic\">basic</option>
+                <option value=\"extended\">extended</option>
+                <option value=\"risk\">risk</option>
+              </select>
+            </label>
+            <p class=\"meta\">Auth im GUI-Flow läuft session-basiert über Login/Cookie (kein Bearer-Token-Eingabefeld).</p>
             <label>
               Async Mode (optional)
               <input id="async-mode-requested" type="checkbox" />
@@ -741,7 +736,6 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const formEl = document.getElementById("analyze-form");
       const queryEl = document.getElementById("query");
       const modeEl = document.getElementById("intelligence-mode");
-      const tokenEl = document.getElementById("api-token");
       const submitBtn = document.getElementById("submit-btn");
       const phasePill = document.getElementById("phase-pill");
       const requestMeta = document.getElementById("request-meta");
@@ -989,17 +983,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       async function loadHistory() {
         if (!historyShell) return;
-        const token = (tokenEl && tokenEl.value ? tokenEl.value : "").trim();
         const headers = { "Accept": "application/json", "X-Session-Id": uiSessionId };
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
 
         try {
           const response = await fetch(`${ANALYZE_HISTORY_ENDPOINT}?limit=50`, { headers });
           const data = await response.json();
           if (!response.ok || !data || data.ok !== true) {
-            throw new Error((data && data.message) || `history fetch failed (${response.status})`);
+            const fallbackMessage = (data && data.message) || `history fetch failed (${response.status})`;
+            throw new Error(buildAuthorizationUxErrorMessage(response.status, fallbackMessage));
           }
           renderHistoryItems(data.history);
         } catch (error) {
@@ -2445,25 +2436,23 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return "info";
       }
 
-      function buildAuthorizationUxErrorMessage(statusCode, token, fallbackMessage) {
-        if (Number(statusCode) !== 401) {
-          return String(fallbackMessage || "Unbekannter Fehler");
+      function buildAuthorizationUxErrorMessage(statusCode, fallbackMessage) {
+        const normalizedStatus = Number(statusCode);
+        if (normalizedStatus === 401) {
+          return "Session ungültig oder abgelaufen — bitte erneut einloggen.";
         }
-        const hasToken = Boolean(String(token || "").trim());
-        return hasToken
-          ? "Authorization fehlgeschlagen — Token ungültig oder abgelaufen"
-          : "Bitte Bearer-Token setzen — API erfordert Authentifizierung";
+        if (normalizedStatus === 403) {
+          return "Zugriff verweigert — bitte Berechtigungen/Session prüfen.";
+        }
+        return String(fallbackMessage || "Unbekannter Fehler");
       }
 
-      async function runAnalyze(payload, token, context = {}) {
+      async function runAnalyze(payload, context = {}) {
         const traceId = String(context.traceId || "").trim();
         const requestId = String(context.requestId || "").trim() || createUiCorrelationId("req");
         const inputKind = String(context.inputKind || inferInputKind(payload));
 
         const headers = { "Content-Type": "application/json" };
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
         headers["X-Request-Id"] = requestId;
         headers["X-Session-Id"] = uiSessionId;
 
@@ -2475,7 +2464,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           route: "/analyze",
           method: "POST",
           input_kind: inputKind,
-          auth_present: Boolean(token),
+          auth_present: false,
         });
 
         const timeoutSeconds = Number(payload && payload.timeout_seconds);
@@ -2558,7 +2547,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         if (!response.ok || !parsed.ok) {
           const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
           const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
-          const richError = buildAuthorizationUxErrorMessage(response.status, token, `${errCode}: ${errMsg}`);
+          const richError = buildAuthorizationUxErrorMessage(response.status, `${errCode}: ${errMsg}`);
           const failingResponse = parsed || { ok: false, error: errCode, message: errMsg };
 
           emitUiEvent("ui.api.request.end", {
@@ -2653,7 +2642,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         renderState();
 
         try {
-          const result = await runAnalyze(payload, (tokenEl.value || "").trim(), {
+          const result = await runAnalyze(payload, {
             traceId,
             requestId,
             inputKind,
@@ -2697,7 +2686,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
       }
 
-      async function runTraceLookup(traceRequestId, token, context = {}) {
+      async function runTraceLookup(traceRequestId, context = {}) {
         const normalizedTraceRequestId = normalizeTraceRequestId(traceRequestId);
         const traceId = String(context.traceId || "").trim() || createUiCorrelationId("trace");
         const requestId = String(context.requestId || "").trim() || createUiCorrelationId("req");
@@ -2708,9 +2697,6 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           "X-Request-Id": requestId,
           "X-Session-Id": uiSessionId,
         };
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
 
         emitUiEvent("ui.trace.request.start", {
           traceId,
@@ -2720,7 +2706,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           route: TRACE_DEBUG_ENDPOINT,
           method: "GET",
           trace_request_id: normalizedTraceRequestId,
-          auth_present: Boolean(token),
+          auth_present: false,
         });
 
         const controller = new AbortController();
@@ -2809,7 +2795,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             traceRequestId: normalizedTraceRequestId,
             response: parsed || { ok: false, error: errCode, message: errMsg },
             errorCode: errCode,
-            errorMessage: buildAuthorizationUxErrorMessage(response.status, token, `${errCode}: ${errMsg}`),
+            errorMessage: buildAuthorizationUxErrorMessage(response.status, `${errCode}: ${errMsg}`),
           };
         }
 
@@ -2903,7 +2889,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         renderTraceState();
 
         try {
-          const result = await runTraceLookup(normalizedTraceRequestId, (tokenEl.value || "").trim(), {
+          const result = await runTraceLookup(normalizedTraceRequestId, {
             traceId,
             requestId,
           });

@@ -18,6 +18,8 @@ Diese Doku beschreibt den kanonischen Auth-Flow f체r die GUI, wenn die Session �
    - Browser erh채lt Session-Cookie
 5. **Redirect zur체ck auf `next`**
 6. **Folgerequests laufen session-basiert 체ber den BFF-Proxy**
+   - GUI sendet f체r Standard-Flow **keinen** manuellen `Authorization: Bearer ...` Header
+   - `/analyze` und `/analyze/history` nutzen Login-/Session-Cookie statt Token-Paste im UI
 
 ## Session-Lebenszyklus
 
