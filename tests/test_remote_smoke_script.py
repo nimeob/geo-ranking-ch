@@ -130,6 +130,9 @@ class TestRemoteSmokeScript(unittest.TestCase):
     def test_smoke_script_passes_with_valid_token(self):
         cp, data, request_id = self._run_smoke(include_token=True)
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("schema_version"), "deploy-smoke-report/v1")
+        self.assertEqual(data.get("runner"), "remote-api-smoke")
+        self.assertEqual(data.get("classification"), "must-pass")
         self.assertEqual(data.get("status"), "pass")
         self.assertEqual(data.get("reason"), "ok")
         self.assertEqual(data.get("http_status"), 200)
@@ -141,6 +144,16 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
+
+    def test_smoke_script_respects_informational_classification_override(self):
+        cp, data, _ = self._run_smoke(
+            include_token=True,
+            extra_env={"SMOKE_CLASSIFICATION": " informational "},
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("classification"), "informational")
+        self.assertEqual(data.get("status"), "pass")
 
     def test_smoke_script_defaults_to_e2e_fixture_query_on_localhost(self):
         """Guardrail: local smoke should not depend on upstream/internet."""
@@ -534,6 +547,9 @@ class TestRemoteSmokeScript(unittest.TestCase):
     def test_smoke_script_fails_without_token_when_auth_enabled(self):
         cp, data, _ = self._run_smoke(include_token=False)
         self.assertNotEqual(cp.returncode, 0)
+        self.assertEqual(data.get("schema_version"), "deploy-smoke-report/v1")
+        self.assertEqual(data.get("runner"), "remote-api-smoke")
+        self.assertEqual(data.get("classification"), "must-pass")
         self.assertEqual(data.get("status"), "fail")
         self.assertEqual(data.get("reason"), "http_status")
         self.assertEqual(data.get("http_status"), 401)
@@ -1429,6 +1445,34 @@ class TestRemoteSmokeScript(unittest.TestCase):
 
             self.assertEqual(cp.returncode, 2)
             self.assertIn("Ungültiger SMOKE_ENFORCE_REQUEST_ID_ECHO='2'", cp.stderr)
+            self.assertFalse(out_json.exists())
+
+    def test_smoke_script_rejects_invalid_classification(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_json = Path(tmpdir) / "smoke.json"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "DEV_BASE_URL": self.base_url,
+                    "SMOKE_QUERY": "__ok__",
+                    "SMOKE_MODE": "basic",
+                    "SMOKE_TIMEOUT_SECONDS": "2",
+                    "SMOKE_CLASSIFICATION": "critical",
+                    "SMOKE_OUTPUT_JSON": str(out_json),
+                    "DEV_API_AUTH_TOKEN": "bl18-token",
+                }
+            )
+
+            cp = subprocess.run(
+                [str(SMOKE_SCRIPT)],
+                cwd=str(REPO_ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(cp.returncode, 2)
+            self.assertIn("Ungültige SMOKE_CLASSIFICATION='critical'", cp.stderr)
             self.assertFalse(out_json.exists())
 
     def test_smoke_script_trims_request_id_echo_flag_before_validation(self):

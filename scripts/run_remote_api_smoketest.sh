@@ -23,6 +23,7 @@ set -euo pipefail
 #   SMOKE_REQUEST_ID="bl18-<id>"  # optional; wenn leer/nicht gesetzt wird eine eindeutige ID auto-generiert. Eigene Werte werden getrimmt; ASCII-only, keine Steuerzeichen/Trennzeichen/Whitespaces; max. 128 Zeichen
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; Short-Aliasse senden Request-Id/Correlation-Id bzw. Request_Id/Correlation_Id, X-Aliasse senden X-Request-Id/X-Correlation-Id bzw. X_Request_Id/X_Correlation_Id
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0|true|false|yes|no|on|off (Default: 1)
+#   SMOKE_CLASSIFICATION="must-pass"  # must-pass|informational (Default: must-pass)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_TLS_CA_CERT="/pfad/zu/dev-self-signed.crt"  # optional: zusätzlicher Trust-Anchor für HTTPS-Smoke (nutzt curl --cacert, kein globales -k)
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
@@ -86,6 +87,8 @@ SMOKE_REQUEST_ID_RAW="${SMOKE_REQUEST_ID-}"
 SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID_RAW}"
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER:-request}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
+SMOKE_CLASSIFICATION="${SMOKE_CLASSIFICATION:-must-pass}"
+SMOKE_REPORT_SCHEMA_VERSION="deploy-smoke-report/v1"
 DEV_TLS_CA_CERT_RAW="${DEV_TLS_CA_CERT:-}"
 DEV_TLS_CA_CERT="${DEV_TLS_CA_CERT_RAW}"
 
@@ -179,6 +182,13 @@ import sys
 print(sys.argv[1].strip())
 PY
 )"
+
+SMOKE_CLASSIFICATION="$(python3 - "${SMOKE_CLASSIFICATION}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+SMOKE_CLASSIFICATION="${SMOKE_CLASSIFICATION,,}"
 
 DEV_TLS_CA_CERT="$(python3 - "${DEV_TLS_CA_CERT}" <<'PY'
 import sys
@@ -278,7 +288,7 @@ then
   exit 2
 fi
 
-export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_REQUEST_ID_HEADER SMOKE_ENFORCE_REQUEST_ID_ECHO
+export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_REQUEST_ID_HEADER SMOKE_ENFORCE_REQUEST_ID_ECHO SMOKE_CLASSIFICATION SMOKE_REPORT_SCHEMA_VERSION
 
 is_positive_number() {
   python3 - "$1" <<'PY'
@@ -299,6 +309,14 @@ case "$SMOKE_MODE" in
   basic|extended|risk) ;;
   *)
     echo "[BL-18.1] Ungültiger SMOKE_MODE='${SMOKE_MODE}' (erlaubt: basic|extended|risk)." >&2
+    exit 2
+    ;;
+esac
+
+case "$SMOKE_CLASSIFICATION" in
+  must-pass|informational) ;;
+  *)
+    echo "[BL-18.1] Ungültige SMOKE_CLASSIFICATION='${SMOKE_CLASSIFICATION}' (erlaubt: must-pass|informational)." >&2
     exit 2
     ;;
 esac
@@ -636,6 +654,9 @@ import sys
 
 out_path = sys.argv[1]
 report = {
+    "schema_version": os.environ.get("SMOKE_REPORT_SCHEMA_VERSION", "deploy-smoke-report/v1"),
+    "runner": "remote-api-smoke",
+    "classification": os.environ.get("SMOKE_CLASSIFICATION", "must-pass"),
     "status": "fail",
     "reason": "curl_error",
     "curl_exit": int(os.environ["CURL_EXIT"]),
@@ -694,6 +715,9 @@ enforce_request_id_echo = os.environ.get("SMOKE_ENFORCE_REQUEST_ID_ECHO", "1") =
 expected_request_id = os.environ["SMOKE_REQUEST_ID"]
 
 report = {
+    "schema_version": os.environ.get("SMOKE_REPORT_SCHEMA_VERSION", "deploy-smoke-report/v1"),
+    "runner": "remote-api-smoke",
+    "classification": os.environ.get("SMOKE_CLASSIFICATION", "must-pass"),
     "status": "fail",
     "reason": None,
     "http_status": http_code,

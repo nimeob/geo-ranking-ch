@@ -22,6 +22,7 @@ set -euo pipefail
 #   SMOKE_QUERY, SMOKE_MODE, SMOKE_TIMEOUT_SECONDS,
 #   ASYNC_SMOKE_POLL_TIMEOUT_SECONDS, ASYNC_SMOKE_POLL_INTERVAL_SECONDS,
 #   ASYNC_SMOKE_OUTPUT_JSON,
+#   ASYNC_SMOKE_CLASSIFICATION (must-pass|informational; Default: must-pass),
 #   TLS_CA_CERT / DEV_TLS_CA_CERT
 
 REMOTE_BASE_URL_INPUT="${DEV_BASE_URL:-${SERVICE_API_BASE_URL:-}}"
@@ -36,6 +37,10 @@ fi
 # Default evidence artefact path (may be overridden by ASYNC_SMOKE_OUTPUT_JSON).
 if [[ -z "${ASYNC_SMOKE_OUTPUT_JSON:-}" ]]; then
   export ASYNC_SMOKE_OUTPUT_JSON="artifacts/remote-smoke-async-jobs.json"
+fi
+
+if [[ -z "${ASYNC_SMOKE_CLASSIFICATION:-}" ]]; then
+  export ASYNC_SMOKE_CLASSIFICATION="${SMOKE_CLASSIFICATION:-must-pass}"
 fi
 
 export SERVICE_API_BASE_URL="${REMOTE_BASE_URL_INPUT}"

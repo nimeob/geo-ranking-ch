@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -27,11 +28,21 @@ def test_pr_profile_dry_run_routes_to_split_smoke() -> None:
     proc = _run(["--profile", "pr", "--dry-run"])
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
-    assert payload == [
+
+    assert payload["schema_version"] == "deploy-smoke-report/v1"
+    assert payload["runner"] == "deploy-smoke-entrypoint"
+    assert payload["classification"] == "must-pass"
+    assert payload["status"] == "planned"
+    assert payload["reason"] == "dry_run"
+
+    checks = payload["checks"]
+    assert checks == [
         {
             "name": "pr-split-smoke",
             "command": ["./scripts/check_bl334_split_smokes.sh"],
             "env": {},
+            "classification": "must-pass",
+            "status": "planned",
         }
     ]
 
@@ -52,12 +63,15 @@ def test_deploy_staging_sync_dry_run_uses_staging_env_defaults() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
-    assert len(payload) == 1
-    planned = payload[0]
+    checks = payload["checks"]
+    assert len(checks) == 1
+    planned = checks[0]
+    assert planned["classification"] == "must-pass"
     assert planned["command"] == ["./scripts/run_remote_api_smoketest.sh"]
     assert planned["env"]["DEV_BASE_URL"] == "https://api.staging.example.test"
     assert planned["env"]["DEV_API_AUTH_TOKEN"] == "secret-token"
     assert planned["env"]["SMOKE_OUTPUT_JSON"] == "artifacts/staging-smoke-analyze.json"
+    assert planned["env"]["SMOKE_CLASSIFICATION"] == "must-pass"
 
 
 def test_nightly_profile_defaults_to_dev_both_flows() -> None:
@@ -67,9 +81,32 @@ def test_nightly_profile_defaults_to_dev_both_flows() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout)
-    assert [item["command"] for item in payload] == [
+    assert payload["classification"] == "informational"
+    checks = payload["checks"]
+    assert [item["command"] for item in checks] == [
         ["./scripts/run_remote_api_smoketest.sh"],
         ["./scripts/run_remote_async_jobs_smoketest.sh"],
     ]
-    for item in payload:
+    for item in checks:
+        assert item["classification"] == "informational"
         assert item["env"]["DEV_BASE_URL"] == "https://api.dev.example.test"
+
+
+def test_dry_run_can_write_output_json_file() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out = Path(tmpdir) / "deploy-smoke-plan.json"
+        proc = _run([
+            "--profile",
+            "nightly",
+            "--dry-run",
+            "--output-json",
+            str(out),
+        ], env={"DEV_BASE_URL": "https://api.dev.example.test"})
+
+        assert proc.returncode == 0, proc.stderr
+        assert out.exists()
+
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        assert payload["schema_version"] == "deploy-smoke-report/v1"
+        assert payload["status"] == "planned"
+        assert payload["classification"] == "informational"
