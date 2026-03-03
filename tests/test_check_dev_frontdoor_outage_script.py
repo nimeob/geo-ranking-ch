@@ -198,12 +198,106 @@ class TestCheckDevFrontdoorOutageScript(unittest.TestCase):
                     ],
                 }
             ],
+            "network_acls": [
+                {
+                    "NetworkAclId": "acl-1",
+                    "Associations": [{"SubnetId": "subnet-1"}],
+                    "Entries": [
+                        {
+                            "RuleNumber": 100,
+                            "Protocol": "6",
+                            "RuleAction": "allow",
+                            "Egress": False,
+                            "CidrBlock": "0.0.0.0/0",
+                            "PortRange": {"From": 80, "To": 443},
+                        },
+                        {
+                            "RuleNumber": 100,
+                            "Protocol": "6",
+                            "RuleAction": "allow",
+                            "Egress": True,
+                            "CidrBlock": "0.0.0.0/0",
+                            "PortRange": {"From": 32768, "To": 65535},
+                        },
+                    ],
+                }
+            ],
         }
 
         cp, payload = self._run_with_snapshot(snapshot)
         self.assertEqual(cp.returncode, 0, msg=cp.stdout + cp.stderr)
         self.assertEqual(payload["analysis"]["overall"], "pass")
         self.assertEqual(payload["analysis"]["findings"], [])
+
+    def test_detects_restrictive_nacl_for_https(self):
+        snapshot = {
+            "load_balancer": {
+                "LoadBalancerArn": "arn:alb:test",
+                "SecurityGroups": ["sg-1"],
+            },
+            "listeners": [
+                {
+                    "Port": 80,
+                    "ListenerArn": "arn:listener:http",
+                    "Protocol": "HTTP",
+                },
+                {
+                    "Port": 443,
+                    "ListenerArn": "arn:listener:https",
+                    "Protocol": "HTTPS",
+                },
+            ],
+            "rules_by_listener": {
+                "arn:listener:http": [],
+                "arn:listener:https": [],
+            },
+            "target_groups": [
+                {
+                    "TargetGroupArn": "arn:tg:api",
+                    "TargetGroupName": "api",
+                    "Port": 8080,
+                    "Protocol": "HTTP",
+                    "HealthCheckPath": "/health",
+                }
+            ],
+            "target_health": {
+                "arn:tg:api": [{"TargetHealth": {"State": "healthy"}}],
+            },
+            "security_groups": [
+                {
+                    "GroupId": "sg-1",
+                    "IpPermissions": [
+                        {
+                            "IpProtocol": "tcp",
+                            "FromPort": 443,
+                            "ToPort": 443,
+                            "IpRanges": [{"CidrIp": "0.0.0.0/0"}],
+                        }
+                    ],
+                }
+            ],
+            "network_acls": [
+                {
+                    "NetworkAclId": "acl-1",
+                    "Associations": [{"SubnetId": "subnet-1"}],
+                    "Entries": [
+                        {
+                            "RuleNumber": 100,
+                            "Protocol": "6",
+                            "RuleAction": "deny",
+                            "Egress": False,
+                            "CidrBlock": "0.0.0.0/0",
+                            "PortRange": {"From": 443, "To": 443},
+                        }
+                    ],
+                }
+            ],
+        }
+
+        cp, payload = self._run_with_snapshot(snapshot)
+        self.assertEqual(cp.returncode, 1, msg=cp.stdout + cp.stderr)
+        ids = {item["id"] for item in payload["analysis"]["findings"]}
+        self.assertIn("nacl_ingress_443_not_allowed", ids)
 
 
 if __name__ == "__main__":
