@@ -256,12 +256,20 @@ jobs:
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
           API_TASK_DEF_ARN: ${{ steps.taskdefs.outputs.api_task_def_arn }}
+          ECS_API_HEALTHCHECK_GRACE_SECONDS: ${{ vars.ECS_API_HEALTHCHECK_GRACE_SECONDS }}
         run: |
           set -euo pipefail
+          API_GRACE_SECONDS="${ECS_API_HEALTHCHECK_GRACE_SECONDS:-120}"
+          if ! [[ "$API_GRACE_SECONDS" =~ ^[0-9]+$ ]]; then
+            echo "::error::ECS_API_HEALTHCHECK_GRACE_SECONDS must be an integer number of seconds (got '$API_GRACE_SECONDS')."
+            exit 1
+          fi
+
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_API_SERVICE" \
             --task-definition "$API_TASK_DEF_ARN" \
+            --health-check-grace-period-seconds "$API_GRACE_SECONDS" \
             --force-new-deployment
 
           aws ecs wait services-stable \
@@ -362,12 +370,20 @@ jobs:
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_UI_SERVICE: ${{ vars.ECS_UI_SERVICE }}
           UI_TASK_DEF_ARN: ${{ steps.taskdefs.outputs.ui_task_def_arn }}
+          ECS_UI_HEALTHCHECK_GRACE_SECONDS: ${{ vars.ECS_UI_HEALTHCHECK_GRACE_SECONDS }}
         run: |
           set -euo pipefail
+          UI_GRACE_SECONDS="${ECS_UI_HEALTHCHECK_GRACE_SECONDS:-120}"
+          if ! [[ "$UI_GRACE_SECONDS" =~ ^[0-9]+$ ]]; then
+            echo "::error::ECS_UI_HEALTHCHECK_GRACE_SECONDS must be an integer number of seconds (got '$UI_GRACE_SECONDS')."
+            exit 1
+          fi
+
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_UI_SERVICE" \
             --task-definition "$UI_TASK_DEF_ARN" \
+            --health-check-grace-period-seconds "$UI_GRACE_SECONDS" \
             --force-new-deployment
 
           aws ecs wait services-stable \

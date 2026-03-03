@@ -396,6 +396,8 @@ Smoke-Verhalten:
 | `ECS_UI_SERVICE` | UI-Service (z. B. `swisstopo-dev-ui`) |
 | `ECS_API_CONTAINER_NAME` | API-Containername in der API-TaskDef |
 | `ECS_UI_CONTAINER_NAME` | UI-Containername in der UI-TaskDef |
+| `ECS_API_HEALTHCHECK_GRACE_SECONDS` | Optional: Health-Check-Grace (Sekunden) für API-Rollout; Default `120` |
+| `ECS_UI_HEALTHCHECK_GRACE_SECONDS` | Optional: Health-Check-Grace (Sekunden) für UI-Rollout; Default `120` |
 | `ECR_API_REPOSITORY` | API-ECR-Repository (z. B. `swisstopo-dev-api`) |
 | `ECR_UI_REPOSITORY` | UI-ECR-Repository (z. B. `swisstopo-dev-ui`) |
 | `SERVICE_API_BASE_URL` | API-Base-URL für Smokes (`https://api.<domain>`) |
