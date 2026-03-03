@@ -1,27 +1,28 @@
 # Dev DB Runbook
 
-**Issue:** [#860](https://github.com/nimeob/geo-ranking-ch/issues/860) — INFRA-NET-0-dev
-**Stand:** 2026-03-02
-**Status:** Manuelles Runbook (MVP); reproduzierbar und copy-paste-fähig.
+**Issue:** [#859](https://github.com/nimeob/geo-ranking-ch/issues/859) — INFRA-DB-0-dev.wp3
+**Parent:** [#855](https://github.com/nimeob/geo-ranking-ch/issues/855) — INFRA-DB-0-dev
+**Stand:** 2026-03-03
+**Status:** Betriebs-Runbook für Dev-DB (copy/paste-fähig, operator-ready)
 
 ---
 
 ## Überblick
 
-Dieses Runbook beschreibt die vollständige Dev-DB-Einrichtung in vier Phasen:
+Dieses Runbook beschreibt den Betrieb der Dev-Datenbank (RDS Postgres) inkl. Verbindung, Migration, Rotation, Restore und sauberem Cleanup.
 
-| Phase | Beschreibung |
-|-------|--------------|
-| 1     | Terraform Apply — RDS + Netzwerk + ECS Secrets Wiring |
-| 2     | Secrets Management — Secrets Manager + SSM prüfen und anlegen |
-| 3     | Migration — Kanonisches Schema gegen Dev-DB anwenden |
-| 4     | Smoke Checks — DB-Konnektivität aus ECS, `/healthz`, `/analyze/history` |
+- Infrastruktur-Dateien:
+  - `infra/terraform/dev_network.tf`
+  - `infra/terraform/dev_db.tf`
+  - `infra/terraform/dev_ecs_compute.tf`
+- Secrets/Datenpfade:
+  - RDS Master Secret via AWS-managed Secrets Manager (`manage_master_user_password = true`)
+  - ECS Task-Definition nutzt `DB_PASSWORD` als Secret (`valueFrom`), nicht als plain env
 
-> **Voraussetzungen:**
-> - INFRA-NET-0-dev (#860): Terraform RDS Skeleton vorhanden (`infra/terraform/dev_db.tf`)
-> - ECS Secrets Wiring konfiguriert (`infra/terraform/dev_ecs_compute.tf`)
-> - AWS CLI konfiguriert + ausreichende IAM Permissions (RDS, ECS, Secrets Manager, SSM, VPC)
-> - Terraform ≥ 1.5 installiert
+> **Voraussetzungen**
+> - AWS CLI + Terraform (>=1.5) + `jq` + `psql`
+> - IAM-Rechte für VPC/RDS/ECS/SSM/SecretsManager/CloudWatch
+> - Arbeitsverzeichnis: Repo-Root
 
 ---
 
@@ -34,282 +35,197 @@ export PROJECT="swisstopo"
 export ENV="dev"
 export TF_DIR="infra/terraform"
 
-# Identität prüfen
 aws sts get-caller-identity
 ```
 
 ---
 
-## Phase 1 — Terraform Apply (RDS + ECS Wiring)
+## Verbindung herstellen
 
-### 1.1 Var-File anlegen / prüfen
-
-```bash
-cd "${TF_DIR}"
-
-# Beispiel-Datei als Vorlage nehmen (falls nicht vorhanden)
-cp terraform.dev.tfvars.example terraform.dev.tfvars
-```
-
-Mindeständerungen in `terraform.dev.tfvars`:
-
-```hcl
-# DB aktivieren (nach Netzwerk-Setup mit manage_dev_network=true)
-manage_dev_db          = true
-manage_dev_ecs_compute = true   # für Secrets-Wiring
-manage_dev_network     = true   # Voraussetzung
-
-# Optional: DB-Sizing explizit setzen (Defaults sind sinnvoll für dev)
-# dev_db_instance_class       = "db.t4g.micro"
-# dev_db_allocated_storage_gb = 20
-# dev_db_engine_version       = "16"   # "" => AWS Default
-```
-
-> **Sicherheitsnote:** Kein Passwort in `terraform.dev.tfvars` erforderlich —
-> `manage_master_user_password = true` delegiert die Passwortverwaltung vollständig an AWS
-> Secrets Manager. Das Passwort erscheint **nie im Terraform State**.
-
-### 1.2 Plan prüfen
+### Option A — Direkt aus privatem Netz (Bastion/Runner in gleicher VPC)
 
 ```bash
 cd "${TF_DIR}"
-
-terraform init -upgrade
-
-terraform plan \
-  -var-file="terraform.dev.tfvars" \
-  -out=dev-db.tfplan
-
-# Erwartete neue Ressourcen:
-# + aws_db_subnet_group.dev[0]
-# + aws_security_group.dev_db[0]
-# + aws_security_group_rule.dev_db_ingress_from_sgs["sg-..."]  (ECS SG)
-# + aws_db_instance.dev_postgres[0]
-```
-
-**Checkliste Plan-Review:**
-
-- [ ] Keine unerwarteten Destroys (`-/+` bei existierenden Ressourcen)
-- [ ] `aws_db_instance.dev_postgres[0]` wird neu erstellt (oder ist schon importiert)
-- [ ] `manage_master_user_password = true` → kein `password` im Plan sichtbar
-- [ ] Security Group: Ingress nur von ECS Service SG auf Port 5432
-- [ ] `deletion_protection = true` und `lifecycle { prevent_destroy = true }` gesetzt
-
-### 1.3 Apply
-
-```bash
-terraform apply dev-db.tfplan
-```
-
-> **Dauer:** RDS-Erstellung dauert typischerweise 5–10 Minuten.
-
-### 1.4 Outputs prüfen
-
-```bash
-terraform output dev_db_endpoint
-# → swisstopo-dev-postgres.<hash>.eu-central-1.rds.amazonaws.com
-
-terraform output dev_db_port
-# → 5432
-
-terraform output dev_db_name
-# → swisstopo
-
-terraform output dev_db_master_username
-# → swisstopo
-
-terraform output dev_db_master_user_secret_arn
-# → arn:aws:secretsmanager:eu-central-1:523234426229:secret:rds!db-<suffix>
-```
-
-> Secrets Manager ARN merken — wird in Phase 2 und für ECS Wiring benötigt.
-
----
-
-## Phase 2 — Secrets Management
-
-### 2.1 DB Master-Passwort (AWS-managed) prüfen
-
-```bash
-SECRET_ARN=$(terraform output -raw dev_db_master_user_secret_arn)
-
-# Secret-Metadaten prüfen (kein Klartext-Passwort hier anzeigen!)
-aws secretsmanager describe-secret \
-  --secret-id "${SECRET_ARN}" \
-  --region "${AWS_REGION}" \
-  | jq '{Name, ARN, CreatedDate, LastAccessedDate}'
-
-# Prüfen, dass Passwort-Feld existiert (Rotation check):
-aws secretsmanager get-secret-value \
-  --secret-id "${SECRET_ARN}" \
-  --region "${AWS_REGION}" \
-  | jq '.SecretString | fromjson | keys'
-# Erwartung: ["password","username"]  (Klartext NICHT in Logs/Protokollen festhalten)
-```
-
-### 2.2 ECS Task Definition – Secrets Wiring verifizieren
-
-```bash
-# Prüfen, dass DB_PASSWORD als Secret (nicht Env) konfiguriert ist
-aws ecs describe-task-definition \
-  --task-definition "${PROJECT}-${ENV}-api" \
-  --region "${AWS_REGION}" \
-  | jq '.taskDefinition.containerDefinitions[0] | {
-      environment: [.environment[] | select(.name | startswith("DB_"))],
-      secrets:     [.secrets[]     | select(.name == "DB_PASSWORD")]
-    }'
-
-# Erwartetes Ergebnis:
-# {
-#   "environment": [
-#     {"name": "DB_HOST",     "value": "swisstopo-dev-postgres.....rds.amazonaws.com"},
-#     {"name": "DB_PORT",     "value": "5432"},
-#     {"name": "DB_NAME",     "value": "swisstopo"},
-#     {"name": "DB_USERNAME", "value": "swisstopo"}
-#   ],
-#   "secrets": [
-#     {"name": "DB_PASSWORD", "valueFrom": "arn:...:rds!db-...:password::"}
-#   ]
-# }
-```
-
-### 2.3 OIDC-Konfiguration (SSM) prüfen
-
-Falls Cognito bereits eingerichtet ist:
-
-```bash
-# JWKS URL für JWT-Validierung
-aws ssm get-parameter \
-  --name "/${PROJECT}/${ENV}/oidc-jwks-url" \
-  --region "${AWS_REGION}" \
-  --query 'Parameter.Value' --output text
-
-# Issuer URL
-aws ssm get-parameter \
-  --name "/${PROJECT}/${ENV}/oidc-jwt-issuer" \
-  --region "${AWS_REGION}" \
-  --query 'Parameter.Value' --output text
-```
-
-### 2.4 SSM Namenskonventionen (Referenz)
-
-| Parameter                              | Typ           | Wert-Herkunft                        |
-|----------------------------------------|---------------|--------------------------------------|
-| `/{project}/{env}/db-host`             | String        | Terraform output (optional, redundant) |
-| `/{project}/{env}/oidc-jwks-url`       | String        | Cognito User Pool JWKS Endpoint      |
-| `/{project}/{env}/oidc-jwt-issuer`     | String        | Cognito User Pool Issuer URL         |
-| `/{project}/{env}/oidc-jwt-audience`   | String        | Cognito App Client ID                |
-| `/{project}/{env}/telegram-bot-token`  | SecureString  | Manuell angelegt (kein TF)           |
-| `/{project}/{env}/api-auth-token`      | SecureString  | Manuell angelegt (kein TF)           |
-
-> **Regel:** Secrets werden **nie** per Terraform angelegt (kein Klartext im State).
-> Alle SecureString-Werte manuell via `aws ssm put-parameter --type SecureString`.
-
----
-
-## Phase 3 — Migration (Kanonisches Schema)
-
-> **Voraussetzung:** Direkte Netzwerkverbindung zur RDS-Instanz (privates Subnetz).
-> Optionen: (a) EC2 Bastion / SSM Session, (b) ECS Task Run, (c) lokales Port-Forwarding via SSM.
-
-### 3.1 Verbindungsdetails auflösen
-
-```bash
 DB_HOST=$(terraform output -raw dev_db_endpoint)
 DB_PORT=$(terraform output -raw dev_db_port)
 DB_NAME=$(terraform output -raw dev_db_name)
 DB_USER=$(terraform output -raw dev_db_master_username)
 SECRET_ARN=$(terraform output -raw dev_db_master_user_secret_arn)
 
-# Passwort aus Secrets Manager holen (nur für aktiven Migrations-Schritt, nicht loggen!)
 DB_PASS=$(aws secretsmanager get-secret-value \
   --secret-id "${SECRET_ARN}" \
   --region "${AWS_REGION}" \
   | jq -r '.SecretString | fromjson | .password')
-```
 
-### 3.2 Verbindung testen
-
-```bash
-# Option A: psql (direkt, wenn Netz erreichbar)
 PGPASSWORD="${DB_PASS}" psql \
   -h "${DB_HOST}" -p "${DB_PORT}" \
   -U "${DB_USER}" -d "${DB_NAME}" \
   -c "SELECT version();"
-
-# Option B: Via SSM + EC2 Bastion
-# aws ssm start-session --target <instance-id>
-# (dann psql innerhalb der Bastion-Session)
 ```
 
-### 3.3 Schema v1 anwenden (Core Tables)
+### Option B — Über SSM-Session auf Bastion
 
 ```bash
-PGPASSWORD="${DB_PASS}" psql \
-  -h "${DB_HOST}" -p "${DB_PORT}" \
-  -U "${DB_USER}" -d "${DB_NAME}" \
-  -v ON_ERROR_STOP=1 \
-  -f docs/sql/db_core_schema_v1.sql
-
-# Erwartung: BEGIN / CREATE TABLE / COMMIT (keine Fehler)
-```
-
-### 3.4 Schema verifizieren
-
-```bash
-PGPASSWORD="${DB_PASS}" psql \
-  -h "${DB_HOST}" -p "${DB_PORT}" \
-  -U "${DB_USER}" -d "${DB_NAME}" \
-  -c "\dt" 2>&1
-
-# Erwartete Tabellen:
-#  organizations
-#  users
-#  memberships
-#  api_keys
-```
-
-### 3.5 Async Jobs Schema anwenden (optional)
-
-```bash
-PGPASSWORD="${DB_PASS}" psql \
-  -h "${DB_HOST}" -p "${DB_PORT}" \
-  -U "${DB_USER}" -d "${DB_NAME}" \
-  -v ON_ERROR_STOP=1 \
-  -f docs/sql/async_jobs_schema_v1.sql
+aws ssm start-session --target <BASTION_INSTANCE_ID> --region "${AWS_REGION}"
+# dann in der Session dieselben psql-Befehle wie oben ausführen
 ```
 
 ---
 
-## Phase 4 — Smoke Checks
+## Credentials
 
-### 4.1 DB-Konnektivität aus ECS Task prüfen
+### Master-Secret prüfen
 
 ```bash
-aws ecs execute-command \
+cd "${TF_DIR}"
+SECRET_ARN=$(terraform output -raw dev_db_master_user_secret_arn)
+
+aws secretsmanager describe-secret \
+  --secret-id "${SECRET_ARN}" \
+  --region "${AWS_REGION}" \
+  | jq '{Name, ARN, LastChangedDate, RotationEnabled}'
+
+aws secretsmanager get-secret-value \
+  --secret-id "${SECRET_ARN}" \
+  --region "${AWS_REGION}" \
+  | jq '.SecretString | fromjson | keys'
+# Erwartung: ["password", "username"]
+```
+
+### ECS-Secrets-Wiring prüfen
+
+```bash
+aws ecs describe-task-definition \
+  --task-definition "${PROJECT}-${ENV}-api" \
+  --region "${AWS_REGION}" \
+  | jq '.taskDefinition.containerDefinitions[0] | {
+      env_db: [.environment[]? | select(.name|startswith("DB_"))],
+      db_password_secret: [.secrets[]? | select(.name=="DB_PASSWORD")]
+    }'
+```
+
+---
+
+## Migrationen
+
+### Terraform Apply (falls noch nicht erfolgt)
+
+```bash
+cd "${TF_DIR}"
+cp -n terraform.dev.tfvars.example terraform.dev.tfvars
+terraform init -upgrade
+terraform plan -var-file="terraform.dev.tfvars" -out="dev-db.tfplan"
+terraform apply "dev-db.tfplan"
+```
+
+### Core-Schema anwenden
+
+```bash
+cd "${TF_DIR}"
+DB_HOST=$(terraform output -raw dev_db_endpoint)
+DB_PORT=$(terraform output -raw dev_db_port)
+DB_NAME=$(terraform output -raw dev_db_name)
+DB_USER=$(terraform output -raw dev_db_master_username)
+SECRET_ARN=$(terraform output -raw dev_db_master_user_secret_arn)
+DB_PASS=$(aws secretsmanager get-secret-value \
+  --secret-id "${SECRET_ARN}" \
+  --region "${AWS_REGION}" \
+  | jq -r '.SecretString | fromjson | .password')
+
+PGPASSWORD="${DB_PASS}" psql \
+  -h "${DB_HOST}" -p "${DB_PORT}" \
+  -U "${DB_USER}" -d "${DB_NAME}" \
+  -v ON_ERROR_STOP=1 \
+  -f "docs/sql/db_core_schema_v1.sql"
+
+PGPASSWORD="${DB_PASS}" psql \
+  -h "${DB_HOST}" -p "${DB_PORT}" \
+  -U "${DB_USER}" -d "${DB_NAME}" \
+  -c "\\dt"
+```
+
+### Optional: Async-Job-Schema
+
+```bash
+PGPASSWORD="${DB_PASS}" psql \
+  -h "${DB_HOST}" -p "${DB_PORT}" \
+  -U "${DB_USER}" -d "${DB_NAME}" \
+  -v ON_ERROR_STOP=1 \
+  -f "docs/sql/async_jobs_schema_v1.sql"
+```
+
+---
+
+## Passwort-Rotation
+
+1. Neues Passwort im Master-Secret setzen (oder AWS Rotation triggern).
+2. ECS-Service neu deployen, damit neue Secret-Version gelesen wird.
+3. Connectivity-Smoketest ausführen.
+
+```bash
+# 1) Secret (JSON) aktualisieren
+aws secretsmanager put-secret-value \
+  --secret-id "${SECRET_ARN}" \
+  --secret-string '{"username":"swisstopo","password":"<NEW_PASSWORD>"}' \
+  --region "${AWS_REGION}"
+
+# 2) ECS redeploy triggern
+aws ecs update-service \
   --cluster "${PROJECT}-${ENV}" \
-  --task "<TASK_ARN>" \
-  --container "swisstopo-${ENV}-api" \
-  --interactive \
-  --command "/bin/sh"
+  --service "${PROJECT}-${ENV}-api" \
+  --force-new-deployment \
+  --region "${AWS_REGION}"
 
-# Im Container:
-# echo "DB_HOST: $DB_HOST"
-# nc -zv $DB_HOST $DB_PORT && echo "TCP OK"
+# 3) Stabilität prüfen
+aws ecs wait services-stable \
+  --cluster "${PROJECT}-${ENV}" \
+  --services "${PROJECT}-${ENV}-api" \
+  --region "${AWS_REGION}"
 ```
 
-### 4.2 /healthz Endpoint
+---
+
+## Backup & Restore
+
+### Backup-Status prüfen
 
 ```bash
-API_URL="https://<alb-dns-name>"    # oder http://<ecs-ip>:8080
-
-curl -sf "${API_URL}/healthz" | jq .
-# Erwartung: {"status": "ok", "build": "...", "timestamp": "..."}
+aws rds describe-db-instances \
+  --db-instance-identifier "${PROJECT}-${ENV}-postgres" \
+  --region "${AWS_REGION}" \
+  | jq '.DBInstances[0] | {DBInstanceIdentifier, BackupRetentionPeriod, LatestRestorableTime, DBInstanceStatus}'
 ```
 
-### 4.3 /analyze/history mit Bearer Token
+### Manuellen Snapshot erstellen
 
 ```bash
+SNAP_ID="${PROJECT}-${ENV}-postgres-manual-$(date +%Y%m%d-%H%M%S)"
+aws rds create-db-snapshot \
+  --db-instance-identifier "${PROJECT}-${ENV}-postgres" \
+  --db-snapshot-identifier "${SNAP_ID}" \
+  --region "${AWS_REGION}"
+```
+
+### Restore (neue Instanz)
+
+```bash
+aws rds restore-db-instance-from-db-snapshot \
+  --db-instance-identifier "${PROJECT}-${ENV}-postgres-restore" \
+  --db-snapshot-identifier "${SNAP_ID}" \
+  --region "${AWS_REGION}"
+```
+
+---
+
+## Smoke Checks
+
+```bash
+API_URL="https://<alb-dns-or-dev-api-url>"
+
+# Health
+curl -sf "${API_URL}/health" | jq .
+
+# History (Bearer aus SSM)
 API_TOKEN=$(aws ssm get-parameter \
   --name "/${PROJECT}/${ENV}/api-auth-token" \
   --with-decryption \
@@ -318,73 +234,72 @@ API_TOKEN=$(aws ssm get-parameter \
 
 curl -sf \
   -H "Authorization: Bearer ${API_TOKEN}" \
-  "${API_URL}/analyze/history" | jq '{ok, count: (.results | length)}'
-# Erwartung: {"ok": true, "count": 0}
-```
+  "${API_URL}/analyze/history" | jq '{ok, count: (.results|length)}'
 
-### 4.4 CloudWatch Logs prüfen (kein Passwort-Leak)
-
-```bash
-LOG_GROUP="/swisstopo/${ENV}/ecs/api"
-
+# Log-Leak-Check (kein DB_PASSWORD)
 aws logs filter-log-events \
-  --log-group-name "${LOG_GROUP}" \
+  --log-group-name "/${PROJECT}/${ENV}/ecs/api" \
   --filter-pattern "DB_PASSWORD" \
   --region "${AWS_REGION}" \
   | jq '.events | length'
-# Erwartung: 0  (Passwort darf nie in Logs erscheinen)
 ```
 
 ---
 
 ## Troubleshooting
 
-### RDS nicht erreichbar (Timeout)
+### SG blockiert DB-Zugriff
 
-1. Security Group prüfen: ECS Service SG muss als Ingress-Quelle in der DB SG eingetragen sein.
-   ```bash
-   aws ec2 describe-security-groups \
-     --filters "Name=group-name,Values=${PROJECT}-${ENV}-db-sg" \
-     --region "${AWS_REGION}" \
-     | jq '.SecurityGroups[0].IpPermissions'
-   ```
-2. VPC/Subnet prüfen: ECS Tasks müssen im selben VPC/Private-Subnet wie RDS laufen.
-3. DB Status prüfen:
-   ```bash
-   aws rds describe-db-instances \
-     --db-instance-identifier "${PROJECT}-${ENV}-postgres" \
-     --region "${AWS_REGION}" \
-     | jq '.DBInstances[0] | {DBInstanceStatus, Endpoint}'
-   ```
+```bash
+aws ec2 describe-security-groups \
+  --filters "Name=group-name,Values=${PROJECT}-${ENV}-db-sg" \
+  --region "${AWS_REGION}" \
+  | jq '.SecurityGroups[0].IpPermissions'
+```
 
-### ECS Task startet nicht (Secret-Fetch-Fehler)
+### ECS Task kann Secret nicht lesen
 
 ```bash
 aws ecs describe-tasks \
   --cluster "${PROJECT}-${ENV}" \
   --tasks "<TASK_ARN>" \
   --region "${AWS_REGION}" \
-  | jq '.tasks[0] | {stoppedReason, containers: [.containers[].reason]}'
+  | jq '.tasks[0] | {stoppedReason, taskRoleArn, executionRoleArn, containers: [.containers[]?.reason]}'
 ```
 
-> Für IAM-Permissions-Details: [DEV_DB_ECS_SECRETS_RUNBOOK.md](./DEV_DB_ECS_SECRETS_RUNBOOK.md)
+### RDS-Status prüfen
 
-### Migration schlägt fehl (pgcrypto nicht verfügbar)
-
-```sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+```bash
+aws rds describe-db-instances \
+  --db-instance-identifier "${PROJECT}-${ENV}-postgres" \
+  --region "${AWS_REGION}" \
+  | jq '.DBInstances[0] | {DBInstanceStatus, Endpoint, EngineVersion}'
 ```
 
 ---
 
-## Abhängigkeiten
+## Cleanup
 
-| Richtung      | Beschreibung |
-|---------------|--------------|
-| Voraussetzung | INFRA-NET-0-dev (#860): Terraform Network + DB Skeleton |
-| Folge-Task    | Migration Runner + CI Harness |
-| Folge-Task    | ASYNC-DB-0: Async Job History in DB persistieren |
+```bash
+cd "${TF_DIR}"
+terraform plan -destroy -var-file="terraform.dev.tfvars" -out="dev-destroy.tfplan"
+terraform apply "dev-destroy.tfplan"
+```
+
+> Falls `prevent_destroy` auf RDS aktiv ist, zuerst den Schutz bewusst entfernen und den Vorgang dokumentieren.
 
 ---
 
-*Erstellt im Rahmen von INFRA-NET-0-dev (#860), 2026-03-02.*
+## Test-/Validierungshinweise zu diesem Runbook
+
+Für die Doku-Regression (Pflichtsektionen + Schlüsselkommandos):
+
+```bash
+pytest -q tests/test_dev_db_runbook_docs.py
+```
+
+Für lokale Terraform-Lint/Validierung:
+
+```bash
+terraform -chdir=infra/terraform validate
+```
