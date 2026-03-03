@@ -50,3 +50,20 @@ Diese Matrix trennt **schnelle PR-Gates**, **verpflichtende Deploy-Gates** und *
 1. Neue Smoke-Pfade sollen auf **kanonische Entrypoints** zeigen (kein Duplication-Drift).
 2. Neue Checks müssen einem Tier explizit zugeordnet sein (`PR`, `Deploy`, `Nightly`).
 3. `must-pass` vs. `informational` muss im Runner-/Report-Schema eindeutig sein (Folge-WP #992).
+
+## Runtime-Benchmark (Issue #993)
+
+Reproduzierbare Auswertung der Deploy-Gate-Laufzeiten vor/nach Runner-Konsolidierung:
+
+```bash
+python3 ./scripts/bench_deploy_gate_runtime.py \
+  --repo nimeob/geo-ranking-ch \
+  --workflow deploy.yml \
+  --cutoff-sha f67fdbe \
+  --limit 120 \
+  --conclusion success \
+  --output-json artifacts/issue-993-deploy-gate-benchmark.json \
+  > artifacts/issue-993-deploy-gate-benchmark.md
+```
+
+Evidence-Referenz: `reports/evidence/issue-993-deploy-gate-benchmark-20260303T202749Z.md`
