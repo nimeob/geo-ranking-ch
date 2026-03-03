@@ -103,11 +103,14 @@ Alle Fehlerantworten sind JSON und folgen einem einheitlichen Top-Level-Format:
 {
   "ok": false,
   "error": "bad_request|not_found|timeout|address_intel|internal|...",
+  "code": "bad_request|not_found|timeout|address_intel|internal|...",
   "message": "…",
   "details": [{"field": "…", "issue": "…"}],
   "request_id": "req-…"
 }
 ```
+
+Hinweis: `code` ist die kanonische maschinenlesbare Fehlerkennung; `error` bleibt als kompatibler Alias enthalten.
 
 Status-Code-Mapping (verbindlich):
 - **Validation/Request-Parsing** → `400` + `error=bad_request`

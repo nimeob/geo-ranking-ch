@@ -2931,6 +2931,81 @@ def _apply_personalized_suitability_scores(
         compact_suitability["top_factors"] = deepcopy(top_factors_payload)
 
 
+_ERROR_DEFAULT_MESSAGES: dict[str, str] = {
+    "bad_request": "bad request",
+    "unauthorized": "missing or invalid bearer token",
+    "forbidden": "forbidden",
+    "not_found": "resource not found",
+    "timeout": "request timed out",
+    "internal": "internal server error",
+}
+
+
+def _default_error_message(*, status: HTTPStatus, error_code: str) -> str:
+    normalized_code = str(error_code or "").strip().lower()
+    if normalized_code and normalized_code in _ERROR_DEFAULT_MESSAGES:
+        return _ERROR_DEFAULT_MESSAGES[normalized_code]
+
+    phrase = str(status.phrase or "").strip().lower()
+    return phrase or "request failed"
+
+
+def _validation_error_details(message: str, *, field: str = "request") -> list[dict[str, str]]:
+    issue = str(message or "").strip()
+    if not issue:
+        return []
+    return [{"field": str(field or "request"), "issue": issue}]
+
+
+def _coerce_http_status(value: int) -> HTTPStatus:
+    try:
+        return HTTPStatus(int(value))
+    except ValueError:
+        return HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+def _coerce_error_code(payload: dict[str, Any]) -> str:
+    code_candidate = payload.get("code")
+    if isinstance(code_candidate, str) and code_candidate.strip():
+        return code_candidate.strip().lower()
+
+    error_candidate = payload.get("error")
+    if isinstance(error_candidate, str) and error_candidate.strip():
+        return error_candidate.strip().lower()
+
+    if isinstance(error_candidate, dict):
+        nested_code = error_candidate.get("code")
+        if isinstance(nested_code, str) and nested_code.strip():
+            return nested_code.strip().lower()
+
+    return "internal"
+
+
+def _normalize_error_payload(payload: dict[str, Any], *, status: int) -> dict[str, Any]:
+    if payload.get("ok") is not False:
+        return payload
+
+    normalized = dict(payload)
+    code = _coerce_error_code(normalized)
+    normalized["error"] = code
+    normalized["code"] = code
+
+    message = str(normalized.get("message") or "").strip()
+    if not message:
+        message = _default_error_message(
+            status=_coerce_http_status(status),
+            error_code=code,
+        )
+        normalized["message"] = message
+
+    if code == "bad_request" and not normalized.get("details"):
+        details = _validation_error_details(message)
+        if details:
+            normalized["details"] = details
+
+    return normalized
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
 
@@ -3018,14 +3093,19 @@ class Handler(BaseHTTPRequestHandler):
         details: list[dict[str, Any]] | None = None,
         extra_headers: dict[str, str] | None = None,
     ) -> None:
+        code = str(error or "internal").strip().lower() or "internal"
+        resolved_message = str(message).strip() if message is not None else ""
+        if not resolved_message:
+            resolved_message = _default_error_message(status=status, error_code=code)
+
         payload: dict[str, Any] = {
             "ok": False,
-            "error": str(error or "internal"),
+            "error": code,
+            "code": code,
+            "message": resolved_message,
             "request_id": request_id,
         }
-        if message:
-            payload["message"] = str(message)
-        if details is not None:
+        if details:
             payload["details"] = details
 
         self._send_json(
@@ -3136,8 +3216,9 @@ class Handler(BaseHTTPRequestHandler):
         request_id: str | None = None,
         extra_headers: dict[str, str] | None = None,
     ) -> None:
-        self._capture_response_error(payload=payload, status=status)
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        normalized_payload = _normalize_error_payload(payload, status=status)
+        self._capture_response_error(payload=normalized_payload, status=status)
+        body = json.dumps(normalized_payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -4123,11 +4204,13 @@ class Handler(BaseHTTPRequestHandler):
 
             self._send_not_found(request_id=request_id)
         except ValueError as exc:
+            details = _validation_error_details(str(exc))
             self._send_error(
                 request_id=request_id,
                 status=HTTPStatus.BAD_REQUEST,
                 error="bad_request",
                 message=str(exc),
+                details=details,
             )
         except KeyError as exc:
             self._send_not_found(
@@ -4700,11 +4783,13 @@ class Handler(BaseHTTPRequestHandler):
                 )
             except (ValueError, json.JSONDecodeError) as e:
                 _persist_sync_history_failure(error_code="bad_request", error_message=str(e))
+                details = _validation_error_details(str(e))
                 self._send_error(
                     request_id=request_id,
                     status=HTTPStatus.BAD_REQUEST,
                     error="bad_request",
                     message=str(e),
+                    details=details,
                 )
             except Exception as e:  # pragma: no cover
                 _persist_sync_history_failure(error_code="internal", error_message=str(e))
