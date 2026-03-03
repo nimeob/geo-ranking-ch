@@ -1,0 +1,628 @@
+{
+  "analysis": {
+    "derived": {
+      "host_rules": [],
+      "listener_ports": [
+        80,
+        443
+      ],
+      "network_acls": [
+        {
+          "egress_tcp_32768": true,
+          "egress_tcp_443": true,
+          "ingress_tcp_443": true,
+          "ingress_tcp_80": true,
+          "nacl_id": "acl-00fb047843c86da3c",
+          "subnet_ids": [
+            "subnet-04d5ddec3c5b06d7a",
+            "subnet-0cd8553a1fedbf183",
+            "subnet-0e872f671de1cd4ec",
+            "subnet-0e059126fa780f4c7"
+          ]
+        }
+      ],
+      "target_group_count": 1,
+      "target_group_health": {
+        "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b": {
+          "health": {
+            "healthy": 1,
+            "initial": 0,
+            "other": 0,
+            "total": 1,
+            "unhealthy": 0,
+            "unused": 0
+          },
+          "health_check_path": "/health",
+          "port": 8080,
+          "protocol": "HTTP",
+          "target_group_arn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+          "target_group_name": "swisstopo-dev-vpc-api-tg"
+        }
+      }
+    },
+    "findings": [
+      {
+        "evidence": {
+          "configured_host_rules": [],
+          "missing_hosts": [
+            "api.dev.georanking.ch",
+            "api.dev.geo-ranking.ch",
+            "www.dev.georanking.ch",
+            "www.dev.geo-ranking.ch"
+          ]
+        },
+        "id": "host_routing_incomplete",
+        "severity": "critical",
+        "summary": "Expected host-header routing rules are missing."
+      },
+      {
+        "evidence": {
+          "count": 1,
+          "target_group_names": [
+            "swisstopo-dev-vpc-api-tg"
+          ]
+        },
+        "id": "single_target_group_only",
+        "severity": "high",
+        "summary": "ALB currently has fewer than two target groups; API/UI split routing likely incomplete."
+      }
+    ],
+    "fix_plan": [
+      "Add host-header listener rules for api.dev.georanking.ch, api.dev.geo-ranking.ch, www.dev.georanking.ch and www.dev.geo-ranking.ch with explicit API/UI target-group actions.",
+      "Attach running ECS task IP targets to API/UI target groups, verify health checks, and ensure ECS services stay registered after deployment."
+    ],
+    "overall": "fail"
+  },
+  "direct_alb_probes": [
+    {
+      "error": null,
+      "host_header": "api.dev.georanking.ch",
+      "ok": true,
+      "status": 200,
+      "url": "http://swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com/health"
+    },
+    {
+      "error": null,
+      "host_header": "api.dev.georanking.ch",
+      "ok": true,
+      "status": 200,
+      "url": "https://swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com/health"
+    },
+    {
+      "error": null,
+      "host_header": "api.dev.geo-ranking.ch",
+      "ok": true,
+      "status": 200,
+      "url": "http://swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com/health"
+    },
+    {
+      "error": null,
+      "host_header": "api.dev.geo-ranking.ch",
+      "ok": true,
+      "status": 200,
+      "url": "https://swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com/health"
+    },
+    {
+      "error": "http_error:404",
+      "host_header": "www.dev.georanking.ch",
+      "ok": false,
+      "status": 404,
+      "url": "http://swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com/"
+    },
+    {
+      "error": "http_error:404",
+      "host_header": "www.dev.georanking.ch",
+      "ok": false,
+      "status": 404,
+      "url": "https://swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com/"
+    },
+    {
+      "error": "http_error:404",
+      "host_header": "www.dev.geo-ranking.ch",
+      "ok": false,
+      "status": 404,
+      "url": "http://swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com/"
+    },
+    {
+      "error": "http_error:404",
+      "host_header": "www.dev.geo-ranking.ch",
+      "ok": false,
+      "status": 404,
+      "url": "https://swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com/"
+    }
+  ],
+  "external_probes": [
+    {
+      "error": null,
+      "host_header": null,
+      "ok": true,
+      "status": 200,
+      "url": "https://api.dev.georanking.ch/health"
+    },
+    {
+      "error": null,
+      "host_header": null,
+      "ok": true,
+      "status": 200,
+      "url": "http://api.dev.georanking.ch/health"
+    },
+    {
+      "error": null,
+      "host_header": null,
+      "ok": true,
+      "status": 200,
+      "url": "https://api.dev.geo-ranking.ch/health"
+    },
+    {
+      "error": null,
+      "host_header": null,
+      "ok": true,
+      "status": 200,
+      "url": "http://api.dev.geo-ranking.ch/health"
+    },
+    {
+      "error": "http_error:404",
+      "host_header": null,
+      "ok": false,
+      "status": 404,
+      "url": "https://www.dev.georanking.ch/"
+    },
+    {
+      "error": "http_error:404",
+      "host_header": null,
+      "ok": false,
+      "status": 404,
+      "url": "http://www.dev.georanking.ch/"
+    },
+    {
+      "error": "http_error:404",
+      "host_header": null,
+      "ok": false,
+      "status": 404,
+      "url": "https://www.dev.geo-ranking.ch/"
+    },
+    {
+      "error": "http_error:404",
+      "host_header": null,
+      "ok": false,
+      "status": 404,
+      "url": "http://www.dev.geo-ranking.ch/"
+    }
+  ],
+  "generated_at": "2026-03-03T12:28:04+00:00",
+  "inputs": {
+    "expected_hosts": [
+      "api.dev.georanking.ch",
+      "api.dev.geo-ranking.ch",
+      "www.dev.georanking.ch",
+      "www.dev.geo-ranking.ch"
+    ],
+    "lb_name": "swisstopo-dev-vpc-alb",
+    "region": "eu-central-1",
+    "snapshot_source": "aws-live"
+  },
+  "snapshot": {
+    "listeners": [
+      {
+        "Certificates": [
+          {
+            "CertificateArn": "arn:aws:acm:eu-central-1:523234426229:certificate/9e7d8116-c6d7-4998-84fa-d5d80cf15059"
+          }
+        ],
+        "DefaultActions": [
+          {
+            "ForwardConfig": {
+              "TargetGroupStickinessConfig": {
+                "Enabled": false
+              },
+              "TargetGroups": [
+                {
+                  "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+                  "Weight": 1
+                }
+              ]
+            },
+            "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+            "Type": "forward"
+          }
+        ],
+        "ListenerArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/46d3483d42eb8d13",
+        "LoadBalancerArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:loadbalancer/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f",
+        "MutualAuthentication": {
+          "Mode": "off"
+        },
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "SslPolicy": "ELBSecurityPolicy-TLS13-1-2-2021-06"
+      },
+      {
+        "DefaultActions": [
+          {
+            "ForwardConfig": {
+              "TargetGroupStickinessConfig": {
+                "Enabled": false
+              },
+              "TargetGroups": [
+                {
+                  "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+                  "Weight": 1
+                }
+              ]
+            },
+            "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+            "Type": "forward"
+          }
+        ],
+        "ListenerArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/b7ffe241130b0613",
+        "LoadBalancerArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:loadbalancer/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f",
+        "Port": 80,
+        "Protocol": "HTTP"
+      }
+    ],
+    "load_balancer": {
+      "AvailabilityZones": [
+        {
+          "LoadBalancerAddresses": [],
+          "SubnetId": "subnet-0e059126fa780f4c7",
+          "ZoneName": "eu-central-1b"
+        },
+        {
+          "LoadBalancerAddresses": [],
+          "SubnetId": "subnet-0e872f671de1cd4ec",
+          "ZoneName": "eu-central-1a"
+        }
+      ],
+      "CanonicalHostedZoneId": "Z215JYRZR1TBD5",
+      "CreatedTime": "2026-03-03T08:15:27.128000+00:00",
+      "DNSName": "swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com",
+      "EnablePrefixForIpv6SourceNat": "off",
+      "IpAddressType": "ipv4",
+      "LoadBalancerArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:loadbalancer/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f",
+      "LoadBalancerName": "swisstopo-dev-vpc-alb",
+      "Scheme": "internet-facing",
+      "SecurityGroups": [
+        "sg-02d1c720c9b0adc7b"
+      ],
+      "State": {
+        "Code": "active"
+      },
+      "Type": "application",
+      "VpcId": "vpc-013b6dfa58c5a2009"
+    },
+    "network_acls": [
+      {
+        "Associations": [
+          {
+            "NetworkAclAssociationId": "aclassoc-032857dc8003e6809",
+            "NetworkAclId": "acl-00fb047843c86da3c",
+            "SubnetId": "subnet-04d5ddec3c5b06d7a"
+          },
+          {
+            "NetworkAclAssociationId": "aclassoc-0ead7dce6a3465a95",
+            "NetworkAclId": "acl-00fb047843c86da3c",
+            "SubnetId": "subnet-0cd8553a1fedbf183"
+          },
+          {
+            "NetworkAclAssociationId": "aclassoc-0a7a1e47d53143f93",
+            "NetworkAclId": "acl-00fb047843c86da3c",
+            "SubnetId": "subnet-0e872f671de1cd4ec"
+          },
+          {
+            "NetworkAclAssociationId": "aclassoc-07dce2faf0b210617",
+            "NetworkAclId": "acl-00fb047843c86da3c",
+            "SubnetId": "subnet-0e059126fa780f4c7"
+          }
+        ],
+        "Entries": [
+          {
+            "CidrBlock": "0.0.0.0/0",
+            "Egress": true,
+            "Protocol": "-1",
+            "RuleAction": "allow",
+            "RuleNumber": 100
+          },
+          {
+            "CidrBlock": "0.0.0.0/0",
+            "Egress": true,
+            "Protocol": "-1",
+            "RuleAction": "deny",
+            "RuleNumber": 32767
+          },
+          {
+            "CidrBlock": "0.0.0.0/0",
+            "Egress": false,
+            "Protocol": "-1",
+            "RuleAction": "allow",
+            "RuleNumber": 100
+          },
+          {
+            "CidrBlock": "0.0.0.0/0",
+            "Egress": false,
+            "Protocol": "-1",
+            "RuleAction": "deny",
+            "RuleNumber": 32767
+          }
+        ],
+        "IsDefault": true,
+        "NetworkAclId": "acl-00fb047843c86da3c",
+        "OwnerId": "523234426229",
+        "Tags": [],
+        "VpcId": "vpc-013b6dfa58c5a2009"
+      }
+    ],
+    "rules_by_listener": {
+      "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/46d3483d42eb8d13": [
+        {
+          "Actions": [
+            {
+              "ForwardConfig": {
+                "TargetGroupStickinessConfig": {
+                  "Enabled": false
+                },
+                "TargetGroups": [
+                  {
+                    "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+                    "Weight": 1
+                  }
+                ]
+              },
+              "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+              "Type": "forward"
+            }
+          ],
+          "Conditions": [],
+          "IsDefault": true,
+          "Priority": "default",
+          "RuleArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener-rule/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/46d3483d42eb8d13/8f2c05f0466dcc52",
+          "Transforms": []
+        }
+      ],
+      "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/b7ffe241130b0613": [
+        {
+          "Actions": [
+            {
+              "ForwardConfig": {
+                "TargetGroupStickinessConfig": {
+                  "Enabled": false
+                },
+                "TargetGroups": [
+                  {
+                    "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+                    "Weight": 1
+                  }
+                ]
+              },
+              "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+              "Type": "forward"
+            }
+          ],
+          "Conditions": [],
+          "IsDefault": true,
+          "Priority": "default",
+          "RuleArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener-rule/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f/b7ffe241130b0613/ea0a085022601247",
+          "Transforms": []
+        }
+      ]
+    },
+    "security_groups": [
+      {
+        "Description": "dev frontdoor ALB+task SG",
+        "GroupId": "sg-02d1c720c9b0adc7b",
+        "GroupName": "swisstopo-dev-frontdoor-sg",
+        "IpPermissions": [
+          {
+            "FromPort": 80,
+            "IpProtocol": "tcp",
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0",
+                "Description": "HTTP ingress"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": [],
+            "ToPort": 80,
+            "UserIdGroupPairs": []
+          },
+          {
+            "FromPort": 8080,
+            "IpProtocol": "tcp",
+            "IpRanges": [],
+            "Ipv6Ranges": [],
+            "PrefixListIds": [],
+            "ToPort": 8080,
+            "UserIdGroupPairs": [
+              {
+                "Description": "ALB-to-task internal",
+                "GroupId": "sg-02d1c720c9b0adc7b",
+                "UserId": "523234426229"
+              }
+            ]
+          },
+          {
+            "FromPort": 443,
+            "IpProtocol": "tcp",
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0",
+                "Description": "HTTPS ingress"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": [],
+            "ToPort": 443,
+            "UserIdGroupPairs": []
+          }
+        ],
+        "IpPermissionsEgress": [
+          {
+            "IpProtocol": "-1",
+            "IpRanges": [
+              {
+                "CidrIp": "0.0.0.0/0"
+              }
+            ],
+            "Ipv6Ranges": [],
+            "PrefixListIds": [],
+            "UserIdGroupPairs": []
+          }
+        ],
+        "OwnerId": "523234426229",
+        "SecurityGroupArn": "arn:aws:ec2:eu-central-1:523234426229:security-group/sg-02d1c720c9b0adc7b",
+        "VpcId": "vpc-013b6dfa58c5a2009"
+      }
+    ],
+    "subnets": [
+      {
+        "AssignIpv6AddressOnCreation": false,
+        "AvailabilityZone": "eu-central-1b",
+        "AvailabilityZoneId": "euc1-az3",
+        "AvailableIpAddressCount": 250,
+        "BlockPublicAccessStates": {
+          "InternetGatewayBlockMode": "off"
+        },
+        "CidrBlock": "10.80.1.0/24",
+        "DefaultForAz": false,
+        "EnableDns64": false,
+        "Ipv6CidrBlockAssociationSet": [],
+        "Ipv6Native": false,
+        "MapCustomerOwnedIpOnLaunch": false,
+        "MapPublicIpOnLaunch": true,
+        "OwnerId": "523234426229",
+        "PrivateDnsNameOptionsOnLaunch": {
+          "EnableResourceNameDnsAAAARecord": false,
+          "EnableResourceNameDnsARecord": false,
+          "HostnameType": "ip-name"
+        },
+        "State": "available",
+        "SubnetArn": "arn:aws:ec2:eu-central-1:523234426229:subnet/subnet-0e059126fa780f4c7",
+        "SubnetId": "subnet-0e059126fa780f4c7",
+        "Tags": [
+          {
+            "Key": "Tier",
+            "Value": "public"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "openclaw"
+          },
+          {
+            "Key": "Owner",
+            "Value": "nico"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Name",
+            "Value": "swisstopo-dev-public-2"
+          },
+          {
+            "Key": "Project",
+            "Value": "swisstopo"
+          }
+        ],
+        "VpcId": "vpc-013b6dfa58c5a2009"
+      },
+      {
+        "AssignIpv6AddressOnCreation": false,
+        "AvailabilityZone": "eu-central-1a",
+        "AvailabilityZoneId": "euc1-az2",
+        "AvailableIpAddressCount": 249,
+        "BlockPublicAccessStates": {
+          "InternetGatewayBlockMode": "off"
+        },
+        "CidrBlock": "10.80.0.0/24",
+        "DefaultForAz": false,
+        "EnableDns64": false,
+        "Ipv6CidrBlockAssociationSet": [],
+        "Ipv6Native": false,
+        "MapCustomerOwnedIpOnLaunch": false,
+        "MapPublicIpOnLaunch": true,
+        "OwnerId": "523234426229",
+        "PrivateDnsNameOptionsOnLaunch": {
+          "EnableResourceNameDnsAAAARecord": false,
+          "EnableResourceNameDnsARecord": false,
+          "HostnameType": "ip-name"
+        },
+        "State": "available",
+        "SubnetArn": "arn:aws:ec2:eu-central-1:523234426229:subnet/subnet-0e872f671de1cd4ec",
+        "SubnetId": "subnet-0e872f671de1cd4ec",
+        "Tags": [
+          {
+            "Key": "Owner",
+            "Value": "nico"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "openclaw"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "Name",
+            "Value": "swisstopo-dev-public-1"
+          },
+          {
+            "Key": "Project",
+            "Value": "swisstopo"
+          },
+          {
+            "Key": "Tier",
+            "Value": "public"
+          }
+        ],
+        "VpcId": "vpc-013b6dfa58c5a2009"
+      }
+    ],
+    "target_groups": [
+      {
+        "HealthCheckEnabled": true,
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckPath": "/health",
+        "HealthCheckPort": "traffic-port",
+        "HealthCheckProtocol": "HTTP",
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 5,
+        "IpAddressType": "ipv4",
+        "LoadBalancerArns": [
+          "arn:aws:elasticloadbalancing:eu-central-1:523234426229:loadbalancer/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f"
+        ],
+        "Matcher": {
+          "HttpCode": "200"
+        },
+        "Port": 8080,
+        "Protocol": "HTTP",
+        "ProtocolVersion": "HTTP1",
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+        "TargetGroupName": "swisstopo-dev-vpc-api-tg",
+        "TargetType": "ip",
+        "UnhealthyThresholdCount": 2,
+        "VpcId": "vpc-013b6dfa58c5a2009"
+      }
+    ],
+    "target_health": {
+      "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b": [
+        {
+          "AdministrativeOverride": {
+            "Description": "No override is currently active on target",
+            "Reason": "AdministrativeOverride.NoOverride",
+            "State": "no_override"
+          },
+          "HealthCheckPort": "8080",
+          "Target": {
+            "AvailabilityZone": "eu-central-1b",
+            "Id": "10.80.11.190",
+            "Port": 8080
+          },
+          "TargetHealth": {
+            "State": "healthy"
+          }
+        }
+      ]
+    }
+  }
+}

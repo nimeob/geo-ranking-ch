@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-03-03T12:26:15Z",
+  "checks": [
+    {
+      "url": "https://api.dev.georanking.ch/health",
+      "status": "200",
+      "ok": true,
+      "curl_exit": 0,
+      "stderr": ""
+    },
+    {
+      "url": "http://api.dev.georanking.ch/health",
+      "status": "200",
+      "ok": true,
+      "curl_exit": 0,
+      "stderr": ""
+    },
+    {
+      "url": "https://api.dev.geo-ranking.ch/health",
+      "status": "200",
+      "ok": true,
+      "curl_exit": 0,
+      "stderr": ""
+    },
+    {
+      "url": "http://api.dev.geo-ranking.ch/health",
+      "status": "200",
+      "ok": true,
+      "curl_exit": 0,
+      "stderr": ""
+    },
+    {
+      "url": "https://www.dev.georanking.ch/",
+      "status": "404",
+      "ok": false,
+      "curl_exit": 0,
+      "stderr": ""
+    },
+    {
+      "url": "http://www.dev.georanking.ch/",
+      "status": "404",
+      "ok": false,
+      "curl_exit": 0,
+      "stderr": ""
+    },
+    {
+      "url": "https://www.dev.geo-ranking.ch/",
+      "status": "404",
+      "ok": false,
+      "curl_exit": 0,
+      "stderr": ""
+    },
+    {
+      "url": "http://www.dev.geo-ranking.ch/",
+      "status": "404",
+      "ok": false,
+      "curl_exit": 0,
+      "stderr": ""
+    }
+  ]
+}
