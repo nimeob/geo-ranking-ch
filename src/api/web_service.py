@@ -63,7 +63,8 @@ from src.api.bff_oidc import (
     handle_callback,
     is_bff_oidc_enabled,
 )
-from src.api.bff_session import get_session_store
+from src.api.bff_session import get_session_store, parse_session_id_from_cookie
+from src.api.bff_token_delegation import handle_logout
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -423,6 +424,8 @@ _EXTERNAL_DIRECT_LOGIN_MESSAGE = (
     "direct login is disabled; access is only allowed via internal provisioning/export workflows"
 )
 
+_PROTECTED_GUI_ROUTES = frozenset({"/", "/gui", "/history"})
+
 _ASYNC_JOB_STORE = build_async_job_store()
 _ASYNC_JOB_RUNTIME = AsyncJobRuntime(store=_ASYNC_JOB_STORE)
 _ASYNC_RUNTIME_START_LOCK = threading.Lock()
@@ -513,6 +516,31 @@ def _is_external_direct_login_path(request_path: str) -> bool:
     if normalized != "/":
         normalized = normalized.rstrip("/") or "/"
     return normalized in _EXTERNAL_DIRECT_LOGIN_BLOCKED_PATHS
+
+
+def _is_protected_gui_route(request_path: str) -> bool:
+    """Return True when a UI route requires an authenticated BFF session."""
+    normalized = str(request_path or "").strip()
+    if not normalized:
+        return False
+    if not normalized.startswith("/"):
+        normalized = f"/{normalized}"
+    normalized = re.sub(r"/{2,}", "/", normalized)
+    if normalized != "/":
+        normalized = normalized.rstrip("/") or "/"
+
+    if normalized in _PROTECTED_GUI_ROUTES:
+        return True
+    return normalized.startswith("/results/")
+
+
+def _build_login_redirect_location(*, request_path: str, raw_query: str) -> str:
+    """Build ``/auth/login`` redirect URL preserving the original target route."""
+    next_path = request_path if request_path.startswith("/") else f"/{request_path}"
+    query = str(raw_query or "").strip()
+    if query:
+        next_path = f"{next_path}?{query}"
+    return f"/auth/login?{urlencode({'next': next_path})}"
 
 
 def _build_dictionary_payloads() -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
@@ -3249,6 +3277,48 @@ class Handler(BaseHTTPRequestHandler):
     # BFF OIDC helpers
     # ------------------------------------------------------------------
 
+    def _send_redirect(self, *, location: str, request_id: str, set_cookie: str | None = None) -> None:
+        """Send a minimal 302 response with cache disabled."""
+        self._capture_response_error(payload=None, status=302)
+        self.send_response(302)
+        self.send_header("Location", location)
+        if set_cookie:
+            self.send_header("Set-Cookie", set_cookie)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Request-Id", request_id)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        self._finish_request_lifecycle()
+
+    def _require_authenticated_gui_session(self, *, request_path: str, request_id: str) -> bool:
+        """Return True when a request was handled via login redirect."""
+        if not is_bff_oidc_enabled() or not _is_protected_gui_route(request_path):
+            return False
+
+        store = get_session_store()
+        session_id = parse_session_id_from_cookie(self.headers.get("Cookie"))
+        session = store.get(session_id) if session_id else None
+        if session and str(session.access_token or "").strip():
+            return False
+
+        raw_query = urlsplit(self.path).query
+        redirect_location = _build_login_redirect_location(
+            request_path=request_path,
+            raw_query=raw_query,
+        )
+        _emit_structured_log(
+            event="api.bff.oidc.guard_redirect",
+            level="info",
+            trace_id=request_id,
+            request_id=request_id,
+            component="api.web_service",
+            direction="client->api",
+            route=request_path,
+            status="redirect",
+        )
+        self._send_redirect(location=redirect_location, request_id=request_id)
+        return True
+
     def _handle_bff_oidc_get(self, *, request_path: str, request_id: str) -> None:
         """Route ``GET /auth/login`` and ``GET /auth/callback`` to the BFF OIDC handler."""
         try:
@@ -3281,6 +3351,16 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         store = get_session_store()
+
+        if request_path == "/auth/logout":
+            logout_result = handle_logout(store, self.headers.get("Cookie"))
+            location = logout_result.redirect_url or "/auth/login"
+            self._send_redirect(
+                location=location,
+                request_id=request_id,
+                set_cookie=logout_result.set_cookie_header,
+            )
+            return
 
         if request_path == "/auth/login":
             try:
@@ -3410,8 +3490,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self._cors_response_headers = None
 
-            # --- BFF OIDC: /auth/login and /auth/callback (when BFF is enabled) ---
-            if request_path in ("/auth/login", "/auth/callback") and is_bff_oidc_enabled():
+            # --- BFF OIDC: /auth/login, /auth/callback, /auth/logout (when BFF is enabled) ---
+            if request_path in ("/auth/login", "/auth/callback", "/auth/logout") and is_bff_oidc_enabled():
                 self._handle_bff_oidc_get(
                     request_path=request_path,
                     request_id=request_id,
@@ -3426,7 +3506,10 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            if request_path == "/gui":
+            if self._require_authenticated_gui_session(request_path=request_path, request_id=request_id):
+                return
+
+            if request_path in ("/", "/gui"):
                 self._send_html(
                     render_gui_mvp_html(app_version=os.getenv("APP_VERSION", "dev")),
                     request_id=request_id,
