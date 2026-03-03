@@ -2302,28 +2302,239 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           startCenterY: 0,
           moved: false,
         };
+        const touchState = {
+          pointers: new Map(),
+          pinchActive: false,
+          pinchStartDistance: 0,
+          pinchStartZoom: mapState.zoom,
+          anchorLat: mapState.centerLat,
+          anchorLon: mapState.centerLon,
+        };
         let suppressNextClick = false;
 
-        mapSurface.addEventListener("pointerdown", (event) => {
-          if (event.button !== 0) {
+        function queueClickSuppression(durationMs = 0) {
+          suppressNextClick = true;
+          window.setTimeout(() => {
+            suppressNextClick = false;
+          }, Math.max(0, Number(durationMs) || 0));
+        }
+
+        function releasePointerCaptureIfHeld(pointerId) {
+          if (pointerId == null) {
             return;
           }
+          try {
+            if (mapSurface.hasPointerCapture(pointerId)) {
+              mapSurface.releasePointerCapture(pointerId);
+            }
+          } catch (error) {
+            // ignore (pointer might already be released)
+          }
+        }
+
+        function isTouchLikePointer(event) {
+          const pointerType = String(event && event.pointerType ? event.pointerType : "").toLowerCase();
+          return pointerType === "touch" || pointerType === "pen";
+        }
+
+        function updateTouchPointer(pointerId, clientX, clientY) {
+          touchState.pointers.set(pointerId, {
+            pointerId,
+            x: Number(clientX),
+            y: Number(clientY),
+          });
+        }
+
+        function pointerDistance(left, right) {
+          return Math.hypot(left.x - right.x, left.y - right.y);
+        }
+
+        function pointerMidpoint(left, right) {
+          return {
+            x: (left.x + right.x) / 2,
+            y: (left.y + right.y) / 2,
+          };
+        }
+
+        function getActiveTouchPair() {
+          if (touchState.pointers.size < 2) {
+            return null;
+          }
+          const pointers = Array.from(touchState.pointers.values());
+          return [pointers[0], pointers[1]];
+        }
+
+        function startDrag(pointerId, clientX, clientY, { capturePointer = true } = {}) {
           dragState.active = true;
-          dragState.pointerId = event.pointerId;
-          dragState.startX = event.clientX;
-          dragState.startY = event.clientY;
+          dragState.pointerId = pointerId;
+          dragState.startX = clientX;
+          dragState.startY = clientY;
           const center = centerWorld();
           dragState.startCenterX = center.x;
           dragState.startCenterY = center.y;
           dragState.moved = false;
           mapSurface.classList.add("dragging");
-          mapSurface.setPointerCapture(event.pointerId);
+          if (capturePointer) {
+            try {
+              mapSurface.setPointerCapture(pointerId);
+            } catch (error) {
+              // ignore
+            }
+          }
+        }
+
+        function stopDrag({ suppressClick = true } = {}) {
+          if (!dragState.active) {
+            return;
+          }
+          mapSurface.classList.remove("dragging");
+          releasePointerCaptureIfHeld(dragState.pointerId);
+          const moved = dragState.moved;
+          dragState.active = false;
+          dragState.pointerId = null;
+          dragState.moved = false;
+          if (moved && suppressClick) {
+            queueClickSuppression(0);
+          }
+        }
+
+        function startPinchGesture() {
+          const pair = getActiveTouchPair();
+          if (!pair) {
+            return false;
+          }
+
+          const [left, right] = pair;
+          const startDistance = pointerDistance(left, right);
+          if (!Number.isFinite(startDistance) || startDistance < 14) {
+            return false;
+          }
+
+          const midpoint = pointerMidpoint(left, right);
+          const rect = mapSurface.getBoundingClientRect();
+          const rectWidth = Math.max(1, rect.width);
+          const rectHeight = Math.max(1, rect.height);
+          const x = clamp(midpoint.x - rect.left, 0, rectWidth);
+          const y = clamp(midpoint.y - rect.top, 0, rectHeight);
+          const anchor = containerPointToLatLon(x, y);
+
+          touchState.pinchActive = true;
+          touchState.pinchStartDistance = startDistance;
+          touchState.pinchStartZoom = mapState.zoom;
+          touchState.anchorLat = anchor.lat;
+          touchState.anchorLon = anchor.lon;
+
+          emitUiEvent("ui.interaction.map.pinch_start", {
+            direction: "human->ui",
+            status: "triggered",
+            zoom: mapState.zoom,
+          });
+
+          return true;
+        }
+
+        function stopPinchGesture({ suppressClick = true } = {}) {
+          if (!touchState.pinchActive) {
+            return;
+          }
+          touchState.pinchActive = false;
+          if (suppressClick) {
+            queueClickSuppression(160);
+          }
+        }
+
+        function applyPinchTransform() {
+          if (!touchState.pinchActive) {
+            return;
+          }
+          const pair = getActiveTouchPair();
+          if (!pair) {
+            return;
+          }
+
+          const [left, right] = pair;
+          const currentDistance = pointerDistance(left, right);
+          if (!Number.isFinite(currentDistance) || currentDistance < 8 || touchState.pinchStartDistance <= 0) {
+            return;
+          }
+
+          const scale = currentDistance / touchState.pinchStartDistance;
+          const zoomFloat = touchState.pinchStartZoom + Math.log2(scale);
+          const targetZoom = clamp(Math.round(zoomFloat), MIN_ZOOM, MAX_ZOOM);
+          if (targetZoom !== mapState.zoom) {
+            mapState.zoom = targetZoom;
+          }
+
+          const midpoint = pointerMidpoint(left, right);
+          const rect = mapSurface.getBoundingClientRect();
+          const rectWidth = Math.max(1, rect.width);
+          const rectHeight = Math.max(1, rect.height);
+          const x = clamp(midpoint.x - rect.left, 0, rectWidth);
+          const y = clamp(midpoint.y - rect.top, 0, rectHeight);
+
+          const focusWorld = latLonToWorld(touchState.anchorLat, touchState.anchorLon, mapState.zoom);
+          const width = Math.max(1, mapSurface.clientWidth);
+          const height = Math.max(1, mapSurface.clientHeight);
+          const nextCenterWorldX = focusWorld.x - (x - width / 2);
+          const nextCenterWorldY = focusWorld.y - (y - height / 2);
+
+          setMapCenterFromWorld(nextCenterWorldX, nextCenterWorldY, { render: true });
+        }
+
+        mapSurface.addEventListener("pointerdown", (event) => {
+          const isTouchLike = isTouchLikePointer(event);
+
+          if (isTouchLike) {
+            updateTouchPointer(event.pointerId, event.clientX, event.clientY);
+            try {
+              mapSurface.setPointerCapture(event.pointerId);
+            } catch (error) {
+              // ignore
+            }
+          }
+
+          if (event.pointerType === "mouse" && event.button !== 0) {
+            return;
+          }
+
+          if (isTouchLike && touchState.pointers.size >= 2) {
+            stopDrag({ suppressClick: false });
+            if (startPinchGesture()) {
+              event.preventDefault();
+            }
+            return;
+          }
+
+          startDrag(event.pointerId, event.clientX, event.clientY, {
+            capturePointer: !isTouchLike,
+          });
         });
 
         mapSurface.addEventListener("pointermove", (event) => {
+          const isTouchLike = isTouchLikePointer(event);
+
+          if (isTouchLike && touchState.pointers.has(event.pointerId)) {
+            updateTouchPointer(event.pointerId, event.clientX, event.clientY);
+
+            if (touchState.pinchActive) {
+              event.preventDefault();
+              applyPinchTransform();
+              return;
+            }
+
+            if (touchState.pointers.size >= 2) {
+              stopDrag({ suppressClick: false });
+              if (startPinchGesture()) {
+                event.preventDefault();
+                return;
+              }
+            }
+          }
+
           if (!dragState.active || event.pointerId !== dragState.pointerId) {
             return;
           }
+
           const dx = event.clientX - dragState.startX;
           const dy = event.clientY - dragState.startY;
           if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
@@ -2332,26 +2543,42 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           setMapCenterFromWorld(dragState.startCenterX - dx, dragState.startCenterY - dy, { render: true });
         });
 
-        const endDrag = (event) => {
-          if (!dragState.active || event.pointerId !== dragState.pointerId) {
-            return;
+        const endPointerInteraction = (event) => {
+          const isTouchLike = isTouchLikePointer(event);
+
+          if (isTouchLike && touchState.pointers.has(event.pointerId)) {
+            touchState.pointers.delete(event.pointerId);
+            releasePointerCaptureIfHeld(event.pointerId);
+
+            if (touchState.pinchActive) {
+              if (touchState.pointers.size >= 2) {
+                startPinchGesture();
+              } else {
+                stopPinchGesture({ suppressClick: true });
+                const remainingTouches = Array.from(touchState.pointers.values());
+                if (remainingTouches.length === 1 && event.type !== "pointercancel") {
+                  const remaining = remainingTouches[0];
+                  startDrag(remaining.pointerId, remaining.x, remaining.y, {
+                    capturePointer: false,
+                  });
+                }
+              }
+              return;
+            }
           }
-          mapSurface.classList.remove("dragging");
-          mapSurface.releasePointerCapture(event.pointerId);
-          dragState.active = false;
-          if (dragState.moved) {
-            suppressNextClick = true;
-            setTimeout(() => {
-              suppressNextClick = false;
-            }, 0);
+
+          if (dragState.active && event.pointerId === dragState.pointerId) {
+            stopDrag({ suppressClick: true });
           }
+
+          releasePointerCaptureIfHeld(event.pointerId);
         };
 
-        mapSurface.addEventListener("pointerup", endDrag);
-        mapSurface.addEventListener("pointercancel", endDrag);
+        mapSurface.addEventListener("pointerup", endPointerInteraction);
+        mapSurface.addEventListener("pointercancel", endPointerInteraction);
 
         mapSurface.addEventListener("click", async (event) => {
-          if (suppressNextClick) {
+          if (suppressNextClick || touchState.pinchActive) {
             return;
           }
           const { lat, lon } = mapEventToCoordinates(event);
