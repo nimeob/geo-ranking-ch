@@ -20,7 +20,7 @@ class TestGuiAuthBffSessionFlowDocs(unittest.TestCase):
             "## Security-Guardrails (verbindlich)",
             "## Reproduzierbarer Dev-E2E-Nachweis (Issue #947)",
             "## Cookie-Security-Evidenz (Issue #947)",
-            "## Parent-Acceptance-Referenz (#939)",
+            "## Parent-Acceptance-Referenz (#939 / #978)",
         ]
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt: {marker}")
@@ -56,6 +56,31 @@ class TestGuiAuthBffSessionFlowDocs(unittest.TestCase):
             "docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md",
             api_usage,
             msg="User API Usage muss auf die GUI Auth BFF Session-Flow-Doku verlinken",
+        )
+
+    def test_auth_mvp_ac_matrix_doc_exists_with_expected_references(self):
+        matrix_path = REPO_ROOT / "docs" / "gui" / "GUI_AUTH_MVP_AC_MATRIX_978.md"
+        self.assertTrue(matrix_path.is_file(), msg="GUI Auth MVP AC Matrix Doku fehlt")
+
+        content = matrix_path.read_text(encoding="utf-8")
+        required_markers = [
+            "# GUI Auth MVP — Acceptance-Matrix für Issue #978",
+            "## AC-Matrix",
+            "GUI ohne manuelles Bearer-Token nutzbar",
+            "Login/Callback/Logout End-to-End in dev verifiziert",
+            "Session-Cookie korrekt gesetzt",
+            "## Gap-Bewertung",
+            "keine neuen funktionalen Gaps",
+            "issue-995-auth-ac-matrix-20260303T185411Z.md",
+        ]
+        for marker in required_markers:
+            self.assertIn(marker, content, msg=f"Marker fehlt in AC-Matrix: {marker}")
+
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md",
+            readme,
+            msg="README muss auf die GUI Auth MVP AC Matrix verlinken",
         )
 
 
