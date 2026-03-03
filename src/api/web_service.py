@@ -64,7 +64,7 @@ from src.api.bff_oidc import (
     is_bff_oidc_enabled,
 )
 from src.api.bff_session import get_session_store, parse_session_id_from_cookie
-from src.api.bff_token_delegation import handle_logout
+from src.api.bff_token_delegation import handle_logout, handle_me
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -3577,6 +3577,34 @@ class Handler(BaseHTTPRequestHandler):
                     request_path=request_path,
                     request_id=request_id,
                 )
+                return
+
+            if request_path == "/auth/me" and is_bff_oidc_enabled():
+                me_result = handle_me(get_session_store(), self.headers.get("Cookie"))
+                if me_result.http_status == HTTPStatus.OK:
+                    self._send_json(
+                        {
+                            "ok": True,
+                            "authenticated": True,
+                            "user_claims": me_result.user_claims,
+                            "request_id": request_id,
+                        },
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
+                else:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "authenticated": False,
+                            "error": me_result.error or "unauthorized",
+                            "message": "session missing or expired",
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.UNAUTHORIZED,
+                        request_id=request_id,
+                        extra_headers={"Cache-Control": "no-store"},
+                    )
                 return
 
             if _is_external_direct_login_path(request_path):

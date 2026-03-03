@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 import subprocess
@@ -118,6 +119,29 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         )
         self.assertEqual(status, 302)
         self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
+
+    def test_auth_me_returns_401_without_session(self):
+        status, body, headers = _http_get(f"{self.base_url}/auth/me", follow_redirects=False)
+        self.assertEqual(status, 401)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+
+        payload = json.loads(body)
+        self.assertFalse(payload.get("ok"))
+        self.assertFalse(payload.get("authenticated"))
+        self.assertEqual(payload.get("error"), "no_session_cookie")
+
+    def test_auth_me_returns_401_for_invalid_session_cookie(self):
+        status, body, _ = _http_get(
+            f"{self.base_url}/auth/me",
+            follow_redirects=False,
+            headers={"Cookie": "__Host-session=missing-session-id"},
+        )
+        self.assertEqual(status, 401)
+
+        payload = json.loads(body)
+        self.assertFalse(payload.get("ok"))
+        self.assertFalse(payload.get("authenticated"))
+        self.assertEqual(payload.get("error"), "session_not_found")
 
     def test_history_redirects_to_login_when_session_cookie_is_invalid(self):
         status, _, headers = _http_get(
