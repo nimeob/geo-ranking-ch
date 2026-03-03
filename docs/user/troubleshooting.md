@@ -133,6 +133,95 @@ Der Service toleriert zwar z. B. trailing/double slashes, aber der Endpunkt muss
 
 ---
 
+## GUI Auth / Session (BFF) – Fehlerbilder
+
+Kanonischer Referenz-Flow (Login/Callback/Session/Logout):
+[`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](../gui/GUI_AUTH_BFF_SESSION_FLOW.md)
+
+Die folgenden Fehlerbilder sind GUI-spezifisch und ergänzen die API-Fehler oben.
+
+### 1) Redirect-Loop zwischen `/auth/login` und `/auth/callback`
+
+**Symptom**
+- Browser springt wiederholt zwischen Login und Callback, GUI lädt nicht fertig.
+
+**Typische Ursache**
+- Fehlender/abgelaufener Session-Cookie oder `state`-Mismatch im Callback.
+
+**Reproduzierbarer Check**
+
+```bash
+# Ohne gültigen Session-Cookie führt Callback typischerweise zu 4xx JSON-Fehler
+curl -i -sS "http://127.0.0.1:8080/auth/callback?code=dummy&state=dummy"
+```
+
+**Fix**
+- Login neu starten über `/auth/login?next=%2Fgui` (keinen alten Callback-Tab wiederverwenden).
+- Bei wiederholtem Fehler OIDC-Redirect-URI und Clock-Skew prüfen.
+
+### 2) Session abgelaufen -> GUI fällt auf Login zurück
+
+**Symptom**
+- Geschützte Routen (`/gui`, `/history`, `/results/<id>`) leiten unerwartet auf `/auth/login` um.
+
+**Typische Ursache**
+- Session-TTL erreicht oder Session serverseitig invalidiert.
+
+**Reproduzierbarer Check**
+
+```bash
+# Erwartet bei fehlender/abgelaufener Session: 302 auf /auth/login?next=...
+curl -i -sS "http://127.0.0.1:8080/gui" | sed -n '1,12p'
+```
+
+**Fix**
+- Erneut einloggen und den Flow von der Zielroute aus neu starten.
+- Bei häufigen Expiry-Ereignissen `BFF_SESSION_TTL_SECONDS` und Refresh-Pfad prüfen.
+
+### 3) Logout ohne sichtbare Wirkung
+
+**Symptom**
+- Nach „Logout" scheint die GUI weiter eingeloggt oder springt sofort wieder zurück.
+
+**Typische Ursache**
+- Cookie wurde nicht gelöscht oder Provider-Logout-Redirect fehlt/ist inkonsistent.
+
+**Reproduzierbarer Check**
+
+```bash
+curl -i -sS "http://127.0.0.1:8080/auth/logout" | sed -n '1,20p'
+# Erwartete Indizien:
+# - Set-Cookie mit Max-Age=0 (Session-Löschung)
+# - Location auf /auth/login oder OIDC-Logout-Endpoint
+```
+
+**Fix**
+- Prüfen, dass `Set-Cookie` wirklich `Max-Age=0` enthält.
+- OIDC-Logout-Endpoint + Post-Logout-Redirect im Provider validieren.
+
+### 4) 401/403 bei GUI-API-Aufrufen trotz vorherigem Login
+
+**Symptom**
+- GUI zeigt Auth-Fehler bei Analyze/History trotz erfolgreichem Login-Flow.
+
+**Typische Ursache**
+- Delegierter Upstream-Token abgelaufen/ungültig, Refresh fehlgeschlagen oder Session nicht mitgesendet.
+
+**Reproduzierbarer Check**
+
+```bash
+# Ohne Session-Cookie muss der BFF-Proxy Auth-Fehler liefern
+curl -i -sS "http://127.0.0.1:8080/portal/api/analyze/history?limit=5"
+
+# Mit Browser-DevTools prüfen:
+# - Request enthält Session-Cookie
+# - Response enthält konsistente 401/403 statt stiller JS-Fehler
+```
+
+**Fix**
+- Session neu aufbauen (frischer Login) und erneut testen.
+- Bei persistierendem Fehler BFF-Token-Refresh-/Delegationspfad sowie OIDC-Issuer/JWKS-Konfiguration prüfen.
+
 ## Smoke/Stability-Checks für reproduzierbare Diagnose
 
 Für reproduzierbare Fehleranalyse:
