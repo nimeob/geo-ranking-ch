@@ -10,6 +10,11 @@ locals {
     [try(aws_security_group.dev_ecs_service[0].id, null)],
     var.dev_db_ingress_source_security_group_ids
   ))
+
+  # VPC peering: dev DB VPC ↔ original ECS VPC (172.31.0.0/16).
+  # Used when ECS tasks run in a different VPC than the dev DB.
+  # Ref: Issue #867 (DEV-WIRE-0), VPC peering pcx-0ec189e6248290214 created 2026-03-03.
+  manage_dev_vpc_peering_effective = var.environment == "dev" && var.manage_dev_vpc_peering
 }
 
 # ---------------------------------------------------------------------------
@@ -121,4 +126,85 @@ resource "aws_db_instance" "dev_postgres" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+# ---------------------------------------------------------------------------
+# VPC Peering: dev DB VPC (10.80.0.0/16) ↔ original ECS VPC (172.31.0.0/16)
+#
+# Required so ECS tasks (in the original/default VPC) can reach the RDS instance
+# (in the Terraform-managed dev VPC).  Route table entries + DB SG CIDR rule added
+# alongside the peering.
+#
+# Note: the peering connection + routes were initially applied manually (2026-03-03,
+# issue #867). This block tracks them in Terraform state.
+#
+# Import commands (run once to bring existing resources into state):
+#   terraform import -state=terraform.dev.tfstate aws_vpc_peering_connection.dev_ecs_to_db[0] pcx-0ec189e6248290214
+#   terraform import -state=terraform.dev.tfstate aws_route.dev_ecs_vpc_to_db[0] rtb-08d33e4b98ae61177_10.80.0.0/16
+#   terraform import -state=terraform.dev.tfstate aws_route.dev_db_vpc_to_ecs[0] rtb-0347b0c65f8622118_172.31.0.0/16
+#   terraform import -state=terraform.dev.tfstate aws_route.dev_db_vpc_main_to_ecs[0] rtb-0a2f77efc467f2dc4_172.31.0.0/16
+#   terraform import -state=terraform.dev.tfstate 'aws_security_group_rule.dev_db_ingress_from_ecs_cidr[0]' sg-08e775d778b9c551f_ingress_tcp_5432_5432_172.31.0.0/16
+# ---------------------------------------------------------------------------
+
+resource "aws_vpc_peering_connection" "dev_ecs_to_db" {
+  count = local.manage_dev_vpc_peering_effective ? 1 : 0
+
+  vpc_id      = var.dev_ecs_vpc_id   # original ECS VPC (requester)
+  peer_vpc_id = aws_vpc.dev[0].id    # Terraform dev VPC (accepter)
+
+  # Same-account/same-region peering: auto-accept via accepter block.
+  accepter {
+    allow_remote_vpc_dns_resolution = false
+  }
+  requester {
+    allow_remote_vpc_dns_resolution = false
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-dev-ecs-to-db"
+  })
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Route in original ECS VPC: 10.80.0.0/16 → peering
+resource "aws_route" "dev_ecs_vpc_to_db" {
+  count = local.manage_dev_vpc_peering_effective ? 1 : 0
+
+  route_table_id            = var.dev_ecs_vpc_route_table_id
+  destination_cidr_block    = aws_vpc.dev[0].cidr_block
+  vpc_peering_connection_id = aws_vpc_peering_connection.dev_ecs_to_db[0].id
+}
+
+# Route in dev DB VPC public RT: 172.31.0.0/16 → peering
+resource "aws_route" "dev_db_vpc_to_ecs" {
+  count = local.manage_dev_vpc_peering_effective ? 1 : 0
+
+  route_table_id            = var.dev_db_vpc_public_route_table_id
+  destination_cidr_block    = var.dev_ecs_vpc_cidr
+  vpc_peering_connection_id = aws_vpc_peering_connection.dev_ecs_to_db[0].id
+}
+
+# Route in dev DB VPC main RT: 172.31.0.0/16 → peering
+resource "aws_route" "dev_db_vpc_main_to_ecs" {
+  count = local.manage_dev_vpc_peering_effective ? 1 : 0
+
+  route_table_id            = var.dev_db_vpc_main_route_table_id
+  destination_cidr_block    = var.dev_ecs_vpc_cidr
+  vpc_peering_connection_id = aws_vpc_peering_connection.dev_ecs_to_db[0].id
+}
+
+# DB SG ingress: allow port 5432 from original ECS VPC CIDR (peered)
+resource "aws_security_group_rule" "dev_db_ingress_from_ecs_cidr" {
+  count = local.manage_dev_vpc_peering_effective ? 1 : 0
+
+  type              = "ingress"
+  description       = "Postgres from original ECS VPC (via VPC peering)"
+  from_port         = var.dev_db_port
+  to_port           = var.dev_db_port
+  protocol          = "tcp"
+  cidr_blocks       = [var.dev_ecs_vpc_cidr]
+  security_group_id = aws_security_group.dev_db[0].id
 }

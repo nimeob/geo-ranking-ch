@@ -671,3 +671,44 @@ variable "dev_db_master_user_secret_arn_override" {
   type        = string
   default     = ""
 }
+
+# ---------------------------------------------------------------------------
+# VPC Peering: dev DB VPC ↔ original ECS VPC
+# Issue #867 — required when ECS tasks run in a different VPC than dev RDS.
+# ---------------------------------------------------------------------------
+
+variable "manage_dev_vpc_peering" {
+  description = "Create/manage VPC peering between the Terraform dev VPC (DB) and the existing ECS VPC."
+  type        = bool
+  default     = false
+}
+
+variable "dev_ecs_vpc_id" {
+  description = "VPC ID of the existing ECS cluster VPC (requester side of VPC peering)."
+  type        = string
+  default     = ""
+}
+
+variable "dev_ecs_vpc_cidr" {
+  description = "CIDR block of the existing ECS cluster VPC (used for DB SG ingress rule)."
+  type        = string
+  default     = "172.31.0.0/16"
+}
+
+variable "dev_ecs_vpc_route_table_id" {
+  description = "Route table ID in the original ECS VPC to add 10.80.0.0/16 → peering route."
+  type        = string
+  default     = ""
+}
+
+variable "dev_db_vpc_public_route_table_id" {
+  description = "Public route table ID in the dev DB VPC to add 172.31.0.0/16 → peering route."
+  type        = string
+  default     = ""
+}
+
+variable "dev_db_vpc_main_route_table_id" {
+  description = "Main route table ID in the dev DB VPC to add 172.31.0.0/16 → peering route."
+  type        = string
+  default     = ""
+}
