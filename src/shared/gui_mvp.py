@@ -441,6 +441,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             <a role=\"menuitem\" href=\"#map\">Karte</a>
             <a role=\"menuitem\" href=\"#result\">Result-Panel</a>
             <a role=\"menuitem\" href=\"#trace-debug\">Trace-Debug</a>
+            <a role=\"menuitem\" href=\"/auth/logout\">Logout</a>
           </div>
         </div>
       </div>

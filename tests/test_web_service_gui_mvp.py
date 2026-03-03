@@ -86,6 +86,7 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('id="burger-btn"', body)
         self.assertIn('id="analyze-form"', body)
         self.assertIn('id="trace-debug"', body)
+        self.assertIn('href="/auth/logout"', body)
         self.assertIn("Version test-gui-v1", body)
 
     def test_gui_shell_exposes_state_machine_markers(self):
