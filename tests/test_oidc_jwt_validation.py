@@ -21,6 +21,23 @@ _RFC_A2_JWKS = {
     ]
 }
 
+_RFC_A2_JWKS_MULTI = {
+    "keys": [
+        {
+            "kid": "key-a",
+            "kty": "RSA",
+            "n": "ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ",
+            "e": "AQAB",
+        },
+        {
+            "kid": "key-b",
+            "kty": "RSA",
+            "n": "ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ",
+            "e": "AQAB",
+        },
+    ]
+}
+
 
 class _CountingFetcher:
     def __init__(self, payload):
@@ -43,6 +60,30 @@ class TestOidcJwtValidation(unittest.TestCase):
         )
         validator = OidcJwtValidator(config=OidcJwtConfig(issuer=issuer, audience=audience), jwks=cache)
         return validator, fetcher
+
+    def _validator_multi_jwks(self, *, issuer: str = "joe", audience: str = ""):
+        fetcher = _CountingFetcher(_RFC_A2_JWKS_MULTI)
+        cache = JwksCache(
+            jwks_url="https://example.invalid/.well-known/jwks.json",
+            ttl_seconds=300.0,
+            timeout_seconds=1.0,
+            fetch_json=fetcher,
+        )
+        validator = OidcJwtValidator(config=OidcJwtConfig(issuer=issuer, audience=audience), jwks=cache)
+        return validator, fetcher
+
+    @staticmethod
+    def _forge_rs256_token_with_kid(kid: str) -> str:
+        import base64
+        import json
+
+        def _b64url(data: bytes) -> str:
+            return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+        header = _b64url(json.dumps({"alg": "RS256", "kid": kid}).encode())
+        payload = _b64url(json.dumps({"iss": "joe", "exp": 9999999999}).encode())
+        signature = "AA"  # invalid by design; tests focus on key selection path
+        return f"{header}.{payload}.{signature}"
 
     def test_rfc_a2_signature_and_claims_ok(self):
         validator, fetcher = self._validator(issuer="joe")
@@ -137,6 +178,21 @@ class TestOidcJwtValidation(unittest.TestCase):
         with self.assertRaises(JwtValidationError) as ctx:
             validator.validate(_RFC_A2_TOKEN, now=1300819300)
         self.assertEqual(ctx.exception.code, "invalid_audience")
+
+    def test_multi_jwks_with_unknown_kid_rejected(self):
+        validator, _ = self._validator_multi_jwks(issuer="joe")
+        token = self._forge_rs256_token_with_kid("missing-kid")
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator.validate(token, now=1300819300)
+        self.assertEqual(ctx.exception.code, "invalid_kid")
+
+    def test_multi_jwks_with_matching_kid_reaches_signature_check(self):
+        validator, _ = self._validator_multi_jwks(issuer="joe")
+        token = self._forge_rs256_token_with_kid("key-a")
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator.validate(token, now=1300819300)
+        # Matching kid selected a key; invalid signature is expected for forged token.
+        self.assertEqual(ctx.exception.code, "invalid_signature")
 
     def test_jwks_cache_expires_and_refetches(self):
         """After TTL expires the JWKS endpoint is fetched again."""

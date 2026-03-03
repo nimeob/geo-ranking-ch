@@ -112,6 +112,7 @@ _SHA256_DIGESTINFO_PREFIX = bytes.fromhex(
 class RsaPublicKey:
     n: int
     e: int
+    kid: str = ""
 
     @property
     def size_bytes(self) -> int:
@@ -205,7 +206,8 @@ class JwksCache:
             e = _b64url_decode_int(str(row.get("e") or ""))
             if n <= 0 or e <= 0:
                 continue
-            keys.append(RsaPublicKey(n=n, e=e))
+            kid = str(row.get("kid") or "").strip()
+            keys.append(RsaPublicKey(n=n, e=e, kid=kid))
 
         if not keys:
             raise JwtValidationError("invalid_jwks", "jwks contains no usable RSA keys")
@@ -304,15 +306,20 @@ class OidcJwtValidator:
             raise JwtValidationError("unsupported_alg", "only RS256 is supported")
 
         keys = self.jwks.get_rsa_keys(now=now)
-        if len(keys) == 1:
-            key = keys[0]
+        kid = str(header.get("kid") or "").strip()
+        if kid:
+            matches = [candidate for candidate in keys if candidate.kid == kid]
+            if len(matches) == 1:
+                key = matches[0]
+            elif not matches:
+                raise JwtValidationError("invalid_kid", "kid not found in jwks")
+            else:
+                raise JwtValidationError("invalid_kid", "kid is not unique in jwks")
         else:
-            # For now we require a single key unless kid-based selection is added.
-            kid = str(header.get("kid") or "").strip()
-            raise JwtValidationError(
-                "kid_required",
-                "multiple jwks keys present; kid-based selection not implemented yet" if kid else "kid required",
-            )
+            if len(keys) == 1:
+                key = keys[0]
+            else:
+                raise JwtValidationError("kid_required", "kid required")
 
         if not _rsa_verify_pkcs1v15_sha256(key=key, signing_input=signing_input, signature=signature):
             raise JwtValidationError("invalid_signature", "signature verification failed")
