@@ -13,11 +13,25 @@ Usage (test / custom conn)::
 
     store = DbAsyncJobStore(conn_factory=my_factory)
 
-Environment variables:
-    ASYNC_DB_URL   postgresql://user:pass@host/dbname   (preferred)
-    DATABASE_URL   fallback
+Environment variables (two supported patterns):
+
+Pattern A — full URL (preferred):
+    ASYNC_DB_URL   postgresql://user:pass@host:port/dbname
+    DATABASE_URL   fallback when ASYNC_DB_URL is absent
+
+Pattern B — individual components (ECS SecretsManager wiring):
+    DB_HOST        Postgres host
+    DB_PORT        Postgres port (default: 5432)
+    DB_NAME        Database name (default: swisstopo)
+    DB_USERNAME    Login user (default: swisstopo)
+    DB_PASSWORD    Password — injected by ECS from Secrets Manager; never set in plaintext
+
+Pattern B is used automatically when ASYNC_DB_URL and DATABASE_URL are both absent but
+DB_HOST is present.  The resulting URL is built in-process; the password is consumed only
+at connection time and is never logged or stored.
 
 Issue: #839 (ASYNC-DB-0.wp2)
+Issue: #867 (DEV-WIRE-0: ECS secrets wiring — component env var support)
 """
 
 from __future__ import annotations
@@ -89,13 +103,51 @@ class DbAsyncJobStore:
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_env(cls) -> "DbAsyncJobStore":
-        """Build store from environment variables."""
+    def _build_db_url(cls) -> str:
+        """Resolve the Postgres connection URL from environment variables.
+
+        Tries in order:
+        1. ``ASYNC_DB_URL`` — explicit full URL (highest precedence)
+        2. ``DATABASE_URL`` — common fallback URL
+        3. Component vars — ``DB_HOST`` + ``DB_PORT`` + ``DB_NAME`` + ``DB_USERNAME``
+           + ``DB_PASSWORD`` (ECS SecretsManager pattern)
+
+        Raises ``RuntimeError`` when no usable configuration is found.
+        """
         db_url = (os.getenv("ASYNC_DB_URL") or os.getenv("DATABASE_URL") or "").strip()
-        if not db_url:
+        if db_url:
+            return db_url
+
+        # Pattern B: individual component env vars (ECS SecretsManager wiring)
+        db_host = (os.getenv("DB_HOST") or "").strip()
+        if not db_host:
             raise RuntimeError(
-                "DbAsyncJobStore.from_env: ASYNC_DB_URL (or DATABASE_URL) must be set"
+                "DbAsyncJobStore.from_env: neither ASYNC_DB_URL / DATABASE_URL nor "
+                "DB_HOST is set. Configure one of the two patterns described in the "
+                "module docstring."
             )
+        db_port = (os.getenv("DB_PORT") or "5432").strip()
+        db_name = (os.getenv("DB_NAME") or "swisstopo").strip()
+        db_user = (os.getenv("DB_USERNAME") or "swisstopo").strip()
+        db_pass = (os.getenv("DB_PASSWORD") or "").strip()
+
+        # urllib.parse.quote is used so that special characters in the password
+        # are safely percent-encoded in the URL.  The password itself is NOT
+        # logged anywhere in this code path.
+        import urllib.parse  # noqa: PLC0415
+
+        encoded_pass = urllib.parse.quote(db_pass, safe="")
+        return f"postgresql://{db_user}:{encoded_pass}@{db_host}:{db_port}/{db_name}"
+
+    @classmethod
+    def from_env(cls) -> "DbAsyncJobStore":
+        """Build store from environment variables.
+
+        Supports both a full connection URL (``ASYNC_DB_URL`` / ``DATABASE_URL``) and
+        individual component vars (``DB_HOST`` / ``DB_PORT`` / ``DB_NAME`` /
+        ``DB_USERNAME`` / ``DB_PASSWORD``).  See module docstring for details.
+        """
+        db_url = cls._build_db_url()
         try:
             import psycopg2  # type: ignore[import]
         except ImportError as exc:
