@@ -27,6 +27,7 @@ Regelwerk:
 ### Next
 - ~~[#780](https://github.com/nimeob/geo-ranking-ch/issues/780) — Auth/Prod: Benutzerverwaltung + per-user Abfragehistorie (no crawler access)~~ ✅ abgeschlossen (2026-03-02): Alle 4 Phase-1 WPs done — #782 Core, #783 Store, #784 UI (PR #849), #786 default-deny (PR #848).
 - [#800](https://github.com/nimeob/geo-ranking-ch/issues/800) — EPIC: DB Minimalslice + OIDC delegated access (Cognito) (priority:P1, status:todo)
+- [#892](https://github.com/nimeob/geo-ranking-ch/issues/892) — INFRA-NET-dev.followup.wp5: Frontdoor/VPC alignment for private ECS subnets (priority:P1, status:todo; unblocks #889/#886)
 - ~~[#801](https://github.com/nimeob/geo-ranking-ch/issues/801)~~ — DB-0: Core Tables (organizations/users/memberships/api_keys) + Migrations — **abgeschlossen 2026-03-02** (4 WPs: #812 PR#816, #813 PR#836, #814 PR#837, #815 PR#823)
 - [#802](https://github.com/nimeob/geo-ranking-ch/issues/802) — OIDC-0: Cognito Setup + API JWT Validation (priority:P1, **status:blocked** — code-complete, 4 WPs done, pending staging deployment + Cognito setup via runbooks)
 - ~~[#803](https://github.com/nimeob/geo-ranking-ch/issues/803)~~ — ASYNC-DB-0: Persist Async Job History in DB + S3 payload pointers — **abgeschlossen 2026-03-02** (5 WPs, PRs #843–#847)
@@ -50,14 +51,15 @@ Regelwerk:
 - ~~[#814](https://github.com/nimeob/geo-ranking-ch/issues/814) — DB-0.wp3: Minimal DB access layer (org/user/membership bootstrap)~~ ✅ abgeschlossen (2026-03-02): PR #837 merged — src/shared/db_access.py (get_or_create_user_by_external_subject + ensure_membership + get_or_create_default_org) + 25 Unit-Tests + Bootstrap-Policy (invite_only/auto_org)
 - ~~[#820](https://github.com/nimeob/geo-ranking-ch/issues/820)~~ — OIDC-0.wp4: Claim mapping plan (sub -> user) + membership lookup contract — **abgeschlossen 2026-03-02** (`resolve_oidc_subject` in db_access.py + 15 tests, Commit 94f676a)
 - ~~[#784](https://github.com/nimeob/geo-ranking-ch/issues/784) — Auth Phase 1 (UI): Pages nutzen Token, keine privaten Daten ohne Auth~~ ✅ abgeschlossen (2026-03-02, revalidiert 2026-03-03): PR #849 merged; 401-UX-Hint auf /gui, /history, /results/<id>, /jobs/<id>; UI-Service-Tests erneut grün (`pytest -q tests/test_ui_service.py`), Issue-Checkboxen nachgezogen. #780 (Auth/Prod Phase 1) komplett geschlossen.
-- [#882](https://github.com/nimeob/geo-ranking-ch/issues/882) — INFRA-NET-dev.followup: NAT egress for private ECS subnets (priority:P1, status:blocked; Fortschritt: #884 + #885 abgeschlossen, runtime validation blockiert auf #889)
-- [#886](https://github.com/nimeob/geo-ranking-ch/issues/886) — INFRA-NET-dev.followup.wp3: Runtime validation ECS private-egress (priority:P1, status:blocked; wartet auf #889)
-- [#889](https://github.com/nimeob/geo-ranking-ch/issues/889) — INFRA-NET-dev.followup.wp4: Execute NAT rollout + ECS private-subnet switch (priority:P1, status:blocked; live apply/switch erfordert expliziten Operator-Go)
+- [#882](https://github.com/nimeob/geo-ranking-ch/issues/882) — INFRA-NET-dev.followup: NAT egress for private ECS subnets (priority:P1, status:blocked; Fortschritt: #884 + #885 abgeschlossen, NAT/Private-RT live in #889 umgesetzt, finaler ECS-Switch blockiert auf Frontdoor/VPC-Alignment #892)
+- [#886](https://github.com/nimeob/geo-ranking-ch/issues/886) — INFRA-NET-dev.followup.wp3: Runtime validation ECS private-egress (priority:P1, status:blocked; wartet auf finalen Abschluss #889 nach #892)
+- [#889](https://github.com/nimeob/geo-ranking-ch/issues/889) — INFRA-NET-dev.followup.wp4: Execute NAT rollout + ECS private-subnet switch (priority:P1, status:blocked; NAT + private RT abgeschlossen, ECS private-subnet switch blockiert bis #892)
 - [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation (priority:P3, status:blocked)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Dev-Engineering (non-BL)
 
+- ✅ abgeschlossen (2026-03-03): [#891](https://github.com/nimeob/geo-ranking-ch/issues/891) — DEV-OIDC-1: Deploy OIDC guard config to dev API + verify auth path — Dev Cognito User Pool + App Client angelegt, ECS Task-Def auf OIDC-Guard (rev 176) aktualisiert, Auth-Matrix verifiziert (`/analyze` + `/analyze/history`: 401 ohne/invalid Token, 200 mit validem Cognito Bearer), sowie Follow-up-Fix für multi-key JWKS/KID-Selection in `src/api/oidc_jwt.py` inkl. Tests.
 - ✅ abgeschlossen (2026-03-02): [#769](https://github.com/nimeob/geo-ranking-ch/issues/769) — Dev: Doku – CONTRIBUTING Kurzguide für Dev-Workflow — `CONTRIBUTING.md` (Setup, lokaler Dev-Start, Tests, Lint/Format via pre-commit) + README-Link. (PR #810)
 
 - ✅ abgeschlossen (2026-03-02): [#749](https://github.com/nimeob/geo-ranking-ch/issues/749) — Dev: API Smoke-Test stabilisieren (deterministische Fixtures) — Localhost-Smokes defaulten jetzt ohne explizites `SMOKE_QUERY` auf die deterministische Fixture-Query `__ok__` (sync + async) + Runbook-Sync (`docs/testing/DEV_API_SMOKE_RUNBOOK.md`) + Testabdeckung (`tests/test_async_jobs_smoke_script.py`, `tests/test_remote_smoke_script.py`). (PR #788)
