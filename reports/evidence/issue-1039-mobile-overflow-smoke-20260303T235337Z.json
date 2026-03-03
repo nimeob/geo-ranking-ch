@@ -1,0 +1,66 @@
+{
+  "issue": 1039,
+  "targetUrl": "http://127.0.0.1:8877/gui",
+  "checks": {
+    "mobileNoHorizontalScroll": {
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "matches": true,
+      "passed": true,
+      "assertion": "document.scrollingElement.scrollWidth === document.scrollingElement.clientWidth"
+    },
+    "mainFunctionsReachable": {
+      "requiredSelectors": [
+        "#analyze-form",
+        "#map-click-surface",
+        "#result",
+        "#map-zoom-in",
+        "#map-zoom-out"
+      ],
+      "visibility": {
+        "#analyze-form": true,
+        "#map-click-surface": true,
+        "#result": true,
+        "#map-zoom-in": true,
+        "#map-zoom-out": true
+      },
+      "zoomBefore": {
+        "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+        "zoom": 8
+      },
+      "zoomAfter": {
+        "text": "Zoom 9 · Zentrum 46.816320, 8.230247",
+        "zoom": 9
+      },
+      "zoomInteractionOk": true,
+      "passed": true
+    },
+    "desktopRegressionNoHorizontalScroll": {
+      "scrollWidth": 1280,
+      "clientWidth": 1280,
+      "matches": true,
+      "passed": true
+    }
+  },
+  "snapshots": {
+    "mobile": {
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "mainGridColumns": "320px",
+      "mapMeta": "Zoom 8 · Zentrum 46.818200, 8.227500",
+      "screenshot": "reports/evidence/issue-1039-mobile-overflow-20260303T235337Z.png"
+    },
+    "desktop": {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "mainGridColumns": "460px 764px",
+      "mapMeta": "Zoom 8 · Zentrum 46.818200, 8.227500",
+      "screenshot": "reports/evidence/issue-1039-desktop-regression-20260303T235337Z.png"
+    }
+  },
+  "ok": true
+}
