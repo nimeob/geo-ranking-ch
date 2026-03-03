@@ -18,12 +18,26 @@ class TestGuiAuthBffSessionFlowDocs(unittest.TestCase):
             "## Logout-Flow",
             "## Failure-Modes (Kurzmatrix)",
             "## Security-Guardrails (verbindlich)",
+            "## Reproduzierbarer Dev-E2E-Nachweis (Issue #947)",
+            "## Cookie-Security-Evidenz (Issue #947)",
+            "## Parent-Acceptance-Referenz (#939)",
         ]
         for marker in required_markers:
             self.assertIn(marker, content, msg=f"Marker fehlt: {marker}")
 
         for keyword in ["httpOnly", "SameSite", "Secure", "CSRF"]:
             self.assertIn(keyword, content, msg=f"Security-Keyword fehlt: {keyword}")
+
+        self.assertIn(
+            "reports/evidence/issue-947-gui-auth-e2e-cookie-evidence-",
+            content,
+            msg="Issue-947-Evidence-Link fehlt in der Auth-Flow-Doku",
+        )
+        self.assertIn(
+            "Kurzer E2E-Nachweis in dev dokumentiert",
+            content,
+            msg="Parent-Acceptance-Referenz auf #939 fehlt",
+        )
 
     def test_cross_links_from_gui_state_flow_and_api_usage(self):
         gui_state_flow = (REPO_ROOT / "docs" / "gui" / "GUI_MVP_STATE_FLOW.md").read_text(
