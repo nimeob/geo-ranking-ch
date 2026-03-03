@@ -3644,15 +3644,19 @@ class Handler(BaseHTTPRequestHandler):
                     route="/healthz",
                     method="GET",
                 )
+                app_version = os.getenv("APP_VERSION", "dev")
+                commit_sha = os.getenv("GIT_SHA", "unknown")
                 self._send_json(
                     {
                         "ok": True,
                         "status": "ok",
                         "service": "geo-ranking-ch",
                         "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "version": app_version,
+                        "commit": commit_sha,
                         "build": {
-                            "version": os.getenv("APP_VERSION", "dev"),
-                            "commit": os.getenv("GIT_SHA", "unknown"),
+                            "version": app_version,
+                            "commit": commit_sha,
                         },
                         "request_id": request_id,
                     },

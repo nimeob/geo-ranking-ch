@@ -160,7 +160,7 @@ curl http://localhost:8081/healthz
 | `GET` | `/analyze/history` | History-JSON für UI (`?limit=...`) |
 | `GET` | `/analyze/results/<result_id>` | Result-JSON für Result-Pages (`?view=latest|requested`) |
 | `GET` | `/health` | Liveness/Healthcheck (ECS) |
-| `GET` | `/healthz` | Dev-Healthcheck (dev-only, no-store): Status + Build-Info + Timestamp |
+| `GET` | `/healthz` | Dev-Healthcheck (dev-only, no-store): Status + Timestamp + Version/Commit (top-level + `build`) |
 | `GET` | `/version` | Build/Commit-Metadaten |
 | `POST` | `/analyze` | Adressanalyse (`{"query":"...","intelligence_mode":"basic|extended|risk","timeout_seconds":15,"preferences":{...}}`) |
 
