@@ -9,7 +9,7 @@ Dieser Guide ist **dev-only** und bewusst kurz.
 - Python **3.12**
 - `git`
 
-Optional (empfohlen): `pre-commit` Hooks für Format/Lint (siehe unten).
+Optional (empfohlen): `pre-commit` Hooks für Format/Lint.
 
 ## Setup (frischer Checkout)
 
@@ -19,7 +19,7 @@ cd geo-ranking-ch
 
 python3.12 -m venv .venv
 source .venv/bin/activate
-
+python -m pip install --upgrade pip
 pip install -r requirements.txt -r requirements-dev.txt
 ```
 
@@ -50,17 +50,20 @@ Healthcheck:
 curl -sS http://localhost:8080/healthz
 ```
 
-> Hinweis: API und UI nutzen defaultmäßig denselben Port (`8080`). Starte sie daher nicht gleichzeitig ohne Port-Override (siehe README: `PORT`/`WEB_PORT`).
+> Hinweis: API und UI nutzen standardmäßig denselben Port (`8080`).
+> Entweder einzeln starten **oder** einen Port-Override setzen (siehe `README.md`, `PORT`/`WEB_PORT`).
 
 ## Tests
 
 ```bash
+# schneller Basislauf
 pytest -q
-# oder gezielt
+
+# optional gezielter Lauf
 pytest tests/ -v
 ```
 
-Nützliche, reproduzierbare Checks:
+Nützliche reproduzierbare Checks:
 
 ```bash
 ./scripts/check_crawler_regression.sh
@@ -70,11 +73,22 @@ Nützliche, reproduzierbare Checks:
 
 ## Lint / Format
 
-Wir nutzen `pre-commit` (ruff + black).
+Wir nutzen `pre-commit` (ruff + black):
 
 ```bash
 pre-commit install
 pre-commit run --all-files
+```
+
+## Akzeptanz (frischer Checkout, minimal)
+
+Wenn folgende Kommandos lokal funktionieren, ist der Guide im Soll:
+
+```bash
+python -m src.api.web_service
+# in zweiter Shell:
+curl -sS http://localhost:8080/healthz
+pytest -q
 ```
 
 ## PR-Workflow (kurz)
