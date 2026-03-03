@@ -13,6 +13,8 @@ Arbeitsmodus, Branching-Strategie, Commit-Regeln und Release-Checkliste.
 > **Sicherheits-/Datenhaltungsentscheidungen für API-Betrieb:** siehe [`docs/DATA_AND_API_SECURITY.md`](DATA_AND_API_SECURITY.md).
 >
 > **Async-Delivery Betrieb (Result-Permalink/Retention/Notifications):** siehe [`docs/api/async-delivery-ops-runbook-v1.md`](api/async-delivery-ops-runbook-v1.md).
+>
+> **GUI Auth Smoke (Login/Logout/Session-Expiry):** reproduzierbarer Abnahmeablauf in [`docs/testing/GUI_AUTH_SMOKE_RUNBOOK.md`](testing/GUI_AUTH_SMOKE_RUNBOOK.md).
 
 > **Issue-Format-Guard (Worker):** Neue/edierte Issues werden automatisch auf das bekannte Escaping-Problem geprüft (`\\n`, `\\t`, `\\`` statt echter Markdown-Formatierung). Bei Treffer normalisiert der Workflow den Body automatisch.
 
