@@ -1,0 +1,20 @@
+{
+  "catchup_plan": {
+    "categories": [],
+    "target_min_count": 0,
+    "total_delta": 0
+  },
+  "counts": {
+    "development": 1,
+    "documentation": 2,
+    "testing": 1
+  },
+  "gap": 1,
+  "generated_at": "2026-03-03T17:21:10+00:00",
+  "max_count": 2,
+  "min_count": 1,
+  "needs_catchup": false,
+  "severe_zero_gap": false,
+  "spread_too_large": false,
+  "target_gap_max": 2
+}
