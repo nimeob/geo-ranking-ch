@@ -26,6 +26,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - echte, interaktive OSM-Basemap (Tile-Render) mit deterministischem Pan/Zoom
    - Zoom ist über Mausrad/Trackpad, **Pinch-to-Zoom auf Touch-Geräten** und sichtbare `+/-` Zoom-Controls verfügbar (zusätzlich Keyboard `+/-`)
    - Klick setzt Marker und startet unmittelbar dieselbe Analyze-Pipeline über Koordinateninput
+   - Optionaler Button **„Aktuelle Position“** fragt Geolocation erst nach explizitem Klick an und zeigt Position (+ Genauigkeitsradius) nicht-blockierend auf der Karte
    - Degraded-State bei Tile-Ausfall bleibt funktional (Analyze via `coordinates.lat/lon` weiter möglich)
    - Keyboard-Fallback (`Enter`/`Space`) triggert Center-Analyse; Pfeiltasten/+/- unterstützen Pan/Zoom für Accessibility
    - Mobile-Lesbarkeit (`<=520px`) ist gehärtet: größerer Marker/Crosshair, reduzierte Karten-Mindesthöhe und Legend-Texte mit sicherem Wrap/Stacking ohne Überlappung
