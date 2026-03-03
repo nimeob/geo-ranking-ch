@@ -35,6 +35,23 @@ Diese Suite deckt insbesondere ab:
 - Session-basierte BFF-Delegation für `GET /portal/api/analyze/history`
 - Session-basierte BFF-Delegation für `POST /portal/api/analyze` (inkl. CSRF-Header-Pfad)
 
+### 1.2 Automatisierter Auth-Flow-Regression-Smoke (WP #1019)
+
+Für den vollständigen Pfad `login -> analyze/history -> logout` gibt es zusätzlich einen reproduzierbaren Integration-Smoke:
+
+```bash
+python3 -m pytest -q tests/test_auth_regression_smoke_issue_1019.py
+```
+
+Abdeckung:
+- unauthenticated `/gui` Redirect auf `/auth/login`
+- `/auth/login` + `/auth/callback` Session-Aufbau inkl. Cookie-Set
+- `/auth/me` 200 nach Login
+- `POST /analyze` (Smoke-Query `__ok__`) + `GET /analyze/history` 200
+- `/auth/logout` Redirect + Cookie-Clear + `/auth/me` 401 nach Logout
+
+Hinweis: Der Smoke ist im Standard-Entrypoint `./scripts/run_webservice_e2e.sh` integriert.
+
 ---
 
 ## 2) Standardisierte Evidence-Pfade
