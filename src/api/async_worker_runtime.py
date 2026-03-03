@@ -214,7 +214,16 @@ class AsyncJobRuntime:
         except TypeError as exc:
             if "actor_type" not in str(exc):
                 raise
-            outcome = consume_fn(job_id=job_id)
+            try:
+                outcome = consume_fn(job_id=job_id)
+            except Exception:
+                # Best effort: stores without full cancel semantics must not
+                # block async job processing.
+                return None
+        except Exception:
+            # Best effort: stores without full cancel semantics must not block
+            # async job processing.
+            return None
 
         if outcome is None:
             return None
