@@ -512,10 +512,34 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       .results-table .actions {
         white-space: nowrap;
       }
-      .results-empty {
+      .results-table-shell {
+        overflow: auto;
+        margin-top: 0.65rem;
+        min-height: 12.25rem;
+      }
+      .results-empty-cell {
+        padding: 0;
+      }
+      .results-empty-state {
+        display: grid;
+        gap: 0.5rem;
+        align-content: center;
+        min-height: 10.5rem;
+        padding: 1rem 0.9rem;
+      }
+      .results-empty-title {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--ink);
+      }
+      .results-empty-copy {
+        margin: 0;
         color: var(--muted);
         font-size: 0.86rem;
-        padding: 0.65rem 0.25rem;
+        line-height: 1.35;
+      }
+      .results-empty-action {
+        justify-self: flex-start;
       }
       pre {
         margin: 0;
@@ -742,7 +766,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             <button id=\"results-clear\" class=\"copy-btn\" type=\"button\">Liste leeren</button>
             <span class=\"meta\" id=\"results-meta\">Noch keine Ergebnisse gesammelt.</span>
           </div>
-          <div style=\"overflow:auto; margin-top: 0.65rem;\">
+          <div id=\"results-table-shell\" class=\"results-table-shell\">
             <table class=\"results-table\" aria-label=\"Ergebnisliste\">
               <thead>
                 <tr>
@@ -754,9 +778,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
                   <th class=\"actions\">Aktionen</th>
                 </tr>
               </thead>
-              <tbody id=\"results-body\">
-                <tr><td colspan=\"6\" class=\"results-empty\">Noch keine Ergebnisse gesammelt.</td></tr>
-              </tbody>
+              <tbody id=\"results-body\"></tbody>
             </table>
           </div>
         </article>
@@ -823,6 +845,25 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
       const AUTH_ME_ENDPOINT = "/auth/me";
       const AUTH_CHECK_CACHE_TTL_MS = 12000;
+      const RESULTS_LIST_COPY = Object.freeze({
+        meta: {
+          empty: "Noch keine Ergebnisse gesammelt.",
+          filtered: "0 Treffer – Filter aktiv.",
+        },
+        emptyStates: {
+          seed: {
+            title: "Vision-Liste ist leer",
+            description: "Starte mit einer ersten Analyse, damit du Varianten vergleichen kannst.",
+            action: "Beispieladresse einfügen",
+          },
+          filtered: {
+            title: "Keine Treffer mit aktuellen Filtern",
+            description: "Es gibt Einträge in der Vision-Liste, aber die aktiven Filter blenden sie aus.",
+            action: "Filter zurücksetzen",
+          },
+        },
+        seedQuery: "Bahnhofstrasse 1, 8001 Zürich",
+      });
       const SESSION_RECOVERY_ERROR_CODES = new Set([
         "no_session_cookie",
         "session_not_found",
@@ -1550,6 +1591,71 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return text || "—";
       }
 
+      function resetResultsListFilters() {
+        resultsListState.sortKey = "score";
+        resultsListState.sortDir = "desc";
+        resultsListState.koFilter = "off";
+        resultsListState.minScore = null;
+        resultsListState.maxDistance = null;
+        resultsListState.minSecurity = null;
+
+        if (resultsSortEl) resultsSortEl.value = "score";
+        if (resultsDirEl) resultsDirEl.value = "desc";
+        if (resultsKoEl) resultsKoEl.value = "off";
+        if (resultsMinScoreEl) resultsMinScoreEl.value = "";
+        if (resultsMaxDistanceEl) resultsMaxDistanceEl.value = "";
+        if (resultsMinSecurityEl) resultsMinSecurityEl.value = "";
+      }
+
+      function handleResultsEmptyStatePrimaryAction(reason) {
+        if (reason === "filtered") {
+          resetResultsListFilters();
+          updateResultsListDeepLink();
+          renderResultsList();
+          emitUiEvent("ui.interaction.results_list.empty_cta", {
+            direction: "human->ui",
+            status: "filters_reset",
+          });
+          return;
+        }
+
+        const seedQuery = String(RESULTS_LIST_COPY.seedQuery || "").trim();
+        if (!seedQuery || !queryEl) {
+          return;
+        }
+
+        queryEl.value = seedQuery;
+        try {
+          queryEl.focus();
+          queryEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        } catch (error) {
+          // ignore focus/scroll errors
+        }
+
+        emitUiEvent("ui.interaction.results_list.empty_cta", {
+          direction: "human->ui",
+          status: "seed_query_prefilled",
+          seed_query: seedQuery,
+        });
+      }
+
+      function resolveResultsEmptyState(total) {
+        if (total > 0) {
+          return {
+            reason: "filtered",
+            title: RESULTS_LIST_COPY.emptyStates.filtered.title,
+            description: RESULTS_LIST_COPY.emptyStates.filtered.description,
+            action: RESULTS_LIST_COPY.emptyStates.filtered.action,
+          };
+        }
+        return {
+          reason: "seed",
+          title: RESULTS_LIST_COPY.emptyStates.seed.title,
+          description: RESULTS_LIST_COPY.emptyStates.seed.description,
+          action: RESULTS_LIST_COPY.emptyStates.seed.action,
+        };
+      }
+
       function showResultsEntry(entry) {
         if (!entry || typeof entry !== "object" || !entry.payload) {
           return;
@@ -1607,14 +1713,40 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         resultsBodyEl.textContent = "";
 
         if (!rows.length) {
+          const emptyState = resolveResultsEmptyState(total);
+
           const tr = document.createElement("tr");
           const td = document.createElement("td");
           td.colSpan = 6;
-          td.className = "results-empty";
-          td.textContent = total ? "Keine Treffer für aktuelle Filter." : "Noch keine Ergebnisse gesammelt.";
+          td.className = "results-empty-cell";
+
+          const panel = document.createElement("section");
+          panel.className = "results-empty-state";
+          panel.setAttribute("role", "status");
+          panel.setAttribute("aria-live", "polite");
+
+          const title = document.createElement("h3");
+          title.className = "results-empty-title";
+          title.textContent = emptyState.title;
+
+          const description = document.createElement("p");
+          description.className = "results-empty-copy";
+          description.textContent = emptyState.description;
+
+          const action = document.createElement("button");
+          action.type = "button";
+          action.className = "results-empty-action";
+          action.textContent = emptyState.action;
+          action.addEventListener("click", () => handleResultsEmptyStatePrimaryAction(emptyState.reason));
+
+          panel.appendChild(title);
+          panel.appendChild(description);
+          panel.appendChild(action);
+          td.appendChild(panel);
           tr.appendChild(td);
           resultsBodyEl.appendChild(tr);
-          resultsMetaEl.textContent = total ? `0/${total} angezeigt` : "Noch keine Ergebnisse gesammelt.";
+
+          resultsMetaEl.textContent = total ? RESULTS_LIST_COPY.meta.filtered : RESULTS_LIST_COPY.meta.empty;
           return;
         }
 
