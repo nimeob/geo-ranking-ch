@@ -295,6 +295,39 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         transform: translate(-50%, -50%);
         pointer-events: none;
       }
+      .map-user-accuracy {
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(40, 96, 181, 0.45);
+        background: rgba(40, 96, 181, 0.16);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .map-user-marker {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.95);
+        background: #1f66cf;
+        box-shadow:
+          0 0 0 3px rgba(31, 102, 207, 0.25),
+          0 2px 5px rgba(27, 38, 55, 0.18);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .map-locate-btn {
+        background: #ffffff;
+        color: #16365f;
+        border-color: rgba(27, 38, 55, 0.28);
+      }
+      .map-locate-btn:hover {
+        border-color: rgba(27, 38, 55, 0.42);
+        background: #f7fbff;
+      }
+      .map-locate-btn[disabled] {
+        color: var(--muted);
+      }
       .map-zoom-controls {
         position: absolute;
         top: 0.55rem;
@@ -540,6 +573,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               <div id="map-tile-layer" class="map-tile-layer" aria-hidden="true"></div>
               <div class="map-crosshair" aria-hidden="true"></div>
               <div id="map-click-marker" class="map-marker" hidden></div>
+              <div id="map-user-accuracy" class="map-user-accuracy" hidden></div>
+              <div id="map-user-marker" class="map-user-marker" hidden></div>
               <div class="map-zoom-controls" aria-label="Zoom-Steuerung">
                 <button id="map-zoom-in" class="map-zoom-btn" type="button" aria-label="Karte hineinzoomen">+</button>
                 <button id="map-zoom-out" class="map-zoom-btn" type="button" aria-label="Karte herauszoomen">−</button>
@@ -548,6 +583,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             <div class="map-legend">
               <small id="map-view-meta">Zoom 8 · Zentrum 46.818200, 8.227500</small>
               <small id="click-hint">Noch kein Kartenpunkt gewählt.</small>
+            </div>
+            <div class="map-legend">
+              <button id="map-locate-btn" class="copy-btn map-locate-btn" type="button">Aktuelle Position</button>
+              <small id="map-location-meta">Noch keine Geräteposition gewählt.</small>
             </div>
             <div class="map-legend">
               <small>Tiles: © OpenStreetMap contributors · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">ODbL/Attribution</a></small>
@@ -783,6 +822,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         centerLon: INITIAL_MAP_VIEW.lon,
         zoom: INITIAL_MAP_VIEW.zoom,
         marker: null,
+        userLocation: null,
       };
 
       const formEl = document.getElementById("analyze-form");
@@ -832,9 +872,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const mapSurface = document.getElementById("map-click-surface");
       const mapTileLayer = document.getElementById("map-tile-layer");
       const mapMarker = document.getElementById("map-click-marker");
+      const mapUserAccuracy = document.getElementById("map-user-accuracy");
+      const mapUserMarker = document.getElementById("map-user-marker");
       const mapStatus = document.getElementById("map-status");
       const mapViewMeta = document.getElementById("map-view-meta");
       const clickHint = document.getElementById("click-hint");
+      const mapLocateBtn = document.getElementById("map-locate-btn");
+      const mapLocationMeta = document.getElementById("map-location-meta");
       const mapZoomInBtn = document.getElementById("map-zoom-in");
       const mapZoomOutBtn = document.getElementById("map-zoom-out");
 
@@ -2088,6 +2132,24 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
       }
 
+      function formatAccuracyMeters(value) {
+        const meters = Number(value);
+        if (!Number.isFinite(meters) || meters <= 0) {
+          return null;
+        }
+        if (meters >= 1000) {
+          return `±${(meters / 1000).toFixed(1)} km`;
+        }
+        return `±${Math.round(meters)} m`;
+      }
+
+      function updateMapLocationMeta(message) {
+        if (!mapLocationMeta) {
+          return;
+        }
+        mapLocationMeta.textContent = message;
+      }
+
       function updateMarkerPosition() {
         if (!mapState.marker) {
           mapMarker.hidden = true;
@@ -2098,6 +2160,181 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         mapMarker.hidden = false;
         mapMarker.style.left = `${point.x}px`;
         mapMarker.style.top = `${point.y}px`;
+      }
+
+      function metersPerPixel(lat, zoom) {
+        const clampedLat = clampLatToMercator(lat);
+        const radians = (clampedLat * Math.PI) / 180;
+        return (156543.03392 * Math.cos(radians)) / Math.pow(2, zoom);
+      }
+
+      function updateUserLocationOverlay() {
+        if (!mapUserMarker || !mapUserAccuracy) {
+          return;
+        }
+
+        const location = mapState.userLocation;
+        if (!location) {
+          mapUserMarker.hidden = true;
+          mapUserAccuracy.hidden = true;
+          return;
+        }
+
+        const point = centerToContainerPoint(location.lat, location.lon);
+        mapUserMarker.hidden = false;
+        mapUserMarker.style.left = `${point.x}px`;
+        mapUserMarker.style.top = `${point.y}px`;
+
+        const accuracyMeters = Number(location.accuracyMeters);
+        if (!Number.isFinite(accuracyMeters) || accuracyMeters <= 0) {
+          mapUserAccuracy.hidden = true;
+          return;
+        }
+
+        const mpp = metersPerPixel(location.lat, mapState.zoom);
+        if (!Number.isFinite(mpp) || mpp <= 0) {
+          mapUserAccuracy.hidden = true;
+          return;
+        }
+
+        const radiusPx = clamp(accuracyMeters / mpp, 6, 220);
+        const diameterPx = Math.max(12, radiusPx * 2);
+
+        mapUserAccuracy.hidden = false;
+        mapUserAccuracy.style.width = `${diameterPx}px`;
+        mapUserAccuracy.style.height = `${diameterPx}px`;
+        mapUserAccuracy.style.left = `${point.x}px`;
+        mapUserAccuracy.style.top = `${point.y}px`;
+      }
+
+      function setUserLocation(lat, lon, { accuracyMeters = null, centerMap = false } = {}) {
+        const normalizedLat = clampLatToMercator(lat);
+        const normalizedLon = Number(lon);
+        if (!Number.isFinite(normalizedLat) || !Number.isFinite(normalizedLon)) {
+          return false;
+        }
+
+        const normalizedAccuracy = Number(accuracyMeters);
+        mapState.userLocation = {
+          lat: normalizedLat,
+          lon: normalizedLon,
+          accuracyMeters:
+            Number.isFinite(normalizedAccuracy) && normalizedAccuracy >= 0
+              ? normalizedAccuracy
+              : null,
+          updatedAt: utcTimestamp(),
+        };
+
+        const accuracyText = formatAccuracyMeters(mapState.userLocation.accuracyMeters);
+        updateMapLocationMeta(
+          accuracyText
+            ? `Geräteposition: ${formatCoord(normalizedLat)}, ${formatCoord(normalizedLon)} (${accuracyText})`
+            : `Geräteposition: ${formatCoord(normalizedLat)}, ${formatCoord(normalizedLon)}`
+        );
+
+        if (centerMap) {
+          setMapCenter(normalizedLat, normalizedLon, { render: true });
+        } else {
+          updateUserLocationOverlay();
+        }
+        return true;
+      }
+
+      function describeGeolocationError(error) {
+        if (!error || typeof error !== "object") {
+          return "Standort konnte nicht bestimmt werden.";
+        }
+
+        const code = Number(error.code);
+        if (code === 1) {
+          return "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.";
+        }
+        if (code === 2) {
+          return "Standort ist aktuell nicht verfügbar. Bitte Verbindung/GPS prüfen.";
+        }
+        if (code === 3) {
+          return "Standortabfrage hat das Zeitlimit überschritten. Bitte erneut versuchen.";
+        }
+        return "Standort konnte nicht bestimmt werden.";
+      }
+
+      function getCurrentDevicePosition(options) {
+        return new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, options);
+        });
+      }
+
+      async function requestDeviceLocation() {
+        if (!mapLocateBtn) {
+          return;
+        }
+
+        if (typeof window !== "undefined" && window.isSecureContext === false) {
+          const message = "Geräteposition benötigt HTTPS oder localhost (insecure context erkannt).";
+          setMapStatus(message);
+          updateMapLocationMeta("Geräteposition nicht verfügbar: nur in sicherem Kontext (HTTPS).");
+          return;
+        }
+
+        if (typeof navigator === "undefined" || !navigator.geolocation || typeof navigator.geolocation.getCurrentPosition !== "function") {
+          const message = "Geolocation wird von diesem Browser nicht unterstützt.";
+          setMapStatus(message);
+          updateMapLocationMeta("Geräteposition nicht verfügbar: Browser unterstützt Geolocation nicht.");
+          return;
+        }
+
+        mapLocateBtn.disabled = true;
+        mapLocateBtn.textContent = "Suche…";
+        updateMapLocationMeta("Standortabfrage läuft …");
+
+        emitUiEvent("ui.interaction.map.device_location.request", {
+          direction: "human->ui",
+          status: "triggered",
+        });
+
+        try {
+          const position = await getCurrentDevicePosition({
+            enableHighAccuracy: true,
+            timeout: 12000,
+            maximumAge: 0,
+          });
+
+          const latitude = Number(position && position.coords ? position.coords.latitude : Number.NaN);
+          const longitude = Number(position && position.coords ? position.coords.longitude : Number.NaN);
+          const accuracyMeters = Number(position && position.coords ? position.coords.accuracy : Number.NaN);
+
+          const accepted = setUserLocation(latitude, longitude, {
+            accuracyMeters,
+            centerMap: true,
+          });
+          if (!accepted) {
+            throw new Error("invalid_coordinates");
+          }
+
+          clearMapStatus();
+          emitUiEvent("ui.interaction.map.device_location.success", {
+            direction: "ui->human",
+            status: "ok",
+            lat_coarse: coarseCoord(latitude),
+            lon_coarse: coarseCoord(longitude),
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error && error.message === "invalid_coordinates"
+              ? "Standortdaten sind ungültig und konnten nicht verwendet werden."
+              : describeGeolocationError(error);
+          setMapStatus(message);
+          updateMapLocationMeta(message);
+          emitUiEvent("ui.interaction.map.device_location.error", {
+            level: "warn",
+            direction: "ui->human",
+            status: "error",
+            error_message: message,
+          });
+        } finally {
+          mapLocateBtn.disabled = false;
+          mapLocateBtn.textContent = "Aktuelle Position";
+        }
       }
 
       function renderTiles() {
@@ -2180,6 +2417,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         mapTileLayer.appendChild(fragment);
         updateMapViewMeta();
         updateMarkerPosition();
+        updateUserLocationOverlay();
         maybeFinalize();
       }
 
@@ -2639,6 +2877,18 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             zoomMapAtSurfaceCenter(-1);
           }
         });
+
+        if (mapLocateBtn) {
+          mapLocateBtn.addEventListener("pointerdown", (event) => {
+            event.stopPropagation();
+          });
+          mapLocateBtn.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await requestDeviceLocation();
+            mapSurface.focus();
+          });
+        }
 
         if (mapZoomInBtn) {
           mapZoomInBtn.addEventListener("pointerdown", (event) => {
