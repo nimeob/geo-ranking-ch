@@ -38,6 +38,8 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Request-ID-UX mit klickbarem Trace-Link (`Trace ansehen`) und Copy-Action (`Copy ID`) inkl. Live-Feedback
    - Fehlerbox für API-/Netzwerkfehler
    - Kernfaktoren-Liste (`top 4` nach |contribution|)
+   - Ergebnisliste-Empty-State mit Titel/Beschreibung/primärer Aktion (CTA) und stabiler Tabellenhöhe (`min-height`), damit beim Wechsel leer ↔ gefüllt keine harten Layout-Sprünge auftreten
+   - Empty-State-Copy zentral in `RESULTS_LIST_COPY` (kein verteiltes Hardcoding); CTA-Verhalten: Beispieladresse vorbefüllen (leere Liste) bzw. Filter zurücksetzen (filterbedingt leer)
    - Roh-JSON zur transparenten MVP-Diagnose
 
 ## State-Flow (technisch)
