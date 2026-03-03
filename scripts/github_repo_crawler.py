@@ -105,6 +105,7 @@ def close_issue(number: int, reason: str, dry_run: bool):
     comment = (
         f"✅ Crawler-Audit ({now_iso()}): Workstream-Balance wieder im Zielkorridor.\n\n"
         f"Grund:\n- {reason}\n\n"
+        f"Nachweis: koordinativer Close ohne Code-PR (Fixes #{number}).\n"
         "Das automatische P0-Catch-up-Issue wird daher geschlossen."
     )
     if dry_run:

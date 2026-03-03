@@ -852,6 +852,7 @@ Regelwerk:
   - ✅ #426 abgeschlossen: Logging-Schema-v1-Feldkonstanten + Header-Redaction im Shared Helper umgesetzt (PR #431) und Ziel-Gap via erneuter Baseline auf `1` reduziert (`Dev=1`, `Doku=2`, `Testing=2`, Catch-up nicht nötig).
   - ✅ Parent #421 abgeschlossen/geschlossen: Next-Step-Checklist auf erledigt gesetzt und Balance-Ziel (`gap <= 2`) verifiziert.
   - ✅ #554 abgeschlossen (2026-03-01, Crawler-Reopen-Cleanup): Re-Baseline via `python3 scripts/github_repo_crawler.py --print-workstream-balance --format json` ergibt `Dev=0`, `Doku=0`, `Testing=0`, `Gap=0`, `Catch-up nötig: nein`; damit kein zusätzlicher Development-Delta-Task erforderlich.
+  - ✅ #869 abgeschlossen (2026-03-03, Reopen-Loop-Fix): `close_issue` schreibt jetzt ein explizites Evidence-Token (`Fixes #<issue>`) in den Auto-Close-Kommentar, damit `audit_closed_issues` koordinative `crawler:auto`-Closures nicht fälschlich wegen „kein PR-Link/Nachweis“ wieder öffnet; Regression ergänzt in `tests/test_github_repo_crawler.py` (`test_close_issue_comment_contains_evidence_token_for_closed_issue_audit`).
 - **Nächster Schritt:** keiner (P0 Catch-up-Ziel erreicht).
 
 ### BL-422 — request_id Trace-Debugging in der WebUI
