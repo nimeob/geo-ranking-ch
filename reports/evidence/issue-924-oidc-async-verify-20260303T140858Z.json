@@ -1,0 +1,31 @@
+{
+  "issue": 924,
+  "timestamp_utc": "20260303T140858Z",
+  "api_base": "https://api.dev.georanking.ch",
+  "oidc": {
+    "user_pool_id": "eu-central-1_1VIRxV2zB",
+    "app_client_id": "2308nspfjmffrba3urvje9skai",
+    "username": "worker-a-smoke"
+  },
+  "checks": {
+    "healthz_http": 200,
+    "healthz_ok": true,
+    "healthz_build": "37ca5a0",
+    "sync_analyze_http": 200,
+    "sync_analyze_ok": true,
+    "history_before_http": 200,
+    "history_before_total": 2,
+    "async_submit_http": 202,
+    "async_submit_ok": true,
+    "job_id": "cfe8e09c-d00d-437c-8e3f-b4f148b6e0c8",
+    "job_poll_samples": [
+      "1 200 running -",
+      "2 200 completed 39ab1b44-21cd-4659-b6f1-386002d661f0"
+    ],
+    "job_final_status": "completed",
+    "job_result_id": "39ab1b44-21cd-4659-b6f1-386002d661f0",
+    "history_after_http": 200,
+    "history_after_total": 3,
+    "history_contains_job_result": true
+  }
+}
