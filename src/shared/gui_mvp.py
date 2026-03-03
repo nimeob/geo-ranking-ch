@@ -36,6 +36,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         background: var(--bg);
         color: var(--ink);
       }
+      body.burger-open {
+        overflow: hidden;
+        touch-action: none;
+      }
       header {
         background: var(--surface);
         border-bottom: 1px solid var(--border);
@@ -96,6 +100,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         display: grid;
         gap: 0.2rem;
         z-index: 30;
+      }
+      .burger-backdrop {
+        position: fixed;
+        inset: 0;
+        border: 0;
+        margin: 0;
+        padding: 0;
+        background: rgba(15, 23, 42, 0.28);
+        z-index: 24;
       }
       .burger-menu a {
         text-decoration: none;
@@ -520,7 +533,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         </div>
         <div class=\"burger\" id=\"burger-shell\">
           <button id=\"burger-btn\" type=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"burger-menu\" aria-label=\"Navigation umschalten\">☰ Menü</button>
-          <div id=\"burger-menu\" class=\"burger-menu\" role=\"menu\" aria-label=\"Hauptnavigation\" hidden>
+          <div id=\"burger-menu\" class=\"burger-menu\" role=\"menu\" aria-label=\"Hauptnavigation\" aria-hidden=\"true\" hidden>
             <a role=\"menuitem\" href=\"/gui\">Abfrage</a>
             <a role=\"menuitem\" href=\"/history\">Historische Abfragen</a>
             <a role=\"menuitem\" href=\"#input\">Input</a>
@@ -530,6 +543,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             <a role=\"menuitem\" id=\"burger-login-link\" href=\"/auth/login\">Login</a>
             <a role=\"menuitem\" id=\"burger-logout-link\" href=\"/auth/logout\">Logout</a>
           </div>
+          <button id=\"burger-backdrop\" class=\"burger-backdrop\" type=\"button\" aria-hidden=\"true\" hidden></button>
         </div>
       </div>
     </header>
@@ -2586,6 +2600,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           pinchStartZoom: mapState.zoom,
           anchorLat: mapState.centerLat,
           anchorLon: mapState.centerLon,
+          pinchFrameHandle: null,
+          pinchRenderPending: false,
         };
         let suppressNextClick = false;
 
@@ -2700,12 +2716,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           touchState.pinchStartZoom = mapState.zoom;
           touchState.anchorLat = anchor.lat;
           touchState.anchorLon = anchor.lon;
+          cancelPinchFrame();
 
           emitUiEvent("ui.interaction.map.pinch_start", {
             direction: "human->ui",
             status: "triggered",
             zoom: mapState.zoom,
           });
+          schedulePinchTransform();
 
           return true;
         }
@@ -2715,6 +2733,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             return;
           }
           touchState.pinchActive = false;
+          cancelPinchFrame();
           if (suppressClick) {
             queueClickSuppression(160);
           }
@@ -2722,16 +2741,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         function applyPinchTransform() {
           if (!touchState.pinchActive) {
+            touchState.pinchRenderPending = false;
             return;
           }
           const pair = getActiveTouchPair();
           if (!pair) {
+            touchState.pinchRenderPending = false;
             return;
           }
 
           const [left, right] = pair;
           const currentDistance = pointerDistance(left, right);
           if (!Number.isFinite(currentDistance) || currentDistance < 8 || touchState.pinchStartDistance <= 0) {
+            touchState.pinchRenderPending = false;
             return;
           }
 
@@ -2756,6 +2778,32 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           const nextCenterWorldY = focusWorld.y - (y - height / 2);
 
           setMapCenterFromWorld(nextCenterWorldX, nextCenterWorldY, { render: true });
+          touchState.pinchRenderPending = false;
+        }
+
+        function schedulePinchTransform() {
+          if (!touchState.pinchActive) {
+            return;
+          }
+          if (touchState.pinchRenderPending) {
+            return;
+          }
+          touchState.pinchRenderPending = true;
+          if (touchState.pinchFrameHandle != null) {
+            return;
+          }
+          touchState.pinchFrameHandle = window.requestAnimationFrame(() => {
+            touchState.pinchFrameHandle = null;
+            applyPinchTransform();
+          });
+        }
+
+        function cancelPinchFrame() {
+          if (touchState.pinchFrameHandle != null) {
+            window.cancelAnimationFrame(touchState.pinchFrameHandle);
+            touchState.pinchFrameHandle = null;
+          }
+          touchState.pinchRenderPending = false;
         }
 
         mapSurface.addEventListener("pointerdown", (event) => {
@@ -2795,7 +2843,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
             if (touchState.pinchActive) {
               event.preventDefault();
-              applyPinchTransform();
+              schedulePinchTransform();
               return;
             }
 
@@ -3858,6 +3906,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       const burgerBtn = document.getElementById("burger-btn");
       const burgerMenu = document.getElementById("burger-menu");
+      const burgerBackdrop = document.getElementById("burger-backdrop");
       const burgerLoginLink = document.getElementById("burger-login-link");
       const burgerLogoutLink = document.getElementById("burger-logout-link");
       const burgerItems = burgerMenu
@@ -3867,7 +3916,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function setBurgerOpen(nextOpen) {
         if (!burgerBtn || !burgerMenu) return;
         burgerMenu.hidden = !nextOpen;
+        burgerMenu.setAttribute("aria-hidden", nextOpen ? "false" : "true");
         burgerBtn.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+        if (burgerBackdrop) {
+          burgerBackdrop.hidden = !nextOpen;
+          burgerBackdrop.setAttribute("aria-hidden", nextOpen ? "false" : "true");
+        }
+        document.body.classList.toggle("burger-open", nextOpen);
       }
 
       function closeBurger(options = {}) {
@@ -3888,6 +3943,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         burgerBtn.addEventListener("click", () => {
           toggleBurger();
         });
+
+        if (burgerBackdrop) {
+          burgerBackdrop.addEventListener("click", () => {
+            closeBurger({ returnFocus: true });
+          });
+        }
 
         burgerBtn.addEventListener("keydown", (event) => {
           if (!event) return;
