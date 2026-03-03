@@ -41,7 +41,8 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 | Fehlerbild | Typisches Symptom | Wahrscheinliche Ursache | Sofortmaßnahme |
 |---|---|---|---|
 | Callback fehlgeschlagen | Redirect-Loop `/auth/login` <-> `/auth/callback` | Ungültiger/abgelaufener Auth-Code oder State-Mismatch | Callback-Logs prüfen, neuen Login starten |
-| Session abgelaufen | GUI-Action landet wieder auf Login | Session-TTL erreicht, Refresh nicht möglich | Neu einloggen, Session-/Cookie-Parameter prüfen |
+| Session abgelaufen | GUI-Action zeigt Session-Hinweis und leitet auf Login weiter | Session-TTL erreicht, Cookie fehlt/ungültig | Neu einloggen, Session-/Cookie-Parameter prüfen |
+| Token-Refresh fehlgeschlagen | Hinweis „Session konnte nicht erneuert werden" + Re-Login-Redirect | Refresh-Grant fehlerhaft (`refresh_*`, `no_refresh_token`) | Refresh-Token-Path + IdP-Config prüfen, danach Re-Login |
 | Logout ohne Wirkung | Nach Logout weiter „eingeloggt" | Cookie nicht gelöscht oder alte Session noch aktiv | Cookie-Flags + Server-Invalidierung prüfen |
 | 401 im BFF-Proxy | GUI zeigt Auth-Fehler trotz Login | Upstream-Token ungültig / Delegation fehlgeschlagen | BFF-Token-Refresh-/Delegationspfad prüfen |
 
@@ -59,6 +60,7 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 - Login von geschützter Route -> Callback -> Rückkehr auf Zielroute funktioniert.
 - Logout invalidiert Session sichtbar (erneuter Zugriff erfordert Login).
 - Session-Expiry wird deterministisch behandelt (kein endloses Loading/Looping).
+- Refresh-Fehlercodes (`refresh_*`, `no_refresh_token`) triggern denselben Re-Login-Recovery-Flow wie Session-Expiry.
 - Keine sensitiven Tokenwerte in UI-Logs/Devtools-Network-Payloads.
 
 ## Verweise

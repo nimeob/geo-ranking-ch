@@ -329,6 +329,27 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
       <script>
         const ANALYZE_HISTORY_ENDPOINT = __ANALYZE_HISTORY_ENDPOINT_JSON__;
         const ORG_STORAGE_KEY = "geo-ranking-ui-org-id";
+        const SESSION_RECOVERY_ERROR_CODES = new Set([
+          "no_session_cookie",
+          "session_not_found",
+          "no_access_token",
+          "no_refresh_token",
+          "refresh_grant_error",
+          "refresh_http_error",
+          "refresh_network_error",
+          "refresh_invalid_response",
+          "refresh_missing_token",
+          "token_error",
+          "unauthorized",
+        ]);
+        const SESSION_REFRESH_ERROR_CODES = new Set([
+          "no_refresh_token",
+          "refresh_grant_error",
+          "refresh_http_error",
+          "refresh_network_error",
+          "refresh_invalid_response",
+          "refresh_missing_token",
+        ]);
 
         const orgEl = document.getElementById("org-id");
         const limitEl = document.getElementById("limit");
@@ -337,6 +358,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         const clearBtn = document.getElementById("clear-btn");
         const errorEl = document.getElementById("error");
         const listEl = document.getElementById("history-list");
+        let authRecoveryRedirectScheduled = false;
 
         __BURGER_JS__
 
@@ -371,6 +393,53 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           }
           errorEl.hidden = false;
           errorEl.textContent = text;
+        }
+
+        function normalizeErrorCode(errorCode) {
+          return String(errorCode || "").trim().toLowerCase();
+        }
+
+        function isSessionRecoveryRequired(statusCode, errorCode) {
+          const normalizedStatus = Number(statusCode);
+          const normalizedCode = normalizeErrorCode(errorCode);
+          if (normalizedStatus === 401) {
+            return true;
+          }
+          return SESSION_RECOVERY_ERROR_CODES.has(normalizedCode);
+        }
+
+        function buildSessionErrorMessage(statusCode, errorCode, fallbackMessage) {
+          const normalizedStatus = Number(statusCode);
+          const normalizedCode = normalizeErrorCode(errorCode);
+          if (isSessionRecoveryRequired(normalizedStatus, normalizedCode)) {
+            if (SESSION_REFRESH_ERROR_CODES.has(normalizedCode)) {
+              return "Session konnte nicht erneuert werden — bitte erneut einloggen.";
+            }
+            return "Session ungültig oder abgelaufen — bitte erneut einloggen.";
+          }
+          if (normalizedStatus === 403) {
+            return "Zugriff verweigert — bitte Berechtigungen/Session prüfen.";
+          }
+          return String(fallbackMessage || `http_${normalizedStatus || 0}`);
+        }
+
+        function scheduleReLoginRedirect() {
+          if (authRecoveryRedirectScheduled) {
+            return;
+          }
+          authRecoveryRedirectScheduled = true;
+
+          if (typeof window === "undefined" || !window.location || !window.setTimeout) {
+            authRecoveryRedirectScheduled = false;
+            return;
+          }
+
+          const nextPath = `${window.location.pathname || "/history"}${window.location.search || ""}`;
+          const loginUrl = `/auth/login?next=${encodeURIComponent(nextPath || "/history")}`;
+          setError("Session wird neu aufgebaut — Weiterleitung zum Login…");
+          window.setTimeout(() => {
+            window.location.assign(loginUrl);
+          }, 250);
         }
 
         function persistInputs() {
@@ -459,12 +528,11 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
 
           if (!response.ok || !parsed || !parsed.ok) {
             setStatus("error");
-            if (response.status === 401) {
-              setError("Session ungültig oder abgelaufen — bitte erneut einloggen.");
-            } else if (response.status === 403) {
-              setError("Zugriff verweigert — bitte Berechtigungen/Session prüfen.");
-            } else {
-              setError((parsed && parsed.message) ? String(parsed.message) : `http_${response.status}`);
+            const errCode = parsed && parsed.error ? String(parsed.error) : `http_${response.status}`;
+            const fallbackMessage = (parsed && parsed.message) ? String(parsed.message) : `http_${response.status}`;
+            setError(buildSessionErrorMessage(response.status, errCode, fallbackMessage));
+            if (isSessionRecoveryRequired(response.status, errCode)) {
+              scheduleReLoginRedirect();
             }
             loadBtn.disabled = false;
             return;
