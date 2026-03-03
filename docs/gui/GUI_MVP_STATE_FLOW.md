@@ -22,6 +22,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Submit triggert deterministisch eine Analyze-Anfrage
 2. **Kartenpanel**
    - echte, interaktive OSM-Basemap (Tile-Render) mit deterministischem Pan/Zoom
+   - Zoom ist über Mausrad/Trackpad **und** sichtbare `+/-` Zoom-Controls verfügbar (zusätzlich Keyboard `+/-`)
    - Klick setzt Marker und startet unmittelbar dieselbe Analyze-Pipeline über Koordinateninput
    - Degraded-State bei Tile-Ausfall bleibt funktional (Analyze via `coordinates.lat/lon` weiter möglich)
    - Keyboard-Fallback (`Enter`/`Space`) triggert Center-Analyse; Pfeiltasten/+/- unterstützen Pan/Zoom für Accessibility
