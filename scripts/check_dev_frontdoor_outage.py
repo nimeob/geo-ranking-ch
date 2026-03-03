@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import ssl
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -72,6 +73,22 @@ def collect_live_snapshot(lb_name: str, region: str | None = None) -> dict[str, 
         sg_resp = _run_aws_json(["ec2", "describe-security-groups", "--group-ids", *sg_ids], region=region)
         security_groups = sg_resp.get("SecurityGroups") or []
 
+    subnet_ids = [
+        az.get("SubnetId")
+        for az in (lb.get("AvailabilityZones") or [])
+        if isinstance(az, dict) and az.get("SubnetId")
+    ]
+
+    subnets: list[dict[str, Any]] = []
+    network_acls: list[dict[str, Any]] = []
+    if subnet_ids:
+        subnet_resp = _run_aws_json(["ec2", "describe-subnets", "--subnet-ids", *subnet_ids], region=region)
+        subnets = subnet_resp.get("Subnets") or []
+
+        nacl_filter = f"Name=association.subnet-id,Values={','.join(subnet_ids)}"
+        nacl_resp = _run_aws_json(["ec2", "describe-network-acls", "--filters", nacl_filter], region=region)
+        network_acls = nacl_resp.get("NetworkAcls") or []
+
     return {
         "load_balancer": lb,
         "listeners": listeners,
@@ -79,6 +96,8 @@ def collect_live_snapshot(lb_name: str, region: str | None = None) -> dict[str, 
         "target_groups": target_groups,
         "target_health": target_health,
         "security_groups": security_groups,
+        "subnets": subnets,
+        "network_acls": network_acls,
     }
 
 
@@ -105,6 +124,72 @@ def _summarize_target_health(target_health_entries: list[dict[str, Any]]) -> dic
     return summary
 
 
+def _extract_nacl_subnet_ids(nacl: dict[str, Any]) -> list[str]:
+    subnet_ids: list[str] = []
+    for assoc in nacl.get("Associations") or []:
+        subnet_id = assoc.get("SubnetId")
+        if isinstance(subnet_id, str) and subnet_id:
+            subnet_ids.append(subnet_id)
+    return subnet_ids
+
+
+def _first_matching_nacl_rule(
+    nacl: dict[str, Any],
+    *,
+    egress: bool,
+    protocol: str,
+    port: int,
+) -> dict[str, Any] | None:
+    entries = sorted(
+        [entry for entry in (nacl.get("Entries") or []) if bool(entry.get("Egress")) == egress],
+        key=lambda item: int(item.get("RuleNumber") or 32767),
+    )
+
+    for entry in entries:
+        entry_protocol = str(entry.get("Protocol") or "")
+        if entry_protocol not in ("-1", protocol):
+            continue
+
+        cidr = entry.get("CidrBlock") or entry.get("Ipv6CidrBlock") or ""
+        if cidr not in ("0.0.0.0/0", "::/0"):
+            continue
+
+        if entry_protocol == "-1":
+            return entry
+
+        port_range = entry.get("PortRange") or {}
+        from_port = int(port_range.get("From") or -1)
+        to_port = int(port_range.get("To") or -1)
+        if from_port <= port <= to_port:
+            return entry
+
+    return None
+
+
+def _is_nacl_allow(
+    nacl: dict[str, Any],
+    *,
+    egress: bool,
+    protocol: str,
+    port: int,
+) -> bool | None:
+    match = _first_matching_nacl_rule(nacl, egress=egress, protocol=protocol, port=port)
+    if not match:
+        return None
+    return bool(match.get("RuleAction") == "allow")
+
+
+def _summarize_network_acl(nacl: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "nacl_id": nacl.get("NetworkAclId"),
+        "subnet_ids": _extract_nacl_subnet_ids(nacl),
+        "ingress_tcp_80": _is_nacl_allow(nacl, egress=False, protocol="6", port=80),
+        "ingress_tcp_443": _is_nacl_allow(nacl, egress=False, protocol="6", port=443),
+        "egress_tcp_443": _is_nacl_allow(nacl, egress=True, protocol="6", port=443),
+        "egress_tcp_32768": _is_nacl_allow(nacl, egress=True, protocol="6", port=32768),
+    }
+
+
 def analyze_snapshot(snapshot: dict[str, Any], expected_hosts: list[str]) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
 
@@ -113,6 +198,7 @@ def analyze_snapshot(snapshot: dict[str, Any], expected_hosts: list[str]) -> dic
     target_groups = snapshot.get("target_groups") or []
     target_health = snapshot.get("target_health") or {}
     security_groups = snapshot.get("security_groups") or []
+    network_acls = snapshot.get("network_acls") or []
 
     listeners_by_port: dict[int, list[dict[str, Any]]] = {}
     for listener in listeners:
@@ -246,6 +332,34 @@ def analyze_snapshot(snapshot: dict[str, Any], expected_hosts: list[str]) -> dic
             }
         )
 
+    nacl_summaries = [_summarize_network_acl(nacl) for nacl in network_acls]
+    if nacl_summaries:
+        allows_443 = any(item.get("ingress_tcp_443") is True for item in nacl_summaries)
+        if not allows_443:
+            findings.append(
+                {
+                    "id": "nacl_ingress_443_not_allowed",
+                    "severity": "high",
+                    "summary": "No associated NACL allows inbound TCP/443 from public CIDR.",
+                    "evidence": {
+                        "network_acls": nacl_summaries,
+                    },
+                }
+            )
+
+        allows_ephemeral_egress = any(item.get("egress_tcp_32768") is True for item in nacl_summaries)
+        if not allows_ephemeral_egress:
+            findings.append(
+                {
+                    "id": "nacl_egress_ephemeral_not_allowed",
+                    "severity": "medium",
+                    "summary": "Associated NACLs do not expose explicit ephemeral egress allow rule (TCP/32768).",
+                    "evidence": {
+                        "network_acls": nacl_summaries,
+                    },
+                }
+            )
+
     severity_rank = {"critical": 3, "high": 2, "medium": 1, "low": 0}
     max_severity = max((severity_rank.get(item["severity"], 0) for item in findings), default=0)
     if max_severity >= 3:
@@ -269,6 +383,10 @@ def analyze_snapshot(snapshot: dict[str, Any], expected_hosts: list[str]) -> dic
         fix_plan.append(
             "Attach running ECS task IP targets to API/UI target groups, verify health checks, and ensure ECS services stay registered after deployment."
         )
+    if "nacl_ingress_443_not_allowed" in finding_ids or "nacl_egress_ephemeral_not_allowed" in finding_ids:
+        fix_plan.append(
+            "Validate associated subnet NACLs for ALB-facing subnets and ensure required ingress/egress rules for HTTPS + return traffic are present."
+        )
 
     return {
         "overall": overall,
@@ -279,19 +397,34 @@ def analyze_snapshot(snapshot: dict[str, Any], expected_hosts: list[str]) -> dic
             "host_rules": sorted(host_rules.keys()),
             "target_group_count": len(target_groups),
             "target_group_health": tg_summaries,
+            "network_acls": nacl_summaries,
         },
     }
 
 
-def _probe_once(url: str, timeout_seconds: float) -> dict[str, Any]:
+def _probe_once(
+    url: str,
+    timeout_seconds: float,
+    *,
+    host_header: str | None = None,
+    insecure_tls: bool = False,
+) -> dict[str, Any]:
     req = request.Request(url=url, method="GET")
+    if host_header:
+        req.add_header("Host", host_header)
+
+    context = None
+    if insecure_tls and url.startswith("https://"):
+        context = ssl._create_unverified_context()  # noqa: SLF001
+
     try:
-        with request.urlopen(req, timeout=timeout_seconds) as resp:
+        with request.urlopen(req, timeout=timeout_seconds, context=context) as resp:
             return {
                 "url": url,
                 "status": int(resp.status),
                 "ok": 200 <= int(resp.status) < 400,
                 "error": None,
+                "host_header": host_header,
             }
     except error.HTTPError as exc:
         return {
@@ -299,6 +432,7 @@ def _probe_once(url: str, timeout_seconds: float) -> dict[str, Any]:
             "status": int(exc.code),
             "ok": False,
             "error": f"http_error:{exc.code}",
+            "host_header": host_header,
         }
     except Exception as exc:  # noqa: BLE001
         return {
@@ -306,6 +440,7 @@ def _probe_once(url: str, timeout_seconds: float) -> dict[str, Any]:
             "status": None,
             "ok": False,
             "error": f"request_failed:{exc}",
+            "host_header": host_header,
         }
 
 
@@ -315,6 +450,36 @@ def collect_external_probes(expected_hosts: list[str], timeout_seconds: float) -
         path = "/health" if host.startswith("api.") else "/"
         probes.append(_probe_once(f"https://{host}{path}", timeout_seconds))
         probes.append(_probe_once(f"http://{host}{path}", timeout_seconds))
+    return probes
+
+
+def collect_direct_alb_probes(
+    lb_dns_name: str,
+    expected_hosts: list[str],
+    timeout_seconds: float,
+) -> list[dict[str, Any]]:
+    probes: list[dict[str, Any]] = []
+    if not lb_dns_name:
+        return probes
+
+    for host in expected_hosts:
+        path = "/health" if host.startswith("api.") else "/"
+        probes.append(
+            _probe_once(
+                f"http://{lb_dns_name}{path}",
+                timeout_seconds,
+                host_header=host,
+                insecure_tls=False,
+            )
+        )
+        probes.append(
+            _probe_once(
+                f"https://{lb_dns_name}{path}",
+                timeout_seconds,
+                host_header=host,
+                insecure_tls=True,
+            )
+        )
     return probes
 
 
@@ -351,7 +516,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--skip-probes",
         action="store_true",
-        help="Skip external HTTP/HTTPS probes.",
+        help="Skip external and ALB-direct HTTP/HTTPS probes.",
     )
 
     args = parser.parse_args(argv)
@@ -374,7 +539,17 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     analysis = analyze_snapshot(snapshot=snapshot, expected_hosts=expected_hosts)
-    probes = [] if args.skip_probes else collect_external_probes(expected_hosts, timeout_seconds=args.timeout_seconds)
+    if args.skip_probes:
+        probes = []
+        direct_alb_probes = []
+    else:
+        probes = collect_external_probes(expected_hosts, timeout_seconds=args.timeout_seconds)
+        lb_dns_name = ((snapshot.get("load_balancer") or {}).get("DNSName") or "").strip()
+        direct_alb_probes = collect_direct_alb_probes(
+            lb_dns_name=lb_dns_name,
+            expected_hosts=expected_hosts,
+            timeout_seconds=args.timeout_seconds,
+        )
 
     payload = {
         "generated_at": _utc_now(),
@@ -385,6 +560,7 @@ def main(argv: list[str] | None = None) -> int:
             "snapshot_source": snapshot_source,
         },
         "external_probes": probes,
+        "direct_alb_probes": direct_alb_probes,
         "analysis": analysis,
         "snapshot": snapshot,
     }

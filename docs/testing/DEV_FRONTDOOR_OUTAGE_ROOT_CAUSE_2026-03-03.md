@@ -1,4 +1,4 @@
-# Dev Frontdoor Outage Root-Cause (Issue #911)
+# Dev Frontdoor Outage Root-Cause (Issue #908)
 
 ## Scope
 Forensische Ist-Aufnahme für den DNS-Cutover-Ausfall aus #907 (HTTPS Timeout / HTTP 503) auf dem neuen ALB `swisstopo-dev-vpc-alb`.
@@ -9,11 +9,18 @@ Forensische Ist-Aufnahme für den DNS-Cutover-Ausfall aus #907 (HTTPS Timeout / 
 python3 scripts/check_dev_frontdoor_outage.py \
   --lb-name swisstopo-dev-vpc-alb \
   --region eu-central-1 \
-  --output-json reports/evidence/issue-911-frontdoor-outage-audit-2026-03-03.json
+  --output-json reports/evidence/issue-908-frontdoor-outage-audit-2026-03-03.json
 ```
 
 Artefakt:
-- `reports/evidence/issue-911-frontdoor-outage-audit-2026-03-03.json`
+- `reports/evidence/issue-908-frontdoor-outage-audit-2026-03-03.json`
+
+Der Audit enthält jetzt:
+- ALB Listener/Rules/Target-Health
+- zugehörige Security Groups
+- zugehörige Subnetze + Network ACLs (Ingress/Egress-Heuristik)
+- externe Host-Probes (DNS-basiert)
+- ALB-direkte Probes mit Host-Header (routing-intern, DNS-unabhängig)
 
 ## Befund (konkrete AWS-Ressourcen)
 
@@ -39,22 +46,29 @@ Artefakt:
    - Ist-Zustand: nur API-TG, kein separater UI-TG im ALB
    - Auswirkung: UI-Hostpfad ist strukturell unvollständig
 
-## Externe Probe-Evidenz
+5. **SG/NACL-Sicht für Ingress/Backend-Pfade dokumentiert**
+   - SG-Layer: TCP/443-Ingress-Check enthalten
+   - NACL-Layer: zugehörige ACL-Entries pro ALB-Subnetz im Report enthalten
+   - Ergebnis ist im Artefakt unter `analysis.derived.network_acls` nachvollziehbar
+
+## Probe-Evidenz
 
 Aus dem JSON-Report:
-- HTTPS:
+- Extern (DNS):
   - `https://api.dev.georanking.ch/health` → Timeout
   - `https://api.dev.geo-ranking.ch/health` → Timeout
   - `https://www.dev.georanking.ch/` → Timeout
   - `https://www.dev.geo-ranking.ch/` → Timeout
-- HTTP:
-  - alle vier Hosts → `503`
+  - HTTP auf allen vier Hosts → `503`
+- ALB-direkt (Host-Header auf ALB-DNS):
+  - zeigt denselben fehlenden Frontdoor-Pfad unabhängig vom DNS-Cutover
 
 ## Minimaler Fix-Plan für #912
 
 1. HTTPS-Listener `:443` auf `swisstopo-dev-vpc-alb` anlegen und ACM-Zertifikat mit SANs für alle 4 Hostnamen binden.
 2. Host-Header-Rules für API/UI auf beiden Domains anlegen (`api.*` → API-TG, `www.*` → UI-TG).
 3. Laufende ECS-Targets an API/UI-TGs registrieren (inkl. stabiler Service-Attachments) und Health-Checks verifizieren.
+4. Nach dem Fix extern + ALB-direkt erneut prüfen (gleiches Script), um DNS und Frontdoor getrennt zu validieren.
 
 ## Ergebnis
-Issue #911 liefert reproduzierbare Root-Cause-Evidence + konkreten, direkt umsetzbaren Fix-Plan für das nächste Leaf-Work-Package #912.
+Issue #908 liefert reproduzierbare Root-Cause-Evidence + konkreten, direkt umsetzbaren Fix-Plan für das nächste Leaf-Work-Package #912.
