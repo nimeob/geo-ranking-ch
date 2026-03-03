@@ -79,6 +79,10 @@ Secure               (HTTPS only; override with BFF_SESSION_SECURE_COOKIE=0 for 
 ```
 
 The `__Host-` prefix enforces `Secure` + `Path=/` at the browser level (additional protection).
+Runtime guardrails:
+- Session-ID values are validated against a strict token charset before writing/reading cookies.
+- Invalid cookie names fall back to `__Host-session`.
+- If `Secure` is disabled for local HTTP dev, `__Host-*` names auto-downgrade to `bff-session` to prevent browser-side cookie rejection.
 
 ---
 
@@ -152,9 +156,9 @@ All BFF env vars are optional by default (BFF OIDC is disabled when `BFF_OIDC_IS
 | `BFF_OIDC_TOKEN_ENDPOINT` | No | `{ISSUER}/oauth2/token` | Token endpoint override. Default: `{BFF_OIDC_ISSUER}/oauth2/token`. |
 | `BFF_OIDC_LOGOUT_ENDPOINT` | No | `{ISSUER}/logout` | Logout endpoint override. Default: `{BFF_OIDC_ISSUER}/logout`. |
 | `BFF_OIDC_NEXT_PARAM_ALLOW_SAME_ORIGIN` | No | `1` | Allow `?next=<path>` redirect after login. Set `0` to disable. Default: `1`. |
-| `BFF_SESSION_COOKIE_NAME` | No | `__Host-session` | Session cookie name. Default: `__Host-session` (requires Secure + Path=/). |
+| `BFF_SESSION_COOKIE_NAME` | No | `__Host-session` | Session cookie name. Default: `__Host-session` (requires Secure + Path=/). Invalid names are rejected and fall back to default. |
 | `BFF_SESSION_TTL_SECONDS` | No | `3600` | Session lifetime in seconds. Default: 3600 (1 hour). |
-| `BFF_SESSION_SECURE_COOKIE` | No | `1` | Set `0` to disable `Secure` flag (local dev only). Default: `1`. |
+| `BFF_SESSION_SECURE_COOKIE` | No | `1` | Set `0` to disable `Secure` flag (local dev only). If cookie name uses `__Host-`, runtime auto-downgrades to `bff-session` to avoid invalid host-prefix cookies over HTTP. |
 | `BFF_PORTAL_API_BASE_URL` | Yes (for proxy) | `http://localhost:8080` | Base URL of the internal API for portal proxy forwarding. |
 | `BFF_CSRF_HEADER_NAME` | No | `X-BFF-CSRF` | Custom CSRF header name. Default: `X-BFF-CSRF`. |
 | `BFF_CSRF_HEADER_VALUE` | No | `1` | Expected CSRF header value. Default: `1`. |
