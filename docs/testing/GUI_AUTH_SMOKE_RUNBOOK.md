@@ -174,3 +174,11 @@ Für Deployment-spezifische Details siehe:
 - [ ] PASS
 - [ ] FAIL (Grund + Rollback)
 ```
+
+---
+
+## 8) Verwandte Doku
+
+- BFF Session-Flow: [`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](../gui/GUI_AUTH_BFF_SESSION_FLOW.md)
+- AC-Matrix zu #978: [`docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md`](../gui/GUI_AUTH_MVP_AC_MATRIX_978.md)
+

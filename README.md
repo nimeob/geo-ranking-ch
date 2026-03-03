@@ -308,6 +308,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/testing/dev-self-signed-tls-smoke.md](docs/testing/dev-self-signed-tls-smoke.md) | Dev-Runbook für self-signed TLS + verifizierten HTTPS-Smoke ohne globales `-k` |
 | [docs/VISION_PRODUCT.md](docs/VISION_PRODUCT.md) | Produktvision: API + GUI für Standort-/Gebäude-Intelligence CH |
 | [docs/gui/GUI_MVP_STATE_FLOW.md](docs/gui/GUI_MVP_STATE_FLOW.md) | GUI-MVP Shell: Adresse/Kartenklick, Zustandsautomat, Kernfaktoren-Panel und Forward-Compatibility (BL-20.6) |
+| [docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md](docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md) | AC-Matrix für GUI-Auth-MVP (#978): Nachweise für Login/Session/Cookie/History inkl. reproduzierbarem Verify-Run (#995) |
 | [docs/DATA_SOURCE_FIELD_MAPPING_CH.md](docs/DATA_SOURCE_FIELD_MAPPING_CH.md) | Technisches Feld-Mapping Quelle -> Domain inkl. Transform-Regeln und Follow-up-Gaps (BL-20.2.b) |
 | [docs/api/contract-v1.md](docs/api/contract-v1.md) | Versionierter API-Vertrag v1 für BL-20 (`/api/v1`, Schemas, Fehlercodes, Beispielpayloads) |
 | [docs/api/field-reference-v1.md](docs/api/field-reference-v1.md) | Menschenlesbare Feldreferenz für `legacy` + `grouped` (Semantik, Typ, Pflicht/Optionalität, Modus-Abhängigkeiten) (BL-20.1.d.wp2) |
@@ -329,7 +330,7 @@ Das BFF-Modul (`src/api/bff_*.py`) implementiert sicheren Web-Login für das Por
 - **CSRF-Schutz:** `X-BFF-CSRF: 1` Custom-Header-Check für alle State-ändernden Anfragen
 - **Logout:** Session invalidieren + Cookie löschen + (optional) Cognito-Redirect
 
-Dokumentation: [`docs/BFF_FLOW.md`](docs/BFF_FLOW.md)
+Dokumentation: [`docs/BFF_FLOW.md`](docs/BFF_FLOW.md), [`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md), [`docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md`](docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md)
 
 ---
 

@@ -86,12 +86,13 @@ Erwartung:
 
 Konkreter Test-/Output-Nachweis: [`reports/evidence/issue-947-gui-auth-e2e-cookie-evidence-20260303T171208Z.md`](../../reports/evidence/issue-947-gui-auth-e2e-cookie-evidence-20260303T171208Z.md)
 
-## Parent-Acceptance-Referenz (#939)
+## Parent-Acceptance-Referenz (#939 / #978)
 
-Dieses Work-Package deckt den E2E-/Security-Dokumentationsanteil von #939 ab:
+Dieses Work-Package deckt den E2E-/Security-Dokumentationsanteil von #939 ab; die aktualisierte AC-Reconciliation für #978 ist separat dokumentiert.
 
 - Parent-AC "Kurzer E2E-Nachweis in dev dokumentiert" -> erfüllt über obigen Dev-E2E-Nachweis + Evidence-Artefakt.
 - Parent-AC "Session-Cookie ist `HttpOnly`, `Secure`, `SameSite` konfiguriert" -> erfüllt über Cookie-Attribut-Matrix + Regressionstests.
+- AC-Matrix #978 (vollständiger Snapshot inkl. Verify-Run): [`docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md`](./GUI_AUTH_MVP_AC_MATRIX_978.md)
 
 ## Verweise
 
