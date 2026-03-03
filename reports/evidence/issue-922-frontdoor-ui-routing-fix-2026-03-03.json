@@ -1,0 +1,172 @@
+{
+  "issue": 922,
+  "generated_at": "2026-03-03T12:35:17Z",
+  "resources": {
+    "load_balancer_arn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:loadbalancer/app/swisstopo-dev-vpc-alb/170e7b30dbb9cd7f",
+    "api_target_group_arn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b",
+    "ui_target_group_arn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-ui-tg/09526eca88a64a9c"
+  },
+  "changes": [
+    "Created UI target group swisstopo-dev-vpc-ui-tg in dev VPC with /healthz check.",
+    "Added host-header listener rules (ports 80+443): api.* -> swisstopo-dev-vpc-api-tg, www.* -> swisstopo-dev-vpc-ui-tg.",
+    "Updated ECS service swisstopo-dev-ui to register on swisstopo-dev-vpc-ui-tg and run in dev private subnets with assignPublicIp=DISABLED."
+  ],
+  "evidence": {
+    "precheck": "reports/evidence/issue-922-frontdoor-routing-precheck-20260303T122759Z.json",
+    "postcheck": "reports/evidence/issue-922-frontdoor-routing-postcheck-20260303T123442Z.json",
+    "ui_service": {
+      "desiredCount": 1,
+      "runningCount": 1,
+      "networkConfiguration": {
+        "awsvpcConfiguration": {
+          "subnets": [
+            "subnet-04d5ddec3c5b06d7a",
+            "subnet-0cd8553a1fedbf183"
+          ],
+          "securityGroups": [
+            "sg-02d1c720c9b0adc7b"
+          ],
+          "assignPublicIp": "DISABLED"
+        }
+      },
+      "loadBalancers": [
+        {
+          "targetGroupArn": "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-ui-tg/09526eca88a64a9c",
+          "containerName": "swisstopo-dev-ui",
+          "containerPort": 8080
+        }
+      ],
+      "taskDefinition": "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-ui:84"
+    },
+    "ui_target_health": {
+      "TargetHealthDescriptions": [
+        {
+          "Target": {
+            "Id": "10.80.11.203",
+            "Port": 8080,
+            "AvailabilityZone": "eu-central-1b"
+          },
+          "HealthCheckPort": "8080",
+          "TargetHealth": {
+            "State": "healthy"
+          },
+          "AdministrativeOverride": {
+            "State": "no_override",
+            "Reason": "AdministrativeOverride.NoOverride",
+            "Description": "No override is currently active on target"
+          }
+        }
+      ]
+    },
+    "listener_rules_by_port": {
+      "443": [
+        {
+          "priority": "10",
+          "hosts": [
+            "api.dev.georanking.ch",
+            "api.dev.geo-ranking.ch"
+          ],
+          "actions": [
+            "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b"
+          ]
+        },
+        {
+          "priority": "20",
+          "hosts": [
+            "www.dev.georanking.ch",
+            "www.dev.geo-ranking.ch"
+          ],
+          "actions": [
+            "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-ui-tg/09526eca88a64a9c"
+          ]
+        },
+        {
+          "priority": "default",
+          "hosts": [],
+          "actions": [
+            "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b"
+          ]
+        }
+      ],
+      "80": [
+        {
+          "priority": "10",
+          "hosts": [
+            "api.dev.georanking.ch",
+            "api.dev.geo-ranking.ch"
+          ],
+          "actions": [
+            "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b"
+          ]
+        },
+        {
+          "priority": "20",
+          "hosts": [
+            "www.dev.georanking.ch",
+            "www.dev.geo-ranking.ch"
+          ],
+          "actions": [
+            "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-ui-tg/09526eca88a64a9c"
+          ]
+        },
+        {
+          "priority": "default",
+          "hosts": [],
+          "actions": [
+            "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b"
+          ]
+        }
+      ]
+    },
+    "external_probes": [
+      {
+        "url": "https://api.dev.georanking.ch/health",
+        "http_code": "200",
+        "curl_exit": 0,
+        "ok": true
+      },
+      {
+        "url": "http://api.dev.georanking.ch/health",
+        "http_code": "200",
+        "curl_exit": 0,
+        "ok": true
+      },
+      {
+        "url": "https://api.dev.geo-ranking.ch/health",
+        "http_code": "200",
+        "curl_exit": 0,
+        "ok": true
+      },
+      {
+        "url": "http://api.dev.geo-ranking.ch/health",
+        "http_code": "200",
+        "curl_exit": 0,
+        "ok": true
+      },
+      {
+        "url": "https://www.dev.georanking.ch/",
+        "http_code": "200",
+        "curl_exit": 0,
+        "ok": true
+      },
+      {
+        "url": "http://www.dev.georanking.ch/",
+        "http_code": "200",
+        "curl_exit": 0,
+        "ok": true
+      },
+      {
+        "url": "https://www.dev.geo-ranking.ch/",
+        "http_code": "200",
+        "curl_exit": 0,
+        "ok": true
+      },
+      {
+        "url": "http://www.dev.geo-ranking.ch/",
+        "http_code": "200",
+        "curl_exit": 0,
+        "ok": true
+      }
+    ]
+  }
+}
