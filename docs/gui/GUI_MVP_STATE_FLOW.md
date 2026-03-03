@@ -14,6 +14,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - korrelierbares UI-Structured-Logging (`ui.state.transition`, `ui.api.request.start/end`) inkl. `X-Request-Id`/`X-Session-Id` für UI↔API-Tracing
 - sichtbare Kernfaktoren (Top-Faktoren aus Explainability) und rohe JSON-Antwort
 - Trace-Debug-Panel mit Deep-Link-Unterstützung (`/gui?view=trace&request_id=<id>`) und Timeline-Lookup via `GET /debug/trace`
+- Kanonischer GUI-Auth-Flow für BFF-Session-Betrieb dokumentiert unter [`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](./GUI_AUTH_BFF_SESSION_FLOW.md)
 
 ## Struktur
 
