@@ -3,6 +3,13 @@
 Konsolidierung aus BL-31, BL-335, BL-337, BL-340 spezifischen Testing-Docs.  
 Neue, nicht BL-spezifische Test-Runbooks gehören direkt in die Subdirectory-Dateien oder `docs/testing/`.
 
+## Allgemein — Test-Tier-Matrix (PR / Deploy / Nightly)
+
+*Quelle: `DEPLOY_TEST_TIERS.md`*
+
+- Verbindliche Zuordnung der Gate-Tiers (`PR`, `Deploy`, `Nightly`) inkl. Blocking-Status, Entrypoints und Verantwortlichkeiten.
+- Referenz: [`DEPLOY_TEST_TIERS.md`](DEPLOY_TEST_TIERS.md)
+
 ---
 
 ## BL-31.6.a — UI-Artefaktpfad + Task-Revision (dev)
