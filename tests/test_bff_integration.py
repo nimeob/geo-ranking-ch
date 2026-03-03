@@ -365,6 +365,74 @@ class TestPortalProxyIntegration:
         assert result.http_status == 200
         assert result.error == ""
 
+    def test_proxy_get_analyze_history_with_logged_in_session(self, oidc_config, store):
+        _, cookie = self._do_login(oidc_config, store, access_token="AT-history")
+
+        captured: dict[str, str] = {}
+
+        def _urlopen(req, timeout=None):
+            captured["url"] = str(req.full_url)
+            captured["authorization"] = str(req.get_header("Authorization") or "")
+            return MagicMock(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                read=lambda: b'{"history": []}',
+                __enter__=lambda self: self,
+                __exit__=MagicMock(return_value=False),
+            )
+
+        result = handle_portal_proxy(
+            store,
+            cookie,
+            "GET",
+            "/portal/api/analyze/history",
+            _portal_api_base_override=_PORTAL_API_BASE,
+            _urlopen_fn=_urlopen,
+        )
+        assert result.http_status == 200
+        assert result.error == ""
+        assert captured.get("url") == "http://api.internal:8080/portal/api/analyze/history"
+        assert captured.get("authorization") == "Bearer AT-history"
+
+    def test_proxy_post_analyze_with_logged_in_session_and_csrf(self, oidc_config, store):
+        _, cookie = self._do_login(oidc_config, store, access_token="AT-analyze")
+
+        captured: dict[str, Any] = {}
+
+        def _urlopen(req, timeout=None):
+            captured["url"] = str(req.full_url)
+            captured["authorization"] = str(req.get_header("Authorization") or "")
+            header_map = {k.lower(): v for k, v in req.header_items()}
+            captured["content_type"] = str(header_map.get("content-type") or "")
+            captured["body"] = (req.data or b"").decode("utf-8")
+            return MagicMock(
+                status=200,
+                headers={"Content-Type": "application/json"},
+                read=lambda: b'{"ok": true, "job_id": "job-1"}',
+                __enter__=lambda self: self,
+                __exit__=MagicMock(return_value=False),
+            )
+
+        result = handle_portal_proxy(
+            store,
+            cookie,
+            "POST",
+            "/portal/api/analyze",
+            request_headers={
+                "X-BFF-CSRF": "1",
+                "Content-Type": "application/json",
+            },
+            request_body=b'{"query":"Bahnhofstrasse 1, 8001 Zuerich"}',
+            _portal_api_base_override=_PORTAL_API_BASE,
+            _urlopen_fn=_urlopen,
+        )
+        assert result.http_status == 200
+        assert result.error == ""
+        assert captured.get("url") == "http://api.internal:8080/portal/api/analyze"
+        assert captured.get("authorization") == "Bearer AT-analyze"
+        assert captured.get("content_type") == "application/json"
+        assert '"query":"Bahnhofstrasse 1, 8001 Zuerich"' in str(captured.get("body", ""))
+
     def test_proxy_without_login_returns_401(self, store):
         result = handle_portal_proxy(
             store,

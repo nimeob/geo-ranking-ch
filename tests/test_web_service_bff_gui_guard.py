@@ -22,8 +22,14 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _http_get(url: str, *, timeout: float = 10.0, follow_redirects: bool = True):
-    req = request.Request(url, method="GET")
+def _http_get(
+    url: str,
+    *,
+    timeout: float = 10.0,
+    follow_redirects: bool = True,
+    headers: dict[str, str] | None = None,
+):
+    req = request.Request(url, method="GET", headers=headers or {})
     opener = request.build_opener() if follow_redirects else request.build_opener(_NoRedirect())
     try:
         with opener.open(req, timeout=timeout) as resp:
@@ -103,6 +109,24 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
             headers.get("location"),
             "/auth/login?next=%2Fhistory%3Flimit%3D5",
         )
+
+    def test_gui_redirects_to_login_when_session_cookie_is_invalid(self):
+        status, _, headers = _http_get(
+            f"{self.base_url}/gui",
+            follow_redirects=False,
+            headers={"Cookie": "__Host-session=missing-session-id"},
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
+
+    def test_history_redirects_to_login_when_session_cookie_is_invalid(self):
+        status, _, headers = _http_get(
+            f"{self.base_url}/history?limit=5",
+            follow_redirects=False,
+            headers={"Cookie": "__Host-session=missing-session-id"},
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fhistory%3Flimit%3D5")
 
     def test_logout_endpoint_clears_cookie_and_redirects_to_idp(self):
         status, _, headers = _http_get(f"{self.base_url}/auth/logout", follow_redirects=False)
