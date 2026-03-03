@@ -1,0 +1,105 @@
+{
+  "issue": 981,
+  "parentIssue": 975,
+  "startedAtUtc": "2026-03-03T18:18:05.550Z",
+  "finishedAtUtc": "2026-03-03T18:18:12.507Z",
+  "targetUrl": "http://127.0.0.1:8877/gui",
+  "limitations": [
+    "Native Playwright WebKit (Safari engine) konnte auf diesem Runner wegen fehlender System-Libraries nicht gestartet werden; iOS-Check daher als iPhone-Profil-Simulator auf Chromium durchgeführt."
+  ],
+  "checks": [
+    {
+      "device": "iOS Safari Simulator (Playwright iPhone 13 profile on Chromium)",
+      "key": "ios-simulator",
+      "checks": {
+        "pinchZoom": {
+          "before": {
+            "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+            "zoom": 8
+          },
+          "after": {
+            "text": "Zoom 10 · Zentrum 46.815381, 8.232135",
+            "zoom": 10
+          },
+          "passed": true
+        },
+        "panRegression": {
+          "before": {
+            "text": "Zoom 10 · Zentrum 46.815381, 8.232135",
+            "zoom": 10
+          },
+          "after": {
+            "text": "Zoom 10 · Zentrum 46.852960, 8.108539",
+            "zoom": 10
+          },
+          "passed": true
+        },
+        "markerRegression": {
+          "markerVisible": true,
+          "passed": true
+        },
+        "geolocationSuccess": {
+          "markerVisible": true,
+          "statusText": "",
+          "locationMeta": "Geräteposition: 47.376900, 8.541700 (±22 m)",
+          "passed": true
+        },
+        "geolocationDenied": {
+          "statusText": "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.",
+          "locationMeta": "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.",
+          "passed": true
+        }
+      },
+      "artifacts": {
+        "screenshot": "reports/evidence/issue-981-ios-simulator-20260303T181805Z.png"
+      }
+    },
+    {
+      "device": "Android Chrome Simulator (Playwright Pixel-like mobile profile on Chromium)",
+      "key": "android-chrome",
+      "checks": {
+        "pinchZoom": {
+          "before": {
+            "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+            "zoom": 8
+          },
+          "after": {
+            "text": "Zoom 10 · Zentrum 46.815381, 8.232135",
+            "zoom": 10
+          },
+          "passed": true
+        },
+        "panRegression": {
+          "before": {
+            "text": "Zoom 10 · Zentrum 46.815381, 8.232135",
+            "zoom": 10
+          },
+          "after": {
+            "text": "Zoom 10 · Zentrum 46.852960, 8.108539",
+            "zoom": 10
+          },
+          "passed": true
+        },
+        "markerRegression": {
+          "markerVisible": true,
+          "passed": true
+        },
+        "geolocationSuccess": {
+          "markerVisible": true,
+          "statusText": "",
+          "locationMeta": "Geräteposition: 46.948000, 7.447400 (±18 m)",
+          "passed": true
+        },
+        "geolocationDenied": {
+          "statusText": "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.",
+          "locationMeta": "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.",
+          "passed": true
+        }
+      },
+      "artifacts": {
+        "screenshot": "reports/evidence/issue-981-android-chrome-20260303T181805Z.png"
+      }
+    }
+  ],
+  "ok": true
+}

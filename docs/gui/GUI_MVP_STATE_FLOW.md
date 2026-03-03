@@ -141,3 +141,4 @@ Die GUI bleibt bewusst **API-first**: keine UI-exklusive Fachlogik, alle fachlic
 Spezifische BL-30.6-Referenzen:
 - API-Contract (wp1): [`docs/api/mobile-live-geolocation-contract-v1.md`](../api/mobile-live-geolocation-contract-v1.md)
 - Mobile State-/Interaction-Contract (wp2): [`docs/gui/MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md`](./MOBILE_GEOLOCATION_STATE_INTERACTION_V1.md)
+- Mobile E2E-Smoke-Protokoll (wp3, #981): [`docs/testing/GUI_MOBILE_MAP_E2E_SMOKE.md`](../testing/GUI_MOBILE_MAP_E2E_SMOKE.md)
