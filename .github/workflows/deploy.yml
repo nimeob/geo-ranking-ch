@@ -536,6 +536,99 @@ jobs:
             exit 1
           fi
 
+      - name: Deploy gate: API /health + GUI /gui readiness (max 90s)
+        env:
+          SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
+          SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+          DEPLOY_GATE_MAX_WAIT_SECONDS: ${{ vars.DEPLOY_GATE_MAX_WAIT_SECONDS }}
+          DEPLOY_GATE_RETRY_DELAY_SECONDS: ${{ vars.DEPLOY_GATE_RETRY_DELAY_SECONDS }}
+        run: |
+          set -euo pipefail
+
+          API_HEALTH_URL="${SERVICE_HEALTH_URL:-}"
+          if [ -z "${API_HEALTH_URL}" ] && [ -n "${SERVICE_API_BASE_URL:-}" ]; then
+            API_HEALTH_URL="${SERVICE_API_BASE_URL%/}/health"
+          fi
+          if [ -z "${API_HEALTH_URL}" ]; then
+            echo "::error::Missing SERVICE_HEALTH_URL or SERVICE_API_BASE_URL for deploy gate"
+            exit 1
+          fi
+          if [ -z "${SERVICE_APP_BASE_URL:-}" ]; then
+            echo "::error::Missing SERVICE_APP_BASE_URL for deploy gate"
+            exit 1
+          fi
+
+          GUI_READY_URL="${SERVICE_APP_BASE_URL%/}/gui"
+          MAX_WAIT_SECONDS="${DEPLOY_GATE_MAX_WAIT_SECONDS:-90}"
+          RETRY_DELAY_SECONDS="${DEPLOY_GATE_RETRY_DELAY_SECONDS:-5}"
+          if ! [[ "$MAX_WAIT_SECONDS" =~ ^[0-9]+$ ]] || [ "$MAX_WAIT_SECONDS" -lt 1 ]; then
+            echo "::error::DEPLOY_GATE_MAX_WAIT_SECONDS must be an integer >= 1 (got '$MAX_WAIT_SECONDS')."
+            exit 1
+          fi
+          if ! [[ "$RETRY_DELAY_SECONDS" =~ ^[0-9]+$ ]] || [ "$RETRY_DELAY_SECONDS" -lt 1 ]; then
+            echo "::error::DEPLOY_GATE_RETRY_DELAY_SECONDS must be an integer >= 1 (got '$RETRY_DELAY_SECONDS')."
+            exit 1
+          fi
+
+          START_TS="$(date +%s)"
+          DEADLINE_TS=$((START_TS + MAX_WAIT_SECONDS))
+          ATTEMPT=1
+          LAST_API_HTTP="000"
+          LAST_GUI_HTTP="000"
+          LAST_API_EXIT=0
+          LAST_GUI_EXIT=0
+
+          while :; do
+            set +e
+            LAST_API_HTTP=$(curl -sS -L \
+              --max-time 10 \
+              --retry 1 \
+              --retry-delay 2 \
+              --retry-connrefused \
+              -o /tmp/deploy-gate-api-response.txt \
+              -w "%{http_code}" \
+              "${API_HEALTH_URL}")
+            LAST_API_EXIT=$?
+            set -e
+            LAST_API_HTTP="${LAST_API_HTTP:-000}"
+
+            set +e
+            LAST_GUI_HTTP=$(curl -sS -L \
+              --max-time 10 \
+              --retry 1 \
+              --retry-delay 2 \
+              --retry-connrefused \
+              -o /tmp/deploy-gate-gui-response.txt \
+              -w "%{http_code}" \
+              "${GUI_READY_URL}")
+            LAST_GUI_EXIT=$?
+            set -e
+            LAST_GUI_HTTP="${LAST_GUI_HTTP:-000}"
+
+            NOW_TS="$(date +%s)"
+            ELAPSED_SECONDS=$((NOW_TS - START_TS))
+            echo "deploy-gate status attempt=${ATTEMPT} elapsed_seconds=${ELAPSED_SECONDS} check=api-health url=${API_HEALTH_URL} http=${LAST_API_HTTP} curl_exit=${LAST_API_EXIT}"
+            echo "deploy-gate status attempt=${ATTEMPT} elapsed_seconds=${ELAPSED_SECONDS} check=gui-readiness url=${GUI_READY_URL} http=${LAST_GUI_HTTP} curl_exit=${LAST_GUI_EXIT}"
+
+            if [ "$LAST_API_EXIT" -eq 0 ] && [ "$LAST_API_HTTP" = "200" ] && [ "$LAST_GUI_EXIT" -eq 0 ] && [ "$LAST_GUI_HTTP" = "200" ]; then
+              echo "deploy-gate success: API + GUI readiness checks are green"
+              break
+            fi
+
+            if [ "$NOW_TS" -ge "$DEADLINE_TS" ]; then
+              echo "::error::Deploy gate timed out after ${MAX_WAIT_SECONDS}s"
+              echo "::error::Final API status: ${API_HEALTH_URL} -> curl_exit=${LAST_API_EXIT}, http=${LAST_API_HTTP}"
+              echo "::error::Final GUI status: ${GUI_READY_URL} -> curl_exit=${LAST_GUI_EXIT}, http=${LAST_GUI_HTTP}"
+              head -c 600 /tmp/deploy-gate-api-response.txt || true
+              head -c 600 /tmp/deploy-gate-gui-response.txt || true
+              exit 1
+            fi
+
+            sleep "$RETRY_DELAY_SECONDS"
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+
       - name: Optional strict split smoke (API + UI routing)
         env:
           SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
