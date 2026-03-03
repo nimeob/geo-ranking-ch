@@ -25,15 +25,10 @@ if [[ -z "${STAGING_BASE_URL_INPUT}" ]]; then
   exit 2
 fi
 
-# Default evidence artefact path (may be overridden by ASYNC_SMOKE_OUTPUT_JSON).
-if [[ -z "${ASYNC_SMOKE_OUTPUT_JSON:-}" ]]; then
-  export ASYNC_SMOKE_OUTPUT_JSON="artifacts/staging-smoke-async-jobs.json"
-fi
-
-export SERVICE_API_BASE_URL="${STAGING_BASE_URL_INPUT}"
+export STAGING_BASE_URL="${STAGING_BASE_URL_INPUT}"
 
 if [[ -n "${STAGING_API_AUTH_TOKEN_INPUT}" ]]; then
-  export SERVICE_API_AUTH_TOKEN="${STAGING_API_AUTH_TOKEN_INPUT}"
+  export STAGING_API_AUTH_TOKEN="${STAGING_API_AUTH_TOKEN_INPUT}"
 fi
 
-python3 scripts/run_async_jobs_smoketest.py
+python3 ./scripts/run_deploy_smoke.py --profile deploy --target staging --flow async
