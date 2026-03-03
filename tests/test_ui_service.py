@@ -178,6 +178,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn('type="password"', body, "Token-Input muss type=password sein")
         self.assertIn('Authorization', body, "/gui muss Authorization Header-Code enthalten")
         self.assertIn('Bearer', body, "/gui muss Bearer-Token-Code enthalten")
+        self.assertIn('Bitte Bearer-Token setzen', body, "/gui muss 401-UX-Hint enthalten")
 
     def test_history_page_has_token_input_and_sets_authorization_header(self):
         """GET /history: Token input vorhanden + JS setzt Authorization: Bearer <token> Header."""
