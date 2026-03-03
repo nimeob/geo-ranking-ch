@@ -1,0 +1,46 @@
+{
+  "issue": 889,
+  "timestamp_utc": "20260303T132134Z",
+  "nat_gateways": [
+    {
+      "id": "nat-01c348d29cf09e2f1",
+      "state": "available",
+      "subnet_id": "subnet-0e872f671de1cd4ec"
+    }
+  ],
+  "private_route_table": {
+    "id": "rtb-0a1fdbf9c13782310",
+    "default_routes": [
+      {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": "nat-01c348d29cf09e2f1",
+        "Origin": "CreateRoute",
+        "State": "active"
+      }
+    ],
+    "associations": [
+      "subnet-04d5ddec3c5b06d7a",
+      "subnet-0cd8553a1fedbf183"
+    ]
+  },
+  "ecs_service": {
+    "service": "swisstopo-dev-api",
+    "desired": 1,
+    "running": 1,
+    "assignPublicIp": "DISABLED",
+    "subnets": [
+      "subnet-04d5ddec3c5b06d7a",
+      "subnet-0cd8553a1fedbf183"
+    ],
+    "target_groups": [
+      "arn:aws:elasticloadbalancing:eu-central-1:523234426229:targetgroup/swisstopo-dev-vpc-api-tg/0cd1b00f557f3a4b"
+    ],
+    "task_definition": "arn:aws:ecs:eu-central-1:523234426229:task-definition/swisstopo-dev-api:187",
+    "rolloutState": "COMPLETED"
+  },
+  "smoke": {
+    "health_url": "https://api.dev.georanking.ch/health",
+    "health_http": 200,
+    "health_ok": true
+  }
+}
