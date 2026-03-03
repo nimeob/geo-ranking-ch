@@ -1,0 +1,36 @@
+{
+  "issue": 897,
+  "timestamp_utc": "20260303T132759Z",
+  "dns_cutover": {
+    "host": "api.dev.georanking.ch",
+    "alb_name": "swisstopo-dev-vpc-alb",
+    "alb_dns_name": "swisstopo-dev-vpc-alb-989918850.eu-central-1.elb.amazonaws.com",
+    "host_resolved_ips": [
+      "35.156.158.122",
+      "63.182.86.48"
+    ],
+    "alb_resolved_ips": [
+      "35.156.158.122",
+      "63.182.86.48"
+    ],
+    "ip_intersection": [
+      "35.156.158.122",
+      "63.182.86.48"
+    ],
+    "intersection_non_empty": true
+  },
+  "external_smokes": {
+    "health_http": 200,
+    "health_ok": true,
+    "analyze_http": 200,
+    "analyze_ok": true,
+    "history_http": 200,
+    "history_ok": true,
+    "history_total": 0,
+    "geoadmin_search_successes": 1
+  },
+  "rollback_docs_refs": [
+    "Issue #895 closeout comment (rollback triggers/steps)",
+    "Issue #897 status comment 2026-03-03 (rollback trigger notes)"
+  ]
+}
