@@ -33,14 +33,36 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 
 1. GUI triggert `GET /auth/logout`.
 2. BFF invalidiert Session serverseitig.
-3. Session-Cookie wird im Browser gelöscht.
-4. Redirect auf Login-Seite oder öffentliche Landing-Page.
+3. Session-Cookie wird im Browser gelöscht (`Max-Age=0`).
+4. Redirect-Verhalten:
+   - **mit IdP-Logout-Konfiguration** (`BFF_OIDC_ISSUER` + `BFF_OIDC_CLIENT_ID`): 302 auf den Provider-Logout-Endpunkt (`.../logout?client_id=...&logout_uri=...`).
+   - **ohne IdP-Logout-Konfiguration:** lokaler Clear-Cookie-Logout ohne externen Provider-Redirect.
+
+## UX-/Redirect-Konvention (Issue #998)
+
+Für Session-Recovery nutzen `/gui` und `/history` dieselben UX-Messages und denselben Redirect-Contract:
+
+- Session fehlt/abgelaufen (`401`, `no_session_cookie`, `session_not_found`, `token_error`):
+  - Meldung: **„Session ungültig oder abgelaufen — bitte erneut einloggen.“**
+  - Redirect: `/auth/login?next=<current-path>&reason=session_expired`
+- Refresh fehlgeschlagen (`refresh_*`, `no_refresh_token`):
+  - Meldung: **„Session konnte nicht erneuert werden — bitte erneut einloggen.“**
+  - Redirect: `/auth/login?next=<current-path>&reason=refresh_failed`
+- Consent/Auth verweigert (`access_denied`, `consent_denied`):
+  - Meldung: **„Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.“**
+  - Redirect: `/auth/login?next=<current-path>&reason=consent_denied`
+- Berechtigungsfehler (`403`):
+  - Meldung: **„Zugriff verweigert — bitte Berechtigungen/Session prüfen.“**
+  - Kein automatischer Redirect.
+
+Hinweis: Der zusätzliche Query-Parameter `reason` ist für reproduzierbare Diagnose gedacht (Runbook/Evidence) und ersetzt nicht die Server-seitige Prüfung von `next`.
 
 ## Failure-Modes (Kurzmatrix)
 
 | Fehlerbild | Typisches Symptom | Wahrscheinliche Ursache | Sofortmaßnahme |
 |---|---|---|---|
 | Callback fehlgeschlagen | Redirect-Loop `/auth/login` <-> `/auth/callback` | Ungültiger/abgelaufener Auth-Code oder State-Mismatch | Callback-Logs prüfen, neuen Login starten |
+| Consent/Auth verweigert | Login kehrt mit Fehler zurück, GUI fordert Re-Login | Nutzer hat Consent/Anmeldung abgebrochen (`access_denied`/`consent_denied`) | Erneut einloggen; bei wiederholtem Fehler Provider-/Client-Konfiguration prüfen |
 | Session abgelaufen | GUI-Action zeigt Session-Hinweis und leitet auf Login weiter | Session-TTL erreicht, Cookie fehlt/ungültig | Neu einloggen, Session-/Cookie-Parameter prüfen |
 | Token-Refresh fehlgeschlagen | Hinweis „Session konnte nicht erneuert werden" + Re-Login-Redirect | Refresh-Grant fehlerhaft (`refresh_*`, `no_refresh_token`) | Refresh-Token-Path + IdP-Config prüfen, danach Re-Login |
 | Logout ohne Wirkung | Nach Logout weiter „eingeloggt" | Cookie nicht gelöscht oder alte Session noch aktiv | Cookie-Flags + Server-Invalidierung prüfen |

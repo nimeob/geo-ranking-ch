@@ -328,7 +328,8 @@ Das BFF-Modul (`src/api/bff_*.py`) implementiert sicheren Web-Login für das Por
 - **Session:** Opaker Session-ID-Cookie; Tokens ausschließlich serverseitig gespeichert
 - **Token Delegation:** `bff_api_call` injiziert `Authorization: Bearer <token>` automatisch; Auto-Refresh bei Ablauf
 - **CSRF-Schutz:** `X-BFF-CSRF: 1` Custom-Header-Check für alle State-ändernden Anfragen
-- **Logout:** Session invalidieren + Cookie löschen + (optional) Cognito-Redirect
+- **Auth-Recovery-UX:** `/gui` und `/history` nutzen einheitliche Session-/Refresh-/Consent-Fehlermeldungen und Redirect-Contract `/auth/login?next=...&reason=...`
+- **Logout:** Session invalidieren + Cookie löschen; je nach Env entweder lokaler Logout oder optionaler IdP/Cognito-Logout-Redirect
 
 Dokumentation: [`docs/BFF_FLOW.md`](docs/BFF_FLOW.md), [`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md), [`docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md`](docs/gui/GUI_AUTH_MVP_AC_MATRIX_978.md)
 

@@ -88,6 +88,7 @@ Preflight-PASS, wenn:
 
 - Health-Endpoints 200 liefern
 - `GET /gui` unauthenticated auf `/auth/login?next=...` umleitet
+- Redirect-URL optional den Diagnoseparameter `reason` enthält (z. B. `session_expired`)
 
 ---
 
@@ -124,12 +125,16 @@ Prüfe mindestens zwei Fehlerszenarien:
 1. Nach erfolgreichem Login Session-Cookie in DevTools löschen.
 2. `/history` oder `/gui` neu laden.
 3. Erwartung: Redirect auf Login oder konsistente Session-Fehlermeldung (kein stiller Hard-Fail).
+4. Redirect-Ziel prüfen: `/auth/login?next=...&reason=<...>` (typisch `session_expired` oder `session_missing`).
 
 ### 5.2 Logout-Validity
 
 1. Eingeloggt `GET/POST /auth/logout` über UI auslösen.
-2. Direkt danach geschützte Seite (`/gui`, `/history`) öffnen.
-3. Erwartung: Kein Zugriff ohne erneuten Login.
+2. Redirect-Ziel prüfen:
+   - mit IdP-Logout-Konfiguration: Provider-Logout-URL (`.../logout?client_id=...&logout_uri=...`)
+   - ohne IdP-Logout-Konfiguration: lokaler Logout/Cookie-Clear ohne externen Redirect
+3. Direkt danach geschützte Seite (`/gui`, `/history`) öffnen.
+4. Erwartung: Kein Zugriff ohne erneuten Login.
 
 Negative-PASS, wenn:
 
@@ -181,7 +186,9 @@ Für Deployment-spezifische Details siehe:
 
 ## Negative Flow
 - [ ] Cookie gelöscht -> Re-Login/Fehlerbild korrekt
+- [ ] Re-Login-Redirect enthält `reason` (session_expired / refresh_failed / consent_denied)
 - [ ] Logout invalidiert Session zuverlässig
+- [ ] Logout-Redirect (IdP vs lokal) entspricht der Env-Konfiguration
 
 ## Ergebnis
 - [ ] PASS

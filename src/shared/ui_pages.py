@@ -339,6 +339,8 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           "refresh_network_error",
           "refresh_invalid_response",
           "refresh_missing_token",
+          "access_denied",
+          "consent_denied",
           "token_error",
           "unauthorized",
         ]);
@@ -350,6 +352,24 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           "refresh_invalid_response",
           "refresh_missing_token",
         ]);
+        const AUTH_RECOVERY_REASON_BY_ERROR_CODE = Object.freeze({
+          no_session_cookie: "session_missing",
+          session_not_found: "session_missing",
+          no_access_token: "session_expired",
+          token_error: "session_expired",
+          unauthorized: "session_expired",
+          no_refresh_token: "refresh_failed",
+          refresh_grant_error: "refresh_failed",
+          refresh_http_error: "refresh_failed",
+          refresh_network_error: "refresh_failed",
+          refresh_invalid_response: "refresh_failed",
+          refresh_missing_token: "refresh_failed",
+          access_denied: "consent_denied",
+          consent_denied: "consent_denied",
+        });
+        const AUTH_RECOVERY_REASON_BY_STATUS = Object.freeze({
+          "401": "session_expired",
+        });
 
         const orgEl = document.getElementById("org-id");
         const limitEl = document.getElementById("limit");
@@ -399,6 +419,23 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           return String(errorCode || "").trim().toLowerCase();
         }
 
+        function resolveAuthRecoveryReason(statusCode, errorCode) {
+          const normalizedCode = normalizeErrorCode(errorCode);
+          if (normalizedCode && AUTH_RECOVERY_REASON_BY_ERROR_CODE[normalizedCode]) {
+            return AUTH_RECOVERY_REASON_BY_ERROR_CODE[normalizedCode];
+          }
+
+          const normalizedStatus = Number(statusCode);
+          if (Number.isFinite(normalizedStatus)) {
+            const statusKey = String(Math.trunc(normalizedStatus));
+            if (AUTH_RECOVERY_REASON_BY_STATUS[statusKey]) {
+              return AUTH_RECOVERY_REASON_BY_STATUS[statusKey];
+            }
+          }
+
+          return "session_recovery";
+        }
+
         function isSessionRecoveryRequired(statusCode, errorCode) {
           const normalizedStatus = Number(statusCode);
           const normalizedCode = normalizeErrorCode(errorCode);
@@ -411,6 +448,9 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         function buildSessionErrorMessage(statusCode, errorCode, fallbackMessage) {
           const normalizedStatus = Number(statusCode);
           const normalizedCode = normalizeErrorCode(errorCode);
+          if (normalizedCode === "access_denied" || normalizedCode === "consent_denied") {
+            return "Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.";
+          }
           if (isSessionRecoveryRequired(normalizedStatus, normalizedCode)) {
             if (SESSION_REFRESH_ERROR_CODES.has(normalizedCode)) {
               return "Session konnte nicht erneuert werden — bitte erneut einloggen.";
@@ -423,7 +463,23 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           return String(fallbackMessage || `http_${normalizedStatus || 0}`);
         }
 
-        function scheduleReLoginRedirect() {
+        function buildLoginRedirectUrl(authReason) {
+          const normalizedReason = normalizeErrorCode(authReason) || "session_recovery";
+          const nextPath = typeof window !== "undefined" && window.location
+            ? `${window.location.pathname || "/history"}${window.location.search || ""}`
+            : "/history";
+
+          if (typeof URLSearchParams === "undefined") {
+            return `/auth/login?next=${encodeURIComponent(nextPath || "/history")}&reason=${encodeURIComponent(normalizedReason)}`;
+          }
+
+          const params = new URLSearchParams();
+          params.set("next", nextPath || "/history");
+          params.set("reason", normalizedReason);
+          return `/auth/login?${params.toString()}`;
+        }
+
+        function scheduleReLoginRedirect(statusCode, errorCode) {
           if (authRecoveryRedirectScheduled) {
             return;
           }
@@ -434,8 +490,8 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
             return;
           }
 
-          const nextPath = `${window.location.pathname || "/history"}${window.location.search || ""}`;
-          const loginUrl = `/auth/login?next=${encodeURIComponent(nextPath || "/history")}`;
+          const authReason = resolveAuthRecoveryReason(statusCode, errorCode);
+          const loginUrl = buildLoginRedirectUrl(authReason);
           setError("Session wird neu aufgebaut — Weiterleitung zum Login…");
           window.setTimeout(() => {
             window.location.assign(loginUrl);
@@ -532,7 +588,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
             const fallbackMessage = (parsed && parsed.message) ? String(parsed.message) : `http_${response.status}`;
             setError(buildSessionErrorMessage(response.status, errCode, fallbackMessage));
             if (isSessionRecoveryRequired(response.status, errCode)) {
-              scheduleReLoginRedirect();
+              scheduleReLoginRedirect(response.status, errCode);
             }
             loadBtn.disabled = false;
             return;
