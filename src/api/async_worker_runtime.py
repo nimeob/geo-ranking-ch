@@ -201,6 +201,43 @@ class AsyncJobRuntime:
                 # Worker darf den Prozess nicht crashen; Fehlerpfad wird pro Job persistiert.
                 continue
 
+    def _consume_cancel_request_compat(self, *, job_id: str) -> dict[str, Any] | None:
+        """Read/consume cancel requests across store variants.
+
+        Compatibility shim for older DB-store signatures that do not accept
+        ``actor_type`` and may return booleans instead of a job dict.
+        """
+
+        consume_fn = self._store.consume_cancel_request
+        try:
+            outcome = consume_fn(job_id=job_id, actor_type="worker")
+        except TypeError as exc:
+            if "actor_type" not in str(exc):
+                raise
+            outcome = consume_fn(job_id=job_id)
+
+        if outcome is None:
+            return None
+
+        if isinstance(outcome, dict):
+            return outcome
+
+        if isinstance(outcome, bool):
+            if not outcome:
+                return None
+            # Legacy DB path may return True/False only. Re-load current job.
+            reloaded = self._store.get_job(job_id)
+            if isinstance(reloaded, dict):
+                return reloaded
+            return {"status": "canceled"}
+
+        return None
+
+    def _is_canceled_terminal(self, job: dict[str, Any] | None) -> bool:
+        if not isinstance(job, dict):
+            return False
+        return str(job.get("status") or "") == "canceled"
+
     def _process_one(self, job_id: str) -> None:
         job = self._store.get_job(job_id)
         if job is None:
@@ -210,8 +247,8 @@ class AsyncJobRuntime:
         if status in {"completed", "failed", "canceled"}:
             return
 
-        canceled_job = self._store.consume_cancel_request(job_id=job_id, actor_type="worker")
-        if canceled_job is not None and str(canceled_job.get("status")) == "canceled":
+        canceled_job = self._consume_cancel_request_compat(job_id=job_id)
+        if self._is_canceled_terminal(canceled_job):
             return
 
         try:
@@ -235,8 +272,8 @@ class AsyncJobRuntime:
 
             total_stages = 2
             for stage_index in range(1, total_stages + 1):
-                canceled_job = self._store.consume_cancel_request(job_id=job_id, actor_type="worker")
-                if canceled_job is not None and str(canceled_job.get("status")) == "canceled":
+                canceled_job = self._consume_cancel_request_compat(job_id=job_id)
+                if self._is_canceled_terminal(canceled_job):
                     return
 
                 if self._stage_delay_seconds > 0:
@@ -263,8 +300,8 @@ class AsyncJobRuntime:
                     actor_type="worker",
                 )
 
-            canceled_job = self._store.consume_cancel_request(job_id=job_id, actor_type="worker")
-            if canceled_job is not None and str(canceled_job.get("status")) == "canceled":
+            canceled_job = self._consume_cancel_request_compat(job_id=job_id)
+            if self._is_canceled_terminal(canceled_job):
                 return
 
             final_payload = _build_async_final_result_stub(

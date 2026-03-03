@@ -1804,6 +1804,25 @@ def _extract_async_mode_request(options: dict[str, Any]) -> bool:
     raise ValueError("options.async_mode.requested must be a boolean")
 
 
+def _resolve_request_owner_user_id(
+    *,
+    phase1_user: Any | None,
+    oidc_claims: dict[str, Any] | None,
+) -> str | None:
+    """Resolve owner user for history/async job ownership metadata."""
+    if phase1_user is not None:
+        phase1_id = str(getattr(phase1_user, "user_id", "") or "").strip()
+        if phase1_id:
+            return phase1_id
+
+    if isinstance(oidc_claims, dict):
+        oidc_sub = str(oidc_claims.get("sub") or "").strip()
+        if oidc_sub:
+            return oidc_sub
+
+    return None
+
+
 def _normalize_async_org_id(raw_value: Any) -> str:
     value = str(raw_value or "").strip()
     if not value:
@@ -4329,7 +4348,10 @@ class Handler(BaseHTTPRequestHandler):
                         query=query,
                         intelligence_mode=mode,
                         org_id=request_org_id,
-                        owner_user_id=phase1_user.user_id if phase1_user else None,
+                        owner_user_id=_resolve_request_owner_user_id(
+                            phase1_user=phase1_user,
+                            oidc_claims=oidc_claims,
+                        ),
                         owner_org_id=phase1_user.org_id if phase1_user else request_org_id,
                     )
                     created_job_id = str(created_job.get("job_id") or "")
@@ -4373,7 +4395,10 @@ class Handler(BaseHTTPRequestHandler):
                             query=query,
                             intelligence_mode=mode,
                             org_id=request_org_id,
-                            owner_user_id=phase1_user.user_id if phase1_user else None,
+                            owner_user_id=_resolve_request_owner_user_id(
+                                phase1_user=phase1_user,
+                                oidc_claims=oidc_claims,
+                            ),
                             owner_org_id=phase1_user.org_id if phase1_user else request_org_id,
                         )
                         sync_history_job_id = str(created_job.get("job_id") or "") or None
