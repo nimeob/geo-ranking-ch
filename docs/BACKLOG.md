@@ -34,7 +34,7 @@ Regelwerk:
   - ~~[#840](https://github.com/nimeob/geo-ranking-ch/issues/840)~~ — ASYNC-DB-0.wp3: Feature-flag cutover (PR #845)
   - ~~[#841](https://github.com/nimeob/geo-ranking-ch/issues/841)~~ — ASYNC-DB-0.wp4: API /analyze/history per user_id + tenant guards (PR #846)
   - ~~[#842](https://github.com/nimeob/geo-ranking-ch/issues/842)~~ — ASYNC-DB-0.wp5: Backfill-Script + Cutover-Runbook (PR #847)
-- [#804](https://github.com/nimeob/geo-ranking-ch/issues/804) — INFRA-DB-0: Staging Postgres (RDS) + Secrets wiring for ECS (priority:P1, **status:blocked** — code-complete, pending operator: terraform apply via docs/STAGING_DB_RUNBOOK.md)
+- ~~[#804](https://github.com/nimeob/geo-ranking-ch/issues/804)~~ — INFRA-DB-0: Dev Postgres (RDS) + Secrets wiring for ECS — **abgeschlossen 2026-03-03** (DoD-Checklist im Issue vollständig abgehakt; Runtime-Verifikation: RDS `swisstopo-dev-postgres` `available`, ECS Service steady-state mit DB secret wiring, `/analyze/history` HTTP 200 mit persisted History; Nachweis: `reports/evidence/issue-804-closeout-2026-03-03.md`).
 - ~~[#806](https://github.com/nimeob/geo-ranking-ch/issues/806)~~ — BFF-0: Portal Backend-for-Frontend with server-side OIDC session + user-token delegation — **abgeschlossen 2026-03-02** (alle 5 WPs, PRs #856/#861/#862/#863/#864, 188 Tests)
   - ~~[#850](https://github.com/nimeob/geo-ranking-ch/issues/850)~~ — BFF-0.wp1: BFF Session Store + httpOnly Cookie Middleware — **abgeschlossen 2026-03-02** (PR #856, 45 Tests)
   - ~~[#851](https://github.com/nimeob/geo-ranking-ch/issues/851)~~ — BFF-0.wp2: OIDC Auth Code + PKCE Endpunkte (/auth/login, /auth/callback) — **abgeschlossen 2026-03-02** (PR #861, 61 Tests)
