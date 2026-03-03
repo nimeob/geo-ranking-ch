@@ -62,7 +62,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         color: var(--muted);
         font-size: 0.9rem;
       }
-      .burger { position: relative; }
+      .burger {
+        position: relative;
+        display: inline-flex;
+        justify-content: flex-end;
+      }
       #burger-btn {
         background: #fff;
         color: var(--ink);
@@ -70,20 +74,27 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         border-radius: 0.6rem;
         padding: 0.45rem 0.7rem;
         font-size: 0.9rem;
+        line-height: 1.2;
         cursor: pointer;
+      }
+      #burger-btn:focus-visible {
+        outline: 2px solid #bcd0ff;
+        outline-offset: 1px;
       }
       .burger-menu {
         position: absolute;
-        top: calc(100% + 0.5rem);
+        top: calc(100% + 0.45rem);
         right: 0;
-        min-width: 240px;
+        width: min(18rem, calc(100vw - 2rem));
+        max-height: min(70vh, 24rem);
+        overflow-y: auto;
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 0.75rem;
-        padding: 0.35rem;
+        padding: 0.4rem;
         box-shadow: 0 12px 28px rgba(27, 38, 55, 0.12);
         display: grid;
-        gap: 0.15rem;
+        gap: 0.2rem;
         z-index: 30;
       }
       .burger-menu a {
@@ -93,7 +104,18 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         border-radius: 0.55rem;
         font-size: 0.9rem;
       }
-      .burger-menu a:hover { background: #f3f7ff; }
+      .burger-menu a:hover,
+      .burger-menu a:focus-visible {
+        background: #f3f7ff;
+        outline: none;
+      }
+      @media (max-width: 520px) {
+        .burger-menu {
+          right: auto;
+          left: 0;
+          width: min(18rem, calc(100vw - 2.5rem));
+        }
+      }
       main {
         display: grid;
         grid-template-columns: minmax(300px, 460px) minmax(360px, 1fr);
@@ -433,8 +455,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           <p>BL-20.6 · Adresse + Kartenklick + Result-Panel · Version __APP_VERSION__</p>
         </div>
         <div class=\"burger\" id=\"burger-shell\">
-          <button id=\"burger-btn\" type=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"burger-menu\">☰ Menü</button>
-          <div id=\"burger-menu\" class=\"burger-menu\" role=\"menu\" hidden>
+          <button id=\"burger-btn\" type=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"burger-menu\" aria-label=\"Navigation umschalten\">☰ Menü</button>
+          <div id=\"burger-menu\" class=\"burger-menu\" role=\"menu\" aria-label=\"Hauptnavigation\" hidden>
             <a role=\"menuitem\" href=\"/gui\">Abfrage</a>
             <a role=\"menuitem\" href=\"/history\">Historische Abfragen</a>
             <a role=\"menuitem\" href=\"#input\">Input</a>
@@ -3038,24 +3060,64 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       const burgerBtn = document.getElementById("burger-btn");
       const burgerMenu = document.getElementById("burger-menu");
-      function closeBurger() {
+      const burgerItems = burgerMenu
+        ? Array.from(burgerMenu.querySelectorAll('a[href]'))
+        : [];
+
+      function setBurgerOpen(nextOpen) {
         if (!burgerBtn || !burgerMenu) return;
-        burgerMenu.hidden = true;
-        burgerBtn.setAttribute("aria-expanded", "false");
+        burgerMenu.hidden = !nextOpen;
+        burgerBtn.setAttribute("aria-expanded", nextOpen ? "true" : "false");
       }
+
+      function closeBurger(options = {}) {
+        const returnFocus = Boolean(options.returnFocus);
+        setBurgerOpen(false);
+        if (returnFocus && burgerBtn) burgerBtn.focus();
+      }
+
       function toggleBurger() {
-        if (!burgerBtn || !burgerMenu) return;
-        const next = Boolean(burgerMenu.hidden);
-        burgerMenu.hidden = !next;
-        burgerBtn.setAttribute("aria-expanded", next ? "true" : "false");
+        if (!burgerBtn) return;
+        const isOpen = burgerBtn.getAttribute("aria-expanded") === "true";
+        setBurgerOpen(!isOpen);
       }
+
       if (burgerBtn && burgerMenu) {
-        burgerBtn.addEventListener("click", () => toggleBurger());
-        document.addEventListener("click", (event) => {
-          if (!event || !(event.target instanceof Element)) return;
-          if (burgerBtn.contains(event.target) || burgerMenu.contains(event.target)) return;
-          closeBurger();
+        setBurgerOpen(false);
+
+        burgerBtn.addEventListener("click", () => {
+          toggleBurger();
         });
+
+        burgerBtn.addEventListener("keydown", (event) => {
+          if (!event) return;
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setBurgerOpen(true);
+            if (burgerItems[0]) burgerItems[0].focus();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeBurger({ returnFocus: true });
+          }
+        });
+
+        document.addEventListener(
+          "pointerdown",
+          (event) => {
+            if (!event || !(event.target instanceof Node)) return;
+            if (burgerBtn.contains(event.target) || burgerMenu.contains(event.target)) return;
+            closeBurger();
+          },
+          true
+        );
+
+        window.addEventListener("keydown", (event) => {
+          if (!event || event.key !== "Escape") return;
+          if (burgerBtn.getAttribute("aria-expanded") !== "true") return;
+          closeBurger({ returnFocus: true });
+        });
+
         burgerMenu.querySelectorAll("a").forEach((link) => {
           link.addEventListener("click", () => closeBurger());
         });

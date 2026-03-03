@@ -15,6 +15,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - sichtbare Kernfaktoren (Top-Faktoren aus Explainability) und rohe JSON-Antwort
 - Trace-Debug-Panel mit Deep-Link-Unterstützung (`/gui?view=trace&request_id=<id>`) und Timeline-Lookup via `GET /debug/trace`
 - Kanonischer GUI-Auth-Flow für BFF-Session-Betrieb dokumentiert unter [`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](./GUI_AUTH_BFF_SESSION_FLOW.md)
+- Burger-Menü-Navigation robust für Desktop/Mobile (sauberes Open/Close, Outside-Click/Touch-Close, Keyboard `ArrowDown`/`Escape`, konsistente `aria-expanded`-States)
 
 ## Struktur
 
@@ -118,6 +119,16 @@ Durchgeführt am **2026-02-28** (lokal):
    - Result-Panel zeigt Request-ID + Kernfaktoren + JSON
 
 Hinweis: Die Regression für ausgelieferte GUI-Marker läuft zusätzlich über `tests/test_web_service_gui_mvp.py`.
+
+## Burger-Menü Smoke (Desktop + Mobile)
+
+Durchgeführt am **2026-03-03** (lokal, `/gui`):
+
+- **Desktop-Viewport (1366×768):** Menü per Klick geöffnet/geschlossen, Outside-Click schließt deterministisch, `aria-expanded` wechselt sauber `false -> true -> false`.
+- **Mobile-Viewport (390×844):** Menü bleibt im Viewport, Touch außerhalb schließt zuverlässig, Link-Klick schließt Menü.
+- **Keyboard/A11y:** `ArrowDown` auf dem Burger-Button öffnet Menü und fokussiert ersten Menüpunkt, `Escape` schließt Menü und setzt Fokus auf den Button zurück.
+
+Regressionen laufen zusätzlich über `python3 -m unittest tests.test_web_service_gui_mvp tests.test_history_navigation_integration`.
 
 ## Forward-Compatibility (BL-30)
 
