@@ -141,11 +141,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       @media (max-width: 960px) {
         main { grid-template-columns: 1fr; }
       }
+      main > section {
+        min-width: 0;
+      }
       .card {
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 0.85rem;
         padding: 1rem;
+        min-width: 0;
       }
       .card h2 {
         margin: 0 0 0.75rem;
@@ -275,10 +279,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       .map-shell {
         display: grid;
         gap: 0.6rem;
+        min-width: 0;
       }
       .map-surface {
         position: relative;
         width: 100%;
+        min-width: 0;
         min-height: 320px;
         border: 1px solid var(--border);
         border-radius: 0.65rem;
@@ -293,6 +299,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       .map-tile-layer {
         position: absolute;
         inset: 0;
+        overflow: hidden;
       }
       .map-tile {
         position: absolute;
@@ -396,19 +403,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         outline-offset: 1px;
       }
       .map-legend {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         align-items: flex-start;
-        gap: 0.6rem;
-        flex-wrap: wrap;
+        gap: 0.35rem 0.6rem;
         line-height: 1.25;
+      }
+      .map-legend > * {
+        min-width: 0;
       }
       .map-legend small {
         color: var(--muted);
         font-size: 0.86rem;
         overflow-wrap: anywhere;
-        flex: 1 1 260px;
-        min-width: 0;
       }
       .map-legend small + small {
         text-align: right;
@@ -419,6 +426,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         word-break: break-word;
       }
       @media (max-width: 680px) {
+        .map-legend {
+          grid-template-columns: 1fr;
+        }
         .map-legend small + small {
           text-align: left;
         }
@@ -456,12 +466,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             0 3px 8px rgba(27, 38, 55, 0.26);
         }
         .map-legend {
-          flex-direction: column;
-          align-items: flex-start;
           gap: 0.25rem;
-        }
-        .map-legend small {
-          flex-basis: 100%;
         }
       }
       .map-status {

@@ -202,13 +202,15 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn(".map-surface.has-marker .map-crosshair", body)
         self.assertIn('mapSurface.classList.add("has-marker")', body)
         self.assertIn("overflow-wrap: anywhere", body)
-        self.assertIn("flex: 1 1 260px", body)
+        self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr))", body)
+        self.assertIn(".map-legend > *", body)
         self.assertIn(".map-legend small + small", body)
         self.assertIn("word-break: break-word", body)
+        self.assertIn("main > section", body)
+        self.assertIn("min-width: 0", body)
         self.assertIn("@media (max-width: 520px)", body)
         self.assertIn("min-height: 280px", body)
         self.assertIn("width: 22px", body)
-        self.assertIn("flex-direction: column", body)
 
     def test_gui_mobile_touch_target_css_contract_present(self):
         status, body, _ = _http_text(f"{self.base_url}/gui")
