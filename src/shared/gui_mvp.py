@@ -527,7 +527,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             <a role=\"menuitem\" href=\"#map\">Karte</a>
             <a role=\"menuitem\" href=\"#result\">Result-Panel</a>
             <a role=\"menuitem\" href=\"#trace-debug\">Trace-Debug</a>
-            <a role=\"menuitem\" href=\"/auth/logout\">Logout</a>
+            <a role=\"menuitem\" id=\"burger-login-link\" href=\"/auth/login\">Login</a>
+            <a role=\"menuitem\" id=\"burger-logout-link\" href=\"/auth/logout\">Logout</a>
           </div>
         </div>
       </div>
@@ -551,6 +552,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               </select>
             </label>
             <p class=\"meta\">Auth im GUI-Flow läuft session-basiert über Login/Cookie (kein Bearer-Token-Eingabefeld).</p>
+            <p class=\"meta\" id=\"auth-login-meta\">Nicht eingeloggt? <a id=\"auth-login-inline\" href=\"/auth/login\">Login starten</a></p>
             <label>
               Async Mode (optional)
               <input id="async-mode-requested" type="checkbox" />
@@ -766,6 +768,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
+      const AUTH_ME_ENDPOINT = "/auth/me";
+      const AUTH_CHECK_CACHE_TTL_MS = 12000;
       const SESSION_RECOVERY_ERROR_CODES = new Set([
         "no_session_cookie",
         "session_not_found",
@@ -845,6 +849,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         userLocation: null,
       };
 
+      const authState = {
+        authenticated: null,
+        authCheckSupported: true,
+        userClaims: {},
+        checkedAtMs: 0,
+      };
+
       const formEl = document.getElementById("analyze-form");
       const queryEl = document.getElementById("query");
       const modeEl = document.getElementById("intelligence-mode");
@@ -859,6 +870,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const historyShell = document.getElementById("history-shell");
       const errorBox = document.getElementById("error-box");
       const coreFactorsEl = document.getElementById("core-factors");
+      const authLoginMetaEl = document.getElementById("auth-login-meta");
+      const authLoginInlineEl = document.getElementById("auth-login-inline");
 
       const resultsSortEl = document.getElementById("results-sort");
       const resultsDirEl = document.getElementById("results-dir");
@@ -1100,6 +1113,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       async function loadHistory() {
         if (!historyShell) return;
+        const isAuthenticated = await refreshAuthSession({ force: false });
+        if (!isAuthenticated && authState.authCheckSupported) {
+          scheduleReLoginRedirect(401, "no_session_cookie", "");
+          return;
+        }
+
         const headers = { "Accept": "application/json", "X-Session-Id": uiSessionId };
 
         try {
@@ -3037,6 +3056,126 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return `/auth/login?${params.toString()}`;
       }
 
+      function updateAuthEntryPoints() {
+        const isAuthenticated = authState.authenticated === true;
+
+        if (burgerLoginLink) {
+          burgerLoginLink.hidden = isAuthenticated;
+          burgerLoginLink.setAttribute("aria-hidden", isAuthenticated ? "true" : "false");
+          burgerLoginLink.href = buildLoginRedirectUrl("manual_login");
+        }
+        if (burgerLogoutLink) {
+          burgerLogoutLink.hidden = !isAuthenticated;
+          burgerLogoutLink.setAttribute("aria-hidden", isAuthenticated ? "false" : "true");
+        }
+
+        if (authLoginMetaEl) {
+          authLoginMetaEl.hidden = isAuthenticated;
+        }
+        if (authLoginInlineEl) {
+          authLoginInlineEl.href = buildLoginRedirectUrl("manual_login");
+        }
+      }
+
+      function setAuthState(nextAuthenticated, { userClaims = {}, authCheckSupported = true, checkedAtMs = Date.now() } = {}) {
+        if (typeof nextAuthenticated === "boolean") {
+          authState.authenticated = nextAuthenticated;
+        }
+        authState.userClaims = userClaims && typeof userClaims === "object" ? userClaims : {};
+        authState.authCheckSupported = Boolean(authCheckSupported);
+        authState.checkedAtMs = Number.isFinite(checkedAtMs) ? checkedAtMs : Date.now();
+        updateAuthEntryPoints();
+      }
+
+      function authCheckIsFresh() {
+        if (!Number.isFinite(authState.checkedAtMs) || authState.checkedAtMs <= 0) {
+          return false;
+        }
+        return Date.now() - authState.checkedAtMs <= AUTH_CHECK_CACHE_TTL_MS;
+      }
+
+      async function refreshAuthSession({ force = false } = {}) {
+        if (!authState.authCheckSupported) {
+          updateAuthEntryPoints();
+          return authState.authenticated === true;
+        }
+
+        if (!force && authCheckIsFresh() && authState.authenticated !== null) {
+          return authState.authenticated === true;
+        }
+
+        const headers = {
+          "Accept": "application/json",
+          "X-Session-Id": uiSessionId,
+        };
+
+        let response;
+        try {
+          response = await fetch(AUTH_ME_ENDPOINT, {
+            method: "GET",
+            headers,
+            credentials: "same-origin",
+          });
+        } catch (error) {
+          updateAuthEntryPoints();
+          return authState.authenticated === true;
+        }
+
+        if (response.status === 404 || response.status === 405) {
+          setAuthState(authState.authenticated === true, {
+            userClaims: authState.userClaims,
+            authCheckSupported: false,
+          });
+          return authState.authenticated === true;
+        }
+
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch (error) {
+          payload = null;
+        }
+
+        if (response.ok && payload && payload.ok === true) {
+          setAuthState(true, {
+            userClaims: payload.user_claims || {},
+            authCheckSupported: true,
+          });
+          return true;
+        }
+
+        if (response.status === 401) {
+          setAuthState(false, {
+            userClaims: {},
+            authCheckSupported: true,
+          });
+          return false;
+        }
+
+        updateAuthEntryPoints();
+        return authState.authenticated === true;
+      }
+
+      async function ensureAuthenticatedForAction({ trigger = "auth_guard", requestId = "" } = {}) {
+        const authenticated = await refreshAuthSession({ force: true });
+        if (authenticated) {
+          return true;
+        }
+        if (!authState.authCheckSupported) {
+          return true;
+        }
+
+        scheduleReLoginRedirect(401, "no_session_cookie", requestId);
+        emitUiEvent("ui.auth.guard.redirect", {
+          level: "warn",
+          direction: "ui->human",
+          status: "redirect",
+          trigger,
+          requestId,
+        });
+        return false;
+      }
+
       function scheduleReLoginRedirect(statusCode, errorCode, requestId) {
         if (authRecoveryRedirectScheduled) {
           return;
@@ -3044,6 +3183,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         authRecoveryRedirectScheduled = true;
 
         const normalizedErrorCode = normalizeErrorCode(errorCode);
+        setAuthState(false, {
+          userClaims: {},
+          authCheckSupported: true,
+        });
         const authReason = resolveAuthRecoveryReason(statusCode, normalizedErrorCode);
         const loginUrl = buildLoginRedirectUrl(authReason);
         const hint = "Session wird neu aufgebaut — Weiterleitung zum Login…";
@@ -3259,6 +3402,22 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const requestId = createUiCorrelationId("req");
         const traceId = requestId;
         const inputKind = inferInputKind(payload);
+
+        const authenticated = await ensureAuthenticatedForAction({
+          trigger: "analyze_preflight",
+          requestId,
+        });
+        if (!authenticated) {
+          emitUiEvent("ui.input.rejected", {
+            level: "warn",
+            traceId,
+            requestId,
+            direction: "ui->human",
+            status: "auth_required",
+            input_kind: inputKind,
+          });
+          return;
+        }
 
         emitUiEvent("ui.input.accepted", {
           traceId,
@@ -3699,6 +3858,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       const burgerBtn = document.getElementById("burger-btn");
       const burgerMenu = document.getElementById("burger-menu");
+      const burgerLoginLink = document.getElementById("burger-login-link");
+      const burgerLogoutLink = document.getElementById("burger-logout-link");
       const burgerItems = burgerMenu
         ? Array.from(burgerMenu.querySelectorAll('a[href]'))
         : [];
@@ -3761,6 +3922,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           link.addEventListener("click", () => closeBurger());
         });
       }
+
+      updateAuthEntryPoints();
+      refreshAuthSession({ force: false });
 
       emitUiEvent("ui.session.start", {
         direction: "internal",
