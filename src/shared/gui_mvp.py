@@ -329,6 +329,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       .map-legend {
         display: flex;
         justify-content: space-between;
+        align-items: flex-start;
         gap: 0.6rem;
         flex-wrap: wrap;
         line-height: 1.25;
@@ -337,15 +338,45 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         color: var(--muted);
         font-size: 0.86rem;
         overflow-wrap: anywhere;
+        flex: 1 1 260px;
+        min-width: 0;
+      }
+      .map-legend small + small {
+        text-align: right;
       }
       .map-legend code {
         font-size: 0.86em;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      @media (max-width: 680px) {
+        .map-legend small + small {
+          text-align: left;
+        }
       }
       @media (max-width: 520px) {
+        .map-surface {
+          min-height: 280px;
+        }
+        .map-crosshair {
+          width: 14px;
+          height: 14px;
+        }
+        .map-marker {
+          width: 22px;
+          height: 22px;
+          border-width: 3px;
+          box-shadow:
+            0 0 0 3px rgba(189, 47, 36, 0.22),
+            0 3px 8px rgba(27, 38, 55, 0.26);
+        }
         .map-legend {
           flex-direction: column;
           align-items: flex-start;
           gap: 0.25rem;
+        }
+        .map-legend small {
+          flex-basis: 100%;
         }
       }
       .map-status {
