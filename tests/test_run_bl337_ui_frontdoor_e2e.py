@@ -47,6 +47,10 @@ GOOD_UI_HTML = """<!doctype html>
     <article id="map">
       <div id="map-click-surface" role="application">
         <div id="map-tile-layer" aria-hidden="true"></div>
+        <div class="map-zoom-controls" aria-label="Zoom-Steuerung">
+          <button id="map-zoom-in" type="button">+</button>
+          <button id="map-zoom-out" type="button">−</button>
+        </div>
       </div>
     </article>
     <article id="result"></article>

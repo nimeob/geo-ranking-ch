@@ -273,6 +273,37 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         transform: translate(-50%, -50%);
         pointer-events: none;
       }
+      .map-zoom-controls {
+        position: absolute;
+        top: 0.55rem;
+        right: 0.55rem;
+        display: grid;
+        gap: 0.35rem;
+        z-index: 3;
+      }
+      .map-zoom-btn {
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.55rem;
+        border: 1px solid rgba(27, 38, 55, 0.2);
+        background: rgba(255, 255, 255, 0.94);
+        color: #16365f;
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .map-zoom-btn:hover {
+        background: #ffffff;
+        border-color: rgba(27, 38, 55, 0.35);
+      }
+      .map-zoom-btn:focus-visible {
+        outline: 2px solid #91b2ff;
+        outline-offset: 1px;
+      }
       .map-legend {
         display: flex;
         justify-content: space-between;
@@ -460,6 +491,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               <div id="map-tile-layer" class="map-tile-layer" aria-hidden="true"></div>
               <div class="map-crosshair" aria-hidden="true"></div>
               <div id="map-click-marker" class="map-marker" hidden></div>
+              <div class="map-zoom-controls" aria-label="Zoom-Steuerung">
+                <button id="map-zoom-in" class="map-zoom-btn" type="button" aria-label="Karte hineinzoomen">+</button>
+                <button id="map-zoom-out" class="map-zoom-btn" type="button" aria-label="Karte herauszoomen">−</button>
+              </div>
             </div>
             <div class="map-legend">
               <small id="map-view-meta">Zoom 8 · Zentrum 46.818200, 8.227500</small>
@@ -731,6 +766,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const mapStatus = document.getElementById("map-status");
       const mapViewMeta = document.getElementById("map-view-meta");
       const clickHint = document.getElementById("click-hint");
+      const mapZoomInBtn = document.getElementById("map-zoom-in");
+      const mapZoomOutBtn = document.getElementById("map-zoom-out");
 
       let mapRenderToken = 0;
       let uiEventSequence = 0;
@@ -2095,6 +2132,33 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         setMapCenterFromWorld(center.x - dx, center.y - dy, { render: true });
       }
 
+      function getMapSurfaceCenterClientPoint() {
+        const rect = mapSurface.getBoundingClientRect();
+        return {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        };
+      }
+
+      function zoomMapAtSurfaceCenter(delta) {
+        const point = getMapSurfaceCenterClientPoint();
+        zoomMapAtPoint(delta, point.x, point.y);
+      }
+
+      function normalizeWheelZoomDelta(event) {
+        const primaryDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+        if (!Number.isFinite(primaryDelta) || primaryDelta === 0) {
+          return 0;
+        }
+
+        const modeScale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 96 : 1;
+        const normalized = primaryDelta * modeScale;
+        if (Math.abs(normalized) < 2) {
+          return 0;
+        }
+        return normalized < 0 ? 1 : -1;
+      }
+
       function zoomMapAtPoint(delta, clientX, clientY) {
         const targetZoom = clamp(mapState.zoom + delta, MIN_ZOOM, MAX_ZOOM);
         if (targetZoom === mapState.zoom) {
@@ -2227,7 +2291,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           "wheel",
           (event) => {
             event.preventDefault();
-            const direction = event.deltaY < 0 ? 1 : -1;
+            const direction = normalizeWheelZoomDelta(event);
+            if (direction === 0) {
+              return;
+            }
             zoomMapAtPoint(direction, event.clientX, event.clientY);
           },
           { passive: false }
@@ -2265,16 +2332,37 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           }
           if (event.key === "+" || event.key === "=") {
             event.preventDefault();
-            const rect = mapSurface.getBoundingClientRect();
-            zoomMapAtPoint(1, rect.left + rect.width / 2, rect.top + rect.height / 2);
+            zoomMapAtSurfaceCenter(1);
             return;
           }
           if (event.key === "-") {
             event.preventDefault();
-            const rect = mapSurface.getBoundingClientRect();
-            zoomMapAtPoint(-1, rect.left + rect.width / 2, rect.top + rect.height / 2);
+            zoomMapAtSurfaceCenter(-1);
           }
         });
+
+        if (mapZoomInBtn) {
+          mapZoomInBtn.addEventListener("pointerdown", (event) => {
+            event.stopPropagation();
+          });
+          mapZoomInBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            zoomMapAtSurfaceCenter(1);
+            mapSurface.focus();
+          });
+        }
+        if (mapZoomOutBtn) {
+          mapZoomOutBtn.addEventListener("pointerdown", (event) => {
+            event.stopPropagation();
+          });
+          mapZoomOutBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            zoomMapAtSurfaceCenter(-1);
+            mapSurface.focus();
+          });
+        }
 
         window.addEventListener("resize", () => {
           renderTiles();

@@ -1,0 +1,71 @@
+{
+  "issue": 940,
+  "startedAtUtc": "2026-03-03T15:39:00.512Z",
+  "finishedAtUtc": "2026-03-03T15:39:05.114Z",
+  "targetUrl": "http://127.0.0.1:8877/gui",
+  "checks": [
+    {
+      "browser": "chromium",
+      "ok": true,
+      "steps": [
+        {
+          "step": "initial",
+          "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+          "zoom": 8
+        },
+        {
+          "step": "button_zoom_in",
+          "text": "Zoom 9 · Zentrum 46.816320, 8.230247",
+          "zoom": 9
+        },
+        {
+          "step": "button_zoom_out",
+          "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+          "zoom": 8
+        },
+        {
+          "step": "wheel_zoom_in",
+          "text": "Zoom 9 · Zentrum 46.816643, 8.230247",
+          "zoom": 9
+        },
+        {
+          "step": "wheel_zoom_out",
+          "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+          "zoom": 8
+        }
+      ]
+    },
+    {
+      "browser": "firefox",
+      "ok": true,
+      "steps": [
+        {
+          "step": "initial",
+          "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+          "zoom": 8
+        },
+        {
+          "step": "button_zoom_in",
+          "text": "Zoom 9 · Zentrum 46.816320, 8.230247",
+          "zoom": 9
+        },
+        {
+          "step": "button_zoom_out",
+          "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+          "zoom": 8
+        },
+        {
+          "step": "wheel_zoom_in",
+          "text": "Zoom 9 · Zentrum 46.817198, 8.230247",
+          "zoom": 9
+        },
+        {
+          "step": "wheel_zoom_out",
+          "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+          "zoom": 8
+        }
+      ]
+    }
+  ],
+  "ok": true
+}

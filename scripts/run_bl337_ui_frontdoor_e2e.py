@@ -228,6 +228,8 @@ def _check_ui_navigation_and_core_flow(html: str) -> UiCheckResult:
         "submit_button": 'id="submit-btn"',
         "map_surface": 'id="map-click-surface"',
         "map_tile_layer": 'id="map-tile-layer"',
+        "map_zoom_in": 'id="map-zoom-in"',
+        "map_zoom_out": 'id="map-zoom-out"',
         "map_tile_url": "https://tile.openstreetmap.org/",
         "map_wheel_zoom": '"wheel",',
         "map_initializer": "function initializeInteractiveMap()",
