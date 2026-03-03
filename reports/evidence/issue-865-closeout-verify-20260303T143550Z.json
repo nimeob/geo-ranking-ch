@@ -1,0 +1,43 @@
+{
+  "issue": 865,
+  "timestamp_utc": "20260303T143550Z",
+  "api_base": "https://api.dev.georanking.ch",
+  "oidc_user": "worker-a-smoke",
+  "checks": {
+    "healthz_http": 200,
+    "healthz_ok": true,
+    "healthz_build": {
+      "version": "37ca5a0",
+      "commit": "37ca5a06b9c09e94e336adda40c36b7a33367cd1"
+    },
+    "history_before_http": 200,
+    "history_before_total": 5,
+    "history_before_top_result_id": "88ced159-8826-4164-a5b2-568ccf390b77",
+    "sync_analyze_http": 200,
+    "sync_analyze_ok": true,
+    "sync_result_id": null,
+    "async_submit_http": 202,
+    "async_submit_ok": true,
+    "job_id": "753874f9-0f92-4f2a-85dc-df1a6d799106",
+    "job_poll_samples": [
+      {
+        "attempt": 1,
+        "http": 200,
+        "status": "completed",
+        "result_id": "deae74dc-3386-4cc9-b7b6-4be201ce42c2"
+      }
+    ],
+    "job_final_status": "completed",
+    "job_result_id": "deae74dc-3386-4cc9-b7b6-4be201ce42c2",
+    "history_after_http": 200,
+    "history_after_total": 7,
+    "history_contains_sync_result": false,
+    "history_contains_async_result": true,
+    "history_has_preexisting_entries": true,
+    "dod_healthz_pass": true,
+    "dod_sync_analyze_pass": true,
+    "dod_history_access_pass": true,
+    "dod_persistence_pass": true,
+    "overall_pass": true
+  }
+}

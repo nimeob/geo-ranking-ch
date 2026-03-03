@@ -1,0 +1,23 @@
+{
+  "issue": 865,
+  "timestamp_utc": "20260303T143319Z",
+  "api_base": "https://api.dev.georanking.ch",
+  "checks": {
+    "analyze_without_token": {
+      "status": 401,
+      "body": "{\"ok\": false, \"error\": \"unauthorized\", \"message\": \"missing or invalid bearer token\", \"request_id\": \"req-6c7c8a995e304efc\"}"
+    },
+    "history_without_token": {
+      "status": 401,
+      "body": "{\"ok\": false, \"error\": \"unauthorized\", \"message\": \"missing or invalid bearer token\", \"request_id\": \"req-aa08dd5a16184def\"}"
+    },
+    "analyze_invalid_token": {
+      "status": 401,
+      "body": "{\"ok\": false, \"error\": \"unauthorized\", \"message\": \"missing or invalid bearer token\", \"request_id\": \"req-38b261b930e54e61\"}"
+    },
+    "history_invalid_token": {
+      "status": 401,
+      "body": "{\"ok\": false, \"error\": \"unauthorized\", \"message\": \"missing or invalid bearer token\", \"request_id\": \"req-21ecb9847a65494a\"}"
+    }
+  }
+}
