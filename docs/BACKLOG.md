@@ -20,6 +20,7 @@ Regelwerk:
 
 ### Now
 - (leer)
+- ✅ abgeschlossen (2026-03-03): [#875](https://github.com/nimeob/geo-ranking-ch/issues/875) — [Crawler][P0] Workstream-Balance Catch-up ist nach Re-Baseline nicht mehr nötig (Dev=1, Doku=3, Testing=3, Gap=2 <= Ziel 2). Nachweis: `python3 scripts/github_repo_crawler.py --dry-run --print-workstream-balance --format json`.
 - ✅ abgeschlossen (2026-03-03): [#866](https://github.com/nimeob/geo-ranking-ch/issues/866) — INFRA: Add *.tfplan to .gitignore + commit secret-free dev/staging tfvars (Commit 10a8d33)
 - ✅ abgeschlossen (2026-03-03): [#867](https://github.com/nimeob/geo-ranking-ch/issues/867) — DEV-WIRE-0: Wire dev RDS into ECS task def (DB env + secrets + migrations + smoke) — ECS Task-Def rev 168 mit DB_HOST/PORT/NAME/USERNAME (plain env) + DB_PASSWORD (SecretsManager valueFrom); Migrations 001–003 via ECS-Task-Override angewendet (jobs/job_events/job_results/organizations/users/memberships/api_keys + schema_migrations); ECS Service auf rev 168 deployt (DEPLOYMENT COMPLETED); `/health` → 200, `/analyze/history` → 200, kein DB_PASSWORD in Logs. (2026-03-03 02:22)
 
