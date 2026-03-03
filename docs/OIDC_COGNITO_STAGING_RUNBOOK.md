@@ -227,6 +227,10 @@ Der API-Service liest folgende Env Vars (siehe `src/api/web_service.py`):
 | `OIDC_JWKS_TIMEOUT_SECONDS` | `5`                                                                               | optional |
 | `OIDC_CLOCK_SKEW_SECONDS` | `60`                                                                                | optional |
 
+> Hinweis (Cognito Access Token): Der API-Validator akzeptiert bei gesetztem
+> `OIDC_JWT_AUDIENCE=<APP_CLIENT_ID>` sowohl `aud` (falls vorhanden) als auch
+> Cognito-`client_id` für `token_use=access`.
+
 **Konkrete Werte (nach User Pool Anlage):**
 
 ```bash

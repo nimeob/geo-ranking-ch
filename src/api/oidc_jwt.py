@@ -269,9 +269,23 @@ class OidcJwtValidator:
             aud_claim = claims.get("aud")
             aud_ok = False
             if isinstance(aud_claim, str):
-                aud_ok = aud_claim == audience
+                aud_ok = hmac.compare_digest(aud_claim, audience)
             elif isinstance(aud_claim, list):
-                aud_ok = any(isinstance(item, str) and item == audience for item in aud_claim)
+                aud_ok = any(
+                    isinstance(item, str) and hmac.compare_digest(item, audience)
+                    for item in aud_claim
+                )
+
+            # AWS Cognito access tokens commonly omit `aud` and instead carry
+            # the App Client ID in `client_id` with `token_use=access`.
+            # Allow that representation when audience validation is required.
+            if not aud_ok:
+                token_use = str(claims.get("token_use") or "").strip().lower()
+                if token_use == "access":
+                    client_id = str(claims.get("client_id") or "").strip()
+                    if client_id:
+                        aud_ok = hmac.compare_digest(client_id, audience)
+
             if not aud_ok:
                 raise JwtValidationError("invalid_audience", "audience mismatch")
 
