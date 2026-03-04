@@ -345,6 +345,21 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('actionsWrap.className = "results-row-actions"', body)
         self.assertIn('id="map-zoom-in"', body)
 
+    def test_gui_results_table_mobile_card_mode_contract_present(self):
+        status, body, _ = _http_text(f"{self.base_url}/gui")
+        self.assertEqual(status, 200)
+        self.assertIn("@media (max-width: 390px)", body)
+        self.assertIn(".results-table td::before", body)
+        self.assertIn("content: attr(data-label)", body)
+        self.assertIn(".results-table td.actions::before", body)
+        self.assertIn(".results-table td.results-empty-cell::before", body)
+        self.assertIn('tdTs.dataset.label = "Zeit";', body)
+        self.assertIn('tdInput.dataset.label = "Input";', body)
+        self.assertIn('tdScore.dataset.label = "Score";', body)
+        self.assertIn('tdDist.dataset.label = "Dist (m)";', body)
+        self.assertIn('tdSec.dataset.label = "Sec";', body)
+        self.assertIn('tdActions.dataset.label = "Aktionen";', body)
+
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
         status, body, _ = _http_text(f"{self.base_url}//gui///?probe=1")
         self.assertEqual(status, 200)
