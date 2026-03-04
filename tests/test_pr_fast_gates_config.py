@@ -20,6 +20,7 @@ class TestPrFastGatesConfig(unittest.TestCase):
         self.assertIn("run_dev_smoke_required_with_retry.py", content)
         self.assertIn("DEV_SMOKE_MAX_RETRIES", content)
         self.assertIn("DEV_SMOKE_RETRY_DELAY_SECONDS", content)
+        self.assertIn("DEV_SMOKE_TEST_SEED", content)
         self.assertIn("dev_smoke_flaky_demo_runner.py", content)
         self.assertIn("Run deterministic flaky demo marker", content)
 
