@@ -202,6 +202,25 @@ Der Guide enthält:
 - Breaking-/Deprecation-Signale
 - konkrete `before -> after` Migrationsbeispiele für Login/History/Trace
 
+### API/UI Boundary Quick-Reference (v1)
+
+Kurzfassung für tägliche Arbeit. Kanonischer Langtext: [`docs/ARCHITECTURE.md#7-apiui-boundary-contract-v1`](docs/ARCHITECTURE.md#7-apiui-boundary-contract-v1).
+
+1. **API bleibt data-only.** Neue API-Endpunkte liefern maschinenlesbare Daten/Status, keine neue front-facing Seiten-/View-Logik.
+2. **UI besitzt den user-facing Flow.** Sichtbare Nutzerpfade, UX/HTML und Session-nahe Interaktionen liegen im UI-Service.
+3. **Shared bleibt neutral.** `src/shared/*` enthält nur wiederverwendbare Hilfslogik ohne API/UI-Ownership.
+4. **Keine direkten Layer-Imports über die Grenze.** Erlaubt sind nur `api -> shared` und `ui -> shared`; verboten sind `api <-> ui` sowie `shared -> api/ui`.
+5. **Legacy nur mit Sunset-Plan.** Temporäre Kompatibilitätsrouten benötigen Deprecation-/Successor-Signal und ein verlinktes Follow-up-Issue mit Sunset.
+
+#### Violation Escalation Path
+
+Wenn eine Boundary-Verletzung entdeckt wird:
+
+1. **Sofort ein GitHub-Issue anlegen** (Problem, Auswirkung, betroffene Dateien/Route, gewünschter Zielzustand).
+2. **Labels setzen:** mindestens `backlog`, `status:todo`, passende `priority:*`, plus `architecture` (bei Boundary-Design) oder `refactor` (bei rein technischer Entkopplung).
+3. **Follow-up im verursachenden PR/Issue verlinken** und einen Sunset-/Fix-Zeitrahmen dokumentieren.
+4. **Boundary-Gate lokal ausführen:** `python3 scripts/check_bl31_service_boundaries.py --src-dir src` und Ergebnis im Follow-up-Issue festhalten.
+
 ### Webservice-Endpoints (MVP)
 
 | Methode | Pfad | Zweck |
