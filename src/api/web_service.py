@@ -257,19 +257,79 @@ def _validate_oidc_bearer_token(bearer_token: str) -> dict[str, Any] | None:
 
 _HEALTH_DETAILS_ALLOWED_STATUS = frozenset({"ok", "degraded", "down"})
 
+_API_DEPRECATION_MIGRATION_GUIDE_URL = (
+    "https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md"
+    "#api-deprecation-mapping-dev"
+)
+_API_DEPRECATION_MIGRATION_LINK_HEADER = (
+    f'<{_API_DEPRECATION_MIGRATION_GUIDE_URL}>; rel="deprecation"'
+)
+
 _HISTORY_API_DEPRECATION_WARNING = (
     '299 - "History routes on API are deprecated: use UI /history for front-facing flows; '
     'API /analyze/history remains data-source only during migration."'
 )
-_HISTORY_API_SUNSET_UTC = datetime(2026, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
+_EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING = (
+    '299 - "External direct login routes on API are deprecated: use UI-owned /auth/login session flow."'
+)
+_API_DEPRECATION_SUNSET_UTC = datetime(2026, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
+
+
+def _format_http_datetime(value: datetime) -> str:
+    return value.astimezone(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+
+def _deprecation_link_header(*, successor_link: str) -> str:
+    successor = str(successor_link or "").strip()
+    if not successor:
+        return _API_DEPRECATION_MIGRATION_LINK_HEADER
+    return f"{_API_DEPRECATION_MIGRATION_LINK_HEADER}, {successor}"
+
+
+def _build_deprecation_headers(*, warning: str, successor_link: str) -> dict[str, str]:
+    return {
+        "Deprecation": "true",
+        "Sunset": _format_http_datetime(_API_DEPRECATION_SUNSET_UTC),
+        "Warning": warning,
+        "Link": _deprecation_link_header(successor_link=successor_link),
+    }
+
+
+def _build_deprecation_payload(*, successor: str, scope: str) -> dict[str, str]:
+    return {
+        "scope": scope,
+        "successor": successor,
+        "migration_guide": _API_DEPRECATION_MIGRATION_GUIDE_URL,
+        "sunset": _format_http_datetime(_API_DEPRECATION_SUNSET_UTC),
+    }
 
 
 def _history_api_deprecation_headers() -> dict[str, str]:
-    return {
-        "Deprecation": "true",
-        "Sunset": _HISTORY_API_SUNSET_UTC.strftime("%a, %d %b %Y %H:%M:%S GMT"),
-        "Warning": _HISTORY_API_DEPRECATION_WARNING,
-    }
+    return _build_deprecation_headers(
+        warning=_HISTORY_API_DEPRECATION_WARNING,
+        successor_link='</history>; rel="successor-version"',
+    )
+
+
+def _history_api_deprecation_payload() -> dict[str, str]:
+    return _build_deprecation_payload(
+        successor="/history",
+        scope="history-front-facing",
+    )
+
+
+def _external_direct_login_deprecation_headers() -> dict[str, str]:
+    return _build_deprecation_headers(
+        warning=_EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING,
+        successor_link='</auth/login>; rel="successor-version"',
+    )
+
+
+def _external_direct_login_deprecation_payload() -> dict[str, str]:
+    return _build_deprecation_payload(
+        successor="/auth/login",
+        scope="login-front-facing",
+    )
 
 
 def _fault_injection_enabled() -> bool:
@@ -552,7 +612,6 @@ _EXTERNAL_DIRECT_LOGIN_ERROR = "external_direct_login_disabled"
 _EXTERNAL_DIRECT_LOGIN_MESSAGE = (
     "direct login is disabled; use the UI-owned login flow via /auth/login"
 )
-_EXTERNAL_DIRECT_LOGIN_DEPRECATION_LINK = '</auth/login>; rel="successor-version"'
 
 _PROTECTED_GUI_ROUTES = frozenset({"/", "/gui", "/history"})
 
@@ -3586,14 +3645,14 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": False,
                 "error": _EXTERNAL_DIRECT_LOGIN_ERROR,
                 "message": _EXTERNAL_DIRECT_LOGIN_MESSAGE,
+                "deprecation": _external_direct_login_deprecation_payload(),
                 "request_id": request_id,
             },
             status=HTTPStatus.FORBIDDEN,
             request_id=request_id,
             extra_headers={
                 "Cache-Control": "no-store",
-                "Deprecation": "true",
-                "Link": _EXTERNAL_DIRECT_LOGIN_DEPRECATION_LINK,
+                **_external_direct_login_deprecation_headers(),
             },
         )
 
@@ -3970,6 +4029,7 @@ class Handler(BaseHTTPRequestHandler):
                         ),
                         "next": "/history (UI service)",
                         "data_source": "/analyze/history",
+                        "deprecation": _history_api_deprecation_payload(),
                         "request_id": request_id,
                     },
                     status=HTTPStatus.GONE,
@@ -4093,6 +4153,7 @@ class Handler(BaseHTTPRequestHandler):
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
                 history_route_headers = _history_api_deprecation_headers()
                 history_route_headers["Cache-Control"] = "no-store"
+                history_deprecation_payload = _history_api_deprecation_payload()
 
                 provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
@@ -4104,6 +4165,7 @@ class Handler(BaseHTTPRequestHandler):
                             "ok": False,
                             "error": "unauthorized",
                             "message": "missing or invalid bearer token",
+                            "deprecation": history_deprecation_payload,
                             "request_id": request_id,
                         },
                         status=HTTPStatus.UNAUTHORIZED,
@@ -4117,12 +4179,17 @@ class Handler(BaseHTTPRequestHandler):
                     limit = _resolve_history_limit(query_params.get("limit", [""])[0])
                     offset = _resolve_history_offset(query_params.get("offset", [""])[0])
                 except ValueError as exc:
-                    self._send_error(
-                        request_id=request_id,
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "bad_request",
+                            "message": str(exc),
+                            "details": _validation_error_details(str(exc)),
+                            "deprecation": history_deprecation_payload,
+                            "request_id": request_id,
+                        },
                         status=HTTPStatus.BAD_REQUEST,
-                        error="bad_request",
-                        message=str(exc),
-                        details=_validation_error_details(str(exc)),
+                        request_id=request_id,
                         extra_headers=history_route_headers,
                     )
                     return
@@ -4184,6 +4251,7 @@ class Handler(BaseHTTPRequestHandler):
                             "total": total,
                             "limit": limit,
                             "offset": offset,
+                            "deprecation": history_deprecation_payload,
                             "request_id": request_id,
                         },
                         request_id=request_id,
@@ -4244,6 +4312,7 @@ class Handler(BaseHTTPRequestHandler):
                         "total": len(history_rows),
                         "limit": limit,
                         "offset": offset,
+                        "deprecation": history_deprecation_payload,
                         "request_id": request_id,
                     },
                     request_id=request_id,

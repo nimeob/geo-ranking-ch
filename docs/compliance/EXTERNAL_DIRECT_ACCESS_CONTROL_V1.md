@@ -26,8 +26,9 @@ Antwortformat:
 
 - HTTP: `403 Forbidden`
 - Header: `Deprecation: true`
-- Header: `Link: </auth/login>; rel="successor-version"`
-- JSON: `{"ok": false, "error": "external_direct_login_disabled", "message": "...", "request_id": "..."}`
+- Header: `Sunset: Tue, 30 Jun 2026 23:59:59 GMT`
+- Header: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md#api-deprecation-mapping-dev>; rel="deprecation", </auth/login>; rel="successor-version"`
+- JSON: `{"ok": false, "error": "external_direct_login_disabled", "message": "...", "deprecation": {"successor": "/auth/login", "migration_guide": "...", "sunset": "Tue, 30 Jun 2026 23:59:59 GMT"}, "request_id": "..."}`
 
 Zusätzlich wird ein strukturierter Audit-Logeintrag erzeugt:
 

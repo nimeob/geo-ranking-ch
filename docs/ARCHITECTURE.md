@@ -239,6 +239,16 @@ History-Boundary-Hinweis (2026-03-04):
 - Front-Facing `GET /history` auf dem API-Service ist deprecated/removed (`410 gone` + Deprecation/Sunset-Header).
 - `GET /analyze/history` bleibt als Data-Source-Endpunkt verfügbar, liefert aber ebenfalls Deprecation/Sunset-Header für den geordneten UI-Migrationspfad.
 
+#### API Deprecation Mapping (Dev)
+
+| Deprecated API endpoint | UI successor | Sunset (GMT) |
+|---|---|---|
+| `GET /login`, `/signin`, `/sign-in`, `/auth/signin`, `/auth/sign-in`, `/oauth/login`, `/oauth2/login` | `/auth/login` (UI/BFF) | Tue, 30 Jun 2026 23:59:59 GMT |
+| `GET /history` | `/history` (UI-Service Front-Facing) | Tue, 30 Jun 2026 23:59:59 GMT |
+| `GET /analyze/history` (front-facing usage) | `/history` (UI-Service) | Tue, 30 Jun 2026 23:59:59 GMT |
+
+Migration-Guide/Referenz: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md#api-deprecation-mapping-dev>; rel="deprecation"`
+
 Aufruf (lokal/CI):
 
 ```bash
