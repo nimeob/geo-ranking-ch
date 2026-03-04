@@ -3,7 +3,7 @@
 > **Archiviert / nicht mehr Zielbild (seit 2026-03-01):** Externer Inbound auf OpenClaw wird aus Security-Gründen nicht betrieben. Dieses Dokument bleibt nur als historischer Referenzstand.
 
 Parent-Issue: [#1](https://github.com/nimeob/geo-ranking-ch/issues/1)  
-Follow-up (externes Rollout): [#550](https://github.com/nimeob/geo-ranking-ch/issues/550)
+Follow-up (externes Rollout): [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — **wontfix** (kein externer Inbound; siehe Security-Entscheid in `docs/OPERATIONS.md`)
 
 ## Ziel
 
@@ -77,4 +77,4 @@ docker compose -f /opt/openclaw-webhook-gate/docker-compose.yml up -d
 ## Hinweise zu Scope-Grenzen
 
 Dieses Dokument deckt die **vorbereitenden, repo-lokalen Deliverables** ab.  
-Das produktive externe Rollout (Hostinger-Zugang, echte Egress-IP(s), E2E-Evidenz) wird separat in [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) abgeschlossen.
+Das produktive externe Rollout (Hostinger-Zugang, echte Egress-IP(s), E2E-Evidenz) wurde in [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) als **wontfix** beendet, weil für dieses Projekt kein externer Inbound auf OpenClaw erlaubt ist.
