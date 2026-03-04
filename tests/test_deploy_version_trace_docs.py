@@ -152,6 +152,22 @@ def test_deploy_workflow_uses_deploy_gate_runner_with_rollback_snapshot():
     assert not missing, f"deploy.yml fehlt Deploy-Gate-Rollback-Verdrahtung: {missing}"
 
 
+def test_deploy_workflow_wires_database_reachability_gate_inputs():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "Deploy gate: API /health + GUI /gui + DB reachability",
+        "SERVICE_DB_HEALTH_DETAILS_URL",
+        "DEPLOY_GATE_DB_DETAILS_URL",
+        "DB_DETAILS_URL=\"${SERVICE_API_BASE_URL%/}/health/details\"",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"deploy.yml fehlt DB-Reachability-Gate-Verdrahtung: {missing}"
+
+
 def test_deployment_aws_doc_mentions_deploy_gate_rollback_required_marker():
     doc = Path("docs/DEPLOYMENT_AWS.md")
     assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
@@ -167,3 +183,19 @@ def test_deployment_aws_doc_mentions_deploy_gate_rollback_required_marker():
 
     missing = [snippet for snippet in required if snippet not in text]
     assert not missing, f"DEPLOYMENT_AWS.md fehlt Deploy-Gate-Rollback-Notiz: {missing}"
+
+
+def test_deployment_aws_doc_mentions_database_reachability_gate():
+    doc = Path("docs/DEPLOYMENT_AWS.md")
+    assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "API-`/health`, GUI-`/gui` **und** DB-Reachability",
+        "checks.database.status=ok",
+        "SERVICE_DB_HEALTH_DETAILS_URL",
+        "failure_reason",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"DEPLOYMENT_AWS.md fehlt DB-Reachability-Gate-Dokumentation: {missing}"

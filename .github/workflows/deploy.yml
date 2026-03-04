@@ -557,11 +557,12 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy gate: API /health + GUI /gui readiness (max 90s)
+      - name: Deploy gate: API /health + GUI /gui + DB reachability (max 90s)
         env:
           SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
           SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+          SERVICE_DB_HEALTH_DETAILS_URL: ${{ vars.SERVICE_DB_HEALTH_DETAILS_URL }}
           DEPLOY_GATE_MAX_WAIT_SECONDS: ${{ vars.DEPLOY_GATE_MAX_WAIT_SECONDS }}
           DEPLOY_GATE_RETRY_DELAY_SECONDS: ${{ vars.DEPLOY_GATE_RETRY_DELAY_SECONDS }}
           DEPLOY_GATE_ROLLBACK_MODE: ${{ vars.DEPLOY_GATE_ROLLBACK_MODE }}
@@ -583,9 +584,26 @@ jobs:
             exit 1
           fi
 
+          DB_DETAILS_URL="${SERVICE_DB_HEALTH_DETAILS_URL:-}"
+          if [ -z "${DB_DETAILS_URL}" ] && [ -n "${SERVICE_API_BASE_URL:-}" ]; then
+            DB_DETAILS_URL="${SERVICE_API_BASE_URL%/}/health/details"
+          fi
+          if [ -z "${DB_DETAILS_URL}" ]; then
+            case "${API_HEALTH_URL}" in
+              */health)
+                DB_DETAILS_URL="${API_HEALTH_URL%/health}/health/details"
+                ;;
+            esac
+          fi
+          if [ -z "${DB_DETAILS_URL}" ]; then
+            echo "::error::Missing DB health-details URL for deploy gate (set SERVICE_DB_HEALTH_DETAILS_URL or SERVICE_API_BASE_URL)."
+            exit 1
+          fi
+
           mkdir -p artifacts/deploy
           DEPLOY_GATE_API_HEALTH_URL="${API_HEALTH_URL}" \
           DEPLOY_GATE_GUI_READY_URL="${SERVICE_APP_BASE_URL%/}/gui" \
+          DEPLOY_GATE_DB_DETAILS_URL="${DB_DETAILS_URL}" \
           DEPLOY_GATE_MAX_WAIT_SECONDS="${DEPLOY_GATE_MAX_WAIT_SECONDS:-90}" \
           DEPLOY_GATE_RETRY_DELAY_SECONDS="${DEPLOY_GATE_RETRY_DELAY_SECONDS:-5}" \
           DEPLOY_GATE_ROLLBACK_MODE="${DEPLOY_GATE_ROLLBACK_MODE:-mark-required}" \
