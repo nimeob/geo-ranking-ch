@@ -107,13 +107,15 @@ Hinweis: Der zusätzliche Query-Parameter `reason` ist für reproduzierbare Diag
 - Session-Expiry wird deterministisch behandelt (kein endloses Loading/Looping).
 - Refresh-Fehlercodes (`refresh_*`, `no_refresh_token`) triggern denselben Re-Login-Recovery-Flow wie Session-Expiry.
 - Keine sensitiven Tokenwerte in UI-Logs/Devtools-Network-Payloads.
+- Browser-sichtbare Auth-Redirects/CTAs (`/auth/login`, `/auth/callback`, `/auth/logout`) leaken keinen API-Host (nur UI-Host/relative Pfade).
 
 ## Reproduzierbarer Dev-E2E-Nachweis (Issue #947)
 
-Die folgenden Checks liefern einen wiederholbaren Nachweis für den GUI-Auth-Flow (Login-Redirect -> geschützter Zugriff -> Logout inklusive Cookie-Clear):
+Die folgenden Checks liefern einen wiederholbaren Nachweis für den GUI-Auth-Flow (Login-Redirect -> geschützter Zugriff -> Logout -> Re-Login inklusive Cookie-Clear):
 
 ```bash
 python3 -m unittest tests.test_web_service_bff_gui_guard
+python3 -m pytest -q tests/test_auth_regression_smoke_issue_1019.py
 ```
 
 Erwartung:
@@ -121,6 +123,10 @@ Erwartung:
 - `GET /history?limit=5` ohne Session -> `302` nach `/login?next=%2Fhistory%3Flimit%3D5`
 - `GET /auth/callback` mit ungültigem/abgelaufenem `state` -> `400` HTML-Fehlerseite mit genau einem Re-Login-CTA (`/login?next=...&reason=invalid_state`), ohne Redirect-Loop
 - `GET /auth/logout` löscht Session-Cookie (`Max-Age=0`) und liefert IdP-Logout-Redirect
+- Re-Login nach Logout bleibt stabil (z. B. `next=/history`)
+- Browser-Auth-Flow enthält keinen API-Host in Login-/Callback-/Logout-Redirects und Error-CTAs (Guard: `test_no_api_host_in_browser_auth_flow_guard`)
+
+Konkrete Issue-#1253-Evidenz (Core-Flow + No-API-Host-Guard): [`reports/evidence/issue-1253-auth-no-api-host-guard-20260304T233008Z.md`](../../reports/evidence/issue-1253-auth-no-api-host-guard-20260304T233008Z.md)
 
 ## Automatisierter Guard- und Session-Proxy-Nachweis (Issue #997)
 

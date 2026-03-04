@@ -28,6 +28,8 @@ class TestApiUiDevSmokeMatrixDocs(unittest.TestCase):
             "Negativer API-Contract-Fall (fehlender/ungültiger Parameter)",
             "## Dev-Smoke-Gate (minimal, verbindlich)",
             "tests/test_auth_regression_smoke_issue_1019.py",
+            "test_no_api_host_in_browser_auth_flow_guard",
+            "leakt keinen API-Host in browser-sichtbaren Auth-Redirects", 
             "tests/test_web_service_bff_gui_guard.py",
             "tests/test_history_navigation_integration.py",
             "tests/test_trace_debug_smoke.py",

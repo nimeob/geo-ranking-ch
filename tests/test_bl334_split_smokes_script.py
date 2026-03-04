@@ -18,7 +18,7 @@ def test_bl334_split_smokes_script_contains_api_ui_entrypoints_and_health_checks
         '"healthVersionExpected"',
         '"healthVersionObserved"',
         '"result": "pass"',
-        "login -> search -> ranking list -> detail",
+        "login -> protected route -> logout -> relogin (+ failure modes/no-api-host guard)",
         "core-flow-failure-trace.md",
         "core-flow-failure-gui.png",
     ]

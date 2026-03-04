@@ -13,7 +13,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib import error, request
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -149,6 +149,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
 
         cls.api_port = _free_port()
         cls.api_base_url = f"http://127.0.0.1:{cls.api_port}"
+        cls.ui_public_origin = "https://www.dev.georanking.ch"
 
         env = os.environ.copy()
         env.update(
@@ -164,8 +165,8 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
                 "BFF_OIDC_AUTH_ENDPOINT": f"{cls.idp_base_url}/issuer/oauth2/authorize",
                 "BFF_OIDC_TOKEN_ENDPOINT": f"{cls.idp_base_url}/issuer/oauth2/token",
                 "BFF_OIDC_CLIENT_ID": "test-client-id",
-                "BFF_OIDC_REDIRECT_URI": f"{cls.api_base_url}/auth/callback",
-                "BFF_OIDC_POST_LOGOUT_REDIRECT_URI": f"{cls.api_base_url}/login",
+                "BFF_OIDC_REDIRECT_URI": f"{cls.ui_public_origin}/auth/callback",
+                "BFF_OIDC_POST_LOGOUT_REDIRECT_URI": f"{cls.ui_public_origin}/login",
             }
         )
 
@@ -206,6 +207,36 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         if getattr(cls, "tmp", None) is not None:
             cls.tmp.cleanup()
 
+    def _assert_no_api_host_leak(self, text: str, *, context: str) -> None:
+        decoded = unquote(str(text or "")).lower()
+        api_host = str(urlparse(self.api_base_url).netloc or "").lower()
+        self.assertNotIn(
+            self.api_base_url.lower(),
+            decoded,
+            msg=f"API-Host-Leak ({context}): absolute API URL sichtbar in Browser-Flow",
+        )
+        self.assertNotIn(
+            api_host,
+            decoded,
+            msg=f"API-Host-Leak ({context}): API host/netloc sichtbar in Browser-Flow",
+        )
+
+    def _start_login_flow(self, *, next_path: str) -> tuple[str, str, str]:
+        status, _, headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/login?next={next_path}",
+            headers=_ui_proxy_headers(),
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        login_redirect = str(headers.get("location") or "")
+        session_cookie = _parse_cookie_value(headers.get("set-cookie", ""))
+        self.assertTrue(session_cookie.startswith("__Host-session="))
+
+        state = parse_qs(urlparse(login_redirect).query).get("state", [""])[0]
+        self.assertTrue(state)
+        return state, session_cookie, login_redirect
+
     def test_login_search_ranking_logout_regression_smoke(self):
         # 1) unauth GUI must redirect to login
         status, _, headers = _http_request(
@@ -215,6 +246,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         )
         self.assertEqual(status, 302)
         self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
+        self._assert_no_api_host_leak(headers.get("location", ""), context="unauth-redirect")
 
         # 1b) direct API login aliases are deprecated and keep stable 403 status with deprecation headers
         for legacy_login_path in ("/login", "/signin", "/sign-in", "/oauth/login"):
@@ -266,21 +298,12 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         self.assertIn("/login", str(headers.get("link") or ""))
 
         # 2) explicit login endpoint sets session cookie and redirects to IdP authorize URL
-        status, _, headers = _http_request(
-            "GET",
-            f"{self.api_base_url}/auth/login?next=%2Fgui",
-            headers=_ui_proxy_headers(),
-            follow_redirects=False,
-        )
-        self.assertEqual(status, 302)
-        login_redirect = str(headers.get("location") or "")
+        state, session_cookie, login_redirect = self._start_login_flow(next_path="%2Fgui")
         self.assertIn(f"{self.idp_base_url}/issuer/oauth2/authorize", login_redirect)
         self.assertIn("state=", login_redirect)
-        session_cookie = _parse_cookie_value(headers.get("set-cookie", ""))
-        self.assertTrue(session_cookie.startswith("__Host-session="))
-
-        state = parse_qs(urlparse(login_redirect).query).get("state", [""])[0]
-        self.assertTrue(state)
+        self.assertIn("redirect_uri=", login_redirect)
+        self.assertIn(f"{self.ui_public_origin}/auth/callback", unquote(login_redirect))
+        self._assert_no_api_host_leak(login_redirect, context="login-redirect-to-idp")
 
         # 3) callback establishes authenticated session
         callback_query = urlencode({"code": "smoke-code-1019", "state": state})
@@ -292,6 +315,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         )
         self.assertEqual(status, 302)
         self.assertEqual(headers.get("location"), "/gui")
+        self._assert_no_api_host_leak(headers.get("location", ""), context="callback-success-redirect")
 
         callback_cookie = _parse_cookie_value(headers.get("set-cookie", ""))
         self.assertTrue(callback_cookie.startswith("__Host-session="))
@@ -383,6 +407,8 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         self.assertIn(f"{self.idp_base_url}/issuer/logout", logout_location)
         self.assertIn("client_id=test-client-id", logout_location)
         self.assertIn("logout_uri=", logout_location)
+        self.assertIn(f"{self.ui_public_origin}/login", unquote(logout_location))
+        self._assert_no_api_host_leak(logout_location, context="logout-redirect")
         self.assertIn("Max-Age=0", str(headers.get("set-cookie") or ""))
 
         status, body, _ = _http_request(
@@ -393,6 +419,100 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         self.assertEqual(status, 401)
         me_after_logout = json.loads(body)
         self.assertFalse(me_after_logout.get("ok"))
+
+        # 10) relogin still works after logout and returns to requested protected route
+        relogin_state, relogin_cookie, relogin_redirect = self._start_login_flow(next_path="%2Fhistory")
+        self.assertIn(f"{self.ui_public_origin}/auth/callback", unquote(relogin_redirect))
+        self._assert_no_api_host_leak(relogin_redirect, context="relogin-redirect-to-idp")
+
+        relogin_callback_query = urlencode({"code": "smoke-code-1019-relogin", "state": relogin_state})
+        status, _, headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/callback?{relogin_callback_query}",
+            headers=_ui_proxy_headers({"Cookie": relogin_cookie}),
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("location"), "/history")
+        relogin_callback_cookie = _parse_cookie_value(headers.get("set-cookie", ""))
+        self.assertTrue(relogin_callback_cookie.startswith("__Host-session="))
+
+        status, body, _ = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/me",
+            headers={"Cookie": relogin_callback_cookie},
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 200)
+        relogin_me_payload = json.loads(body)
+        self.assertTrue(relogin_me_payload.get("ok"))
+        self.assertTrue(relogin_me_payload.get("authenticated"))
+
+    def test_callback_failure_modes_render_ui_relogin_without_api_host_leak(self):
+        # invalid_state via state mismatch
+        state, cookie, _ = self._start_login_flow(next_path="%2Fgui")
+        status, body, headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/callback?code=smoke-invalid-state&state=wrong-{state}",
+            headers=_ui_proxy_headers({"Cookie": cookie}),
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 400)
+        self.assertNotIn("location", headers)
+        self.assertIn("id=\"auth-callback-relogin\"", body)
+        self.assertIn("reason=invalid_state", body)
+        self._assert_no_api_host_leak(body, context="callback-invalid-state")
+
+        # consent_denied via provider abort
+        status, body, headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/callback?error=access_denied&error_description=cancelled",
+            headers=_ui_proxy_headers(),
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 400)
+        self.assertNotIn("location", headers)
+        self.assertIn("id=\"auth-callback-relogin\"", body)
+        self.assertIn("reason=consent_denied", body)
+        self._assert_no_api_host_leak(body, context="callback-consent-denied")
+
+        # session_expired via missing code with a valid state/session
+        state, cookie, _ = self._start_login_flow(next_path="%2Fgui")
+        status, body, headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/callback?state={state}",
+            headers=_ui_proxy_headers({"Cookie": cookie}),
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 400)
+        self.assertNotIn("location", headers)
+        self.assertIn("id=\"auth-callback-relogin\"", body)
+        self.assertIn("reason=session_expired", body)
+        self._assert_no_api_host_leak(body, context="callback-session-expired")
+
+    def test_no_api_host_in_browser_auth_flow_guard(self):
+        state, cookie, login_redirect = self._start_login_flow(next_path="%2Fgui")
+        self._assert_no_api_host_leak(login_redirect, context="ci-guard-login")
+
+        callback_query = urlencode({"code": "smoke-code-ci-guard", "state": state})
+        status, _, callback_headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/callback?{callback_query}",
+            headers=_ui_proxy_headers({"Cookie": cookie}),
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self._assert_no_api_host_leak(callback_headers.get("location", ""), context="ci-guard-callback")
+
+        callback_cookie = _parse_cookie_value(callback_headers.get("set-cookie", ""))
+        status, _, logout_headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/logout",
+            headers=_ui_proxy_headers({"Cookie": callback_cookie}),
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self._assert_no_api_host_leak(logout_headers.get("location", ""), context="ci-guard-logout")
 
 
 if __name__ == "__main__":
