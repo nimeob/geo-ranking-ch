@@ -50,7 +50,14 @@ class _CountingFetcher:
 
 
 class TestOidcJwtValidation(unittest.TestCase):
-    def _validator(self, *, issuer: str = "joe", audience: str = "", ttl_seconds: float = 300.0):
+    def _validator(
+        self,
+        *,
+        issuer: str = "joe",
+        audience: str = "",
+        ttl_seconds: float = 300.0,
+        clock_skew_seconds: float = 60.0,
+    ):
         fetcher = _CountingFetcher(_RFC_A2_JWKS)
         cache = JwksCache(
             jwks_url="https://example.invalid/.well-known/jwks.json",
@@ -58,7 +65,14 @@ class TestOidcJwtValidation(unittest.TestCase):
             timeout_seconds=1.0,
             fetch_json=fetcher,
         )
-        validator = OidcJwtValidator(config=OidcJwtConfig(issuer=issuer, audience=audience), jwks=cache)
+        validator = OidcJwtValidator(
+            config=OidcJwtConfig(
+                issuer=issuer,
+                audience=audience,
+                clock_skew_seconds=clock_skew_seconds,
+            ),
+            jwks=cache,
+        )
         return validator, fetcher
 
     def _validator_multi_jwks(self, *, issuer: str = "joe", audience: str = ""):
@@ -152,6 +166,21 @@ class TestOidcJwtValidation(unittest.TestCase):
         validator, _ = self._validator(issuer="joe")
         with self.assertRaises(JwtValidationError) as ctx:
             validator.validate(_RFC_A2_TOKEN, now=1300819380 + 61)
+        self.assertEqual(ctx.exception.code, "token_expired")
+
+    def test_clock_skew_accepts_brief_post_expiry_with_decimal_tolerance(self):
+        validator, _ = self._validator(issuer="issuer.example", clock_skew_seconds=0.5)
+        claims = {"iss": "issuer.example", "exp": 1_700_000_000}
+
+        # 0.4s after exp is still within tolerance and must pass.
+        validator._validate_claims(claims, now=1_700_000_000.4)
+
+    def test_clock_skew_rejects_after_decimal_tolerance_window(self):
+        validator, _ = self._validator(issuer="issuer.example", clock_skew_seconds=0.5)
+        claims = {"iss": "issuer.example", "exp": 1_700_000_000}
+
+        with self.assertRaises(JwtValidationError) as ctx:
+            validator._validate_claims(claims, now=1_700_000_000.6)
         self.assertEqual(ctx.exception.code, "token_expired")
 
     def test_invalid_format(self):

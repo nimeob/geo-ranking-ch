@@ -225,8 +225,12 @@ Der API-Service liest folgende Env Vars (siehe `src/api/web_service.py`):
 | `OIDC_JWT_AUDIENCE`       | `<APP_CLIENT_ID>`                                                                   | ✅ ja   |
 | `OIDC_JWKS_TTL_SECONDS`   | `300` (5 min Cache-TTL für JWKS)                                                    | optional |
 | `OIDC_JWKS_TIMEOUT_SECONDS` | `5`                                                                               | optional |
-| `OIDC_CLOCK_SKEW_SECONDS` | `60`                                                                                | optional |
+| `OIDC_CLOCK_SKEW_SECONDS` | `60` (Sekunden, auch Dezimalwerte wie `0.5` möglich)                              | optional |
 
+> Hinweis (Clock Skew): `OIDC_CLOCK_SKEW_SECONDS` steuert die Toleranz für `exp`/`nbf`.
+> Für Dev-Umgebungen mit minimalem Zeitdrift kann ein kleiner Wert (z. B. `0.5`–`2`) False-Negatives reduzieren,
+> ohne echte Token-Abläufe dauerhaft zu maskieren.
+>
 > Hinweis (Cognito Access Token): Der API-Validator akzeptiert bei gesetztem
 > `OIDC_JWT_AUDIENCE=<APP_CLIENT_ID>` sowohl `aud` (falls vorhanden) als auch
 > Cognito-`client_id` für `token_use=access`.

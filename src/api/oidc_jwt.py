@@ -27,8 +27,9 @@ OIDC_JWKS_URL
     Cognito example:
     ``https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_XXXXX/.well-known/jwks.json``
 
-OIDC_CLOCK_SKEW   (optional, default: 60)
+OIDC_CLOCK_SKEW_SECONDS   (optional, default: 60)
     Allowed clock drift in seconds for ``exp``/``nbf`` checks.
+    Accepts integer or decimal values (e.g. ``0.5``).
 
 Usage example::
 
@@ -39,7 +40,7 @@ Usage example::
         config=OidcJwtConfig(
             issuer=os.environ["OIDC_ISSUER"],
             audience=os.environ["OIDC_AUDIENCE"],
-            clock_skew_seconds=int(os.getenv("OIDC_CLOCK_SKEW", "60")),
+            clock_skew_seconds=float(os.getenv("OIDC_CLOCK_SKEW_SECONDS", "60")),
         ),
         jwks=JwksCache(jwks_url=os.environ["OIDC_JWKS_URL"]),
     )
@@ -234,7 +235,7 @@ class JwksCache:
 class OidcJwtConfig:
     issuer: str = ""
     audience: str = ""
-    clock_skew_seconds: int = 60
+    clock_skew_seconds: float = 60.0
     require_exp: bool = True
 
 
@@ -289,7 +290,7 @@ class OidcJwtValidator:
             if not aud_ok:
                 raise JwtValidationError("invalid_audience", "audience mismatch")
 
-        skew = max(0, int(self.config.clock_skew_seconds))
+        skew = max(0.0, float(self.config.clock_skew_seconds))
 
         exp = claims.get("exp")
         if exp is None:
