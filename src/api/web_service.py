@@ -270,7 +270,7 @@ _HISTORY_API_DEPRECATION_WARNING = (
     'API /analyze/history remains data-source only during migration."'
 )
 _EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING = (
-    '299 - "External direct login routes on API are deprecated: use UI-owned /auth/login session flow."'
+    '299 - "External direct login/auth routes on API are deprecated: use UI-owned /login session flow."'
 )
 _TRACE_LEGACY_ALIAS_DEPRECATION_WARNING = (
     '299 - "Legacy trace alias on API is deprecated and removed: use /debug/trace?request_id=<id>."'
@@ -324,13 +324,13 @@ def _history_api_deprecation_payload() -> dict[str, str]:
 def _external_direct_login_deprecation_headers() -> dict[str, str]:
     return _build_deprecation_headers(
         warning=_EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING,
-        successor_link='</auth/login>; rel="successor-version"',
+        successor_link='</login>; rel="successor-version"',
     )
 
 
 def _external_direct_login_deprecation_payload() -> dict[str, str]:
     return _build_deprecation_payload(
-        successor="/auth/login",
+        successor="/login",
         scope="login-front-facing",
     )
 
@@ -627,8 +627,10 @@ _EXTERNAL_DIRECT_LOGIN_BLOCKED_PATHS = frozenset(
 )
 _EXTERNAL_DIRECT_LOGIN_ERROR = "external_direct_login_disabled"
 _EXTERNAL_DIRECT_LOGIN_MESSAGE = (
-    "direct login is disabled; use the UI-owned login flow via /auth/login"
+    "direct login is disabled on API; use the UI-owned login/auth flow via /login"
 )
+_UI_AUTH_PROXY_HEADER_NAME = "X-Geo-Auth-Proxy"
+_UI_AUTH_PROXY_HEADER_VALUE = "1"
 
 _PROTECTED_GUI_ROUTES = frozenset({"/", "/gui", "/history"})
 
@@ -722,6 +724,21 @@ def _is_external_direct_login_path(request_path: str) -> bool:
     if normalized != "/":
         normalized = normalized.rstrip("/") or "/"
     return normalized in _EXTERNAL_DIRECT_LOGIN_BLOCKED_PATHS
+
+
+def _is_ui_auth_proxy_request(headers: Any) -> bool:
+    """Return True when auth traffic is routed through the UI proxy hop.
+
+    Direktaufrufe aus dem Browser auf dem API-Host liefern den Marker-Header
+    nicht und werden damit fail-closed geblockt.
+    """
+
+    marker = str(headers.get(_UI_AUTH_PROXY_HEADER_NAME, "") or "").strip().lower()
+    if marker != _UI_AUTH_PROXY_HEADER_VALUE.lower():
+        return False
+
+    forwarded_host = str(headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+    return bool(forwarded_host)
 
 
 def _is_protected_gui_route(request_path: str) -> bool:
@@ -4021,6 +4038,14 @@ class Handler(BaseHTTPRequestHandler):
 
             # --- BFF OIDC: /auth/login, /auth/callback, /auth/logout (when BFF is enabled) ---
             if request_path in ("/auth/login", "/auth/callback", "/auth/logout") and is_bff_oidc_enabled():
+                if not _is_ui_auth_proxy_request(self.headers):
+                    self._send_external_direct_login_disabled(
+                        request_id=request_id,
+                        request_path=request_path,
+                        method="GET",
+                    )
+                    return
+
                 self._handle_bff_oidc_get(
                     request_path=request_path,
                     request_id=request_id,

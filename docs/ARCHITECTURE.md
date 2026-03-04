@@ -244,12 +244,16 @@ History-Boundary-Hinweis (2026-03-04):
 
 | Deprecated API endpoint | UI successor | Sunset (GMT) |
 |---|---|---|
-| `GET /login`, `/signin`, `/sign-in`, `/auth/signin`, `/auth/sign-in`, `/oauth/login`, `/oauth2/login` | `/auth/login` (UI/BFF) | Tue, 30 Jun 2026 23:59:59 GMT |
+| `GET /login`, `/signin`, `/sign-in`, `/auth/login` (direkt auf API-Host), `/auth/signin`, `/auth/sign-in`, `/oauth/login`, `/oauth2/login` | `/login` (UI-owned; intern via UI-Proxy zu `/auth/login`) | Tue, 30 Jun 2026 23:59:59 GMT |
 | `GET /history` | `/history` (UI-Service Front-Facing) | Tue, 30 Jun 2026 23:59:59 GMT |
 | `GET /analyze/history` (front-facing usage) | `/history` (UI-Service) | Tue, 30 Jun 2026 23:59:59 GMT |
 | `GET /trace` (legacy alias) | `/debug/trace?request_id=<id>` (API Data/Diagnose) | Tue, 30 Jun 2026 23:59:59 GMT |
 
 Migration-Guide/Referenz: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md#api-deprecation-mapping-dev>; rel="deprecation"`
+
+Runtime-Härtung (Final Cut):
+- Direkte Browser-Aufrufe auf API-Auth-Routen (`/auth/login`, `/auth/callback`, `/auth/logout`) sind fail-closed (`403`, `external_direct_login_disabled`).
+- Zulässig ist nur der UI-Proxy-Hop mit Marker `X-Geo-Auth-Proxy: 1` (gesetzt durch den UI-Service bei `/auth/*`).
 
 Legacy-Trace-Contract (`GET /trace` auf API, Stand 2026-03-04):
 - Status: `410 gone`

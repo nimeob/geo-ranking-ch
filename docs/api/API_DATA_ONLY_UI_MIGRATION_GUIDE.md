@@ -70,7 +70,7 @@ Aktuelle Mapping-Tabelle (kanonisch):
 ### 4.1 Login-Einstieg
 
 - **Before (legacy):** `GET /login`, `/signin`, `/oauth/login`
-- **After (verbindlich):** `GET /auth/login` (UI/BFF-Einstieg)
+- **After (verbindlich):** `GET /login` (UI-owned Entry; interner UI-Proxy-Hop auf `/auth/login`)
 
 ### 4.2 Runbook-Flow: History (`before -> transition -> after`)
 
@@ -165,7 +165,7 @@ Erwartung: Legacy-Pfad liefert keinen front-facing Trace-Flow mehr (`410 gone` o
 
 ```bash
 # 1) UI-Login-Entrypoint erreichbar
-curl -i "${UI_BASE_URL}/auth/login"
+curl -i "${UI_BASE_URL}/login"
 
 # 2) Legacy-Login signalisiert Migration
 curl -i "${API_BASE_URL}/login"
@@ -179,6 +179,7 @@ curl -i -H "Authorization: Bearer ${TOKEN}" "${API_BASE_URL}/debug/trace?request
 
 Erwartung:
 - Legacy-Pfade liefern Deprecation/Sunset/Warning/Link-Signale.
+- Direkte API-Auth-Aufrufe (`/auth/login`, `/auth/callback`, `/auth/logout`) sind fail-closed (`403`) ohne UI-Proxy-Marker.
 - Data-Endpunkte bleiben stabil maschinenlesbar (JSON, dokumentierter Statuscode).
 - UI bleibt ausschließlich user-facing für Login/History/Trace.
 

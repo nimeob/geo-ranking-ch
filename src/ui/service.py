@@ -33,6 +33,8 @@ from src.shared.ui_pages import build_history_page_html, build_result_tabs_page_
 
 _RESULT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 _JOB_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
+_UI_AUTH_PROXY_HEADER_NAME = "X-Geo-Auth-Proxy"
+_UI_AUTH_PROXY_HEADER_VALUE = "1"
 
 _RESULT_PAGE_TEMPLATE = """<!doctype html>
 <html lang="de">
@@ -1580,6 +1582,10 @@ class _UiHandler(BaseHTTPRequestHandler):
         forwarded_accept = self.headers.get("Accept")
         if forwarded_accept:
             upstream_headers["Accept"] = forwarded_accept
+
+        # Marker for API fail-closed auth routing: /auth/* is accepted only when
+        # requests come through the UI proxy hop.
+        upstream_headers[_UI_AUTH_PROXY_HEADER_NAME] = _UI_AUTH_PROXY_HEADER_VALUE
 
         forwarded_proto = str(self.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip().lower()
         request_scheme = forwarded_proto if forwarded_proto in {"http", "https"} else "http"

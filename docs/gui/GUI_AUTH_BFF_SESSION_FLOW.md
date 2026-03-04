@@ -25,7 +25,8 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 
 - Empfohlener Login-Entrypoint in Dev ist **ausschließlich** der UI/BFF-Flow über `GET /login` (direkt oder via Redirect von `/gui`, `/history`, `/results/<id>`).
 - `GET /login` bleibt UI-owned und leitet intern auf den BFF-Auth-Start weiter, ohne den API-Host in der Browser-Adresszeile zu zeigen.
-- Legacy-Direktpfade bleiben zwar erreichbar, sind aber **deprecated** und liefern bewusst `403` mit Deprecation-Hinweis auf den UI-Pfad.
+- Legacy-Direktpfade auf dem API-Host sind **fail-closed** (`403` + Deprecation-Hinweis auf den UI-Pfad).
+- Zusätzlich sind direkte Browser-Aufrufe auf API-Auth-Routen (`/auth/login`, `/auth/callback`, `/auth/logout`) fail-closed; erlaubt ist nur der UI-Proxy-Hop mit `X-Geo-Auth-Proxy: 1`.
 - Betroffene Direktpfade (Blocker-Fokus, max. 3):
   - `GET /login`
   - `GET /signin`
