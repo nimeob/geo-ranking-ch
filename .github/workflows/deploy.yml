@@ -1,7 +1,7 @@
 name: Deploy to AWS (ECS dev)
 
-on:
-  workflow_dispatch:
+'on':
+  workflow_dispatch: {}
   schedule:
     # Every hour at minute 7 (UTC) to avoid top-of-hour congestion.
     - cron: "7 * * * *"
