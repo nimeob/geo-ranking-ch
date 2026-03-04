@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import tempfile
 import unittest
@@ -8,6 +9,28 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "check_bl31_service_boundaries.py"
+
+# Maintenance note:
+# Keep this suite aligned with scripts/check_bl31_service_boundaries.py policy sets.
+# If API/UI/shared module constants or route ownership rules change, update the
+# fixture builders and expected violation strings here in the same PR.
+_SPEC = importlib.util.spec_from_file_location("check_bl31_service_boundaries", SCRIPT)
+if _SPEC is None or _SPEC.loader is None:
+    raise RuntimeError(f"Unable to load boundary check script module from {SCRIPT}")
+_boundary_module = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_boundary_module)
+
+LEGACY_POLICY_MODULES = {
+    "web_service.py": "",
+    "address_intel.py": "",
+    "personalized_scoring.py": "",
+    "suitability_light.py": "",
+    "ui_service.py": "",
+    "gui_mvp.py": "",
+    "geo_utils.py": "",
+    "gwr_codes.py": "",
+    "mapping_transform_rules.py": "",
+}
 
 
 class TestCheckBl31ServiceBoundaries(unittest.TestCase):
@@ -21,6 +44,21 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
         self.assertIn("passed", result.stdout.lower())
+
+    def _build_legacy_src(self, root: Path, overrides: dict[str, str] | None = None) -> Path:
+        src_dir = root / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
+        contents = dict(LEGACY_POLICY_MODULES)
+        if overrides:
+            contents.update(overrides)
+        for module_name, text in contents.items():
+            (src_dir / module_name).write_text(text, encoding="utf-8")
+        return src_dir
+
+    def _analyze(self, src_dir: Path) -> list[str]:
+        violations = _boundary_module.analyze_service_boundaries(src_dir)
+        self.assertIsInstance(violations, list)
+        return violations
 
     def test_ui_importing_api_module_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -71,6 +109,55 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("must remain neutral", result.stdout)
+
+    def test_legacy_import_boundary_matrix_allows_expected_paths(self) -> None:
+        positive_cases = [
+            (
+                "api may import shared",
+                {"web_service.py": "from src.geo_utils import helper\n"},
+            ),
+            (
+                "ui may import shared",
+                {"ui_service.py": "from src.mapping_transform_rules import RULES\n"},
+            ),
+            (
+                "shared may import shared",
+                {"geo_utils.py": "from src.gwr_codes import CODE\n"},
+            ),
+        ]
+
+        for case_name, overrides in positive_cases:
+            with self.subTest(case=case_name):
+                with tempfile.TemporaryDirectory() as tmp:
+                    src_dir = self._build_legacy_src(Path(tmp), overrides)
+                    violations = self._analyze(src_dir)
+                    self.assertEqual([], violations)
+
+    def test_legacy_import_boundary_matrix_rejects_forbidden_paths_with_clear_messages(self) -> None:
+        negative_cases = [
+            (
+                "api importing ui",
+                {"web_service.py": "from src.ui_service import app\n"},
+                "API module 'web_service' must not import UI module 'ui_service'",
+            ),
+            (
+                "ui importing api",
+                {"ui_service.py": "from src.address_intel import score\n"},
+                "UI module 'ui_service' must not import API module 'address_intel'",
+            ),
+            (
+                "shared importing api",
+                {"geo_utils.py": "from src.personalized_scoring import rank\n"},
+                "Shared module 'geo_utils' must remain neutral and not import API module 'personalized_scoring'",
+            ),
+        ]
+
+        for case_name, overrides, expected_message in negative_cases:
+            with self.subTest(case=case_name):
+                with tempfile.TemporaryDirectory() as tmp:
+                    src_dir = self._build_legacy_src(Path(tmp), overrides)
+                    violations = self._analyze(src_dir)
+                    self.assertIn(expected_message, violations)
 
     def test_split_layout_passes_with_shared_only_dependency(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
