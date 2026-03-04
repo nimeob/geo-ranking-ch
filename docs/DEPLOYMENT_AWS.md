@@ -422,6 +422,8 @@ Smoke-Verhalten:
 
 Der Deploy-Workflow startet vor AWS/OIDC mit `python3 scripts/validate_required_deploy_env.py` und bricht fail-fast ab, wenn Pflicht-Keys fehlen. Dabei werden **alle** fehlenden Keys in einem Lauf aufgelistet (inkl. Fix-Hinweis pro Key).
 
+Zusätzlich läuft im Build-Job ein **Boundary-Preflight** (`python3 scripts/check_bl31_service_boundaries.py --src-dir src`) **vor** dem vollständigen Unit-Testlauf. Damit werden API/UI-Ownership-Verstöße (z. B. verbotene API-Route-Claims) früh und eindeutig als Guardrail-Fail signalisiert, statt erst am Ende eines langen Testlaufs.
+
 Lokaler Start (trocken, nur Validierung):
 
 ```bash
