@@ -342,6 +342,7 @@ Zusätzlich werden pattern-basiert maskiert:
   - `ui.state.transition` (`idle/loading/success/error`)
   - `ui.api.request.start`
   - `ui.api.request.end` (inkl. `status_code`, `duration_ms`, `error_code/error_class`)
+  - `ui.results_list.first_contentful_data` (pro Listenladung genau einmal, inkl. `duration_ms`, `rows_visible`, `rows_total`, `status`)
   - `ui.validation.error`
   - `ui.output.map_status`
 - Upstream-Call-Sites BL-340.4:
