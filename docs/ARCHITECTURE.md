@@ -261,6 +261,50 @@ Migrationshinweis:
 - BL-334.4 hat die GUI-MVP als neutrales Shared-Modul (`src/shared/gui_mvp.py`) kanonisiert und service-lokale Containerkontexte via `Dockerfile*.dockerignore` eingeführt.
 - BL-334.5 hat die CI-/Smoke-Pfade auf kanonische Entrypoints synchronisiert (`scripts/check_bl334_split_smokes.sh`, API: `src.api.web_service`, UI: `src.ui.service`) und die Kern-Dokumente auf den Split-Stand aktualisiert.
 
-## 7) Offene Punkte / Nächste Architektur-Schritte
+## 7) API/UI Boundary Contract (v1)
+
+> **Boundary-Version:** `api-ui-boundary/v1`  
+> **Gültig ab:** 2026-03-04  
+> **Änderungsregel:** Jede Boundary-Änderung muss in diesem Abschnitt dokumentiert und im PR-Template explizit geprüft werden.
+
+### 7.1 Ziel und Nicht-Ziel
+
+- **Ziel:** klare Ownership zwischen API- und UI-Service, damit Deployments, Tests und Fehlerbilder pro Schicht eindeutig bleiben.
+- **Nicht-Ziel:** bestehende Legacy-Kompatibilität sofort entfernen; Legacy bleibt nur als Migrationspfad erlaubt.
+
+### 7.2 Verbindliche Ownership-Regeln
+
+1. **API (`src/api/*`)**
+   - liefert datenorientierte, maschinenlesbare HTTP-Schnittstellen (JSON/Status-Endpunkte).
+   - enthält **keine neue front-facing View-/Seitenlogik**.
+   - darf keine UI-Module importieren.
+
+2. **UI (`src/ui/*`)**
+   - enthält front-facing Flows, HTML/GUI-Darstellung und UX-orientierte Interaktion.
+   - darf keine API-Module importieren.
+
+3. **Shared (`src/shared/*`)**
+   - enthält nur neutrale Hilfslogik ohne API/UI-Ownership.
+   - darf keine Imports aus `src/api/*` oder `src/ui/*` enthalten.
+
+### 7.3 Route- und Modulkonventionen (v1)
+
+| Ownership | Kanonischer Modulpfad | Route-Konvention |
+|---|---|---|
+| API | `src/api/*` | Daten- und Service-Endpunkte (z. B. `/api/v1/*`, `/analyze*`, `/health`, `/version`) |
+| UI | `src/ui/*` | Front-Facing-Routen und UX-Flows (z. B. `/`, `/gui`, `/history`, `/results/*`, `/jobs/*`, `/auth/*`) |
+| Shared | `src/shared/*` | Keine eigenen HTTP-Routen; nur neutrale Wiederverwendung |
+
+Konsequenz für neue Arbeit:
+- neue HTTP-Funktionalität muss **vor Implementierung** einem Owner (`api` oder `ui`) zugeordnet werden.
+- Cross-Layer-Logik wird über klar definierte Datenverträge und nicht über direkte Layer-Imports verbunden.
+
+### 7.4 Enforcement (CI + Review)
+
+- Automatischer Import-Gate bleibt `scripts/check_bl31_service_boundaries.py` (lokal + CI).
+- PRs müssen den Boundary-Check im Template aktiv beantworten (siehe `.github/pull_request_template.md`).
+- Ausnahmen sind nur als expliziter Follow-up-Migrationspfad zulässig (Issue-Referenz + Sunset-Plan).
+
+## 8) Offene Punkte / Nächste Architektur-Schritte
 
 Die offenen Architektur-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (inkl. BL-31 Folgepakete), um doppelte Nebenlisten zu vermeiden.
