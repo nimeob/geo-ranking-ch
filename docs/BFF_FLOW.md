@@ -93,6 +93,11 @@ Auth-Guard-Fehler liefern ein einheitliches JSON-Schema mit stabilem `code`:
 
 Zusätzliche Ursachen bleiben über `error`/`auth_reason` erhalten (z. B. `no_session_cookie`, `session_not_found`, `csrf_check_failed`), damit UI-Flow und Troubleshooting weiterhin präzise reagieren können.
 
+Für `/auth/callback`-Fehler enthält die JSON-Antwort zusätzlich:
+- `correlation_id` (identisch zu `request_id`) für UI↔Log-Korrelation.
+- `redirect_diagnostics.expected_redirect` vs. `redirect_diagnostics.received_redirect`
+  (nur `scheme`/`host`/`path`, **ohne** Query-Parameter wie `code` oder `state`).
+
 ---
 
 ## 4. Token Delegation Path

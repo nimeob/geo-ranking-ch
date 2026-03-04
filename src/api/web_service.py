@@ -3430,6 +3430,56 @@ class Handler(BaseHTTPRequestHandler):
         self._send_redirect(location=redirect_location, request_id=request_id)
         return True
 
+    def _build_oidc_callback_redirect_diagnostics(
+        self,
+        *,
+        expected_redirect_uri: str,
+        request_path: str,
+    ) -> dict[str, Any]:
+        """Return safe expected-vs-received callback target diagnostics.
+
+        The structure intentionally excludes query-string values (e.g. OAuth
+        ``code`` / ``state``) to avoid secret leakage in logs or UI payloads.
+        """
+        expected_parsed = urlsplit(str(expected_redirect_uri or "").strip())
+        expected_scheme = str(expected_parsed.scheme or "").strip().lower()
+        expected_host = _extract_host_without_port(expected_parsed.netloc).strip().lower()
+        expected_path = str(expected_parsed.path or "/").strip() or "/"
+
+        forwarded_host = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        received_host_header = forwarded_host or str(self.headers.get("Host", "") or "").strip()
+        received_host = _extract_host_without_port(received_host_header).strip().lower()
+
+        forwarded_proto = str(self.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip().lower()
+        if forwarded_proto in {"http", "https"}:
+            received_scheme = forwarded_proto
+        else:
+            received_scheme = "https" if isinstance(self.connection, ssl.SSLSocket) else "http"
+
+        normalized_path = str(request_path or "/").strip() or "/"
+        if not normalized_path.startswith("/"):
+            normalized_path = f"/{normalized_path}"
+
+        mismatch = {
+            "scheme": bool(expected_scheme and received_scheme and expected_scheme != received_scheme),
+            "host": bool(expected_host and received_host and expected_host != received_host),
+            "path": bool(expected_path and normalized_path and expected_path != normalized_path),
+        }
+
+        return {
+            "expected_redirect": {
+                "scheme": expected_scheme,
+                "host": expected_host,
+                "path": expected_path,
+            },
+            "received_redirect": {
+                "scheme": received_scheme,
+                "host": received_host,
+                "path": normalized_path,
+            },
+            "mismatch": mismatch,
+        }
+
     def _handle_bff_oidc_get(self, *, request_path: str, request_id: str) -> None:
         """Route ``GET /auth/login`` and ``GET /auth/callback`` to the BFF OIDC handler."""
         try:
@@ -3529,16 +3579,23 @@ class Handler(BaseHTTPRequestHandler):
                     query_params=query_params,
                 )
             except OidcCallbackError as exc:
+                callback_diagnostics = self._build_oidc_callback_redirect_diagnostics(
+                    expected_redirect_uri=oidc_cfg.redirect_uri,
+                    request_path=request_path,
+                )
                 _emit_structured_log(
                     event="api.bff.oidc.callback_error",
                     level="warn",
                     trace_id=request_id,
                     request_id=request_id,
+                    correlation_id=request_id,
                     component="api.web_service",
                     direction="client->api",
                     route=request_path,
                     error_code=exc.error_code,
+                    error_message=exc.message,
                     status=str(exc.http_status),
+                    redirect_diagnostics=callback_diagnostics,
                 )
                 self._send_json(
                     {
@@ -3546,6 +3603,8 @@ class Handler(BaseHTTPRequestHandler):
                         "error": exc.error_code,
                         "message": exc.message,
                         "request_id": request_id,
+                        "correlation_id": request_id,
+                        "redirect_diagnostics": callback_diagnostics,
                     },
                     status=exc.http_status,
                     request_id=request_id,
