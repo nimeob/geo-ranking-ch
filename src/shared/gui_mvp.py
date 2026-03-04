@@ -852,14 +852,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const AUTH_CHECK_CACHE_TTL_MS = 12000;
       const RESULTS_LIST_COPY = Object.freeze({
         meta: {
-          empty: "Noch keine Ergebnisse gesammelt.",
+          empty: "Keine sichtbaren Ergebnisse.",
           filtered: "0 Treffer – Filter aktiv.",
         },
         emptyStates: {
-          seed: {
-            title: "Vision-Liste ist leer",
-            description: "Starte mit einer ersten Analyse, damit du Varianten vergleichen kannst.",
-            action: "Beispieladresse einfügen",
+          noData: {
+            title: "Keine Daten in der aktuellen Auswahl",
+            description: "Für den aktuellen Zeitraum oder die aktive Auswahl liegen keine Einträge vor.",
+            action: "Filter zurücksetzen",
           },
           filtered: {
             title: "Keine Treffer mit aktuellen Filtern",
@@ -867,7 +867,6 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             action: "Filter zurücksetzen",
           },
         },
-        seedQuery: "Bahnhofstrasse 1, 8001 Zürich",
       });
       const SESSION_RECOVERY_ERROR_CODES = new Set([
         "no_session_cookie",
@@ -1618,34 +1617,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       function handleResultsEmptyStatePrimaryAction(reason) {
-        if (reason === "filtered") {
-          resetResultsListFilters();
-          updateResultsListDeepLink();
-          renderResultsList();
-          emitUiEvent("ui.interaction.results_list.empty_cta", {
-            direction: "human->ui",
-            status: "filters_reset",
-          });
-          return;
-        }
-
-        const seedQuery = String(RESULTS_LIST_COPY.seedQuery || "").trim();
-        if (!seedQuery || !queryEl) {
-          return;
-        }
-
-        queryEl.value = seedQuery;
-        try {
-          queryEl.focus();
-          queryEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        } catch (error) {
-          // ignore focus/scroll errors
-        }
-
+        resetResultsListFilters();
+        updateResultsListDeepLink();
+        renderResultsList();
         emitUiEvent("ui.interaction.results_list.empty_cta", {
           direction: "human->ui",
-          status: "seed_query_prefilled",
-          seed_query: seedQuery,
+          status: "filters_reset",
+          reason: String(reason || "filtered"),
         });
       }
 
@@ -1659,10 +1637,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           };
         }
         return {
-          reason: "seed",
-          title: RESULTS_LIST_COPY.emptyStates.seed.title,
-          description: RESULTS_LIST_COPY.emptyStates.seed.description,
-          action: RESULTS_LIST_COPY.emptyStates.seed.action,
+          reason: "no_data",
+          title: RESULTS_LIST_COPY.emptyStates.noData.title,
+          description: RESULTS_LIST_COPY.emptyStates.noData.description,
+          action: RESULTS_LIST_COPY.emptyStates.noData.action,
         };
       }
 
