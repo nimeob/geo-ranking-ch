@@ -998,6 +998,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
       const AUTH_ME_ENDPOINT = "/auth/me";
       const AUTH_CHECK_CACHE_TTL_MS = 12000;
+      const DEV_CLIENT_REQUEST_POLICY = Object.freeze({
+        authCheckTimeoutMs: 4000,
+        historyTimeoutMs: 12000,
+        traceTimeoutMs: 12000,
+        getRetries: 1,
+        retryDelayMs: 250,
+      });
+      const SAFE_RETRY_METHODS = new Set(["GET"]);
+      const SAFE_RETRY_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
       const RESULTS_LIST_COPY = Object.freeze({
         meta: {
           empty: "Keine sichtbaren Ergebnisse.",
@@ -1406,7 +1415,29 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const headers = { "Accept": "application/json", "X-Session-Id": uiSessionId };
 
         try {
-          const response = await fetch(`${ANALYZE_HISTORY_ENDPOINT}?limit=50`, { headers });
+          const historyFetch = await fetchWithTimeoutAndSafeRetry(
+            `${ANALYZE_HISTORY_ENDPOINT}?limit=50`,
+            {
+              method: "GET",
+              headers,
+            },
+            {
+              timeoutMs: DEV_CLIENT_REQUEST_POLICY.historyTimeoutMs,
+              maxRetries: DEV_CLIENT_REQUEST_POLICY.getRetries,
+              retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
+            }
+          );
+
+          if (!historyFetch.ok || !historyFetch.response) {
+            if (historyFetch.timedOut) {
+              throw new Error(
+                `timeout: Historie nach ${Math.max(1, Math.round(historyFetch.timeoutMs / 1000))}s ohne Antwort abgebrochen. Bitte Retry ausführen.`
+              );
+            }
+            throw new Error("network_error: Historie konnte nicht geladen werden. Bitte Retry ausführen.");
+          }
+
+          const response = historyFetch.response;
           const data = await response.json();
           if (!response.ok || !data || data.ok !== true) {
             const errCode = data && data.error ? String(data.error) : `http_${response.status}`;
@@ -3659,6 +3690,110 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return 20;
       }
 
+      function delay(ms) {
+        const value = Number(ms);
+        const waitMs = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+        if (waitMs <= 0) {
+          return Promise.resolve();
+        }
+        return new Promise((resolve) => {
+          window.setTimeout(resolve, waitMs);
+        });
+      }
+
+      function isSafeRetryMethod(method) {
+        const normalizedMethod = String(method || "GET").trim().toUpperCase() || "GET";
+        return SAFE_RETRY_METHODS.has(normalizedMethod);
+      }
+
+      function shouldRetrySafeRequest(method, statusCode, attemptIndex, maxRetries) {
+        if (!isSafeRetryMethod(method)) {
+          return false;
+        }
+        if (attemptIndex >= maxRetries) {
+          return false;
+        }
+        const normalizedStatusCode = Number(statusCode);
+        if (!Number.isInteger(normalizedStatusCode)) {
+          return false;
+        }
+        return SAFE_RETRY_STATUS_CODES.has(normalizedStatusCode);
+      }
+
+      async function fetchWithTimeoutAndSafeRetry(url, init = {}, options = {}) {
+        const method = String(init && init.method ? init.method : "GET").trim().toUpperCase() || "GET";
+        const timeoutCandidate = Number(options && options.timeoutMs);
+        const timeoutMs = Number.isFinite(timeoutCandidate) && timeoutCandidate > 0
+          ? Math.round(timeoutCandidate)
+          : 12000;
+        const requestedRetries = Number(options && options.maxRetries);
+        const maxRetries = isSafeRetryMethod(method) && Number.isFinite(requestedRetries)
+          ? Math.max(0, Math.trunc(requestedRetries))
+          : 0;
+        const retryDelayCandidate = Number(options && options.retryDelayMs);
+        const retryDelayMs = Number.isFinite(retryDelayCandidate)
+          ? Math.max(0, Math.round(retryDelayCandidate))
+          : 0;
+
+        let attemptIndex = 0;
+        const startedAt = performance.now();
+
+        while (true) {
+          const controller = new AbortController();
+          const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+
+          let response = null;
+          let fetchError = null;
+          try {
+            response = await fetch(url, {
+              ...init,
+              method,
+              signal: controller.signal,
+            });
+          } catch (error) {
+            fetchError = error;
+          } finally {
+            clearTimeout(timeoutHandle);
+          }
+
+          const timedOut = Boolean(fetchError && fetchError.name === "AbortError");
+          if (response) {
+            if (shouldRetrySafeRequest(method, response.status, attemptIndex, maxRetries)) {
+              attemptIndex += 1;
+              await delay(retryDelayMs);
+              continue;
+            }
+            return {
+              ok: true,
+              response,
+              error: null,
+              timedOut: false,
+              attemptCount: attemptIndex + 1,
+              retryCount: attemptIndex,
+              timeoutMs,
+              durationMs: Number((performance.now() - startedAt).toFixed(3)),
+            };
+          }
+
+          if ((timedOut || fetchError) && attemptIndex < maxRetries) {
+            attemptIndex += 1;
+            await delay(retryDelayMs);
+            continue;
+          }
+
+          return {
+            ok: false,
+            response: null,
+            error: fetchError,
+            timedOut,
+            attemptCount: attemptIndex + 1,
+            retryCount: attemptIndex,
+            timeoutMs,
+            durationMs: Number((performance.now() - startedAt).toFixed(3)),
+          };
+        }
+      }
+
       function requestLifecycleStatus(statusCode, errorCode) {
         const normalizedError = String(errorCode || "").toLowerCase();
         if (normalizedError === "timeout" || normalizedError === "abort") {
@@ -3798,17 +3933,26 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           "X-Session-Id": uiSessionId,
         };
 
-        let response;
-        try {
-          response = await fetch(AUTH_ME_ENDPOINT, {
+        const authFetch = await fetchWithTimeoutAndSafeRetry(
+          AUTH_ME_ENDPOINT,
+          {
             method: "GET",
             headers,
             credentials: "same-origin",
-          });
-        } catch (error) {
+          },
+          {
+            timeoutMs: DEV_CLIENT_REQUEST_POLICY.authCheckTimeoutMs,
+            maxRetries: DEV_CLIENT_REQUEST_POLICY.getRetries,
+            retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
+          }
+        );
+
+        if (!authFetch.ok || !authFetch.response) {
           updateAuthEntryPoints();
           return authState.authenticated === true;
         }
+
+        const response = authFetch.response;
 
         if (response.status === 404 || response.status === 405) {
           setAuthState(authState.authenticated === true, {
@@ -4087,7 +4231,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             });
             throw new Error(
               withTechnicalRequestIdHint(
-                `timeout: Anfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`,
+                `timeout: Anfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen. Bitte Retry ausführen.`,
                 requestId
               )
             );
@@ -4401,21 +4545,22 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           auth_present: false,
         });
 
-        const controller = new AbortController();
-        const timeoutMs = 12000;
-        const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
-        const startedAt = performance.now();
-
-        let response;
-        try {
-          response = await fetch(endpointUrl, {
+        const traceFetch = await fetchWithTimeoutAndSafeRetry(
+          endpointUrl,
+          {
             method: "GET",
             headers,
-            signal: controller.signal,
-          });
-        } catch (error) {
-          const durationMs = Number((performance.now() - startedAt).toFixed(3));
-          const errorCode = error && error.name === "AbortError" ? "timeout" : "network_error";
+          },
+          {
+            timeoutMs: DEV_CLIENT_REQUEST_POLICY.traceTimeoutMs,
+            maxRetries: DEV_CLIENT_REQUEST_POLICY.getRetries,
+            retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
+          }
+        );
+
+        if (!traceFetch.ok || !traceFetch.response) {
+          const errorCode = traceFetch.timedOut ? "timeout" : "network_error";
+          const durationMs = Number(traceFetch.durationMs || 0);
           emitUiEvent("ui.trace.request.end", {
             level: requestLifecycleLevel(errorCode === "timeout" ? 504 : 0, errorCode),
             traceId,
@@ -4433,17 +4578,16 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           if (errorCode === "timeout") {
             throw new Error(
               withTechnicalRequestIdHint(
-                `timeout: Trace-Abfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`,
+                `timeout: Trace-Abfrage nach ${Math.max(1, Math.round(traceFetch.timeoutMs / 1000))}s ohne Antwort abgebrochen. Bitte Retry ausführen.`,
                 requestId
               )
             );
           }
-          throw new Error(withTechnicalRequestIdHint("network_error: Trace-Abfrage fehlgeschlagen", requestId));
-        } finally {
-          clearTimeout(timeoutHandle);
+          throw new Error(withTechnicalRequestIdHint("network_error: Trace-Abfrage fehlgeschlagen. Bitte Retry ausführen.", requestId));
         }
 
-        const durationMs = Number((performance.now() - startedAt).toFixed(3));
+        const response = traceFetch.response;
+        const durationMs = Number(traceFetch.durationMs || 0);
 
         let parsed;
         try {

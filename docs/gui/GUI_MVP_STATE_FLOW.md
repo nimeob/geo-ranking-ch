@@ -11,6 +11,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - Kartenklick-Flow via `POST /analyze` mit `coordinates.lat/lon` + `snap_mode=ch_bounds`
 - reproduzierbarer UI-State-Flow: `idle -> loading -> success|error`
 - clientseitiger Request-Timeout-Guard (`AbortController`): kein dauerhaftes `loading` bei ausbleibender API-Antwort
+- deterministische Dev-Request-Policy für idempotente GETs (`/auth/me`, `/analyze/history`, `/debug/trace`): fester Timeout + maximal ein sicherer Retry (nur bei `GET`, z. B. Timeout/5xx), ohne automatische Retries für mutierende Requests
 - korrelierbares UI-Structured-Logging (`ui.state.transition`, `ui.api.request.start/end`) inkl. `X-Request-Id`/`X-Session-Id` für UI↔API-Tracing
 - sichtbare Kernfaktoren (Top-Faktoren aus Explainability) und rohe JSON-Antwort
 - Trace-Debug-Panel mit Deep-Link-Unterstützung (`/gui?view=trace&request_id=<id>`) und Timeline-Lookup via `GET /debug/trace`
@@ -64,7 +65,7 @@ Transitions:
 
 - `idle -> loading` beim Submit oder Kartenklick
 - `loading -> success` bei `HTTP 2xx` + `ok=true`
-- `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen`)
+- `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen. Bitte Retry ausführen.`)
 - `loading -> error(5xx-view)` bei `HTTP 5xx`: einheitlicher Error-View statt gestapelter Einzelmeldungen
 - Ergebnislisten-Empty-State unterscheidet zusätzlich `no_data | filtered | network | unauthorized`; CTA führt je nach Ursache deterministisch `Reset`/`Retry`/`Login` aus.
 - `error -> loading` beim nächsten Submit/Kartenklick oder über den 5xx-Retry-Button (clean retry)
