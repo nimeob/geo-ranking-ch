@@ -510,11 +510,20 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         gap: 0;
       }
       .results-filters-actions {
+        display: grid;
+        gap: 0.6rem;
+        margin-top: 0.85rem;
+      }
+      .results-filters-actions-primary {
         display: flex;
         gap: 0.6rem;
         flex-wrap: wrap;
+      }
+      .results-filters-actions-secondary {
+        display: flex;
+        gap: 0.6rem;
         align-items: center;
-        margin-top: 0.85rem;
+        flex-wrap: wrap;
       }
       .results-filters-actions .copy-btn {
         min-height: 2rem;
@@ -551,19 +560,39 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           overflow-y: auto;
           overscroll-behavior: contain;
           -webkit-overflow-scrolling: touch;
-          padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.2rem);
+          --results-filters-action-reserve: calc(var(--touch-target-min) * 2 + 2.6rem);
+          padding-bottom: calc(
+            env(safe-area-inset-bottom, 0px)
+            + var(--results-filters-keyboard-offset, 0px)
+            + var(--results-filters-action-reserve)
+          );
         }
         .results-filters-actions {
           position: sticky;
           bottom: 0;
           z-index: 1;
           margin-top: 0.75rem;
+          margin-bottom: -0.1rem;
           padding-top: 0.45rem;
           padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--results-filters-keyboard-offset, 0px));
+          border-top: 1px solid rgba(27, 38, 55, 0.09);
           background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, #fff 35%);
+        }
+        .results-filters-actions-primary {
+          display: grid;
+          gap: 0.5rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .results-filters-actions-secondary {
+          gap: 0.5rem;
+          justify-content: space-between;
         }
         .results-filters-actions .copy-btn {
           min-height: var(--touch-target-min);
+        }
+        .results-filters-actions-secondary .meta {
+          flex: 1 1 100%;
+          margin: 0;
         }
       }
       .results-table {
@@ -957,10 +986,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
                 </label>
               </div>
               <div class=\"results-filters-actions\">
-                <button id=\"results-apply\" class=\"copy-btn\" type=\"button\">Filter anwenden</button>
-                <button id=\"results-reset\" class=\"copy-btn\" type=\"button\">Filter zurücksetzen</button>
-                <button id=\"results-clear\" class=\"copy-btn\" type=\"button\">Liste leeren</button>
-                <span class=\"meta\" id=\"results-meta\">Noch keine Ergebnisse gesammelt.</span>
+                <div class=\"results-filters-actions-primary\">
+                  <button id=\"results-apply\" class=\"copy-btn\" type=\"button\">Filter anwenden</button>
+                  <button id=\"results-reset\" class=\"copy-btn\" type=\"button\">Filter zurücksetzen</button>
+                </div>
+                <div class=\"results-filters-actions-secondary\">
+                  <button id=\"results-clear\" class=\"copy-btn\" type=\"button\">Liste leeren</button>
+                  <span class=\"meta\" id=\"results-meta\">Noch keine Ergebnisse gesammelt.</span>
+                </div>
               </div>
             </div>
           </div>
