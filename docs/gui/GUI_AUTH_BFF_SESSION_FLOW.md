@@ -63,7 +63,7 @@ Hinweis: Der zusätzliche Query-Parameter `reason` ist für reproduzierbare Diag
 
 | Fehlerbild | Typisches Symptom | Wahrscheinliche Ursache | Sofortmaßnahme |
 |---|---|---|---|
-| Callback fehlgeschlagen | Redirect-Loop `/auth/login` <-> `/auth/callback` | Ungültiger/abgelaufener Auth-Code oder State-Mismatch | Callback-Logs prüfen, neuen Login starten |
+| Callback fehlgeschlagen | Genau eine verständliche Fehlerseite mit Re-Login-CTA (kein Auto-Redirect) | Ungültiger/abgelaufener Auth-Code oder State-Mismatch | CTA „Erneut einloggen" nutzen; Request-ID + Callback-Diagnostics prüfen |
 | Consent/Auth verweigert | Login kehrt mit Fehler zurück, GUI fordert Re-Login | Nutzer hat Consent/Anmeldung abgebrochen (`access_denied`/`consent_denied`) | Erneut einloggen; bei wiederholtem Fehler Provider-/Client-Konfiguration prüfen |
 | Session abgelaufen | GUI-Action zeigt Session-Hinweis und leitet auf Login weiter | Session-TTL erreicht, Cookie fehlt/ungültig | Neu einloggen, Session-/Cookie-Parameter prüfen |
 | Token-Refresh fehlgeschlagen | Hinweis „Session konnte nicht erneuert werden" + Re-Login-Redirect | Refresh-Grant fehlerhaft (`refresh_*`, `no_refresh_token`) | Refresh-Token-Path + IdP-Config prüfen, danach Re-Login |
@@ -98,6 +98,7 @@ python3 -m unittest tests.test_web_service_bff_gui_guard
 Erwartung:
 - `GET /gui` ohne Session -> `302` nach `/auth/login?next=%2Fgui`
 - `GET /history?limit=5` ohne Session -> `302` nach `/auth/login?next=%2Fhistory%3Flimit%3D5`
+- `GET /auth/callback` mit ungültigem/abgelaufenem `state` -> `400` HTML-Fehlerseite mit genau einem Re-Login-CTA (`/auth/login?next=...&reason=session_expired`), ohne Redirect-Loop
 - `GET /auth/logout` löscht Session-Cookie (`Max-Age=0`) und liefert IdP-Logout-Redirect
 
 ## Automatisierter Guard- und Session-Proxy-Nachweis (Issue #997)
