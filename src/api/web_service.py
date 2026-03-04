@@ -213,11 +213,11 @@ def _load_oidc_jwt_validator_from_env() -> OidcJwtValidator | None:
         raise ValueError(f"{_OIDC_JWKS_TIMEOUT_SECONDS_ENV} must be finite and > 0")
 
     try:
-        clock_skew_seconds = int(raw_skew)
+        clock_skew_seconds = float(raw_skew)
     except Exception as exc:
-        raise ValueError(f"{_OIDC_CLOCK_SKEW_SECONDS_ENV} must be an integer") from exc
-    if clock_skew_seconds < 0:
-        raise ValueError(f"{_OIDC_CLOCK_SKEW_SECONDS_ENV} must be >= 0")
+        raise ValueError(f"{_OIDC_CLOCK_SKEW_SECONDS_ENV} must be a number") from exc
+    if not math.isfinite(clock_skew_seconds) or clock_skew_seconds < 0:
+        raise ValueError(f"{_OIDC_CLOCK_SKEW_SECONDS_ENV} must be finite and >= 0")
 
     config = OidcJwtConfig(
         issuer=issuer,
