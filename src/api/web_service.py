@@ -658,6 +658,13 @@ def _request_lifecycle_level(*, status_code: int) -> str:
     return "info"
 
 
+def _resolve_lifecycle_correlation_id(*, request_id: str, correlation_id: str = "") -> str:
+    normalized_correlation = str(correlation_id or "").strip()
+    if normalized_correlation:
+        return normalized_correlation
+    return str(request_id or "").strip()
+
+
 def _log_api_request_start(
     *,
     method: str,
@@ -673,8 +680,12 @@ def _log_api_request_start(
         "route": route,
         "method": method,
     }
-    if str(correlation_id or "").strip():
-        fields["correlation_id"] = str(correlation_id).strip()
+    effective_correlation_id = _resolve_lifecycle_correlation_id(
+        request_id=request_id,
+        correlation_id=correlation_id,
+    )
+    if effective_correlation_id:
+        fields["correlation_id"] = effective_correlation_id
 
     _emit_structured_log(
         event="api.request.start",
@@ -719,8 +730,13 @@ def _log_api_request_end(
         fields["error_code"] = error_code
     if error_class:
         fields["error_class"] = error_class
-    if str(correlation_id or "").strip():
-        fields["correlation_id"] = str(correlation_id).strip()
+
+    effective_correlation_id = _resolve_lifecycle_correlation_id(
+        request_id=request_id,
+        correlation_id=correlation_id,
+    )
+    if effective_correlation_id:
+        fields["correlation_id"] = effective_correlation_id
 
     _emit_structured_log(
         event="api.request.end",
@@ -3169,8 +3185,12 @@ class Handler(BaseHTTPRequestHandler):
         self._request_lifecycle_session_id = str(self.headers.get("X-Session-Id", "") or "").strip()
         self._response_status_code: int | None = None
         self._response_error_code = ""
-        self._request_lifecycle_correlation_id = self._resolve_correlation_id_for_route(
+        route_correlation_id = self._resolve_correlation_id_for_route(
             self._request_lifecycle_route
+        )
+        self._request_lifecycle_correlation_id = _resolve_lifecycle_correlation_id(
+            request_id=self._request_lifecycle_request_id,
+            correlation_id=route_correlation_id,
         )
 
         _log_api_request_start(

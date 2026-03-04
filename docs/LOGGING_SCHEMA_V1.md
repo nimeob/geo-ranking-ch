@@ -24,6 +24,7 @@ Optionale, aber empfohlene Kontextfelder:
 - `direction` — Richtung (`ui->api`, `api->upstream`, `api->client`, `internal`)
 - `status` — Kurzstatus (`ok`, `error`, `timeout`, `enabled`, `listening`, ...)
 - `route`, `method`, `status_code`, `duration_ms`
+- `correlation_id` (API-Lifecycle: bei fehlender upstream/job-Korrelation identisch zu `request_id`)
 - `error_class`, `error_message` (redacted/sanitized)
 
 ## Redaction-Regeln (verbindlich)
@@ -118,6 +119,7 @@ Zusätzlich werden pattern-basiert maskiert:
   "trace_id": "req-abc123",
   "request_id": "req-abc123",
   "session_id": "sess-42",
+  "correlation_id": "req-abc123",
   "component": "api.web_service",
   "direction": "api->client",
   "status": "client_error",
