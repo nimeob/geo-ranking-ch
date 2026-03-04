@@ -157,6 +157,16 @@ class TestUiService(unittest.TestCase):
         # API base URL must be wired for UI deployments.
         self.assertIn('const RESULTS_ENDPOINT_BASE = "https://api.example.test/analyze/results";', body)
 
+        # Regression guard (Issue #1123): missing optional metadata must not hard-crash rendering.
+        self.assertIn('function asObject(value)', body)
+        self.assertIn('function formatFallback(value, fallback = "—")', body)
+        self.assertIn('function renderSafe(renderer, targetEl, groupedResult, fallbackLabel)', body)
+        self.assertIn('Overview konnte wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.', body)
+        self.assertIn('Sources konnten wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.', body)
+        self.assertIn('Derived konnte wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.', body)
+        self.assertIn('rows.push(kvRow("IDs", formatFallback(ids, "nicht verfügbar")));', body)
+        self.assertIn('rows.push(kvRow("Administrative", formatFallback(admin, "nicht verfügbar")));', body)
+
     def test_invalid_job_id_returns_not_found_payload(self):
         status, body, _ = _http(f"{self.base_url}/jobs/!!!")
         self.assertEqual(status, 404)

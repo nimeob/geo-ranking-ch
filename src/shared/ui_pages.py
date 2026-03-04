@@ -960,6 +960,39 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           return `<div class="kv-row"><dt>${safeLabel}</dt><dd>${safeValue || "—"}</dd></div>`;
         }
 
+        function asObject(value) {
+          if (!value || typeof value !== "object" || Array.isArray(value)) {
+            return {};
+          }
+          return value;
+        }
+
+        function hasValue(value) {
+          if (value == null) return false;
+          if (typeof value === "string") return value.trim().length > 0;
+          if (Array.isArray(value)) return value.length > 0;
+          if (typeof value === "object") return Object.keys(value).length > 0;
+          return true;
+        }
+
+        function formatFallback(value, fallback = "—") {
+          if (!hasValue(value)) return fallback;
+          if (typeof value === "object") return prettyPrint(value);
+          return String(value);
+        }
+
+        function renderSafe(renderer, targetEl, groupedResult, fallbackLabel) {
+          try {
+            renderer(groupedResult);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "render_error";
+            targetEl.innerHTML = `
+              <div class="meta">${escapeHtml(fallbackLabel)}</div>
+              <pre>${escapeHtml(prettyPrint({ error: "render_error", message, result: groupedResult || null }))}</pre>
+            `;
+          }
+        }
+
         function renderOverview(groupedResult) {
           if (!groupedResult || typeof groupedResult !== "object") {
             overviewEl.innerHTML = '<div class="meta">No result payload.</div>';
@@ -972,22 +1005,26 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
             return;
           }
 
-          const status = groupedResult.status && typeof groupedResult.status === "object" ? groupedResult.status : {};
-          const entity = groupedResult.data && groupedResult.data.entity ? groupedResult.data.entity : {};
-          const modules = groupedResult.data && groupedResult.data.modules ? groupedResult.data.modules : {};
-          const summaryCompact = modules.summary_compact && typeof modules.summary_compact === "object" ? modules.summary_compact : {};
+          const status = asObject(groupedResult.status);
+          const data = asObject(groupedResult.data);
+          const entity = asObject(data.entity);
+          const modules = asObject(data.modules);
+          const summaryCompact = asObject(modules.summary_compact);
+          const quality = asObject(status.quality);
 
           const executiveSummary = status.executive_summary || summaryCompact.executive_summary || "";
-          const confidence = status.confidence || (status.quality ? status.quality.confidence : null);
+          const confidence = status.confidence || quality.confidence || null;
           const coords = entity.coordinates || entity.coords || null;
-          const ids = entity.ids || null;
-          const admin = entity.administrative || entity.admin || null;
+          const ids = asObject(entity.ids);
+          const admin = asObject(entity.administrative || entity.admin);
 
           const rows = [];
-          rows.push(kvRow("Query", entity.query));
-          rows.push(kvRow("Matched address", entity.matched_address));
-          rows.push(kvRow("Confidence", confidence && typeof confidence === "object" ? (confidence.level || confidence.score) : confidence));
-          rows.push(kvRow("Coordinates", coords ? prettyPrint(coords) : ""));
+          rows.push(kvRow("Query", formatFallback(entity.query)));
+          rows.push(kvRow("Matched address", formatFallback(entity.matched_address)));
+          rows.push(kvRow("Confidence", formatFallback(confidence && typeof confidence === "object" ? (confidence.level || confidence.score) : confidence)));
+          rows.push(kvRow("Coordinates", formatFallback(coords, "nicht verfügbar")));
+          rows.push(kvRow("IDs", formatFallback(ids, "nicht verfügbar")));
+          rows.push(kvRow("Administrative", formatFallback(admin, "nicht verfügbar")));
 
           const headerParts = [];
           if (String(executiveSummary || "").trim()) {
@@ -998,9 +1035,9 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
             executive_summary: executiveSummary || null,
             confidence: confidence || null,
             matched_address: entity.matched_address || null,
-            coords: coords,
-            ids: ids,
-            admin: admin,
+            coords: hasValue(coords) ? coords : null,
+            ids: hasValue(ids) ? ids : null,
+            admin: hasValue(admin) ? admin : null,
             status: status,
           };
 
@@ -1018,14 +1055,15 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
             return;
           }
 
-          const status = groupedResult.status && typeof groupedResult.status === "object" ? groupedResult.status : {};
+          const status = asObject(groupedResult.status);
+          const data = asObject(groupedResult.data);
           const payload = {
             sources: status.sources || null,
             source_attribution: status.source_attribution || null,
             source_classification: status.source_classification || null,
             source_health: status.source_health || null,
             source_meta: status.source_meta || null,
-            by_source: groupedResult.data ? groupedResult.data.by_source : null,
+            by_source: data.by_source || null,
           };
           sourcesEl.innerHTML = `<pre>${escapeHtml(prettyPrint(payload))}</pre>`;
         }
@@ -1115,9 +1153,9 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
 
           setStatus("success");
           const groupedResult = parsed.result;
-          renderOverview(groupedResult);
-          renderSources(groupedResult);
-          renderDerived(groupedResult);
+          renderSafe(renderOverview, overviewEl, groupedResult, "Overview konnte wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.");
+          renderSafe(renderSources, sourcesEl, groupedResult, "Sources konnten wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.");
+          renderSafe(renderDerived, derivedEl, groupedResult, "Derived konnte wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.");
           loadBtn.disabled = false;
         }
 
