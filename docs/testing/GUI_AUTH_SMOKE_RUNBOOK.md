@@ -35,9 +35,9 @@ Diese Suite deckt insbesondere ab:
 - Session-basierte BFF-Delegation für `GET /portal/api/analyze/history`
 - Session-basierte BFF-Delegation für `POST /portal/api/analyze` (inkl. CSRF-Header-Pfad)
 
-### 1.2 Automatisierter Auth/Core-Flow-Regression-Smoke (WP #1019 / #1087)
+### 1.2 Automatisierter Auth/Core-Flow-Regression-Smoke (WP #1019 / #1087 / #1116)
 
-Für den vollständigen Kernpfad `login -> search -> ranking -> logout` gibt es einen reproduzierbaren Integration-Smoke:
+Für den vollständigen Kernpfad `login -> search -> ranking list -> detail -> logout` gibt es einen reproduzierbaren Integration-Smoke:
 
 ```bash
 python3 -m pytest -q tests/test_auth_regression_smoke_issue_1019.py
@@ -53,6 +53,8 @@ Abdeckung:
 - `/auth/logout` Redirect + Cookie-Clear + `/auth/me` 401 nach Logout
 
 Hinweis: Der Smoke ist in den PR-Required-Gate (`dev-smoke-required` via `check_bl334_split_smokes.sh`) eingebunden und bleibt zusätzlich über `scripts/run_webservice_e2e.sh` lokal ausführbar. Der bisherige Pfad `login -> analyze/history -> logout` ist weiterhin als Teilmenge des erweiterten Kernpfads abgedeckt.
+
+Bei Failures schreibt `check_bl334_split_smokes.sh` automatisch Debug-Artefakte nach `reports/evidence/core-flow-smoke/<STAMP>/` (mindestens `core-flow-failure-trace.md` und – falls Chromium verfügbar – `core-flow-failure-gui.png`). Damit sind Fehler im Kernfluss direkt mit Trace/Screenshot belegbar.
 
 ---
 
