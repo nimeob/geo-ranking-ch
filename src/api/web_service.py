@@ -3780,15 +3780,12 @@ class Handler(BaseHTTPRequestHandler):
                     limit = _resolve_history_limit(query_params.get("limit", [""])[0])
                     offset = _resolve_history_offset(query_params.get("offset", [""])[0])
                 except ValueError as exc:
-                    self._send_json(
-                        {
-                            "ok": False,
-                            "error": "bad_request",
-                            "message": str(exc),
-                            "request_id": request_id,
-                        },
-                        status=HTTPStatus.BAD_REQUEST,
+                    self._send_error(
                         request_id=request_id,
+                        status=HTTPStatus.BAD_REQUEST,
+                        error="bad_request",
+                        message=str(exc),
+                        details=_validation_error_details(str(exc)),
                         extra_headers={"Cache-Control": "no-store"},
                     )
                     return
@@ -3950,15 +3947,12 @@ class Handler(BaseHTTPRequestHandler):
                     channel = _resolve_notification_channel(query_params.get("channel", [""])[0])
                     limit = _resolve_notification_limit(query_params.get("limit", [""])[0])
                 except ValueError as exc:
-                    self._send_json(
-                        {
-                            "ok": False,
-                            "error": "bad_request",
-                            "message": str(exc),
-                            "request_id": request_id,
-                        },
-                        status=HTTPStatus.BAD_REQUEST,
+                    self._send_error(
                         request_id=request_id,
+                        status=HTTPStatus.BAD_REQUEST,
+                        error="bad_request",
+                        message=str(exc),
+                        details=_validation_error_details(str(exc)),
                         extra_headers={"Cache-Control": "no-store"},
                     )
                     return
@@ -4016,15 +4010,12 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     request_org_id = auth_user.org_id if auth_user else self._request_org_id()
                 except ValueError as exc:
-                    self._send_json(
-                        {
-                            "ok": False,
-                            "error": "bad_request",
-                            "message": str(exc),
-                            "request_id": request_id,
-                        },
-                        status=HTTPStatus.BAD_REQUEST,
+                    self._send_error(
                         request_id=request_id,
+                        status=HTTPStatus.BAD_REQUEST,
+                        error="bad_request",
+                        message=str(exc),
+                        details=_validation_error_details(str(exc)),
                         extra_headers={"Cache-Control": "no-store"},
                     )
                     return
@@ -4081,15 +4072,12 @@ class Handler(BaseHTTPRequestHandler):
                     request_org_id = auth_user.org_id if auth_user else self._request_org_id()
                     projection_mode = _resolve_result_projection_mode(query_params.get("view", [""])[0])
                 except ValueError as exc:
-                    self._send_json(
-                        {
-                            "ok": False,
-                            "error": "bad_request",
-                            "message": str(exc),
-                            "request_id": request_id,
-                        },
-                        status=HTTPStatus.BAD_REQUEST,
+                    self._send_error(
                         request_id=request_id,
+                        status=HTTPStatus.BAD_REQUEST,
+                        error="bad_request",
+                        message=str(exc),
+                        details=_validation_error_details(str(exc)),
                         extra_headers={"Cache-Control": "no-store"},
                     )
                     return
