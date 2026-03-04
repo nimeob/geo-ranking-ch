@@ -63,3 +63,21 @@ jobs:
             echo "## dev-smoke-flaky demo summary" >> "$GITHUB_STEP_SUMMARY"
             echo "- summary artifact missing" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Log failure artifact paths
+        if: failure()
+        run: |
+          echo "dev-smoke failure summary artifact: artifacts/pr-dev-smoke-required-summary.md"
+          echo "dev-smoke retry report artifact: artifacts/pr-dev-smoke-required-retry-report.json"
+          echo "dev-smoke report artifact: artifacts/pr-dev-smoke-required.json"
+
+      - name: Upload dev-smoke failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-smoke-required-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            artifacts/pr-dev-smoke-required-summary.md
+            artifacts/pr-dev-smoke-required-retry-report.json
+            artifacts/pr-dev-smoke-required.json

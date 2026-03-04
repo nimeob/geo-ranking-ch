@@ -43,11 +43,22 @@ class AttemptResult:
 
     @property
     def failed_checks(self) -> list[str]:
-        failed: list[str] = []
+        return [item["name"] for item in self.failed_check_details]
+
+    @property
+    def failed_check_details(self) -> list[dict[str, str]]:
+        failed: list[dict[str, str]] = []
         for check in self.checks:
-            if str(check.get("status", "")).lower() != "pass":
-                name = str(check.get("name") or "unnamed-check").strip() or "unnamed-check"
-                failed.append(name)
+            if str(check.get("status", "")).lower() == "pass":
+                continue
+            name = str(check.get("name") or "unnamed-check").strip() or "unnamed-check"
+            reason = str(check.get("reason") or "unknown").strip() or "unknown"
+            failed.append(
+                {
+                    "name": name,
+                    "reason": reason,
+                }
+            )
         return failed
 
 
@@ -213,22 +224,29 @@ def _aggregate_tests(attempts: list[AttemptResult], build_context: dict[str, Any
     timeline: dict[str, list[dict[str, Any]]] = {}
 
     for attempt in attempts:
-        check_statuses = {
-            str(check.get("name") or "unnamed-check").strip() or "unnamed-check": str(
-                check.get("status") or "unknown"
-            ).lower()
+        check_entries = {
+            str(check.get("name") or "unnamed-check").strip() or "unnamed-check": {
+                "status": str(check.get("status") or "unknown").lower(),
+                "reason": str(check.get("reason") or "unknown").strip() or "unknown",
+            }
             for check in attempt.checks
         }
 
-        if not check_statuses:
+        if not check_entries:
             synthetic_name = "pr-split-smoke"
-            check_statuses = {synthetic_name: "pass" if attempt.exit_code == 0 else "fail"}
+            check_entries = {
+                synthetic_name: {
+                    "status": "pass" if attempt.exit_code == 0 else "fail",
+                    "reason": "ok" if attempt.exit_code == 0 else "command_failed",
+                }
+            }
 
-        for name, status in check_statuses.items():
+        for name, check_entry in check_entries.items():
             timeline.setdefault(name, []).append(
                 {
                     "attempt": attempt.attempt,
-                    "status": status,
+                    "status": check_entry["status"],
+                    "reason": check_entry["reason"],
                 }
             )
 
@@ -238,6 +256,7 @@ def _aggregate_tests(attempts: list[AttemptResult], build_context: dict[str, Any
         statuses = [entry["status"] for entry in entries]
         saw_fail_before_last = any(status != "pass" for status in statuses[:-1])
         final_status = statuses[-1]
+        final_reason = str(entries[-1].get("reason") or "unknown").strip() or "unknown"
 
         flaky_hint = None
         flaky_context = None
@@ -257,6 +276,7 @@ def _aggregate_tests(attempts: list[AttemptResult], build_context: dict[str, Any
             {
                 "name": name,
                 "final_status": final_status,
+                "final_reason": final_reason,
                 "attempts": entries,
                 "flaky_hint": flaky_hint,
                 "flaky_context": flaky_context,
@@ -299,6 +319,9 @@ def _build_summary_markdown(report: dict[str, Any]) -> str:
                 f"A{entry.get('attempt')}={entry.get('status')}" for entry in test.get("attempts", [])
             )
             line = f"- `{test.get('name')}` → **{test.get('final_status')}** ({attempts})"
+            final_reason = str(test.get("final_reason") or "unknown").strip() or "unknown"
+            if str(test.get("final_status") or "").lower() != "pass":
+                line += f" — cause: `{final_reason}`"
             if test.get("flaky_hint"):
                 line += f" ⚠️ flaky: {test['flaky_hint']}"
                 flaky_context = test.get("flaky_context") or {}
@@ -308,6 +331,14 @@ def _build_summary_markdown(report: dict[str, Any]) -> str:
                     f"run_attempt={flaky_build.get('run_attempt') or 'n/a'}]"
                 )
             lines.append(line)
+
+    failed_checks_final = report.get("failed_checks_final") or []
+    if failed_checks_final:
+        lines.extend(["", "### Failed checks (final attempt)"])
+        for entry in failed_checks_final:
+            name = str(entry.get("name") or "unnamed-check").strip() or "unnamed-check"
+            reason = str(entry.get("reason") or "unknown").strip() or "unknown"
+            lines.append(f"- `{name}` — cause: `{reason}`")
 
     lines.append("")
     return "\n".join(lines)
@@ -401,11 +432,13 @@ def main(argv: list[str] | None = None) -> int:
 
     status = "pass" if last.exit_code == 0 else "fail"
     reason = "ok" if last.exit_code == 0 else "retries_exhausted"
+    failed_checks_final = last.failed_check_details
 
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "status": status,
         "reason": reason,
+        "failed_checks_final": failed_checks_final,
         "smoke_test_seed": smoke_test_seed or None,
         "retry_policy": {
             "max_retries": max_retries,
@@ -424,6 +457,7 @@ def main(argv: list[str] | None = None) -> int:
                 "report_path": attempt.report_path,
                 "report_loaded": attempt.report_loaded,
                 "failed_checks": attempt.failed_checks,
+                "failed_check_details": attempt.failed_check_details,
             }
             for attempt in attempts
         ],

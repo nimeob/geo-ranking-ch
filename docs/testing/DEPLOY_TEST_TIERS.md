@@ -39,6 +39,8 @@ Konfigurationsdetails und Admin-Setup siehe `docs/OPERATIONS.md` Abschnitt **Git
   - Laufzeitbudget für den Core-Flow ist fail-closed (`CORE_FLOW_SMOKE_MAX_SECONDS`, Default `300`)
   - Bei Fehlern erzeugt der Runner automatisch Failure-Artefakte unter `reports/evidence/core-flow-smoke/<STAMP>/` (Trace + optional GUI-Screenshot)
   - CI-Summary (`$GITHUB_STEP_SUMMARY`) enthält konsistente Counts für `retried checks` und `flaky candidates` sowie den verwendeten `DEV_SMOKE_TEST_SEED`
+  - Bei Fail wird immer ein kompaktes Failure-Artefakt hochgeladen (`dev-smoke-required-failure-<run_id>-<run_attempt>`), inklusive `artifacts/pr-dev-smoke-required-summary.md` mit Abschnitt **Failed checks (final attempt)** (Check + Kurzursache) sowie Retry-Report-JSON.
+  - Der Workflow loggt die Artefaktpfade explizit (`Log failure artifact paths`), damit Name/Pfad direkt in den CI-Logs sichtbar sind.
 - **API-Contract-Fast-Checks (status check `contract-smoke`):**
   - `pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py`
   - `python3 scripts/validate_field_catalog.py`
