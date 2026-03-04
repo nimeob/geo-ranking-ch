@@ -115,3 +115,37 @@ def test_deployment_aws_doc_lists_required_deploy_auth_secret_preflight():
 
     missing = [snippet for snippet in required if snippet not in text]
     assert not missing, f"DEPLOYMENT_AWS.md fehlt Pflicht-Secret-Dokumentation: {missing}"
+
+
+def test_deploy_workflow_uses_deploy_gate_runner_with_rollback_snapshot():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "Snapshot pre-deploy stable task definitions (rollback hint)",
+        "steps.rollback_snapshot.outputs.api_previous_taskdef",
+        "steps.rollback_snapshot.outputs.ui_previous_taskdef",
+        "DEPLOY_GATE_ROLLBACK_MODE",
+        "./scripts/run_deploy_gate.sh",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"deploy.yml fehlt Deploy-Gate-Rollback-Verdrahtung: {missing}"
+
+
+def test_deployment_aws_doc_mentions_deploy_gate_rollback_required_marker():
+    doc = Path("docs/DEPLOYMENT_AWS.md")
+    assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "scripts/run_deploy_gate.sh",
+        "deploy-gate-report/v1",
+        "ROLLBACK_REQUIRED",
+        "DEPLOY_GATE_ROLLBACK_MODE",
+        "BL31_DEPLOY_ROLLBACK_RUNBOOK.md",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"DEPLOYMENT_AWS.md fehlt Deploy-Gate-Rollback-Notiz: {missing}"
