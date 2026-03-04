@@ -25,6 +25,8 @@ Blockierte Pfade (normalisiert, inkl. Trailing-Slash-Toleranz):
 Antwortformat:
 
 - HTTP: `403 Forbidden`
+- Header: `Deprecation: true`
+- Header: `Link: </auth/login>; rel="successor-version"`
 - JSON: `{"ok": false, "error": "external_direct_login_disabled", "message": "...", "request_id": "..."}`
 
 Zusätzlich wird ein strukturierter Audit-Logeintrag erzeugt:

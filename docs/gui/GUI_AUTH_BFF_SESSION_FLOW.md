@@ -21,6 +21,15 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
    - GUI sendet für Standard-Flow **keinen** manuellen `Authorization: Bearer ...` Header
    - `/analyze` und `/analyze/history` nutzen Login-/Session-Cookie statt Token-Paste im UI
 
+## Dev-Einstiegspfad (verbindlich)
+
+- Empfohlener Login-Entrypoint in Dev ist **ausschließlich** der UI/BFF-Flow über `GET /auth/login` (direkt oder via Redirect von `/gui`, `/history`, `/results/<id>`).
+- Legacy-Direktpfade bleiben zwar erreichbar, sind aber **deprecated** und liefern bewusst `403` mit Deprecation-Hinweis auf den UI-Pfad.
+- Betroffene Direktpfade (Blocker-Fokus, max. 3):
+  - `GET /login`
+  - `GET /signin`
+  - `POST /auth/signin`
+
 ## Session-Lebenszyklus
 
 - **created:** Session nach erfolgreichem Callback erzeugt.

@@ -205,6 +205,18 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         self.assertEqual(status, 302)
         self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
 
+        # 1b) direct API login path is deprecated and points to UI-owned /auth/login
+        status, body, headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/login",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 403)
+        deprecated_payload = json.loads(body)
+        self.assertEqual(deprecated_payload.get("error"), "external_direct_login_disabled")
+        self.assertEqual(headers.get("deprecation"), "true")
+        self.assertIn("/auth/login", str(headers.get("link") or ""))
+
         # 2) explicit login endpoint sets session cookie and redirects to IdP authorize URL
         status, _, headers = _http_request(
             "GET",
