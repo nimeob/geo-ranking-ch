@@ -357,6 +357,9 @@ Für den OpenClaw-Migrationsbetrieb dürfen nur Checks als **required** gesetzt 
 
 Empfohlener Minimalzustand:
 - `dev-smoke-required` (**required**, kritischer Dev-Smoke, stabiler Jobname ohne Matrix)
+  - Workflow-Runner: `python3 ./scripts/run_dev_smoke_required_with_retry.py`
+  - zentrale Retry-Policy: `DEV_SMOKE_MAX_ATTEMPTS` + `DEV_SMOKE_RETRY_DELAY_SECONDS`
+  - CI-Summary enthält Counts für `retried checks` und `flaky candidates`
 - `contract-smoke` (**required**)
 - `docs-link-guard` (**required**, fail-closed bei nicht reproduzierbarer Laufumgebung)
 - optional/required nach Teamentscheid: `deploy / Build & Test` (oder äquivalenter Deploy-Check)

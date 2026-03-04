@@ -1,0 +1,133 @@
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = REPO_ROOT / "scripts" / "run_dev_smoke_required_with_retry.py"
+
+
+def _write_fake_runner(path: Path) -> None:
+    path.write_text(
+        """#!/usr/bin/env python3
+import argparse
+import json
+import os
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--profile')
+parser.add_argument('--flow')
+parser.add_argument('--output-json', required=True)
+args = parser.parse_args()
+
+state_file = Path(os.environ['FAKE_RUNNER_STATE_FILE'])
+fail_attempts = int(os.environ.get('FAKE_RUNNER_FAIL_ATTEMPTS', '0'))
+count = 0
+if state_file.exists():
+    count = int(state_file.read_text(encoding='utf-8').strip() or '0')
+count += 1
+state_file.write_text(str(count), encoding='utf-8')
+
+is_fail = count <= fail_attempts
+payload = {
+    'schema_version': 'deploy-smoke-report/v1',
+    'runner': 'fake',
+    'status': 'fail' if is_fail else 'pass',
+    'reason': 'command_failed' if is_fail else 'ok',
+    'checks': [
+        {
+            'name': 'pr-split-smoke',
+            'status': 'fail' if is_fail else 'pass',
+            'reason': 'command_failed' if is_fail else 'ok',
+            'kind': 'smoke',
+        }
+    ],
+}
+output = Path(args.output_json)
+output.parent.mkdir(parents=True, exist_ok=True)
+output.write_text(json.dumps(payload), encoding='utf-8')
+raise SystemExit(1 if is_fail else 0)
+""",
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+
+
+def _run_wrapper(tmpdir: str, fail_attempts: int, max_attempts: int = 2) -> subprocess.CompletedProcess[str]:
+    fake_runner = Path(tmpdir) / "fake_runner.py"
+    _write_fake_runner(fake_runner)
+
+    out_json = Path(tmpdir) / "final.json"
+    report_json = Path(tmpdir) / "retry.json"
+    summary_md = Path(tmpdir) / "summary.md"
+    state_file = Path(tmpdir) / "state.txt"
+
+    env = {"PATH": os.environ.get("PATH", "")}
+    env["FAKE_RUNNER_STATE_FILE"] = str(state_file)
+    env["FAKE_RUNNER_FAIL_ATTEMPTS"] = str(fail_attempts)
+
+    return subprocess.run(
+        [
+            "python3",
+            str(SCRIPT),
+            "--runner-script",
+            str(fake_runner),
+            "--output-json",
+            str(out_json),
+            "--report-json",
+            str(report_json),
+            "--summary-markdown",
+            str(summary_md),
+            "--max-attempts",
+            str(max_attempts),
+            "--retry-delay-seconds",
+            "0",
+        ],
+        cwd=str(REPO_ROOT),
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+
+
+def test_retry_wrapper_marks_flaky_candidate_on_retry_success() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        proc = _run_wrapper(tmpdir, fail_attempts=1, max_attempts=2)
+        assert proc.returncode == 0, proc.stderr
+
+        payload = json.loads((Path(tmpdir) / "retry.json").read_text(encoding="utf-8"))
+        assert payload["status"] == "pass"
+        assert payload["summary"]["attempts_used"] == 2
+        assert payload["summary"]["retried_checks"] == 1
+        assert payload["summary"]["flaky_candidates"] == 1
+        assert payload["tests"][0]["name"] == "pr-split-smoke"
+        assert payload["tests"][0]["flaky_hint"]
+
+
+def test_retry_wrapper_single_pass_has_no_flaky_or_retried_counts() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        proc = _run_wrapper(tmpdir, fail_attempts=0, max_attempts=2)
+        assert proc.returncode == 0, proc.stderr
+
+        payload = json.loads((Path(tmpdir) / "retry.json").read_text(encoding="utf-8"))
+        assert payload["status"] == "pass"
+        assert payload["summary"]["attempts_used"] == 1
+        assert payload["summary"]["retried_checks"] == 0
+        assert payload["summary"]["flaky_candidates"] == 0
+
+
+def test_retry_wrapper_returns_failure_when_retries_exhausted() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        proc = _run_wrapper(tmpdir, fail_attempts=5, max_attempts=2)
+        assert proc.returncode != 0
+
+        payload = json.loads((Path(tmpdir) / "retry.json").read_text(encoding="utf-8"))
+        assert payload["status"] == "fail"
+        assert payload["reason"] == "retries_exhausted"
+        assert payload["summary"]["attempts_used"] == 2
+        assert payload["summary"]["flaky_candidates"] == 0

@@ -11,7 +11,7 @@ Diese Matrix trennt **schnelle PR-Gates**, **verpflichtende Deploy-Gates** und *
 
 | Tier | Trigger | Blocking | Muss bestehen (must-pass) | Primäre Entrypoints / Workflows | Verantwortlich |
 |---|---|---|---|---|---|
-| **PR Gate** | `pull_request` | Ja (für Merge) | kritischer Dev-Smoke (required) + schnelle deterministische Vertrags-Checks + Doku-Link-Guard | `.github/workflows/dev-smoke-required.yml` (`python3 ./scripts/run_deploy_smoke.py --profile pr --flow sync`), `.github/workflows/contract-tests.yml` (API-Contract-Tests), `.github/workflows/docs-quality.yml` (`./scripts/check_docs_quality_gate.sh`) | Repo-CI (GitHub Actions) |
+| **PR Gate** | `pull_request` | Ja (für Merge) | kritischer Dev-Smoke (required) + schnelle deterministische Vertrags-Checks + Doku-Link-Guard | `.github/workflows/dev-smoke-required.yml` (`python3 ./scripts/run_dev_smoke_required_with_retry.py`, delegiert an `run_deploy_smoke.py --profile pr --flow sync`), `.github/workflows/contract-tests.yml` (API-Contract-Tests), `.github/workflows/docs-quality.yml` (`./scripts/check_docs_quality_gate.sh`) | Repo-CI (GitHub Actions) |
 | **Deploy Gate (dev)** | `workflow_dispatch` (on-demand) + stündlich per `schedule` | Ja (für erfolgreichen Deploy-Run) | Build/Test + ECS-Rollout + verpflichtende Health-Smokes + Post-Deploy-Verifikation | `.github/workflows/deploy.yml` (`pytest tests/ -v`, API `/health`, UI `/healthz`, Readiness-Gate API `/health` + GUI `/gui`, `python3 scripts/check_deploy_version_trace.py`) | Deploy-Workflow + Operator |
 | **Nightly/Periodic** | `schedule` (zeitgesteuert) | Lauf-spezifisch (nicht PR-blocking) | periodische Stabilitäts-/Betriebschecks und automatische Entblockung | `.github/workflows/deploy.yml` (stündlicher Dev-Deploy), `.github/workflows/dependency-unblock.yml` (alle 30 min) | Repo-Automation |
 
@@ -29,8 +29,10 @@ Konfigurationsdetails und Admin-Setup siehe `docs/OPERATIONS.md` Abschnitt **Git
 
 ### 1) PR Gate (blocking)
 - **Kritischer Dev-Smoke (required status check `dev-smoke-required`):**
-  - `python3 ./scripts/run_deploy_smoke.py --profile pr --flow sync`
-  - der Runner führt den kanonischen Split-Smoke `./scripts/check_bl334_split_smokes.sh` aus
+  - `python3 ./scripts/run_dev_smoke_required_with_retry.py`
+  - zentrale Retry-Policy auf Job-Ebene (`DEV_SMOKE_MAX_ATTEMPTS`, `DEV_SMOKE_RETRY_DELAY_SECONDS`)
+  - der Wrapper delegiert je Versuch an `python3 ./scripts/run_deploy_smoke.py --profile pr --flow sync`
+  - CI-Summary (`$GITHUB_STEP_SUMMARY`) enthält konsistente Counts für `retried checks` und `flaky candidates`
 - **API-Contract-Fast-Checks (status check `contract-smoke`):**
   - `pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py`
   - `python3 scripts/validate_field_catalog.py`
