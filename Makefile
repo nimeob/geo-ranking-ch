@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: dev-smoke
+.PHONY: dev-smoke dev-check
 
 dev-smoke:
 	@set -euo pipefail; \
@@ -21,3 +21,7 @@ dev-smoke:
 	fi; \
 	echo "[dev-smoke] Running $$SMOKE_SCRIPT"; \
 	PYTHON_BIN="$$PYTHON_BIN" CURL_BIN="$$CURL_BIN" "$$SMOKE_SCRIPT"
+
+# Einheitlicher lokaler Pre-PR Check (Lint + Type/Syntax + Unit-Tests).
+dev-check:
+	@./scripts/check_dev_quality_gate.sh

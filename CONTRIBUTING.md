@@ -69,6 +69,7 @@ Nützliche reproduzierbare Checks:
 ./scripts/check_crawler_regression.sh
 ./scripts/check_docs_quality_gate.sh
 make dev-smoke  # Standard-Entry-Point (delegiert auf scripts/check_bl334_split_smokes.sh)
+make dev-check  # Pre-PR-Entry-Point (Lint + Type/Syntax + Unit-Tests)
 ```
 
 ## Lint / Format
@@ -98,10 +99,32 @@ curl -sS http://localhost:8080/healthz
 pytest -q
 ```
 
+## Vor PR ausführen
+
+```bash
+make dev-check
+```
+
+Der Target läuft fail-closed und bündelt:
+
+1. `pre-commit run`
+2. `python -m compileall -q src tests scripts`
+3. `pytest -q`
+
+Optional:
+
+```bash
+# Voller Lint-Lauf über alle Dateien
+LINT_SCOPE=all make dev-check
+
+# Eingeschränkter Unit-Scope für schnelle Iteration
+UNIT_TEST_TARGETS="tests/test_user_docs.py tests/test_markdown_links.py" make dev-check
+```
+
 ## PR-Workflow (kurz)
 
 - Branch erstellen
-- Tests + `pre-commit` lokal laufen lassen
+- `make dev-check` lokal laufen lassen
 - PR öffnen (kleine, reviewbare Changes)
 
 Siehe auch: `README.md` (Lokale Entwicklung) und Runbooks unter `docs/`.
