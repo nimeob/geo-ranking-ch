@@ -16,6 +16,11 @@ class TestGuiAuthSmokeRunbookDocs(unittest.TestCase):
             "tests/test_auth_regression_smoke_issue_1019.py",
             "scripts/run_webservice_e2e.sh",
             "login -> analyze/history -> logout",
+            "login -> protected route -> logout -> relogin",
+            "kein API-Host im browser-sichtbaren Auth-Flow",
+            "invalid_state",
+            "consent_denied",
+            "session_expired",
         ]
         for marker in required_markers:
             self.assertIn(marker, content)

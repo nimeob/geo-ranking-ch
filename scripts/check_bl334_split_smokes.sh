@@ -176,7 +176,7 @@ capture_core_flow_failure_artifacts() {
     echo "- Timestamp (UTC): ${STAMP}"
     echo "- Command: ${PYTHON_BIN} -m unittest -q ${CORE_FLOW_TEST_TARGET}"
     echo "- Exit code: ${core_flow_exit}"
-    echo "- Scenario: login -> search -> ranking list -> detail"
+    echo "- Scenario: login -> protected route -> logout -> relogin (+ failure modes/no-api-host guard)"
     echo "- API log: ${API_LOG}"
     echo "- UI log: ${UI_LOG}"
     echo
@@ -254,7 +254,7 @@ if ! grep -q "geo-ranking.ch GUI MVP" <<<"${UI_GUI_HTML}"; then
   exit 1
 fi
 
-echo "[BL-334.6] Core flow auth smoke (login -> search -> ranking list -> detail)"
+echo "[BL-334.6] Core flow auth smoke (login -> protected route -> logout -> relogin + failure modes/no-api-host guard)"
 CORE_FLOW_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 CORE_FLOW_START_TS="$(date +%s)"
 set +e
@@ -295,7 +295,7 @@ cat >"${OUT_JSON}" <<EOF
   },
   "core_flow": {
     "entrypoint": "python -m unittest -q ${CORE_FLOW_TEST_TARGET}",
-    "scenario": "login -> search -> ranking list -> detail",
+    "scenario": "login -> protected route -> logout -> relogin (+ failure modes/no-api-host guard)",
     "started_at_utc": "${CORE_FLOW_STARTED_AT}",
     "duration_seconds": ${CORE_FLOW_DURATION_SECONDS},
     "budget_seconds": ${CORE_FLOW_SMOKE_MAX_SECONDS},

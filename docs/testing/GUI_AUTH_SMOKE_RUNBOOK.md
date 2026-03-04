@@ -37,7 +37,7 @@ Diese Suite deckt insbesondere ab:
 
 ### 1.2 Automatisierter Auth/Core-Flow-Regression-Smoke (WP #1019 / #1087 / #1116)
 
-Für den vollständigen Kernpfad `login -> search -> ranking list -> detail -> logout` gibt es einen reproduzierbaren Integration-Smoke:
+Für den vollständigen Kernpfad `login -> protected route -> logout -> relogin` gibt es einen reproduzierbaren Integration-Smoke:
 
 ```bash
 python3 -m pytest -q tests/test_auth_regression_smoke_issue_1019.py
@@ -51,10 +51,15 @@ Abdeckung:
 - `POST /analyze` (deterministische Smoke-Query `__ok__`) + `GET /analyze/history` 200
 - Öffnen der Ranking-/Result-Ansicht über `/results/<result_id>` inkl. stabiler Tab-Selektoren
 - `/auth/logout` Redirect + Cookie-Clear + `/auth/me` 401 nach Logout
+- Re-Login nach Logout bleibt stabil (`next=/history` wird wiederhergestellt)
+- Failure-Modes ohne Redirect-Loop: `invalid_state`, `consent_denied`, `session_expired`
+- CI-Guardrail: **kein API-Host im browser-sichtbaren Auth-Flow** (Login/Callback/Logout/Error-CTA)
 
-Hinweis: Der Smoke ist in den PR-Required-Gate (`dev-smoke-required` via `check_bl334_split_smokes.sh`) eingebunden und bleibt zusätzlich über `scripts/run_webservice_e2e.sh` lokal ausführbar. Der bisherige Pfad `login -> analyze/history -> logout` ist weiterhin als Teilmenge des erweiterten Kernpfads abgedeckt.
+Hinweis: Der Smoke ist in den PR-Required-Gate (`dev-smoke-required` via `check_bl334_split_smokes.sh`) eingebunden und bleibt zusätzlich über `scripts/run_webservice_e2e.sh` lokal ausführbar. Der bisherige Pfad `login -> analyze/history -> logout` bleibt als Teilmenge des erweiterten Kernpfads erhalten.
 
 Bei Failures schreibt `check_bl334_split_smokes.sh` automatisch Debug-Artefakte nach `reports/evidence/core-flow-smoke/<STAMP>/` (mindestens `core-flow-failure-trace.md` und – falls Chromium verfügbar – `core-flow-failure-gui.png`). Damit sind Fehler im Kernfluss direkt mit Trace/Screenshot belegbar.
+
+Aktueller Referenzlauf (Issue #1253): `reports/evidence/issue-1253-auth-no-api-host-guard-20260304T233008Z.md`.
 
 ---
 

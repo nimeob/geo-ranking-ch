@@ -254,6 +254,7 @@ Migration-Guide/Referenz: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/
 Runtime-Härtung (Final Cut):
 - Direkte Browser-Aufrufe auf API-Auth-Routen (`/auth/login`, `/auth/callback`, `/auth/logout`) sind fail-closed (`403`, `external_direct_login_disabled`).
 - Zulässig ist nur der UI-Proxy-Hop mit Marker `X-Geo-Auth-Proxy: 1` (gesetzt durch den UI-Service bei `/auth/*`).
+- PR-Guardrail erzwingt zusätzlich: kein API-Host in browser-sichtbaren Auth-Redirects/CTAs (`tests/test_auth_regression_smoke_issue_1019.py::test_no_api_host_in_browser_auth_flow_guard`).
 
 Legacy-Trace-Contract (`GET /trace` auf API, Stand 2026-03-04):
 - Status: `410 gone`
