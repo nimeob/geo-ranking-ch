@@ -4709,6 +4709,25 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         };
       }
 
+      function buildTraceFeatureFlagHint(errorCode, statusCode, responsePayload) {
+        const normalizedCode = normalizeErrorCode(errorCode);
+        const normalizedStatus = Number(statusCode);
+        const payloadCode = normalizeErrorCode(
+          responsePayload && responsePayload.error ? responsePayload.error : ""
+        );
+        const payloadMessage = String(
+          responsePayload && responsePayload.message ? responsePayload.message : ""
+        ).toLowerCase();
+
+        const disabledByCode = normalizedCode === "debug_trace_disabled" || payloadCode === "debug_trace_disabled";
+        const disabledByMessage = payloadMessage.includes("trace debug endpoint is disabled");
+        if (!disabledByCode && !(normalizedStatus === 403 && disabledByMessage)) {
+          return "";
+        }
+
+        return "Trace-Debug ist in dieser Umgebung deaktiviert. Bitte TRACE_DEBUG_ENABLED=1 setzen (und TRACE_DEBUG_LOG_PATH konfigurieren) und die Abfrage erneut starten.";
+      }
+
       function resolveResponseRequestId(response, payload, fallbackRequestId = "") {
         const payloadRequestId = payload && payload.request_id ? String(payload.request_id).trim() : "";
         if (payloadRequestId) {
@@ -5290,6 +5309,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           const errCode = parsed && parsed.error ? String(parsed.error) : `http_${response.status}`;
           const errMsg = parsed && parsed.message ? String(parsed.message) : "Trace-Abfrage fehlgeschlagen";
           const authFailure = resolveAuthFailure(response.status, errCode, `${errCode}: ${errMsg}`);
+          const traceFeatureHint = buildTraceFeatureFlagHint(authFailure.errorCode, response.status, parsed);
 
           emitUiEvent("ui.trace.request.end", {
             level: requestLifecycleLevel(response.status, authFailure.errorCode),
@@ -5312,7 +5332,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             response: parsed || { ok: false, error: authFailure.errorCode, message: errMsg },
             errorCode: authFailure.errorCode,
             statusCode: response.status,
-            errorMessage: withTechnicalRequestIdHint(authFailure.errorMessage, responseRequestId),
+            errorMessage: withTechnicalRequestIdHint(traceFeatureHint || authFailure.errorMessage, responseRequestId),
             requiresLoginRecovery: authFailure.requiresLoginRecovery,
           };
         }
