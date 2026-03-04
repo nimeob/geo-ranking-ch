@@ -114,6 +114,70 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("must not import API module", result.stdout)
 
+    def test_split_layout_rejects_api_route_outside_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            src_dir = Path(tmp) / "src"
+            (src_dir / "api").mkdir(parents=True, exist_ok=True)
+            (src_dir / "ui").mkdir(parents=True, exist_ok=True)
+            (src_dir / "shared").mkdir(parents=True, exist_ok=True)
+
+            (src_dir / "api" / "web_service.py").write_text(
+                """
+from http.server import BaseHTTPRequestHandler
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        request_path = \"/internal/ui-only\"
+        if request_path == \"/internal/ui-only\":
+            return
+""".strip(),
+                encoding="utf-8",
+            )
+            (src_dir / "ui" / "service.py").write_text("", encoding="utf-8")
+            (src_dir / "shared" / "helpers.py").write_text("", encoding="utf-8")
+
+            result = subprocess.run(
+                [str(SCRIPT), "--src-dir", str(src_dir)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("API route policy violation", result.stdout)
+
+    def test_split_layout_rejects_ui_route_claiming_api_namespace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            src_dir = Path(tmp) / "src"
+            (src_dir / "api").mkdir(parents=True, exist_ok=True)
+            (src_dir / "ui").mkdir(parents=True, exist_ok=True)
+            (src_dir / "shared").mkdir(parents=True, exist_ok=True)
+
+            (src_dir / "api" / "web_service.py").write_text("", encoding="utf-8")
+            (src_dir / "ui" / "service.py").write_text(
+                """
+from http.server import BaseHTTPRequestHandler
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        request_path = \"/api/v1/diagnostics\"
+        if request_path.startswith(\"/api/\"):
+            return
+""".strip(),
+                encoding="utf-8",
+            )
+            (src_dir / "shared" / "helpers.py").write_text("", encoding="utf-8")
+
+            result = subprocess.run(
+                [str(SCRIPT), "--src-dir", str(src_dir)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("UI route policy violation", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
