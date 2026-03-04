@@ -505,6 +505,16 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         display: grid;
         gap: 0;
       }
+      .results-filters-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 0.85rem;
+      }
+      .results-filters-actions .copy-btn {
+        min-height: 2rem;
+      }
       @media (max-width: 768px) {
         .results-filters-sticky {
           position: sticky;
@@ -533,6 +543,23 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
         .results-filters-shell[data-collapsed="false"] .results-filters-panel {
           margin-top: 0.55rem;
+          max-height: min(68svh, 27rem);
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.2rem);
+        }
+        .results-filters-actions {
+          position: sticky;
+          bottom: 0;
+          z-index: 1;
+          margin-top: 0.75rem;
+          padding-top: 0.45rem;
+          padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--results-filters-keyboard-offset, 0px));
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, #fff 35%);
+        }
+        .results-filters-actions .copy-btn {
+          min-height: var(--touch-target-min);
         }
       }
       .results-table {
@@ -884,7 +911,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
                   <input id=\"results-min-security\" type=\"number\" min=\"0\" max=\"100\" placeholder=\"\" />
                 </label>
               </div>
-              <div style=\"display:flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-top: 0.85rem;\">
+              <div class=\"results-filters-actions\">
+                <button id=\"results-apply\" class=\"copy-btn\" type=\"button\">Filter anwenden</button>
+                <button id=\"results-reset\" class=\"copy-btn\" type=\"button\">Filter zurücksetzen</button>
                 <button id=\"results-clear\" class=\"copy-btn\" type=\"button\">Liste leeren</button>
                 <span class=\"meta\" id=\"results-meta\">Noch keine Ergebnisse gesammelt.</span>
               </div>
@@ -1119,6 +1148,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const resultsMinScoreEl = document.getElementById("results-min-score");
       const resultsMaxDistanceEl = document.getElementById("results-max-distance");
       const resultsMinSecurityEl = document.getElementById("results-min-security");
+      const resultsApplyBtnEl = document.getElementById("results-apply");
+      const resultsResetBtnEl = document.getElementById("results-reset");
       const resultsClearBtnEl = document.getElementById("results-clear");
       const resultsMetaEl = document.getElementById("results-meta");
       const resultsBodyEl = document.getElementById("results-body");
@@ -1533,6 +1564,22 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return window.matchMedia("(max-width: 768px)").matches;
       }
 
+      function syncResultsFiltersKeyboardInset() {
+        if (!resultsFiltersShellEl || typeof window === "undefined") {
+          return;
+        }
+
+        if (!resultsFiltersUiState.isMobileViewport || !window.visualViewport) {
+          resultsFiltersShellEl.style.setProperty("--results-filters-keyboard-offset", "0px");
+          return;
+        }
+
+        const viewport = window.visualViewport;
+        const keyboardInset = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
+        const clampedInset = Math.min(keyboardInset, 360);
+        resultsFiltersShellEl.style.setProperty("--results-filters-keyboard-offset", `${clampedInset}px`);
+      }
+
       function applyResultsFiltersCollapsedState(collapsed) {
         const nextCollapsed = Boolean(collapsed);
         resultsFiltersUiState.collapsed = nextCollapsed;
@@ -1595,6 +1642,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function updateResultsFiltersViewportState() {
         syncResultsFiltersForViewport();
         updateResultsFiltersToggleUi();
+        syncResultsFiltersKeyboardInset();
       }
 
       function toggleResultsFiltersPanel() {
@@ -1603,6 +1651,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
         const nextCollapsed = !resultsFiltersUiState.collapsed;
         applyResultsFiltersCollapsedState(nextCollapsed);
+        syncResultsFiltersKeyboardInset();
         emitUiEvent("ui.interaction.results_filters.toggle", {
           direction: "human->ui",
           status: nextCollapsed ? "collapsed" : "expanded",
@@ -2042,6 +2091,26 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         updateResultsListDeepLink();
         renderResultsList();
+      }
+
+      function applyResultsFiltersFromControls(trigger = "manual") {
+        syncResultsListStateFromControls();
+        emitUiEvent("ui.interaction.results_filters.apply", {
+          direction: "human->ui",
+          status: "applied",
+          trigger,
+        });
+      }
+
+      function resetResultsFiltersFromControls(trigger = "manual") {
+        resetResultsListFilters();
+        updateResultsListDeepLink();
+        renderResultsList();
+        emitUiEvent("ui.interaction.results_filters.reset", {
+          direction: "human->ui",
+          status: "reset",
+          trigger,
+        });
       }
 
       function addResultsEntry(entry) {
@@ -4531,6 +4600,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
       if (typeof window !== "undefined") {
         window.addEventListener("resize", updateResultsFiltersViewportState);
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener("resize", syncResultsFiltersKeyboardInset);
+          window.visualViewport.addEventListener("scroll", syncResultsFiltersKeyboardInset);
+        }
       }
 
       if (resultsSortEl) resultsSortEl.addEventListener("change", syncResultsListStateFromControls);
@@ -4540,6 +4613,17 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       if (resultsMinScoreEl) resultsMinScoreEl.addEventListener("change", syncResultsListStateFromControls);
       if (resultsMaxDistanceEl) resultsMaxDistanceEl.addEventListener("change", syncResultsListStateFromControls);
       if (resultsMinSecurityEl) resultsMinSecurityEl.addEventListener("change", syncResultsListStateFromControls);
+
+      if (resultsApplyBtnEl) {
+        resultsApplyBtnEl.addEventListener("click", () => {
+          applyResultsFiltersFromControls("apply_button");
+        });
+      }
+      if (resultsResetBtnEl) {
+        resultsResetBtnEl.addEventListener("click", () => {
+          resetResultsFiltersFromControls("reset_button");
+        });
+      }
 
       if (resultsClearBtnEl) {
         resultsClearBtnEl.addEventListener("click", () => {
