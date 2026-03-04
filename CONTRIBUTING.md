@@ -68,7 +68,7 @@ Nützliche reproduzierbare Checks:
 ```bash
 ./scripts/check_crawler_regression.sh
 ./scripts/check_docs_quality_gate.sh
-./scripts/check_bl334_split_smokes.sh
+make dev-smoke  # Standard-Entry-Point (delegiert auf scripts/check_bl334_split_smokes.sh)
 ```
 
 ## Lint / Format
