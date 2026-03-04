@@ -376,7 +376,7 @@ Ablauf im Deploy-Gate:
 2) API-/UI-TaskDef-Revisionen registrieren  
 3) API-Service deployen + warten + API-Smokes  
 4) UI-Service deployen + warten + UI-Smoke (`/healthz`)  
-5) verbindliches Readiness-Gate: API-`/health` **und** GUI-`/gui` müssen innerhalb des Retry-Fensters grün werden (Default: max. 90s)  
+5) verbindliches Readiness-Gate: API-`/health`, GUI-`/gui` **und** DB-Reachability via API-`/health/details` (`checks.database.status=ok`) müssen innerhalb des Retry-Fensters grün werden (Default: max. 90s)  
 6) optionaler Strict-Split-Smoke (`run_bl31_routing_tls_smoke.sh`, wenn Base-URLs gesetzt sind)  
 7) Post-Deploy-Verifikation (`scripts/check_deploy_version_trace.py`): UI-`/healthz`-Version == `${GITHUB_SHA::7}` und optionaler Trace-Debug-Sanity-Check (`/debug/trace`)
 
@@ -384,8 +384,8 @@ Smoke-Verhalten:
 - API `/health` ist verpflichtend (über `SERVICE_HEALTH_URL` oder aus `SERVICE_API_BASE_URL` abgeleitet)
 - API `/analyze` läuft im Dev-Deploy mit Auth-Token (`SERVICE_API_AUTH_TOKEN`) als fester Smoke-Check
 - UI `/healthz` ist verpflichtend über `SERVICE_APP_BASE_URL`
-- Deploy-Readiness-Gate prüft zusätzlich API `/health` + GUI `/gui` mit Retry und protokolliert pro Versuch URL + HTTP-Code im Workflow-Log
-- Das Gate läuft über `scripts/run_deploy_gate.sh` und schreibt `artifacts/deploy/<sha>-deploy-gate-report.json` (`deploy-gate-report/v1`). Bei Timeout bricht der Job fail-closed ab und markiert den Lauf explizit mit `ROLLBACK_REQUIRED` (inkl. letzter stabiler API/UI-TaskDef als Rollback-Hinweis).
+- Deploy-Readiness-Gate prüft zusätzlich API `/health` + GUI `/gui` + DB-Reachability über `/health/details` (`checks.database.status=ok`) mit Retry und protokolliert pro Versuch URL + HTTP-Code im Workflow-Log
+- Das Gate läuft über `scripts/run_deploy_gate.sh` und schreibt `artifacts/deploy/<sha>-deploy-gate-report.json` (`deploy-gate-report/v1`, inkl. `failure_reason` + letztem DB-Check). Bei Timeout bricht der Job fail-closed ab und markiert den Lauf explizit mit `ROLLBACK_REQUIRED` (inkl. letzter stabiler API/UI-TaskDef als Rollback-Hinweis).
 
 **Benötigte GitHub Secrets (zu setzen unter Settings → Secrets):**
 
@@ -410,9 +410,10 @@ Smoke-Verhalten:
 | `SERVICE_API_BASE_URL` | API-Base-URL für Smokes (`https://api.<domain>`) |
 | `SERVICE_APP_BASE_URL` | UI-Base-URL für Smokes (`https://www.<domain>` oder `https://app.<domain>`) |
 | `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`), falls `SERVICE_API_BASE_URL` nicht genutzt wird |
+| `SERVICE_DB_HEALTH_DETAILS_URL` | Optionales Override-Ziel für DB-Reachability im Deploy-Gate (erwartet API-`/health/details` mit `checks.database.status=ok`); Default: `${SERVICE_API_BASE_URL}/health/details` |
 | `API_HEALTH_SMOKE_MAX_ATTEMPTS` | Optional: Anzahl Health-Smoke-Readiness-Versuche nach Deploy; Default `12` |
 | `API_HEALTH_SMOKE_RETRY_DELAY_SECONDS` | Optional: Pause (Sekunden) zwischen API-Health-Smoke-Retries; Default `10` |
-| `DEPLOY_GATE_MAX_WAIT_SECONDS` | Optional: maximales Retry-Fenster für das Readiness-Gate (API `/health` + GUI `/gui`); Default `90` |
+| `DEPLOY_GATE_MAX_WAIT_SECONDS` | Optional: maximales Retry-Fenster für das Readiness-Gate (API `/health` + GUI `/gui` + DB-Reachability); Default `90` |
 | `DEPLOY_GATE_RETRY_DELAY_SECONDS` | Optional: Pause (Sekunden) zwischen Readiness-Gate-Versuchen; Default `5` |
 | `DEPLOY_GATE_ROLLBACK_MODE` | Optional: Verhalten bei Gate-Timeout; aktuell nur `mark-required` unterstützt (Default). Der Workflow setzt dann `ROLLBACK_REQUIRED` + TaskDef-Hinweise und endet mit `failed`. |
 | `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Deploy-Workflow den zusätzlichen `/debug/trace`-Sanity-Check |
@@ -455,7 +456,7 @@ Fehlerbeispiel (gekürzt):
 
 **Runbook-Notiz (Deploy-Gate Timeout / Rollback erforderlich):**
 - Wenn das Readiness-Gate timeoutet, endet der Deploy-Job bewusst in `failed`.
-- Der Workflow loggt dann `ROLLBACK_REQUIRED mode=mark-required ...` mit den zuletzt stabilen API-/UI-TaskDef-ARNs.
+- Der Workflow loggt dann `ROLLBACK_REQUIRED mode=mark-required reason=<api|gui|db> ...` mit den zuletzt stabilen API-/UI-TaskDef-ARNs.
 - Das dient als expliziter Operator-Hinweis für einen gezielten Rollback nach `docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`.
 - Zusätzlicher Nachweis: `artifacts/deploy/<sha>-deploy-gate-report.json` (Status, letzte Probe, Retry-/Timeout-Config, Rollback-Hint).
 
