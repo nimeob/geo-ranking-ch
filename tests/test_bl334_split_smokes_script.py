@@ -13,6 +13,9 @@ def test_bl334_split_smokes_script_contains_api_ui_entrypoints_and_health_checks
         "/health",
         "/healthz",
         '"result": "pass"',
+        "login -> search -> ranking list -> detail",
+        "core-flow-failure-trace.md",
+        "core-flow-failure-gui.png",
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in text]

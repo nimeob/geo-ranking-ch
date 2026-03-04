@@ -16,6 +16,9 @@ API_LOG="${OUT_DIR}/${STAMP}-api-smoke.log"
 UI_LOG="${OUT_DIR}/${STAMP}-ui-smoke.log"
 CORE_FLOW_SMOKE_MAX_SECONDS="${CORE_FLOW_SMOKE_MAX_SECONDS:-300}"
 CORE_FLOW_TEST_TARGET="${CORE_FLOW_TEST_TARGET:-tests.test_auth_regression_smoke_issue_1019}"
+CORE_FLOW_LOG="${OUT_DIR}/${STAMP}-core-flow-smoke.log"
+CORE_FLOW_FAILURE_EVIDENCE_DIR="${REPO_ROOT}/reports/evidence/core-flow-smoke/${STAMP}"
+CHROMIUM_BIN="${CHROMIUM_BIN:-chromium}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -122,6 +125,53 @@ if str(cursor) != expected:
 PY
 }
 
+capture_core_flow_failure_artifacts() {
+  local core_flow_exit="$1"
+
+  mkdir -p "${CORE_FLOW_FAILURE_EVIDENCE_DIR}"
+
+  cp "${CORE_FLOW_LOG}" "${CORE_FLOW_FAILURE_EVIDENCE_DIR}/core-flow-unittest.log" || true
+  cp "${API_LOG}" "${CORE_FLOW_FAILURE_EVIDENCE_DIR}/api-smoke.log" || true
+  cp "${UI_LOG}" "${CORE_FLOW_FAILURE_EVIDENCE_DIR}/ui-smoke.log" || true
+
+  if command -v "${CHROMIUM_BIN}" >/dev/null 2>&1; then
+    "${CHROMIUM_BIN}" \
+      --headless \
+      --disable-gpu \
+      --no-sandbox \
+      --window-size=1440,1800 \
+      "--screenshot=${CORE_FLOW_FAILURE_EVIDENCE_DIR}/core-flow-failure-gui.png" \
+      "http://127.0.0.1:${UI_PORT}/gui" \
+      >"${CORE_FLOW_FAILURE_EVIDENCE_DIR}/chromium-screenshot.log" 2>&1 || true
+  fi
+
+  {
+    echo "# Core flow smoke failure trace"
+    echo
+    echo "- Timestamp (UTC): ${STAMP}"
+    echo "- Command: ${PYTHON_BIN} -m unittest -q ${CORE_FLOW_TEST_TARGET}"
+    echo "- Exit code: ${core_flow_exit}"
+    echo "- Scenario: login -> search -> ranking list -> detail"
+    echo "- API log: ${API_LOG}"
+    echo "- UI log: ${UI_LOG}"
+    echo
+    echo "## Unittest output (tail -n 200)"
+    echo '```text'
+    tail -n 200 "${CORE_FLOW_LOG}" || true
+    echo '```'
+    echo
+    echo "## API smoke log (tail -n 80)"
+    echo '```text'
+    tail -n 80 "${API_LOG}" || true
+    echo '```'
+    echo
+    echo "## UI smoke log (tail -n 80)"
+    echo '```text'
+    tail -n 80 "${UI_LOG}" || true
+    echo '```'
+  } >"${CORE_FLOW_FAILURE_EVIDENCE_DIR}/core-flow-failure-trace.md"
+}
+
 echo "[BL-334.5] API-only smoke (src.api.web_service)"
 API_PORT="$(find_free_port)"
 HOST="127.0.0.1" \
@@ -164,11 +214,20 @@ if ! grep -q "geo-ranking.ch GUI MVP" <<<"${UI_GUI_HTML}"; then
   exit 1
 fi
 
-echo "[BL-334.6] Core flow auth smoke (login -> search -> ranking)"
+echo "[BL-334.6] Core flow auth smoke (login -> search -> ranking list -> detail)"
 CORE_FLOW_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 CORE_FLOW_START_TS="$(date +%s)"
-"${PYTHON_BIN}" -m unittest -q "${CORE_FLOW_TEST_TARGET}"
+set +e
+"${PYTHON_BIN}" -m unittest -q "${CORE_FLOW_TEST_TARGET}" >"${CORE_FLOW_LOG}" 2>&1
+CORE_FLOW_EXIT_CODE="$?"
+set -e
 CORE_FLOW_DURATION_SECONDS="$(( $(date +%s) - CORE_FLOW_START_TS ))"
+
+if (( CORE_FLOW_EXIT_CODE != 0 )); then
+  capture_core_flow_failure_artifacts "${CORE_FLOW_EXIT_CODE}"
+  echo "ERROR: core flow smoke failed. Evidence: ${CORE_FLOW_FAILURE_EVIDENCE_DIR}" >&2
+  exit 1
+fi
 
 if (( CORE_FLOW_DURATION_SECONDS > CORE_FLOW_SMOKE_MAX_SECONDS )); then
   echo "ERROR: core flow smoke exceeded budget (${CORE_FLOW_DURATION_SECONDS}s > ${CORE_FLOW_SMOKE_MAX_SECONDS}s)" >&2
@@ -194,11 +253,12 @@ cat >"${OUT_JSON}" <<EOF
   },
   "core_flow": {
     "entrypoint": "python -m unittest -q ${CORE_FLOW_TEST_TARGET}",
-    "scenario": "login -> search -> ranking",
+    "scenario": "login -> search -> ranking list -> detail",
     "started_at_utc": "${CORE_FLOW_STARTED_AT}",
     "duration_seconds": ${CORE_FLOW_DURATION_SECONDS},
     "budget_seconds": ${CORE_FLOW_SMOKE_MAX_SECONDS},
-    "result": "pass"
+    "result": "pass",
+    "log": "${CORE_FLOW_LOG}"
   },
   "result": "pass"
 }
@@ -208,4 +268,5 @@ echo "✅ BL-334.5 split smokes passed"
 echo "- evidence: ${OUT_JSON}"
 echo "- api log:  ${API_LOG}"
 echo "- ui log:   ${UI_LOG}"
+echo "- core-flow log: ${CORE_FLOW_LOG}"
 echo "- core-flow duration: ${CORE_FLOW_DURATION_SECONDS}s (budget ${CORE_FLOW_SMOKE_MAX_SECONDS}s)"
