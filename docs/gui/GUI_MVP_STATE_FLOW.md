@@ -36,7 +36,8 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Status-Pill pro State
    - Request-ID + Input-Metadaten
    - Request-ID-UX mit klickbarem Trace-Link (`Trace ansehen`) und Copy-Action (`Copy ID`) inkl. Live-Feedback
-   - Fehlerbox für API-/Netzwerkfehler
+   - Fehlerbox für API-/Netzwerkfehler (ohne 5xx)
+   - Einheitliche 5xx-Error-View mit technischer Meta (`HTTP`, Request-Zeit, `request_id`, `error`) und kontrollierter Retry-Action (re-run des letzten Analyze-Requests)
    - Kernfaktoren-Liste (`top 4` nach |contribution|)
    - Ergebnisliste-Empty-State mit Titel/Beschreibung/primärer Aktion (CTA) und stabiler Tabellenhöhe (`min-height`), damit beim Wechsel leer ↔ gefüllt keine harten Layout-Sprünge auftreten
    - Empty-State-Copy zentral in `RESULTS_LIST_COPY` (kein verteiltes Hardcoding); Ursachenhinweis unterscheidet „keine Daten in Auswahl“ vs. „Filter blenden alles aus“, primäre CTA setzt Filter auf Default zurück und rendert die Liste neu
@@ -53,13 +54,16 @@ Frontend-State (clientseitig):
 - `lastError`: menschenlesbare Fehlermeldung
 - `lastInput`: letzter Input-Kontext (Adresse oder Kartenpunkt)
 - `coreFactors`: extrahierte Top-Faktoren aus Explainability
+- `lastAnalyzeRequest`: letzter valide Analyze-Request (Payload + Input-Label) als Retry-Kontext
+- `serverErrorView`: dedizierter 5xx-View-State (`visible`, `statusCode`, `errorCode`, `requestId`, `requestStartedAt`)
 
 Transitions:
 
 - `idle -> loading` beim Submit oder Kartenklick
 - `loading -> success` bei `HTTP 2xx` + `ok=true`
 - `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen`)
-- `error -> loading` beim nächsten Submit/Kartenklick (clean retry)
+- `loading -> error(5xx-view)` bei `HTTP 5xx`: einheitlicher Error-View statt gestapelter Einzelmeldungen
+- `error -> loading` beim nächsten Submit/Kartenklick oder über den 5xx-Retry-Button (clean retry)
 
 ## Async Submit (Async v1)
 

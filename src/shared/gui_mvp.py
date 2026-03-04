@@ -608,6 +608,34 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         color: #7a201a;
         padding: 0.65rem 0.75rem;
       }
+      .error-view {
+        border: 1px solid #f2c6c2;
+        border-left: 4px solid var(--danger);
+        background: #fff8f8;
+        border-radius: 0.55rem;
+        color: #7a201a;
+        padding: 0.75rem;
+        display: grid;
+        gap: 0.45rem;
+      }
+      .error-view-title {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #7a201a;
+      }
+      .error-view-copy {
+        margin: 0;
+        font-size: 0.86rem;
+        line-height: 1.4;
+      }
+      .error-view-meta {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #8a3a2f;
+      }
+      .error-view-retry {
+        justify-self: flex-start;
+      }
       .trace-timeline {
         margin: 0;
         padding-left: 1.15rem;
@@ -762,7 +790,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             </div>
             <p class="meta" id="async-job-meta">Polling: off</p>
           </div>
-          <div id=\"error-box\" class=\"error-box\" hidden></div>
+          <section id="server-error-view" class="error-view" role="status" aria-live="polite" hidden>
+            <h3 id="server-error-title" class="error-view-title">Temporärer Serverfehler (5xx)</h3>
+            <p id="server-error-copy" class="error-view-copy">Die Analyse konnte nicht abgeschlossen werden. Bitte Retry versuchen.</p>
+            <p id="server-error-meta" class="error-view-meta">Keine technischen Details verfügbar.</p>
+            <button id="server-error-retry" class="copy-btn error-view-retry" type="button">Retry ausführen</button>
+          </section>
+          <div id="error-box" class="error-box" hidden></div>
         </article>
 
         <article class=\"card\">
@@ -978,6 +1012,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         lastError: null,
         lastInput: null,
         coreFactors: [],
+        lastAnalyzeRequest: null,
+        serverErrorView: {
+          visible: false,
+          statusCode: null,
+          errorCode: "",
+          requestId: "",
+          requestStartedAt: "",
+        },
       };
 
       const resultsListState = {
@@ -1033,6 +1075,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const inputMeta = document.getElementById("input-meta");
       const historyShell = document.getElementById("history-shell");
       const errorBox = document.getElementById("error-box");
+      const serverErrorViewEl = document.getElementById("server-error-view");
+      const serverErrorTitleEl = document.getElementById("server-error-title");
+      const serverErrorCopyEl = document.getElementById("server-error-copy");
+      const serverErrorMetaEl = document.getElementById("server-error-meta");
+      const serverErrorRetryBtnEl = document.getElementById("server-error-retry");
       const coreFactorsEl = document.getElementById("core-factors");
       const authLoginMetaEl = document.getElementById("auth-login-meta");
       const authLoginInlineEl = document.getElementById("auth-login-inline");
@@ -1818,6 +1865,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         state.lastRequestId = requestId || state.lastRequestId;
         state.lastInput = entry.inputLabel || state.lastInput;
         state.lastError = null;
+        clearServerErrorView();
         state.coreFactors = extractCoreFactors(entry.payload);
 
         setPhase("success", {
@@ -2137,12 +2185,47 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           }
         }
 
-        if (state.lastError) {
+        const showServerErrorView = Boolean(
+          state.serverErrorView
+          && state.serverErrorView.visible
+          && isServerErrorStatus(state.serverErrorView.statusCode)
+        );
+
+        if (serverErrorViewEl) {
+          serverErrorViewEl.hidden = !showServerErrorView;
+        }
+        if (showServerErrorView) {
+          if (serverErrorTitleEl) {
+            serverErrorTitleEl.textContent = "Temporärer Serverfehler (5xx)";
+          }
+          if (serverErrorCopyEl) {
+            serverErrorCopyEl.textContent = "Die Anfrage konnte wegen eines temporären Serverfehlers nicht abgeschlossen werden. Bitte Retry ausführen.";
+          }
+          if (serverErrorMetaEl) {
+            serverErrorMetaEl.textContent = describeServerErrorMeta(state.serverErrorView);
+          }
+          if (serverErrorRetryBtnEl) {
+            const retryReady = Boolean(
+              state.lastAnalyzeRequest
+              && state.lastAnalyzeRequest.payload
+              && typeof state.lastAnalyzeRequest.payload === "object"
+            );
+            serverErrorRetryBtnEl.disabled = submitBtn.disabled || !retryReady;
+          }
+          errorBox.hidden = true;
+          errorBox.textContent = "";
+        } else if (state.lastError) {
           errorBox.hidden = false;
           errorBox.textContent = state.lastError;
+          if (serverErrorRetryBtnEl) {
+            serverErrorRetryBtnEl.disabled = true;
+          }
         } else {
           errorBox.hidden = true;
           errorBox.textContent = "";
+          if (serverErrorRetryBtnEl) {
+            serverErrorRetryBtnEl.disabled = true;
+          }
         }
 
         renderCoreFactors();
@@ -3565,6 +3648,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           requestId: String(requestId || "").trim(),
           errorCode: normalizedErrorCode,
         });
+        clearServerErrorView();
         state.lastError = withTechnicalRequestIdHint(hint, requestId);
         renderState();
 
@@ -3640,6 +3724,76 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return `${normalizedMessage} ${requestSuffix}`;
       }
 
+      function isServerErrorStatus(statusCode) {
+        const normalizedStatus = Number(statusCode);
+        return Number.isInteger(normalizedStatus) && normalizedStatus >= 500 && normalizedStatus < 600;
+      }
+
+      function cloneAnalyzePayload(payload) {
+        if (!payload || typeof payload !== "object") {
+          return null;
+        }
+        try {
+          return JSON.parse(JSON.stringify(payload));
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function setServerErrorView(details = {}) {
+        state.serverErrorView = {
+          visible: Boolean(details.visible),
+          statusCode: Number.isFinite(Number(details.statusCode)) ? Number(details.statusCode) : null,
+          errorCode: String(details.errorCode || "").trim(),
+          requestId: normalizeTraceRequestId(details.requestId || ""),
+          requestStartedAt: String(details.requestStartedAt || "").trim(),
+        };
+      }
+
+      function clearServerErrorView() {
+        setServerErrorView({ visible: false });
+      }
+
+      function rememberAnalyzeRequest(payload, inputLabel) {
+        const clonedPayload = cloneAnalyzePayload(payload);
+        if (!clonedPayload) {
+          state.lastAnalyzeRequest = null;
+          return;
+        }
+        state.lastAnalyzeRequest = {
+          payload: clonedPayload,
+          inputLabel: String(inputLabel || "").trim(),
+        };
+      }
+
+      function describeServerErrorMeta(viewState = {}) {
+        const segments = [];
+        const statusCode = Number(viewState.statusCode);
+        if (Number.isInteger(statusCode)) {
+          segments.push(`HTTP ${statusCode}`);
+        }
+
+        const requestTime = formatLocalTime(viewState.requestStartedAt);
+        if (requestTime) {
+          segments.push(`Request-Zeit: ${requestTime}`);
+        }
+
+        const requestId = normalizeTraceRequestId(viewState.requestId);
+        if (requestId) {
+          segments.push(`request_id: ${requestId}`);
+        }
+
+        const errorCode = String(viewState.errorCode || "").trim();
+        if (errorCode) {
+          segments.push(`error: ${errorCode}`);
+        }
+
+        if (!segments.length) {
+          return "Keine technischen Details verfügbar.";
+        }
+        return segments.join(" · ");
+      }
+
       async function runAnalyze(payload, context = {}) {
         const traceId = String(context.traceId || "").trim();
         const requestId = String(context.requestId || "").trim() || createUiCorrelationId("req");
@@ -3668,6 +3822,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const controller = new AbortController();
         const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
         const startedAt = performance.now();
+        const requestStartedAtIso = utcTimestamp();
 
         let response;
         try {
@@ -3768,14 +3923,24 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             auth_recovery_required: authFailure.requiresLoginRecovery,
           });
 
+          const serverError = isServerErrorStatus(response.status);
+          const unifiedServerErrorMessage = withTechnicalRequestIdHint(
+            "Temporärer Serverfehler (5xx). Bitte Retry ausführen.",
+            responseRequestId
+          );
+
           return {
             ok: false,
             requestId: responseRequestId,
             response: failingResponse,
-            errorMessage: withTechnicalRequestIdHint(authFailure.errorMessage, responseRequestId),
+            errorMessage: serverError
+              ? unifiedServerErrorMessage
+              : withTechnicalRequestIdHint(authFailure.errorMessage, responseRequestId),
             errorCode: authFailure.errorCode,
             statusCode: response.status,
             requiresLoginRecovery: authFailure.requiresLoginRecovery,
+            isServerError: serverError,
+            requestStartedAt: requestStartedAtIso,
           };
         }
 
@@ -3798,6 +3963,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           errorMessage: null,
           errorCode: "",
           statusCode: response.status,
+          isServerError: false,
+          requestStartedAt: requestStartedAtIso,
         };
       }
 
@@ -3820,10 +3987,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         };
       }
 
-      async function startAnalyze(payload, inputLabel) {
+      async function startAnalyze(payload, inputLabel, options = {}) {
         const requestId = createUiCorrelationId("req");
         const traceId = requestId;
         const inputKind = inferInputKind(payload);
+        const trigger = String(options.trigger || "analyze_start").trim() || "analyze_start";
+        const isRetryAttempt = Boolean(options.isRetryAttempt);
 
         const authenticated = await ensureAuthenticatedForAction({
           trigger: "analyze_preflight",
@@ -3845,16 +4014,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           traceId,
           requestId,
           direction: "human->ui",
-          status: "accepted",
+          status: isRetryAttempt ? "retry_attempt" : "accepted",
           input_kind: inputKind,
           input_label: inputKind,
           intelligence_mode: String(payload && payload.intelligence_mode ? payload.intelligence_mode : "basic"),
         });
 
+        rememberAnalyzeRequest(payload, inputLabel);
+        clearServerErrorView();
+
         setPhase("loading", {
           traceId,
           requestId,
-          trigger: "analyze_start",
+          trigger,
         });
         state.lastError = null;
         state.lastPayload = { ok: false, loading: true, request: payload };
@@ -3879,7 +4051,21 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             trigger: "analyze_result",
             errorCode: result.errorCode || "",
           });
-          state.lastError = result.errorMessage;
+
+          if (!result.ok && result.isServerError) {
+            setServerErrorView({
+              visible: true,
+              statusCode: result.statusCode,
+              errorCode: result.errorCode,
+              requestId: state.lastRequestId,
+              requestStartedAt: result.requestStartedAt || utcTimestamp(),
+            });
+            state.lastError = null;
+          } else {
+            clearServerErrorView();
+            state.lastError = result.errorMessage;
+          }
+
           state.coreFactors = result.ok ? extractCoreFactors(result.response) : [];
 
           if (!result.ok && result.requiresLoginRecovery) {
@@ -3894,6 +4080,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             }
           }
         } catch (error) {
+          clearServerErrorView();
           setPhase("error", {
             traceId,
             requestId,
@@ -3911,6 +4098,37 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           submitBtn.disabled = false;
           renderState();
         }
+      }
+
+      async function retryLastAnalyzeRequestFromServerError() {
+        const hasRetryContext = Boolean(
+          state.lastAnalyzeRequest
+          && state.lastAnalyzeRequest.payload
+          && typeof state.lastAnalyzeRequest.payload === "object"
+        );
+        if (!hasRetryContext || state.phase === "loading") {
+          return;
+        }
+
+        const retryPayload = cloneAnalyzePayload(state.lastAnalyzeRequest.payload);
+        if (!retryPayload) {
+          return;
+        }
+
+        const retryInputLabel = String(state.lastAnalyzeRequest.inputLabel || state.lastInput || "Retry").trim() || "Retry";
+
+        emitUiEvent("ui.interaction.error_view.retry", {
+          direction: "human->ui",
+          status: "triggered",
+          requestId: normalizeTraceRequestId(state.serverErrorView && state.serverErrorView.requestId),
+          error_code: String(state.serverErrorView && state.serverErrorView.errorCode ? state.serverErrorView.errorCode : ""),
+          status_code: Number(state.serverErrorView && state.serverErrorView.statusCode),
+        });
+
+        await startAnalyze(retryPayload, retryInputLabel, {
+          trigger: "server_error_retry",
+          isRetryAttempt: true,
+        });
       }
 
       async function runTraceLookup(traceRequestId, context = {}) {
@@ -4190,6 +4408,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             trigger: "validation_error",
             errorCode: "validation",
           });
+          clearServerErrorView();
           state.lastError = "Bitte eine Adresse eingeben.";
           state.lastPayload = {
             ok: false,
@@ -4214,6 +4433,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const payload = buildAnalyzePayload({ query });
         await startAnalyze(payload, `Adresse: ${query}`);
       });
+
+      if (serverErrorRetryBtnEl) {
+        serverErrorRetryBtnEl.addEventListener("click", async () => {
+          await retryLastAnalyzeRequestFromServerError();
+        });
+      }
 
       requestTraceLinkEl.addEventListener("click", async (event) => {
         event.preventDefault();
