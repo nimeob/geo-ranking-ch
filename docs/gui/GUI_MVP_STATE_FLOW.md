@@ -12,7 +12,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - reproduzierbarer UI-State-Flow: `idle -> loading -> success|error`
 - clientseitiger Request-Timeout-Guard (`AbortController`): kein dauerhaftes `loading` bei ausbleibender API-Antwort
 - deterministische Dev-Request-Policy für idempotente GETs (`/auth/me`, `/analyze/history`, `/debug/trace`): zentraler Default `requestTimeoutMs=12000`, Retry-Budget `maxRetryBudget=1` (nur bei `GET`, z. B. Timeout/5xx), ohne automatische Retries für mutierende Requests; finaler Fehler enthält standardisiert `final_reason` + `attempts/retries`
-- korrelierbares UI-Structured-Logging (`ui.state.transition`, `ui.api.request.start/end`) inkl. `X-Request-Id`/`X-Correlation-Id`/`X-Session-Id` für UI↔API-Tracing
+- korrelierbares UI-Structured-Logging (`ui.state.transition`, `ui.api.request.start/end`, `ui.view.error_view.server_5xx`) inkl. `X-Request-Id`/`X-Correlation-Id`/`X-Session-Id` für UI↔API-Tracing
 - sichtbare Kernfaktoren (Top-Faktoren aus Explainability) und rohe JSON-Antwort
 - Trace-Debug-Panel mit Deep-Link-Unterstützung (`/gui?view=trace&request_id=<id>`) und Timeline-Lookup via `GET /debug/trace`
 - Kanonischer GUI-Auth-Flow für BFF-Session-Betrieb dokumentiert unter [`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](./GUI_AUTH_BFF_SESSION_FLOW.md)
@@ -38,7 +38,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Request-ID + Input-Metadaten
    - Request-ID-UX mit klickbarem Trace-Link (`Trace ansehen`) und Copy-Action (`Copy ID`) inkl. Live-Feedback
    - Fehlerbox für API-/Netzwerkfehler (ohne 5xx)
-   - Einheitliche 5xx-Error-View mit technischer Meta (`HTTP`, Request-Zeit, `request_id`, `error`) und kontrollierter Retry-Action (re-run des letzten Analyze-Requests)
+   - Einheitliche 5xx-Error-View mit technischer Meta (`HTTP`, Request-Zeit, `Referenz-ID`, `error`), Support-Hinweis („Support mit Referenz-ID kontaktieren“) und kontrollierter Retry-Action (re-run des letzten Analyze-Requests)
    - Kernfaktoren-Liste (`top 4` nach |contribution|)
    - Ergebnisliste zeigt bei laufender Analyze-Anfrage einen dedizierten Loading-State (Spinner + klare Status-Copy), auch wenn noch keine Zeilen vorhanden sind.
    - Ergebnisliste-Empty-State mit Titel/Beschreibung/primärer Aktion (CTA) und stabiler Tabellenhöhe (`min-height`), damit beim Wechsel leer ↔ gefüllt keine harten Layout-Sprünge auftreten
@@ -125,6 +125,7 @@ Die GUI emittiert strukturierte Client-Events (JSONL via Browser-Console) und ko
 - `ui.results_list.first_contentful_data` pro Listenladung genau einmal mit `duration_ms`, `rows_visible`, `rows_total` und `status` (`ready`, `filtered_empty`, `empty`, `loading`, `error`)
 - `ui.trace.request.start` / `ui.trace.request.end` für Trace-Lookups inkl. `trace_request_id`, Timeline-State und Fehlerklassifikation
 - `ui.state.transition` für Analyze-Zustandswechsel (`idle/loading/success/error`)
+- `ui.view.error_view.server_5xx` sobald die dedizierte 5xx-Error-View angezeigt wird (`reference_id`, `status_code`, `error_code`)
 - `ui.trace.state.transition` für Trace-Zustandswechsel (`idle/loading/success/empty/unknown/error`)
 - Input-/Interaktionsereignisse (`ui.interaction.form.submit`, `ui.interaction.map.analyze_trigger`, `ui.interaction.trace.submit`, `ui.input.accepted`)
 - Validierungs-/Degraded-Signale (`ui.validation.error`, `ui.output.map_status`)

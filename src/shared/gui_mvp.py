@@ -987,7 +987,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           </div>
           <section id="server-error-view" class="error-view" role="status" aria-live="polite" hidden>
             <h3 id="server-error-title" class="error-view-title">Temporärer Serverfehler (5xx)</h3>
-            <p id="server-error-copy" class="error-view-copy">Die Analyse konnte nicht abgeschlossen werden. Bitte Retry versuchen.</p>
+            <p id="server-error-copy" class="error-view-copy">Die Analyse konnte nicht abgeschlossen werden. Bitte Retry ausführen. Falls das Problem bestehen bleibt, Support mit Referenz-ID kontaktieren.</p>
             <p id="server-error-meta" class="error-view-meta">Keine technischen Details verfügbar.</p>
             <button id="server-error-retry" class="copy-btn error-view-retry" type="button">Retry ausführen</button>
           </section>
@@ -2965,7 +2965,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             serverErrorTitleEl.textContent = "Temporärer Serverfehler (5xx)";
           }
           if (serverErrorCopyEl) {
-            serverErrorCopyEl.textContent = "Die Anfrage konnte wegen eines temporären Serverfehlers nicht abgeschlossen werden. Bitte Retry ausführen.";
+            serverErrorCopyEl.textContent = "Die Anfrage konnte wegen eines temporären Serverfehlers nicht abgeschlossen werden. Bitte Retry ausführen. Falls das Problem bestehen bleibt, Support mit Referenz-ID kontaktieren.";
           }
           if (serverErrorMetaEl) {
             serverErrorMetaEl.textContent = describeServerErrorMeta(state.serverErrorView);
@@ -4760,6 +4760,22 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
       }
 
+      function emitServerErrorViewShown(viewState = {}) {
+        const statusCode = Number(viewState.statusCode);
+        if (!isServerErrorStatus(statusCode)) {
+          return;
+        }
+        const referenceId = normalizeTraceRequestId(viewState.requestId);
+        emitUiEvent("ui.view.error_view.server_5xx", {
+          direction: "ui->human",
+          status: "shown",
+          requestId: referenceId,
+          status_code: statusCode,
+          reference_id: referenceId,
+          ...buildDevErrorLogFields(viewState.errorCode, statusCode),
+        });
+      }
+
       function setServerErrorView(details = {}) {
         state.serverErrorView = {
           visible: Boolean(details.visible),
@@ -4768,6 +4784,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           requestId: normalizeTraceRequestId(details.requestId || ""),
           requestStartedAt: String(details.requestStartedAt || "").trim(),
         };
+
+        if (state.serverErrorView.visible && isServerErrorStatus(state.serverErrorView.statusCode)) {
+          emitServerErrorViewShown(state.serverErrorView);
+        }
       }
 
       function clearServerErrorView() {
@@ -4800,7 +4820,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         const requestId = normalizeTraceRequestId(viewState.requestId);
         if (requestId) {
-          segments.push(`request_id: ${requestId}`);
+          segments.push(`Referenz-ID: ${requestId}`);
         }
 
         const errorCode = String(viewState.errorCode || "").trim();
