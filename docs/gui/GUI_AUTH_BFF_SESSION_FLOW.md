@@ -53,8 +53,9 @@ Für Session-Recovery nutzen `/gui` und `/history` dieselben UX-Messages und den
   - Meldung: **„Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.“**
   - Redirect: `/auth/login?next=<current-path>&reason=consent_denied`
 - Berechtigungsfehler (`403`):
-  - Meldung: **„Zugriff verweigert — bitte Berechtigungen/Session prüfen.“**
-  - Kein automatischer Redirect.
+  - Meldung: **„Session ungültig oder abgelaufen — bitte erneut einloggen.“**
+    (Fallback-Text im UI bleibt für explizite Forbidden-Cases: „Zugriff verweigert — bitte Berechtigungen/Session prüfen.“)
+  - Redirect: `/auth/login?next=<current-path>&reason=session_expired`
 
 Hinweis: Der zusätzliche Query-Parameter `reason` ist für reproduzierbare Diagnose gedacht (Runbook/Evidence) und ersetzt nicht die Server-seitige Prüfung von `next`.
 

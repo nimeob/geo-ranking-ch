@@ -369,6 +369,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         });
         const AUTH_RECOVERY_REASON_BY_STATUS = Object.freeze({
           "401": "session_expired",
+          "403": "session_expired",
         });
 
         const orgEl = document.getElementById("org-id");
@@ -439,7 +440,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         function isSessionRecoveryRequired(statusCode, errorCode) {
           const normalizedStatus = Number(statusCode);
           const normalizedCode = normalizeErrorCode(errorCode);
-          if (normalizedStatus === 401) {
+          if (normalizedStatus === 401 || normalizedStatus === 403) {
             return true;
           }
           return SESSION_RECOVERY_ERROR_CODES.has(normalizedCode);
@@ -461,6 +462,15 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
             return "Zugriff verweigert — bitte Berechtigungen/Session prüfen.";
           }
           return String(fallbackMessage || `http_${normalizedStatus || 0}`);
+        }
+
+        function resolveAuthFailure(statusCode, errorCode, fallbackMessage) {
+          const normalizedCode = normalizeErrorCode(errorCode);
+          return {
+            errorCode: normalizedCode,
+            errorMessage: buildSessionErrorMessage(statusCode, normalizedCode, fallbackMessage),
+            requiresLoginRecovery: isSessionRecoveryRequired(statusCode, normalizedCode),
+          };
         }
 
         function buildLoginRedirectUrl(authReason) {
@@ -586,9 +596,10 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
             setStatus("error");
             const errCode = parsed && parsed.error ? String(parsed.error) : `http_${response.status}`;
             const fallbackMessage = (parsed && parsed.message) ? String(parsed.message) : `http_${response.status}`;
-            setError(buildSessionErrorMessage(response.status, errCode, fallbackMessage));
-            if (isSessionRecoveryRequired(response.status, errCode)) {
-              scheduleReLoginRedirect(response.status, errCode);
+            const authFailure = resolveAuthFailure(response.status, errCode, fallbackMessage);
+            setError(authFailure.errorMessage);
+            if (authFailure.requiresLoginRecovery) {
+              scheduleReLoginRedirect(response.status, authFailure.errorCode);
             }
             loadBtn.disabled = false;
             return;
