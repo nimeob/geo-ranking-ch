@@ -25,6 +25,15 @@ Für Branch-Protection auf `main` sind die folgenden Status-Checks als stabile, 
 
 Konfigurationsdetails und Admin-Setup siehe `docs/OPERATIONS.md` Abschnitt **GitHub-Actions-Cleanup + Required-Checks**.
 
+## API/UI-Matrix v1 (Auth/History/Trace Boundary)
+
+Kanonische Referenz für die entkoppelten API/UI-Pflichtfälle:
+- [`docs/testing/API_UI_DEV_SMOKE_MATRIX_V1.md`](./API_UI_DEV_SMOKE_MATRIX_V1.md)
+
+Verbindlich für Dev-Smoke-Gating:
+- Die Matrix enthält **genau 6 Pflichtfälle** (Login, Protected-Route-Guard, History-Happy-Path, Trace-Happy-Path, Legacy-Deprecation-Signale, negativer API-Contract-Fall).
+- Der minimale Dev-Smoke-Gate-Satz ist in der Matrix unter **"Dev-Smoke-Gate (minimal, verbindlich)"** definiert.
+
 ## Pflicht-Checks je Tier
 
 ### 1) PR Gate (blocking)
