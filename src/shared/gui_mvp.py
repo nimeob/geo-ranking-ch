@@ -562,6 +562,17 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       .results-table .actions {
         white-space: nowrap;
       }
+      .results-row-actions {
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .results-row-actions .copy-btn,
+      .results-row-actions .trace-link-btn {
+        min-height: 2rem;
+        padding: 0.35rem 0.62rem;
+      }
       .results-table-shell {
         overflow: auto;
         margin-top: 0.65rem;
@@ -591,6 +602,20 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
       .results-empty-action {
         justify-self: flex-start;
+      }
+      @media (max-width: 768px) {
+        .results-table .actions {
+          white-space: normal;
+        }
+        .results-row-actions {
+          width: 100%;
+          gap: 0.55rem;
+        }
+        .results-row-actions .copy-btn,
+        .results-row-actions .trace-link-btn {
+          min-height: var(--touch-target-min);
+          padding: 0.5rem 0.78rem;
+        }
       }
       pre {
         margin: 0;
@@ -1977,21 +2002,24 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           const tdActions = document.createElement("td");
           tdActions.className = "actions";
 
+          const actionsWrap = document.createElement("div");
+          actionsWrap.className = "results-row-actions";
+
           const showBtn = document.createElement("button");
           showBtn.type = "button";
           showBtn.className = "copy-btn";
           showBtn.textContent = "Anzeigen";
           showBtn.addEventListener("click", () => showResultsEntry(entry));
-          tdActions.appendChild(showBtn);
+          actionsWrap.appendChild(showBtn);
 
           const traceLink = document.createElement("a");
           traceLink.className = "trace-link-btn";
           traceLink.textContent = "Trace";
           traceLink.href = buildGuiTraceDeepLink(entry.requestId);
-          traceLink.style.marginLeft = "0.35rem";
           traceLink.hidden = !normalizeTraceRequestId(entry.requestId);
-          tdActions.appendChild(traceLink);
+          actionsWrap.appendChild(traceLink);
 
+          tdActions.appendChild(actionsWrap);
           tr.appendChild(tdActions);
           resultsBodyEl.appendChild(tr);
         });
