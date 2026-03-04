@@ -40,8 +40,9 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Fehlerbox für API-/Netzwerkfehler (ohne 5xx)
    - Einheitliche 5xx-Error-View mit technischer Meta (`HTTP`, Request-Zeit, `request_id`, `error`) und kontrollierter Retry-Action (re-run des letzten Analyze-Requests)
    - Kernfaktoren-Liste (`top 4` nach |contribution|)
+   - Ergebnisliste zeigt bei laufender Analyze-Anfrage einen dedizierten Loading-State (Spinner + klare Status-Copy), auch wenn noch keine Zeilen vorhanden sind.
    - Ergebnisliste-Empty-State mit Titel/Beschreibung/primärer Aktion (CTA) und stabiler Tabellenhöhe (`min-height`), damit beim Wechsel leer ↔ gefüllt keine harten Layout-Sprünge auftreten
-   - Empty-/Recovery-State-Copy zentral in `RESULTS_LIST_COPY` (kein verteiltes Hardcoding); Ursachenhinweis unterscheidet jetzt „keine Daten in Auswahl“, „Filter blenden alles aus“, „Netzwerkproblem“ und „Session abgelaufen“. Primäre CTA mappt je State konsistent auf `Filter zurücksetzen` / `Retry ausführen` / `Login starten`.
+   - Empty-/Recovery-State-Copy zentral in `RESULTS_LIST_COPY` (kein verteiltes Hardcoding); Ursachenhinweis unterscheidet jetzt `loading`, `error`, „keine Daten in Auswahl“, „Filter blenden alles aus“, „Netzwerkproblem“ und „Session abgelaufen“. Primäre CTA mappt je State konsistent auf `Filter zurücksetzen` / `Retry ausführen` / `Login starten`.
    - Mobile-Filterleiste (`<=768px`) ist sticky erreichbar, startet kollabiert und lässt sich per Toggle auf-/zuklappen (`aria-expanded`, `Escape` kollabiert), ohne Content-/Footer-Overlap durch dedizierte Sticky-Card; die Action-Zeile (`Filter anwenden`/`Filter zurücksetzen`) bleibt als Sticky-Footer innerhalb des Drawers jederzeit erreichbar (Safe-Area + VisualViewport-Keyboard-Inset werden berücksichtigt)
 
    - Ranking-Zeilen in der Ergebnisliste nutzen auf Mobile eine dedizierte Action-Group (`.results-row-actions`) mit größerem Abstand und Touch-Targets in Mindesthöhe `44px`, damit `Anzeigen`/`Trace` ohne Fehlklick bedienbar bleiben
@@ -59,6 +60,7 @@ Frontend-State (clientseitig):
 - `coreFactors`: extrahierte Top-Faktoren aus Explainability
 - `lastAnalyzeRequest`: letzter valide Analyze-Request (Payload + Input-Label) als Retry-Kontext
 - `serverErrorView`: dedizierter 5xx-View-State (`visible`, `statusCode`, `errorCode`, `requestId`, `requestStartedAt`)
+- `resultsListState.isLoading`: transienter Listen-Ladestatus während laufender Analyze-Requests (steuert Loading-Visualisierung/Meta-Copy)
 - `resultsListState.recoveryState`: Recovery-Hinweis für leere Liste (`"" | "network" | "unauthorized"`) zur CTA-Steuerung (`Reset`/`Retry`/`Login`)
 
 Transitions:
@@ -67,6 +69,7 @@ Transitions:
 - `loading -> success` bei `HTTP 2xx` + `ok=true`
 - `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen. Bitte Retry ausführen.`)
 - `loading -> error(5xx-view)` bei `HTTP 5xx`: einheitlicher Error-View statt gestapelter Einzelmeldungen
+- Ergebnisliste nutzt zusätzlich transiente Zustände `loading` (Spinner + Status-Copy) sowie `error` (Retry-CTA bei fehlgeschlagener Aktualisierung ohne vorhandene Zeilen).
 - Ergebnislisten-Empty-State unterscheidet zusätzlich `no_data | filtered | network | unauthorized`; CTA führt je nach Ursache deterministisch `Reset`/`Retry`/`Login` aus.
 - `error -> loading` beim nächsten Submit/Kartenklick oder über den 5xx-Retry-Button (clean retry)
 
@@ -108,7 +111,7 @@ Trace-State-Flow (clientseitig):
 Die GUI emittiert strukturierte Client-Events (JSONL via Browser-Console) und korreliert API-Requests über dieselbe Request-ID:
 
 - `ui.api.request.start` / `ui.api.request.end` mit `trace_id`, `request_id`, `session_id`, `status_code`, `duration_ms`
-- `ui.results_list.first_contentful_data` pro Listenladung genau einmal mit `duration_ms`, `rows_visible`, `rows_total` und `status` (`ready`, `filtered_empty`, `empty`)
+- `ui.results_list.first_contentful_data` pro Listenladung genau einmal mit `duration_ms`, `rows_visible`, `rows_total` und `status` (`ready`, `filtered_empty`, `empty`, `loading`, `error`)
 - `ui.trace.request.start` / `ui.trace.request.end` für Trace-Lookups inkl. `trace_request_id`, Timeline-State und Fehlerklassifikation
 - `ui.state.transition` für Analyze-Zustandswechsel (`idle/loading/success/error`)
 - `ui.trace.state.transition` für Trace-Zustandswechsel (`idle/loading/success/empty/unknown/error`)
@@ -128,6 +131,8 @@ Interpretation der `ui.results_list.first_contentful_data`-Metrik:
 - `status=ready`: mindestens eine Zeile sichtbar (normaler Erfolgsfall)
 - `status=filtered_empty`: Daten vorhanden, aber aktuelle Filter blenden alle Zeilen aus
 - `status=empty`: keine Einträge vorhanden
+- `status=loading`: Loading-State wurde als erste sichtbare Listenansicht gerendert
+- `status=error`: generischer Listen-Fehlerzustand mit Retry-CTA wurde gerendert
 
 ### Dev Error-Taxonomie (`error_class` + `error_code`)
 
