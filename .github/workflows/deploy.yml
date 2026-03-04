@@ -69,7 +69,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Validate required repo variables
+      - name: Validate required deploy environment keys (vars + secrets)
         env:
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
@@ -78,42 +78,13 @@ jobs:
           ECS_UI_CONTAINER_NAME: ${{ vars.ECS_UI_CONTAINER_NAME }}
           ECR_API_REPOSITORY: ${{ vars.ECR_API_REPOSITORY }}
           ECR_UI_REPOSITORY: ${{ vars.ECR_UI_REPOSITORY }}
-        run: |
-          set -euo pipefail
-          for v in \
-            ECS_CLUSTER \
-            ECS_API_SERVICE \
-            ECS_UI_SERVICE \
-            ECS_API_CONTAINER_NAME \
-            ECS_UI_CONTAINER_NAME \
-            ECR_API_REPOSITORY \
-            ECR_UI_REPOSITORY; do
-            if [ -z "${!v:-}" ]; then
-              echo "::error::Missing repository variable: $v"
-              exit 1
-            fi
-          done
-
-      - name: Validate required GitHub secrets (deploy/auth preflight)
-        env:
+          SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
+          SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
           SERVICE_API_AUTH_TOKEN: ${{ secrets.SERVICE_API_AUTH_TOKEN }}
         run: |
           set -euo pipefail
-
-          missing=0
-          for s in SERVICE_API_AUTH_TOKEN; do
-            value="${!s:-}"
-            value_trimmed="$(printf '%s' "$value" | python3 -c 'import sys; print(sys.stdin.read().strip())')"
-            if [ -z "$value_trimmed" ]; then
-              echo "::error::Missing or empty required GitHub secret: $s"
-              missing=1
-            fi
-          done
-
-          if [ "$missing" -ne 0 ]; then
-            echo "::error::Deploy/Auth preflight failed due to missing required GitHub secrets."
-            exit 1
-          fi
+          python3 scripts/validate_required_deploy_env.py
 
       - name: Validate Dockerfiles exist
         run: |

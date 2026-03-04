@@ -417,6 +417,37 @@ Smoke-Verhalten:
 | `DEPLOY_GATE_ROLLBACK_MODE` | Optional: Verhalten bei Gate-Timeout; aktuell nur `mark-required` unterstützt (Default). Der Workflow setzt dann `ROLLBACK_REQUIRED` + TaskDef-Hinweise und endet mit `failed`. |
 | `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Deploy-Workflow den zusätzlichen `/debug/trace`-Sanity-Check |
 
+**Preflight-Validator (required ENV-Keys)**
+
+Der Deploy-Workflow startet vor AWS/OIDC mit `python3 scripts/validate_required_deploy_env.py` und bricht fail-fast ab, wenn Pflicht-Keys fehlen. Dabei werden **alle** fehlenden Keys in einem Lauf aufgelistet (inkl. Fix-Hinweis pro Key).
+
+Lokaler Start (trocken, nur Validierung):
+
+```bash
+ECS_CLUSTER=swisstopo-dev \
+ECS_API_SERVICE=swisstopo-dev-api \
+ECS_UI_SERVICE=swisstopo-dev-ui \
+ECS_API_CONTAINER_NAME=api \
+ECS_UI_CONTAINER_NAME=ui \
+ECR_API_REPOSITORY=swisstopo-dev-api \
+ECR_UI_REPOSITORY=swisstopo-dev-ui \
+SERVICE_APP_BASE_URL=https://app.dev.example \
+SERVICE_API_BASE_URL=https://api.dev.example \
+SERVICE_API_AUTH_TOKEN=dummy \
+python3 scripts/validate_required_deploy_env.py
+```
+
+Fehlerbeispiel (gekürzt):
+
+```text
+::error::Deploy preflight failed: missing required environment keys (2).
+::error::Missing keys:
+::error:: - SERVICE_API_AUTH_TOKEN [secret]
+::error::   Fix hint: Set `SERVICE_API_AUTH_TOKEN` in GitHub Settings → Secrets and variables → Actions → Secrets.
+::error:: - SERVICE_API_BASE_URL or SERVICE_HEALTH_URL [variable]
+::error::   Fix hint: Set `SERVICE_API_BASE_URL or SERVICE_HEALTH_URL` in GitHub Settings → Secrets and variables → Actions → Variables.
+```
+
 > Hinweis zur Container-Auflösung (ECS):
 > - Der Deploy-Workflow erwartet, dass `ECS_API_CONTAINER_NAME`/`ECS_UI_CONTAINER_NAME` exakt zu den Containernamen in der jeweiligen Task-Definition passen.
 > - Sicherheitsnetz: Falls ein Name nicht passt und die Task-Definition **genau einen** Container enthält, wird dieser automatisch verwendet und als `::warning::` im Workflow geloggt.

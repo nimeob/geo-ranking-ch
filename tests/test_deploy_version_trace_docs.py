@@ -66,24 +66,42 @@ def test_deploy_workflow_guards_against_container_name_mismatches():
     assert not missing, f"deploy.yml fehlt Container-Mismatch-Guardrail: {missing}"
 
 
-def test_deploy_workflow_validates_required_auth_secrets_before_rollout():
+def test_deploy_workflow_validates_required_env_keys_before_rollout():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
 
     text = workflow.read_text(encoding="utf-8")
     required = [
-        "Validate required GitHub secrets (deploy/auth preflight)",
+        "Validate required deploy environment keys (vars + secrets)",
         "SERVICE_API_AUTH_TOKEN: ${{ secrets.SERVICE_API_AUTH_TOKEN }}",
-        "Missing or empty required GitHub secret",
-        "Deploy/Auth preflight failed due to missing required GitHub secrets",
+        "SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}",
+        "SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}",
+        "python3 scripts/validate_required_deploy_env.py",
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
-    assert not missing, f"deploy.yml fehlt Secret-Preflight-Guardrail: {missing}"
+    assert not missing, f"deploy.yml fehlt ENV-Preflight-Guardrail: {missing}"
 
-    assert text.index("Validate required GitHub secrets (deploy/auth preflight)") < text.index(
+    assert text.index("Validate required deploy environment keys (vars + secrets)") < text.index(
         "Configure AWS credentials (OIDC)"
-    ), "Secret-Preflight muss vor dem AWS-Deploy beginnen."
+    ), "ENV-Preflight muss vor dem AWS-Deploy beginnen."
+
+
+def test_deployment_aws_doc_contains_deploy_env_preflight_examples():
+    doc = Path("docs/DEPLOYMENT_AWS.md")
+    assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "Preflight-Validator (required ENV-Keys)",
+        "python3 scripts/validate_required_deploy_env.py",
+        "Lokaler Start (trocken, nur Validierung)",
+        "Fehlerbeispiel (gekürzt)",
+        "Deploy preflight failed: missing required environment keys",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"DEPLOYMENT_AWS.md fehlt ENV-Preflight-Beispiel: {missing}"
 
 
 def test_deployment_aws_doc_mentions_container_resolution_guardrail():
