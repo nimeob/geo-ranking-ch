@@ -5,7 +5,7 @@ import argparse
 import ast
 import json
 from pathlib import Path
-from typing import Dict, Iterable, List, Set
+from typing import Dict, Iterable, List, Set, Tuple
 
 
 API_SERVICE_MODULES: Set[str] = {
@@ -27,6 +27,40 @@ SHARED_MODULES: Set[str] = {
     "gwr_codes",
     "mapping_transform_rules",
 }
+
+# Route policy (Boundary Contract v1).
+# NOTE: API still contains a temporary legacy-UI bridge for /, /gui, /history,
+# and /results/* while migration WPs are open. Everything else must follow
+# owner-specific prefixes.
+API_ALLOWED_EXACT_ROUTES: Set[str] = {
+    "/",
+    "/gui",
+    "/history",
+}
+API_ALLOWED_PREFIX_ROUTES: Tuple[str, ...] = (
+    "/api/",
+    "/analyze",
+    "/health",
+    "/version",
+    "/debug/trace",
+    "/compliance/",
+    "/auth/",
+    "/results/",
+)
+
+UI_ALLOWED_EXACT_ROUTES: Set[str] = {
+    "/",
+    "/gui",
+    "/history",
+    "/jobs",
+    "/health",
+    "/healthz",
+}
+UI_ALLOWED_PREFIX_ROUTES: Tuple[str, ...] = (
+    "/results/",
+    "/jobs/",
+    "/auth/",
+)
 
 
 def _collect_local_python_modules(src_dir: Path) -> Dict[str, Path]:
@@ -128,6 +162,93 @@ def _validate_expected_modules(local_modules: Set[str], layout_mode: str) -> Lis
     return violations
 
 
+def _extract_string_literal(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None
+
+
+def _extract_request_path_route_patterns(py_file: Path) -> tuple[Set[str], Set[str]]:
+    """Extract route literals from `request_path` comparisons/calls in a module."""
+    tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+    exact_routes: Set[str] = set()
+    prefix_routes: Set[str] = set()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Compare) and isinstance(node.left, ast.Name) and node.left.id == "request_path":
+            for op, comparator in zip(node.ops, node.comparators):
+                if isinstance(op, ast.Eq):
+                    value = _extract_string_literal(comparator)
+                    if value and value.startswith("/"):
+                        exact_routes.add(value)
+                elif isinstance(op, ast.In) and isinstance(comparator, (ast.Tuple, ast.List, ast.Set)):
+                    for element in comparator.elts:
+                        value = _extract_string_literal(element)
+                        if value and value.startswith("/"):
+                            exact_routes.add(value)
+
+        if isinstance(node, ast.Call):
+            func = node.func
+            if not isinstance(func, ast.Attribute):
+                continue
+            if not isinstance(func.value, ast.Name) or func.value.id != "request_path":
+                continue
+            if func.attr not in {"startswith", "removeprefix"}:
+                continue
+            if not node.args:
+                continue
+            value = _extract_string_literal(node.args[0])
+            if value and value.startswith("/"):
+                prefix_routes.add(value)
+
+    return exact_routes, prefix_routes
+
+
+def _is_route_allowed(route: str, allowed_exact: Set[str], allowed_prefixes: tuple[str, ...]) -> bool:
+    if route in allowed_exact:
+        return True
+    return any(route.startswith(prefix) for prefix in allowed_prefixes)
+
+
+def _route_policy_files(src_dir: Path, layout_mode: str) -> tuple[Path, Path]:
+    if layout_mode == "split":
+        return src_dir / "api" / "web_service.py", src_dir / "ui" / "service.py"
+    return src_dir / "web_service.py", src_dir / "ui_service.py"
+
+
+def _analyze_route_ownership(src_dir: Path, layout_mode: str) -> List[str]:
+    violations: List[str] = []
+    api_file, ui_file = _route_policy_files(src_dir, layout_mode)
+
+    if api_file.exists():
+        exact_routes, prefix_routes = _extract_request_path_route_patterns(api_file)
+        for route in sorted(exact_routes):
+            if not _is_route_allowed(route, API_ALLOWED_EXACT_ROUTES, API_ALLOWED_PREFIX_ROUTES):
+                violations.append(
+                    f"API route policy violation in '{api_file.relative_to(src_dir)}': exact route '{route}' is outside API ownership"
+                )
+        for route_prefix in sorted(prefix_routes):
+            if not _is_route_allowed(route_prefix, API_ALLOWED_EXACT_ROUTES, API_ALLOWED_PREFIX_ROUTES):
+                violations.append(
+                    f"API route policy violation in '{api_file.relative_to(src_dir)}': route prefix '{route_prefix}' is outside API ownership"
+                )
+
+    if ui_file.exists():
+        exact_routes, prefix_routes = _extract_request_path_route_patterns(ui_file)
+        for route in sorted(exact_routes):
+            if not _is_route_allowed(route, UI_ALLOWED_EXACT_ROUTES, UI_ALLOWED_PREFIX_ROUTES):
+                violations.append(
+                    f"UI route policy violation in '{ui_file.relative_to(src_dir)}': exact route '{route}' is outside UI ownership"
+                )
+        for route_prefix in sorted(prefix_routes):
+            if not _is_route_allowed(route_prefix, UI_ALLOWED_EXACT_ROUTES, UI_ALLOWED_PREFIX_ROUTES):
+                violations.append(
+                    f"UI route policy violation in '{ui_file.relative_to(src_dir)}': route prefix '{route_prefix}' is outside UI ownership"
+                )
+
+    return violations
+
+
 def analyze_service_boundaries(src_dir: Path) -> List[str]:
     if not src_dir.exists() or not src_dir.is_dir():
         return [f"src directory not found: {src_dir}"]
@@ -159,13 +280,14 @@ def analyze_service_boundaries(src_dir: Path) -> List[str]:
                     f"Shared module '{importer}' must remain neutral and not import {dependency_group.upper()} module '{dependency}'"
                 )
 
+    violations.extend(_analyze_route_ownership(src_dir, layout_mode))
     return violations
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "BL-31 service-boundary guard: validates API/UI split and shared-module neutrality."
+            "BL-31 service-boundary guard: validates API/UI split, shared-module neutrality, and route ownership policy."
         )
     )
     parser.add_argument(
@@ -203,6 +325,16 @@ def main(argv: Iterable[str] | None = None) -> int:
                 "legacy_ui_modules": sorted(UI_SERVICE_MODULES),
                 "legacy_shared_modules": sorted(SHARED_MODULES),
                 "split_prefixes": ["api.*", "ui.*", "shared.*"],
+                "route_policy": {
+                    "api": {
+                        "allowed_exact": sorted(API_ALLOWED_EXACT_ROUTES),
+                        "allowed_prefixes": list(API_ALLOWED_PREFIX_ROUTES),
+                    },
+                    "ui": {
+                        "allowed_exact": sorted(UI_ALLOWED_EXACT_ROUTES),
+                        "allowed_prefixes": list(UI_ALLOWED_PREFIX_ROUTES),
+                    },
+                },
             },
         }
         print(json.dumps(payload, indent=2, sort_keys=True))

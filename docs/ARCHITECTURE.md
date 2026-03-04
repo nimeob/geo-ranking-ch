@@ -318,7 +318,8 @@ Konsequenz für neue Arbeit:
 
 ### 7.4 Enforcement (CI + Review)
 
-- Automatischer Import-Gate bleibt `scripts/check_bl31_service_boundaries.py` (lokal + CI).
+- Automatischer Boundary-Gate bleibt `scripts/check_bl31_service_boundaries.py` (lokal + CI) und prüft **Import-Regeln + Route-Ownership-Policy**.
+- PR-CI nutzt dafür den dedizierten Workflow `.github/workflows/boundary-gate.yml` (fail-closed bei Verstößen).
 - PRs müssen den Boundary-Check im Template aktiv beantworten (siehe `.github/pull_request_template.md`).
 - Ausnahmen sind nur als expliziter Follow-up-Migrationspfad zulässig (Issue-Referenz + Sunset-Plan).
 

@@ -1,0 +1,46 @@
+name: boundary-gate
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "scripts/check_bl31_service_boundaries.py"
+      - "tests/test_check_bl31_service_boundaries.py"
+      - "tests/test_api_ui_boundary_contract_docs.py"
+      - "docs/ARCHITECTURE.md"
+      - ".github/pull_request_template.md"
+      - ".github/workflows/boundary-gate.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/check_bl31_service_boundaries.py"
+      - "tests/test_check_bl31_service_boundaries.py"
+      - "tests/test_api_ui_boundary_contract_docs.py"
+      - "docs/ARCHITECTURE.md"
+      - ".github/pull_request_template.md"
+      - ".github/workflows/boundary-gate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  boundary-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run boundary ownership gate (imports + routes)
+        run: python3 scripts/check_bl31_service_boundaries.py --src-dir src
+
+      - name: Run boundary regression tests
+        run: pytest -q tests/test_check_bl31_service_boundaries.py tests/test_api_ui_boundary_contract_docs.py
