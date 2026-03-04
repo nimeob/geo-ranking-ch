@@ -160,6 +160,12 @@ LINT_SCOPE=all make dev-check
 UNIT_TEST_TARGETS="tests/test_user_docs.py tests/test_markdown_links.py" make dev-check
 ```
 
+Lokaler Dev-Health-Smoke (API `/healthz` inkl. Schema/Statuscodes):
+
+```bash
+python -m pytest -q tests/test_web_service_healthz.py
+```
+
 ### Docker (wie in ECS)
 
 ```bash
