@@ -1,0 +1,108 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Dev API 5xx-Rate (%)",
+        "view": "timeSeries",
+        "region": "eu-central-1",
+        "period": 300,
+        "stat": "Sum",
+        "metrics": [
+          [
+            "swisstopo/dev-api",
+            "Http5xxCount",
+            {
+              "id": "m5",
+              "label": "Http5xxCount"
+            }
+          ],
+          [
+            ".",
+            "HttpRequestCount",
+            {
+              "id": "mt",
+              "label": "HttpRequestCount"
+            }
+          ],
+          [
+            {
+              "expression": "IF(mt>=20,(m5/mt)*100,0)",
+              "id": "er",
+              "label": "Http5xxRatePercent"
+            }
+          ]
+        ],
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Warn >= 2%",
+              "value": 2,
+              "color": "#f59e0b"
+            },
+            {
+              "label": "Kritisch >= 5%",
+              "value": 5,
+              "color": "#ef4444"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Dev API p95 Latenz (TargetResponseTime)",
+        "view": "timeSeries",
+        "region": "eu-central-1",
+        "period": 60,
+        "stat": "p95",
+        "metrics": [
+          [
+            "AWS/ApplicationELB",
+            "TargetResponseTime",
+            "LoadBalancer",
+            "${LOAD_BALANCER_DIMENSION}",
+            "TargetGroup",
+            "${TARGET_GROUP_DIMENSION}",
+            {
+              "label": "TargetResponseTime p95"
+            }
+          ]
+        ],
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Warn >= 1.2s",
+              "value": 1.2,
+              "color": "#f59e0b"
+            },
+            {
+              "label": "Kritisch >= 2.5s",
+              "value": 2.5,
+              "color": "#ef4444"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": 6,
+      "width": 24,
+      "height": 4,
+      "properties": {
+        "markdown": "**Zeitfenster-Filter:** 15m und 1h (CloudWatch Dashboard \u201eCustom\u201c: `-PT15M` und `-PT1H`).\\n\\n**Oncall-Startwerte:**\\n- 5xx-Rate: Warn >= 2%, Kritisch >= 5% (nur wenn `HttpRequestCount >= 20/5m`)\\n- p95-Latenz: Warn >= 1.2s, Kritisch >= 2.5s"
+      }
+    }
+  ]
+}
