@@ -292,6 +292,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | [docs/DATA_AND_API_SECURITY.md](docs/DATA_AND_API_SECURITY.md) | Datenhaltungsentscheidung + API-Sicherheitskonzept (BL-06/BL-07) |
 | [docs/ENV_PROMOTION_STRATEGY.md](docs/ENV_PROMOTION_STRATEGY.md) | Zielbild für staging/prod + Promotion-Gates (BL-09) |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Arbeitsmodus, PR-Regeln, Release-Checkliste |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Dev Troubleshooting: Top-10 Fehlerbilder mit Symptom/Ursache/Check/Fix |
 | [docs/LOGGING_SCHEMA_V1.md](docs/LOGGING_SCHEMA_V1.md) | Normatives JSON-Logging-Schema v1 inkl. Redaction-Regeln (BL-340.1) |
 | [docs/BACKLOG.md](docs/BACKLOG.md) | Zentraler, priorisierter Umsetzungs-Backlog |
 | [docs/AWS_INVENTORY.md](docs/AWS_INVENTORY.md) | Vollständiges AWS-Ressourcen-Inventar mit ARNs, Konfig, IaC-Status und Rebuild-Hinweisen (BL-11) |
