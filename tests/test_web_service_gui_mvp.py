@@ -382,6 +382,29 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('tdSec.dataset.label = "Sec";', body)
         self.assertIn('tdActions.dataset.label = "Aktionen";', body)
 
+    def test_trace_deep_link_state_flow_markers_present(self):
+        status, body, _ = _http_text(f"{self.base_url}/gui")
+        self.assertEqual(status, 200)
+
+        required_markers = [
+            'const traceState = {',
+            'phase: "idle",',
+            'setTracePhase("loading", {',
+            'setTracePhase(result.ok ? result.phase : "error", {',
+            'setTracePhase("error", {',
+            'phase = "unknown";',
+            'emptyMessage = describeTraceEmptyReason(traceReason);',
+            'function updateTraceDeepLink(requestId) {',
+            'function restoreTraceDeepLinkInput() {',
+            'const fromAlias = normalizeTraceRequestId(url.searchParams.get("trace_request_id") || "");',
+            'startTraceLookup(deepLinkTraceRequestId, "trace_deep_link");',
+            'duration_ms: durationMs,',
+            'timeline_state: rawTraceState || phase,',
+            'timeline_events: events.length,',
+        ]
+        for marker in required_markers:
+            self.assertIn(marker, body)
+
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):
         status, body, _ = _http_text(f"{self.base_url}//gui///?probe=1")
         self.assertEqual(status, 200)

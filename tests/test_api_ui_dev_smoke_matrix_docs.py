@@ -31,6 +31,7 @@ class TestApiUiDevSmokeMatrixDocs(unittest.TestCase):
             "tests/test_web_service_bff_gui_guard.py",
             "tests/test_history_navigation_integration.py",
             "tests/test_trace_debug_smoke.py",
+            "test_trace_deep_link_state_flow_markers_present",
             "tests/test_history_api_deprecation.py",
             "tests/test_api_contract_v1.py",
             "#1211",
