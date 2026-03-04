@@ -64,37 +64,123 @@ Aktuelle Mapping-Tabelle (kanonisch):
 
 ## 4) Migrationsbeispiele (before -> after)
 
+> Ergänzung aus Issue #1184: Für **History** und **Trace** gilt ein expliziter Runbook-Pfad
+> `before -> transition -> after` inkl. verifizierbarer Checks und Rollback-Hinweisen.
+
 ### 4.1 Login-Einstieg
 
 - **Before (legacy):** `GET /login`, `/signin`, `/oauth/login`
 - **After (verbindlich):** `GET /auth/login` (UI/BFF-Einstieg)
 
-### 4.2 History-Ansicht
+### 4.2 Runbook-Flow: History (`before -> transition -> after`)
 
-- **Before (front-facing via API):** Browser-Flow direkt über `GET /history` auf API-Host
-- **After:** Browser nutzt UI-Route `GET /history` (UI-Service), Datenabruf intern über `GET /analyze/history` als Data-Source
+#### Before (Legacy-Betrieb)
+- Browser kann noch Legacy-Pfad `GET /history` auf API-Host treffen.
+- API liefert bereits Deprecation-/Sunset-Signale für Migrationsfähigkeit.
 
-### 4.3 Trace-Nutzung
+**Verifizierbarer Check (Before):**
+```bash
+curl -si "${API_BASE_URL}/history" | sed -n '1,20p'
+```
+Erwartung: Response enthält `Deprecation`, `Sunset`, `Warning` und einen `Link` auf Nachfolger-Doku.
 
-- **Before (legacy):** `GET /trace`
-- **After:** UI-Flow + Diagnose über `GET /debug/trace?request_id=<id>`
+#### Transition (Dual-Readiness)
+- UI-Route `GET /history` ist produktiv und user-facing.
+- Datenzugriff erfolgt intern über API-Data-Contract `GET /analyze/history`.
+- Legacy-Pfad bleibt nur als kontrollierter Übergangspfad mit Warnsignalen aktiv.
+
+**Verifizierbare Checks (Transition):**
+```bash
+# 1) UI-History erreichbar (Front-Facing)
+curl -si "${UI_BASE_URL}/history" | sed -n '1,20p'
+
+# 2) Data-Source-History maschinenlesbar
+curl -si -H "Authorization: Bearer ${TOKEN}" \
+  "${API_BASE_URL}/analyze/history?limit=5" | sed -n '1,40p'
+```
+Erwartung:
+- UI-Route liefert HTML/UX-Flow (kein API-JSON-Frontend als Primärziel).
+- API-Route liefert stabilen JSON-Response im dokumentierten Contract.
+
+#### After (UI-only Ownership)
+- Nutzerführung erfolgt ausschließlich über UI-Domain/Route.
+- Legacy-API-History ist abgeschaltet oder auf klaren Deprecation-Endzustand gesetzt.
+
+**Verifizierbarer Check (After):**
+```bash
+curl -si "${API_BASE_URL}/history" | sed -n '1,20p'
+```
+Erwartung: Kein front-facing Rendering mehr über API; stattdessen klarer Migrationshinweis (`410 gone` oder dokumentierter Übergangsstatus mit Sunset-Header).
+
+**Rollback-Hinweise (History):**
+- Rollback nur als **zeitlich begrenzter** Übergang: Legacy-Hinweispfad reaktivieren, keine dauerhafte Rücknahme der UI-Ownership.
+- Bei Rollback immer Incident-/Change-Notiz mit Trigger, Start-/Endzeit und Rückkehrkriterium dokumentieren.
+- Nach Rollback sofort Re-Migrationsfenster terminieren (Owner + Deadline + Verifikationscheck).
+
+### 4.3 Runbook-Flow: Trace (`before -> transition -> after`)
+
+#### Before (Legacy-Betrieb)
+- Legacy-Pfad `GET /trace` kann noch in Consumern referenziert sein.
+
+**Verifizierbarer Check (Before):**
+```bash
+curl -si "${API_BASE_URL}/trace?request_id=test" | sed -n '1,20p'
+```
+Erwartung: Legacy-Pfad signalisiert Deprecation/Migration klar über Header bzw. dokumentierten Response.
+
+#### Transition (Dual-Readiness)
+- UI bietet Trace-Ansicht/Drilldown als primären Nutzerpfad.
+- API stellt Diagnose-Daten über `GET /debug/trace?request_id=<id>` bereit.
+- Legacy-`/trace` bleibt nur als kontrollierte Übergangskompatibilität.
+
+**Verifizierbare Checks (Transition):**
+```bash
+# 1) UI-Trace-Deep-Link erreichbar
+curl -si "${UI_BASE_URL}/gui?view=trace&request_id=test" | sed -n '1,20p'
+
+# 2) API-Diagnosepfad erreichbar
+curl -si -H "Authorization: Bearer ${TOKEN}" \
+  "${API_BASE_URL}/debug/trace?request_id=test" | sed -n '1,40p'
+```
+Erwartung:
+- UI repräsentiert den user-facing Trace-Flow.
+- API liefert nur die Diagnose-/Datenebene, keine neue Frontlogik.
+
+#### After (UI-only Ownership)
+- User-facing Trace-Interaktion läuft vollständig über UI.
+- Legacy-Trace-Endpunkt ist deprecated-finalisiert oder entfernt.
+
+**Verifizierbarer Check (After):**
+```bash
+curl -si "${API_BASE_URL}/trace?request_id=test" | sed -n '1,20p'
+```
+Erwartung: Legacy-Pfad liefert keinen front-facing Trace-Flow mehr (`410 gone` oder dokumentierter Endzustand mit Sunset-Hinweis).
+
+**Rollback-Hinweise (Trace):**
+- Kurzfristiger Rollback nur zur Incident-Stabilisierung, nicht als permanenter Betriebsmodus.
+- Bei Rückfall auf Legacy-Trace müssen Deprecation-/Sunset-Hinweise aktiv bleiben.
+- Rückkehr auf Zielbild mit fixem Termin + owner-gebundenem Follow-up-Issue planen.
 
 ### 4.4 Kurz-Check für Integratoren
 
 ```bash
 # 1) UI-Login-Entrypoint erreichbar
-curl -i "${BASE_URL}/auth/login"
+curl -i "${UI_BASE_URL}/auth/login"
 
-# 2) Deprecated Legacy-Pfad signalisiert Migration
-curl -i "${BASE_URL}/login"
+# 2) Legacy-Login signalisiert Migration
+curl -i "${API_BASE_URL}/login"
 
 # 3) Data-Source-History weiterhin maschinenlesbar
-curl -i -H "Authorization: Bearer ${TOKEN}" "${BASE_URL}/analyze/history?limit=5"
+curl -i -H "Authorization: Bearer ${TOKEN}" "${API_BASE_URL}/analyze/history?limit=5"
+
+# 4) Trace-Diagnosepfad erreichbar
+curl -i -H "Authorization: Bearer ${TOKEN}" "${API_BASE_URL}/debug/trace?request_id=test"
 ```
 
 Erwartung:
 - Legacy-Pfade liefern Deprecation/Sunset/Warning/Link-Signale.
 - Data-Endpunkte bleiben stabil maschinenlesbar (JSON, dokumentierter Statuscode).
+- UI bleibt ausschließlich user-facing für Login/History/Trace.
 
 ## 5) Onboarding-Checkliste (30 Minuten)
 

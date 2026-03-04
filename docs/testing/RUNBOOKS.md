@@ -17,6 +17,15 @@ Neue, nicht BL-spezifische Test-Runbooks gehören direkt in die Subdirectory-Dat
 - Verbindlicher linearer Cutover-Pfad mit 3 Pre-Gates, harten Rollback-Triggern, SLA (Entscheidung <=10 Min) und Post-Cutover-Checks (Minute 5/10/15).
 - Referenz: [`DEV_STAGE_CUTOVER_RUNBOOK.md`](DEV_STAGE_CUTOVER_RUNBOOK.md)
 
+## History/Trace Ownership Migration (before → transition → after)
+
+*Quelle: `../api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md` (Issue #1184)*
+
+- Verbindlicher Migrationspfad für History und Trace mit drei Phasen (`before`, `transition`, `after`).
+- Pro Phase sind verifizierbare Checks für UI- und API-Pfade dokumentiert.
+- Explizite Rollback-Hinweise für History und Trace enthalten.
+- Referenz: [`docs/api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md`](../api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md)
+
 ---
 
 ## BL-31.6.a — UI-Artefaktpfad + Task-Revision (dev)
