@@ -706,7 +706,18 @@ aws cloudwatch put-metric-alarm \
 
 > Sobald Autoscaling >1 eingeführt wird, Alarm A auf „RunningTaskCount < DesiredTaskCount" (Metric Math) umstellen.
 
-### 2.1) Alarm-Kanal (SNS + Lambda → Telegram)
+### 2.1) Dev-Dashboard (5xx-Rate + p95)
+
+Für schnelle Triage gibt es eine minimale Dashboard-Definition mit genau zwei Kernmetriken:
+
+- **5xx-Rate** via Metric Math `IF(mt>=20,(m5/mt)*100,0)` auf `Http5xxCount`/`HttpRequestCount`
+- **p95-Latenz** via `AWS/ApplicationELB -> TargetResponseTime (p95)`
+
+Referenz inkl. Export-Datei, Zeitfenster-Standards (`15m`/`1h`) und Oncall-Schwellenwerte:
+
+- [`docs/observability/DEV_DASHBOARD.md`](observability/DEV_DASHBOARD.md)
+
+### 2.2) Alarm-Kanal (SNS + Lambda → Telegram)
 
 Standard-Kanal in `dev`:
 - Topic: `arn:aws:sns:eu-central-1:523234426229:swisstopo-dev-alerts`
