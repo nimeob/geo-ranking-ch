@@ -240,7 +240,7 @@ DEV_BASE_URL="https://<endpoint>" ./scripts/run_remote_api_stability_check.sh
 Wenn ein Lauf fehlschlägt:
 - Exit-Code notieren
 - erzeugtes Artefakt (`SMOKE_OUTPUT_JSON` / `STABILITY_REPORT_PATH`) sichern
-- `request_id` aus dem Fehlerfall in die Diagnose übernehmen
+- `request_id` aus dem Fehlerfall in die Diagnose übernehmen (GUI-Fehlerhinweis enthält die ID jetzt direkt als technischen Diagnoseanker)
 - Struktur-Logs nach `event="api.request.end"` + `request_id=<ID>` filtern (Fehlerpfade enthalten dieselbe ID zusätzlich als `correlation_id`)
 
 ---

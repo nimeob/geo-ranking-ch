@@ -3062,6 +3062,13 @@ class Handler(BaseHTTPRequestHandler):
                 return request_id
         return f"req-{uuid.uuid4().hex[:16]}"
 
+    def _set_request_id_headers(self, request_id: str | None) -> None:
+        normalized_request_id = str(request_id or "").strip()
+        if not normalized_request_id:
+            return
+        self.send_header("X-Request-Id", normalized_request_id)
+        self.send_header("X-Correlation-Id", normalized_request_id)
+
     def _request_org_id(self) -> str:
         raw_candidates = (
             self.headers.get("X-Org-Id", ""),
@@ -3248,8 +3255,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        if request_id:
-            self.send_header("X-Request-Id", request_id)
+        self._set_request_id_headers(request_id)
 
         merged_headers: dict[str, str] = {}
         cors_headers = getattr(self, "_cors_response_headers", None)
@@ -3282,8 +3288,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        if request_id:
-            self.send_header("X-Request-Id", request_id)
+        self._set_request_id_headers(request_id)
         if extra_headers:
             for key, value in extra_headers.items():
                 self.send_header(key, value)
@@ -3307,8 +3312,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.NOT_MODIFIED)
         self.send_header("ETag", etag)
         self.send_header("Cache-Control", cache_control)
-        if request_id:
-            self.send_header("X-Request-Id", request_id)
+        self._set_request_id_headers(request_id)
         self.end_headers()
 
     def _send_dictionary_payload(
@@ -3392,7 +3396,7 @@ class Handler(BaseHTTPRequestHandler):
         if set_cookie:
             self.send_header("Set-Cookie", set_cookie)
         self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Request-Id", request_id)
+        self._set_request_id_headers(request_id)
         self.send_header("Content-Length", "0")
         self.end_headers()
         self._finish_request_lifecycle()
@@ -3508,7 +3512,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", login_result.redirect_url)
             self.send_header("Set-Cookie", login_result.set_cookie_header)
             self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Request-Id", request_id)
+            self._set_request_id_headers(request_id)
             self.send_header("Content-Length", "0")
             self.end_headers()
             self._finish_request_lifecycle()
@@ -3583,7 +3587,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Location", cb_result.redirect_path)
             self.send_header("Set-Cookie", cb_result.set_cookie_header)
             self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Request-Id", request_id)
+            self._set_request_id_headers(request_id)
             self.send_header("Content-Length", "0")
             self.end_headers()
             self._finish_request_lifecycle()
@@ -4895,7 +4899,7 @@ class Handler(BaseHTTPRequestHandler):
 
             self._capture_response_error(payload=None, status=int(HTTPStatus.NO_CONTENT))
             self.send_response(HTTPStatus.NO_CONTENT)
-            self.send_header("X-Request-Id", request_id)
+            self._set_request_id_headers(request_id)
             self.send_header("Content-Length", "0")
             for key, value in cors_headers.items():
                 self.send_header(key, value)

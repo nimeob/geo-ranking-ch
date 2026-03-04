@@ -68,7 +68,7 @@ class TestWebServiceRequestLifecycleLogging(unittest.TestCase):
         return self._events_by_name(event_name)
 
     def test_get_health_emits_start_and_end_lifecycle_events(self):
-        status, _, _ = self._request(
+        status, _, response_headers = self._request(
             "GET",
             "/health",
             headers={
@@ -78,6 +78,8 @@ class TestWebServiceRequestLifecycleLogging(unittest.TestCase):
         )
 
         self.assertEqual(status, 200)
+        self.assertEqual(response_headers.get("x-request-id"), "bl340-req-health")
+        self.assertEqual(response_headers.get("x-correlation-id"), "bl340-req-health")
 
         starts = self._wait_for_event_count("api.request.start", 1)
         ends = self._wait_for_event_count("api.request.end", 1)
@@ -161,6 +163,7 @@ class TestWebServiceRequestLifecycleLogging(unittest.TestCase):
         self.assertEqual(payload.get("error"), "not_found")
         self.assertEqual(payload.get("request_id"), correlation_id)
         self.assertEqual(response_headers.get("x-request-id"), correlation_id)
+        self.assertEqual(response_headers.get("x-correlation-id"), correlation_id)
 
         starts = self._wait_for_event_count("api.request.start", 1)
         ends = self._wait_for_event_count("api.request.end", 1)
