@@ -12,7 +12,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
 - reproduzierbarer UI-State-Flow: `idle -> loading -> success|error`
 - clientseitiger Request-Timeout-Guard (`AbortController`): kein dauerhaftes `loading` bei ausbleibender API-Antwort
 - deterministische Dev-Request-Policy für idempotente GETs (`/auth/me`, `/analyze/history`, `/debug/trace`): zentraler Default `requestTimeoutMs=12000`, Retry-Budget `maxRetryBudget=1` (nur bei `GET`, z. B. Timeout/5xx), ohne automatische Retries für mutierende Requests; finaler Fehler enthält standardisiert `final_reason` + `attempts/retries`
-- korrelierbares UI-Structured-Logging (`ui.state.transition`, `ui.api.request.start/end`) inkl. `X-Request-Id`/`X-Session-Id` für UI↔API-Tracing
+- korrelierbares UI-Structured-Logging (`ui.state.transition`, `ui.api.request.start/end`) inkl. `X-Request-Id`/`X-Correlation-Id`/`X-Session-Id` für UI↔API-Tracing
 - sichtbare Kernfaktoren (Top-Faktoren aus Explainability) und rohe JSON-Antwort
 - Trace-Debug-Panel mit Deep-Link-Unterstützung (`/gui?view=trace&request_id=<id>`) und Timeline-Lookup via `GET /debug/trace`
 - Kanonischer GUI-Auth-Flow für BFF-Session-Betrieb dokumentiert unter [`docs/gui/GUI_AUTH_BFF_SESSION_FLOW.md`](./GUI_AUTH_BFF_SESSION_FLOW.md)
@@ -129,12 +129,13 @@ Die GUI emittiert strukturierte Client-Events (JSONL via Browser-Console) und ko
 - Input-/Interaktionsereignisse (`ui.interaction.form.submit`, `ui.interaction.map.analyze_trigger`, `ui.interaction.trace.submit`, `ui.input.accepted`)
 - Validierungs-/Degraded-Signale (`ui.validation.error`, `ui.output.map_status`)
 
-Für die UI→API-Korrelation setzt der Client pro Analyze-Request:
+Für die UI→API-Korrelation setzt der Client pro API-Request eine gemeinsame Korrelations-ID (über `X-Request-Id` + `X-Correlation-Id`). Für Session-relevante Flows bleibt zusätzlich `X-Session-Id` gesetzt.
 
 - `X-Request-Id`
-- `X-Session-Id`
+- `X-Correlation-Id`
+- `X-Session-Id` (wo Session-Kontext benötigt wird)
 
-Damit lassen sich UI-Ereignisse direkt mit API-Lifecycle-Logs (`api.request.start/end`) verbinden.
+Damit lassen sich UI-Ereignisse direkt mit API-Lifecycle-Logs (`api.request.start/end`) verbinden; insbesondere tragen auch Dev-GET-Requests (`/auth/me`, `/analyze/history`, `/debug/trace`) denselben Korrelationsanker in Request, Response und Fehlerpfad.
 
 Interpretation der `ui.results_list.first_contentful_data`-Metrik:
 

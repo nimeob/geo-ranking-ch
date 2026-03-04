@@ -242,6 +242,8 @@ class TestUiService(unittest.TestCase):
         self.assertNotIn('id="api-token"', body, "/history darf kein manuelles Token-Input mehr enthalten")
         self.assertNotIn('geo-ranking-ui-api-token', body, "/history darf keinen Access-Token-Storage-Key enthalten")
         self.assertNotIn('headers["Authorization"]', body, "/history darf keinen Browser-Authorization-Header setzen")
+        self.assertIn('headers["X-Request-Id"] = normalizedRequestId;', body)
+        self.assertIn('headers["X-Correlation-Id"] = normalizedRequestId;', body)
         self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
         self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
         self.assertIn('Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.', body)
@@ -264,6 +266,8 @@ class TestUiService(unittest.TestCase):
         self.assertIn('type="password"', body, "Token-Input muss type=password sein")
         self.assertIn('Authorization', body, "/results muss Authorization Header-Code enthalten")
         self.assertIn('Bearer', body, "/results muss Bearer-Token-Code enthalten")
+        self.assertIn('headers["X-Request-Id"] = normalizedRequestId;', body)
+        self.assertIn('headers["X-Correlation-Id"] = normalizedRequestId;', body)
         self.assertIn('Bitte Bearer-Token setzen', body, "/results muss 401-UX-Hint enthalten")
 
     def test_job_page_has_token_input_and_sets_authorization_header(self):
