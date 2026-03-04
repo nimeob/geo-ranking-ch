@@ -23,6 +23,10 @@ class TestPrFastGatesConfig(unittest.TestCase):
         self.assertIn("DEV_SMOKE_TEST_SEED", content)
         self.assertIn("dev_smoke_flaky_demo_runner.py", content)
         self.assertIn("Run deterministic flaky demo marker", content)
+        self.assertIn("Log failure artifact paths", content)
+        self.assertIn("Upload dev-smoke failure artifacts", content)
+        self.assertIn("actions/upload-artifact@v4", content)
+        self.assertIn("artifacts/pr-dev-smoke-required-summary.md", content)
 
     def test_contract_smoke_workflow_triggers_on_pull_request(self):
         content = self._read(".github/workflows/contract-tests.yml")

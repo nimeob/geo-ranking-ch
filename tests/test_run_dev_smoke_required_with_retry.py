@@ -157,6 +157,11 @@ def test_retry_wrapper_returns_failure_when_retries_exhausted() -> None:
         assert payload["reason"] == "retries_exhausted"
         assert payload["summary"]["attempts_used"] == 2
         assert payload["summary"]["flaky_candidates"] == 0
+        assert payload["failed_checks_final"] == [{"name": "pr-split-smoke", "reason": "command_failed"}]
+
+        summary = (Path(tmpdir) / "summary.md").read_text(encoding="utf-8")
+        assert "### Failed checks (final attempt)" in summary
+        assert "`pr-split-smoke` — cause: `command_failed`" in summary
 
 
 def test_retry_wrapper_reports_smoke_seed_in_json_and_summary() -> None:
