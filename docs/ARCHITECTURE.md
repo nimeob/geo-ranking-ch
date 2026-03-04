@@ -299,20 +299,39 @@ Migrationshinweis:
 - **Ziel:** klare Ownership zwischen API- und UI-Service, damit Deployments, Tests und Fehlerbilder pro Schicht eindeutig bleiben.
 - **Nicht-Ziel:** bestehende Legacy-Kompatibilität sofort entfernen; Legacy bleibt nur als Migrationspfad erlaubt.
 
-### 7.2 Verbindliche Ownership-Regeln
+### 7.2 Verbindliche Ownership-Regeln (kanonisch)
 
-1. **API (`src/api/*`)**
+1. **API (`src/api/*`) bleibt data-only.**
    - liefert datenorientierte, maschinenlesbare HTTP-Schnittstellen (JSON/Status-Endpunkte).
    - enthält **keine neue front-facing View-/Seitenlogik**.
    - darf keine UI-Module importieren.
 
-2. **UI (`src/ui/*`)**
+2. **UI (`src/ui/*`) besitzt user-facing Flows.**
    - enthält front-facing Flows, HTML/GUI-Darstellung und UX-orientierte Interaktion.
    - darf keine API-Module importieren.
 
-3. **Shared (`src/shared/*`)**
+3. **Shared (`src/shared/*`) bleibt neutral.**
    - enthält nur neutrale Hilfslogik ohne API/UI-Ownership.
    - darf keine Imports aus `src/api/*` oder `src/ui/*` enthalten.
+
+4. **Cross-Layer-Imports über die Grenze sind verboten.**
+   - erlaubt: `api -> shared`, `ui -> shared`
+   - verboten: `api <-> ui`, `shared -> api/ui`
+
+5. **Legacy-Pfade nur mit Sunset-/Follow-up-Plan.**
+   - temporäre Kompatibilitätsrouten müssen als Deprecation mit Successor kenntlich sein.
+   - pro Ausnahme ist ein verlinktes Follow-up-Issue mit klarer Sunset-Planung Pflicht.
+
+> Diese fünf Regeln sind identisch zur Kurzfassung in [`README.md#apiui-boundary-quick-reference-v1`](../README.md#apiui-boundary-quick-reference-v1).
+
+### 7.2.1 Violation Escalation Path
+
+Wenn eine Boundary-Verletzung erkannt wird:
+
+1. **Issue eröffnen** mit Problem, Auswirkung, betroffenen Dateien/Route und Soll-Zustand.
+2. **Labels setzen:** mindestens `backlog`, `status:todo`, passende `priority:*`, plus `architecture` (Design-/Ownership-Thema) oder `refactor` (technische Entkopplung).
+3. **Verlinken:** Follow-up im auslösenden PR/Issue referenzieren und Sunset-/Fix-Zeitfenster dokumentieren.
+4. **Boundary-Gate ausführen:** `python3 scripts/check_bl31_service_boundaries.py --src-dir src` und Ergebnis im Follow-up-Issue festhalten.
 
 ### 7.3 Route- und Modulkonventionen (v1)
 
