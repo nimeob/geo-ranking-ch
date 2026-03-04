@@ -1,0 +1,104 @@
+name: gui-webkit-smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gui-webkit-smoke:
+    name: gui-webkit-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Install Playwright + native WebKit runtime deps
+        run: |
+          npm install
+          npx playwright install --with-deps webkit
+
+      - name: Start local GUI service
+        run: |
+          PORT=8877 python3 -m src.api.web_service >/tmp/gui-webkit-service.log 2>&1 &
+          echo $! >/tmp/gui-webkit-service.pid
+
+          for i in $(seq 1 45); do
+            if curl -fsS "http://127.0.0.1:8877/healthz" >/dev/null; then
+              echo "GUI service is ready"
+              break
+            fi
+            sleep 2
+          done
+
+          curl -fsS "http://127.0.0.1:8877/healthz" >/dev/null
+
+      - name: Run native WebKit smoke
+        run: |
+          BASE_URL="http://127.0.0.1:8877/gui" npm run smoke:gui:webkit | tee /tmp/issue-986-webkit-output.txt
+
+      - name: Collect smoke artifacts
+        run: |
+          mkdir -p artifacts/gui-webkit-smoke
+
+          SMOKE_JSON=$(tail -n1 /tmp/issue-986-webkit-output.txt | tr -d '\r')
+          if [ -z "$SMOKE_JSON" ] || [ ! -f "$SMOKE_JSON" ]; then
+            echo "::error::Smoke JSON path missing or not found: '$SMOKE_JSON'"
+            exit 1
+          fi
+
+          cp "$SMOKE_JSON" artifacts/gui-webkit-smoke/
+
+          python3 - "$SMOKE_JSON" <<'PY'
+import json
+import pathlib
+import shutil
+import sys
+
+smoke_json = pathlib.Path(sys.argv[1]).resolve()
+repo_root = pathlib.Path.cwd().resolve()
+out_dir = repo_root / "artifacts" / "gui-webkit-smoke"
+
+payload = json.loads(smoke_json.read_text(encoding="utf-8"))
+screenshot_rel = payload.get("artifacts", {}).get("screenshot")
+if not screenshot_rel:
+    raise SystemExit("Missing screenshot path in smoke json")
+
+screenshot_abs = (repo_root / screenshot_rel).resolve()
+if not screenshot_abs.is_file():
+    raise SystemExit(f"Screenshot not found: {screenshot_abs}")
+
+shutil.copy2(screenshot_abs, out_dir / screenshot_abs.name)
+PY
+
+          cp /tmp/gui-webkit-service.log artifacts/gui-webkit-smoke/ || true
+
+      - name: Upload native WebKit smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-webkit-smoke-artifacts
+          path: artifacts/gui-webkit-smoke
+          if-no-files-found: error
+
+      - name: Stop local GUI service
+        if: always()
+        run: |
+          if [ -f /tmp/gui-webkit-service.pid ]; then
+            kill "$(cat /tmp/gui-webkit-service.pid)" || true
+          fi
