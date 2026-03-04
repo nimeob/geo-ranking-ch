@@ -232,6 +232,9 @@ Guard-Regeln (Legacy + Split):
 - UI darf API nicht importieren.
 - Shared bleibt neutral (keine Imports von API- oder UI-Modulen).
 
+Boundary-Inventar (Issue #1168):
+- Vollständige Endpoint-/Owner-Klassifikation inkl. Migrationsreihenfolge: [`docs/api/API_UI_ENDPOINT_OWNERSHIP_INVENTORY.md`](api/API_UI_ENDPOINT_OWNERSHIP_INVENTORY.md)
+
 Aufruf (lokal/CI):
 
 ```bash
