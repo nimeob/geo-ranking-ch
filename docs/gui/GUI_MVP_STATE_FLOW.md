@@ -147,6 +147,20 @@ Interpretation der `ui.results_list.first_contentful_data`-Metrik:
 - `status=loading`: Loading-State wurde als erste sichtbare Listenansicht gerendert
 - `status=error`: generischer Listen-Fehlerzustand mit Retry-CTA wurde gerendert
 
+### Trace-Performance-Baseline (Dev)
+
+Verbindliche Baseline für Trace-Lookups auf Basis von `ui.trace.request.end`:
+
+| Metrik | Event/Felder | Zielwert | Warnschwelle | Kritikschwelle |
+| --- | --- | --- | --- | --- |
+| Trace Lookup Latency (P95, 15m) | `ui.trace.request.end` mit `duration_ms`, segmentiert nach `timeline_state` und `timeline_events` | `P95 <= 1200 ms` | `P95 > 1200 ms` in 2 aufeinanderfolgenden 15m-Fenstern | `P95 > 2500 ms` in einem 15m-Fenster |
+| Trace Error-Rate (15m) | `ui.trace.request.end` mit `timeline_state=error` relativ zu allen Trace-Lookups | `< 2%` | `>= 2%` | `>= 5%` |
+
+Operational Notes:
+- Primäre Segmentierung: `timeline_state` (`success|empty|unknown|error`) und Bucketisierung nach `timeline_events` (`0`, `1-25`, `26-100`, `>100`).
+- Warnschwelle: im Dev-Betrieb innerhalb eines Arbeitstags triagieren und Ursache/Scope dokumentieren.
+- Kritikschwelle: als blocker für weitere Trace-UX-Änderungen behandeln, bis die Baseline wieder eingehalten wird.
+
 ### Dev Error-Taxonomie (`error_class` + `error_code`)
 
 Für Fehler-Events (`ui.api.request.end`, `ui.trace.request.end`, `ui.validation.error`, `ui.state.transition`, `ui.trace.state.transition`) setzt die GUI konsistent beide Felder:
