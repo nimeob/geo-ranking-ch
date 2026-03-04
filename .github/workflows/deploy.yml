@@ -69,6 +69,30 @@ jobs:
           role-to-assume: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Snapshot pre-deploy stable task definitions (rollback hint)
+        id: rollback_snapshot
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
+          ECS_UI_SERVICE: ${{ vars.ECS_UI_SERVICE }}
+        run: |
+          set -euo pipefail
+
+          API_PREV_TASKDEF=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_API_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          UI_PREV_TASKDEF=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_UI_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          echo "api_previous_taskdef=$API_PREV_TASKDEF" >> "$GITHUB_OUTPUT"
+          echo "ui_previous_taskdef=$UI_PREV_TASKDEF" >> "$GITHUB_OUTPUT"
+
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
@@ -125,8 +149,24 @@ jobs:
               --task-definition "$current_taskdef_arn" \
               --query 'taskDefinition' > taskdef.json
 
+            local resolved_container="$container"
+            if ! jq -e --arg CONTAINER "$container" '.containerDefinitions | any(.name == $CONTAINER)' taskdef.json >/dev/null; then
+              local container_count
+              container_count=$(jq '.containerDefinitions | length' taskdef.json)
+
+              if [ "$container_count" -eq 1 ]; then
+                resolved_container=$(jq -r '.containerDefinitions[0].name' taskdef.json)
+                echo "::warning::Container '$container' not found for service '$service'. Fallback to single taskdef container '$resolved_container'."
+              else
+                local available_containers
+                available_containers=$(jq -r '.containerDefinitions[].name' taskdef.json | paste -sd, -)
+                echo "::error::Container '$container' not found for service '$service'. Available containers: ${available_containers}."
+                exit 1
+              fi
+            fi
+
             jq \
-              --arg CONTAINER "$container" \
+              --arg CONTAINER "$resolved_container" \
               --arg IMAGE "$image" \
               --arg APP_VERSION "${GITHUB_SHA::7}" \
               --arg GIT_SHA "${GITHUB_SHA}" '
@@ -148,6 +188,13 @@ jobs:
                     )
                 )
             ' taskdef.json > taskdef-new.json
+
+            local resolved_image
+            resolved_image=$(jq -r --arg CONTAINER "$resolved_container" '.containerDefinitions[] | select(.name == $CONTAINER) | .image' taskdef-new.json)
+            if [ "$resolved_image" != "$image" ]; then
+              echo "::error::Taskdef update failed for service '$service' container '$resolved_container' (resolved image: '$resolved_image', expected: '$image')."
+              exit 1
+            fi
 
             local new_taskdef_arn
             new_taskdef_arn=$(aws ecs register-task-definition \
@@ -227,6 +274,57 @@ jobs:
             head -c 1000 /tmp/smoke-ui-health-response.txt || true
             exit 1
           fi
+
+      - name: Deploy gate: API /health + GUI /gui + DB reachability
+        env:
+          SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
+          SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+          SERVICE_DB_HEALTH_DETAILS_URL: ${{ vars.SERVICE_DB_HEALTH_DETAILS_URL }}
+          DEPLOY_GATE_MAX_WAIT_SECONDS: ${{ vars.DEPLOY_GATE_MAX_WAIT_SECONDS }}
+          DEPLOY_GATE_RETRY_DELAY_SECONDS: ${{ vars.DEPLOY_GATE_RETRY_DELAY_SECONDS }}
+          DEPLOY_GATE_ROLLBACK_MODE: ${{ vars.DEPLOY_GATE_ROLLBACK_MODE }}
+          PREVIOUS_API_TASKDEF_ARN: ${{ steps.rollback_snapshot.outputs.api_previous_taskdef }}
+          PREVIOUS_UI_TASKDEF_ARN: ${{ steps.rollback_snapshot.outputs.ui_previous_taskdef }}
+        run: |
+          set -euo pipefail
+
+          API_HEALTH_URL="${SERVICE_HEALTH_URL:-}"
+          if [ -z "${API_HEALTH_URL}" ] && [ -n "${SERVICE_API_BASE_URL:-}" ]; then
+            API_HEALTH_URL="${SERVICE_API_BASE_URL%/}/health"
+          fi
+
+          DB_DETAILS_URL="${SERVICE_DB_HEALTH_DETAILS_URL:-}"
+          if [ -z "${DB_DETAILS_URL}" ] && [ -n "${SERVICE_API_BASE_URL:-}" ]; then
+            DB_DETAILS_URL="${SERVICE_API_BASE_URL%/}/health/details"
+          fi
+
+          mkdir -p artifacts/deploy
+          DEPLOY_GATE_API_HEALTH_URL="${API_HEALTH_URL}" \
+          DEPLOY_GATE_GUI_READY_URL="${SERVICE_APP_BASE_URL%/}/gui" \
+          DEPLOY_GATE_DB_DETAILS_URL="${DB_DETAILS_URL}" \
+          DEPLOY_GATE_MAX_WAIT_SECONDS="${DEPLOY_GATE_MAX_WAIT_SECONDS:-90}" \
+          DEPLOY_GATE_RETRY_DELAY_SECONDS="${DEPLOY_GATE_RETRY_DELAY_SECONDS:-5}" \
+          DEPLOY_GATE_ROLLBACK_MODE="${DEPLOY_GATE_ROLLBACK_MODE:-mark-required}" \
+          DEPLOY_GATE_PREVIOUS_API_TASKDEF="${PREVIOUS_API_TASKDEF_ARN:-}" \
+          DEPLOY_GATE_PREVIOUS_UI_TASKDEF="${PREVIOUS_UI_TASKDEF_ARN:-}" \
+          DEPLOY_GATE_OUTPUT_JSON="artifacts/deploy/${GITHUB_SHA::7}-deploy-gate-report.json" \
+          ./scripts/run_deploy_gate.sh
+
+      - name: Post-deploy verification (version + trace-debug)
+        env:
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+          SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
+          SERVICE_HEALTH_URL: ${{ vars.SERVICE_HEALTH_URL }}
+          TRACE_DEBUG_EXPECT_ENABLED: ${{ vars.TRACE_DEBUG_EXPECT_ENABLED }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/deploy
+
+          EXPECTED_UI_VERSION="${GITHUB_SHA::7}" \
+          TRACE_DEBUG_SMOKE_JSON="/tmp/bl18.1-smoke.json" \
+          DEPLOY_VERIFY_OUTPUT_JSON="artifacts/deploy/${GITHUB_SHA::7}-post-deploy-verify.json" \
+          python3 scripts/check_deploy_version_trace.py
 
       - name: Deployment summary
         run: |
