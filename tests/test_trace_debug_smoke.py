@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from urllib import error, request
 
@@ -34,6 +35,60 @@ def _http_json(url: str, *, method: str = "GET", payload: dict | None = None, he
     except error.HTTPError as exc:
         decoded = exc.read().decode("utf-8")
         return exc.code, json.loads(decoded), {k.lower(): v for k, v in (exc.headers.items() if exc.headers else [])}
+
+
+def _wait_for_health(base_url: str, *, timeout_seconds: float = 12.0) -> None:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        try:
+            status, _, _ = _http_json(f"{base_url}/health")
+            if status == 200:
+                return
+        except Exception:
+            pass
+        time.sleep(0.2)
+
+    raise RuntimeError("web_service trace-smoke setup wurde nicht rechtzeitig erreichbar")
+
+
+@contextmanager
+def _run_web_service(*, env_overrides: dict[str, str], temp_prefix: str = "bl422-smoke-run-"):
+    port = _free_port()
+    base_url = f"http://127.0.0.1:{port}"
+    tmpdir = tempfile.TemporaryDirectory(prefix=temp_prefix)
+    log_file = Path(tmpdir.name) / "web-service.log"
+    log_handle = log_file.open("a", encoding="utf-8")
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "HOST": "127.0.0.1",
+            "PORT": str(port),
+            "PYTHONPATH": str(REPO_ROOT),
+        }
+    )
+    env.update(env_overrides)
+
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "src.web_service"],
+        cwd=str(REPO_ROOT),
+        env=env,
+        stdout=log_handle,
+        stderr=log_handle,
+        text=True,
+    )
+
+    try:
+        _wait_for_health(base_url)
+        yield base_url
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        log_handle.close()
+        tmpdir.cleanup()
 
 
 class TestTraceDebugSmoke(unittest.TestCase):
@@ -66,17 +121,7 @@ class TestTraceDebugSmoke(unittest.TestCase):
             text=True,
         )
 
-        deadline = time.time() + 12
-        while time.time() < deadline:
-            try:
-                status, _, _ = _http_json(f"{cls.base_url}/health")
-                if status == 200:
-                    return
-            except Exception:
-                pass
-            time.sleep(0.2)
-
-        raise RuntimeError("web_service trace-smoke setup wurde nicht rechtzeitig erreichbar")
+        _wait_for_health(cls.base_url)
 
     @classmethod
     def tearDownClass(cls):
@@ -130,6 +175,24 @@ class TestTraceDebugSmoke(unittest.TestCase):
         self.assertIn("api.request.end", event_names)
 
         self.assertNotIn("super-secret-token", json.dumps(trace_payload))
+
+    def test_trace_lookup_reports_unavailable_source(self):
+        missing_trace_source = Path(self.tmpdir.name) / "missing-trace-events.jsonl"
+        self.assertFalse(missing_trace_source.exists())
+
+        with _run_web_service(
+            env_overrides={
+                "APP_VERSION": "trace-smoke-unavailable-v1",
+                "TRACE_DEBUG_ENABLED": "1",
+                "TRACE_DEBUG_LOG_PATH": str(missing_trace_source),
+            },
+            temp_prefix="bl422-smoke-unavailable-",
+        ) as base_url:
+            status, payload, _ = _http_json(f"{base_url}/debug/trace?request_id=bl422-missing-source")
+
+        self.assertEqual(status, 503)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "trace_source_unavailable")
 
 
 if __name__ == "__main__":
