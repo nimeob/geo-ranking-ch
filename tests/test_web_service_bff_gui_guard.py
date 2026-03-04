@@ -45,6 +45,17 @@ def _http_get(
         return exc.code, body, headers
 
 
+def _ui_proxy_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    headers = {
+        "X-Geo-Auth-Proxy": "1",
+        "X-Forwarded-Host": "www.dev.georanking.ch",
+        "X-Forwarded-Proto": "https",
+    }
+    if extra:
+        headers.update(extra)
+    return headers
+
+
 class TestWebServiceBffGuiGuard(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -120,6 +131,22 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertEqual(status, 302)
         self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
 
+    def test_auth_login_route_is_fail_closed_without_ui_proxy_marker(self):
+        status, body, headers = _http_get(
+            f"{self.base_url}/auth/login?next=%2Fgui",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(headers.get("deprecation"), "true")
+        self.assertIn('rel="successor-version"', str(headers.get("link") or ""))
+        self.assertIn("/login", str(headers.get("link") or ""))
+
+        payload = json.loads(body)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "external_direct_login_disabled")
+        dep = payload.get("deprecation") or {}
+        self.assertEqual(dep.get("successor"), "/login")
+
     def test_auth_me_returns_401_without_session(self):
         status, body, headers = _http_get(f"{self.base_url}/auth/me", follow_redirects=False)
         self.assertEqual(status, 401)
@@ -155,7 +182,12 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         status, body, headers = _http_get(
             f"{self.base_url}/auth/callback?code=fake-code&state=fake-state",
             follow_redirects=False,
-            headers={"Host": "callback-mismatch.local"},
+            headers=_ui_proxy_headers(
+                {
+                    "Host": "callback-mismatch.local",
+                    "X-Forwarded-Host": "callback-mismatch.local",
+                }
+            ),
         )
         self.assertEqual(status, 400)
         self.assertEqual(headers.get("cache-control"), "no-store")
@@ -173,7 +205,11 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertIn('&quot;host&quot;: &quot;callback-mismatch.local&quot;', body)
 
     def test_callback_state_mismatch_clears_cookie_and_shows_relogin_cta(self):
-        login_status, _, login_headers = _http_get(f"{self.base_url}/auth/login", follow_redirects=False)
+        login_status, _, login_headers = _http_get(
+            f"{self.base_url}/auth/login",
+            follow_redirects=False,
+            headers=_ui_proxy_headers(),
+        )
         self.assertEqual(login_status, 302)
         cookie_header = str(login_headers.get("set-cookie") or "")
         self.assertTrue(cookie_header)
@@ -182,7 +218,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         status, body, headers = _http_get(
             f"{self.base_url}/auth/callback?code=fake-code&state=wrong-state",
             follow_redirects=False,
-            headers={"Cookie": cookie_pair},
+            headers=_ui_proxy_headers({"Cookie": cookie_pair}),
         )
         self.assertEqual(status, 400)
         self.assertEqual(headers.get("cache-control"), "no-store")
@@ -195,6 +231,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         status, body, headers = _http_get(
             f"{self.base_url}/auth/callback?error=access_denied&error_description=cancelled",
             follow_redirects=False,
+            headers=_ui_proxy_headers(),
         )
         self.assertEqual(status, 400)
         self.assertEqual(headers.get("cache-control"), "no-store")
@@ -212,7 +249,11 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertEqual(headers.get("location"), "/auth/login?next=%2Fhistory%3Flimit%3D5")
 
     def test_logout_endpoint_clears_cookie_and_redirects_to_idp_with_defined_return_path(self):
-        status, _, headers = _http_get(f"{self.base_url}/auth/logout", follow_redirects=False)
+        status, _, headers = _http_get(
+            f"{self.base_url}/auth/logout",
+            follow_redirects=False,
+            headers=_ui_proxy_headers(),
+        )
         self.assertEqual(status, 302)
         location = headers.get("location", "")
         self.assertIn(

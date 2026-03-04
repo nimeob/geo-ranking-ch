@@ -22,13 +22,17 @@ Blockierte Pfade (normalisiert, inkl. Trailing-Slash-Toleranz):
 - `/oauth/login`
 - `/oauth2/login`
 
+Zusätzliche Final-Cut-Regel für BFF-Auth-Routen:
+- Direkte Browser-Aufrufe auf API-Host für `/auth/login`, `/auth/callback`, `/auth/logout` sind ebenfalls `403` (fail-closed).
+- Diese Routen sind nur über den UI-Proxy-Hop erlaubt (`X-Geo-Auth-Proxy: 1`, gesetzt durch den UI-Service).
+
 Antwortformat:
 
 - HTTP: `403 Forbidden`
 - Header: `Deprecation: true`
 - Header: `Sunset: Tue, 30 Jun 2026 23:59:59 GMT`
-- Header: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md#api-deprecation-mapping-dev>; rel="deprecation", </auth/login>; rel="successor-version"`
-- JSON: `{"ok": false, "error": "external_direct_login_disabled", "message": "...", "deprecation": {"successor": "/auth/login", "migration_guide": "...", "sunset": "Tue, 30 Jun 2026 23:59:59 GMT"}, "request_id": "..."}`
+- Header: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md#api-deprecation-mapping-dev>; rel="deprecation", </login>; rel="successor-version"`
+- JSON: `{"ok": false, "error": "external_direct_login_disabled", "message": "...", "deprecation": {"successor": "/login", "migration_guide": "...", "sunset": "Tue, 30 Jun 2026 23:59:59 GMT"}, "request_id": "..."}`
 
 Zusätzlich wird ein strukturierter Audit-Logeintrag erzeugt:
 

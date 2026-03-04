@@ -77,6 +77,17 @@ def _parse_cookie_value(set_cookie_header: str) -> str:
     return first
 
 
+def _ui_proxy_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    headers = {
+        "X-Geo-Auth-Proxy": "1",
+        "X-Forwarded-Host": "www.dev.georanking.ch",
+        "X-Forwarded-Proto": "https",
+    }
+    if extra:
+        headers.update(extra)
+    return headers
+
+
 class _MockOidcHandler(BaseHTTPRequestHandler):
     server_version = "MockOIDC/1.0"
 
@@ -154,7 +165,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
                 "BFF_OIDC_TOKEN_ENDPOINT": f"{cls.idp_base_url}/issuer/oauth2/token",
                 "BFF_OIDC_CLIENT_ID": "test-client-id",
                 "BFF_OIDC_REDIRECT_URI": f"{cls.api_base_url}/auth/callback",
-                "BFF_OIDC_POST_LOGOUT_REDIRECT_URI": f"{cls.api_base_url}/auth/login",
+                "BFF_OIDC_POST_LOGOUT_REDIRECT_URI": f"{cls.api_base_url}/login",
             }
         )
 
@@ -219,9 +230,9 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
             self.assertTrue((headers.get("sunset") or "").strip())
             self.assertIn("deprecated", str(headers.get("warning") or "").lower())
             self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
-            self.assertIn("/auth/login", str(headers.get("link") or ""))
+            self.assertIn("/login", str(headers.get("link") or ""))
             dep = deprecated_payload.get("deprecation") or {}
-            self.assertEqual(dep.get("successor"), "/auth/login")
+            self.assertEqual(dep.get("successor"), "/login")
             self.assertEqual(dep.get("sunset"), headers.get("sunset"))
 
         status, body, headers = _http_request(
@@ -237,15 +248,28 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         self.assertTrue((headers.get("sunset") or "").strip())
         self.assertIn("deprecated", str(headers.get("warning") or "").lower())
         self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
-        self.assertIn("/auth/login", str(headers.get("link") or ""))
+        self.assertIn("/login", str(headers.get("link") or ""))
         dep = deprecated_payload.get("deprecation") or {}
-        self.assertEqual(dep.get("successor"), "/auth/login")
+        self.assertEqual(dep.get("successor"), "/login")
         self.assertEqual(dep.get("sunset"), headers.get("sunset"))
+
+        # 1c) /auth/login on API is fail-closed unless traffic comes through UI proxy marker.
+        status, body, headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/login?next=%2Fgui",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 403)
+        blocked_payload = json.loads(body)
+        self.assertEqual(blocked_payload.get("error"), "external_direct_login_disabled")
+        self.assertEqual((blocked_payload.get("deprecation") or {}).get("successor"), "/login")
+        self.assertIn("/login", str(headers.get("link") or ""))
 
         # 2) explicit login endpoint sets session cookie and redirects to IdP authorize URL
         status, _, headers = _http_request(
             "GET",
             f"{self.api_base_url}/auth/login?next=%2Fgui",
+            headers=_ui_proxy_headers(),
             follow_redirects=False,
         )
         self.assertEqual(status, 302)
@@ -263,7 +287,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         status, _, headers = _http_request(
             "GET",
             f"{self.api_base_url}/auth/callback?{callback_query}",
-            headers={"Cookie": session_cookie},
+            headers=_ui_proxy_headers({"Cookie": session_cookie}),
             follow_redirects=False,
         )
         self.assertEqual(status, 302)
@@ -351,7 +375,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         status, _, headers = _http_request(
             "GET",
             f"{self.api_base_url}/auth/logout",
-            headers={"Cookie": callback_cookie},
+            headers=_ui_proxy_headers({"Cookie": callback_cookie}),
             follow_redirects=False,
         )
         self.assertEqual(status, 302)

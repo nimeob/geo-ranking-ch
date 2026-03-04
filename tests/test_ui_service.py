@@ -58,6 +58,7 @@ class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
                 "path": parsed.path,
                 "query": parsed.query,
                 "cookie": self.headers.get("Cookie", ""),
+                "proxy_marker": self.headers.get("X-Geo-Auth-Proxy", ""),
             }
         )
 
@@ -309,7 +310,16 @@ class TestUiService(unittest.TestCase):
         self.assertIn("/auth/login", logged_paths)
         self.assertIn("/auth/me", logged_paths)
 
+        markers = {
+            entry["path"]: str(entry.get("proxy_marker") or "")
+            for entry in self.upstream_server.request_log
+            if entry.get("path") in {"/auth/login", "/auth/me"}
+        }
+        self.assertEqual(markers.get("/auth/login"), "1")
+        self.assertEqual(markers.get("/auth/me"), "1")
+
     def test_auth_logout_proxy_rewrites_nested_logout_uri_to_ui_login(self):
+        self.upstream_server.request_log.clear()
         status, _, headers = _http(
             f"{self.base_url}/auth/logout",
             follow_redirects=False,
@@ -321,6 +331,12 @@ class TestUiService(unittest.TestCase):
         self.assertIn(f"%3A{self.port}%2Flogin", location)
         self.assertNotIn(f"%3A{self.upstream_port}%2Fauth%2Flogin", location)
         self.assertIn("Max-Age=0", str(headers.get("set-cookie") or ""))
+
+        auth_logout_calls = [
+            entry for entry in self.upstream_server.request_log if entry.get("path") == "/auth/logout"
+        ]
+        self.assertTrue(auth_logout_calls)
+        self.assertEqual(str(auth_logout_calls[-1].get("proxy_marker") or ""), "1")
 
     # --- GUI Auth UX wp2: Session-Flow statt Bearer-Paste für /analyze + /analyze/history ---
 
