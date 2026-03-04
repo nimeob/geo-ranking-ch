@@ -199,6 +199,20 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('if (event.key === "ArrowDown")', body)
         self.assertIn('window.addEventListener("keydown"', body)
 
+    def test_gui_results_empty_state_cta_resets_filters_and_reloads(self):
+        status, body, _ = _http_text(f"{self.base_url}/gui")
+        self.assertEqual(status, 200)
+        self.assertIn('title: "Keine Daten in der aktuellen Auswahl"', body)
+        self.assertIn('description: "Für den aktuellen Zeitraum oder die aktive Auswahl liegen keine Einträge vor."', body)
+        self.assertIn('action: "Filter zurücksetzen"', body)
+        self.assertIn('reason: "no_data"', body)
+        self.assertIn('resetResultsListFilters();', body)
+        self.assertIn('updateResultsListDeepLink();', body)
+        self.assertIn('renderResultsList();', body)
+        self.assertIn('status: "filters_reset"', body)
+        self.assertNotIn('seed_query_prefilled', body)
+        self.assertNotIn('Beispieladresse einfügen', body)
+
     def test_gui_map_marker_legibility_styles_present(self):
         status, body, _ = _http_text(f"{self.base_url}/gui")
         self.assertEqual(status, 200)
