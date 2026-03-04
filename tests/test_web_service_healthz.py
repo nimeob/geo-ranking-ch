@@ -36,9 +36,12 @@ def _http_json(method: str, url: str) -> tuple[int, dict[str, str], dict]:
             body = resp.read().decode("utf-8")
             return int(resp.status), dict(resp.headers), json.loads(body)
     except error.HTTPError as exc:
-        body = exc.read().decode("utf-8")
-        payload = json.loads(body) if body else {}
-        return int(exc.code), dict(exc.headers), payload
+        try:
+            body = exc.read().decode("utf-8")
+            payload = json.loads(body) if body else {}
+            return int(exc.code), dict(exc.headers), payload
+        finally:
+            exc.close()
 
 
 class TestWebServiceHealthz(unittest.TestCase):
@@ -113,6 +116,12 @@ class TestWebServiceHealthz(unittest.TestCase):
         status, _, payload = _http_json("GET", f"{self.base_url}/healthz/?probe=1")
         self.assertEqual(status, 200)
         self.assertTrue(payload.get("ok"))
+
+    def test_healthz_rejects_post_with_not_found_status(self):
+        status, _, payload = _http_json("POST", f"{self.base_url}/healthz")
+        self.assertEqual(status, 404)
+        self.assertFalse(payload.get("ok", True))
+        self.assertEqual(payload.get("error"), "not_found")
 
     def test_health_details_returns_machine_readable_checks(self):
         status, headers, payload = _http_json("GET", f"{self.base_url}/health/details")
