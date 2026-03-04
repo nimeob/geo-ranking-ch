@@ -32,8 +32,8 @@
 - **Geolocation Fehlerfall:** PASS (Permission denied → klare User-Meldung)
 
 ## Limitation / Follow-up
-Native Playwright-WebKit (Safari-Engine) war auf diesem Runner wegen fehlender System-Libraries nicht startbar.
-Daher wurde der iOS-Check als iPhone-Simulatorprofil auf Chromium durchgeführt und ein Follow-up für native WebKit-Verifikation angelegt: [#986](https://github.com/nimeob/geo-ranking-ch/issues/986).
+Zum Zeitpunkt dieses Laufs war native Playwright-WebKit (Safari-Engine) auf dem Runner wegen fehlender System-Libraries nicht startbar.
+Der Follow-up dafür ist inzwischen umgesetzt in [#986](https://github.com/nimeob/geo-ranking-ch/issues/986) inkl. nativer WebKit-Smoke-Doku: [`docs/testing/GUI_WEBKIT_SMOKE.md`](./GUI_WEBKIT_SMOKE.md).
 
 ## Reproduktion
 Voraussetzungen:

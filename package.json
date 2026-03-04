@@ -1,0 +1,12 @@
+{
+  "name": "geo-ranking-ch-smokes",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Node tooling for GUI smoke scripts",
+  "scripts": {
+    "smoke:gui:webkit": "node scripts/run_issue_986_webkit_smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.52.0"
+  }
+}
