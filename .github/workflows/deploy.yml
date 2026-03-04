@@ -127,6 +127,41 @@ jobs:
           role-to-assume: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Snapshot pre-deploy stable task definitions (rollback hint)
+        id: rollback_snapshot
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
+          ECS_UI_SERVICE: ${{ vars.ECS_UI_SERVICE }}
+        run: |
+          set -euo pipefail
+
+          API_PREV_TASKDEF=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_API_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          UI_PREV_TASKDEF=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_UI_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          if [ -z "$API_PREV_TASKDEF" ] || [ "$API_PREV_TASKDEF" = "None" ] || [ "$API_PREV_TASKDEF" = "null" ]; then
+            echo "::error::Could not resolve current API task definition for rollback hint"
+            exit 1
+          fi
+
+          if [ -z "$UI_PREV_TASKDEF" ] || [ "$UI_PREV_TASKDEF" = "None" ] || [ "$UI_PREV_TASKDEF" = "null" ]; then
+            echo "::error::Could not resolve current UI task definition for rollback hint"
+            exit 1
+          fi
+
+          echo "api_previous_taskdef=$API_PREV_TASKDEF" >> "$GITHUB_OUTPUT"
+          echo "ui_previous_taskdef=$UI_PREV_TASKDEF" >> "$GITHUB_OUTPUT"
+          echo "rollback snapshot: api=$API_PREV_TASKDEF ui=$UI_PREV_TASKDEF"
+
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
@@ -558,6 +593,9 @@ jobs:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
           DEPLOY_GATE_MAX_WAIT_SECONDS: ${{ vars.DEPLOY_GATE_MAX_WAIT_SECONDS }}
           DEPLOY_GATE_RETRY_DELAY_SECONDS: ${{ vars.DEPLOY_GATE_RETRY_DELAY_SECONDS }}
+          DEPLOY_GATE_ROLLBACK_MODE: ${{ vars.DEPLOY_GATE_ROLLBACK_MODE }}
+          PREVIOUS_API_TASKDEF_ARN: ${{ steps.rollback_snapshot.outputs.api_previous_taskdef }}
+          PREVIOUS_UI_TASKDEF_ARN: ${{ steps.rollback_snapshot.outputs.ui_previous_taskdef }}
         run: |
           set -euo pipefail
 
@@ -574,75 +612,16 @@ jobs:
             exit 1
           fi
 
-          GUI_READY_URL="${SERVICE_APP_BASE_URL%/}/gui"
-          MAX_WAIT_SECONDS="${DEPLOY_GATE_MAX_WAIT_SECONDS:-90}"
-          RETRY_DELAY_SECONDS="${DEPLOY_GATE_RETRY_DELAY_SECONDS:-5}"
-          if ! [[ "$MAX_WAIT_SECONDS" =~ ^[0-9]+$ ]] || [ "$MAX_WAIT_SECONDS" -lt 1 ]; then
-            echo "::error::DEPLOY_GATE_MAX_WAIT_SECONDS must be an integer >= 1 (got '$MAX_WAIT_SECONDS')."
-            exit 1
-          fi
-          if ! [[ "$RETRY_DELAY_SECONDS" =~ ^[0-9]+$ ]] || [ "$RETRY_DELAY_SECONDS" -lt 1 ]; then
-            echo "::error::DEPLOY_GATE_RETRY_DELAY_SECONDS must be an integer >= 1 (got '$RETRY_DELAY_SECONDS')."
-            exit 1
-          fi
-
-          START_TS="$(date +%s)"
-          DEADLINE_TS=$((START_TS + MAX_WAIT_SECONDS))
-          ATTEMPT=1
-          LAST_API_HTTP="000"
-          LAST_GUI_HTTP="000"
-          LAST_API_EXIT=0
-          LAST_GUI_EXIT=0
-
-          while :; do
-            set +e
-            LAST_API_HTTP=$(curl -sS -L \
-              --max-time 10 \
-              --retry 1 \
-              --retry-delay 2 \
-              --retry-connrefused \
-              -o /tmp/deploy-gate-api-response.txt \
-              -w "%{http_code}" \
-              "${API_HEALTH_URL}")
-            LAST_API_EXIT=$?
-            set -e
-            LAST_API_HTTP="${LAST_API_HTTP:-000}"
-
-            set +e
-            LAST_GUI_HTTP=$(curl -sS -L \
-              --max-time 10 \
-              --retry 1 \
-              --retry-delay 2 \
-              --retry-connrefused \
-              -o /tmp/deploy-gate-gui-response.txt \
-              -w "%{http_code}" \
-              "${GUI_READY_URL}")
-            LAST_GUI_EXIT=$?
-            set -e
-            LAST_GUI_HTTP="${LAST_GUI_HTTP:-000}"
-
-            NOW_TS="$(date +%s)"
-            ELAPSED_SECONDS=$((NOW_TS - START_TS))
-            echo "deploy-gate status attempt=${ATTEMPT} elapsed_seconds=${ELAPSED_SECONDS} check=api-health url=${API_HEALTH_URL} http=${LAST_API_HTTP} curl_exit=${LAST_API_EXIT}"
-            echo "deploy-gate status attempt=${ATTEMPT} elapsed_seconds=${ELAPSED_SECONDS} check=gui-readiness url=${GUI_READY_URL} http=${LAST_GUI_HTTP} curl_exit=${LAST_GUI_EXIT}"
-
-            if [ "$LAST_API_EXIT" -eq 0 ] && [ "$LAST_API_HTTP" = "200" ] && [ "$LAST_GUI_EXIT" -eq 0 ] && [ "$LAST_GUI_HTTP" = "200" ]; then
-              echo "deploy-gate success: API + GUI readiness checks are green"
-              break
-            fi
-
-            if [ "$NOW_TS" -ge "$DEADLINE_TS" ]; then
-              echo "::error::Deploy gate timed out after ${MAX_WAIT_SECONDS}s"
-              echo "::error::Final API status: ${API_HEALTH_URL} -> curl_exit=${LAST_API_EXIT}, http=${LAST_API_HTTP}"
-              echo "::error::Final GUI status: ${GUI_READY_URL} -> curl_exit=${LAST_GUI_EXIT}, http=${LAST_GUI_HTTP}"
-              head -c 600 /tmp/deploy-gate-api-response.txt || true
-              head -c 600 /tmp/deploy-gate-gui-response.txt || true
-              exit 1
-            fi
-
-            sleep "$RETRY_DELAY_SECONDS"
-            ATTEMPT=$((ATTEMPT + 1))
-          done
+          mkdir -p artifacts/deploy
+          DEPLOY_GATE_API_HEALTH_URL="${API_HEALTH_URL}" \
+          DEPLOY_GATE_GUI_READY_URL="${SERVICE_APP_BASE_URL%/}/gui" \
+          DEPLOY_GATE_MAX_WAIT_SECONDS="${DEPLOY_GATE_MAX_WAIT_SECONDS:-90}" \
+          DEPLOY_GATE_RETRY_DELAY_SECONDS="${DEPLOY_GATE_RETRY_DELAY_SECONDS:-5}" \
+          DEPLOY_GATE_ROLLBACK_MODE="${DEPLOY_GATE_ROLLBACK_MODE:-mark-required}" \
+          DEPLOY_GATE_PREVIOUS_API_TASKDEF="${PREVIOUS_API_TASKDEF_ARN:-}" \
+          DEPLOY_GATE_PREVIOUS_UI_TASKDEF="${PREVIOUS_UI_TASKDEF_ARN:-}" \
+          DEPLOY_GATE_OUTPUT_JSON="artifacts/deploy/${GITHUB_SHA::7}-deploy-gate-report.json" \
+          ./scripts/run_deploy_gate.sh
 
       - name: Optional strict split smoke (API + UI routing)
         env:

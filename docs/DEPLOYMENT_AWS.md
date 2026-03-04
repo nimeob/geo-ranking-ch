@@ -385,6 +385,7 @@ Smoke-Verhalten:
 - API `/analyze` läuft im Dev-Deploy mit Auth-Token (`SERVICE_API_AUTH_TOKEN`) als fester Smoke-Check
 - UI `/healthz` ist verpflichtend über `SERVICE_APP_BASE_URL`
 - Deploy-Readiness-Gate prüft zusätzlich API `/health` + GUI `/gui` mit Retry und protokolliert pro Versuch URL + HTTP-Code im Workflow-Log
+- Das Gate läuft über `scripts/run_deploy_gate.sh` und schreibt `artifacts/deploy/<sha>-deploy-gate-report.json` (`deploy-gate-report/v1`). Bei Timeout bricht der Job fail-closed ab und markiert den Lauf explizit mit `ROLLBACK_REQUIRED` (inkl. letzter stabiler API/UI-TaskDef als Rollback-Hinweis).
 
 **Benötigte GitHub Secrets (zu setzen unter Settings → Secrets):**
 
@@ -413,12 +414,19 @@ Smoke-Verhalten:
 | `API_HEALTH_SMOKE_RETRY_DELAY_SECONDS` | Optional: Pause (Sekunden) zwischen API-Health-Smoke-Retries; Default `10` |
 | `DEPLOY_GATE_MAX_WAIT_SECONDS` | Optional: maximales Retry-Fenster für das Readiness-Gate (API `/health` + GUI `/gui`); Default `90` |
 | `DEPLOY_GATE_RETRY_DELAY_SECONDS` | Optional: Pause (Sekunden) zwischen Readiness-Gate-Versuchen; Default `5` |
+| `DEPLOY_GATE_ROLLBACK_MODE` | Optional: Verhalten bei Gate-Timeout; aktuell nur `mark-required` unterstützt (Default). Der Workflow setzt dann `ROLLBACK_REQUIRED` + TaskDef-Hinweise und endet mit `failed`. |
 | `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Deploy-Workflow den zusätzlichen `/debug/trace`-Sanity-Check |
 
 > Hinweis zur Container-Auflösung (ECS):
 > - Der Deploy-Workflow erwartet, dass `ECS_API_CONTAINER_NAME`/`ECS_UI_CONTAINER_NAME` exakt zu den Containernamen in der jeweiligen Task-Definition passen.
 > - Sicherheitsnetz: Falls ein Name nicht passt und die Task-Definition **genau einen** Container enthält, wird dieser automatisch verwendet und als `::warning::` im Workflow geloggt.
 > - Bei mehreren Containern ohne exakten Match bricht der Workflow bewusst mit `::error::` ab, um stilles No-Op-Deploy zu verhindern.
+
+**Runbook-Notiz (Deploy-Gate Timeout / Rollback erforderlich):**
+- Wenn das Readiness-Gate timeoutet, endet der Deploy-Job bewusst in `failed`.
+- Der Workflow loggt dann `ROLLBACK_REQUIRED mode=mark-required ...` mit den zuletzt stabilen API-/UI-TaskDef-ARNs.
+- Das dient als expliziter Operator-Hinweis für einen gezielten Rollback nach `docs/BL31_DEPLOY_ROLLBACK_RUNBOOK.md`.
+- Zusätzlicher Nachweis: `artifacts/deploy/<sha>-deploy-gate-report.json` (Status, letzte Probe, Retry-/Timeout-Config, Rollback-Hint).
 
 **OIDC-Rollenbindung (AWS):**
 - Workflow verwendet `aws-actions/configure-aws-credentials@v4` mit
