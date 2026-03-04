@@ -50,6 +50,25 @@ def test_deploy_workflow_runs_post_deploy_verification_step():
     assert not missing, f"deploy.yml fehlt Basis-Deploy-Verifikation: {missing}"
 
 
+def test_deploy_workflow_runs_boundary_guardrail_before_unit_tests():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "Preflight boundary guard (fail-fast)",
+        "python3 scripts/check_bl31_service_boundaries.py --src-dir src",
+        "Run unit tests",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"deploy.yml fehlt Boundary-Preflight-Guardrail: {missing}"
+
+    assert text.index("Preflight boundary guard (fail-fast)") < text.index(
+        "Run unit tests"
+    ), "Boundary-Preflight muss vor dem Unit-Test-Lauf ausgeführt werden."
+
+
 def test_deploy_workflow_guards_against_container_name_mismatches():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
