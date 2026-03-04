@@ -165,6 +165,13 @@ class TestWebServiceRequestValidation(unittest.TestCase):
         )
         self._assert_bad_request(status, payload, message_contains="limit must be")
 
+    def test_get_result_view_validation_errors_are_mapped_to_400(self):
+        status, _, payload = _http_raw(
+            "GET",
+            f"{self.base_url}/analyze/results/fake-result?view=invalid",
+        )
+        self._assert_bad_request(status, payload, message_contains="view must be one of")
+
     def test_not_found_is_mapped_to_404(self):
         status, _, payload = _http_raw(
             "GET",
@@ -180,6 +187,19 @@ class TestWebServiceRequestValidation(unittest.TestCase):
         self.assertTrue(str(payload.get("message")).strip())
         self.assertIsInstance(payload.get("request_id"), str)
         self.assertTrue(str(payload.get("request_id")).strip())
+
+    def test_resource_not_found_is_mapped_to_404(self):
+        status, _, payload = _http_raw(
+            "GET",
+            f"{self.base_url}/analyze/results/not-there",
+        )
+        self.assertEqual(status, 404)
+        self.assertIsInstance(payload, dict)
+        assert isinstance(payload, dict)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "not_found")
+        self.assertEqual(payload.get("code"), "not_found")
+        self.assertIn("unknown result_id", str(payload.get("message")))
 
     def test_internal_errors_remain_500(self):
         status, _, payload = _http_raw(

@@ -117,6 +117,8 @@ Status-Code-Mapping (verbindlich):
 - **Not Found / Tenant-Mismatch** → `404` + `error=not_found`
 - **Unerwarteter Fehler** → `500` + `error=internal`
 
+Präzisierung: `details[]` wird bei `bad_request` sowohl für Body-Validierung (`POST /analyze`) als auch für Query/Header-Validierung auf den GET-Routen (`/analyze/history`, `/analyze/results/{id}`, `/analyze/jobs/{id}/notifications`) konsistent als Liste von `{field, issue}` geliefert.
+
 ---
 
 ## 4) Tenant-Guard
