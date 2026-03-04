@@ -71,6 +71,20 @@ class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        if parsed.path == "/auth/logout":
+            self.send_response(302)
+            self.send_header(
+                "Location",
+                "https://issuer.example.test/logout?client_id=cid&logout_uri="
+                "http%3A%2F%2F127.0.0.1%3A"
+                f"{self.server.api_port}%2Fauth%2Flogin",
+            )
+            self.send_header("Set-Cookie", "__Host-session=deleted; Max-Age=0; Path=/; HttpOnly; SameSite=Lax")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
         if parsed.path == "/auth/me":
             payload = json.dumps({"ok": True, "subject": "demo-user"}).encode("utf-8")
             self.send_response(200)
@@ -92,6 +106,7 @@ class TestUiService(unittest.TestCase):
         cls.upstream_port = _free_port()
         cls.upstream_server = ThreadingHTTPServer(("127.0.0.1", cls.upstream_port), _UpstreamAuthStubHandler)
         cls.upstream_server.request_log = []
+        cls.upstream_server.api_port = cls.upstream_port
         cls.upstream_thread = threading.Thread(target=cls.upstream_server.serve_forever, daemon=True)
         cls.upstream_thread.start()
 
@@ -294,6 +309,19 @@ class TestUiService(unittest.TestCase):
         self.assertIn("/auth/login", logged_paths)
         self.assertIn("/auth/me", logged_paths)
 
+    def test_auth_logout_proxy_rewrites_nested_logout_uri_to_ui_login(self):
+        status, _, headers = _http(
+            f"{self.base_url}/auth/logout",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        location = str(headers.get("location") or "")
+        self.assertIn("https://issuer.example.test/logout?client_id=cid", location)
+        self.assertIn("logout_uri=http%3A%2F%2F127.0.0.1%3A", location)
+        self.assertIn(f"%3A{self.port}%2Flogin", location)
+        self.assertNotIn(f"%3A{self.upstream_port}%2Fauth%2Flogin", location)
+        self.assertIn("Max-Age=0", str(headers.get("set-cookie") or ""))
+
     # --- GUI Auth UX wp2: Session-Flow statt Bearer-Paste für /analyze + /analyze/history ---
 
     def test_gui_page_uses_session_flow_without_token_input(self):
@@ -304,10 +332,12 @@ class TestUiService(unittest.TestCase):
         self.assertNotIn('headers["Authorization"]', body, "/gui darf keinen Browser-Authorization-Header setzen")
         self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
         self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
+        self.assertIn('Login-Status ungültig oder abgelaufen — bitte Anmeldung neu starten.', body)
         self.assertIn('Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.', body)
         self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
         self.assertIn('function isSessionRecoveryRequired(statusCode, errorCode)', body)
         self.assertIn('function resolveAuthRecoveryReason(statusCode, errorCode)', body)
+        self.assertIn('"invalid_state"', body)
         self.assertIn('function resolveAuthFailure(statusCode, errorCode, fallbackMessage)', body)
         self.assertIn('if (normalizedStatus === 401 || normalizedStatus === 403)', body)
         self.assertIn('"403": "session_expired"', body)
@@ -330,10 +360,12 @@ class TestUiService(unittest.TestCase):
         self.assertIn('headers["X-Correlation-Id"] = normalizedRequestId;', body)
         self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
         self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
+        self.assertIn('Login-Status ungültig oder abgelaufen — bitte Anmeldung neu starten.', body)
         self.assertIn('Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.', body)
         self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
         self.assertIn('function isSessionRecoveryRequired(statusCode, errorCode)', body)
         self.assertIn('function resolveAuthRecoveryReason(statusCode, errorCode)', body)
+        self.assertIn('"invalid_state"', body)
         self.assertIn('function resolveAuthFailure(statusCode, errorCode, fallbackMessage)', body)
         self.assertIn('if (normalizedStatus === 401 || normalizedStatus === 403)', body)
         self.assertIn('"403": "session_expired"', body)

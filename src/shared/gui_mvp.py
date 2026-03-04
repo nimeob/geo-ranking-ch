@@ -1202,6 +1202,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const SESSION_RECOVERY_ERROR_CODES = new Set([
         "no_session_cookie",
         "session_not_found",
+        "missing_state",
+        "missing_session_cookie",
+        "state_mismatch",
+        "missing_code_verifier",
+        "invalid_state",
         "no_access_token",
         "no_refresh_token",
         "refresh_grant_error",
@@ -1225,6 +1230,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const AUTH_RECOVERY_REASON_BY_ERROR_CODE = Object.freeze({
         no_session_cookie: "session_missing",
         session_not_found: "session_missing",
+        missing_state: "invalid_state",
+        missing_session_cookie: "invalid_state",
+        state_mismatch: "invalid_state",
+        missing_code_verifier: "invalid_state",
+        invalid_state: "invalid_state",
         no_access_token: "session_expired",
         token_error: "session_expired",
         unauthorized: "session_expired",
@@ -1258,6 +1268,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         forbidden: DEV_ERROR_CLASS.AUTH,
         no_session_cookie: DEV_ERROR_CLASS.AUTH,
         session_not_found: DEV_ERROR_CLASS.AUTH,
+        missing_state: DEV_ERROR_CLASS.AUTH,
+        missing_session_cookie: DEV_ERROR_CLASS.AUTH,
+        state_mismatch: DEV_ERROR_CLASS.AUTH,
+        missing_code_verifier: DEV_ERROR_CLASS.AUTH,
+        invalid_state: DEV_ERROR_CLASS.AUTH,
         session_expired: DEV_ERROR_CLASS.AUTH,
         no_access_token: DEV_ERROR_CLASS.AUTH,
         no_refresh_token: DEV_ERROR_CLASS.AUTH,
@@ -4685,6 +4700,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function buildAuthorizationUxErrorMessage(statusCode, fallbackMessage, errorCode) {
         const normalizedStatus = Number(statusCode);
         const normalizedCode = normalizeErrorCode(errorCode);
+        if (
+          normalizedCode === "invalid_state"
+          || normalizedCode === "missing_state"
+          || normalizedCode === "missing_session_cookie"
+          || normalizedCode === "state_mismatch"
+          || normalizedCode === "missing_code_verifier"
+        ) {
+          return "Login-Status ungültig oder abgelaufen — bitte Anmeldung neu starten.";
+        }
         if (normalizedCode === "access_denied" || normalizedCode === "consent_denied") {
           return "Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.";
         }
