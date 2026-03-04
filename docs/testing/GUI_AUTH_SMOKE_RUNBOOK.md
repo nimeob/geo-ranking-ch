@@ -35,9 +35,9 @@ Diese Suite deckt insbesondere ab:
 - Session-basierte BFF-Delegation für `GET /portal/api/analyze/history`
 - Session-basierte BFF-Delegation für `POST /portal/api/analyze` (inkl. CSRF-Header-Pfad)
 
-### 1.2 Automatisierter Auth-Flow-Regression-Smoke (WP #1019)
+### 1.2 Automatisierter Auth/Core-Flow-Regression-Smoke (WP #1019 / #1087)
 
-Für den vollständigen Pfad `login -> analyze/history -> logout` gibt es zusätzlich einen reproduzierbaren Integration-Smoke:
+Für den vollständigen Kernpfad `login -> search -> ranking -> logout` gibt es einen reproduzierbaren Integration-Smoke:
 
 ```bash
 python3 -m pytest -q tests/test_auth_regression_smoke_issue_1019.py
@@ -47,10 +47,12 @@ Abdeckung:
 - unauthenticated `/gui` Redirect auf `/auth/login`
 - `/auth/login` + `/auth/callback` Session-Aufbau inkl. Cookie-Set
 - `/auth/me` 200 nach Login
-- `POST /analyze` (Smoke-Query `__ok__`) + `GET /analyze/history` 200
+- authentifizierte `/gui`-Shell mit stabilen Selektoren (`#analyze-form`, `#query`, `#submit-btn`, `#results-list`, `#results-body`)
+- `POST /analyze` (deterministische Smoke-Query `__ok__`) + `GET /analyze/history` 200
+- Öffnen der Ranking-/Result-Ansicht über `/results/<result_id>` inkl. stabiler Tab-Selektoren
 - `/auth/logout` Redirect + Cookie-Clear + `/auth/me` 401 nach Logout
 
-Hinweis: Der Smoke ist im Standard-Entrypoint `./scripts/run_webservice_e2e.sh` integriert.
+Hinweis: Der Smoke ist in den PR-Required-Gate (`dev-smoke-required` via `check_bl334_split_smokes.sh`) eingebunden und bleibt zusätzlich über `scripts/run_webservice_e2e.sh` lokal ausführbar. Der bisherige Pfad `login -> analyze/history -> logout` ist weiterhin als Teilmenge des erweiterten Kernpfads abgedeckt.
 
 ---
 

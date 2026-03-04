@@ -14,6 +14,8 @@ API_PORT=""
 UI_PORT=""
 API_LOG="${OUT_DIR}/${STAMP}-api-smoke.log"
 UI_LOG="${OUT_DIR}/${STAMP}-ui-smoke.log"
+CORE_FLOW_SMOKE_MAX_SECONDS="${CORE_FLOW_SMOKE_MAX_SECONDS:-300}"
+CORE_FLOW_TEST_TARGET="${CORE_FLOW_TEST_TARGET:-tests.test_auth_regression_smoke_issue_1019}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -162,6 +164,17 @@ if ! grep -q "geo-ranking.ch GUI MVP" <<<"${UI_GUI_HTML}"; then
   exit 1
 fi
 
+echo "[BL-334.6] Core flow auth smoke (login -> search -> ranking)"
+CORE_FLOW_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+CORE_FLOW_START_TS="$(date +%s)"
+"${PYTHON_BIN}" -m unittest -q "${CORE_FLOW_TEST_TARGET}"
+CORE_FLOW_DURATION_SECONDS="$(( $(date +%s) - CORE_FLOW_START_TS ))"
+
+if (( CORE_FLOW_DURATION_SECONDS > CORE_FLOW_SMOKE_MAX_SECONDS )); then
+  echo "ERROR: core flow smoke exceeded budget (${CORE_FLOW_DURATION_SECONDS}s > ${CORE_FLOW_SMOKE_MAX_SECONDS}s)" >&2
+  exit 1
+fi
+
 cat >"${OUT_JSON}" <<EOF
 {
   "timestampUtc": "${STAMP}",
@@ -179,6 +192,14 @@ cat >"${OUT_JSON}" <<EOF
     "result": "pass",
     "log": "${UI_LOG}"
   },
+  "core_flow": {
+    "entrypoint": "python -m unittest -q ${CORE_FLOW_TEST_TARGET}",
+    "scenario": "login -> search -> ranking",
+    "started_at_utc": "${CORE_FLOW_STARTED_AT}",
+    "duration_seconds": ${CORE_FLOW_DURATION_SECONDS},
+    "budget_seconds": ${CORE_FLOW_SMOKE_MAX_SECONDS},
+    "result": "pass"
+  },
   "result": "pass"
 }
 EOF
@@ -187,3 +208,4 @@ echo "✅ BL-334.5 split smokes passed"
 echo "- evidence: ${OUT_JSON}"
 echo "- api log:  ${API_LOG}"
 echo "- ui log:   ${UI_LOG}"
+echo "- core-flow duration: ${CORE_FLOW_DURATION_SECONDS}s (budget ${CORE_FLOW_SMOKE_MAX_SECONDS}s)"

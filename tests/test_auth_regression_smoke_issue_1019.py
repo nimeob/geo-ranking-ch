@@ -195,7 +195,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         if getattr(cls, "tmp", None) is not None:
             cls.tmp.cleanup()
 
-    def test_login_analyze_history_logout_regression_smoke(self):
+    def test_login_search_ranking_logout_regression_smoke(self):
         # 1) unauth GUI must redirect to login
         status, _, headers = _http_request(
             "GET",
@@ -247,7 +247,21 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         self.assertTrue(me_payload.get("ok"))
         self.assertTrue(me_payload.get("authenticated"))
 
-        # 5) analyze call succeeds in smoke mode
+        # 5) authenticated /gui shell exposes deterministic selectors for core flow
+        status, body, _ = _http_request(
+            "GET",
+            f"{self.api_base_url}/gui",
+            headers={"Cookie": callback_cookie},
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 200)
+        self.assertIn('id="analyze-form"', body)
+        self.assertIn('id="query"', body)
+        self.assertIn('id="submit-btn"', body)
+        self.assertIn('id="results-list"', body)
+        self.assertIn('id="results-body"', body)
+
+        # 6) search/analyze call succeeds with deterministic smoke fixture query
         status, body, _ = _http_request(
             "POST",
             f"{self.api_base_url}/analyze",
@@ -265,7 +279,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         self.assertTrue(analyze_payload.get("ok"))
         self.assertIn("result", analyze_payload)
 
-        # 6) history endpoint returns at least one entry
+        # 7) history endpoint returns at least one entry incl. result_id for ranking view
         status, body, _ = _http_request(
             "GET",
             f"{self.api_base_url}/analyze/history?limit=5",
@@ -275,9 +289,28 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         self.assertEqual(status, 200)
         history_payload = json.loads(body)
         self.assertTrue(history_payload.get("ok"))
-        self.assertTrue(history_payload.get("history"))
+        history_entries = history_payload.get("history") or []
+        self.assertTrue(history_entries)
+        result_id = str(history_entries[0].get("result_id") or "").strip()
+        self.assertTrue(result_id)
 
-        # 7) logout returns redirect + cookie clear and session becomes unauthorized
+        # 8) ranking/detail view opens for the newest result and keeps stable selectors
+        status, result_body, result_headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/results/{result_id}",
+            headers={"Cookie": callback_cookie},
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", result_headers.get("content-type", ""))
+        self.assertIn('id="result-id"', result_body)
+        self.assertIn(f'data-result-id="{result_id}"', result_body)
+        self.assertIn('id="tab-overview"', result_body)
+        self.assertIn('id="tab-sources"', result_body)
+        self.assertIn('id="tab-derived"', result_body)
+        self.assertIn('id="tab-raw"', result_body)
+
+        # 9) logout returns redirect + cookie clear and session becomes unauthorized
         status, _, headers = _http_request(
             "GET",
             f"{self.api_base_url}/auth/logout",
