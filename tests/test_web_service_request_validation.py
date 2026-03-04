@@ -201,6 +201,32 @@ class TestWebServiceRequestValidation(unittest.TestCase):
         self.assertEqual(payload.get("code"), "not_found")
         self.assertIn("unknown result_id", str(payload.get("message")))
 
+    def test_post_validation_error_is_mapped_to_400(self):
+        status, _, payload = _http_raw(
+            "POST",
+            f"{self.base_url}/analyze",
+            headers={"Content-Type": "application/json"},
+            body=json.dumps({"query": "__validation__"}).encode("utf-8"),
+        )
+        self._assert_bad_request(status, payload, message_contains="forced validation error")
+
+    def test_post_not_found_error_is_mapped_to_404(self):
+        status, _, payload = _http_raw(
+            "POST",
+            f"{self.base_url}/analyze",
+            headers={"Content-Type": "application/json"},
+            body=json.dumps({"query": "__not_found__"}).encode("utf-8"),
+        )
+        self.assertEqual(status, 404)
+        self.assertIsInstance(payload, dict)
+        assert isinstance(payload, dict)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "not_found")
+        self.assertEqual(payload.get("code"), "not_found")
+        self.assertIn("forced not found", str(payload.get("message")))
+        self.assertIsInstance(payload.get("request_id"), str)
+        self.assertTrue(str(payload.get("request_id")).strip())
+
     def test_internal_errors_remain_500(self):
         status, _, payload = _http_raw(
             "POST",

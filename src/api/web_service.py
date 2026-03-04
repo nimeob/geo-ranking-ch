@@ -3258,6 +3258,36 @@ def _validation_error_details(message: str, *, field: str = "request") -> list[d
     return [{"field": str(field or "request"), "issue": issue}]
 
 
+class ForcedValidationError(Exception):
+    """Dev-only synthetic validation error for regression tests."""
+
+
+class ForcedNotFoundError(Exception):
+    """Dev-only synthetic not-found error for regression tests."""
+
+
+def _exception_class_name(exc: BaseException) -> str:
+    return str(exc.__class__.__name__ or "").strip().lower()
+
+
+def _is_validation_exception(exc: BaseException) -> bool:
+    if isinstance(exc, (ValueError, json.JSONDecodeError)):
+        return True
+
+    class_name = _exception_class_name(exc)
+    return bool(class_name) and class_name.endswith("validationerror")
+
+
+def _is_not_found_exception(exc: BaseException) -> bool:
+    if isinstance(exc, (KeyError, FileNotFoundError)):
+        return True
+
+    class_name = _exception_class_name(exc)
+    if not class_name:
+        return False
+    return class_name == "notfound" or class_name.endswith("notfounderror")
+
+
 def _coerce_http_status(value: int) -> HTTPStatus:
     try:
         return HTTPStatus(int(value))
@@ -4696,27 +4726,28 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             self._send_not_found(request_id=request_id)
-        except ValueError as exc:
-            details = _validation_error_details(str(exc))
-            self._send_error(
-                request_id=request_id,
-                status=HTTPStatus.BAD_REQUEST,
-                error="bad_request",
-                message=str(exc),
-                details=details,
-            )
-        except KeyError as exc:
-            self._send_not_found(
-                request_id=request_id,
-                message=str(exc),
-            )
         except Exception as exc:  # pragma: no cover
-            self._send_error(
-                request_id=request_id,
-                status=HTTPStatus.INTERNAL_SERVER_ERROR,
-                error="internal",
-                message=str(exc),
-            )
+            if _is_validation_exception(exc):
+                details = _validation_error_details(str(exc))
+                self._send_error(
+                    request_id=request_id,
+                    status=HTTPStatus.BAD_REQUEST,
+                    error="bad_request",
+                    message=str(exc),
+                    details=details,
+                )
+            elif _is_not_found_exception(exc):
+                self._send_not_found(
+                    request_id=request_id,
+                    message=str(exc),
+                )
+            else:
+                self._send_error(
+                    request_id=request_id,
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                    error="internal",
+                    message=str(exc),
+                )
         finally:
             self._finish_request_lifecycle()
 
@@ -5115,6 +5146,10 @@ class Handler(BaseHTTPRequestHandler):
                         raise RuntimeError("forced internal error for e2e")
                     if query == "__address_intel__":
                         raise AddressIntelError("forced address intel error for e2e")
+                    if query == "__validation__":
+                        raise ForcedValidationError("forced validation error for e2e")
+                    if query == "__not_found__":
+                        raise ForcedNotFoundError("forced not found for e2e")
                     if query == "__ok__":
                         stub_report = {
                             "query": query,
@@ -5274,24 +5309,31 @@ class Handler(BaseHTTPRequestHandler):
                     error="address_intel",
                     message=str(e),
                 )
-            except (ValueError, json.JSONDecodeError) as e:
-                _persist_sync_history_failure(error_code="bad_request", error_message=str(e))
-                details = _validation_error_details(str(e))
-                self._send_error(
-                    request_id=request_id,
-                    status=HTTPStatus.BAD_REQUEST,
-                    error="bad_request",
-                    message=str(e),
-                    details=details,
-                )
             except Exception as e:  # pragma: no cover
-                _persist_sync_history_failure(error_code="internal", error_message=str(e))
-                self._send_error(
-                    request_id=request_id,
-                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
-                    error="internal",
-                    message=str(e),
-                )
+                if _is_validation_exception(e):
+                    _persist_sync_history_failure(error_code="bad_request", error_message=str(e))
+                    details = _validation_error_details(str(e))
+                    self._send_error(
+                        request_id=request_id,
+                        status=HTTPStatus.BAD_REQUEST,
+                        error="bad_request",
+                        message=str(e),
+                        details=details,
+                    )
+                elif _is_not_found_exception(e):
+                    _persist_sync_history_failure(error_code="not_found", error_message=str(e))
+                    self._send_not_found(
+                        request_id=request_id,
+                        message=str(e),
+                    )
+                else:
+                    _persist_sync_history_failure(error_code="internal", error_message=str(e))
+                    self._send_error(
+                        request_id=request_id,
+                        status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                        error="internal",
+                        message=str(e),
+                    )
 
         finally:
             self._finish_request_lifecycle()
