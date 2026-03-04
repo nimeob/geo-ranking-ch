@@ -151,7 +151,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertIsInstance(payload.get("request_id"), str)
         self.assertTrue(str(payload.get("request_id")).strip())
 
-    def test_auth_callback_error_includes_correlation_and_redirect_diagnostics_for_mismatch(self):
+    def test_auth_callback_error_renders_single_relogin_page_without_redirect_loop(self):
         status, body, headers = _http_get(
             f"{self.base_url}/auth/callback?code=fake-code&state=fake-state",
             follow_redirects=False,
@@ -159,26 +159,37 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         )
         self.assertEqual(status, 400)
         self.assertEqual(headers.get("cache-control"), "no-store")
+        self.assertNotIn("location", headers)
 
-        payload = json.loads(body)
-        self.assertFalse(payload.get("ok"))
-        self.assertEqual(payload.get("error"), "missing_session_cookie")
-        self.assertIsInstance(payload.get("request_id"), str)
-        self.assertTrue(str(payload.get("request_id")).strip())
-        self.assertEqual(payload.get("correlation_id"), payload.get("request_id"))
+        self.assertIn("Anmeldung konnte nicht abgeschlossen werden", body)
+        self.assertIn("id=\"auth-callback-relogin\"", body)
+        self.assertIn("/auth/login?next=%2Fgui&amp;reason=session_expired", body)
+        self.assertIn("id=\"auth-callback-error-code\">missing_session_cookie<", body)
+        self.assertIn("id=\"auth-callback-request-id\">", body)
 
-        diagnostics = payload.get("redirect_diagnostics")
-        self.assertIsInstance(diagnostics, dict)
+        # Redirect diagnostics remain visible for reproducible debugging.
+        self.assertIn('&quot;host&quot;: &quot;127.0.0.1&quot;', body)
+        self.assertIn('&quot;path&quot;: &quot;/auth/callback&quot;', body)
+        self.assertIn('&quot;host&quot;: &quot;callback-mismatch.local&quot;', body)
 
-        expected = diagnostics.get("expected_redirect") or {}
-        received = diagnostics.get("received_redirect") or {}
-        mismatch = diagnostics.get("mismatch") or {}
+    def test_callback_state_mismatch_clears_cookie_and_shows_relogin_cta(self):
+        login_status, _, login_headers = _http_get(f"{self.base_url}/auth/login", follow_redirects=False)
+        self.assertEqual(login_status, 302)
+        cookie_header = str(login_headers.get("set-cookie") or "")
+        self.assertTrue(cookie_header)
+        cookie_pair = cookie_header.split(";", 1)[0]
 
-        self.assertEqual(expected.get("host"), "127.0.0.1")
-        self.assertEqual(expected.get("path"), "/auth/callback")
-        self.assertEqual(received.get("host"), "callback-mismatch.local")
-        self.assertEqual(received.get("path"), "/auth/callback")
-        self.assertTrue(bool(mismatch.get("host")))
+        status, body, headers = _http_get(
+            f"{self.base_url}/auth/callback?code=fake-code&state=wrong-state",
+            follow_redirects=False,
+            headers={"Cookie": cookie_pair},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+        self.assertNotIn("location", headers)
+        self.assertIn("Max-Age=0", str(headers.get("set-cookie") or ""))
+        self.assertIn("id=\"auth-callback-relogin\"", body)
+        self.assertIn("reason=session_expired", body)
 
     def test_history_redirects_to_login_when_session_cookie_is_invalid(self):
         status, _, headers = _http_get(

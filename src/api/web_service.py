@@ -36,6 +36,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from html import escape
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import urlopen
@@ -64,7 +65,7 @@ from src.api.bff_oidc import (
     handle_callback,
     is_bff_oidc_enabled,
 )
-from src.api.bff_session import get_session_store, parse_session_id_from_cookie
+from src.api.bff_session import build_clear_cookie_header, get_session_store, parse_session_id_from_cookie
 from src.api.bff_token_delegation import handle_logout, handle_me
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
@@ -655,6 +656,85 @@ def _build_login_redirect_location(*, request_path: str, raw_query: str) -> str:
     if query:
         next_path = f"{next_path}?{query}"
     return f"/auth/login?{urlencode({'next': next_path})}"
+
+
+def _callback_error_reason(error_code: str) -> str:
+    """Map callback error codes to stable login reason query values."""
+    normalized = str(error_code or "").strip().lower()
+    if normalized in {"idp_access_denied", "idp_consent_denied"}:
+        return "consent_denied"
+    return "session_expired"
+
+
+def _callback_error_user_message(error_code: str) -> str:
+    """Return a friendly German message for callback failures."""
+    normalized = str(error_code or "").strip().lower()
+    if normalized in {"idp_access_denied", "idp_consent_denied"}:
+        return "Die Anmeldung wurde beim Login-Anbieter abgebrochen oder verweigert."
+    if normalized.startswith("token_"):
+        return "Die Anmeldung konnte serverseitig nicht abgeschlossen werden."
+    return "Die Anmeldung ist abgelaufen oder ungültig."
+
+
+def _build_callback_relogin_location(*, next_path: str, error_code: str) -> str:
+    """Build a deterministic re-login URL for callback error pages."""
+    safe_next = str(next_path or "").strip() or "/gui"
+    if not safe_next.startswith("/"):
+        safe_next = f"/{safe_next}"
+    parsed = urlsplit(safe_next)
+    if parsed.scheme or parsed.netloc or safe_next.startswith("//"):
+        safe_next = "/gui"
+
+    params = {
+        "next": safe_next,
+        "reason": _callback_error_reason(error_code),
+    }
+    return f"/auth/login?{urlencode(params)}"
+
+
+def _render_oidc_callback_error_html(
+    *,
+    error_code: str,
+    technical_message: str,
+    request_id: str,
+    relogin_location: str,
+    diagnostics: dict[str, Any],
+) -> str:
+    """Render a user-facing callback error page with explicit re-login CTA."""
+    user_message = _callback_error_user_message(error_code)
+    diagnostics_json = json.dumps(diagnostics, ensure_ascii=False, indent=2)
+
+    return (
+        "<!doctype html>"
+        "<html lang=\"de\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<title>Anmeldung fehlgeschlagen</title>"
+        "<style>"
+        "body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:2rem;}"
+        ".card{max-width:760px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1.25rem 1.1rem;box-shadow:0 6px 24px rgba(15,23,42,.08);}"
+        "h1{margin:.15rem 0 .8rem;font-size:1.35rem;}"
+        "p{margin:.45rem 0;line-height:1.45;}"
+        ".cta{display:inline-block;margin-top:.9rem;background:#0f766e;color:#fff;text-decoration:none;padding:.62rem .9rem;border-radius:10px;font-weight:600;}"
+        ".meta{margin-top:.85rem;color:#475569;font-size:.92rem;}"
+        "details{margin-top:1rem;}"
+        "pre{background:#0f172a;color:#e2e8f0;padding:.7rem;border-radius:10px;overflow:auto;font-size:.78rem;}"
+        "code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}"
+        "</style></head><body>"
+        "<main class=\"card\" role=\"main\">"
+        "<h1>Anmeldung konnte nicht abgeschlossen werden</h1>"
+        f"<p id=\"auth-callback-user-message\">{escape(user_message)}</p>"
+        "<p>Bitte starte den Login einmal neu. Es wird keine automatische Weiterleitung ausgeführt, damit kein Redirect-Loop entsteht.</p>"
+        f"<a id=\"auth-callback-relogin\" class=\"cta\" href=\"{escape(relogin_location, quote=True)}\">Erneut einloggen</a>"
+        "<p class=\"meta\">"
+        f"Fehlercode: <code id=\"auth-callback-error-code\">{escape(error_code)}</code> · "
+        f"Request-ID: <code id=\"auth-callback-request-id\">{escape(request_id)}</code>"
+        "</p>"
+        "<details><summary>Technische Details</summary>"
+        f"<p><strong>Meldung:</strong> {escape(technical_message)}</p>"
+        f"<pre id=\"auth-callback-diagnostics\">{escape(diagnostics_json)}</pre>"
+        "</details>"
+        "</main></body></html>"
+    )
 
 
 def _build_dictionary_payloads() -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
@@ -3697,6 +3777,32 @@ class Handler(BaseHTTPRequestHandler):
                     expected_redirect_uri=oidc_cfg.redirect_uri,
                     request_path=request_path,
                 )
+                callback_next_path = "/gui"
+                clear_cookie_header: str | None = None
+                session_id = parse_session_id_from_cookie(cookie_header)
+                if session_id:
+                    current_session = store.get(session_id)
+                    if current_session and isinstance(current_session.user_claims, dict):
+                        raw_next = str(current_session.user_claims.get("_next") or "").strip()
+                        if raw_next.startswith("/") and not raw_next.startswith("//"):
+                            parsed_next = urlsplit(raw_next)
+                            if not parsed_next.scheme and not parsed_next.netloc:
+                                callback_next_path = raw_next
+                    store.delete(session_id)
+                    clear_cookie_header = build_clear_cookie_header()
+
+                relogin_location = _build_callback_relogin_location(
+                    next_path=callback_next_path,
+                    error_code=exc.error_code,
+                )
+                callback_error_page = _render_oidc_callback_error_html(
+                    error_code=exc.error_code,
+                    technical_message=exc.message,
+                    request_id=request_id,
+                    relogin_location=relogin_location,
+                    diagnostics=callback_diagnostics,
+                )
+
                 _emit_structured_log(
                     event="api.bff.oidc.callback_error",
                     level="warn",
@@ -3710,19 +3816,17 @@ class Handler(BaseHTTPRequestHandler):
                     error_message=exc.message,
                     status=str(exc.http_status),
                     redirect_diagnostics=callback_diagnostics,
+                    relogin_location=relogin_location,
                 )
-                self._send_json(
-                    {
-                        "ok": False,
-                        "error": exc.error_code,
-                        "message": exc.message,
-                        "request_id": request_id,
-                        "correlation_id": request_id,
-                        "redirect_diagnostics": callback_diagnostics,
-                    },
+                error_headers = {"Cache-Control": "no-store"}
+                if clear_cookie_header:
+                    error_headers["Set-Cookie"] = clear_cookie_header
+
+                self._send_html(
+                    callback_error_page,
                     status=exc.http_status,
                     request_id=request_id,
-                    extra_headers={"Cache-Control": "no-store"},
+                    extra_headers=error_headers,
                 )
                 return
             except Exception as exc:  # noqa: BLE001
