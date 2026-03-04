@@ -113,3 +113,38 @@ class TestWebServiceHealthz(unittest.TestCase):
         status, _, payload = _http_json("GET", f"{self.base_url}/healthz/?probe=1")
         self.assertEqual(status, 200)
         self.assertTrue(payload.get("ok"))
+
+    def test_health_details_returns_machine_readable_checks(self):
+        status, headers, payload = _http_json("GET", f"{self.base_url}/health/details")
+        self.assertEqual(status, 200)
+        self.assertTrue(payload.get("ok"))
+        self.assertIn(payload.get("status"), {"ok", "degraded", "down"})
+        self.assertIsInstance(payload.get("timestamp"), str)
+
+        checks = payload.get("checks")
+        self.assertIsInstance(checks, dict)
+        assert isinstance(checks, dict)
+        for key in ("app", "database", "auth"):
+            self.assertIn(key, checks)
+            self.assertIn(checks[key].get("status"), {"ok", "degraded", "down"})
+            self.assertTrue(str(checks[key].get("reason") or "").strip())
+
+        self.assertEqual(headers.get("Cache-Control"), "no-store")
+
+    def test_health_details_supports_simulated_auth_and_database_failures(self):
+        status, _, payload = _http_json(
+            "GET",
+            (
+                f"{self.base_url}/health/details"
+                "?simulate_auth=down&simulate_auth_reason=oidc_jwks_unreachable"
+                "&simulate_database=degraded&simulate_database_reason=db_timeout"
+            ),
+        )
+        self.assertEqual(status, 200)
+
+        checks = payload.get("checks") or {}
+        assert isinstance(checks, dict)
+        self.assertEqual((checks.get("auth") or {}).get("status"), "down")
+        self.assertEqual((checks.get("auth") or {}).get("reason"), "oidc_jwks_unreachable")
+        self.assertEqual((checks.get("database") or {}).get("status"), "degraded")
+        self.assertEqual((checks.get("database") or {}).get("reason"), "db_timeout")

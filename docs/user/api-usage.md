@@ -21,6 +21,7 @@ https://<dein-endpoint>
 | Methode | Pfad | Zweck | Auth |
 |---|---|---|---|
 | `GET` | `/health` | Liveness/Service-Erreichbarkeit | nein |
+| `GET` | `/health/details` | Dev-Diagnose für Teilchecks (`app`, `database`, `auth`) | nein |
 | `GET` | `/version` | Build-/Version-Metadaten | nein |
 | `GET` | `/api/v1/dictionaries` | Dictionary-Index (Versionen/ETags/Domain-Pfade) | nein |
 | `GET` | `/api/v1/dictionaries/<domain>` | Domain-spezifisches Dictionary (z. B. `heating`) | nein |
@@ -57,6 +58,41 @@ curl -sS "http://localhost:8080/health"
   "request_id": "req-3e5f0a1f0a87419d"
 }
 ```
+
+---
+
+## `GET /health/details`
+
+Maschinenlesbarer Dev-Diagnoseendpunkt für schnelle Smoke-/Triage-Checks.
+
+- `timestamp`: UTC-Zeitstempel für Log-Korrelation
+- `checks.app|database|auth.status`: normiert als `ok | degraded | down`
+- `checks.<name>.reason`: kurze Ursache pro Teilcheck
+
+### Beispiel
+
+```bash
+curl -sS "http://localhost:8080/health/details"
+```
+
+### Erfolgsantwort (200)
+
+```json
+{
+  "ok": true,
+  "service": "geo-ranking-ch",
+  "status": "degraded",
+  "timestamp": "2026-03-04T03:45:00.123456+00:00",
+  "checks": {
+    "app": {"status": "ok", "reason": "service_ready"},
+    "database": {"status": "degraded", "reason": "async_store_backend=file"},
+    "auth": {"status": "ok", "reason": "phase1_token_auth_enabled"}
+  },
+  "request_id": "req-1234abcd"
+}
+```
+
+Intended usage: Wenn `/health` grün ist, aber Deploy-/Auth-Probleme vermutet werden, liefert `/health/details` einen schnellen Ursachen-Hinweis ohne Vollmonitoring.
 
 ---
 

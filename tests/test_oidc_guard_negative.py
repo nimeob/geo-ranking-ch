@@ -159,8 +159,8 @@ class TestOidcGuardNegative(unittest.TestCase):
         self.assertEqual(body.get("error"), "unauthorized")
 
     def test_health_remains_public_when_oidc_enabled(self):
-        """GET /health and /healthz must remain accessible without token even with OIDC enabled."""
-        for path in ("/health", "/healthz"):
+        """GET /health, /healthz and /health/details must remain accessible without token."""
+        for path in ("/health", "/healthz", "/health/details"):
             status, body = _http_json("GET", f"{self.base_url}{path}")
             self.assertEqual(status, 200, f"{path} should return 200 without auth")
             self.assertTrue(body.get("ok"), f"{path} body should be ok")

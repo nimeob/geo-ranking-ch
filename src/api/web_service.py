@@ -4,6 +4,7 @@
 Endpoints:
 - GET /gui
 - GET /health
+- GET /health/details
 - GET /version
 - GET /api/v1/dictionaries
 - GET /api/v1/dictionaries/<domain>
@@ -251,6 +252,119 @@ def _validate_oidc_bearer_token(bearer_token: str) -> dict[str, Any] | None:
         return None
     except Exception:
         return None
+
+
+_HEALTH_DETAILS_ALLOWED_STATUS = frozenset({"ok", "degraded", "down"})
+
+
+def _fault_injection_enabled() -> bool:
+    return str(os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") or "0").strip() == "1"
+
+
+def _health_details_app_check() -> dict[str, str]:
+    return {"status": "ok", "reason": "service_ready"}
+
+
+def _health_details_database_check() -> dict[str, str]:
+    backend = str(os.getenv("ASYNC_STORE_BACKEND", "file") or "file").strip().lower() or "file"
+    if backend != "db":
+        return {"status": "degraded", "reason": f"async_store_backend={backend}"}
+
+    connect_fn = getattr(_ASYNC_JOB_STORE, "_connect", None)
+    if not callable(connect_fn):
+        return {"status": "down", "reason": "db_store_connect_unavailable"}
+
+    conn: Any | None = None
+    try:
+        conn = connect_fn()
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT 1")
+            cur.fetchone()
+        finally:
+            cur.close()
+        return {"status": "ok", "reason": "db_connection_ok"}
+    except Exception as exc:
+        return {"status": "down", "reason": f"db_check_failed:{exc.__class__.__name__}"}
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _health_details_auth_check() -> dict[str, str]:
+    if _PHASE1_AUTH_ENABLED:
+        return {"status": "ok", "reason": "phase1_token_auth_enabled"}
+
+    if _OIDC_AUTH_ENABLED:
+        if _OIDC_JWT_VALIDATOR is None:
+            return {"status": "down", "reason": "oidc_validator_unavailable"}
+        return {"status": "ok", "reason": "oidc_jwt_auth_enabled"}
+
+    if is_bff_oidc_enabled():
+        try:
+            oidc_cfg = build_oidc_config_from_env()
+        except ValueError:
+            return {"status": "down", "reason": "bff_oidc_config_invalid"}
+        if oidc_cfg is None:
+            return {"status": "degraded", "reason": "bff_oidc_not_configured"}
+        return {"status": "ok", "reason": "bff_oidc_session_auth_enabled"}
+
+    return {"status": "degraded", "reason": "auth_not_configured"}
+
+
+def _health_details_overall_status(checks: dict[str, dict[str, str]]) -> str:
+    statuses = [str(check.get("status") or "").strip().lower() for check in checks.values()]
+    if any(status == "down" for status in statuses):
+        return "down"
+    if any(status == "degraded" for status in statuses):
+        return "degraded"
+    return "ok"
+
+
+def _apply_health_details_simulation(
+    checks: dict[str, dict[str, str]],
+    *,
+    query_params: dict[str, list[str]],
+) -> None:
+    if not _fault_injection_enabled():
+        return
+
+    for check_name, param_name in (("auth", "simulate_auth"), ("database", "simulate_database")):
+        raw_status = str((query_params.get(param_name) or [""])[0]).strip().lower()
+        if raw_status not in _HEALTH_DETAILS_ALLOWED_STATUS:
+            continue
+
+        raw_reason = str((query_params.get(f"{param_name}_reason") or [""])[0]).strip()
+        reason = re.sub(r"[\x00-\x1f\x7f]+", " ", raw_reason).strip()
+        if not reason:
+            reason = f"simulated_{check_name}_{raw_status}"
+
+        checks[check_name] = {"status": raw_status, "reason": reason}
+
+
+def _build_health_details_payload(
+    *,
+    request_id: str,
+    query_params: dict[str, list[str]],
+) -> dict[str, Any]:
+    checks: dict[str, dict[str, str]] = {
+        "app": _health_details_app_check(),
+        "database": _health_details_database_check(),
+        "auth": _health_details_auth_check(),
+    }
+    _apply_health_details_simulation(checks, query_params=query_params)
+
+    return {
+        "ok": True,
+        "service": "geo-ranking-ch",
+        "status": _health_details_overall_status(checks),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": checks,
+        "request_id": request_id,
+    }
 
 
 _CORS_ALLOW_ORIGINS_ENV = "CORS_ALLOW_ORIGINS"
@@ -3721,6 +3835,29 @@ class Handler(BaseHTTPRequestHandler):
                         },
                         "request_id": request_id,
                     },
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+            if request_path == "/health/details":
+                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                payload = _build_health_details_payload(
+                    request_id=request_id,
+                    query_params=query_params,
+                )
+                _emit_structured_log(
+                    event="api.health.details.response",
+                    trace_id=request_id,
+                    request_id=request_id,
+                    session_id=self.headers.get("X-Session-Id", "").strip(),
+                    component="api.web_service",
+                    direction="api->client",
+                    status=str(payload.get("status") or "ok"),
+                    route="/health/details",
+                    method="GET",
+                )
+                self._send_json(
+                    payload,
                     request_id=request_id,
                     extra_headers={"Cache-Control": "no-store"},
                 )
