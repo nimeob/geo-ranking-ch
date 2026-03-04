@@ -85,10 +85,10 @@ pre-commit run --all-files
 # Doku-Qualitätsgate (BL-19.8): Linkcheck + Strukturcheck im frischen venv
 ./scripts/check_docs_quality_gate.sh
 
-# Service-getrennte Smoke-Checks (BL-334.5)
+# Standard-Dev-Smoke (BL-334.5) über einen einheitlichen Entry-Point
 # - API-only: src.api.web_service
 # - UI-only:  src.ui.service
-./scripts/check_bl334_split_smokes.sh
+make dev-smoke
 
 # API-Service starten (kanonischer Entrypoint; ECS-ready)
 python -m src.api.web_service
@@ -148,7 +148,7 @@ curl http://localhost:8081/healthz
 - **Legacy-Kompatibilität bleibt aktiv:**
   - `python -m src.web_service` und `python -m src.ui_service` funktionieren weiterhin als Wrapper.
 - **Wichtig für CI/Smokes:**
-  - service-getrennte Smoke-Ausführung läuft über `./scripts/check_bl334_split_smokes.sh`.
+  - lokaler Standard-Smoke läuft über `make dev-smoke` (delegiert auf `./scripts/check_bl334_split_smokes.sh`).
 
 ### Webservice-Endpoints (MVP)
 
