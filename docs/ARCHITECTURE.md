@@ -251,6 +251,12 @@ History-Boundary-Hinweis (2026-03-04):
 
 Migration-Guide/Referenz: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md#api-deprecation-mapping-dev>; rel="deprecation"`
 
+Legacy-Trace-Contract (`GET /trace` auf API, Stand 2026-03-04):
+- Status: `410 gone`
+- Header (mindestens): `Deprecation: true`, `Sunset: Tue, 30 Jun 2026 23:59:59 GMT`, `Warning: 299 - "Legacy trace alias on API is deprecated and removed: use /debug/trace?request_id=<id>."`
+- `Link` enthält sowohl den Migrationsanker (`rel="deprecation"`) als auch den Nachfolger `</debug/trace>; rel="successor-version"`
+- Body-Hinweis: `error="gone"`, `next="/debug/trace?request_id=<id>"`, `deprecation.scope="trace-debug-legacy-alias"`
+
 Aufruf (lokal/CI):
 
 ```bash

@@ -39,6 +39,7 @@ Diese Inventarliste klassifiziert alle aktuell exponierten HTTP-Endpunkte in **D
 | `/analyze/results/<result_id>` | GET | API | DATA | API-Service (`src/api/web_service.py`) | 3 | Datenprojektion bleibt API-owned. |
 | `/api/v1/dictionaries` | GET | API | DATA | API-Service (`src/api/web_service.py`) | 3 | Referenzdaten-Endpunkt bleibt API-owned. |
 | `/api/v1/dictionaries/<domain>` | GET | API | DATA | API-Service (`src/api/web_service.py`) | 3 | Referenzdaten-Endpunkt bleibt API-owned. |
+| `/trace` (legacy alias) | GET | API | DATA | API-Service (`src/api/web_service.py`) | 4 | Frontlogik entfernt: Endpoint bleibt nur als Deprecation-Hinweis (`410 gone` + Header + Verweis auf `/debug/trace?request_id=<id>`). |
 | `/debug/trace` | GET | API | DATA | API-Service (`src/api/web_service.py`) | 4 | Dev/Diagnose im API-Layer belassen (kein UI-Ownership). |
 | `/compliance/corrections/<document_id>` | POST | API | DATA | API-Service (`src/api/web_service.py`) | 4 | Fachlicher API-Workflow, kein UI-Move. |
 <!-- ENDPOINT_INVENTORY:END -->

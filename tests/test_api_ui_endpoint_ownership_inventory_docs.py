@@ -60,6 +60,7 @@ class TestApiUiEndpointOwnershipInventoryDocs(unittest.TestCase):
             "`/analyze/results/<result_id>`",
             "`/api/v1/dictionaries`",
             "`/api/v1/dictionaries/<domain>`",
+            "`/trace` (legacy alias)",
             "`/debug/trace`",
             "`/compliance/corrections/<document_id>`",
         }
