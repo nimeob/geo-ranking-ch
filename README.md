@@ -25,6 +25,7 @@
 - **API-Grundfunktionen**
   - `GET /gui` als GUI-MVP-Shell (BL-20.6: Adresse + **interaktive OSM-Karte (Pan/Zoom/Klick)** + Result-Panel, API-first)
   - `GET /health` für Liveness-Checks
+  - `GET /health/details` für dev-nahe Diagnosen (`app`/`database`/`auth`)
   - `GET /version` für Build-/Commit-Transparenz
   - `POST /analyze` für adressbasierte Standortanalyse
 - **Sicherheit & Zugriff**
@@ -101,6 +102,7 @@ python -m src.api.web_service
 # optionaler Port via ENV: PORT (primär) oder WEB_PORT (Fallback für Legacy-Wrapper)
 # Healthcheck (ECS/Liveness): http://localhost:8080/health
 # Dev-Healthcheck (mit Build-Info, dev-only): http://localhost:8080/healthz
+# Dev-Diagnosechecks (app/database/auth): http://localhost:8080/health/details
 
 # Optional: Dev-TLS mit self-signed Zertifikat
 # (bevorzugt reproduzierbar via Helper-Script)
@@ -118,6 +120,7 @@ PORT=8443 \
 python -m src.api.web_service
 # Healthcheck (ECS/Liveness): https://localhost:8443/health
 # Dev-Healthcheck (mit Build-Info, dev-only): https://localhost:8443/healthz
+# Dev-Diagnosechecks (app/database/auth): https://localhost:8443/health/details
 
 # Optional: zusätzlicher HTTP->HTTPS Redirect-Listener (Dev)
 TLS_CERT_FILE=/tmp/geo-dev.crt \
@@ -162,6 +165,8 @@ docker run --rm -p 8080:8080 geo-ranking-ch:api-dev
 curl http://localhost:8080/health
 # Dev-Healthcheck (mit Build-Info, dev-only)
 curl http://localhost:8080/healthz
+# Dev-Diagnosechecks (app/database/auth)
+curl http://localhost:8080/health/details
 
 # UI-Image (service-lokaler Build-Kontext via Dockerfile.ui.dockerignore)
 docker build -f Dockerfile.ui -t geo-ranking-ch:ui-dev .
@@ -191,8 +196,16 @@ curl http://localhost:8081/healthz
 | `GET` | `/analyze/results/<result_id>` | Result-JSON für Result-Pages (`?view=latest|requested`) |
 | `GET` | `/health` | Liveness/Healthcheck (ECS) |
 | `GET` | `/healthz` | Dev-Healthcheck (dev-only, no-store): Status + Timestamp + Version/Commit (top-level + `build`) |
+| `GET` | `/health/details` | Dev-Diagnosecheck (no-store): normierte Teilchecks `app`/`database`/`auth` inkl. `status` (`ok|degraded|down`) + `reason` |
 | `GET` | `/version` | Build/Commit-Metadaten |
 | `POST` | `/analyze` | Adressanalyse (`{"query":"...","intelligence_mode":"basic|extended|risk","timeout_seconds":15,"preferences":{...}}`) |
+
+`GET /health/details` liefert für Dev-Smokes ein maschinenlesbares JSON-Format:
+- `timestamp`: UTC-Zeitpunkt für Log-Korrelation
+- `checks.app|database|auth.status`: normiert als `ok|degraded|down`
+- `checks.<name>.reason`: kurze Diagnoseursache für den jeweiligen Teilcheck
+
+Intended usage: Pre-/Post-Deploy-Smokes und schnelle Root-Cause-Triage, wenn `/health` zwar `200` liefert, aber Abhängigkeiten (DB/Auth) degradieren.
 
 #### Historische Abfragen (persistiert)
 
@@ -200,7 +213,7 @@ curl http://localhost:8081/healthz
 - Default-Store-Datei: `runtime/async_jobs/store.v1.json` (override via `ASYNC_JOBS_STORE_FILE`).
 - Sync-Requests (`POST /analyze` ohne Async-Mode) schreiben ebenfalls einen Job + Final-Result in den Store (steuerbar via `ENABLE_QUERY_HISTORY=0/1`, Default: `1`).
 
-**Auth — default-deny (Phase 1):** Sobald `PHASE1_AUTH_USERS_JSON` oder `OIDC_JWKS_URL` gesetzt ist, gilt **default-deny**: alle protected Endpoints erfordern einen gültigen `Authorization: Bearer <token>` Header, sonst folgt `401 unauthorized`. Öffentlich bleiben nur `/health`, `/healthz`, `/version`.
+**Auth — default-deny (Phase 1):** Sobald `PHASE1_AUTH_USERS_JSON` oder `OIDC_JWKS_URL` gesetzt ist, gilt **default-deny**: alle protected Endpoints erfordern einen gültigen `Authorization: Bearer <token>` Header, sonst folgt `401 unauthorized`. Öffentlich bleiben nur `/health`, `/healthz`, `/health/details`, `/version`.
 
 Protected Endpoints:
 - `POST /analyze`
