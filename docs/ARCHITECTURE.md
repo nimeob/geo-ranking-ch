@@ -257,6 +257,8 @@ Legacy-Trace-Contract (`GET /trace` auf API, Stand 2026-03-04):
 - `Link` enthält sowohl den Migrationsanker (`rel="deprecation"`) als auch den Nachfolger `</debug/trace>; rel="successor-version"`
 - Body-Hinweis: `error="gone"`, `next="/debug/trace?request_id=<id>"`, `deprecation.scope="trace-debug-legacy-alias"`
 
+Onboarding-/Migrationsguide (Issue #1176): [`docs/api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md`](api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md)
+
 Aufruf (lokal/CI):
 
 ```bash
