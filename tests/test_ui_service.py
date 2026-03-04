@@ -148,6 +148,17 @@ class TestUiService(unittest.TestCase):
         self.assertIn('const AUTH_LOGIN_ENDPOINT = "https://api.example.test/auth/login"', body)
         self.assertIn('credentials: "include"', body)
         self.assertIn("/results/", body)
+        self.assertIn('id="history-status-filter"', body)
+        self.assertIn('id="history-query-filter"', body)
+        self.assertIn('id="history-page-prev"', body)
+        self.assertIn('id="history-page-next"', body)
+        self.assertIn("history_status", body)
+        self.assertIn("history_q", body)
+        self.assertIn("history_page", body)
+        self.assertIn("history_limit", body)
+        self.assertIn('function applyClientFilters(rows)', body)
+        self.assertIn('function buildHistoryRequestUrl()', body)
+        self.assertIn('const offset = Math.max(0, (historyState.page - 1) * historyState.limit);', body)
 
     def test_result_permalink_page_renders_and_contains_tabs(self):
         status, body, headers = _http(f"{self.base_url}/results/res-123")
@@ -257,6 +268,9 @@ class TestUiService(unittest.TestCase):
         self.assertIn('params.set("reason", normalizedReason);', body)
         self.assertIn('refresh_grant_error', body)
         self.assertIn('window.location.assign(loginUrl);', body)
+        self.assertIn('function canonicalHistoryStatus(value)', body)
+        self.assertIn('function applyClientFilters(rows)', body)
+        self.assertIn('function renderPageMeta(filteredCount)', body)
 
     def test_results_page_has_token_input_and_sets_authorization_header(self):
         """GET /results/<id>: Token input vorhanden + JS setzt Authorization: Bearer <token> Header."""

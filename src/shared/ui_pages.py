@@ -285,6 +285,27 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         font-size: 0.85rem;
       }
       .stack { display: grid; gap: 0.65rem; }
+      .toolbar-row {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 0.85rem;
+        align-items: center;
+      }
+      .toolbar-row .meta { margin-left: auto; }
+      .pagination-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .pagination-row .meta {
+        margin-left: auto;
+      }
+      .pagination-row button[disabled] {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
     </style>
   </head>
   <body>
@@ -305,14 +326,14 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
     <main>
       <section class="card">
         <h2>Loader</h2>
-        <p class="meta">Lädt via <code>GET /analyze/history</code>. Auth läuft über Login/Session-Cookie; optional Tenant-Header via <code>X-Org-Id</code>.</p>
+        <p class="meta">Lädt via <code>GET /analyze/history</code>. Auth läuft über Login/Session-Cookie; optional Tenant-Header via <code>X-Org-Id</code>. Filter + Pagination werden in der UI angewendet.</p>
         <div class="grid-3">
           <label>
             X-Org-Id (Tenant)
             <input id="org-id" type="text" placeholder="default-org" />
           </label>
           <label>
-            limit
+            Page size
             <select id="limit">
               <option value="25">25</option>
               <option value="50" selected>50</option>
@@ -320,8 +341,26 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
               <option value="200">200</option>
             </select>
           </label>
+          <label>
+            Status-Filter
+            <select id="history-status-filter">
+              <option value="all">all</option>
+              <option value="queued">queued</option>
+              <option value="running">running</option>
+              <option value="partial">partial</option>
+              <option value="succeeded">succeeded</option>
+              <option value="failed">failed</option>
+              <option value="canceled">canceled</option>
+            </select>
+          </label>
         </div>
-        <div style="display:flex; gap: 0.65rem; flex-wrap: wrap; margin-top: 0.85rem; align-items: center;">
+        <div class="grid-3" style="margin-top: 0.65rem;">
+          <label>
+            Suche (query/result_id/job_id)
+            <input id="history-query-filter" type="text" placeholder="z. B. St. Gallen oder res-123" autocomplete="off" />
+          </label>
+        </div>
+        <div class="toolbar-row">
           <button id="load-btn" type="button">Historie laden</button>
           <button id="clear-btn" class="secondary" type="button">Clear</button>
           <span id="status" class="meta">Status: idle</span>
@@ -331,6 +370,12 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
 
       <section class="card">
         <h2>Liste</h2>
+        <div class="pagination-row" style="margin-bottom: 0.75rem;">
+          <button id="history-page-prev" class="secondary" type="button">← Zurück</button>
+          <button id="history-page-next" class="secondary" type="button">Weiter →</button>
+          <span id="history-page-meta" class="meta">Seite 1</span>
+          <span id="history-filter-meta" class="meta">—</span>
+        </div>
         <div id="history-list" class="stack"><div class="meta">Noch nicht geladen.</div></div>
       </section>
 
@@ -383,11 +428,28 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
 
         const orgEl = document.getElementById("org-id");
         const limitEl = document.getElementById("limit");
+        const statusFilterEl = document.getElementById("history-status-filter");
+        const queryFilterEl = document.getElementById("history-query-filter");
         const statusEl = document.getElementById("status");
         const loadBtn = document.getElementById("load-btn");
         const clearBtn = document.getElementById("clear-btn");
+        const prevPageBtn = document.getElementById("history-page-prev");
+        const nextPageBtn = document.getElementById("history-page-next");
+        const pageMetaEl = document.getElementById("history-page-meta");
+        const filterMetaEl = document.getElementById("history-filter-meta");
         const errorEl = document.getElementById("error");
         const listEl = document.getElementById("history-list");
+
+        const historyState = {
+          page: 1,
+          limit: 50,
+          total: 0,
+          rows: [],
+          statusFilter: "all",
+          queryFilter: "",
+          loaded: false,
+        };
+
         let authRecoveryRedirectScheduled = false;
 
         __BURGER_JS__
@@ -529,6 +591,69 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           }
         }
 
+        function normalizeLimit(value) {
+          const normalized = Number(String(value || "50").trim());
+          if (!Number.isFinite(normalized)) return 50;
+          if (normalized === 25 || normalized === 50 || normalized === 100 || normalized === 200) {
+            return normalized;
+          }
+          return 50;
+        }
+
+        function normalizePage(value) {
+          const normalized = Math.trunc(Number(value));
+          if (!Number.isFinite(normalized) || normalized < 1) return 1;
+          return normalized;
+        }
+
+        function canonicalHistoryStatus(value) {
+          const normalized = String(value || "").trim().toLowerCase();
+          if (!normalized) return "";
+          if (normalized === "completed" || normalized === "success") return "succeeded";
+          if (normalized === "cancelled") return "canceled";
+          return normalized;
+        }
+
+        function normalizeStatusFilter(value) {
+          const normalized = canonicalHistoryStatus(String(value || "all").trim().toLowerCase()) || "all";
+          const allowed = new Set(["all", "queued", "running", "partial", "succeeded", "failed", "canceled"]);
+          return allowed.has(normalized) ? normalized : "all";
+        }
+
+        function updateControlsFromState() {
+          limitEl.value = String(historyState.limit);
+          statusFilterEl.value = historyState.statusFilter;
+          queryFilterEl.value = historyState.queryFilter;
+        }
+
+        function updateDeepLink() {
+          if (typeof window === "undefined" || !window.history || !window.location) return;
+
+          const nextUrl = new URL(window.location.href);
+          if (historyState.page > 1) nextUrl.searchParams.set("history_page", String(historyState.page));
+          else nextUrl.searchParams.delete("history_page");
+
+          if (historyState.limit !== 50) nextUrl.searchParams.set("history_limit", String(historyState.limit));
+          else nextUrl.searchParams.delete("history_limit");
+
+          if (historyState.statusFilter !== "all") nextUrl.searchParams.set("history_status", historyState.statusFilter);
+          else nextUrl.searchParams.delete("history_status");
+
+          if (historyState.queryFilter) nextUrl.searchParams.set("history_q", historyState.queryFilter);
+          else nextUrl.searchParams.delete("history_q");
+
+          window.history.replaceState({}, "", nextUrl);
+        }
+
+        function restoreDeepLinkState() {
+          if (typeof window === "undefined" || !window.location) return;
+          const url = new URL(window.location.href);
+          historyState.page = normalizePage(url.searchParams.get("history_page") || "1");
+          historyState.limit = normalizeLimit(url.searchParams.get("history_limit") || "50");
+          historyState.statusFilter = normalizeStatusFilter(url.searchParams.get("history_status") || "all");
+          historyState.queryFilter = String(url.searchParams.get("history_q") || "").trim();
+        }
+
         function applyInitialState() {
           try {
             if (typeof window !== "undefined" && window.sessionStorage) {
@@ -539,6 +664,9 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
             // ignore
           }
           if (!String(orgEl.value || "").trim()) orgEl.value = "default-org";
+
+          restoreDeepLinkState();
+          updateControlsFromState();
         }
 
         function createUiCorrelationId(prefix = "req") {
@@ -559,9 +687,52 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           return headers;
         }
 
+        function syncStateFromControls({ resetPage = false } = {}) {
+          historyState.limit = normalizeLimit(limitEl.value);
+          historyState.statusFilter = normalizeStatusFilter(statusFilterEl.value);
+          historyState.queryFilter = String(queryFilterEl.value || "").trim();
+          if (resetPage) {
+            historyState.page = 1;
+          }
+        }
+
+        function buildHistoryRequestUrl() {
+          const offset = Math.max(0, (historyState.page - 1) * historyState.limit);
+          return `${ANALYZE_HISTORY_ENDPOINT}?limit=${encodeURIComponent(String(historyState.limit))}&offset=${encodeURIComponent(String(offset))}`;
+        }
+
+        function applyClientFilters(rows) {
+          if (!Array.isArray(rows)) return [];
+
+          const normalizedQuery = String(historyState.queryFilter || "").trim().toLowerCase();
+          const normalizedStatus = normalizeStatusFilter(historyState.statusFilter);
+
+          return rows.filter((row) => {
+            const rowStatus = canonicalHistoryStatus(row && row.status ? String(row.status) : "");
+            if (normalizedStatus !== "all" && rowStatus !== normalizedStatus) {
+              return false;
+            }
+
+            if (!normalizedQuery) {
+              return true;
+            }
+
+            const haystack = [
+              String(row && row.query ? row.query : ""),
+              String(row && row.result_id ? row.result_id : ""),
+              String(row && row.job_id ? row.job_id : ""),
+              rowStatus,
+            ]
+              .join(" ")
+              .toLowerCase();
+
+            return haystack.includes(normalizedQuery);
+          });
+        }
+
         function renderRows(rows) {
           if (!Array.isArray(rows) || rows.length === 0) {
-            listEl.innerHTML = '<div class="meta">Keine Einträge.</div>';
+            listEl.innerHTML = '<div class="meta">Keine Einträge mit aktuellem Filter auf dieser Seite.</div>';
             return;
           }
 
@@ -570,12 +741,12 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
             const query = String(row && row.query ? row.query : "").trim() || "(ohne Query)";
             const when = formatLocalTime(row && row.created_at ? row.created_at : "");
             const mode = String(row && row.intelligence_mode ? row.intelligence_mode : "basic").trim();
-            const status = String(row && row.status ? row.status : "").trim();
+            const status = canonicalHistoryStatus(row && row.status ? row.status : "") || "unknown";
             const href = resultId ? `/results/${encodeURIComponent(resultId)}` : "#";
+            const openAttrs = resultId ? "" : 'aria-disabled="true" tabindex="-1"';
 
-            const metaParts = [when, mode];
-            if (status) metaParts.push(status);
-            const meta = metaParts.filter(Boolean).join(" · ");
+            const metaParts = [when, mode, status].filter(Boolean);
+            const meta = metaParts.join(" · ");
 
             return `
               <div class="pill">
@@ -583,7 +754,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
                   <strong>${escapeHtml(query)}</strong>
                   <span class="meta">${escapeHtml(meta)}</span>
                 </div>
-                <a href="${href}">Open</a>
+                <a href="${href}" ${openAttrs}>Open</a>
               </div>
             `;
           }).join("\n");
@@ -591,14 +762,39 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           listEl.innerHTML = html;
         }
 
+        function renderPageMeta(filteredCount) {
+          const total = Math.max(0, Number(historyState.total) || 0);
+          const offset = Math.max(0, (historyState.page - 1) * historyState.limit);
+          const hasRows = total > 0;
+          const start = hasRows ? offset + 1 : 0;
+          const end = hasRows ? Math.min(offset + historyState.limit, total) : 0;
+          const totalPages = Math.max(1, Math.ceil(total / historyState.limit));
+
+          pageMetaEl.textContent = `Seite ${historyState.page}/${totalPages} · ${start}-${end} von ${total}`;
+          filterMetaEl.textContent = `sichtbar: ${filteredCount}`;
+
+          prevPageBtn.disabled = historyState.page <= 1;
+          nextPageBtn.disabled = historyState.page >= totalPages;
+        }
+
+        function renderCurrentPage() {
+          const filteredRows = applyClientFilters(historyState.rows);
+          renderRows(filteredRows);
+          renderPageMeta(filteredRows.length);
+          updateDeepLink();
+        }
+
         async function loadHistory() {
           setError("");
           persistInputs();
+          syncStateFromControls();
           setStatus("loading");
-          loadBtn.disabled = true;
 
-          const limit = String(limitEl.value || "50").trim() || "50";
-          const url = `${ANALYZE_HISTORY_ENDPOINT}?limit=${encodeURIComponent(limit)}`;
+          loadBtn.disabled = true;
+          prevPageBtn.disabled = true;
+          nextPageBtn.disabled = true;
+
+          const url = buildHistoryRequestUrl();
 
           let response;
           let parsed;
@@ -610,6 +806,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
             setStatus("error");
             setError(error instanceof Error ? error.message : "network_error");
             loadBtn.disabled = false;
+            renderPageMeta(0);
             return;
           }
 
@@ -623,18 +820,91 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
               scheduleReLoginRedirect(response.status, authFailure.errorCode);
             }
             loadBtn.disabled = false;
+            renderPageMeta(0);
             return;
           }
 
+          historyState.rows = Array.isArray(parsed.history) ? parsed.history : [];
+          historyState.total = Number(parsed.total);
+          if (!Number.isFinite(historyState.total) || historyState.total < 0) {
+            historyState.total = historyState.rows.length;
+          }
+          historyState.loaded = true;
+
           setStatus("success");
-          renderRows(parsed.history);
+          renderCurrentPage();
           loadBtn.disabled = false;
         }
 
-        loadBtn.addEventListener("click", () => { void loadHistory(); });
-        clearBtn.addEventListener("click", () => { listEl.innerHTML = '<div class="meta">Noch nicht geladen.</div>'; });
+        function resetHistoryView() {
+          historyState.page = 1;
+          historyState.limit = 50;
+          historyState.total = 0;
+          historyState.rows = [];
+          historyState.statusFilter = "all";
+          historyState.queryFilter = "";
+          historyState.loaded = false;
+          updateControlsFromState();
+          updateDeepLink();
+          setError("");
+          setStatus("idle");
+          listEl.innerHTML = '<div class="meta">Noch nicht geladen.</div>';
+          renderPageMeta(0);
+        }
+
+        loadBtn.addEventListener("click", () => {
+          syncStateFromControls({ resetPage: true });
+          void loadHistory();
+        });
+
+        clearBtn.addEventListener("click", () => {
+          resetHistoryView();
+        });
+
+        statusFilterEl.addEventListener("change", () => {
+          syncStateFromControls();
+          if (historyState.loaded) {
+            renderCurrentPage();
+          } else {
+            updateDeepLink();
+          }
+        });
+
+        queryFilterEl.addEventListener("input", () => {
+          syncStateFromControls();
+          if (historyState.loaded) {
+            renderCurrentPage();
+          } else {
+            updateDeepLink();
+          }
+        });
+
+        limitEl.addEventListener("change", () => {
+          syncStateFromControls({ resetPage: true });
+          if (historyState.loaded) {
+            void loadHistory();
+          } else {
+            updateDeepLink();
+          }
+        });
+
+        prevPageBtn.addEventListener("click", () => {
+          if (historyState.page <= 1) return;
+          historyState.page -= 1;
+          updateDeepLink();
+          void loadHistory();
+        });
+
+        nextPageBtn.addEventListener("click", () => {
+          const totalPages = Math.max(1, Math.ceil(Math.max(0, Number(historyState.total) || 0) / historyState.limit));
+          if (historyState.page >= totalPages) return;
+          historyState.page += 1;
+          updateDeepLink();
+          void loadHistory();
+        });
 
         applyInitialState();
+        renderPageMeta(0);
         void loadHistory();
       </script>
     </main>

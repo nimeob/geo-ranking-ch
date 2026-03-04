@@ -238,6 +238,7 @@ Boundary-Inventar (Issue #1168):
 History-Boundary-Hinweis (2026-03-04):
 - Front-Facing `GET /history` auf dem API-Service ist deprecated/removed (`410 gone` + Deprecation/Sunset-Header).
 - `GET /analyze/history` bleibt als Data-Source-Endpunkt verfügbar, liefert aber ebenfalls Deprecation/Sunset-Header für den geordneten UI-Migrationspfad.
+- UI-Ownership für die History-Ansicht umfasst View-/Filter-/Pagination-Logik (`history_status`, `history_q`, `history_page`, `history_limit` als sharebare UI-Query-Parameter); API liefert dafür nur paginierte Rohdaten (`limit`/`offset` + `history[]` + `total`).
 
 #### API Deprecation Mapping (Dev)
 
