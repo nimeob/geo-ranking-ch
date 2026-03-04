@@ -3,10 +3,13 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib import error, request
+from urllib.parse import parse_qs, urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -42,9 +45,58 @@ def _http(url: str, *, timeout: float = 10.0, follow_redirects: bool = True):
         )
 
 
+class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
+    server_version = "auth-stub/1.0"
+
+    def log_message(self, fmt, *args):  # noqa: D401 - test silence
+        return
+
+    def do_GET(self):  # noqa: N802 - stdlib callback
+        parsed = urlparse(self.path)
+        self.server.request_log.append(
+            {
+                "path": parsed.path,
+                "query": parsed.query,
+                "cookie": self.headers.get("Cookie", ""),
+            }
+        )
+
+        if parsed.path == "/auth/login":
+            next_value = parse_qs(parsed.query).get("next", ["/gui"])[0]
+            self.send_response(302)
+            self.send_header("Location", f"/oidc/authorize?next={next_value}")
+            self.send_header("Set-Cookie", "bff-state=state-123; HttpOnly; Path=/")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
+        if parsed.path == "/auth/me":
+            payload = json.dumps({"ok": True, "subject": "demo-user"}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+
 class TestUiService(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.upstream_port = _free_port()
+        cls.upstream_server = ThreadingHTTPServer(("127.0.0.1", cls.upstream_port), _UpstreamAuthStubHandler)
+        cls.upstream_server.request_log = []
+        cls.upstream_thread = threading.Thread(target=cls.upstream_server.serve_forever, daemon=True)
+        cls.upstream_thread.start()
+
+        cls.api_base_url = f"http://127.0.0.1:{cls.upstream_port}"
+
         cls.port = _free_port()
         cls.base_url = f"http://127.0.0.1:{cls.port}"
 
@@ -54,7 +106,7 @@ class TestUiService(unittest.TestCase):
                 "HOST": "127.0.0.1",
                 "PORT": str(cls.port),
                 "APP_VERSION": "ui-test-v1",
-                "UI_API_BASE_URL": "https://api.example.test",
+                "UI_API_BASE_URL": cls.api_base_url,
                 "PYTHONPATH": str(REPO_ROOT),
             }
         )
@@ -88,6 +140,10 @@ class TestUiService(unittest.TestCase):
         except subprocess.TimeoutExpired:
             cls.proc.kill()
 
+        cls.upstream_server.shutdown()
+        cls.upstream_server.server_close()
+        cls.upstream_thread.join(timeout=5)
+
     def test_healthz_exposes_ui_service_metadata(self):
         status, body, headers = _http(f"{self.base_url}/healthz")
         self.assertEqual(status, 200)
@@ -97,7 +153,7 @@ class TestUiService(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["service"], "geo-ranking-ch-ui")
         self.assertEqual(payload["version"], "ui-test-v1")
-        self.assertEqual(payload["api_base_url"], "https://api.example.test")
+        self.assertEqual(payload["api_base_url"], self.api_base_url)
 
     def test_gui_endpoint_uses_absolute_api_base_when_configured(self):
         status, body, headers = _http(f"{self.base_url}//gui///?probe=1")
@@ -105,15 +161,15 @@ class TestUiService(unittest.TestCase):
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("geo-ranking.ch GUI MVP", body)
         self.assertIn("Version ui-test-v1", body)
-        self.assertIn('fetch("https://api.example.test/analyze"', body)
-        self.assertIn('const TRACE_DEBUG_ENDPOINT = "https://api.example.test/debug/trace";', body)
-        self.assertIn('const ANALYZE_JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
-        self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "https://api.example.test/analyze/history";', body)
-        self.assertIn('const AUTH_LOGIN_ENDPOINT = "https://api.example.test/auth/login";', body)
-        self.assertIn('const AUTH_LOGOUT_ENDPOINT = "https://api.example.test/auth/logout";', body)
-        self.assertIn('const AUTH_ME_ENDPOINT = "https://api.example.test/auth/me";', body)
-        self.assertIn('href="https://api.example.test/auth/login"', body)
-        self.assertIn('href="https://api.example.test/auth/logout"', body)
+        self.assertIn(f'fetch("{self.api_base_url}/analyze"', body)
+        self.assertIn(f'const TRACE_DEBUG_ENDPOINT = "{self.api_base_url}/debug/trace";', body)
+        self.assertIn(f'const ANALYZE_JOBS_ENDPOINT_BASE = "{self.api_base_url}/analyze/jobs";', body)
+        self.assertIn(f'const ANALYZE_HISTORY_ENDPOINT = "{self.api_base_url}/analyze/history";', body)
+        self.assertIn('const AUTH_LOGIN_ENDPOINT = "/login";', body)
+        self.assertIn('const AUTH_LOGOUT_ENDPOINT = "/auth/logout";', body)
+        self.assertIn('const AUTH_ME_ENDPOINT = "/auth/me";', body)
+        self.assertIn('href="/login"', body)
+        self.assertIn('href="/auth/logout"', body)
         self.assertIn('credentials: "include"', body)
 
     def test_job_permalink_page_renders_and_targets_absolute_api_endpoints(self):
@@ -122,7 +178,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("Async Job", body)
         self.assertIn("job-123", body)
-        self.assertIn('const JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
+        self.assertIn(f'const JOBS_ENDPOINT_BASE = "{self.api_base_url}/analyze/jobs";', body)
 
     def test_jobs_list_page_renders_and_targets_absolute_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/jobs")
@@ -132,7 +188,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn('id="jobs-status"', body)
         self.assertIn('id="jobs-q"', body)
         self.assertIn('id="jobs-add-id"', body)
-        self.assertIn('const JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
+        self.assertIn(f'const JOBS_ENDPOINT_BASE = "{self.api_base_url}/analyze/jobs";', body)
         self.assertIn("jobs_status", body)
         self.assertIn("jobs_q", body)
         self.assertIn('<option value="succeeded">succeeded</option>', body)
@@ -144,8 +200,8 @@ class TestUiService(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("Historische Abfragen", body)
-        self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "https://api.example.test/analyze/history"', body)
-        self.assertIn('const AUTH_LOGIN_ENDPOINT = "https://api.example.test/auth/login"', body)
+        self.assertIn(f'const ANALYZE_HISTORY_ENDPOINT = "{self.api_base_url}/analyze/history"', body)
+        self.assertIn('const AUTH_LOGIN_ENDPOINT = "/login"', body)
         self.assertIn('credentials: "include"', body)
         self.assertIn("/results/", body)
         self.assertIn('id="history-status-filter"', body)
@@ -184,7 +240,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn('<div id="tab-raw" class="tab-panel" hidden>', body)
 
         # API base URL must be wired for UI deployments.
-        self.assertIn('const RESULTS_ENDPOINT_BASE = "https://api.example.test/analyze/results";', body)
+        self.assertIn(f'const RESULTS_ENDPOINT_BASE = "{self.api_base_url}/analyze/results";', body)
 
         # Regression guard (Issue #1123): missing optional metadata must not hard-crash rendering.
         self.assertIn('function asObject(value)', body)
@@ -210,16 +266,33 @@ class TestUiService(unittest.TestCase):
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"], "not_found")
 
-    def test_auth_routes_redirect_to_api_base_when_configured(self):
+    def test_login_entry_route_stays_ui_owned(self):
+        status, _, headers = _http(
+            f"{self.base_url}/login?next=%2Fgui&reason=manual_login",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui&reason=manual_login")
+
+    def test_auth_routes_are_proxied_without_api_host_redirect(self):
+        self.upstream_server.request_log.clear()
+
         status, _, headers = _http(
             f"{self.base_url}/auth/login?next=%2Fgui&reason=manual_login",
             follow_redirects=False,
         )
         self.assertEqual(status, 302)
-        self.assertEqual(
-            headers.get("location"),
-            "https://api.example.test/auth/login?next=%2Fgui&reason=manual_login",
-        )
+        self.assertEqual(headers.get("location"), "/oidc/authorize?next=/gui")
+        self.assertIn("bff-state=state-123", headers.get("set-cookie", ""))
+
+        status, body, headers = _http(f"{self.base_url}/auth/me")
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", headers.get("content-type", ""))
+        self.assertEqual(json.loads(body), {"ok": True, "subject": "demo-user"})
+
+        logged_paths = [entry["path"] for entry in self.upstream_server.request_log]
+        self.assertIn("/auth/login", logged_paths)
+        self.assertIn("/auth/me", logged_paths)
 
     # --- GUI Auth UX wp2: Session-Flow statt Bearer-Paste für /analyze + /analyze/history ---
 

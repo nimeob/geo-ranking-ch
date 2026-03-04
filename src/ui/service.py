@@ -24,7 +24,9 @@ import re
 from html import escape
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib import error as urllib_error
+from urllib import request as urllib_request
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from src.shared.gui_mvp import render_gui_mvp_html
 from src.shared.ui_pages import build_history_page_html, build_result_tabs_page_html
@@ -1372,9 +1374,10 @@ def _normalize_job_id(raw_value: str) -> str:
 
 def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
     normalized_base_url = api_base_url.rstrip("/") if api_base_url else ""
-    auth_login_url = f"{normalized_base_url}/auth/login" if normalized_base_url else "/auth/login"
-    auth_logout_url = f"{normalized_base_url}/auth/logout" if normalized_base_url else "/auth/logout"
-    auth_me_url = f"{normalized_base_url}/auth/me" if normalized_base_url else "/auth/me"
+    # Auth-Entry bleibt UI-owned: Login immer über /login auf der UI-Domain.
+    auth_login_url = "/login"
+    auth_logout_url = "/auth/logout"
+    auth_me_url = "/auth/me"
 
     html = render_gui_mvp_html(
         app_version=app_version,
@@ -1487,21 +1490,91 @@ class _UiHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _redirect_to_api_base(self, *, request_path: str, raw_query: str) -> bool:
-        """Leitet UI-auth Pfade auf die API-Basis weiter, wenn konfiguriert."""
-
+    def _build_api_target_url(self, *, request_path: str, raw_query: str) -> str | None:
         normalized_base_url = str(self.server.ui_api_base_url or "").strip().rstrip("/")
         if not normalized_base_url:
+            return None
+        target_url = f"{normalized_base_url}{request_path}"
+        if raw_query:
+            target_url = f"{target_url}?{raw_query}"
+        return target_url
+
+    @staticmethod
+    def _rewrite_upstream_location(*, location: str, api_base_url: str) -> str:
+        normalized_base_url = str(api_base_url or "").strip().rstrip("/")
+        if not location or not normalized_base_url:
+            return location
+        if location.startswith(f"{normalized_base_url}/"):
+            parsed = urlsplit(location)
+            return urlunsplit(("", "", parsed.path, parsed.query, parsed.fragment))
+        return location
+
+    def _proxy_auth_request(self, *, request_path: str, raw_query: str) -> bool:
+        """Proxied ``/auth/*`` calls to API while keeping browser URL on UI host."""
+
+        target_url = self._build_api_target_url(request_path=request_path, raw_query=raw_query)
+        if not target_url:
             return False
 
-        location = f"{normalized_base_url}{request_path}"
-        if raw_query:
-            location = f"{location}?{raw_query}"
-        self.send_response(HTTPStatus.FOUND)
-        self.send_header("Location", location)
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", "0")
+        upstream_headers: dict[str, str] = {}
+        forwarded_cookie = self.headers.get("Cookie")
+        if forwarded_cookie:
+            upstream_headers["Cookie"] = forwarded_cookie
+        forwarded_accept = self.headers.get("Accept")
+        if forwarded_accept:
+            upstream_headers["Accept"] = forwarded_accept
+
+        class _NoRedirect(urllib_request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, hdrs, newurl):  # noqa: D401
+                return None
+
+        req = urllib_request.Request(target_url, method="GET", headers=upstream_headers)
+        opener = urllib_request.build_opener(_NoRedirect)
+        try:
+            upstream_resp = opener.open(req, timeout=15)
+        except urllib_error.HTTPError as exc:
+            upstream_resp = exc
+        except urllib_error.URLError:
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "upstream_unavailable",
+                    "message": "auth upstream unavailable",
+                },
+                status=HTTPStatus.BAD_GATEWAY,
+            )
+            return True
+
+        body = upstream_resp.read()
+        upstream_status = int(getattr(upstream_resp, "status", 0) or upstream_resp.getcode())
+        self.send_response(upstream_status)
+
+        hop_by_hop_headers = {
+            "connection",
+            "keep-alive",
+            "proxy-authenticate",
+            "proxy-authorization",
+            "te",
+            "trailer",
+            "transfer-encoding",
+            "upgrade",
+            "content-length",
+        }
+        for header_name, header_value in upstream_resp.headers.items():
+            normalized_name = header_name.lower()
+            if normalized_name in hop_by_hop_headers:
+                continue
+            if normalized_name == "location":
+                header_value = self._rewrite_upstream_location(
+                    location=header_value,
+                    api_base_url=self.server.ui_api_base_url,
+                )
+            self.send_header(header_name, header_value)
+
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
+        if body:
+            self.wfile.write(body)
         return True
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib callback name
@@ -1516,9 +1589,29 @@ class _UiHandler(BaseHTTPRequestHandler):
             self._send_html(html)
             return
 
+        if request_path == "/login":
+            location = "/auth/login"
+            if parsed.query:
+                location = f"{location}?{parsed.query}"
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header("Location", location)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
         if request_path.startswith("/auth/"):
-            if self._redirect_to_api_base(request_path=request_path, raw_query=parsed.query):
+            if self._proxy_auth_request(request_path=request_path, raw_query=parsed.query):
                 return
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "auth_proxy_not_configured",
+                    "message": "UI auth proxy requires UI_API_BASE_URL",
+                },
+                status=HTTPStatus.SERVICE_UNAVAILABLE,
+            )
+            return
 
         if request_path == "/history":
             html = build_history_page_html(

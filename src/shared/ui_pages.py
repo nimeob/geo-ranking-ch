@@ -41,8 +41,15 @@ def _history_endpoint(api_base_url: str) -> str:
 
 
 def _auth_login_endpoint(api_base_url: str) -> str:
-    base = str(api_base_url or "").strip().rstrip("/")
-    return f"{base}/auth/login" if base else "/auth/login"
+    """Return UI-owned login entrypoint.
+
+    ``api_base_url`` bleibt absichtlich ungenutzt: der Browser soll sich immer
+    über ``/login`` auf der UI-Domain einloggen und nicht direkt den API-Host
+    ansurfen.
+    """
+
+    _ = api_base_url
+    return "/login"
 
 
 _BURGER_CSS = """
