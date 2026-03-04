@@ -909,6 +909,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       });
       const AUTH_RECOVERY_REASON_BY_STATUS = Object.freeze({
         "401": "session_expired",
+        "403": "session_expired",
       });
 
       const state = {
@@ -1226,11 +1227,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           if (!response.ok || !data || data.ok !== true) {
             const errCode = data && data.error ? String(data.error) : `http_${response.status}`;
             const fallbackMessage = (data && data.message) || `history fetch failed (${response.status})`;
-            const richError = buildAuthorizationUxErrorMessage(response.status, fallbackMessage, errCode);
-            if (isSessionRecoveryRequired(response.status, errCode)) {
-              scheduleReLoginRedirect(response.status, errCode, data && data.request_id ? String(data.request_id) : "");
+            const authFailure = resolveAuthFailure(response.status, errCode, fallbackMessage);
+            if (authFailure.requiresLoginRecovery) {
+              scheduleReLoginRedirect(
+                response.status,
+                authFailure.errorCode,
+                data && data.request_id ? String(data.request_id) : ""
+              );
             }
-            throw new Error(richError);
+            throw new Error(authFailure.errorMessage);
           }
           renderHistoryItems(data.history);
         } catch (error) {
@@ -3258,7 +3263,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function isSessionRecoveryRequired(statusCode, errorCode) {
         const normalizedStatus = Number(statusCode);
         const normalizedCode = normalizeErrorCode(errorCode);
-        if (normalizedStatus === 401) {
+        if (normalizedStatus === 401 || normalizedStatus === 403) {
           return true;
         }
         return SESSION_RECOVERY_ERROR_CODES.has(normalizedCode);
@@ -3451,6 +3456,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return String(fallbackMessage || "Unbekannter Fehler");
       }
 
+      function resolveAuthFailure(statusCode, errorCode, fallbackMessage) {
+        const normalizedCode = normalizeErrorCode(errorCode);
+        return {
+          errorCode: normalizedCode,
+          errorMessage: buildAuthorizationUxErrorMessage(statusCode, fallbackMessage, normalizedCode),
+          requiresLoginRecovery: isSessionRecoveryRequired(statusCode, normalizedCode),
+        };
+      }
+
       async function runAnalyze(payload, context = {}) {
         const traceId = String(context.traceId || "").trim();
         const requestId = String(context.requestId || "").trim() || createUiCorrelationId("req");
@@ -3549,35 +3563,34 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         const responseRequestId = parsed && parsed.request_id ? String(parsed.request_id) : requestId;
         if (!response.ok || !parsed.ok) {
-          const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
-          const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
-          const richError = buildAuthorizationUxErrorMessage(response.status, `${errCode}: ${errMsg}`, errCode);
-          const failingResponse = parsed || { ok: false, error: errCode, message: errMsg };
-          const requiresLoginRecovery = isSessionRecoveryRequired(response.status, errCode);
+          const errCode = parsed && parsed.error ? String(parsed.error) : `http_${response.status}`;
+          const errMsg = parsed && parsed.message ? String(parsed.message) : "Unbekannter Fehler";
+          const authFailure = resolveAuthFailure(response.status, errCode, `${errCode}: ${errMsg}`);
+          const failingResponse = parsed || { ok: false, error: authFailure.errorCode, message: errMsg };
 
           emitUiEvent("ui.api.request.end", {
-            level: requestLifecycleLevel(response.status, errCode),
+            level: requestLifecycleLevel(response.status, authFailure.errorCode),
             traceId,
             requestId: responseRequestId,
             direction: "api->ui",
-            status: requestLifecycleStatus(response.status, errCode),
+            status: requestLifecycleStatus(response.status, authFailure.errorCode),
             route: "/analyze",
             method: "POST",
             status_code: response.status,
             duration_ms: durationMs,
-            error_code: errCode,
-            error_class: errCode,
-            auth_recovery_required: requiresLoginRecovery,
+            error_code: authFailure.errorCode,
+            error_class: authFailure.errorCode,
+            auth_recovery_required: authFailure.requiresLoginRecovery,
           });
 
           return {
             ok: false,
             requestId: responseRequestId,
             response: failingResponse,
-            errorMessage: richError,
-            errorCode: errCode,
+            errorMessage: authFailure.errorMessage,
+            errorCode: authFailure.errorCode,
             statusCode: response.status,
-            requiresLoginRecovery,
+            requiresLoginRecovery: authFailure.requiresLoginRecovery,
           };
         }
 
@@ -3802,19 +3815,20 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         if (!response.ok || !parsed.ok) {
           const errCode = parsed && parsed.error ? String(parsed.error) : `http_${response.status}`;
           const errMsg = parsed && parsed.message ? String(parsed.message) : "Trace-Abfrage fehlgeschlagen";
+          const authFailure = resolveAuthFailure(response.status, errCode, `${errCode}: ${errMsg}`);
 
           emitUiEvent("ui.trace.request.end", {
-            level: requestLifecycleLevel(response.status, errCode),
+            level: requestLifecycleLevel(response.status, authFailure.errorCode),
             traceId,
             requestId: responseRequestId,
             direction: "api->ui",
-            status: requestLifecycleStatus(response.status, errCode),
+            status: requestLifecycleStatus(response.status, authFailure.errorCode),
             route: TRACE_DEBUG_ENDPOINT,
             method: "GET",
             status_code: response.status,
             duration_ms: durationMs,
-            error_code: errCode,
-            error_class: errCode,
+            error_code: authFailure.errorCode,
+            error_class: authFailure.errorCode,
             trace_request_id: normalizedTraceRequestId,
           });
 
@@ -3822,11 +3836,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             ok: false,
             requestId: responseRequestId,
             traceRequestId: normalizedTraceRequestId,
-            response: parsed || { ok: false, error: errCode, message: errMsg },
-            errorCode: errCode,
+            response: parsed || { ok: false, error: authFailure.errorCode, message: errMsg },
+            errorCode: authFailure.errorCode,
             statusCode: response.status,
-            errorMessage: buildAuthorizationUxErrorMessage(response.status, `${errCode}: ${errMsg}`, errCode),
-            requiresLoginRecovery: isSessionRecoveryRequired(response.status, errCode),
+            errorMessage: authFailure.errorMessage,
+            requiresLoginRecovery: authFailure.requiresLoginRecovery,
           };
         }
 
