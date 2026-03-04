@@ -56,6 +56,13 @@ Für Session-Recovery nutzen `/gui` und `/history` dieselben UX-Messages und den
   - Meldung: **„Session ungültig oder abgelaufen — bitte erneut einloggen.“**
     (Fallback-Text im UI bleibt für explizite Forbidden-Cases: „Zugriff verweigert — bitte Berechtigungen/Session prüfen.“)
   - Redirect: `/auth/login?next=<current-path>&reason=session_expired`
+- **Vorwarnung vor Session-Ablauf (GUI):**
+  - `/auth/me` liefert `session_expires_at` + `session_expires_in_seconds`
+  - GUI zeigt **einmalig** vor Ablauf einen Warnhinweis mit CTA „Jetzt neu anmelden"
+  - Warnung wird pro Session-Expiry-Epoch nur einmal gezeigt (kein Toast-Spam)
+- **Kein stiller Datenverlust bei Session-Recovery:**
+  - GUI speichert Eingaben vor Auto-Redirect lokal (`sessionStorage`, Key `geo-ranking-ui-analyze-draft-v1`)
+  - Nach Rückkehr via `next` werden Draft-Eingaben automatisch wiederhergestellt
 
 Hinweis: Der zusätzliche Query-Parameter `reason` ist für reproduzierbare Diagnose gedacht (Runbook/Evidence) und ersetzt nicht die Server-seitige Prüfung von `next`.
 

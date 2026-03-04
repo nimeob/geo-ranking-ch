@@ -688,6 +688,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         color: #7a201a;
         padding: 0.65rem 0.75rem;
       }
+      .session-warning {
+        border: 1px solid #f0d8a8;
+        border-left: 4px solid #c27a00;
+        background: #fff9ed;
+        border-radius: 0.55rem;
+        color: #7a4a00;
+        padding: 0.65rem 0.75rem;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .session-warning button {
+        justify-self: flex-start;
+      }
       .error-view {
         border: 1px solid #f2c6c2;
         border-left: 4px solid var(--danger);
@@ -789,6 +802,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             </label>
             <p class=\"meta\">Auth im GUI-Flow läuft session-basiert über Login/Cookie (kein Bearer-Token-Eingabefeld).</p>
             <p class=\"meta\" id=\"auth-login-meta\">Nicht eingeloggt? <a id=\"auth-login-inline\" href=\"__AUTH_LOGIN_ENDPOINT__\">Login starten</a></p>
+            <div id="session-expiry-warning" class="session-warning" hidden>
+              <span id="session-expiry-warning-text">Session läuft bald ab.</span>
+              <button id="session-expiry-warning-login" class="copy-btn" type="button">Jetzt neu anmelden</button>
+            </div>
             <label class="touch-toggle">
               Async Mode (optional)
               <input id="async-mode-requested" type="checkbox" />
@@ -1021,6 +1038,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const UI_LOG_COMPONENT = "ui.gui_mvp";
       const UI_SESSION_STORAGE_KEY = "geo-ranking-ui-session-id";
       const JOB_IDS_STORAGE_KEY = "geo-ranking-ui-job-ids";
+      const ANALYZE_DRAFT_STORAGE_KEY = "geo-ranking-ui-analyze-draft-v1";
+      const SESSION_EXPIRY_WARNING_LEAD_MS = 120000;
+      const AUTH_SESSION_POLL_INTERVAL_MS = 60000;
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
@@ -1208,6 +1228,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         authCheckSupported: true,
         userClaims: {},
         checkedAtMs: 0,
+        sessionExpiresAtMs: 0,
+        warningShownForExpiryMs: 0,
       };
 
       const formEl = document.getElementById("analyze-form");
@@ -1231,6 +1253,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const coreFactorsEl = document.getElementById("core-factors");
       const authLoginMetaEl = document.getElementById("auth-login-meta");
       const authLoginInlineEl = document.getElementById("auth-login-inline");
+      const sessionExpiryWarningEl = document.getElementById("session-expiry-warning");
+      const sessionExpiryWarningTextEl = document.getElementById("session-expiry-warning-text");
+      const sessionExpiryWarningLoginBtnEl = document.getElementById("session-expiry-warning-login");
 
       const resultsFiltersShellEl = document.getElementById("results-filters-shell");
       const resultsFiltersToggleEl = document.getElementById("results-filters-toggle");
@@ -1284,6 +1309,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       let uiEventSequence = 0;
       let requestIdFeedbackResetHandle = null;
       let authRecoveryRedirectScheduled = false;
+      let authSessionPollHandle = null;
 
       function utcTimestamp() {
         return new Date().toISOString();
@@ -1315,6 +1341,159 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       const uiSessionId = resolveUiSessionId();
+
+      function clearAnalyzeDraft() {
+        try {
+          if (typeof window !== "undefined" && window.sessionStorage) {
+            window.sessionStorage.removeItem(ANALYZE_DRAFT_STORAGE_KEY);
+          }
+        } catch (error) {
+          // ignore
+        }
+      }
+
+      function persistAnalyzeDraft(reason = "manual") {
+        try {
+          if (typeof window === "undefined" || !window.sessionStorage) {
+            return;
+          }
+
+          const draft = {
+            query: String(queryEl && queryEl.value ? queryEl.value : "").trim(),
+            mode: String(modeEl && modeEl.value ? modeEl.value : "basic").trim() || "basic",
+            asyncModeRequested: Boolean(asyncModeRequestedEl && asyncModeRequestedEl.checked),
+            savedAt: utcTimestamp(),
+            reason: String(reason || "manual").trim() || "manual",
+          };
+
+          const hasMeaningfulInput = Boolean(draft.query) || draft.asyncModeRequested || draft.mode !== "basic";
+          if (!hasMeaningfulInput) {
+            clearAnalyzeDraft();
+            return;
+          }
+
+          window.sessionStorage.setItem(ANALYZE_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+        } catch (error) {
+          // ignore
+        }
+      }
+
+      function restoreAnalyzeDraft() {
+        try {
+          if (typeof window === "undefined" || !window.sessionStorage) {
+            return;
+          }
+          const raw = String(window.sessionStorage.getItem(ANALYZE_DRAFT_STORAGE_KEY) || "").trim();
+          if (!raw) {
+            return;
+          }
+
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== "object") {
+            clearAnalyzeDraft();
+            return;
+          }
+
+          let restored = false;
+          const draftQuery = String(parsed.query || "");
+          if (queryEl && !String(queryEl.value || "").trim() && draftQuery.trim()) {
+            queryEl.value = draftQuery;
+            restored = true;
+          }
+
+          const draftMode = String(parsed.mode || "").trim().toLowerCase();
+          if (modeEl && draftMode) {
+            const hasOption = Array.from(modeEl.options || []).some((opt) => String(opt.value || "").trim().toLowerCase() === draftMode);
+            if (hasOption) {
+              modeEl.value = draftMode;
+              restored = true;
+            }
+          }
+
+          if (asyncModeRequestedEl && typeof parsed.asyncModeRequested === "boolean") {
+            asyncModeRequestedEl.checked = parsed.asyncModeRequested;
+            restored = true;
+          }
+
+          if (restored) {
+            const savedAt = formatLocalTime(parsed.savedAt || "") || "unbekannt";
+            if (inputMeta) {
+              inputMeta.textContent = `Input (wiederhergestellt aus Session-Draft, gespeichert: ${savedAt})`;
+            }
+            emitUiEvent("ui.session.draft_restored", {
+              direction: "internal",
+              status: "restored",
+            });
+          }
+        } catch (error) {
+          clearAnalyzeDraft();
+        }
+      }
+
+      function parseSessionExpiryMs(rawValue) {
+        const numeric = Number(rawValue);
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+          return 0;
+        }
+        if (numeric > 1_000_000_000_000) {
+          return Math.round(numeric);
+        }
+        return Math.round(numeric * 1000);
+      }
+
+      function hideSessionExpiryWarning() {
+        if (sessionExpiryWarningEl) {
+          sessionExpiryWarningEl.hidden = true;
+        }
+      }
+
+      function showSessionExpiryWarning(expiresAtMs) {
+        if (!sessionExpiryWarningEl || !sessionExpiryWarningTextEl) {
+          return;
+        }
+        const remainingMs = Math.max(0, Number(expiresAtMs) - Date.now());
+        const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+        const remainingMinutes = Math.ceil(remainingSeconds / 60);
+        const copy = remainingMinutes <= 1
+          ? "Session läuft in weniger als 1 Minute ab. Jetzt neu anmelden, damit Eingaben nicht verloren gehen."
+          : `Session läuft in ca. ${remainingMinutes} Minuten ab. Jetzt neu anmelden, damit Eingaben nicht verloren gehen.`;
+        sessionExpiryWarningTextEl.textContent = copy;
+        sessionExpiryWarningEl.hidden = false;
+        authState.warningShownForExpiryMs = Number(expiresAtMs);
+      }
+
+      function updateSessionExpiryWarning(payload) {
+        const nextExpiryMs = parseSessionExpiryMs(payload && payload.session_expires_at);
+        authState.sessionExpiresAtMs = nextExpiryMs;
+
+        if (authState.authenticated !== true || nextExpiryMs <= 0) {
+          authState.warningShownForExpiryMs = 0;
+          hideSessionExpiryWarning();
+          return;
+        }
+
+        const remainingMs = nextExpiryMs - Date.now();
+        if (remainingMs > SESSION_EXPIRY_WARNING_LEAD_MS) {
+          hideSessionExpiryWarning();
+          return;
+        }
+
+        if (authState.warningShownForExpiryMs !== nextExpiryMs) {
+          showSessionExpiryWarning(nextExpiryMs);
+        }
+      }
+
+      function scheduleAuthSessionPolling() {
+        if (typeof window === "undefined" || !window.setInterval) {
+          return;
+        }
+        if (authSessionPollHandle) {
+          return;
+        }
+        authSessionPollHandle = window.setInterval(() => {
+          void refreshAuthSession({ force: true });
+        }, AUTH_SESSION_POLL_INTERVAL_MS);
+      }
 
       function readStoredJobIds() {
         if (typeof window === "undefined" || !window.localStorage) {
@@ -4094,7 +4273,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function buildLoginRedirectUrl(authReason) {
         const normalizedReason = normalizeErrorCode(authReason) || "session_recovery";
         const nextPath = typeof window !== "undefined" && window.location
-          ? `${window.location.pathname || "/gui"}${window.location.search || ""}`
+          ? `${window.location.pathname || "/gui"}${window.location.search || ""}${window.location.hash || ""}`
           : "/gui";
 
         if (typeof URLSearchParams === "undefined") {
@@ -4128,13 +4307,36 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
       }
 
-      function setAuthState(nextAuthenticated, { userClaims = {}, authCheckSupported = true, checkedAtMs = Date.now() } = {}) {
+      function setAuthState(
+        nextAuthenticated,
+        {
+          userClaims = {},
+          authCheckSupported = true,
+          checkedAtMs = Date.now(),
+          sessionExpiresAtMs = null,
+        } = {}
+      ) {
         if (typeof nextAuthenticated === "boolean") {
           authState.authenticated = nextAuthenticated;
         }
         authState.userClaims = userClaims && typeof userClaims === "object" ? userClaims : {};
         authState.authCheckSupported = Boolean(authCheckSupported);
         authState.checkedAtMs = Number.isFinite(checkedAtMs) ? checkedAtMs : Date.now();
+
+        if (Number.isFinite(Number(sessionExpiresAtMs)) && Number(sessionExpiresAtMs) > 0) {
+          authState.sessionExpiresAtMs = Number(sessionExpiresAtMs);
+        } else if (sessionExpiresAtMs === 0) {
+          authState.sessionExpiresAtMs = 0;
+          authState.warningShownForExpiryMs = 0;
+          hideSessionExpiryWarning();
+        }
+
+        if (authState.authenticated !== true) {
+          authState.sessionExpiresAtMs = 0;
+          authState.warningShownForExpiryMs = 0;
+          hideSessionExpiryWarning();
+        }
+
         updateAuthEntryPoints();
       }
 
@@ -4185,6 +4387,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           setAuthState(authState.authenticated === true, {
             userClaims: authState.userClaims,
             authCheckSupported: false,
+            sessionExpiresAtMs: 0,
           });
           return authState.authenticated === true;
         }
@@ -4197,10 +4400,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
 
         if (response.ok && payload && payload.ok === true) {
+          const sessionExpiresAtMs = parseSessionExpiryMs(payload.session_expires_at);
           setAuthState(true, {
             userClaims: payload.user_claims || {},
             authCheckSupported: true,
+            sessionExpiresAtMs,
           });
+          updateSessionExpiryWarning(payload);
           return true;
         }
 
@@ -4208,6 +4414,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           setAuthState(false, {
             userClaims: {},
             authCheckSupported: true,
+            sessionExpiresAtMs: 0,
           });
           return false;
         }
@@ -4249,7 +4456,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         });
         const authReason = resolveAuthRecoveryReason(statusCode, normalizedErrorCode);
         const loginUrl = buildLoginRedirectUrl(authReason);
-        const hint = "Session wird neu aufgebaut — Weiterleitung zum Login…";
+        const hint = "Session wird neu aufgebaut — Eingaben wurden lokal gesichert. Weiterleitung zum Login…";
+
+        persistAnalyzeDraft("auth_recovery_redirect");
+        hideSessionExpiryWarning();
 
         setPhase("error", {
           trigger: "auth_recovery_redirect",
@@ -4267,7 +4477,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         window.setTimeout(() => {
           window.location.assign(loginUrl);
-        }, 250);
+        }, 400);
       }
 
       function buildAuthorizationUxErrorMessage(statusCode, fallbackMessage, errorCode) {
@@ -4691,6 +4901,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           }
 
           if (result.ok) {
+            clearAnalyzeDraft();
             const entry = extractResultsListEntry(result.response, { inputLabel });
             if (entry) {
               addResultsEntry(entry);
@@ -5014,8 +5225,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
       }
 
+      if (queryEl) {
+        queryEl.addEventListener("input", () => persistAnalyzeDraft("query_input"));
+      }
+      if (modeEl) {
+        modeEl.addEventListener("change", () => persistAnalyzeDraft("mode_change"));
+      }
+      if (asyncModeRequestedEl) {
+        asyncModeRequestedEl.addEventListener("change", () => persistAnalyzeDraft("async_toggle"));
+      }
+
       formEl.addEventListener("submit", async (event) => {
         event.preventDefault();
+        persistAnalyzeDraft("form_submit");
 
         const query = (queryEl.value || "").trim();
         emitUiEvent("ui.interaction.form.submit", {
@@ -5243,8 +5465,20 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         });
       }
 
+      if (sessionExpiryWarningLoginBtnEl) {
+        sessionExpiryWarningLoginBtnEl.addEventListener("click", () => {
+          persistAnalyzeDraft("session_expiry_warning_login_cta");
+          const loginUrl = buildLoginRedirectUrl("session_expiring_soon");
+          if (typeof window !== "undefined" && window.location) {
+            window.location.assign(loginUrl);
+          }
+        });
+      }
+
       updateAuthEntryPoints();
-      refreshAuthSession({ force: false });
+      restoreAnalyzeDraft();
+      void refreshAuthSession({ force: false });
+      scheduleAuthSessionPolling();
 
       emitUiEvent("ui.session.start", {
         direction: "internal",
