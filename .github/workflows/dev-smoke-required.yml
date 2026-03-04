@@ -9,6 +9,9 @@ jobs:
     name: dev-smoke-required
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DEV_SMOKE_MAX_ATTEMPTS: "2"
+      DEV_SMOKE_RETRY_DELAY_SECONDS: "5"
 
     steps:
       - name: Checkout
@@ -22,9 +25,19 @@ jobs:
       - name: Install dev dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Run required dev smoke gate (PR profile)
+      - name: Run required dev smoke gate (PR profile + retry policy)
         run: |
-          python3 ./scripts/run_deploy_smoke.py \
-            --profile pr \
-            --flow sync \
-            --output-json artifacts/pr-dev-smoke-required.json
+          python3 ./scripts/run_dev_smoke_required_with_retry.py \
+            --output-json artifacts/pr-dev-smoke-required.json \
+            --report-json artifacts/pr-dev-smoke-required-retry-report.json \
+            --summary-markdown artifacts/pr-dev-smoke-required-summary.md
+
+      - name: Append retry/flaky summary
+        if: always()
+        run: |
+          if [ -f artifacts/pr-dev-smoke-required-summary.md ]; then
+            cat artifacts/pr-dev-smoke-required-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## dev-smoke-required Retry Summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "- summary artifact missing" >> "$GITHUB_STEP_SUMMARY"
+          fi

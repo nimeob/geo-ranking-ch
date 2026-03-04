@@ -17,7 +17,9 @@ class TestPrFastGatesConfig(unittest.TestCase):
         self.assertIn("workflow_dispatch:", content)
         self.assertIn("jobs:", content)
         self.assertIn("dev-smoke-required:", content)
-        self.assertIn("--profile pr", content)
+        self.assertIn("run_dev_smoke_required_with_retry.py", content)
+        self.assertIn("DEV_SMOKE_MAX_ATTEMPTS", content)
+        self.assertIn("DEV_SMOKE_RETRY_DELAY_SECONDS", content)
 
     def test_contract_smoke_workflow_triggers_on_pull_request(self):
         content = self._read(".github/workflows/contract-tests.yml")
