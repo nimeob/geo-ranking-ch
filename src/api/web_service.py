@@ -536,8 +536,9 @@ _EXTERNAL_DIRECT_LOGIN_BLOCKED_PATHS = frozenset(
 )
 _EXTERNAL_DIRECT_LOGIN_ERROR = "external_direct_login_disabled"
 _EXTERNAL_DIRECT_LOGIN_MESSAGE = (
-    "direct login is disabled; access is only allowed via internal provisioning/export workflows"
+    "direct login is disabled; use the UI-owned login flow via /auth/login"
 )
+_EXTERNAL_DIRECT_LOGIN_DEPRECATION_LINK = '</auth/login>; rel="successor-version"'
 
 _PROTECTED_GUI_ROUTES = frozenset({"/", "/gui", "/history"})
 
@@ -3575,7 +3576,11 @@ class Handler(BaseHTTPRequestHandler):
             },
             status=HTTPStatus.FORBIDDEN,
             request_id=request_id,
-            extra_headers={"Cache-Control": "no-store"},
+            extra_headers={
+                "Cache-Control": "no-store",
+                "Deprecation": "true",
+                "Link": _EXTERNAL_DIRECT_LOGIN_DEPRECATION_LINK,
+            },
         )
 
     # ------------------------------------------------------------------
