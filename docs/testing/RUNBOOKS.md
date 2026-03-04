@@ -10,6 +10,13 @@ Neue, nicht BL-spezifische Test-Runbooks gehören direkt in die Subdirectory-Dat
 - Verbindliche Zuordnung der Gate-Tiers (`PR`, `Deploy`, `Nightly`) inkl. Blocking-Status, Entrypoints und Verantwortlichkeiten.
 - Referenz: [`DEPLOY_TEST_TIERS.md`](DEPLOY_TEST_TIERS.md)
 
+## Dev→Stage Cutover (kanonisch)
+
+*Quelle: `DEV_STAGE_CUTOVER_RUNBOOK.md`*
+
+- Verbindlicher linearer Cutover-Pfad mit 3 Pre-Gates, harten Rollback-Triggern, SLA (Entscheidung <=10 Min) und Post-Cutover-Checks (Minute 5/10/15).
+- Referenz: [`DEV_STAGE_CUTOVER_RUNBOOK.md`](DEV_STAGE_CUTOVER_RUNBOOK.md)
+
 ---
 
 ## BL-31.6.a — UI-Artefaktpfad + Task-Revision (dev)
