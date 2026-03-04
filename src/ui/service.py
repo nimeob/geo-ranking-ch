@@ -1371,15 +1371,23 @@ def _normalize_job_id(raw_value: str) -> str:
 
 
 def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
-    html = render_gui_mvp_html(app_version=app_version)
-    if not api_base_url:
+    normalized_base_url = api_base_url.rstrip("/") if api_base_url else ""
+    auth_login_url = f"{normalized_base_url}/auth/login" if normalized_base_url else "/auth/login"
+    auth_logout_url = f"{normalized_base_url}/auth/logout" if normalized_base_url else "/auth/logout"
+    auth_me_url = f"{normalized_base_url}/auth/me" if normalized_base_url else "/auth/me"
+
+    html = render_gui_mvp_html(
+        app_version=app_version,
+        auth_login_endpoint=auth_login_url,
+        auth_logout_endpoint=auth_logout_url,
+        auth_me_endpoint=auth_me_url,
+    )
+    if not normalized_base_url:
         return html
 
-    normalized_base_url = api_base_url.rstrip("/")
     analyze_url = f"{normalized_base_url}/analyze"
     trace_debug_url = f"{normalized_base_url}/debug/trace"
     analyze_jobs_base = f"{normalized_base_url}/analyze/jobs"
-
     analyze_history_url = f"{normalized_base_url}/analyze/history"
 
     html = html.replace('fetch("/analyze", {', f"fetch({json.dumps(analyze_url)}, {{")
@@ -1479,6 +1487,23 @@ class _UiHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _redirect_to_api_base(self, *, request_path: str, raw_query: str) -> bool:
+        """Leitet UI-auth Pfade auf die API-Basis weiter, wenn konfiguriert."""
+
+        normalized_base_url = str(self.server.ui_api_base_url or "").strip().rstrip("/")
+        if not normalized_base_url:
+            return False
+
+        location = f"{normalized_base_url}{request_path}"
+        if raw_query:
+            location = f"{location}?{raw_query}"
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return True
+
     def do_GET(self) -> None:  # noqa: N802 - stdlib callback name
         parsed = urlparse(self.path)
         request_path = _normalize_path(parsed.path)
@@ -1490,6 +1515,10 @@ class _UiHandler(BaseHTTPRequestHandler):
             )
             self._send_html(html)
             return
+
+        if request_path.startswith("/auth/"):
+            if self._redirect_to_api_base(request_path=request_path, raw_query=parsed.query):
+                return
 
         if request_path == "/history":
             html = build_history_page_html(

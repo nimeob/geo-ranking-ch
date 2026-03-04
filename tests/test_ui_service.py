@@ -18,10 +18,20 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _http(url: str, *, timeout: float = 10.0):
+def _http(url: str, *, timeout: float = 10.0, follow_redirects: bool = True):
     req = request.Request(url, method="GET")
+
+    if follow_redirects:
+        opener = request.build_opener()
+    else:
+        class _NoRedirect(request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+                return None
+
+        opener = request.build_opener(_NoRedirect)
+
     try:
-        with request.urlopen(req, timeout=timeout) as resp:
+        with opener.open(req, timeout=timeout) as resp:
             body = resp.read().decode("utf-8")
             return resp.status, body, {k.lower(): v for k, v in resp.headers.items()}
     except error.HTTPError as exc:
@@ -99,6 +109,12 @@ class TestUiService(unittest.TestCase):
         self.assertIn('const TRACE_DEBUG_ENDPOINT = "https://api.example.test/debug/trace";', body)
         self.assertIn('const ANALYZE_JOBS_ENDPOINT_BASE = "https://api.example.test/analyze/jobs";', body)
         self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "https://api.example.test/analyze/history";', body)
+        self.assertIn('const AUTH_LOGIN_ENDPOINT = "https://api.example.test/auth/login";', body)
+        self.assertIn('const AUTH_LOGOUT_ENDPOINT = "https://api.example.test/auth/logout";', body)
+        self.assertIn('const AUTH_ME_ENDPOINT = "https://api.example.test/auth/me";', body)
+        self.assertIn('href="https://api.example.test/auth/login"', body)
+        self.assertIn('href="https://api.example.test/auth/logout"', body)
+        self.assertIn('credentials: "include"', body)
 
     def test_job_permalink_page_renders_and_targets_absolute_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/jobs/job-123")
@@ -129,6 +145,8 @@ class TestUiService(unittest.TestCase):
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("Historische Abfragen", body)
         self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "https://api.example.test/analyze/history"', body)
+        self.assertIn('const AUTH_LOGIN_ENDPOINT = "https://api.example.test/auth/login"', body)
+        self.assertIn('credentials: "include"', body)
         self.assertIn("/results/", body)
 
     def test_result_permalink_page_renders_and_contains_tabs(self):
@@ -180,6 +198,17 @@ class TestUiService(unittest.TestCase):
         payload = json.loads(body)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"], "not_found")
+
+    def test_auth_routes_redirect_to_api_base_when_configured(self):
+        status, _, headers = _http(
+            f"{self.base_url}/auth/login?next=%2Fgui&reason=manual_login",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(
+            headers.get("location"),
+            "https://api.example.test/auth/login?next=%2Fgui&reason=manual_login",
+        )
 
     # --- GUI Auth UX wp2: Session-Flow statt Bearer-Paste für /analyze + /analyze/history ---
 

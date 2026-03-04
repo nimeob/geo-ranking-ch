@@ -40,6 +40,11 @@ def _history_endpoint(api_base_url: str) -> str:
     return f"{base}/analyze/history" if base else "/analyze/history"
 
 
+def _auth_login_endpoint(api_base_url: str) -> str:
+    base = str(api_base_url or "").strip().rstrip("/")
+    return f"{base}/auth/login" if base else "/auth/login"
+
+
 _BURGER_CSS = """
       .burger {
         position: relative;
@@ -75,6 +80,9 @@ _BURGER_CSS = """
         display: grid;
         gap: 0.2rem;
         z-index: 30;
+      }
+      .burger-menu[hidden] {
+        display: none !important;
       }
       .burger-menu a {
         text-decoration: none;
@@ -328,6 +336,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
 
       <script>
         const ANALYZE_HISTORY_ENDPOINT = __ANALYZE_HISTORY_ENDPOINT_JSON__;
+        const AUTH_LOGIN_ENDPOINT = __AUTH_LOGIN_ENDPOINT_JSON__;
         const ORG_STORAGE_KEY = "geo-ranking-ui-org-id";
         const SESSION_RECOVERY_ERROR_CODES = new Set([
           "no_session_cookie",
@@ -480,13 +489,13 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
             : "/history";
 
           if (typeof URLSearchParams === "undefined") {
-            return `/auth/login?next=${encodeURIComponent(nextPath || "/history")}&reason=${encodeURIComponent(normalizedReason)}`;
+            return `${AUTH_LOGIN_ENDPOINT}?next=${encodeURIComponent(nextPath || "/history")}&reason=${encodeURIComponent(normalizedReason)}`;
           }
 
           const params = new URLSearchParams();
           params.set("next", nextPath || "/history");
           params.set("reason", normalizedReason);
-          return `/auth/login?${params.toString()}`;
+          return `${AUTH_LOGIN_ENDPOINT}?${params.toString()}`;
         }
 
         function scheduleReLoginRedirect(statusCode, errorCode) {
@@ -583,7 +592,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           let response;
           let parsed;
           try {
-            response = await fetch(url, { method: "GET", headers: headersFromInputs() });
+            response = await fetch(url, { method: "GET", headers: headersFromInputs(), credentials: "include" });
             parsed = await response.json();
           } catch (error) {
             setStatus("error");
@@ -1125,7 +1134,7 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           let response;
           let parsed;
           try {
-            response = await fetch(url, { method: "GET", headers: headersFromInputs() });
+            response = await fetch(url, { method: "GET", headers: headersFromInputs(), credentials: "include" });
             parsed = await response.json();
           } catch (error) {
             setStatus("error");
@@ -1187,6 +1196,7 @@ def build_history_page_html(*, app_version: str, api_base_url: str) -> str:
     html = _HISTORY_PAGE_TEMPLATE
     html = html.replace("__APP_VERSION__", escape(app_version or "dev"))
     html = html.replace("__ANALYZE_HISTORY_ENDPOINT_JSON__", json.dumps(_history_endpoint(api_base_url)))
+    html = html.replace("__AUTH_LOGIN_ENDPOINT_JSON__", json.dumps(_auth_login_endpoint(api_base_url)))
     html = html.replace("__BURGER_CSS__", _BURGER_CSS)
     html = html.replace("__BURGER_JS__", _BURGER_JS)
     return html
