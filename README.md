@@ -90,6 +90,12 @@ pre-commit run --all-files
 # - UI-only:  src.ui.service
 make dev-smoke
 
+# Vor PR ausführen (Lint + Type/Syntax + Unit-Tests)
+make dev-check
+
+# optional: gezielter Unit-Scope für schnellere Iteration
+UNIT_TEST_TARGETS="tests/test_user_docs.py tests/test_markdown_links.py" make dev-check
+
 # API-Service starten (kanonischer Entrypoint; ECS-ready)
 python -m src.api.web_service
 # optionaler Port via ENV: PORT (primär) oder WEB_PORT (Fallback für Legacy-Wrapper)
@@ -120,6 +126,30 @@ PORT=8443 \
 TLS_ENABLE_HTTP_REDIRECT=1 \
 TLS_REDIRECT_HTTP_PORT=8080 \
 python -m src.api.web_service
+```
+
+### Vor PR ausführen
+
+Einheitlicher lokaler Pre-PR-Check:
+
+```bash
+make dev-check
+```
+
+Der Target bündelt drei Schritte fail-closed:
+
+1. `pre-commit run` (Lint/Format auf geänderten/staged Dateien)
+2. `python -m compileall -q src tests scripts` (Type-/Syntax-Check)
+3. `pytest -q` (Unit-Tests)
+
+Optional:
+
+```bash
+# Voller Lint-Lauf über alle Dateien
+LINT_SCOPE=all make dev-check
+
+# Schnelle Iteration mit reduziertem Testscope
+UNIT_TEST_TARGETS="tests/test_user_docs.py tests/test_markdown_links.py" make dev-check
 ```
 
 ### Docker (wie in ECS)
