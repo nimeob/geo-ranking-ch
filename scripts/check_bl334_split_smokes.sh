@@ -19,6 +19,7 @@ CORE_FLOW_TEST_TARGET="${CORE_FLOW_TEST_TARGET:-tests.test_auth_regression_smoke
 CORE_FLOW_LOG="${OUT_DIR}/${STAMP}-core-flow-smoke.log"
 CORE_FLOW_FAILURE_EVIDENCE_DIR="${REPO_ROOT}/reports/evidence/core-flow-smoke/${STAMP}"
 CHROMIUM_BIN="${CHROMIUM_BIN:-chromium}"
+SMOKE_EXPECT_HEALTH_VERSION="${SMOKE_EXPECT_HEALTH_VERSION:-bl334-split-smoke}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -125,6 +126,30 @@ if str(cursor) != expected:
 PY
 }
 
+assert_health_version() {
+  local service_name="$1"
+  local json_payload="$2"
+  local expected_version="$3"
+
+  "${PYTHON_BIN}" - "$service_name" "$expected_version" "$json_payload" <<'PY'
+import json
+import sys
+
+service_name = sys.argv[1]
+expected_version = sys.argv[2]
+payload = json.loads(sys.argv[3])
+
+observed_version = payload.get("version")
+if not observed_version and isinstance(payload.get("build"), dict):
+    observed_version = payload["build"].get("version")
+
+if str(observed_version or "") != expected_version:
+    raise SystemExit(
+        f"{service_name} health version mismatch: expected={expected_version!r}, observed={observed_version!r}"
+    )
+PY
+}
+
 capture_core_flow_failure_artifacts() {
   local core_flow_exit="$1"
 
@@ -183,6 +208,9 @@ API_PID="$!"
 
 wait_http_200 "http://127.0.0.1:${API_PORT}/health"
 
+API_HEALTH_RESPONSE="$(${CURL_BIN} -sS "http://127.0.0.1:${API_PORT}/health")"
+validate_json_bool_true "${API_HEALTH_RESPONSE}" "ok"
+
 API_ANALYZE_PAYLOAD='{"query":"__ok__","intelligence_mode":"basic"}'
 API_ANALYZE_RESPONSE="$(${CURL_BIN} -sS \
   -X POST "http://127.0.0.1:${API_PORT}/analyze" \
@@ -207,6 +235,18 @@ wait_http_200 "http://127.0.0.1:${UI_PORT}/healthz"
 UI_HEALTH_RESPONSE="$(${CURL_BIN} -sS "http://127.0.0.1:${UI_PORT}/healthz")"
 validate_json_bool_true "${UI_HEALTH_RESPONSE}" "ok"
 validate_json_equals "${UI_HEALTH_RESPONSE}" "service" "geo-ranking-ch-ui"
+assert_health_version "ui" "${UI_HEALTH_RESPONSE}" "${SMOKE_EXPECT_HEALTH_VERSION}"
+
+UI_HEALTH_VERSION="$(${PYTHON_BIN} - "${UI_HEALTH_RESPONSE}" <<'PY'
+import json
+import sys
+payload = json.loads(sys.argv[1])
+value = payload.get("version")
+if not value and isinstance(payload.get("build"), dict):
+    value = payload["build"].get("version")
+print(value or "")
+PY
+)"
 
 UI_GUI_HTML="$(${CURL_BIN} -sS "http://127.0.0.1:${UI_PORT}/gui")"
 if ! grep -q "geo-ranking.ch GUI MVP" <<<"${UI_GUI_HTML}"; then
@@ -247,6 +287,8 @@ cat >"${OUT_JSON}" <<EOF
   "ui": {
     "entrypoint": "python -m src.ui.service",
     "healthUrl": "http://127.0.0.1:${UI_PORT}/healthz",
+    "healthVersionExpected": "${SMOKE_EXPECT_HEALTH_VERSION}",
+    "healthVersionObserved": "${UI_HEALTH_VERSION}",
     "guiUrl": "http://127.0.0.1:${UI_PORT}/gui",
     "result": "pass",
     "log": "${UI_LOG}"
@@ -268,5 +310,6 @@ echo "✅ BL-334.5 split smokes passed"
 echo "- evidence: ${OUT_JSON}"
 echo "- api log:  ${API_LOG}"
 echo "- ui log:   ${UI_LOG}"
+echo "- ui health version: observed=${UI_HEALTH_VERSION}, expected=${SMOKE_EXPECT_HEALTH_VERSION}"
 echo "- core-flow log: ${CORE_FLOW_LOG}"
 echo "- core-flow duration: ${CORE_FLOW_DURATION_SECONDS}s (budget ${CORE_FLOW_SMOKE_MAX_SECONDS}s)"

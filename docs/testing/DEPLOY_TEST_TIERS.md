@@ -34,6 +34,7 @@ Konfigurationsdetails und Admin-Setup siehe `docs/OPERATIONS.md` Abschnitt **Git
   - daraus folgt fix: `max_attempts=2` (ein Initial-Run + max. ein Retry)
   - der Wrapper delegiert je Versuch an `python3 ./scripts/run_deploy_smoke.py --profile pr --flow sync`
   - PR-Split-Smoke (`./scripts/check_bl334_split_smokes.sh`) enthält als Pflichtpfad zusätzlich den Core-Flow `login -> search (__ok__) -> ranking list -> detail` via `tests/test_auth_regression_smoke_issue_1019.py`
+  - Der Split-Smoke validiert API-/UI-Health jetzt zusätzlich auf erwartete Version (`SMOKE_EXPECT_HEALTH_VERSION`, Default `bl334-split-smoke`) und bricht mit `expected vs observed`-Fehlerbild ab, falls eine stale Runtime antwortet.
   - Laufzeitbudget für den Core-Flow ist fail-closed (`CORE_FLOW_SMOKE_MAX_SECONDS`, Default `300`)
   - Bei Fehlern erzeugt der Runner automatisch Failure-Artefakte unter `reports/evidence/core-flow-smoke/<STAMP>/` (Trace + optional GUI-Screenshot)
   - CI-Summary (`$GITHUB_STEP_SUMMARY`) enthält konsistente Counts für `retried checks` und `flaky candidates`

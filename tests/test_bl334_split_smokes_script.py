@@ -10,8 +10,13 @@ def test_bl334_split_smokes_script_contains_api_ui_entrypoints_and_health_checks
     required_snippets = [
         "python -m src.api.web_service",
         "python -m src.ui.service",
+        "SMOKE_EXPECT_HEALTH_VERSION",
+        "assert_health_version",
+        "health version mismatch: expected=",
         "/health",
         "/healthz",
+        '"healthVersionExpected"',
+        '"healthVersionObserved"',
         '"result": "pass"',
         "login -> search -> ranking list -> detail",
         "core-flow-failure-trace.md",
