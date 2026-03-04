@@ -247,6 +247,7 @@ History-Boundary-Hinweis (2026-03-04):
 | `GET /login`, `/signin`, `/sign-in`, `/auth/signin`, `/auth/sign-in`, `/oauth/login`, `/oauth2/login` | `/auth/login` (UI/BFF) | Tue, 30 Jun 2026 23:59:59 GMT |
 | `GET /history` | `/history` (UI-Service Front-Facing) | Tue, 30 Jun 2026 23:59:59 GMT |
 | `GET /analyze/history` (front-facing usage) | `/history` (UI-Service) | Tue, 30 Jun 2026 23:59:59 GMT |
+| `GET /trace` (legacy alias) | `/debug/trace?request_id=<id>` (API Data/Diagnose) | Tue, 30 Jun 2026 23:59:59 GMT |
 
 Migration-Guide/Referenz: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md#api-deprecation-mapping-dev>; rel="deprecation"`
 

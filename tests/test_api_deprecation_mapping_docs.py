@@ -12,6 +12,7 @@ class TestApiDeprecationMappingDocs(unittest.TestCase):
         self.assertIn("#### API Deprecation Mapping (Dev)", content)
         self.assertIn("`GET /history`", content)
         self.assertIn("`GET /analyze/history` (front-facing usage)", content)
+        self.assertIn("`GET /trace` (legacy alias)", content)
         self.assertIn("`GET /login`, `/signin`, `/sign-in`", content)
         self.assertIn(SUNSET, content)
         self.assertIn('rel="deprecation"', content)
