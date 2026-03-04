@@ -630,6 +630,30 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       .results-empty-action {
         justify-self: flex-start;
       }
+      .results-loading-state {
+        position: relative;
+      }
+      .results-loading-spinner {
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 999px;
+        border: 2px solid #d9e3ff;
+        border-top-color: #2f6fed;
+        animation: results-loading-spin 0.8s linear infinite;
+      }
+      .results-error-state {
+        border-left: 3px solid #b84c00;
+        background: #fff7ed;
+        border-radius: 0.45rem;
+      }
+      @keyframes results-loading-spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
       @media (max-width: 768px) {
         .results-table .actions {
           white-space: normal;
@@ -1009,12 +1033,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const SAFE_RETRY_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
       const RESULTS_LIST_COPY = Object.freeze({
         meta: {
+          loading: "Ergebnisliste wird aktualisiert …",
           empty: "Keine sichtbaren Ergebnisse.",
           filtered: "0 Treffer – Filter aktiv.",
           network: "Ergebnisliste aktuell wegen Netzwerkproblem nicht verfügbar.",
           unauthorized: "Ergebnisliste benötigt eine gültige Anmeldung.",
+          error: "Ergebnisliste konnte nicht aktualisiert werden. Retry möglich.",
         },
         emptyStates: {
+          loading: {
+            title: "Ergebnisliste lädt …",
+            description: "Neue Ranking-Daten werden geladen. Bitte kurz warten.",
+            action: "",
+          },
           noData: {
             title: "Keine Daten in der aktuellen Auswahl",
             description: "Für den aktuellen Zeitraum oder die aktive Auswahl liegen keine Einträge vor.",
@@ -1034,6 +1065,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             title: "Session abgelaufen",
             description: "Für die Ergebnisliste ist eine gültige Anmeldung erforderlich.",
             action: "Login starten",
+          },
+          error: {
+            title: "Ergebnisliste konnte nicht geladen werden",
+            description: "Die letzte Aktualisierung ist fehlgeschlagen. Du kannst die Anfrage direkt erneut starten.",
+            action: "Retry ausführen",
           },
         },
       });
@@ -1135,6 +1171,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         maxDistance: null,
         minSecurity: null,
         recoveryState: "",
+        isLoading: false,
       };
 
       const resultsFiltersUiState = {
@@ -1969,6 +2006,18 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         resultsListState.recoveryState = normalizeResultsRecoveryState(nextState);
       }
 
+      function setResultsListLoading(nextValue) {
+        resultsListState.isLoading = Boolean(nextValue);
+      }
+
+      function hasResultsListRetryContext() {
+        return Boolean(
+          state.lastAnalyzeRequest
+          && state.lastAnalyzeRequest.payload
+          && typeof state.lastAnalyzeRequest.payload === "object"
+        );
+      }
+
       function resolveResultsRecoveryStateFromAnalyzeResult(result) {
         if (!result || result.ok) {
           return "";
@@ -1992,11 +2041,17 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       function resolveResultsMetaCopy(total, emptyReason) {
+        if (emptyReason === "loading") {
+          return RESULTS_LIST_COPY.meta.loading;
+        }
         if (emptyReason === "network") {
           return RESULTS_LIST_COPY.meta.network;
         }
         if (emptyReason === "unauthorized") {
           return RESULTS_LIST_COPY.meta.unauthorized;
+        }
+        if (emptyReason === "error") {
+          return RESULTS_LIST_COPY.meta.error;
         }
         return total ? RESULTS_LIST_COPY.meta.filtered : RESULTS_LIST_COPY.meta.empty;
       }
@@ -2018,12 +2073,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       async function retryLastAnalyzeRequestFromResultsList() {
-        const hasRetryContext = Boolean(
-          state.lastAnalyzeRequest
-          && state.lastAnalyzeRequest.payload
-          && typeof state.lastAnalyzeRequest.payload === "object"
-        );
-        if (!hasRetryContext || state.phase === "loading") {
+        if (!hasResultsListRetryContext() || state.phase === "loading") {
           return false;
         }
 
@@ -2059,12 +2109,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       async function handleResultsEmptyStatePrimaryAction(reason) {
         const normalizedReason = String(reason || "filtered").trim().toLowerCase() || "filtered";
 
-        if (normalizedReason === "network") {
+        if (normalizedReason === "network" || normalizedReason === "error") {
           const retryTriggered = await retryLastAnalyzeRequestFromResultsList();
           emitUiEvent("ui.interaction.results_list.empty_cta", {
             direction: "human->ui",
             status: retryTriggered ? "retry_triggered" : "retry_unavailable",
-            reason: "network",
+            reason: normalizedReason,
           });
           return;
         }
@@ -2091,6 +2141,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       function resolveResultsEmptyState(total) {
+        if (resultsListState.isLoading) {
+          return {
+            reason: "loading",
+            title: RESULTS_LIST_COPY.emptyStates.loading.title,
+            description: RESULTS_LIST_COPY.emptyStates.loading.description,
+            action: RESULTS_LIST_COPY.emptyStates.loading.action,
+          };
+        }
+
         const recoveryState = normalizeResultsRecoveryState(resultsListState.recoveryState);
         if (recoveryState === "network") {
           return {
@@ -2106,6 +2165,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             title: RESULTS_LIST_COPY.emptyStates.unauthorized.title,
             description: RESULTS_LIST_COPY.emptyStates.unauthorized.description,
             action: RESULTS_LIST_COPY.emptyStates.unauthorized.action,
+          };
+        }
+        if (state.phase === "error" && state.lastError && hasResultsListRetryContext()) {
+          return {
+            reason: "error",
+            title: RESULTS_LIST_COPY.emptyStates.error.title,
+            description: RESULTS_LIST_COPY.emptyStates.error.description,
+            action: RESULTS_LIST_COPY.emptyStates.error.action,
           };
         }
         if (total > 0) {
@@ -2234,6 +2301,18 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           panel.setAttribute("role", "status");
           panel.setAttribute("aria-live", "polite");
 
+          if (emptyState.reason === "loading") {
+            panel.classList.add("results-loading-state");
+            const spinner = document.createElement("div");
+            spinner.className = "results-loading-spinner";
+            spinner.setAttribute("aria-hidden", "true");
+            panel.appendChild(spinner);
+          }
+
+          if (emptyState.reason === "error") {
+            panel.classList.add("results-error-state");
+          }
+
           const title = document.createElement("h3");
           title.className = "results-empty-title";
           title.textContent = emptyState.title;
@@ -2242,31 +2321,43 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           description.className = "results-empty-copy";
           description.textContent = emptyState.description;
 
-          const action = document.createElement("button");
-          action.type = "button";
-          action.className = "results-empty-action";
-          action.textContent = emptyState.action;
-          action.addEventListener("click", async () => {
-            await handleResultsEmptyStatePrimaryAction(emptyState.reason);
-          });
-
           panel.appendChild(title);
           panel.appendChild(description);
-          panel.appendChild(action);
+
+          const actionText = String(emptyState.action || "").trim();
+          if (actionText) {
+            const action = document.createElement("button");
+            action.type = "button";
+            action.className = "results-empty-action";
+            action.textContent = actionText;
+            action.addEventListener("click", async () => {
+              await handleResultsEmptyStatePrimaryAction(emptyState.reason);
+            });
+            panel.appendChild(action);
+          }
           td.appendChild(panel);
           tr.appendChild(td);
           resultsBodyEl.appendChild(tr);
 
           resultsMetaEl.textContent = resolveResultsMetaCopy(total, emptyState.reason);
+          const loadStatusByReason = {
+            filtered: "filtered_empty",
+            loading: "loading",
+            error: "error",
+          };
           emitResultsListFirstContentfulData(loadMetric, {
-            status: emptyState.reason === "filtered" ? "filtered_empty" : "empty",
+            status: loadStatusByReason[emptyState.reason] || "empty",
             rowsVisible: 0,
             rowsTotal: total,
           });
           return;
         }
 
-        resultsMetaEl.textContent = `${rows.length}/${total} angezeigt`;
+        if (resultsListState.isLoading) {
+          resultsMetaEl.textContent = `${rows.length}/${total} angezeigt · Aktualisiere …`;
+        } else {
+          resultsMetaEl.textContent = `${rows.length}/${total} angezeigt`;
+        }
 
         rows.forEach((entry) => {
           const tr = document.createElement("tr");
@@ -2387,6 +2478,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function clearResultsEntries() {
         resultsListState.entries = [];
         setResultsListRecoveryState("");
+        setResultsListLoading(false);
         renderResultsList();
       }
 
@@ -4502,6 +4594,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           requestId,
         });
         if (!authenticated) {
+          setResultsListLoading(false);
           setResultsListRecoveryState("unauthorized");
           renderResultsList();
           emitUiEvent("ui.input.rejected", {
@@ -4528,6 +4621,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         rememberAnalyzeRequest(payload, inputLabel);
         clearServerErrorView();
         setResultsListRecoveryState("");
+        setResultsListLoading(true);
 
         setPhase("loading", {
           traceId,
@@ -4541,6 +4635,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         state.coreFactors = [];
         submitBtn.disabled = true;
         renderState();
+        renderResultsList();
 
         try {
           const result = await runAnalyze(payload, {
@@ -4549,6 +4644,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             inputKind,
           });
 
+          setResultsListLoading(false);
           state.lastRequestId = result.requestId || requestId;
           state.lastPayload = result.response;
           setPhase(result.ok ? "success" : "error", {
@@ -4589,10 +4685,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             if (entry) {
               addResultsEntry(entry);
               loadHistory();
+            } else {
+              renderResultsList();
             }
+          } else {
+            renderResultsList();
           }
         } catch (error) {
           clearServerErrorView();
+          setResultsListLoading(false);
           setPhase("error", {
             traceId,
             requestId,
@@ -4607,6 +4708,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           };
           setResultsListRecoveryState("network");
           state.coreFactors = [];
+          renderResultsList();
         } finally {
           submitBtn.disabled = false;
           renderState();
