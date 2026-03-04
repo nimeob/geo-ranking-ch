@@ -1,0 +1,88 @@
+{
+  "before": {
+    "viewportWidth": 390,
+    "mq390": true,
+    "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+    },
+    "shell": {
+      "scrollWidth": 498,
+      "clientWidth": 316
+    },
+    "table": {
+      "scrollWidth": 498,
+      "clientWidth": 498
+    },
+    "allActionsVisible": false,
+    "actions": [
+      {
+        "text": "Anzeigen",
+        "left": 439.55,
+        "right": 527.05,
+        "visible": false
+      },
+      {
+        "text": "Trace",
+        "left": 439.55,
+        "right": 501.27,
+        "visible": false
+      },
+      {
+        "text": "Anzeigen",
+        "left": 439.55,
+        "right": 527.05,
+        "visible": false
+      },
+      {
+        "text": "Trace",
+        "left": 439.55,
+        "right": 501.27,
+        "visible": false
+      }
+    ]
+  },
+  "after": {
+    "viewportWidth": 390,
+    "mq390": true,
+    "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+    },
+    "shell": {
+      "scrollWidth": 316,
+      "clientWidth": 316
+    },
+    "table": {
+      "scrollWidth": 316,
+      "clientWidth": 316
+    },
+    "allActionsVisible": true,
+    "actions": [
+      {
+        "text": "Anzeigen",
+        "left": 47.91,
+        "right": 190.59,
+        "visible": true
+      },
+      {
+        "text": "Trace",
+        "left": 199.39,
+        "right": 342.09,
+        "visible": true
+      },
+      {
+        "text": "Anzeigen",
+        "left": 47.91,
+        "right": 190.59,
+        "visible": true
+      },
+      {
+        "text": "Trace",
+        "left": 199.39,
+        "right": 342.09,
+        "visible": true
+      }
+    ]
+  }
+}

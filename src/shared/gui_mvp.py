@@ -701,6 +701,75 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           padding: 0.5rem 0.78rem;
         }
       }
+      @media (max-width: 390px) {
+        .results-table-shell {
+          overflow-x: visible;
+        }
+        .results-table {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0;
+        }
+        .results-table thead {
+          display: none;
+        }
+        .results-table tbody {
+          display: grid;
+          gap: 0.65rem;
+        }
+        .results-table tr {
+          display: grid;
+          gap: 0.28rem;
+          border: 1px solid var(--border);
+          border-radius: 0.72rem;
+          background: #fff;
+          padding: 0.62rem;
+        }
+        .results-table td {
+          display: grid;
+          grid-template-columns: minmax(5.7rem, 44%) minmax(0, 1fr);
+          gap: 0.45rem;
+          align-items: start;
+          border-bottom: 0;
+          padding: 0.14rem 0;
+          min-width: 0;
+          word-break: break-word;
+          overflow-wrap: anywhere;
+        }
+        .results-table td::before {
+          content: attr(data-label);
+          color: var(--muted);
+          font-size: 0.74rem;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: uppercase;
+        }
+        .results-table td.actions {
+          display: block;
+          padding-top: 0.42rem;
+          margin-top: 0.15rem;
+          border-top: 1px dashed var(--border);
+        }
+        .results-table td.actions::before {
+          content: none;
+        }
+        .results-row-actions {
+          width: 100%;
+        }
+        .results-row-actions .copy-btn,
+        .results-row-actions .trace-link-btn {
+          flex: 1 1 7.8rem;
+          justify-content: center;
+          text-align: center;
+        }
+        .results-table td.results-empty-cell {
+          display: block;
+          padding: 0;
+        }
+        .results-table td.results-empty-cell::before {
+          content: none;
+        }
+      }
       pre {
         margin: 0;
         white-space: pre-wrap;
@@ -2581,28 +2650,34 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           const tr = document.createElement("tr");
 
           const tdTs = document.createElement("td");
+          tdTs.dataset.label = "Zeit";
           tdTs.textContent = formatResultTime(entry.ts);
           tr.appendChild(tdTs);
 
           const tdInput = document.createElement("td");
+          tdInput.dataset.label = "Input";
           const inputText = entry.inputLabel || entry.matchedAddress || "—";
           tdInput.textContent = inputText.length > 80 ? `${inputText.slice(0, 77)}…` : inputText;
           tr.appendChild(tdInput);
 
           const tdScore = document.createElement("td");
+          tdScore.dataset.label = "Score";
           tdScore.textContent = entry.score == null ? "—" : String(entry.score);
           tr.appendChild(tdScore);
 
           const tdDist = document.createElement("td");
+          tdDist.dataset.label = "Dist (m)";
           tdDist.textContent = entry.distanceM == null ? "—" : String(entry.distanceM);
           tr.appendChild(tdDist);
 
           const tdSec = document.createElement("td");
+          tdSec.dataset.label = "Sec";
           tdSec.textContent = entry.securitySubscore == null ? "—" : String(entry.securitySubscore);
           tr.appendChild(tdSec);
 
           const tdActions = document.createElement("td");
           tdActions.className = "actions";
+          tdActions.dataset.label = "Aktionen";
 
           const actionsWrap = document.createElement("div");
           actionsWrap.className = "results-row-actions";
