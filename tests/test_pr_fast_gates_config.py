@@ -18,8 +18,10 @@ class TestPrFastGatesConfig(unittest.TestCase):
         self.assertIn("jobs:", content)
         self.assertIn("dev-smoke-required:", content)
         self.assertIn("run_dev_smoke_required_with_retry.py", content)
-        self.assertIn("DEV_SMOKE_MAX_ATTEMPTS", content)
+        self.assertIn("DEV_SMOKE_MAX_RETRIES", content)
         self.assertIn("DEV_SMOKE_RETRY_DELAY_SECONDS", content)
+        self.assertIn("dev_smoke_flaky_demo_runner.py", content)
+        self.assertIn("Run deterministic flaky demo marker", content)
 
     def test_contract_smoke_workflow_triggers_on_pull_request(self):
         content = self._read(".github/workflows/contract-tests.yml")

@@ -21,6 +21,9 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_VERSION = "dev-smoke-required-retry-report/v1"
+DEFAULT_MAX_RETRIES = 1
+DEFAULT_MAX_ATTEMPTS = DEFAULT_MAX_RETRIES + 1
+MAX_ALLOWED_RETRIES = 1
 
 
 @dataclass
@@ -62,6 +65,16 @@ def _parse_positive_int(value: str, flag: str) -> int:
     return parsed
 
 
+def _parse_non_negative_int(value: str, flag: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:  # pragma: no cover - defensive
+        raise ValueError(f"{flag} must be an integer") from exc
+    if parsed < 0:
+        raise ValueError(f"{flag} must be >= 0")
+    return parsed
+
+
 def _parse_non_negative_float(value: str, flag: str) -> float:
     try:
         parsed = float(value)
@@ -70,6 +83,36 @@ def _parse_non_negative_float(value: str, flag: str) -> float:
     if parsed < 0:
         raise ValueError(f"{flag} must be >= 0")
     return parsed
+
+
+def _resolve_retry_policy(args: argparse.Namespace) -> tuple[int, int]:
+    max_retries_raw = args.max_retries or os.environ.get("DEV_SMOKE_MAX_RETRIES")
+    max_attempts_raw = args.max_attempts or os.environ.get("DEV_SMOKE_MAX_ATTEMPTS")
+
+    if max_retries_raw is not None:
+        max_retries = _parse_non_negative_int(
+            max_retries_raw,
+            "--max-retries/DEV_SMOKE_MAX_RETRIES",
+        )
+        if max_retries > MAX_ALLOWED_RETRIES:
+            raise ValueError(
+                f"--max-retries/DEV_SMOKE_MAX_RETRIES must be <= {MAX_ALLOWED_RETRIES} (max 1 retry in Dev-CI)"
+            )
+        return max_retries + 1, max_retries
+
+    if max_attempts_raw is not None:
+        max_attempts = _parse_positive_int(
+            max_attempts_raw,
+            "--max-attempts/DEV_SMOKE_MAX_ATTEMPTS",
+        )
+        max_retries = max_attempts - 1
+        if max_retries > MAX_ALLOWED_RETRIES:
+            raise ValueError(
+                f"--max-attempts/DEV_SMOKE_MAX_ATTEMPTS implies {max_retries} retries; max allowed is {MAX_ALLOWED_RETRIES}"
+            )
+        return max_attempts, max_retries
+
+    return DEFAULT_MAX_ATTEMPTS, DEFAULT_MAX_RETRIES
 
 
 def _attempt_output_path(base_output: Path, attempt: int) -> Path:
@@ -126,12 +169,44 @@ def _run_attempt(args: argparse.Namespace, attempt: int, base_output_json: Path)
     )
 
 
-def _aggregate_tests(attempts: list[AttemptResult]) -> list[dict[str, Any]]:
+def _build_ci_context() -> dict[str, Any]:
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    run_attempt = os.environ.get("GITHUB_RUN_ATTEMPT")
+    run_number = os.environ.get("GITHUB_RUN_NUMBER")
+    workflow = os.environ.get("GITHUB_WORKFLOW")
+    job = os.environ.get("GITHUB_JOB")
+    sha = os.environ.get("GITHUB_SHA")
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    server_url = os.environ.get("GITHUB_SERVER_URL")
+
+    run_url = None
+    if run_id and repository and server_url:
+        if run_attempt:
+            run_url = f"{server_url}/{repository}/actions/runs/{run_id}/attempts/{run_attempt}"
+        else:
+            run_url = f"{server_url}/{repository}/actions/runs/{run_id}"
+
+    return {
+        "provider": "github_actions" if run_id else "local",
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+        "run_number": run_number,
+        "workflow": workflow,
+        "job": job,
+        "sha": sha,
+        "repository": repository,
+        "run_url": run_url,
+    }
+
+
+def _aggregate_tests(attempts: list[AttemptResult], build_context: dict[str, Any]) -> list[dict[str, Any]]:
     timeline: dict[str, list[dict[str, Any]]] = {}
 
     for attempt in attempts:
         check_statuses = {
-            str(check.get("name") or "unnamed-check").strip() or "unnamed-check": str(check.get("status") or "unknown").lower()
+            str(check.get("name") or "unnamed-check").strip() or "unnamed-check": str(
+                check.get("status") or "unknown"
+            ).lower()
             for check in attempt.checks
         }
 
@@ -153,9 +228,20 @@ def _aggregate_tests(attempts: list[AttemptResult]) -> list[dict[str, Any]]:
         statuses = [entry["status"] for entry in entries]
         saw_fail_before_last = any(status != "pass" for status in statuses[:-1])
         final_status = statuses[-1]
+
         flaky_hint = None
+        flaky_context = None
         if final_status == "pass" and saw_fail_before_last:
-            flaky_hint = f"failed on attempt(s) before final pass (attempt {entries[-1]['attempt']})"
+            first_failed_attempt = next(
+                (entry["attempt"] for entry in entries if entry["status"] != "pass"),
+                entries[0]["attempt"],
+            )
+            flaky_hint = f"failed before final pass (failed on attempt {first_failed_attempt}, recovered on attempt {entries[-1]['attempt']})"
+            flaky_context = {
+                "first_failed_attempt": first_failed_attempt,
+                "recovered_on_attempt": entries[-1]["attempt"],
+                "build_context": build_context,
+            }
 
         tests.append(
             {
@@ -163,6 +249,7 @@ def _aggregate_tests(attempts: list[AttemptResult]) -> list[dict[str, Any]]:
                 "final_status": final_status,
                 "attempts": entries,
                 "flaky_hint": flaky_hint,
+                "flaky_context": flaky_context,
             }
         )
 
@@ -172,12 +259,19 @@ def _aggregate_tests(attempts: list[AttemptResult]) -> list[dict[str, Any]]:
 def _build_summary_markdown(report: dict[str, Any]) -> str:
     summary = report.get("summary", {})
     retry_policy = report.get("retry_policy", {})
+    build_context = report.get("build_context", {})
+
+    run_id = build_context.get("run_id") or "n/a"
+    run_attempt = build_context.get("run_attempt") or "n/a"
+    run_url = build_context.get("run_url") or "n/a"
 
     lines = [
         "## dev-smoke-required Retry Summary",
         "",
         f"- Final status: **{report.get('status', 'unknown')}**",
-        f"- Retry policy: `max_attempts={retry_policy.get('max_attempts')}`, `retry_delay_seconds={retry_policy.get('retry_delay_seconds')}`",
+        f"- Retry policy: `max_retries={retry_policy.get('max_retries')}`, `max_attempts={retry_policy.get('max_attempts')}`, `retry_delay_seconds={retry_policy.get('retry_delay_seconds')}`",
+        f"- Build context: run_id=`{run_id}`, run_attempt=`{run_attempt}`",
+        f"- Run URL: {run_url}",
         f"- Attempts used: **{summary.get('attempts_used', 0)}**",
         f"- Retried checks: **{summary.get('retried_checks', 0)}**",
         f"- Flaky candidates: **{summary.get('flaky_candidates', 0)}**",
@@ -196,6 +290,12 @@ def _build_summary_markdown(report: dict[str, Any]) -> str:
             line = f"- `{test.get('name')}` → **{test.get('final_status')}** ({attempts})"
             if test.get("flaky_hint"):
                 line += f" ⚠️ flaky: {test['flaky_hint']}"
+                flaky_context = test.get("flaky_context") or {}
+                flaky_build = flaky_context.get("build_context") or {}
+                line += (
+                    f" [run_id={flaky_build.get('run_id') or 'n/a'}, "
+                    f"run_attempt={flaky_build.get('run_attempt') or 'n/a'}]"
+                )
             lines.append(line)
 
     lines.append("")
@@ -226,9 +326,14 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Markdown summary path for CI step summary",
     )
     parser.add_argument(
+        "--max-retries",
+        default=None,
+        help="Override max retries (defaults to DEV_SMOKE_MAX_RETRIES or 1)",
+    )
+    parser.add_argument(
         "--max-attempts",
         default=None,
-        help="Override retry attempts (defaults to DEV_SMOKE_MAX_ATTEMPTS or 2)",
+        help="Legacy override for attempts (defaults to DEV_SMOKE_MAX_ATTEMPTS or 2)",
     )
     parser.add_argument(
         "--retry-delay-seconds",
@@ -242,10 +347,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
     try:
-        max_attempts = _parse_positive_int(
-            args.max_attempts or os.environ.get("DEV_SMOKE_MAX_ATTEMPTS", "2"),
-            "--max-attempts/DEV_SMOKE_MAX_ATTEMPTS",
-        )
+        max_attempts, max_retries = _resolve_retry_policy(args)
         retry_delay_seconds = _parse_non_negative_float(
             args.retry_delay_seconds or os.environ.get("DEV_SMOKE_RETRY_DELAY_SECONDS", "5"),
             "--retry-delay-seconds/DEV_SMOKE_RETRY_DELAY_SECONDS",
@@ -280,7 +382,8 @@ def main(argv: list[str] | None = None) -> int:
         base_output_json.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(last_attempt_path, base_output_json)
 
-    tests = _aggregate_tests(attempts)
+    build_context = _build_ci_context()
+    tests = _aggregate_tests(attempts, build_context=build_context)
     retried_checks = sum(1 for test in tests if len(test.get("attempts", [])) > 1)
     flaky_candidates = sum(1 for test in tests if test.get("flaky_hint"))
 
@@ -292,9 +395,11 @@ def main(argv: list[str] | None = None) -> int:
         "status": status,
         "reason": reason,
         "retry_policy": {
+            "max_retries": max_retries,
             "max_attempts": max_attempts,
             "retry_delay_seconds": retry_delay_seconds,
         },
+        "build_context": build_context,
         "attempts": [
             {
                 "attempt": attempt.attempt,
