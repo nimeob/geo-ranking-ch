@@ -27,6 +27,7 @@ set -euo pipefail
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_TLS_CA_CERT="/pfad/zu/dev-self-signed.crt"  # optional: zusätzlicher Trust-Anchor für HTTPS-Smoke (nutzt curl --cacert, kein globales -k)
 #   DEV_API_AUTH_TOKEN darf keine Whitespaces/Steuerzeichen enthalten (wird vor Prüfung getrimmt)
+#   DEV_SMOKE_TEST_SEED="dev-smoke-seed-v1"  # optional: zentraler deterministischer Seed für Default-SMOKE_REQUEST_ID
 
 if [[ -z "${DEV_BASE_URL:-}" ]]; then
   echo "[BL-18.1] DEV_BASE_URL ist nicht gesetzt. Beispiel: DEV_BASE_URL=https://<endpoint> ./scripts/run_remote_api_smoketest.sh" >&2
@@ -91,6 +92,8 @@ SMOKE_CLASSIFICATION="${SMOKE_CLASSIFICATION:-must-pass}"
 SMOKE_REPORT_SCHEMA_VERSION="deploy-smoke-report/v1"
 DEV_TLS_CA_CERT_RAW="${DEV_TLS_CA_CERT:-}"
 DEV_TLS_CA_CERT="${DEV_TLS_CA_CERT_RAW}"
+DEV_SMOKE_TEST_SEED_RAW="${DEV_SMOKE_TEST_SEED:-}"
+DEV_SMOKE_TEST_SEED="${DEV_SMOKE_TEST_SEED_RAW}"
 
 SMOKE_OUTPUT_JSON="$(python3 - "${SMOKE_OUTPUT_JSON}" <<'PY'
 import sys
@@ -196,6 +199,31 @@ print(sys.argv[1].strip())
 PY
 )"
 
+DEV_SMOKE_TEST_SEED="$(python3 - "${DEV_SMOKE_TEST_SEED}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+if [[ -n "${DEV_SMOKE_TEST_SEED_RAW}" && -z "${DEV_SMOKE_TEST_SEED}" ]]; then
+  echo "[BL-18.1] DEV_SMOKE_TEST_SEED ist leer nach Whitespace-Normalisierung." >&2
+  exit 2
+fi
+
+if [[ -n "${DEV_SMOKE_TEST_SEED}" ]]; then
+  if ! python3 - "${DEV_SMOKE_TEST_SEED}" <<'PY'
+import sys
+
+value = sys.argv[1]
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
+    raise SystemExit(1)
+PY
+  then
+    echo "[BL-18.1] DEV_SMOKE_TEST_SEED darf keine Steuerzeichen enthalten." >&2
+    exit 2
+  fi
+fi
+
 if [[ -z "${SMOKE_QUERY}" ]]; then
   echo "[BL-18.1] SMOKE_QUERY ist leer nach Whitespace-Normalisierung." >&2
   exit 2
@@ -219,11 +247,24 @@ if [[ -z "${SMOKE_REQUEST_ID}" ]]; then
     exit 2
   fi
 
-  SMOKE_REQUEST_ID="$(python3 - <<'PY'
+  SMOKE_REQUEST_ID="$(python3 - "${DEV_SMOKE_TEST_SEED}" "${DEV_BASE_URL_TRIMMED}" "${SMOKE_QUERY}" "${SMOKE_MODE}" "${SMOKE_TIMEOUT_SECONDS}" <<'PY'
+import hashlib
+import sys
 import time
 import uuid
 
-print(f"bl18-{int(time.time())}-{uuid.uuid4().hex[:10]}")
+seed = sys.argv[1].strip()
+base_url = sys.argv[2].strip()
+query = sys.argv[3].strip()
+mode = sys.argv[4].strip().lower()
+timeout_seconds = sys.argv[5].strip()
+
+if seed:
+    basis = "|".join([seed, base_url, query, mode, timeout_seconds])
+    digest = hashlib.sha256(basis.encode("utf-8")).hexdigest()[:16]
+    print(f"bl18-seed-{digest}")
+else:
+    print(f"bl18-{int(time.time())}-{uuid.uuid4().hex[:10]}")
 PY
 )"
 fi
@@ -288,7 +329,7 @@ then
   exit 2
 fi
 
-export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_REQUEST_ID_HEADER SMOKE_ENFORCE_REQUEST_ID_ECHO SMOKE_CLASSIFICATION SMOKE_REPORT_SCHEMA_VERSION
+export SMOKE_QUERY SMOKE_MODE SMOKE_TIMEOUT_SECONDS SMOKE_OUTPUT_JSON SMOKE_REQUEST_ID SMOKE_REQUEST_ID_HEADER SMOKE_ENFORCE_REQUEST_ID_ECHO SMOKE_CLASSIFICATION SMOKE_REPORT_SCHEMA_VERSION DEV_SMOKE_TEST_SEED
 
 is_positive_number() {
   python3 - "$1" <<'PY'
@@ -615,6 +656,9 @@ started_at_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 start_epoch="$(date +%s)"
 
 echo "[BL-18.1] Remote-Smoke-Test gegen: ${ANALYZE_URL}"
+if [[ -n "${DEV_SMOKE_TEST_SEED}" ]]; then
+  echo "[BL-18.1] Deterministic seed: ${DEV_SMOKE_TEST_SEED}"
+fi
 set +e
 HTTP_CODE=$(curl -sS -m "${CURL_MAX_TIME}" \
   --retry "${CURL_RETRY_COUNT}" \
@@ -667,6 +711,7 @@ report = {
     "request_id_echo_enforced": os.environ.get("SMOKE_ENFORCE_REQUEST_ID_ECHO", "1") == "1",
     "response_request_id": None,
     "response_header_request_id": None,
+    "dev_smoke_test_seed": os.environ.get("DEV_SMOKE_TEST_SEED") or None,
     "url": os.environ["ANALYZE_URL"],
     "started_at_utc": os.environ["started_at_utc"],
     "ended_at_utc": os.environ["ended_at_utc"],
@@ -727,6 +772,7 @@ report = {
     "request_id_echo_enforced": enforce_request_id_echo,
     "response_request_id": None,
     "response_header_request_id": response_header_request_id,
+    "dev_smoke_test_seed": os.environ.get("DEV_SMOKE_TEST_SEED") or None,
     "url": os.environ["ANALYZE_URL"],
     "started_at_utc": os.environ["started_at_utc"],
     "ended_at_utc": os.environ["ended_at_utc"],

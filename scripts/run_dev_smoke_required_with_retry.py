@@ -85,6 +85,16 @@ def _parse_non_negative_float(value: str, flag: str) -> float:
     return parsed
 
 
+def _resolve_smoke_test_seed() -> str:
+    raw = os.environ.get("DEV_SMOKE_TEST_SEED", "")
+    seed = raw.strip()
+    if raw and not seed:
+        raise ValueError("DEV_SMOKE_TEST_SEED must not be empty after trimming")
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in seed):
+        raise ValueError("DEV_SMOKE_TEST_SEED must not contain control chars")
+    return seed
+
+
 def _resolve_retry_policy(args: argparse.Namespace) -> tuple[int, int]:
     max_retries_raw = args.max_retries or os.environ.get("DEV_SMOKE_MAX_RETRIES")
     max_attempts_raw = args.max_attempts or os.environ.get("DEV_SMOKE_MAX_ATTEMPTS")
@@ -270,6 +280,7 @@ def _build_summary_markdown(report: dict[str, Any]) -> str:
         "",
         f"- Final status: **{report.get('status', 'unknown')}**",
         f"- Retry policy: `max_retries={retry_policy.get('max_retries')}`, `max_attempts={retry_policy.get('max_attempts')}`, `retry_delay_seconds={retry_policy.get('retry_delay_seconds')}`",
+        f"- Deterministic seed: `{report.get('smoke_test_seed') or 'n/a'}`",
         f"- Build context: run_id=`{run_id}`, run_attempt=`{run_attempt}`",
         f"- Run URL: {run_url}",
         f"- Attempts used: **{summary.get('attempts_used', 0)}**",
@@ -352,6 +363,7 @@ def main(argv: list[str] | None = None) -> int:
             args.retry_delay_seconds or os.environ.get("DEV_SMOKE_RETRY_DELAY_SECONDS", "5"),
             "--retry-delay-seconds/DEV_SMOKE_RETRY_DELAY_SECONDS",
         )
+        smoke_test_seed = _resolve_smoke_test_seed()
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
@@ -394,6 +406,7 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": SCHEMA_VERSION,
         "status": status,
         "reason": reason,
+        "smoke_test_seed": smoke_test_seed or None,
         "retry_policy": {
             "max_retries": max_retries,
             "max_attempts": max_attempts,

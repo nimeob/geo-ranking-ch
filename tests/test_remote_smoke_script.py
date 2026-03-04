@@ -350,6 +350,29 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data_second.get("response_request_id"), request_id_second)
         self.assertEqual(data_second.get("response_header_request_id"), request_id_second)
 
+    def test_smoke_script_uses_deterministic_seed_for_default_request_id(self):
+        cp_first, data_first, _ = self._run_smoke(
+            include_token=True,
+            use_default_request_id=True,
+            extra_env={"DEV_SMOKE_TEST_SEED": "dev-seed-123"},
+        )
+        cp_second, data_second, _ = self._run_smoke(
+            include_token=True,
+            use_default_request_id=True,
+            extra_env={"DEV_SMOKE_TEST_SEED": "dev-seed-123"},
+        )
+
+        self.assertEqual(cp_first.returncode, 0, msg=cp_first.stdout + "\n" + cp_first.stderr)
+        self.assertEqual(cp_second.returncode, 0, msg=cp_second.stdout + "\n" + cp_second.stderr)
+
+        request_id_first = data_first.get("request_id")
+        request_id_second = data_second.get("request_id")
+        self.assertEqual(request_id_first, request_id_second)
+        self.assertTrue(str(request_id_first).startswith("bl18-seed-"))
+        self.assertEqual(data_first.get("dev_smoke_test_seed"), "dev-seed-123")
+        self.assertEqual(data_second.get("dev_smoke_test_seed"), "dev-seed-123")
+        self.assertIn("Deterministic seed: dev-seed-123", cp_first.stdout)
+
     def test_smoke_script_trims_dev_api_auth_token_before_request(self):
         cp, data, request_id = self._run_smoke(
             include_token=False,

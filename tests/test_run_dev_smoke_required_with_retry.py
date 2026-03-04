@@ -63,6 +63,7 @@ def _run_wrapper(
     fail_attempts: int,
     max_attempts: int = 2,
     max_retries: int | None = None,
+    smoke_seed: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     fake_runner = Path(tmpdir) / "fake_runner.py"
     _write_fake_runner(fake_runner)
@@ -83,6 +84,8 @@ def _run_wrapper(
     env["GITHUB_SHA"] = "deadbeef"
     env["GITHUB_REPOSITORY"] = "nimeob/geo-ranking-ch"
     env["GITHUB_SERVER_URL"] = "https://github.com"
+    if smoke_seed is not None:
+        env["DEV_SMOKE_TEST_SEED"] = smoke_seed
 
     command = [
         "python3",
@@ -154,6 +157,18 @@ def test_retry_wrapper_returns_failure_when_retries_exhausted() -> None:
         assert payload["reason"] == "retries_exhausted"
         assert payload["summary"]["attempts_used"] == 2
         assert payload["summary"]["flaky_candidates"] == 0
+
+
+def test_retry_wrapper_reports_smoke_seed_in_json_and_summary() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        proc = _run_wrapper(tmpdir, fail_attempts=0, max_retries=1, smoke_seed="dev-smoke-seed-xyz")
+        assert proc.returncode == 0, proc.stderr
+
+        payload = json.loads((Path(tmpdir) / "retry.json").read_text(encoding="utf-8"))
+        assert payload["smoke_test_seed"] == "dev-smoke-seed-xyz"
+
+        summary = (Path(tmpdir) / "summary.md").read_text(encoding="utf-8")
+        assert "Deterministic seed: `dev-smoke-seed-xyz`" in summary
 
 
 def test_retry_wrapper_rejects_more_than_one_retry() -> None:

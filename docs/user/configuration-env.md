@@ -50,6 +50,7 @@ Für den kompakten Packaging-Überblick (Pflicht/Optional + Default/Beispiel pro
 | `CURL_RETRY_COUNT` | `3` | Curl-Retry-Anzahl |
 | `CURL_RETRY_DELAY` | `2` | Delay zwischen Retries (Sek.) |
 | `SMOKE_REQUEST_ID` | auto-generiert | Request-ID für Korrelation |
+| `DEV_SMOKE_TEST_SEED` | leer | Optionaler deterministischer Seed für auto-generierte `SMOKE_REQUEST_ID` |
 | `SMOKE_REQUEST_ID_HEADER` | `request` | Header-Typ (`request|correlation|...` inkl. X-/underscore-Aliasse) |
 | `SMOKE_ENFORCE_REQUEST_ID_ECHO` | `1` | Echo-Check ein/aus (`1|0|true|false|yes|no|on|off`) |
 | `SMOKE_OUTPUT_JSON` | leer | Optionales JSON-Artefakt für den Smoke-Run |
@@ -67,7 +68,9 @@ Für den kompakten Packaging-Überblick (Pflicht/Optional + Default/Beispiel pro
 - `CURL_RETRY_COUNT`, `CURL_RETRY_DELAY`: Ganzzahlen `>= 0`.
 - `SMOKE_REQUEST_ID`:
   - auto-generiert, falls nicht gesetzt,
+  - mit gesetztem `DEV_SMOKE_TEST_SEED` deterministisch ableitbar (stabil über Wiederholungen bei gleichem Seed),
   - sonst trim + ASCII-only, ohne Steuerzeichen/Whitespace/`,`/`;`, max. 128 Zeichen.
+- `DEV_SMOKE_TEST_SEED`: optional; wird getrimmt, darf nicht whitespace-only und ohne Steuerzeichen sein.
 - `SMOKE_OUTPUT_JSON`: wird getrimmt; whitespace-only, Steuerzeichen, Verzeichnisziel oder Datei-Elternpfad als Nicht-Verzeichnis sind ungültig.
 
 ---
