@@ -58,7 +58,12 @@ raise SystemExit(1 if is_fail else 0)
     path.chmod(0o755)
 
 
-def _run_wrapper(tmpdir: str, fail_attempts: int, max_attempts: int = 2) -> subprocess.CompletedProcess[str]:
+def _run_wrapper(
+    tmpdir: str,
+    fail_attempts: int,
+    max_attempts: int = 2,
+    max_retries: int | None = None,
+) -> subprocess.CompletedProcess[str]:
     fake_runner = Path(tmpdir) / "fake_runner.py"
     _write_fake_runner(fake_runner)
 
@@ -70,24 +75,36 @@ def _run_wrapper(tmpdir: str, fail_attempts: int, max_attempts: int = 2) -> subp
     env = {"PATH": os.environ.get("PATH", "")}
     env["FAKE_RUNNER_STATE_FILE"] = str(state_file)
     env["FAKE_RUNNER_FAIL_ATTEMPTS"] = str(fail_attempts)
+    env["GITHUB_RUN_ID"] = "987654321"
+    env["GITHUB_RUN_ATTEMPT"] = "3"
+    env["GITHUB_RUN_NUMBER"] = "77"
+    env["GITHUB_WORKFLOW"] = "dev-smoke-required"
+    env["GITHUB_JOB"] = "dev-smoke-required"
+    env["GITHUB_SHA"] = "deadbeef"
+    env["GITHUB_REPOSITORY"] = "nimeob/geo-ranking-ch"
+    env["GITHUB_SERVER_URL"] = "https://github.com"
+
+    command = [
+        "python3",
+        str(SCRIPT),
+        "--runner-script",
+        str(fake_runner),
+        "--output-json",
+        str(out_json),
+        "--report-json",
+        str(report_json),
+        "--summary-markdown",
+        str(summary_md),
+        "--retry-delay-seconds",
+        "0",
+    ]
+    if max_retries is not None:
+        command.extend(["--max-retries", str(max_retries)])
+    else:
+        command.extend(["--max-attempts", str(max_attempts)])
 
     return subprocess.run(
-        [
-            "python3",
-            str(SCRIPT),
-            "--runner-script",
-            str(fake_runner),
-            "--output-json",
-            str(out_json),
-            "--report-json",
-            str(report_json),
-            "--summary-markdown",
-            str(summary_md),
-            "--max-attempts",
-            str(max_attempts),
-            "--retry-delay-seconds",
-            "0",
-        ],
+        command,
         cwd=str(REPO_ROOT),
         text=True,
         capture_output=True,
@@ -95,9 +112,9 @@ def _run_wrapper(tmpdir: str, fail_attempts: int, max_attempts: int = 2) -> subp
     )
 
 
-def test_retry_wrapper_marks_flaky_candidate_on_retry_success() -> None:
+def test_retry_wrapper_marks_flaky_candidate_with_build_context_on_retry_success() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
-        proc = _run_wrapper(tmpdir, fail_attempts=1, max_attempts=2)
+        proc = _run_wrapper(tmpdir, fail_attempts=1, max_retries=1)
         assert proc.returncode == 0, proc.stderr
 
         payload = json.loads((Path(tmpdir) / "retry.json").read_text(encoding="utf-8"))
@@ -107,11 +124,15 @@ def test_retry_wrapper_marks_flaky_candidate_on_retry_success() -> None:
         assert payload["summary"]["flaky_candidates"] == 1
         assert payload["tests"][0]["name"] == "pr-split-smoke"
         assert payload["tests"][0]["flaky_hint"]
+        flaky_context = payload["tests"][0]["flaky_context"]
+        assert flaky_context["build_context"]["run_id"] == "987654321"
+        assert flaky_context["build_context"]["run_attempt"] == "3"
+        assert flaky_context["build_context"]["run_url"].endswith("/actions/runs/987654321/attempts/3")
 
 
 def test_retry_wrapper_single_pass_has_no_flaky_or_retried_counts() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
-        proc = _run_wrapper(tmpdir, fail_attempts=0, max_attempts=2)
+        proc = _run_wrapper(tmpdir, fail_attempts=0, max_retries=1)
         assert proc.returncode == 0, proc.stderr
 
         payload = json.loads((Path(tmpdir) / "retry.json").read_text(encoding="utf-8"))
@@ -119,11 +140,13 @@ def test_retry_wrapper_single_pass_has_no_flaky_or_retried_counts() -> None:
         assert payload["summary"]["attempts_used"] == 1
         assert payload["summary"]["retried_checks"] == 0
         assert payload["summary"]["flaky_candidates"] == 0
+        assert payload["retry_policy"]["max_retries"] == 1
+        assert payload["retry_policy"]["max_attempts"] == 2
 
 
 def test_retry_wrapper_returns_failure_when_retries_exhausted() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
-        proc = _run_wrapper(tmpdir, fail_attempts=5, max_attempts=2)
+        proc = _run_wrapper(tmpdir, fail_attempts=5, max_retries=1)
         assert proc.returncode != 0
 
         payload = json.loads((Path(tmpdir) / "retry.json").read_text(encoding="utf-8"))
@@ -131,3 +154,10 @@ def test_retry_wrapper_returns_failure_when_retries_exhausted() -> None:
         assert payload["reason"] == "retries_exhausted"
         assert payload["summary"]["attempts_used"] == 2
         assert payload["summary"]["flaky_candidates"] == 0
+
+
+def test_retry_wrapper_rejects_more_than_one_retry() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        proc = _run_wrapper(tmpdir, fail_attempts=0, max_retries=2)
+        assert proc.returncode == 2
+        assert "max 1 retry in Dev-CI" in proc.stderr
