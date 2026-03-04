@@ -485,7 +485,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         function buildLoginRedirectUrl(authReason) {
           const normalizedReason = normalizeErrorCode(authReason) || "session_recovery";
           const nextPath = typeof window !== "undefined" && window.location
-            ? `${window.location.pathname || "/history"}${window.location.search || ""}`
+            ? `${window.location.pathname || "/history"}${window.location.search || ""}${window.location.hash || ""}`
             : "/history";
 
           if (typeof URLSearchParams === "undefined") {

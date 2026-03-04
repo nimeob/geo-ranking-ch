@@ -3894,6 +3894,8 @@ class Handler(BaseHTTPRequestHandler):
                             "ok": True,
                             "authenticated": True,
                             "user_claims": me_result.user_claims,
+                            "session_expires_at": me_result.session_expires_at,
+                            "session_expires_in_seconds": me_result.session_expires_in_seconds,
                             "request_id": request_id,
                         },
                         request_id=request_id,

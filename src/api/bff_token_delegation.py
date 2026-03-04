@@ -553,6 +553,10 @@ class MeResult:
     http_status: int  # 200 or 401
     # Parsed user_claims dict (without internal _next key, without tokens)
     user_claims: dict[str, Any]
+    # Absolute Unix epoch when the current session expires (0 = unknown/unset).
+    session_expires_at: float
+    # Best-effort countdown in seconds until session expiry (0 when unknown/expired).
+    session_expires_in_seconds: int
     error: str  # empty string on success
 
 
@@ -573,15 +577,29 @@ def handle_me(
     Returns:
         :class:`MeResult` with ``http_status=200`` and ``user_claims`` on
         success, or ``http_status=401`` and empty claims when the session is
-        absent/expired.
+        absent/expired. Successful responses include expiry metadata so UI
+        clients can show a pre-expiry warning and preserve draft state before
+        re-login.
     """
     session_id = parse_session_id_from_cookie(cookie_header)
     if not session_id:
-        return MeResult(http_status=401, user_claims={}, error="no_session_cookie")
+        return MeResult(
+            http_status=401,
+            user_claims={},
+            session_expires_at=0.0,
+            session_expires_in_seconds=0,
+            error="no_session_cookie",
+        )
 
     session = session_store.get(session_id)
     if session is None:
-        return MeResult(http_status=401, user_claims={}, error="session_not_found")
+        return MeResult(
+            http_status=401,
+            user_claims={},
+            session_expires_at=0.0,
+            session_expires_in_seconds=0,
+            error="session_not_found",
+        )
 
     # Return only safe claims — never tokens, never internal _next key
     safe_claims = {
@@ -589,4 +607,12 @@ def handle_me(
         for k, v in session.user_claims.items()
         if k not in _TOKEN_FIELDS and not k.startswith("_")
     }
-    return MeResult(http_status=200, user_claims=safe_claims, error="")
+    expires_at = float(session.session_expires_at or 0.0)
+    expires_in = max(0, int(expires_at - time.time())) if expires_at > 0 else 0
+    return MeResult(
+        http_status=200,
+        user_claims=safe_claims,
+        session_expires_at=expires_at,
+        session_expires_in_seconds=expires_in,
+        error="",
+    )

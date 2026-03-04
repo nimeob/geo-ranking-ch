@@ -511,6 +511,8 @@ class TestHandleMe:
         assert result.http_status == 200
         assert result.user_claims["sub"] == "u-123"
         assert result.user_claims["email"] == "user@test.com"
+        assert result.session_expires_at >= time.time()
+        assert result.session_expires_in_seconds >= 0
         assert result.error == ""
 
     def test_401_no_cookie(self):
@@ -519,6 +521,8 @@ class TestHandleMe:
         assert result.http_status == 401
         assert result.error == "no_session_cookie"
         assert result.user_claims == {}
+        assert result.session_expires_at == 0.0
+        assert result.session_expires_in_seconds == 0
 
     def test_401_missing_session(self):
         store = _make_store()
