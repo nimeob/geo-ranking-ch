@@ -1080,6 +1080,35 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         "403": "session_expired",
       });
 
+      const DEV_ERROR_CLASS = Object.freeze({
+        AUTH: "AUTH",
+        NETWORK: "NETWORK",
+        API: "API",
+        UI: "UI",
+      });
+      const DEV_ERROR_CLASS_BY_CODE = Object.freeze({
+        timeout: DEV_ERROR_CLASS.NETWORK,
+        abort: DEV_ERROR_CLASS.NETWORK,
+        network_error: DEV_ERROR_CLASS.NETWORK,
+        invalid_json: DEV_ERROR_CLASS.API,
+        validation: DEV_ERROR_CLASS.UI,
+        unauthorized: DEV_ERROR_CLASS.AUTH,
+        forbidden: DEV_ERROR_CLASS.AUTH,
+        no_session_cookie: DEV_ERROR_CLASS.AUTH,
+        session_not_found: DEV_ERROR_CLASS.AUTH,
+        session_expired: DEV_ERROR_CLASS.AUTH,
+        no_access_token: DEV_ERROR_CLASS.AUTH,
+        no_refresh_token: DEV_ERROR_CLASS.AUTH,
+        refresh_grant_error: DEV_ERROR_CLASS.AUTH,
+        refresh_http_error: DEV_ERROR_CLASS.AUTH,
+        refresh_network_error: DEV_ERROR_CLASS.AUTH,
+        refresh_invalid_response: DEV_ERROR_CLASS.AUTH,
+        refresh_missing_token: DEV_ERROR_CLASS.AUTH,
+        token_error: DEV_ERROR_CLASS.AUTH,
+        access_denied: DEV_ERROR_CLASS.AUTH,
+        consent_denied: DEV_ERROR_CLASS.AUTH,
+      });
+
       const state = {
         phase: "idle",
         lastRequestId: null,
@@ -1335,6 +1364,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function setPhase(nextPhase, context = {}) {
         const previousPhase = String(state.phase || "idle");
         state.phase = nextPhase;
+        const phaseErrorFields = buildDevErrorLogFields(context.errorCode, context.statusCode);
 
         emitUiEvent("ui.state.transition", {
           level: nextPhase === "error" ? "warn" : "info",
@@ -1345,7 +1375,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           previous_phase: previousPhase,
           next_phase: nextPhase,
           trigger: context.trigger || "",
-          error_code: context.errorCode || "",
+          ...phaseErrorFields,
         });
       }
 
@@ -2591,6 +2621,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       function setTracePhase(nextPhase, context = {}) {
         const previousPhase = String(traceState.phase || "idle");
         traceState.phase = nextPhase;
+        const phaseErrorFields = buildDevErrorLogFields(context.errorCode, context.statusCode);
 
         emitUiEvent("ui.trace.state.transition", {
           level: nextPhase === "error" || nextPhase === "unknown" ? "warn" : "info",
@@ -2601,7 +2632,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           previous_phase: previousPhase,
           next_phase: nextPhase,
           trigger: context.trigger || "",
-          error_code: context.errorCode || "",
+          ...phaseErrorFields,
         });
       }
 
@@ -3897,6 +3928,42 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return String(errorCode || "").trim().toLowerCase();
       }
 
+      function resolveDevErrorClass(errorCode, statusCode) {
+        const normalizedCode = normalizeErrorCode(errorCode);
+        if (normalizedCode && DEV_ERROR_CLASS_BY_CODE[normalizedCode]) {
+          return DEV_ERROR_CLASS_BY_CODE[normalizedCode];
+        }
+
+        if (normalizedCode.startsWith("refresh_") || normalizedCode.startsWith("idp_")) {
+          return DEV_ERROR_CLASS.AUTH;
+        }
+
+        const normalizedStatus = Number(statusCode);
+        if (Number.isFinite(normalizedStatus)) {
+          if (normalizedStatus === 401 || normalizedStatus === 403) {
+            return DEV_ERROR_CLASS.AUTH;
+          }
+          if (normalizedStatus === 0 || normalizedStatus === 408 || normalizedStatus === 504) {
+            return DEV_ERROR_CLASS.NETWORK;
+          }
+          if (normalizedStatus >= 400) {
+            return DEV_ERROR_CLASS.API;
+          }
+        }
+
+        if (!normalizedCode) {
+          return "";
+        }
+        return DEV_ERROR_CLASS.API;
+      }
+
+      function buildDevErrorLogFields(errorCode, statusCode) {
+        return {
+          error_code: normalizeErrorCode(errorCode),
+          error_class: resolveDevErrorClass(errorCode, statusCode),
+        };
+      }
+
       function resolveAuthRecoveryReason(statusCode, errorCode) {
         const normalizedCode = normalizeErrorCode(errorCode);
         if (normalizedCode && AUTH_RECOVERY_REASON_BY_ERROR_CODE[normalizedCode]) {
@@ -4285,8 +4352,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               method: "POST",
               status_code: 504,
               duration_ms: durationMs,
-              error_code: "timeout",
-              error_class: "timeout",
+              ...buildDevErrorLogFields("timeout", 504),
             });
             throw new Error(
               withTechnicalRequestIdHint(
@@ -4306,8 +4372,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             method: "POST",
             status_code: 0,
             duration_ms: durationMs,
-            error_code: "network_error",
-            error_class: "network_error",
+            ...buildDevErrorLogFields("network_error", 0),
           });
           const networkMessage =
             error instanceof Error && String(error.message || "").trim()
@@ -4335,8 +4400,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             method: "POST",
             status_code: response.status,
             duration_ms: durationMs,
-            error_code: "invalid_json",
-            error_class: "invalid_json",
+            ...buildDevErrorLogFields("invalid_json", response.status),
           });
           throw new Error(withTechnicalRequestIdHint("Response ist kein gültiges JSON.", responseRequestId));
         }
@@ -4358,8 +4422,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             method: "POST",
             status_code: response.status,
             duration_ms: durationMs,
-            error_code: authFailure.errorCode,
-            error_class: authFailure.errorCode,
+            ...buildDevErrorLogFields(authFailure.errorCode, response.status),
             auth_recovery_required: authFailure.requiresLoginRecovery,
           });
 
@@ -4567,12 +4630,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         const retryInputLabel = String(state.lastAnalyzeRequest.inputLabel || state.lastInput || "Retry").trim() || "Retry";
 
+        const retryErrorCode = String(state.serverErrorView && state.serverErrorView.errorCode ? state.serverErrorView.errorCode : "");
+        const retryStatusCode = Number(state.serverErrorView && state.serverErrorView.statusCode);
         emitUiEvent("ui.interaction.error_view.retry", {
           direction: "human->ui",
           status: "triggered",
           requestId: normalizeTraceRequestId(state.serverErrorView && state.serverErrorView.requestId),
-          error_code: String(state.serverErrorView && state.serverErrorView.errorCode ? state.serverErrorView.errorCode : ""),
-          status_code: Number(state.serverErrorView && state.serverErrorView.statusCode),
+          status_code: retryStatusCode,
+          ...buildDevErrorLogFields(retryErrorCode, retryStatusCode),
         });
 
         await startAnalyze(retryPayload, retryInputLabel, {
@@ -4630,8 +4695,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             method: "GET",
             status_code: errorCode === "timeout" ? 504 : 0,
             duration_ms: durationMs,
-            error_code: errorCode,
-            error_class: errorCode,
+            ...buildDevErrorLogFields(errorCode, errorCode === "timeout" ? 504 : 0),
             trace_request_id: normalizedTraceRequestId,
           });
           if (errorCode === "timeout") {
@@ -4663,8 +4727,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             method: "GET",
             status_code: response.status,
             duration_ms: durationMs,
-            error_code: "invalid_json",
-            error_class: "invalid_json",
+            ...buildDevErrorLogFields("invalid_json", response.status),
             trace_request_id: normalizedTraceRequestId,
           });
           throw new Error(
@@ -4688,8 +4751,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             method: "GET",
             status_code: response.status,
             duration_ms: durationMs,
-            error_code: authFailure.errorCode,
-            error_class: authFailure.errorCode,
+            ...buildDevErrorLogFields(authFailure.errorCode, response.status),
             trace_request_id: normalizedTraceRequestId,
           });
 
@@ -4871,7 +4933,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             direction: "ui->human",
             status: "error",
             field: "query",
-            error_code: "validation",
+            ...buildDevErrorLogFields("validation", 400),
           });
 
           state.lastInput = null;
