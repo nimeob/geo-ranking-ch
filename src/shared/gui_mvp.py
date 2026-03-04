@@ -1002,6 +1002,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         meta: {
           empty: "Keine sichtbaren Ergebnisse.",
           filtered: "0 Treffer – Filter aktiv.",
+          network: "Ergebnisliste aktuell wegen Netzwerkproblem nicht verfügbar.",
+          unauthorized: "Ergebnisliste benötigt eine gültige Anmeldung.",
         },
         emptyStates: {
           noData: {
@@ -1013,6 +1015,16 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             title: "Keine Treffer mit aktuellen Filtern",
             description: "Es gibt Einträge in der Vision-Liste, aber die aktiven Filter blenden sie aus.",
             action: "Filter zurücksetzen",
+          },
+          network: {
+            title: "Netzwerkproblem beim Laden der Ergebnisliste",
+            description: "Die letzte Abfrage konnte wegen eines Netzwerkfehlers nicht geladen werden.",
+            action: "Retry ausführen",
+          },
+          unauthorized: {
+            title: "Session abgelaufen",
+            description: "Für die Ergebnisliste ist eine gültige Anmeldung erforderlich.",
+            action: "Login starten",
           },
         },
       });
@@ -1084,6 +1096,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         minScore: null,
         maxDistance: null,
         minSecurity: null,
+        recoveryState: "",
       };
 
       const resultsFiltersUiState = {
@@ -1883,6 +1896,89 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return text || "—";
       }
 
+      function normalizeResultsRecoveryState(rawValue) {
+        const normalized = String(rawValue || "").trim().toLowerCase();
+        if (normalized === "network" || normalized === "unauthorized") {
+          return normalized;
+        }
+        return "";
+      }
+
+      function setResultsListRecoveryState(nextState) {
+        resultsListState.recoveryState = normalizeResultsRecoveryState(nextState);
+      }
+
+      function resolveResultsRecoveryStateFromAnalyzeResult(result) {
+        if (!result || result.ok) {
+          return "";
+        }
+
+        const statusCode = Number(result.statusCode);
+        const errorCode = normalizeErrorCode(result.errorCode);
+        if (result.requiresLoginRecovery || statusCode === 401 || statusCode === 403) {
+          return "unauthorized";
+        }
+        if (
+          errorCode === "unauthorized"
+          || errorCode === "access_denied"
+          || errorCode === "consent_denied"
+          || errorCode === "session_not_found"
+          || errorCode === "no_session_cookie"
+        ) {
+          return "unauthorized";
+        }
+        return "";
+      }
+
+      function resolveResultsMetaCopy(total, emptyReason) {
+        if (emptyReason === "network") {
+          return RESULTS_LIST_COPY.meta.network;
+        }
+        if (emptyReason === "unauthorized") {
+          return RESULTS_LIST_COPY.meta.unauthorized;
+        }
+        return total ? RESULTS_LIST_COPY.meta.filtered : RESULTS_LIST_COPY.meta.empty;
+      }
+
+      function triggerResultsListLoginRecovery(authReason = "session_expired") {
+        const loginUrl = buildLoginRedirectUrl(authReason);
+        setAuthState(false, {
+          userClaims: {},
+          authCheckSupported: true,
+        });
+
+        if (typeof window !== "undefined" && window.location && typeof window.location.assign === "function") {
+          window.location.assign(loginUrl);
+          return true;
+        }
+
+        scheduleReLoginRedirect(401, "unauthorized", normalizeTraceRequestId(state.lastRequestId));
+        return false;
+      }
+
+      async function retryLastAnalyzeRequestFromResultsList() {
+        const hasRetryContext = Boolean(
+          state.lastAnalyzeRequest
+          && state.lastAnalyzeRequest.payload
+          && typeof state.lastAnalyzeRequest.payload === "object"
+        );
+        if (!hasRetryContext || state.phase === "loading") {
+          return false;
+        }
+
+        const retryPayload = cloneAnalyzePayload(state.lastAnalyzeRequest.payload);
+        if (!retryPayload) {
+          return false;
+        }
+
+        const retryInputLabel = String(state.lastAnalyzeRequest.inputLabel || state.lastInput || "Retry").trim() || "Retry";
+        await startAnalyze(retryPayload, retryInputLabel, {
+          trigger: "results_list_empty_retry",
+          isRetryAttempt: true,
+        });
+        return true;
+      }
+
       function resetResultsListFilters() {
         resultsListState.sortKey = "score";
         resultsListState.sortDir = "desc";
@@ -1899,18 +1995,58 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         if (resultsMinSecurityEl) resultsMinSecurityEl.value = "";
       }
 
-      function handleResultsEmptyStatePrimaryAction(reason) {
+      async function handleResultsEmptyStatePrimaryAction(reason) {
+        const normalizedReason = String(reason || "filtered").trim().toLowerCase() || "filtered";
+
+        if (normalizedReason === "network") {
+          const retryTriggered = await retryLastAnalyzeRequestFromResultsList();
+          emitUiEvent("ui.interaction.results_list.empty_cta", {
+            direction: "human->ui",
+            status: retryTriggered ? "retry_triggered" : "retry_unavailable",
+            reason: "network",
+          });
+          return;
+        }
+
+        if (normalizedReason === "unauthorized") {
+          const redirected = triggerResultsListLoginRecovery("session_expired");
+          emitUiEvent("ui.interaction.results_list.empty_cta", {
+            direction: "human->ui",
+            status: redirected ? "login_redirect" : "login_recovery_scheduled",
+            reason: "unauthorized",
+          });
+          return;
+        }
+
         resetResultsListFilters();
+        setResultsListRecoveryState("");
         updateResultsListDeepLink();
         renderResultsList();
         emitUiEvent("ui.interaction.results_list.empty_cta", {
           direction: "human->ui",
           status: "filters_reset",
-          reason: String(reason || "filtered"),
+          reason: normalizedReason,
         });
       }
 
       function resolveResultsEmptyState(total) {
+        const recoveryState = normalizeResultsRecoveryState(resultsListState.recoveryState);
+        if (recoveryState === "network") {
+          return {
+            reason: "network",
+            title: RESULTS_LIST_COPY.emptyStates.network.title,
+            description: RESULTS_LIST_COPY.emptyStates.network.description,
+            action: RESULTS_LIST_COPY.emptyStates.network.action,
+          };
+        }
+        if (recoveryState === "unauthorized") {
+          return {
+            reason: "unauthorized",
+            title: RESULTS_LIST_COPY.emptyStates.unauthorized.title,
+            description: RESULTS_LIST_COPY.emptyStates.unauthorized.description,
+            action: RESULTS_LIST_COPY.emptyStates.unauthorized.action,
+          };
+        }
         if (total > 0) {
           return {
             reason: "filtered",
@@ -2009,7 +2145,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           action.type = "button";
           action.className = "results-empty-action";
           action.textContent = emptyState.action;
-          action.addEventListener("click", () => handleResultsEmptyStatePrimaryAction(emptyState.reason));
+          action.addEventListener("click", async () => {
+            await handleResultsEmptyStatePrimaryAction(emptyState.reason);
+          });
 
           panel.appendChild(title);
           panel.appendChild(description);
@@ -2018,7 +2156,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           tr.appendChild(td);
           resultsBodyEl.appendChild(tr);
 
-          resultsMetaEl.textContent = total ? RESULTS_LIST_COPY.meta.filtered : RESULTS_LIST_COPY.meta.empty;
+          resultsMetaEl.textContent = resolveResultsMetaCopy(total, emptyState.reason);
           return;
         }
 
@@ -2118,6 +2256,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           return;
         }
 
+        setResultsListRecoveryState("");
         resultsListState.entries.unshift(entry);
         if (resultsListState.entries.length > 60) {
           resultsListState.entries = resultsListState.entries.slice(0, 60);
@@ -2127,6 +2266,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       function clearResultsEntries() {
         resultsListState.entries = [];
+        setResultsListRecoveryState("");
         renderResultsList();
       }
 
@@ -4096,6 +4236,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           requestId,
         });
         if (!authenticated) {
+          setResultsListRecoveryState("unauthorized");
+          renderResultsList();
           emitUiEvent("ui.input.rejected", {
             level: "warn",
             traceId,
@@ -4119,6 +4261,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         rememberAnalyzeRequest(payload, inputLabel);
         clearServerErrorView();
+        setResultsListRecoveryState("");
 
         setPhase("loading", {
           traceId,
@@ -4165,6 +4308,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
           state.coreFactors = result.ok ? extractCoreFactors(result.response) : [];
 
+          if (result.ok) {
+            setResultsListRecoveryState("");
+          } else if (!result.isServerError) {
+            setResultsListRecoveryState(resolveResultsRecoveryStateFromAnalyzeResult(result));
+          }
+
           if (!result.ok && result.requiresLoginRecovery) {
             scheduleReLoginRedirect(result.statusCode, result.errorCode, state.lastRequestId);
           }
@@ -4190,6 +4339,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             error: "network_error",
             message: state.lastError,
           };
+          setResultsListRecoveryState("network");
           state.coreFactors = [];
         } finally {
           submitBtn.disabled = false;

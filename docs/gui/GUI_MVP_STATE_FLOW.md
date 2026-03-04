@@ -40,8 +40,9 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Einheitliche 5xx-Error-View mit technischer Meta (`HTTP`, Request-Zeit, `request_id`, `error`) und kontrollierter Retry-Action (re-run des letzten Analyze-Requests)
    - Kernfaktoren-Liste (`top 4` nach |contribution|)
    - Ergebnisliste-Empty-State mit Titel/Beschreibung/primärer Aktion (CTA) und stabiler Tabellenhöhe (`min-height`), damit beim Wechsel leer ↔ gefüllt keine harten Layout-Sprünge auftreten
-   - Empty-State-Copy zentral in `RESULTS_LIST_COPY` (kein verteiltes Hardcoding); Ursachenhinweis unterscheidet „keine Daten in Auswahl“ vs. „Filter blenden alles aus“, primäre CTA setzt Filter auf Default zurück und rendert die Liste neu
+   - Empty-/Recovery-State-Copy zentral in `RESULTS_LIST_COPY` (kein verteiltes Hardcoding); Ursachenhinweis unterscheidet jetzt „keine Daten in Auswahl“, „Filter blenden alles aus“, „Netzwerkproblem“ und „Session abgelaufen“. Primäre CTA mappt je State konsistent auf `Filter zurücksetzen` / `Retry ausführen` / `Login starten`.
    - Mobile-Filterleiste (`<=768px`) ist sticky erreichbar, startet kollabiert und lässt sich per Toggle auf-/zuklappen (`aria-expanded`, `Escape` kollabiert), ohne Content-/Footer-Overlap durch dedizierte Sticky-Card; die Action-Zeile (`Filter anwenden`/`Filter zurücksetzen`) bleibt als Sticky-Footer innerhalb des Drawers jederzeit erreichbar (Safe-Area + VisualViewport-Keyboard-Inset werden berücksichtigt)
+
    - Ranking-Zeilen in der Ergebnisliste nutzen auf Mobile eine dedizierte Action-Group (`.results-row-actions`) mit größerem Abstand und Touch-Targets in Mindesthöhe `44px`, damit `Anzeigen`/`Trace` ohne Fehlklick bedienbar bleiben
    - Roh-JSON zur transparenten MVP-Diagnose
 
@@ -57,6 +58,7 @@ Frontend-State (clientseitig):
 - `coreFactors`: extrahierte Top-Faktoren aus Explainability
 - `lastAnalyzeRequest`: letzter valide Analyze-Request (Payload + Input-Label) als Retry-Kontext
 - `serverErrorView`: dedizierter 5xx-View-State (`visible`, `statusCode`, `errorCode`, `requestId`, `requestStartedAt`)
+- `resultsListState.recoveryState`: Recovery-Hinweis für leere Liste (`"" | "network" | "unauthorized"`) zur CTA-Steuerung (`Reset`/`Retry`/`Login`)
 
 Transitions:
 
@@ -64,6 +66,7 @@ Transitions:
 - `loading -> success` bei `HTTP 2xx` + `ok=true`
 - `loading -> error` bei API-Fehler, Auth-Fehler, Netzwerkfehler oder Client-Timeout (`timeout: ... abgebrochen`)
 - `loading -> error(5xx-view)` bei `HTTP 5xx`: einheitlicher Error-View statt gestapelter Einzelmeldungen
+- Ergebnislisten-Empty-State unterscheidet zusätzlich `no_data | filtered | network | unauthorized`; CTA führt je nach Ursache deterministisch `Reset`/`Retry`/`Login` aus.
 - `error -> loading` beim nächsten Submit/Kartenklick oder über den 5xx-Retry-Button (clean retry)
 
 ## Async Submit (Async v1)
