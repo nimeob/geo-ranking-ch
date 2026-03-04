@@ -66,6 +66,26 @@ def test_deploy_workflow_guards_against_container_name_mismatches():
     assert not missing, f"deploy.yml fehlt Container-Mismatch-Guardrail: {missing}"
 
 
+def test_deploy_workflow_validates_required_auth_secrets_before_rollout():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "Validate required GitHub secrets (deploy/auth preflight)",
+        "SERVICE_API_AUTH_TOKEN: ${{ secrets.SERVICE_API_AUTH_TOKEN }}",
+        "Missing or empty required GitHub secret",
+        "Deploy/Auth preflight failed due to missing required GitHub secrets",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"deploy.yml fehlt Secret-Preflight-Guardrail: {missing}"
+
+    assert text.index("Validate required GitHub secrets (deploy/auth preflight)") < text.index(
+        "Configure AWS credentials (OIDC)"
+    ), "Secret-Preflight muss vor dem AWS-Deploy beginnen."
+
+
 def test_deployment_aws_doc_mentions_container_resolution_guardrail():
     doc = Path("docs/DEPLOYMENT_AWS.md")
     assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
@@ -80,3 +100,18 @@ def test_deployment_aws_doc_mentions_container_resolution_guardrail():
 
     missing = [snippet for snippet in required if snippet not in text]
     assert not missing, f"DEPLOYMENT_AWS.md fehlt Container-Auflösungs-Hinweis: {missing}"
+
+
+def test_deployment_aws_doc_lists_required_deploy_auth_secret_preflight():
+    doc = Path("docs/DEPLOYMENT_AWS.md")
+    assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "Pflicht-Secret (deploy/auth preflight)",
+        "SERVICE_API_AUTH_TOKEN",
+        "Workflow-Abbruch vor dem eigentlichen Rollout",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"DEPLOYMENT_AWS.md fehlt Pflicht-Secret-Dokumentation: {missing}"

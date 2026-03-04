@@ -382,7 +382,7 @@ Ablauf im Deploy-Gate:
 
 Smoke-Verhalten:
 - API `/health` ist verpflichtend (über `SERVICE_HEALTH_URL` oder aus `SERVICE_API_BASE_URL` abgeleitet)
-- API `/analyze` läuft optional (nur wenn `SERVICE_API_BASE_URL` **und** `SERVICE_API_AUTH_TOKEN` gesetzt sind; sonst wird der Schritt als `skipped` markiert)
+- API `/analyze` läuft im Dev-Deploy mit Auth-Token (`SERVICE_API_AUTH_TOKEN`) als fester Smoke-Check
 - UI `/healthz` ist verpflichtend über `SERVICE_APP_BASE_URL`
 - Deploy-Readiness-Gate prüft zusätzlich API `/health` + GUI `/gui` mit Retry und protokolliert pro Versuch URL + HTTP-Code im Workflow-Log
 
@@ -390,7 +390,7 @@ Smoke-Verhalten:
 
 | Secret | Beschreibung |
 |---|---|
-| `SERVICE_API_AUTH_TOKEN` | Optional: Bearer-Token für den API-Analyze-Smoke (`run_remote_api_smoketest.sh`) |
+| `SERVICE_API_AUTH_TOKEN` | **Pflicht-Secret (deploy/auth preflight):** Bearer-Token für den API-Analyze-Smoke (`run_remote_api_smoketest.sh`). Fehlend/leer → Workflow-Abbruch vor dem eigentlichen Rollout. |
 | _(keine AWS-Credentials erforderlich)_ | AWS Auth läuft via GitHub OIDC Role Assume (`aws-actions/configure-aws-credentials@v4`) |
 
 **Benötigte GitHub Variables (zu setzen unter Settings → Variables):**

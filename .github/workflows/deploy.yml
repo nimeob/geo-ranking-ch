@@ -94,6 +94,27 @@ jobs:
             fi
           done
 
+      - name: Validate required GitHub secrets (deploy/auth preflight)
+        env:
+          SERVICE_API_AUTH_TOKEN: ${{ secrets.SERVICE_API_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for s in SERVICE_API_AUTH_TOKEN; do
+            value="${!s:-}"
+            value_trimmed="$(printf '%s' "$value" | python3 -c 'import sys; print(sys.stdin.read().strip())')"
+            if [ -z "$value_trimmed" ]; then
+              echo "::error::Missing or empty required GitHub secret: $s"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Deploy/Auth preflight failed due to missing required GitHub secrets."
+            exit 1
+          fi
+
       - name: Validate Dockerfiles exist
         run: |
           set -euo pipefail
@@ -411,7 +432,7 @@ jobs:
             exit 1
           fi
 
-      - name: Smoke-Test API /analyze (optional)
+      - name: Smoke-Test API /analyze
         env:
           SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
           SERVICE_API_AUTH_TOKEN: ${{ secrets.SERVICE_API_AUTH_TOKEN }}
@@ -421,12 +442,6 @@ jobs:
           if [ -z "${BASE_URL}" ]; then
             echo "::notice::SERVICE_API_BASE_URL not set. Analyze smoke skipped."
             echo "- Analyze-Smoke: ⏭️ skipped (SERVICE_API_BASE_URL missing)" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          if [ -z "${SERVICE_API_AUTH_TOKEN:-}" ]; then
-            echo "::notice::SERVICE_API_AUTH_TOKEN not set. Analyze smoke skipped (endpoint requires auth)."
-            echo "- Analyze-Smoke: ⏭️ skipped (SERVICE_API_AUTH_TOKEN missing)" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
