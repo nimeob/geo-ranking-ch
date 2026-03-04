@@ -1421,6 +1421,32 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return `${normalizedPrefix}-${Date.now().toString(36)}-${randomChunk}`;
       }
 
+      function resolveRequestCorrelationId(headers) {
+        if (!headers || typeof headers.get !== "function") {
+          return createUiCorrelationId("req");
+        }
+
+        const candidates = [
+          headers.get("X-Request-Id"),
+          headers.get("x-request-id"),
+          headers.get("X-Correlation-Id"),
+          headers.get("x-correlation-id"),
+          headers.get("Request-Id"),
+          headers.get("request-id"),
+          headers.get("Correlation-Id"),
+          headers.get("correlation-id"),
+        ];
+
+        for (const candidate of candidates) {
+          const normalized = normalizeTraceRequestId(candidate);
+          if (normalized) {
+            return normalized;
+          }
+        }
+
+        return createUiCorrelationId("req");
+      }
+
       function resolveUiSessionId() {
         const fallbackSessionId = createUiCorrelationId("sess");
         if (typeof window === "undefined" || !window.sessionStorage) {
@@ -4248,7 +4274,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       }
 
       async function fetchWithTimeoutAndSafeRetry(url, init = {}, options = {}) {
-        const method = String(init && init.method ? init.method : "GET").trim().toUpperCase() || "GET";
+        const normalizedInit = init && typeof init === "object" ? init : {};
+        const method = String(normalizedInit.method ? normalizedInit.method : "GET").trim().toUpperCase() || "GET";
         const timeoutMs = resolveDevRequestTimeoutMs(options);
         const maxRetries = isSafeRetryMethod(method)
           ? resolveDevRetryBudget(options)
@@ -4257,6 +4284,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const retryDelayMs = Number.isFinite(retryDelayCandidate)
           ? Math.max(0, Math.round(retryDelayCandidate))
           : DEV_CLIENT_REQUEST_POLICY.retryDelayMs;
+
+        const preparedHeaders = new Headers(normalizedInit.headers || {});
+        const requestId = resolveRequestCorrelationId(preparedHeaders);
+        preparedHeaders.set("X-Request-Id", requestId);
+        preparedHeaders.set("X-Correlation-Id", requestId);
 
         let attemptIndex = 0;
         const startedAt = performance.now();
@@ -4269,8 +4301,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           let fetchError = null;
           try {
             response = await fetch(url, {
-              ...init,
+              ...normalizedInit,
               method,
+              headers: preparedHeaders,
               signal: controller.signal,
             });
           } catch (error) {
@@ -4291,6 +4324,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               response,
               error: null,
               timedOut: false,
+              requestId,
               attemptCount: attemptIndex + 1,
               retryCount: attemptIndex,
               timeoutMs,
@@ -4309,6 +4343,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             response: null,
             error: fetchError,
             timedOut,
+            requestId,
             attemptCount: attemptIndex + 1,
             retryCount: attemptIndex,
             timeoutMs,
@@ -4531,12 +4566,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         if (!authFetch.ok || !authFetch.response) {
           const failureSummary = summarizeDevRequestFailure(authFetch);
+          const authRequestId = normalizeTraceRequestId(authFetch.requestId || "");
           emitUiEvent("ui.auth.session_check.end", {
             level: "warn",
             direction: "api->ui",
             status: failureSummary.finalReason,
             route: AUTH_ME_ENDPOINT,
             method: "GET",
+            requestId: authRequestId,
             final_reason: failureSummary.finalReason,
             attempt_count: failureSummary.attemptCount,
             retry_count: failureSummary.retryCount,
@@ -4784,6 +4821,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         const headers = { "Content-Type": "application/json" };
         headers["X-Request-Id"] = requestId;
+        headers["X-Correlation-Id"] = requestId;
         headers["X-Session-Id"] = uiSessionId;
 
         emitUiEvent("ui.api.request.start", {
@@ -5143,6 +5181,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const headers = {
           "Accept": "application/json",
           "X-Request-Id": requestId,
+          "X-Correlation-Id": requestId,
           "X-Session-Id": uiSessionId,
         };
 

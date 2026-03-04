@@ -541,8 +541,19 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
           if (!String(orgEl.value || "").trim()) orgEl.value = "default-org";
         }
 
-        function headersFromInputs() {
+        function createUiCorrelationId(prefix = "req") {
+          const normalizedPrefix = String(prefix || "req").replace(/[^a-z0-9_-]/gi, "").toLowerCase() || "req";
+          const randomChunk = Math.random().toString(36).slice(2, 10);
+          return `${normalizedPrefix}-${Date.now().toString(36)}-${randomChunk}`;
+        }
+
+        function headersFromInputs(requestId = "") {
+          const normalizedRequestId = String(requestId || createUiCorrelationId("req")).trim();
           const headers = { "Accept": "application/json" };
+          if (normalizedRequestId) {
+            headers["X-Request-Id"] = normalizedRequestId;
+            headers["X-Correlation-Id"] = normalizedRequestId;
+          }
           const orgId = String(orgEl.value || "").trim();
           if (orgId) headers["X-Org-Id"] = orgId;
           return headers;
@@ -591,8 +602,9 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
 
           let response;
           let parsed;
+          const requestId = createUiCorrelationId("req");
           try {
-            response = await fetch(url, { method: "GET", headers: headersFromInputs(), credentials: "include" });
+            response = await fetch(url, { method: "GET", headers: headersFromInputs(requestId), credentials: "include" });
             parsed = await response.json();
           } catch (error) {
             setStatus("error");
@@ -936,8 +948,19 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           rawLinkEl.href = buildResultUrl();
         }
 
-        function headersFromInputs() {
+        function createUiCorrelationId(prefix = "req") {
+          const normalizedPrefix = String(prefix || "req").replace(/[^a-z0-9_-]/gi, "").toLowerCase() || "req";
+          const randomChunk = Math.random().toString(36).slice(2, 10);
+          return `${normalizedPrefix}-${Date.now().toString(36)}-${randomChunk}`;
+        }
+
+        function headersFromInputs(requestId = "") {
+          const normalizedRequestId = String(requestId || createUiCorrelationId("req")).trim();
           const headers = { "Accept": "application/json" };
+          if (normalizedRequestId) {
+            headers["X-Request-Id"] = normalizedRequestId;
+            headers["X-Correlation-Id"] = normalizedRequestId;
+          }
           const token = String(tokenEl.value || "").trim();
           if (token) headers["Authorization"] = `Bearer ${token}`;
           const orgId = String(orgEl.value || "").trim();
@@ -1133,8 +1156,9 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
 
           let response;
           let parsed;
+          const requestId = createUiCorrelationId("req");
           try {
-            response = await fetch(url, { method: "GET", headers: headersFromInputs(), credentials: "include" });
+            response = await fetch(url, { method: "GET", headers: headersFromInputs(requestId), credentials: "include" });
             parsed = await response.json();
           } catch (error) {
             setStatus("error");
