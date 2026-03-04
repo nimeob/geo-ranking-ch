@@ -145,6 +145,38 @@ class TestWebServiceRequestLifecycleLogging(unittest.TestCase):
         self.assertEqual(end_event.get("error_class"), "timeout")
         self.assertEqual(end_event.get("error_code"), "timeout")
 
+    def test_not_found_error_reuses_correlation_header_in_response_and_log(self):
+        correlation_id = "bl340-correlation-not-found"
+        status, body, response_headers = self._request(
+            "GET",
+            "/missing-endpoint",
+            headers={
+                "X-Request-Id": "   ",
+                "X-Correlation-Id": correlation_id,
+            },
+        )
+
+        self.assertEqual(status, 404)
+        payload = json.loads(body)
+        self.assertEqual(payload.get("error"), "not_found")
+        self.assertEqual(payload.get("request_id"), correlation_id)
+        self.assertEqual(response_headers.get("x-request-id"), correlation_id)
+
+        starts = self._wait_for_event_count("api.request.start", 1)
+        ends = self._wait_for_event_count("api.request.end", 1)
+        self.assertEqual(len(starts), 1)
+        self.assertEqual(len(ends), 1)
+
+        start_event = starts[0]
+        end_event = ends[0]
+        self.assertEqual(start_event.get("request_id"), correlation_id)
+        self.assertEqual(start_event.get("correlation_id"), correlation_id)
+        self.assertEqual(end_event.get("request_id"), correlation_id)
+        self.assertEqual(end_event.get("correlation_id"), correlation_id)
+        self.assertEqual(end_event.get("status_code"), 404)
+        self.assertEqual(end_event.get("status"), "client_error")
+        self.assertEqual(end_event.get("error_code"), "not_found")
+
     def test_post_analyze_forwards_upstream_events_with_request_context(self):
         def _fake_build_report(query, **kwargs):
             emitter = kwargs.get("upstream_log_emitter")

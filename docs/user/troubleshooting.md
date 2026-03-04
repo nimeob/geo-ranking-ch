@@ -241,6 +241,7 @@ Wenn ein Lauf fehlschlägt:
 - Exit-Code notieren
 - erzeugtes Artefakt (`SMOKE_OUTPUT_JSON` / `STABILITY_REPORT_PATH`) sichern
 - `request_id` aus dem Fehlerfall in die Diagnose übernehmen
+- Struktur-Logs nach `event="api.request.end"` + `request_id=<ID>` filtern (Fehlerpfade enthalten dieselbe ID zusätzlich als `correlation_id`)
 
 ---
 
