@@ -1,6 +1,6 @@
 name: gui-webkit-smoke
 
-on:
+"on":
   pull_request:
   workflow_dispatch:
 
