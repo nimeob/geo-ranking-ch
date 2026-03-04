@@ -30,12 +30,14 @@ SHARED_MODULES: Set[str] = {
 
 # Route policy (Boundary Contract v1).
 # NOTE: API still contains a temporary legacy-UI bridge for /, /gui, /history,
-# and /results/* while migration WPs are open. Everything else must follow
-# owner-specific prefixes.
+# and /results/* while migration WPs are open. `/trace` is additionally allowed
+# as a deprecation-only legacy alias (410 + successor-hint to /debug/trace).
+# Everything else must follow owner-specific prefixes.
 API_ALLOWED_EXACT_ROUTES: Set[str] = {
     "/",
     "/gui",
     "/history",
+    "/trace",
 }
 API_ALLOWED_PREFIX_ROUTES: Tuple[str, ...] = (
     "/api/",

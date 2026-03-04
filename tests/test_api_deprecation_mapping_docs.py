@@ -16,6 +16,9 @@ class TestApiDeprecationMappingDocs(unittest.TestCase):
         self.assertIn("`GET /login`, `/signin`, `/sign-in`", content)
         self.assertIn(SUNSET, content)
         self.assertIn('rel="deprecation"', content)
+        self.assertIn("Legacy-Trace-Contract (`GET /trace` auf API", content)
+        self.assertIn('Warning: 299 - "Legacy trace alias on API is deprecated and removed: use /debug/trace?request_id=<id>."', content)
+        self.assertIn('deprecation.scope="trace-debug-legacy-alias"', content)
 
     def test_external_direct_access_doc_uses_same_sunset(self):
         content = (

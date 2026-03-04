@@ -89,9 +89,13 @@ class TestTraceLegacyDeprecation(unittest.TestCase):
 
         self.assertEqual(headers.get("cache-control"), "no-store")
         self.assertEqual(headers.get("deprecation"), "true")
-        self.assertTrue((headers.get("sunset") or "").strip())
-        self.assertIn("deprecated", str(headers.get("warning") or "").lower())
+        self.assertEqual(headers.get("sunset"), "Tue, 30 Jun 2026 23:59:59 GMT")
+        self.assertEqual(
+            headers.get("warning"),
+            '299 - "Legacy trace alias on API is deprecated and removed: use /debug/trace?request_id=<id>."',
+        )
         self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
+        self.assertIn("docs/ARCHITECTURE.md#api-deprecation-mapping-dev", str(headers.get("link") or ""))
         self.assertIn('rel="successor-version"', str(headers.get("link") or ""))
         self.assertIn("/debug/trace", str(headers.get("link") or ""))
 
