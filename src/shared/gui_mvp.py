@@ -417,9 +417,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         min-width: 0;
       }
       .map-legend small {
+        display: block;
         color: var(--muted);
         font-size: 0.86rem;
         overflow-wrap: anywhere;
+        padding: 0.2rem 0.38rem;
+        border-radius: 0.42rem;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(27, 38, 55, 0.09);
       }
       .map-legend small + small {
         text-align: right;
@@ -428,6 +433,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         font-size: 0.86em;
         overflow-wrap: anywhere;
         word-break: break-word;
+      }
+      .map-legend--actions {
+        grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+        align-items: center;
+      }
+      .map-legend--actions .map-locate-btn {
+        justify-self: start;
       }
       @media (max-width: 680px) {
         .map-legend {
@@ -469,8 +481,25 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             0 0 0 3px rgba(189, 47, 36, 0.22),
             0 3px 8px rgba(27, 38, 55, 0.26);
         }
+        .map-user-marker {
+          width: 18px;
+          height: 18px;
+          border-width: 3px;
+          box-shadow:
+            0 0 0 3px rgba(31, 102, 207, 0.28),
+            0 3px 8px rgba(27, 38, 55, 0.24);
+        }
         .map-legend {
-          gap: 0.25rem;
+          gap: 0.3rem;
+        }
+        .map-legend small {
+          line-height: 1.35;
+        }
+        .map-legend--actions {
+          grid-template-columns: 1fr;
+        }
+        .map-legend--actions .map-locate-btn {
+          width: 100%;
         }
       }
       .map-status {
@@ -933,15 +962,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
                 <button id="map-zoom-out" class="map-zoom-btn" type="button" aria-label="Karte herauszoomen">−</button>
               </div>
             </div>
-            <div class="map-legend">
+            <div class="map-legend map-legend--meta">
               <small id="map-view-meta">Zoom 8 · Zentrum 46.818200, 8.227500</small>
               <small id="click-hint">Noch kein Kartenpunkt gewählt.</small>
             </div>
-            <div class="map-legend">
+            <div class="map-legend map-legend--actions">
               <button id="map-locate-btn" class="copy-btn map-locate-btn" type="button">Aktuelle Position</button>
               <small id="map-location-meta">Noch keine Geräteposition gewählt.</small>
             </div>
-            <div class="map-legend">
+            <div class="map-legend map-legend--meta">
               <small>Tiles: © OpenStreetMap contributors · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">ODbL/Attribution</a></small>
               <small>Analyze-Payload nutzt <code>coordinates.lat/lon</code> + <code>snap_mode=ch_bounds</code>.</small>
             </div>

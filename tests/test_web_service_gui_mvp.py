@@ -338,6 +338,18 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn("min-height: 280px", body)
         self.assertIn("width: 22px", body)
 
+    def test_gui_map_legend_mobile_overlap_contract_present(self):
+        status, body, _ = _http_text(f"{self.base_url}/gui")
+        self.assertEqual(status, 200)
+        self.assertIn('class="map-legend map-legend--actions"', body)
+        self.assertIn(".map-legend--actions", body)
+        self.assertIn("grid-template-columns: minmax(0, auto) minmax(0, 1fr)", body)
+        self.assertIn("background: rgba(255, 255, 255, 0.72)", body)
+        self.assertIn(".map-legend--actions .map-locate-btn", body)
+        self.assertIn(".map-user-marker {", body)
+        self.assertIn("width: 18px", body)
+        self.assertIn("line-height: 1.35", body)
+
     def test_gui_mobile_touch_target_css_contract_present(self):
         status, body, _ = _http_text(f"{self.base_url}/gui")
         self.assertEqual(status, 200)

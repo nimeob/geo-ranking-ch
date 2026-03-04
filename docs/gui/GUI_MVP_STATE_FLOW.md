@@ -32,7 +32,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Optionaler Button **„Aktuelle Position“** fragt Geolocation erst nach explizitem Klick an und zeigt Position (+ Genauigkeitsradius) nicht-blockierend auf der Karte
    - Degraded-State bei Tile-Ausfall bleibt funktional (Analyze via `coordinates.lat/lon` weiter möglich)
    - Keyboard-Fallback (`Enter`/`Space`) triggert Center-Analyse; Pfeiltasten/+/- unterstützen Pan/Zoom für Accessibility
-   - Mobile-Lesbarkeit (`<=520px`) ist gehärtet: größerer Marker/Crosshair, reduzierte Karten-Mindesthöhe und Legend-Texte mit sicherem Wrap/Stacking ohne Überlappung
+   - Mobile-Lesbarkeit (`<=520px`) ist gehärtet: größerer Marker/Crosshair (inkl. User-Marker), reduzierte Karten-Mindesthöhe, kontrastierte Legend-Badges und ein gestackter Action-Row (`Aktuelle Position` full-width), damit Marker/Legenden auf kleinen Screens nicht überlappen.
 3. **Result-Panel**
    - Status-Pill pro State
    - Request-ID + Input-Metadaten
