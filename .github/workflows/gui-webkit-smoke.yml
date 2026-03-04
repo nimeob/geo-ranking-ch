@@ -65,27 +65,12 @@ jobs:
 
           cp "$SMOKE_JSON" artifacts/gui-webkit-smoke/
 
-          python3 - "$SMOKE_JSON" <<'PY'
-import json
-import pathlib
-import shutil
-import sys
-
-smoke_json = pathlib.Path(sys.argv[1]).resolve()
-repo_root = pathlib.Path.cwd().resolve()
-out_dir = repo_root / "artifacts" / "gui-webkit-smoke"
-
-payload = json.loads(smoke_json.read_text(encoding="utf-8"))
-screenshot_rel = payload.get("artifacts", {}).get("screenshot")
-if not screenshot_rel:
-    raise SystemExit("Missing screenshot path in smoke json")
-
-screenshot_abs = (repo_root / screenshot_rel).resolve()
-if not screenshot_abs.is_file():
-    raise SystemExit(f"Screenshot not found: {screenshot_abs}")
-
-shutil.copy2(screenshot_abs, out_dir / screenshot_abs.name)
-PY
+          SCREENSHOT_REL=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1], encoding='utf-8'))['artifacts']['screenshot'])" "$SMOKE_JSON")
+          if [ -z "$SCREENSHOT_REL" ] || [ ! -f "$SCREENSHOT_REL" ]; then
+            echo "::error::Screenshot path missing or not found: '$SCREENSHOT_REL'"
+            exit 1
+          fi
+          cp "$SCREENSHOT_REL" artifacts/gui-webkit-smoke/
 
           cp /tmp/gui-webkit-service.log artifacts/gui-webkit-smoke/ || true
 
