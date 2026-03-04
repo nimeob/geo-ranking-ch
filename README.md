@@ -3,6 +3,7 @@
 > Geographisches Ranking-System für Schweizer Geodaten.
 
 **Contributing (Dev):** siehe [`CONTRIBUTING.md`](CONTRIBUTING.md).
+**Onboarding-Readiness:** [`docs/DEV_ENV_READINESS_CHECKLIST.md`](docs/DEV_ENV_READINESS_CHECKLIST.md).
 
 [![License](https://img.shields.io/badge/license-propriet%C3%A4r-lightgrey.svg)]()
 [![Status](https://img.shields.io/badge/status-in%20development-yellow.svg)]()

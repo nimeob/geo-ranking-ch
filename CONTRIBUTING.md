@@ -4,6 +4,8 @@ Dieser Guide ist **dev-only** und bewusst kurz.
 
 **Out of scope:** Deployments, Staging/Prod, Promotion, AWS-Infrastruktur.
 
+**Onboarding-Shortcut:** [`docs/DEV_ENV_READINESS_CHECKLIST.md`](docs/DEV_ENV_READINESS_CHECKLIST.md)
+
 ## Voraussetzungen
 
 - Python **3.12**
