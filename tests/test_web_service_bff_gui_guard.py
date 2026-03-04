@@ -151,6 +151,35 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertIsInstance(payload.get("request_id"), str)
         self.assertTrue(str(payload.get("request_id")).strip())
 
+    def test_auth_callback_error_includes_correlation_and_redirect_diagnostics_for_mismatch(self):
+        status, body, headers = _http_get(
+            f"{self.base_url}/auth/callback?code=fake-code&state=fake-state",
+            follow_redirects=False,
+            headers={"Host": "callback-mismatch.local"},
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+
+        payload = json.loads(body)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "missing_session_cookie")
+        self.assertIsInstance(payload.get("request_id"), str)
+        self.assertTrue(str(payload.get("request_id")).strip())
+        self.assertEqual(payload.get("correlation_id"), payload.get("request_id"))
+
+        diagnostics = payload.get("redirect_diagnostics")
+        self.assertIsInstance(diagnostics, dict)
+
+        expected = diagnostics.get("expected_redirect") or {}
+        received = diagnostics.get("received_redirect") or {}
+        mismatch = diagnostics.get("mismatch") or {}
+
+        self.assertEqual(expected.get("host"), "127.0.0.1")
+        self.assertEqual(expected.get("path"), "/auth/callback")
+        self.assertEqual(received.get("host"), "callback-mismatch.local")
+        self.assertEqual(received.get("path"), "/auth/callback")
+        self.assertTrue(bool(mismatch.get("host")))
+
     def test_history_redirects_to_login_when_session_cookie_is_invalid(self):
         status, _, headers = _http_get(
             f"{self.base_url}/history?limit=5",
