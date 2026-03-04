@@ -129,6 +129,19 @@ Interpretation der `ui.results_list.first_contentful_data`-Metrik:
 - `status=filtered_empty`: Daten vorhanden, aber aktuelle Filter blenden alle Zeilen aus
 - `status=empty`: keine Einträge vorhanden
 
+### Dev Error-Taxonomie (`error_class` + `error_code`)
+
+Für Fehler-Events (`ui.api.request.end`, `ui.trace.request.end`, `ui.validation.error`, `ui.state.transition`, `ui.trace.state.transition`) setzt die GUI konsistent beide Felder:
+
+| Fehlerpfad (repräsentativ) | `error_code` (Beispiel) | `error_class` |
+| --- | --- | --- |
+| Auth-/Session-Failure (401/403, refresh/session Fehler) | `unauthorized`, `no_session_cookie`, `refresh_grant_error` | `AUTH` |
+| Netzwerk-/Timeout-Fehler | `network_error`, `timeout` | `NETWORK` |
+| API-/Response-Fehler | `invalid_json`, `http_5xx`, sonstige API-Fehlercodes | `API` |
+| UI-Validierungsfehler | `validation` | `UI` |
+
+Damit ist im Dev-Triage sofort erkennbar, ob ein Fehler primär aus Auth, Netzwerk, API-Vertrag oder UI-Input stammt.
+
 ## Manuelle E2E-Prüfung (BL-20.6.b)
 
 Durchgeführt am **2026-02-28** (lokal):
