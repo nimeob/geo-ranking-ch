@@ -53,7 +53,7 @@ from src.api.debug_trace import (
 )
 from src.api.oidc_jwt import JwksCache, JwtValidationError, OidcJwtConfig, OidcJwtValidator
 from src.shared.gui_mvp import render_gui_mvp_html
-from src.shared.ui_pages import build_history_page_html, build_result_tabs_page_html, normalize_result_id
+from src.shared.ui_pages import build_result_tabs_page_html, normalize_result_id
 from src.shared.structured_logging import build_event, emit_event
 from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
 from src.api.personalized_scoring import compute_two_stage_scores
@@ -256,6 +256,20 @@ def _validate_oidc_bearer_token(bearer_token: str) -> dict[str, Any] | None:
 
 
 _HEALTH_DETAILS_ALLOWED_STATUS = frozenset({"ok", "degraded", "down"})
+
+_HISTORY_API_DEPRECATION_WARNING = (
+    '299 - "History routes on API are deprecated: use UI /history for front-facing flows; '
+    'API /analyze/history remains data-source only during migration."'
+)
+_HISTORY_API_SUNSET_UTC = datetime(2026, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
+
+
+def _history_api_deprecation_headers() -> dict[str, str]:
+    return {
+        "Deprecation": "true",
+        "Sunset": _HISTORY_API_SUNSET_UTC.strftime("%a, %d %b %Y %H:%M:%S GMT"),
+        "Warning": _HISTORY_API_DEPRECATION_WARNING,
+    }
 
 
 def _fault_injection_enabled() -> bool:
@@ -3944,13 +3958,23 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             if request_path == "/history":
-                self._send_html(
-                    build_history_page_html(
-                        app_version=os.getenv("APP_VERSION", "dev"),
-                        api_base_url="",
-                    ),
+                deprecation_headers = _history_api_deprecation_headers()
+                deprecation_headers["Cache-Control"] = "no-store"
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "gone",
+                        "message": (
+                            "GET /history on API is deprecated and removed. "
+                            "Use the UI service /history route for front-facing history flows."
+                        ),
+                        "next": "/history (UI service)",
+                        "data_source": "/analyze/history",
+                        "request_id": request_id,
+                    },
+                    status=HTTPStatus.GONE,
                     request_id=request_id,
-                    extra_headers={"Cache-Control": "no-store"},
+                    extra_headers=deprecation_headers,
                 )
                 return
 
@@ -4067,6 +4091,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if request_path == "/analyze/history":
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                history_route_headers = _history_api_deprecation_headers()
+                history_route_headers["Cache-Control"] = "no-store"
 
                 provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
@@ -4082,7 +4108,7 @@ class Handler(BaseHTTPRequestHandler):
                         },
                         status=HTTPStatus.UNAUTHORIZED,
                         request_id=request_id,
-                        extra_headers={"Cache-Control": "no-store"},
+                        extra_headers=history_route_headers,
                     )
                     return
 
@@ -4097,7 +4123,7 @@ class Handler(BaseHTTPRequestHandler):
                         error="bad_request",
                         message=str(exc),
                         details=_validation_error_details(str(exc)),
-                        extra_headers={"Cache-Control": "no-store"},
+                        extra_headers=history_route_headers,
                     )
                     return
 
@@ -4161,7 +4187,7 @@ class Handler(BaseHTTPRequestHandler):
                             "request_id": request_id,
                         },
                         request_id=request_id,
-                        extra_headers={"Cache-Control": "no-store"},
+                        extra_headers=history_route_headers,
                     )
                     return
 
@@ -4221,7 +4247,7 @@ class Handler(BaseHTTPRequestHandler):
                         "request_id": request_id,
                     },
                     request_id=request_id,
-                    extra_headers={"Cache-Control": "no-store"},
+                    extra_headers=history_route_headers,
                 )
                 return
             if request_path.startswith("/analyze/jobs/") and request_path.endswith("/notifications"):

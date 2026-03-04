@@ -235,6 +235,10 @@ Guard-Regeln (Legacy + Split):
 Boundary-Inventar (Issue #1168):
 - Vollständige Endpoint-/Owner-Klassifikation inkl. Migrationsreihenfolge: [`docs/api/API_UI_ENDPOINT_OWNERSHIP_INVENTORY.md`](api/API_UI_ENDPOINT_OWNERSHIP_INVENTORY.md)
 
+History-Boundary-Hinweis (2026-03-04):
+- Front-Facing `GET /history` auf dem API-Service ist deprecated/removed (`410 gone` + Deprecation/Sunset-Header).
+- `GET /analyze/history` bleibt als Data-Source-Endpunkt verfügbar, liefert aber ebenfalls Deprecation/Sunset-Header für den geordneten UI-Migrationspfad.
+
 Aufruf (lokal/CI):
 
 ```bash
