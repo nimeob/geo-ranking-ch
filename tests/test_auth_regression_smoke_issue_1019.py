@@ -215,7 +215,12 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         deprecated_payload = json.loads(body)
         self.assertEqual(deprecated_payload.get("error"), "external_direct_login_disabled")
         self.assertEqual(headers.get("deprecation"), "true")
+        self.assertTrue((headers.get("sunset") or "").strip())
+        self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
         self.assertIn("/auth/login", str(headers.get("link") or ""))
+        dep = deprecated_payload.get("deprecation") or {}
+        self.assertEqual(dep.get("successor"), "/auth/login")
+        self.assertEqual(dep.get("sunset"), headers.get("sunset"))
 
         # 2) explicit login endpoint sets session cookie and redirects to IdP authorize URL
         status, _, headers = _http_request(

@@ -87,6 +87,11 @@ class TestHistoryApiDeprecation(unittest.TestCase):
         self.assertEqual(headers.get("deprecation"), "true")
         self.assertTrue((headers.get("sunset") or "").strip())
         self.assertIn("deprecated", (headers.get("warning") or "").lower())
+        self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
+        dep = payload.get("deprecation") or {}
+        self.assertEqual(dep.get("successor"), "/history")
+        self.assertTrue(str(dep.get("migration_guide") or "").startswith("https://github.com/"))
+        self.assertEqual(dep.get("sunset"), headers.get("sunset"))
 
     def test_history_route_returns_gone_with_deprecation_headers(self):
         status, body, headers = _http_get(f"{self.base_url}/history")
@@ -98,6 +103,10 @@ class TestHistoryApiDeprecation(unittest.TestCase):
         self.assertEqual(headers.get("deprecation"), "true")
         self.assertTrue((headers.get("sunset") or "").strip())
         self.assertIn("deprecated", (headers.get("warning") or "").lower())
+        self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
+        dep = payload.get("deprecation") or {}
+        self.assertEqual(dep.get("successor"), "/history")
+        self.assertEqual(dep.get("sunset"), headers.get("sunset"))
 
 
 if __name__ == "__main__":
