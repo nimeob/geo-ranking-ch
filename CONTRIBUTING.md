@@ -80,6 +80,13 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+Optional direkt (ohne Hook):
+
+```bash
+ruff check .
+ruff format .
+```
+
 ## Akzeptanz (frischer Checkout, minimal)
 
 Wenn folgende Kommandos lokal funktionieren, ist der Guide im Soll:
