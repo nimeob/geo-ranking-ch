@@ -53,6 +53,7 @@ API_ALLOWED_PREFIX_ROUTES: Tuple[str, ...] = (
 UI_ALLOWED_EXACT_ROUTES: Set[str] = {
     "/",
     "/gui",
+    "/login",
     "/history",
     "/jobs",
     "/health",
