@@ -267,6 +267,9 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn(".results-filters-sticky", body)
         self.assertIn("position: sticky", body)
         self.assertIn('.results-filters-shell[data-collapsed="true"] .results-filters-panel', body)
+        self.assertIn(".results-row-actions", body)
+        self.assertIn("white-space: normal", body)
+        self.assertIn('actionsWrap.className = "results-row-actions"', body)
         self.assertIn('id="map-zoom-in"', body)
 
     def test_gui_route_accepts_trailing_slash_query_and_double_slash(self):

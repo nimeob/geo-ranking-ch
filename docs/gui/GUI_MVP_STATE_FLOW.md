@@ -42,6 +42,7 @@ Die GUI-MVP unter `GET /gui` bildet jetzt den vollständigen MVP-Flow für BL-20
    - Ergebnisliste-Empty-State mit Titel/Beschreibung/primärer Aktion (CTA) und stabiler Tabellenhöhe (`min-height`), damit beim Wechsel leer ↔ gefüllt keine harten Layout-Sprünge auftreten
    - Empty-State-Copy zentral in `RESULTS_LIST_COPY` (kein verteiltes Hardcoding); Ursachenhinweis unterscheidet „keine Daten in Auswahl“ vs. „Filter blenden alles aus“, primäre CTA setzt Filter auf Default zurück und rendert die Liste neu
    - Mobile-Filterleiste (`<=768px`) ist sticky erreichbar, startet kollabiert und lässt sich per Toggle auf-/zuklappen (`aria-expanded`, `Escape` kollabiert), ohne Content-/Footer-Overlap durch dedizierte Sticky-Card
+   - Ranking-Zeilen in der Ergebnisliste nutzen auf Mobile eine dedizierte Action-Group (`.results-row-actions`) mit größerem Abstand und Touch-Targets in Mindesthöhe `44px`, damit `Anzeigen`/`Trace` ohne Fehlklick bedienbar bleiben
    - Roh-JSON zur transparenten MVP-Diagnose
 
 ## State-Flow (technisch)
