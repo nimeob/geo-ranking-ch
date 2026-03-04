@@ -1,0 +1,42 @@
+{
+  "issue": 1179,
+  "generated_at_utc": "2026-03-04T09:08:00Z",
+  "method": "python3 scripts/github_repo_crawler.py --dry-run --print-workstream-balance --format json",
+  "before": {
+    "generated_at_utc": "2026-03-04T09:05:58Z",
+    "counts": {
+      "development": 13,
+      "documentation": 9,
+      "testing": 7
+    },
+    "gap": 6,
+    "target_gap_max": 2,
+    "needs_catchup": true,
+    "catchup_plan": {
+      "target_min_count": 11,
+      "categories": [
+        {"category": "documentation", "current": 9, "target": 11, "delta": 2},
+        {"category": "testing", "current": 7, "target": 11, "delta": 4}
+      ],
+      "total_delta": 6
+    }
+  },
+  "after": {
+    "generated_at_utc": "2026-03-04T09:08:00Z",
+    "counts": {
+      "development": 13,
+      "documentation": 15,
+      "testing": 13
+    },
+    "gap": 2,
+    "target_gap_max": 2,
+    "needs_catchup": false,
+    "catchup_plan": {
+      "target_min_count": 13,
+      "categories": [],
+      "total_delta": 0
+    }
+  },
+  "created_catchup_issues": [1183, 1184, 1185, 1186, 1187, 1188],
+  "notes": "Issue texts wurden so formuliert, dass die Workstream-Heuristik die Catch-up-Issues eindeutig als Dokumentation/Testing erfasst, ohne künstliche Label-Umbauten an bestehenden Issues."
+}
