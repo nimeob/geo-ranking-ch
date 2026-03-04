@@ -490,6 +490,51 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       @media (max-width: 960px) {
         .grid-3 { grid-template-columns: 1fr; }
       }
+      .results-filters-sticky {
+        position: relative;
+        z-index: 0;
+      }
+      .results-filters-toggle {
+        display: none;
+      }
+      .results-filters-toggle-indicator {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .results-filters-panel {
+        display: grid;
+        gap: 0;
+      }
+      @media (max-width: 768px) {
+        .results-filters-sticky {
+          position: sticky;
+          top: 0.5rem;
+          z-index: 7;
+          padding: 0.55rem;
+          border: 1px solid var(--border);
+          border-radius: 0.72rem;
+          background: var(--surface);
+          box-shadow: 0 8px 20px rgba(27, 38, 55, 0.08);
+          margin-bottom: 0.75rem;
+        }
+        .results-filters-toggle {
+          width: 100%;
+          display: inline-flex;
+          justify-content: space-between;
+          align-items: center;
+          background: #fff;
+          color: var(--ink);
+          border-color: var(--border);
+          font-size: 0.86rem;
+          padding: 0.42rem 0.56rem;
+        }
+        .results-filters-shell[data-collapsed="true"] .results-filters-panel {
+          display: none;
+        }
+        .results-filters-shell[data-collapsed="false"] .results-filters-panel {
+          margin-top: 0.55rem;
+        }
+      }
       .results-table {
         width: 100%;
         border-collapse: collapse;
@@ -521,6 +566,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         overflow: auto;
         margin-top: 0.65rem;
         min-height: 12.25rem;
+        scroll-margin-top: 5rem;
       }
       .results-empty-cell {
         padding: 0;
@@ -729,47 +775,61 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         <article class=\"card\" id=\"results-list\">
           <h2>Ergebnisliste (dev)</h2>
           <p class=\"meta\">Sammelt erfolgreiche Analyse-Ergebnisse in dieser Session, um Varianten schnell zu vergleichen. Sortierung/Filter werden als Query-Params in der URL gespeichert.</p>
-          <div class=\"grid-3\" style=\"align-items: end;\">
-            <label>
-              Sortierung
-              <select id=\"results-sort\">
-                <option value=\"score\">Score</option>
-                <option value=\"distance_m\">Distanz</option>
-                <option value=\"security_subscore\">Sicherheits-Subscore</option>
-              </select>
-            </label>
-            <label>
-              Richtung
-              <select id=\"results-dir\">
-                <option value=\"desc\">desc</option>
-                <option value=\"asc\">asc</option>
-              </select>
-            </label>
-            <label>
-              K.O.-Filter
-              <select id=\"results-ko\">
-                <option value=\"off\">off</option>
-                <option value=\"on\">on</option>
-              </select>
-            </label>
-          </div>
-          <div class=\"grid-3\" style=\"align-items: end; margin-top: 0.65rem;\">
-            <label>
-              Min Score
-              <input id=\"results-min-score\" type=\"number\" min=\"0\" max=\"100\" placeholder=\"\" />
-            </label>
-            <label>
-              Max Distanz (m)
-              <input id=\"results-max-distance\" type=\"number\" min=\"0\" max=\"5000\" placeholder=\"\" />
-            </label>
-            <label>
-              Min Sicherheits-Subscore
-              <input id=\"results-min-security\" type=\"number\" min=\"0\" max=\"100\" placeholder=\"\" />
-            </label>
-          </div>
-          <div style=\"display:flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-top: 0.85rem;\">
-            <button id=\"results-clear\" class=\"copy-btn\" type=\"button\">Liste leeren</button>
-            <span class=\"meta\" id=\"results-meta\">Noch keine Ergebnisse gesammelt.</span>
+          <div id=\"results-filters-shell\" class=\"results-filters-shell results-filters-sticky\" data-collapsed=\"true\">
+            <button
+              id=\"results-filters-toggle\"
+              class=\"results-filters-toggle copy-btn\"
+              type=\"button\"
+              aria-expanded=\"false\"
+              aria-controls=\"results-filters-panel\"
+            >
+              <span>Filter & Sortierung</span>
+              <span id=\"results-filters-toggle-indicator\" class=\"results-filters-toggle-indicator\">Ausgeblendet</span>
+            </button>
+            <div id=\"results-filters-panel\" class=\"results-filters-panel\" hidden>
+              <div class=\"grid-3\" style=\"align-items: end;\">
+                <label>
+                  Sortierung
+                  <select id=\"results-sort\">
+                    <option value=\"score\">Score</option>
+                    <option value=\"distance_m\">Distanz</option>
+                    <option value=\"security_subscore\">Sicherheits-Subscore</option>
+                  </select>
+                </label>
+                <label>
+                  Richtung
+                  <select id=\"results-dir\">
+                    <option value=\"desc\">desc</option>
+                    <option value=\"asc\">asc</option>
+                  </select>
+                </label>
+                <label>
+                  K.O.-Filter
+                  <select id=\"results-ko\">
+                    <option value=\"off\">off</option>
+                    <option value=\"on\">on</option>
+                  </select>
+                </label>
+              </div>
+              <div class=\"grid-3\" style=\"align-items: end; margin-top: 0.65rem;\">
+                <label>
+                  Min Score
+                  <input id=\"results-min-score\" type=\"number\" min=\"0\" max=\"100\" placeholder=\"\" />
+                </label>
+                <label>
+                  Max Distanz (m)
+                  <input id=\"results-max-distance\" type=\"number\" min=\"0\" max=\"5000\" placeholder=\"\" />
+                </label>
+                <label>
+                  Min Sicherheits-Subscore
+                  <input id=\"results-min-security\" type=\"number\" min=\"0\" max=\"100\" placeholder=\"\" />
+                </label>
+              </div>
+              <div style=\"display:flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; margin-top: 0.85rem;\">
+                <button id=\"results-clear\" class=\"copy-btn\" type=\"button\">Liste leeren</button>
+                <span class=\"meta\" id=\"results-meta\">Noch keine Ergebnisse gesammelt.</span>
+              </div>
+            </div>
           </div>
           <div id=\"results-table-shell\" class=\"results-table-shell\">
             <table class=\"results-table\" aria-label=\"Ergebnisliste\">
@@ -930,6 +990,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         minSecurity: null,
       };
 
+      const resultsFiltersUiState = {
+        isMobileViewport: false,
+        collapsed: false,
+      };
+
       const traceState = {
         phase: "idle",
         requestId: "",
@@ -972,6 +1037,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const authLoginMetaEl = document.getElementById("auth-login-meta");
       const authLoginInlineEl = document.getElementById("auth-login-inline");
 
+      const resultsFiltersShellEl = document.getElementById("results-filters-shell");
+      const resultsFiltersToggleEl = document.getElementById("results-filters-toggle");
+      const resultsFiltersToggleIndicatorEl = document.getElementById("results-filters-toggle-indicator");
+      const resultsFiltersPanelEl = document.getElementById("results-filters-panel");
       const resultsSortEl = document.getElementById("results-sort");
       const resultsDirEl = document.getElementById("results-dir");
       const resultsKoEl = document.getElementById("results-ko");
@@ -1383,6 +1452,99 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const normalized = String(value || "off").trim().toLowerCase();
         if (normalized === "on") return "on";
         return "off";
+      }
+
+      function isMobileResultsViewport() {
+        if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+          return false;
+        }
+        return window.matchMedia("(max-width: 768px)").matches;
+      }
+
+      function applyResultsFiltersCollapsedState(collapsed) {
+        const nextCollapsed = Boolean(collapsed);
+        resultsFiltersUiState.collapsed = nextCollapsed;
+
+        if (resultsFiltersShellEl) {
+          resultsFiltersShellEl.dataset.collapsed = nextCollapsed ? "true" : "false";
+        }
+        if (resultsFiltersToggleEl) {
+          resultsFiltersToggleEl.setAttribute("aria-expanded", nextCollapsed ? "false" : "true");
+        }
+        if (resultsFiltersToggleIndicatorEl) {
+          resultsFiltersToggleIndicatorEl.textContent = nextCollapsed ? "Ausgeblendet" : "Eingeblendet";
+        }
+        if (resultsFiltersPanelEl) {
+          resultsFiltersPanelEl.hidden = nextCollapsed;
+          if (nextCollapsed && document.activeElement && resultsFiltersPanelEl.contains(document.activeElement)) {
+            if (resultsFiltersToggleEl) {
+              resultsFiltersToggleEl.focus();
+            }
+          }
+        }
+      }
+
+      function syncResultsFiltersForViewport() {
+        const mobileViewport = isMobileResultsViewport();
+        resultsFiltersUiState.isMobileViewport = mobileViewport;
+
+        if (!mobileViewport) {
+          applyResultsFiltersCollapsedState(false);
+          return;
+        }
+
+        const shellState = resultsFiltersShellEl && resultsFiltersShellEl.dataset
+          ? String(resultsFiltersShellEl.dataset.collapsed || "")
+          : "";
+        if (shellState !== "true" && shellState !== "false") {
+          applyResultsFiltersCollapsedState(true);
+          return;
+        }
+        applyResultsFiltersCollapsedState(shellState === "true");
+      }
+
+      function updateResultsFiltersToggleUi() {
+        if (!resultsFiltersToggleEl) {
+          return;
+        }
+
+        const mobileViewport = isMobileResultsViewport();
+        resultsFiltersUiState.isMobileViewport = mobileViewport;
+        resultsFiltersToggleEl.hidden = !mobileViewport;
+
+        if (!mobileViewport) {
+          applyResultsFiltersCollapsedState(false);
+          return;
+        }
+
+        applyResultsFiltersCollapsedState(resultsFiltersUiState.collapsed);
+      }
+
+      function updateResultsFiltersViewportState() {
+        syncResultsFiltersForViewport();
+        updateResultsFiltersToggleUi();
+      }
+
+      function toggleResultsFiltersPanel() {
+        if (!resultsFiltersUiState.isMobileViewport) {
+          return;
+        }
+        const nextCollapsed = !resultsFiltersUiState.collapsed;
+        applyResultsFiltersCollapsedState(nextCollapsed);
+        emitUiEvent("ui.interaction.results_filters.toggle", {
+          direction: "human->ui",
+          status: nextCollapsed ? "collapsed" : "expanded",
+        });
+      }
+
+      function handleResultsFiltersEscape(event) {
+        if (!event || event.key !== "Escape" || !resultsFiltersUiState.isMobileViewport) {
+          return;
+        }
+        if (!resultsFiltersUiState.collapsed) {
+          event.preventDefault();
+          applyResultsFiltersCollapsedState(true);
+        }
       }
 
       function updateResultsListDeepLink() {
@@ -4053,6 +4215,18 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         await startTraceLookup(traceRequestId, "trace_form_submit");
       });
 
+      if (resultsFiltersToggleEl) {
+        resultsFiltersToggleEl.addEventListener("click", () => {
+          toggleResultsFiltersPanel();
+        });
+      }
+      if (resultsFiltersPanelEl) {
+        resultsFiltersPanelEl.addEventListener("keydown", handleResultsFiltersEscape);
+      }
+      if (typeof window !== "undefined") {
+        window.addEventListener("resize", updateResultsFiltersViewportState);
+      }
+
       if (resultsSortEl) resultsSortEl.addEventListener("change", syncResultsListStateFromControls);
       if (resultsDirEl) resultsDirEl.addEventListener("change", syncResultsListStateFromControls);
       if (resultsKoEl) resultsKoEl.addEventListener("change", syncResultsListStateFromControls);
@@ -4162,6 +4336,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       });
 
       restoreResultsListDeepLinkInput();
+      updateResultsFiltersViewportState();
       renderResultsList();
 
       initializeInteractiveMap();
