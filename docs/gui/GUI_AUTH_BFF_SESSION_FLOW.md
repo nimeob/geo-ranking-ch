@@ -10,7 +10,7 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 ## End-to-End Flow
 
 1. **User öffnet geschützte GUI-Route** (`/`, `/gui`, `/history`, `/results/<id>`)
-2. **Keine gültige Session vorhanden** -> Redirect auf `GET /auth/login?next=<zielpfad>`
+2. **Keine gültige Session vorhanden** -> Redirect auf `GET /login?next=<zielpfad>` (UI-owned Entry auf derselben Domain)
 3. **OIDC-Login beim Provider** (Hosted UI)
 4. **Callback trifft auf `GET /auth/callback`**
    - Code/State werden serverseitig validiert
@@ -23,7 +23,8 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 
 ## Dev-Einstiegspfad (verbindlich)
 
-- Empfohlener Login-Entrypoint in Dev ist **ausschließlich** der UI/BFF-Flow über `GET /auth/login` (direkt oder via Redirect von `/gui`, `/history`, `/results/<id>`).
+- Empfohlener Login-Entrypoint in Dev ist **ausschließlich** der UI/BFF-Flow über `GET /login` (direkt oder via Redirect von `/gui`, `/history`, `/results/<id>`).
+- `GET /login` bleibt UI-owned und leitet intern auf den BFF-Auth-Start weiter, ohne den API-Host in der Browser-Adresszeile zu zeigen.
 - Legacy-Direktpfade bleiben zwar erreichbar, sind aber **deprecated** und liefern bewusst `403` mit Deprecation-Hinweis auf den UI-Pfad.
 - Betroffene Direktpfade (Blocker-Fokus, max. 3):
   - `GET /login`
@@ -45,7 +46,7 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 3. Session-Cookie wird im Browser gelöscht (`Max-Age=0`).
 4. Redirect-Verhalten:
    - **mit IdP-Logout-Konfiguration** (`BFF_OIDC_ISSUER` + `BFF_OIDC_CLIENT_ID`): 302 auf den Provider-Logout-Endpunkt (`.../logout?client_id=...&logout_uri=...`).
-   - `logout_uri` kommt bevorzugt aus `BFF_OIDC_POST_LOGOUT_REDIRECT_URI`; wenn nicht gesetzt, wird aus `BFF_OIDC_REDIRECT_URI=.../auth/callback` deterministisch `.../auth/login` abgeleitet.
+   - `logout_uri` kommt bevorzugt aus `BFF_OIDC_POST_LOGOUT_REDIRECT_URI`; wenn nicht gesetzt, wird aus `BFF_OIDC_REDIRECT_URI=.../auth/callback` deterministisch `.../login` abgeleitet.
    - **ohne IdP-Logout-Konfiguration:** lokaler Clear-Cookie-Logout ohne externen Provider-Redirect.
 
 ## UX-/Redirect-Konvention (Issue #998)
@@ -54,17 +55,17 @@ Für Session-Recovery nutzen `/gui` und `/history` dieselben UX-Messages und den
 
 - Session fehlt/abgelaufen (`401`, `no_session_cookie`, `session_not_found`, `token_error`):
   - Meldung: **„Session ungültig oder abgelaufen — bitte erneut einloggen.“**
-  - Redirect: `/auth/login?next=<current-path>&reason=session_expired`
+  - Redirect: `/login?next=<current-path>&reason=session_expired`
 - Refresh fehlgeschlagen (`refresh_*`, `no_refresh_token`):
   - Meldung: **„Session konnte nicht erneuert werden — bitte erneut einloggen.“**
-  - Redirect: `/auth/login?next=<current-path>&reason=refresh_failed`
+  - Redirect: `/login?next=<current-path>&reason=refresh_failed`
 - Consent/Auth verweigert (`access_denied`, `consent_denied`):
   - Meldung: **„Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.“**
-  - Redirect: `/auth/login?next=<current-path>&reason=consent_denied`
+  - Redirect: `/login?next=<current-path>&reason=consent_denied`
 - Berechtigungsfehler (`403`):
   - Meldung: **„Session ungültig oder abgelaufen — bitte erneut einloggen.“**
     (Fallback-Text im UI bleibt für explizite Forbidden-Cases: „Zugriff verweigert — bitte Berechtigungen/Session prüfen.“)
-  - Redirect: `/auth/login?next=<current-path>&reason=session_expired`
+  - Redirect: `/login?next=<current-path>&reason=session_expired`
 - **Vorwarnung vor Session-Ablauf (GUI):**
   - `/auth/me` liefert `session_expires_at` + `session_expires_in_seconds`
   - GUI zeigt **einmalig** vor Ablauf einen Warnhinweis mit CTA „Jetzt neu anmelden"
@@ -112,9 +113,9 @@ python3 -m unittest tests.test_web_service_bff_gui_guard
 ```
 
 Erwartung:
-- `GET /gui` ohne Session -> `302` nach `/auth/login?next=%2Fgui`
-- `GET /history?limit=5` ohne Session -> `302` nach `/auth/login?next=%2Fhistory%3Flimit%3D5`
-- `GET /auth/callback` mit ungültigem/abgelaufenem `state` -> `400` HTML-Fehlerseite mit genau einem Re-Login-CTA (`/auth/login?next=...&reason=session_expired`), ohne Redirect-Loop
+- `GET /gui` ohne Session -> `302` nach `/login?next=%2Fgui`
+- `GET /history?limit=5` ohne Session -> `302` nach `/login?next=%2Fhistory%3Flimit%3D5`
+- `GET /auth/callback` mit ungültigem/abgelaufenem `state` -> `400` HTML-Fehlerseite mit genau einem Re-Login-CTA (`/login?next=...&reason=session_expired`), ohne Redirect-Loop
 - `GET /auth/logout` löscht Session-Cookie (`Max-Age=0`) und liefert IdP-Logout-Redirect
 
 ## Automatisierter Guard- und Session-Proxy-Nachweis (Issue #997)
@@ -126,7 +127,7 @@ python3 -m pytest -q tests/test_web_service_bff_gui_guard.py tests/test_bff_inte
 ```
 
 Abgedeckte Kernpunkte:
-- Ungültige Session-Cookies auf `/gui` und `/history` führen deterministisch auf `/auth/login?next=...` zurück.
+- Ungültige Session-Cookies auf `/gui` und `/history` führen deterministisch auf `/login?next=...` zurück.
 - Eingeloggte Session kann `GET /portal/api/analyze/history` und `POST /portal/api/analyze` über den BFF-Proxy ausführen.
 - Downstream-Delegation enthält `Authorization: Bearer <token>` (kein Browser-Token-Handling notwendig).
 
