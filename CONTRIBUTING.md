@@ -69,6 +69,7 @@ Nützliche reproduzierbare Checks:
 ./scripts/check_crawler_regression.sh
 ./scripts/check_docs_quality_gate.sh
 make dev-smoke  # Standard-Entry-Point (delegiert auf scripts/check_bl334_split_smokes.sh)
+npm run dev:smoke  # DX-Bundle: Lint + Typecheck + Smoke-Subset
 make dev-check  # Pre-PR-Entry-Point (Lint + Type/Syntax + Unit-Tests)
 ```
 

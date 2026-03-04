@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "description": "Node tooling for GUI smoke scripts",
   "scripts": {
+    "dev:smoke": "./scripts/run_dev_smoke_bundle.sh",
     "smoke:gui:webkit": "node scripts/run_issue_986_webkit_smoke.mjs"
   },
   "devDependencies": {

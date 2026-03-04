@@ -91,6 +91,9 @@ pre-commit run --all-files
 # - UI-only:  src.ui.service
 make dev-smoke
 
+# DX-Bundle (Lint + Typecheck + Smoke-Subset) in einem Kommando
+npm run dev:smoke
+
 # Vor PR ausführen (Lint + Type/Syntax + Unit-Tests)
 make dev-check
 
