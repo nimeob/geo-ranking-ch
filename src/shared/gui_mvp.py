@@ -1151,10 +1151,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const AUTH_ME_ENDPOINT = "__AUTH_ME_ENDPOINT__";
       const AUTH_CHECK_CACHE_TTL_MS = 12000;
       const DEV_CLIENT_REQUEST_POLICY = Object.freeze({
-        authCheckTimeoutMs: 4000,
-        historyTimeoutMs: 12000,
-        traceTimeoutMs: 12000,
-        getRetries: 1,
+        requestTimeoutMs: 12000,
+        maxRetryBudget: 1,
         retryDelayMs: 250,
       });
       const SAFE_RETRY_METHODS = new Set(["GET"]);
@@ -1776,19 +1774,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               headers,
             },
             {
-              timeoutMs: DEV_CLIENT_REQUEST_POLICY.historyTimeoutMs,
-              maxRetries: DEV_CLIENT_REQUEST_POLICY.getRetries,
+              timeoutMs: DEV_CLIENT_REQUEST_POLICY.requestTimeoutMs,
+              maxRetries: DEV_CLIENT_REQUEST_POLICY.maxRetryBudget,
               retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
             }
           );
 
           if (!historyFetch.ok || !historyFetch.response) {
-            if (historyFetch.timedOut) {
-              throw new Error(
-                `timeout: Historie nach ${Math.max(1, Math.round(historyFetch.timeoutMs / 1000))}s ohne Antwort abgebrochen. Bitte Retry ausführen.`
-              );
-            }
-            throw new Error("network_error: Historie konnte nicht geladen werden. Bitte Retry ausführen.");
+            const failureSummary = summarizeDevRequestFailure(historyFetch);
+            throw new Error(
+              formatDevRequestFailureMessage("Historie konnte nicht geladen werden", failureSummary, {
+                includeTimeoutSeconds: true,
+              })
+            );
           }
 
           const response = historyFetch.response;
@@ -4198,20 +4196,67 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return SAFE_RETRY_STATUS_CODES.has(normalizedStatusCode);
       }
 
-      async function fetchWithTimeoutAndSafeRetry(url, init = {}, options = {}) {
-        const method = String(init && init.method ? init.method : "GET").trim().toUpperCase() || "GET";
+      function resolveDevRequestTimeoutMs(options = {}) {
         const timeoutCandidate = Number(options && options.timeoutMs);
+        if (Number.isFinite(timeoutCandidate) && timeoutCandidate > 0) {
+          return Math.round(timeoutCandidate);
+        }
+        return DEV_CLIENT_REQUEST_POLICY.requestTimeoutMs;
+      }
+
+      function resolveDevRetryBudget(options = {}) {
+        const configuredBudget = Number(DEV_CLIENT_REQUEST_POLICY.maxRetryBudget);
+        const policyBudget = Number.isFinite(configuredBudget)
+          ? Math.max(0, Math.trunc(configuredBudget))
+          : 0;
+        const requestedRetries = Number(options && options.maxRetries);
+        if (!Number.isFinite(requestedRetries)) {
+          return policyBudget;
+        }
+        return Math.min(policyBudget, Math.max(0, Math.trunc(requestedRetries)));
+      }
+
+      function summarizeDevRequestFailure(result = {}) {
+        const attemptCandidate = Number(result && result.attemptCount);
+        const retryCandidate = Number(result && result.retryCount);
+        const timeoutCandidate = Number(result && result.timeoutMs);
+        const attemptCount = Number.isFinite(attemptCandidate) && attemptCandidate > 0
+          ? Math.max(1, Math.trunc(attemptCandidate))
+          : 1;
+        const retryCount = Number.isFinite(retryCandidate) && retryCandidate >= 0
+          ? Math.max(0, Math.trunc(retryCandidate))
+          : Math.max(0, attemptCount - 1);
         const timeoutMs = Number.isFinite(timeoutCandidate) && timeoutCandidate > 0
           ? Math.round(timeoutCandidate)
-          : 12000;
-        const requestedRetries = Number(options && options.maxRetries);
-        const maxRetries = isSafeRetryMethod(method) && Number.isFinite(requestedRetries)
-          ? Math.max(0, Math.trunc(requestedRetries))
+          : resolveDevRequestTimeoutMs();
+        const finalReason = result && result.timedOut ? "timeout" : "network_error";
+        return {
+          finalReason,
+          attemptCount,
+          retryCount,
+          timeoutMs,
+        };
+      }
+
+      function formatDevRequestFailureMessage(contextLabel, summary, { includeTimeoutSeconds = false } = {}) {
+        const base = `${summary.finalReason}: ${contextLabel} (attempts=${summary.attemptCount}, retries=${summary.retryCount}, final_reason=${summary.finalReason}`;
+        if (includeTimeoutSeconds && summary.finalReason === "timeout") {
+          const timeoutSeconds = Math.max(1, Math.round(summary.timeoutMs / 1000));
+          return `${base}, timeout_s=${timeoutSeconds}). Bitte Retry ausführen.`;
+        }
+        return `${base}). Bitte Retry ausführen.`;
+      }
+
+      async function fetchWithTimeoutAndSafeRetry(url, init = {}, options = {}) {
+        const method = String(init && init.method ? init.method : "GET").trim().toUpperCase() || "GET";
+        const timeoutMs = resolveDevRequestTimeoutMs(options);
+        const maxRetries = isSafeRetryMethod(method)
+          ? resolveDevRetryBudget(options)
           : 0;
         const retryDelayCandidate = Number(options && options.retryDelayMs);
         const retryDelayMs = Number.isFinite(retryDelayCandidate)
           ? Math.max(0, Math.round(retryDelayCandidate))
-          : 0;
+          : DEV_CLIENT_REQUEST_POLICY.retryDelayMs;
 
         let attemptIndex = 0;
         const startedAt = performance.now();
@@ -4478,13 +4523,25 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             credentials: "include",
           },
           {
-            timeoutMs: DEV_CLIENT_REQUEST_POLICY.authCheckTimeoutMs,
-            maxRetries: DEV_CLIENT_REQUEST_POLICY.getRetries,
+            timeoutMs: DEV_CLIENT_REQUEST_POLICY.requestTimeoutMs,
+            maxRetries: DEV_CLIENT_REQUEST_POLICY.maxRetryBudget,
             retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
           }
         );
 
         if (!authFetch.ok || !authFetch.response) {
+          const failureSummary = summarizeDevRequestFailure(authFetch);
+          emitUiEvent("ui.auth.session_check.end", {
+            level: "warn",
+            direction: "api->ui",
+            status: failureSummary.finalReason,
+            route: AUTH_ME_ENDPOINT,
+            method: "GET",
+            final_reason: failureSummary.finalReason,
+            attempt_count: failureSummary.attemptCount,
+            retry_count: failureSummary.retryCount,
+            timeout_ms: failureSummary.timeoutMs,
+          });
           updateAuthEntryPoints();
           return authState.authenticated === true;
         }
@@ -5107,37 +5164,40 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             headers,
           },
           {
-            timeoutMs: DEV_CLIENT_REQUEST_POLICY.traceTimeoutMs,
-            maxRetries: DEV_CLIENT_REQUEST_POLICY.getRetries,
+            timeoutMs: DEV_CLIENT_REQUEST_POLICY.requestTimeoutMs,
+            maxRetries: DEV_CLIENT_REQUEST_POLICY.maxRetryBudget,
             retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
           }
         );
 
         if (!traceFetch.ok || !traceFetch.response) {
-          const errorCode = traceFetch.timedOut ? "timeout" : "network_error";
+          const failureSummary = summarizeDevRequestFailure(traceFetch);
           const durationMs = Number(traceFetch.durationMs || 0);
+          const statusCode = failureSummary.finalReason === "timeout" ? 504 : 0;
           emitUiEvent("ui.trace.request.end", {
-            level: requestLifecycleLevel(errorCode === "timeout" ? 504 : 0, errorCode),
+            level: requestLifecycleLevel(statusCode, failureSummary.finalReason),
             traceId,
             requestId,
             direction: "api->ui",
-            status: requestLifecycleStatus(errorCode === "timeout" ? 504 : 0, errorCode),
+            status: requestLifecycleStatus(statusCode, failureSummary.finalReason),
             route: TRACE_DEBUG_ENDPOINT,
             method: "GET",
-            status_code: errorCode === "timeout" ? 504 : 0,
+            status_code: statusCode,
             duration_ms: durationMs,
-            ...buildDevErrorLogFields(errorCode, errorCode === "timeout" ? 504 : 0),
+            final_reason: failureSummary.finalReason,
+            attempt_count: failureSummary.attemptCount,
+            retry_count: failureSummary.retryCount,
+            ...buildDevErrorLogFields(failureSummary.finalReason, statusCode),
             trace_request_id: normalizedTraceRequestId,
           });
-          if (errorCode === "timeout") {
-            throw new Error(
-              withTechnicalRequestIdHint(
-                `timeout: Trace-Abfrage nach ${Math.max(1, Math.round(traceFetch.timeoutMs / 1000))}s ohne Antwort abgebrochen. Bitte Retry ausführen.`,
-                requestId
-              )
-            );
-          }
-          throw new Error(withTechnicalRequestIdHint("network_error: Trace-Abfrage fehlgeschlagen. Bitte Retry ausführen.", requestId));
+          throw new Error(
+            withTechnicalRequestIdHint(
+              formatDevRequestFailureMessage("Trace-Abfrage fehlgeschlagen", failureSummary, {
+                includeTimeoutSeconds: true,
+              }),
+              requestId
+            )
+          );
         }
 
         const response = traceFetch.response;

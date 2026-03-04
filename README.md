@@ -42,6 +42,7 @@
 - **Developer Experience**
   - kanonische Service-Entrypoints: API `src/api/web_service.py`, UI `src/ui/service.py`
   - Legacy-Wrapper unter `src/*.py` bleiben für bestehende Integrationen kompatibel
+  - GUI-Dev-GET-Calls (`/auth/me`, `/analyze/history`, `/debug/trace`) nutzen zentrale Request-Policy (`requestTimeoutMs=12000`, `maxRetryBudget=1`, `retryDelayMs=250`) mit optionalem, budget-begrenztem Override via `fetchWithTimeoutAndSafeRetry(..., options)`
   - klar dokumentierte User-Guides unter `docs/user/`
 
 ## Schnellstart
