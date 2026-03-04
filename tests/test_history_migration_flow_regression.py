@@ -114,15 +114,16 @@ class TestHistoryMigrationFlowRegression(unittest.TestCase):
             raise RuntimeError("api web_service wurde lokal nicht rechtzeitig erreichbar")
 
         analyze_headers = {"Authorization": f"Bearer {cls.user_a['token']}"}
-        status, analyze_payload, _ = _http_json(
-            "POST",
-            f"{cls.api_base_url}/analyze",
-            payload={"query": "__ok__", "intelligence_mode": "basic"},
-            headers=analyze_headers,
-            timeout=20.0,
-        )
-        if status != 200 or not analyze_payload.get("ok"):
-            raise RuntimeError(f"sync analyze failed: {status} {analyze_payload}")
+        for index in range(3):
+            status, analyze_payload, _ = _http_json(
+                "POST",
+                f"{cls.api_base_url}/analyze",
+                payload={"query": f"__ok__ history regression {index}", "intelligence_mode": "basic"},
+                headers=analyze_headers,
+                timeout=20.0,
+            )
+            if status != 200 or not analyze_payload.get("ok"):
+                raise RuntimeError(f"sync analyze failed: {status} {analyze_payload}")
 
         status, history_payload, _ = _http_json(
             "GET",
@@ -133,12 +134,15 @@ class TestHistoryMigrationFlowRegression(unittest.TestCase):
             raise RuntimeError(f"history fetch failed: {status} {history_payload}")
 
         history_entries = history_payload.get("history") or []
-        if not history_entries:
-            raise RuntimeError("expected at least one history entry for owner user")
+        if len(history_entries) < 3:
+            raise RuntimeError(f"expected at least three history entries for owner user, got {len(history_entries)}")
 
-        cls.owner_result_id = str(history_entries[0].get("result_id") or "").strip()
-        if not cls.owner_result_id:
-            raise RuntimeError(f"missing result_id in history entry: {history_entries[0]}")
+        cls.owner_result_ids = [str(row.get("result_id") or "").strip() for row in history_entries]
+        cls.owner_result_ids = [result_id for result_id in cls.owner_result_ids if result_id]
+        if len(cls.owner_result_ids) < 3:
+            raise RuntimeError("missing result_id values in owner history entries")
+
+        cls.owner_result_id = cls.owner_result_ids[0]
 
         cls.ui_port = _free_port()
         cls.ui_base_url = f"http://127.0.0.1:{cls.ui_port}"
@@ -211,6 +215,25 @@ class TestHistoryMigrationFlowRegression(unittest.TestCase):
         deprecation = api_payload.get("deprecation") or {}
         self.assertEqual(deprecation.get("successor"), "/history")
 
+    def test_history_flow_pagination_metadata_and_deprecation_headers(self) -> None:
+        status, payload, headers = _http_json(
+            "GET",
+            f"{self.api_base_url}/analyze/history?limit=1&offset=1",
+            headers=self._auth_headers(self.user_a["token"]),
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(payload.get("ok"))
+        self.assertEqual(payload.get("limit"), 1)
+        self.assertEqual(payload.get("offset"), 1)
+        self.assertGreaterEqual(int(payload.get("total") or 0), 3)
+        history_rows = payload.get("history") or []
+        self.assertEqual(len(history_rows), 1)
+        self.assertIn(str(history_rows[0].get("result_id") or ""), self.owner_result_ids)
+
+        self.assertEqual(headers.get("deprecation"), "true")
+        self.assertTrue((headers.get("sunset") or "").strip())
+        self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
+
     def test_history_flow_guard_missing_session_returns_401(self) -> None:
         status, payload, _ = _http_json("GET", f"{self.api_base_url}/analyze/history?limit=5")
         self.assertEqual(status, 401)
@@ -228,6 +251,16 @@ class TestHistoryMigrationFlowRegression(unittest.TestCase):
         self.assertTrue(payload.get("ok"))
         self.assertEqual(payload.get("total"), 0)
         self.assertEqual(payload.get("history"), [])
+
+    def test_history_route_on_api_is_removed_and_points_to_ui_successor(self) -> None:
+        status, payload, headers = _http_json("GET", f"{self.api_base_url}/history")
+        self.assertEqual(status, 410)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "gone")
+        self.assertEqual(payload.get("next"), "/history (UI service)")
+        self.assertEqual(payload.get("data_source"), "/analyze/history")
+        self.assertEqual(headers.get("deprecation"), "true")
+        self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
 
 
 if __name__ == "__main__":
