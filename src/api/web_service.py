@@ -272,6 +272,9 @@ _HISTORY_API_DEPRECATION_WARNING = (
 _EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING = (
     '299 - "External direct login routes on API are deprecated: use UI-owned /auth/login session flow."'
 )
+_TRACE_LEGACY_ALIAS_DEPRECATION_WARNING = (
+    '299 - "Legacy trace alias on API is deprecated and removed: use /debug/trace?request_id=<id>."'
+)
 _API_DEPRECATION_SUNSET_UTC = datetime(2026, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
 
 
@@ -329,6 +332,20 @@ def _external_direct_login_deprecation_payload() -> dict[str, str]:
     return _build_deprecation_payload(
         successor="/auth/login",
         scope="login-front-facing",
+    )
+
+
+def _trace_legacy_alias_deprecation_headers() -> dict[str, str]:
+    return _build_deprecation_headers(
+        warning=_TRACE_LEGACY_ALIAS_DEPRECATION_WARNING,
+        successor_link='</debug/trace>; rel="successor-version"',
+    )
+
+
+def _trace_legacy_alias_deprecation_payload() -> dict[str, str]:
+    return _build_deprecation_payload(
+        successor="/debug/trace?request_id=<id>",
+        scope="trace-debug-legacy-alias",
     )
 
 
@@ -4030,6 +4047,27 @@ class Handler(BaseHTTPRequestHandler):
                         "next": "/history (UI service)",
                         "data_source": "/analyze/history",
                         "deprecation": _history_api_deprecation_payload(),
+                        "request_id": request_id,
+                    },
+                    status=HTTPStatus.GONE,
+                    request_id=request_id,
+                    extra_headers=deprecation_headers,
+                )
+                return
+
+            if request_path == "/trace":
+                deprecation_headers = _trace_legacy_alias_deprecation_headers()
+                deprecation_headers["Cache-Control"] = "no-store"
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "gone",
+                        "message": (
+                            "GET /trace on API is deprecated and removed. "
+                            "Use GET /debug/trace?request_id=<id> for trace lookups."
+                        ),
+                        "next": "/debug/trace?request_id=<id>",
+                        "deprecation": _trace_legacy_alias_deprecation_payload(),
                         "request_id": request_id,
                     },
                     status=HTTPStatus.GONE,

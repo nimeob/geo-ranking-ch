@@ -33,6 +33,7 @@ class TestApiUiDevSmokeMatrixDocs(unittest.TestCase):
             "tests/test_trace_debug_smoke.py",
             "test_trace_deep_link_state_flow_markers_present",
             "tests/test_history_api_deprecation.py",
+            "tests/test_trace_legacy_deprecation.py::test_trace_legacy_alias_returns_gone_with_deprecation_headers",
             "tests/test_api_contract_v1.py",
             "#1211",
         ]
