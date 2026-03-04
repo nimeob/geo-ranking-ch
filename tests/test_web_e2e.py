@@ -250,6 +250,7 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(health.get("request_id"), request_id)
         self.assertEqual(health_headers.get("x-request-id"), request_id)
+        self.assertEqual(health_headers.get("x-correlation-id"), request_id)
 
         status, version, version_headers = _http_json(
             "GET",
@@ -260,6 +261,7 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(version.get("request_id"), request_id)
         self.assertEqual(version_headers.get("x-request-id"), request_id)
+        self.assertEqual(version_headers.get("x-correlation-id"), request_id)
 
     def test_not_found(self):
         status, body = _http_json("GET", f"{self.base_url}/missing")

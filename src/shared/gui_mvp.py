@@ -3565,7 +3565,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           requestId: String(requestId || "").trim(),
           errorCode: normalizedErrorCode,
         });
-        state.lastError = hint;
+        state.lastError = withTechnicalRequestIdHint(hint, requestId);
         renderState();
 
         if (typeof window === "undefined" || !window.setTimeout || !window.location) {
@@ -3603,6 +3603,41 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           errorMessage: buildAuthorizationUxErrorMessage(statusCode, fallbackMessage, normalizedCode),
           requiresLoginRecovery: isSessionRecoveryRequired(statusCode, normalizedCode),
         };
+      }
+
+      function resolveResponseRequestId(response, payload, fallbackRequestId = "") {
+        const payloadRequestId = payload && payload.request_id ? String(payload.request_id).trim() : "";
+        if (payloadRequestId) {
+          return payloadRequestId;
+        }
+
+        const responseRequestId =
+          response && response.headers
+            ? String(
+                response.headers.get("X-Request-Id")
+                || response.headers.get("x-request-id")
+                || response.headers.get("X-Correlation-Id")
+                || response.headers.get("x-correlation-id")
+                || ""
+              ).trim()
+            : "";
+        if (responseRequestId) {
+          return responseRequestId;
+        }
+        return String(fallbackRequestId || "").trim();
+      }
+
+      function withTechnicalRequestIdHint(message, requestId) {
+        const normalizedMessage = String(message || "").trim() || "Unbekannter Fehler";
+        const normalizedRequestId = normalizeTraceRequestId(requestId);
+        if (!normalizedRequestId) {
+          return normalizedMessage;
+        }
+        const requestSuffix = `(request_id: ${normalizedRequestId})`;
+        if (normalizedMessage.includes(requestSuffix)) {
+          return normalizedMessage;
+        }
+        return `${normalizedMessage} ${requestSuffix}`;
       }
 
       async function runAnalyze(payload, context = {}) {
@@ -3658,7 +3693,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               error_code: "timeout",
               error_class: "timeout",
             });
-            throw new Error(`timeout: Anfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`);
+            throw new Error(
+              withTechnicalRequestIdHint(
+                `timeout: Anfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`,
+                requestId
+              )
+            );
           }
 
           emitUiEvent("ui.api.request.end", {
@@ -3674,7 +3714,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             error_code: "network_error",
             error_class: "network_error",
           });
-          throw error;
+          const networkMessage =
+            error instanceof Error && String(error.message || "").trim()
+              ? String(error.message)
+              : "network_error: Anfrage fehlgeschlagen";
+          throw new Error(withTechnicalRequestIdHint(networkMessage, requestId));
         } finally {
           clearTimeout(timeoutHandle);
         }
@@ -3685,10 +3729,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         try {
           parsed = await response.json();
         } catch (error) {
+          const responseRequestId = resolveResponseRequestId(response, null, requestId);
           emitUiEvent("ui.api.request.end", {
             level: requestLifecycleLevel(response.status, "invalid_json"),
             traceId,
-            requestId,
+            requestId: responseRequestId,
             direction: "api->ui",
             status: requestLifecycleStatus(response.status, "invalid_json"),
             route: "/analyze",
@@ -3698,10 +3743,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             error_code: "invalid_json",
             error_class: "invalid_json",
           });
-          throw new Error("Response ist kein gültiges JSON.");
+          throw new Error(withTechnicalRequestIdHint("Response ist kein gültiges JSON.", responseRequestId));
         }
 
-        const responseRequestId = parsed && parsed.request_id ? String(parsed.request_id) : requestId;
+        const responseRequestId = resolveResponseRequestId(response, parsed, requestId);
         if (!response.ok || !parsed.ok) {
           const errCode = parsed && parsed.error ? String(parsed.error) : `http_${response.status}`;
           const errMsg = parsed && parsed.message ? String(parsed.message) : "Unbekannter Fehler";
@@ -3727,7 +3772,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             ok: false,
             requestId: responseRequestId,
             response: failingResponse,
-            errorMessage: authFailure.errorMessage,
+            errorMessage: withTechnicalRequestIdHint(authFailure.errorMessage, responseRequestId),
             errorCode: authFailure.errorCode,
             statusCode: response.status,
             requiresLoginRecovery: authFailure.requiresLoginRecovery,
@@ -3921,9 +3966,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             trace_request_id: normalizedTraceRequestId,
           });
           if (errorCode === "timeout") {
-            throw new Error(`timeout: Trace-Abfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`);
+            throw new Error(
+              withTechnicalRequestIdHint(
+                `timeout: Trace-Abfrage nach ${Math.max(1, Math.round(timeoutMs / 1000))}s ohne Antwort abgebrochen`,
+                requestId
+              )
+            );
           }
-          throw new Error("network_error: Trace-Abfrage fehlgeschlagen");
+          throw new Error(withTechnicalRequestIdHint("network_error: Trace-Abfrage fehlgeschlagen", requestId));
         } finally {
           clearTimeout(timeoutHandle);
         }
@@ -3934,10 +3984,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         try {
           parsed = await response.json();
         } catch (error) {
+          const responseRequestId = resolveResponseRequestId(response, null, requestId);
           emitUiEvent("ui.trace.request.end", {
             level: requestLifecycleLevel(response.status, "invalid_json"),
             traceId,
-            requestId,
+            requestId: responseRequestId,
             direction: "api->ui",
             status: requestLifecycleStatus(response.status, "invalid_json"),
             route: TRACE_DEBUG_ENDPOINT,
@@ -3948,10 +3999,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             error_class: "invalid_json",
             trace_request_id: normalizedTraceRequestId,
           });
-          throw new Error("invalid_json: Trace-Response ist kein gültiges JSON.");
+          throw new Error(
+            withTechnicalRequestIdHint("invalid_json: Trace-Response ist kein gültiges JSON.", responseRequestId)
+          );
         }
 
-        const responseRequestId = parsed && parsed.request_id ? String(parsed.request_id) : requestId;
+        const responseRequestId = resolveResponseRequestId(response, parsed, requestId);
         if (!response.ok || !parsed.ok) {
           const errCode = parsed && parsed.error ? String(parsed.error) : `http_${response.status}`;
           const errMsg = parsed && parsed.message ? String(parsed.message) : "Trace-Abfrage fehlgeschlagen";
@@ -3979,7 +4032,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             response: parsed || { ok: false, error: authFailure.errorCode, message: errMsg },
             errorCode: authFailure.errorCode,
             statusCode: response.status,
-            errorMessage: authFailure.errorMessage,
+            errorMessage: withTechnicalRequestIdHint(authFailure.errorMessage, responseRequestId),
             requiresLoginRecovery: authFailure.requiresLoginRecovery,
           };
         }
