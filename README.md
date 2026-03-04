@@ -190,6 +190,18 @@ curl http://localhost:8081/healthz
 - **Wichtig für CI/Smokes:**
   - lokaler Standard-Smoke läuft über `make dev-smoke` (delegiert auf `./scripts/check_bl334_split_smokes.sh`).
 
+### API Data-only + UI-Migration (Onboarding)
+
+Für die Entkopplung API/UI ist der verbindliche Migrationsleitfaden:
+
+- [`docs/api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md`](docs/api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md)
+
+Der Guide enthält:
+- Data-only Contract (API)
+- UI-Ownership-Regeln (front-facing Flows)
+- Breaking-/Deprecation-Signale
+- konkrete `before -> after` Migrationsbeispiele für Login/History/Trace
+
 ### Webservice-Endpoints (MVP)
 
 | Methode | Pfad | Zweck |
@@ -334,6 +346,7 @@ Siehe [`docs/DEPLOYMENT_AWS.md`](docs/DEPLOYMENT_AWS.md) für das vollständige 
 | Dokument | Inhalt |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Systemarchitektur und Komponentenübersicht |
+| [docs/api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md](docs/api/API_DATA_ONLY_UI_MIGRATION_GUIDE.md) | Verbindlicher API-Data-only Contract + UI-Migrationsanleitung (Login/History/Trace, Deprecation-Signale) |
 | [docs/DEPLOYMENT_AWS.md](docs/DEPLOYMENT_AWS.md) | AWS-Deployment: Ist-Stand, Runbook, Rollback |
 | [docs/TLS_CERTIFICATE_MIGRATION_RUNBOOK.md](docs/TLS_CERTIFICATE_MIGRATION_RUNBOOK.md) | Migrationspfad Dev self-signed → offizielles Zertifikat (TLS-Baseline, Rotation, Rollback) |
 | [docs/NETWORK_INGRESS_DECISIONS.md](docs/NETWORK_INGRESS_DECISIONS.md) | Beschlossenes Netzwerk-/Ingress-Zielbild (BL-05) |
