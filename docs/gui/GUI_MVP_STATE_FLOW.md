@@ -108,6 +108,7 @@ Trace-State-Flow (clientseitig):
 Die GUI emittiert strukturierte Client-Events (JSONL via Browser-Console) und korreliert API-Requests über dieselbe Request-ID:
 
 - `ui.api.request.start` / `ui.api.request.end` mit `trace_id`, `request_id`, `session_id`, `status_code`, `duration_ms`
+- `ui.results_list.first_contentful_data` pro Listenladung genau einmal mit `duration_ms`, `rows_visible`, `rows_total` und `status` (`ready`, `filtered_empty`, `empty`)
 - `ui.trace.request.start` / `ui.trace.request.end` für Trace-Lookups inkl. `trace_request_id`, Timeline-State und Fehlerklassifikation
 - `ui.state.transition` für Analyze-Zustandswechsel (`idle/loading/success/error`)
 - `ui.trace.state.transition` für Trace-Zustandswechsel (`idle/loading/success/empty/unknown/error`)
@@ -120,6 +121,13 @@ Für die UI→API-Korrelation setzt der Client pro Analyze-Request:
 - `X-Session-Id`
 
 Damit lassen sich UI-Ereignisse direkt mit API-Lifecycle-Logs (`api.request.start/end`) verbinden.
+
+Interpretation der `ui.results_list.first_contentful_data`-Metrik:
+
+- `duration_ms`: Zeit vom Start der Listenladung bis zur ersten darstellbaren Listenansicht (DOM-Update + nächster Animation-Frame)
+- `status=ready`: mindestens eine Zeile sichtbar (normaler Erfolgsfall)
+- `status=filtered_empty`: Daten vorhanden, aber aktuelle Filter blenden alle Zeilen aus
+- `status=empty`: keine Einträge vorhanden
 
 ## Manuelle E2E-Prüfung (BL-20.6.b)
 

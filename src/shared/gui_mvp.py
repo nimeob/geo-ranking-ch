@@ -2123,7 +2123,47 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
       }
 
-      function renderResultsList() {
+      function emitResultsListFirstContentfulData(loadMetric, metrics = {}) {
+        if (!loadMetric || typeof loadMetric !== "object") {
+          return;
+        }
+
+        const startedAtMs = Number(loadMetric.startedAtMs);
+        if (!Number.isFinite(startedAtMs)) {
+          return;
+        }
+
+        const requestId = normalizeTraceRequestId(loadMetric.requestId);
+        const loadId = String(loadMetric.loadId || createUiCorrelationId("results-load")).trim();
+        const traceId = requestId || loadId;
+        const trigger = String(loadMetric.trigger || "results_list_load").trim() || "results_list_load";
+
+        const emitMetric = () => {
+          const durationMs = Number((performance.now() - startedAtMs).toFixed(3));
+          emitUiEvent("ui.results_list.first_contentful_data", {
+            traceId,
+            requestId,
+            direction: "ui",
+            status: String(metrics.status || "ready").trim() || "ready",
+            trigger,
+            load_id: loadId,
+            duration_ms: durationMs,
+            rows_visible: Number.isFinite(Number(metrics.rowsVisible)) ? Number(metrics.rowsVisible) : 0,
+            rows_total: Number.isFinite(Number(metrics.rowsTotal)) ? Number(metrics.rowsTotal) : 0,
+          });
+        };
+
+        if (typeof window !== "undefined" && window && typeof window.requestAnimationFrame === "function") {
+          window.requestAnimationFrame(() => {
+            emitMetric();
+          });
+          return;
+        }
+
+        emitMetric();
+      }
+
+      function renderResultsList({ loadMetric = null } = {}) {
         if (!resultsBodyEl || !resultsMetaEl) {
           return;
         }
@@ -2188,6 +2228,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           resultsBodyEl.appendChild(tr);
 
           resultsMetaEl.textContent = resolveResultsMetaCopy(total, emptyState.reason);
+          emitResultsListFirstContentfulData(loadMetric, {
+            status: emptyState.reason === "filtered" ? "filtered_empty" : "empty",
+            rowsVisible: 0,
+            rowsTotal: total,
+          });
           return;
         }
 
@@ -2241,6 +2286,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           tr.appendChild(tdActions);
           resultsBodyEl.appendChild(tr);
         });
+
+        emitResultsListFirstContentfulData(loadMetric, {
+          status: "ready",
+          rowsVisible: rows.length,
+          rowsTotal: total,
+        });
       }
 
       function syncResultsListStateFromControls() {
@@ -2288,11 +2339,19 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }
 
         setResultsListRecoveryState("");
+
+        const loadMetric = {
+          startedAtMs: performance.now(),
+          requestId: normalizeTraceRequestId(entry.requestId),
+          loadId: createUiCorrelationId("results-load"),
+          trigger: "results_entry_added",
+        };
+
         resultsListState.entries.unshift(entry);
         if (resultsListState.entries.length > 60) {
           resultsListState.entries = resultsListState.entries.slice(0, 60);
         }
-        renderResultsList();
+        renderResultsList({ loadMetric });
       }
 
       function clearResultsEntries() {
