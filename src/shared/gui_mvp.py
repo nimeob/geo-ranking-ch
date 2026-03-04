@@ -111,6 +111,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         background: rgba(15, 23, 42, 0.28);
         z-index: 24;
       }
+      .burger-menu[hidden],
+      .burger-backdrop[hidden] {
+        display: none !important;
+      }
       .burger-menu a {
         display: inline-flex;
         align-items: center;
@@ -734,8 +738,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             <a role=\"menuitem\" href=\"#map\">Karte</a>
             <a role=\"menuitem\" href=\"#result\">Result-Panel</a>
             <a role=\"menuitem\" href=\"#trace-debug\">Trace-Debug</a>
-            <a role=\"menuitem\" id=\"burger-login-link\" href=\"/auth/login\">Login</a>
-            <a role=\"menuitem\" id=\"burger-logout-link\" href=\"/auth/logout\">Logout</a>
+            <a role=\"menuitem\" id=\"burger-login-link\" href=\"__AUTH_LOGIN_ENDPOINT__\">Login</a>
+            <a role=\"menuitem\" id=\"burger-logout-link\" href=\"__AUTH_LOGOUT_ENDPOINT__\">Logout</a>
           </div>
           <button id=\"burger-backdrop\" class=\"burger-backdrop\" type=\"button\" aria-hidden=\"true\" hidden></button>
         </div>
@@ -760,7 +764,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               </select>
             </label>
             <p class=\"meta\">Auth im GUI-Flow läuft session-basiert über Login/Cookie (kein Bearer-Token-Eingabefeld).</p>
-            <p class=\"meta\" id=\"auth-login-meta\">Nicht eingeloggt? <a id=\"auth-login-inline\" href=\"/auth/login\">Login starten</a></p>
+            <p class=\"meta\" id=\"auth-login-meta\">Nicht eingeloggt? <a id=\"auth-login-inline\" href=\"__AUTH_LOGIN_ENDPOINT__\">Login starten</a></p>
             <label class="touch-toggle">
               Async Mode (optional)
               <input id="async-mode-requested" type="checkbox" />
@@ -996,7 +1000,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
-      const AUTH_ME_ENDPOINT = "/auth/me";
+      const AUTH_LOGIN_ENDPOINT = "__AUTH_LOGIN_ENDPOINT__";
+      const AUTH_LOGOUT_ENDPOINT = "__AUTH_LOGOUT_ENDPOINT__";
+      const AUTH_ME_ENDPOINT = "__AUTH_ME_ENDPOINT__";
       const AUTH_CHECK_CACHE_TTL_MS = 12000;
       const DEV_CLIENT_REQUEST_POLICY = Object.freeze({
         authCheckTimeoutMs: 4000,
@@ -3496,6 +3502,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           }
           touchState.pinchActive = false;
           cancelPinchFrame();
+          renderTiles();
           if (suppressClick) {
             queueClickSuppression(160);
           }
@@ -3521,8 +3528,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
           const scale = currentDistance / touchState.pinchStartDistance;
           const zoomFloat = touchState.pinchStartZoom + Math.log2(scale);
+          const previousZoom = mapState.zoom;
           const targetZoom = clamp(Math.round(zoomFloat), MIN_ZOOM, MAX_ZOOM);
-          if (targetZoom !== mapState.zoom) {
+          const zoomChanged = targetZoom !== previousZoom;
+          if (zoomChanged) {
             mapState.zoom = targetZoom;
           }
 
@@ -3539,7 +3548,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           const nextCenterWorldX = focusWorld.x - (x - width / 2);
           const nextCenterWorldY = focusWorld.y - (y - height / 2);
 
-          setMapCenterFromWorld(nextCenterWorldX, nextCenterWorldY, { render: true });
+          setMapCenterFromWorld(nextCenterWorldX, nextCenterWorldY, { render: zoomChanged });
           touchState.pinchRenderPending = false;
         }
 
@@ -3997,13 +4006,13 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           : "/gui";
 
         if (typeof URLSearchParams === "undefined") {
-          return `/auth/login?next=${encodeURIComponent(nextPath || "/gui")}&reason=${encodeURIComponent(normalizedReason)}`;
+          return `${AUTH_LOGIN_ENDPOINT}?next=${encodeURIComponent(nextPath || "/gui")}&reason=${encodeURIComponent(normalizedReason)}`;
         }
 
         const params = new URLSearchParams();
         params.set("next", nextPath || "/gui");
         params.set("reason", normalizedReason);
-        return `/auth/login?${params.toString()}`;
+        return `${AUTH_LOGIN_ENDPOINT}?${params.toString()}`;
       }
 
       function updateAuthEntryPoints() {
@@ -4064,7 +4073,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           {
             method: "GET",
             headers,
-            credentials: "same-origin",
+            credentials: "include",
           },
           {
             timeoutMs: DEV_CLIENT_REQUEST_POLICY.authCheckTimeoutMs,
@@ -4336,6 +4345,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           response = await fetch("/analyze", {
             method: "POST",
             headers,
+            credentials: "include",
             body: JSON.stringify(payload),
             signal: controller.signal,
           });
@@ -5159,8 +5169,22 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 """
 
 
-def render_gui_mvp_html(*, app_version: str) -> str:
+def render_gui_mvp_html(
+    *,
+    app_version: str,
+    auth_login_endpoint: str = "/auth/login",
+    auth_logout_endpoint: str = "/auth/logout",
+    auth_me_endpoint: str = "/auth/me",
+) -> str:
     """Render das statische GUI-MVP-HTML mit sicher escaped Version."""
 
     safe_version = escape(app_version or "dev")
-    return _GUI_MVP_HTML_TEMPLATE.replace("__APP_VERSION__", safe_version)
+    safe_login_endpoint = escape(str(auth_login_endpoint or "/auth/login"), quote=True)
+    safe_logout_endpoint = escape(str(auth_logout_endpoint or "/auth/logout"), quote=True)
+    safe_me_endpoint = escape(str(auth_me_endpoint or "/auth/me"), quote=True)
+
+    html = _GUI_MVP_HTML_TEMPLATE.replace("__APP_VERSION__", safe_version)
+    html = html.replace("__AUTH_LOGIN_ENDPOINT__", safe_login_endpoint)
+    html = html.replace("__AUTH_LOGOUT_ENDPOINT__", safe_logout_endpoint)
+    html = html.replace("__AUTH_ME_ENDPOINT__", safe_me_endpoint)
+    return html
