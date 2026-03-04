@@ -45,7 +45,7 @@ BFF_OIDC_POST_LOGOUT_REDIRECT_URI
     Optional absolute return URL for IdP logout (preferred).
 BFF_OIDC_REDIRECT_URI
     Login callback URL. If no explicit post-logout URL is configured and this
-    value points to ``.../auth/callback``, logout derives ``.../auth/login`` as
+    value points to ``.../auth/callback``, logout derives ``.../login`` as
     deterministic return target.
 BFF_API_CALL_TIMEOUT_SECONDS
     Timeout in seconds for ``bff_api_call``. Default: 10.
@@ -99,7 +99,7 @@ def _client_id() -> str:
 
 
 def _derived_post_logout_uri_from_callback(callback_uri: str) -> str:
-    """Derive ``.../auth/login`` from an absolute ``.../auth/callback`` URL."""
+    """Derive ``.../login`` from an absolute ``.../auth/callback`` URL."""
     candidate = str(callback_uri or "").strip()
     if not candidate:
         return ""
@@ -112,7 +112,7 @@ def _derived_post_logout_uri_from_callback(callback_uri: str) -> str:
     if path.rstrip("/") != "/auth/callback":
         return ""
 
-    return urlunsplit((parsed.scheme, parsed.netloc, "/auth/login", "", ""))
+    return urlunsplit((parsed.scheme, parsed.netloc, "/login", "", ""))
 
 
 def _post_logout_redirect_uri() -> str:

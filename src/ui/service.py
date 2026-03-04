@@ -26,7 +26,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib import error as urllib_error
 from urllib import request as urllib_request
-from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
 
 from src.shared.gui_mvp import render_gui_mvp_html
 from src.shared.ui_pages import build_history_page_html, build_result_tabs_page_html
@@ -1500,14 +1500,71 @@ class _UiHandler(BaseHTTPRequestHandler):
         return target_url
 
     @staticmethod
-    def _rewrite_upstream_location(*, location: str, api_base_url: str) -> str:
+    def _rewrite_upstream_location(
+        *,
+        location: str,
+        api_base_url: str,
+        ui_scheme: str = "",
+        ui_host: str = "",
+    ) -> str:
         normalized_base_url = str(api_base_url or "").strip().rstrip("/")
-        if not location or not normalized_base_url:
-            return location
-        if location.startswith(f"{normalized_base_url}/"):
-            parsed = urlsplit(location)
-            return urlunsplit(("", "", parsed.path, parsed.query, parsed.fragment))
-        return location
+        rewritten = str(location or "")
+
+        if normalized_base_url and rewritten.startswith(f"{normalized_base_url}/"):
+            parsed = urlsplit(rewritten)
+            rewritten = urlunsplit(("", "", parsed.path, parsed.query, parsed.fragment))
+
+        # Keep IdP logout roundtrips on the UI host (www):
+        # rewrite nested `logout_uri` callback targets from API-host auth paths
+        # to `https?://<ui-host>/login`.
+        normalized_scheme = str(ui_scheme or "").strip().lower()
+        if normalized_scheme not in {"http", "https"}:
+            normalized_scheme = ""
+        normalized_host = str(ui_host or "").split(",", 1)[0].strip()
+        if not rewritten or not normalized_scheme or not normalized_host:
+            return rewritten
+
+        parsed_location = urlsplit(rewritten)
+        if not parsed_location.query:
+            return rewritten
+
+        query_pairs = parse_qsl(parsed_location.query, keep_blank_values=True)
+        changed = False
+        updated_pairs: list[tuple[str, str]] = []
+
+        for key, value in query_pairs:
+            if key != "logout_uri":
+                updated_pairs.append((key, value))
+                continue
+
+            target_uri = str(value or "").strip()
+            parsed_target = urlsplit(target_uri)
+            normalized_target_path = (parsed_target.path or "").rstrip("/") or "/"
+            target_is_api_host = bool(
+                normalized_base_url
+                and target_uri.startswith(f"{normalized_base_url}/")
+            )
+            target_is_auth_login_path = normalized_target_path in {"/auth/login", "/login"}
+
+            if target_is_api_host or target_is_auth_login_path:
+                value = urlunsplit((normalized_scheme, normalized_host, "/login", "", ""))
+                changed = True
+
+            updated_pairs.append((key, value))
+
+        if not changed:
+            return rewritten
+
+        rebuilt_query = urlencode(updated_pairs, doseq=True)
+        return urlunsplit(
+            (
+                parsed_location.scheme,
+                parsed_location.netloc,
+                parsed_location.path,
+                rebuilt_query,
+                parsed_location.fragment,
+            )
+        )
 
     def _proxy_auth_request(self, *, request_path: str, raw_query: str) -> bool:
         """Proxied ``/auth/*`` calls to API while keeping browser URL on UI host."""
@@ -1523,6 +1580,14 @@ class _UiHandler(BaseHTTPRequestHandler):
         forwarded_accept = self.headers.get("Accept")
         if forwarded_accept:
             upstream_headers["Accept"] = forwarded_accept
+
+        forwarded_proto = str(self.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip().lower()
+        request_scheme = forwarded_proto if forwarded_proto in {"http", "https"} else "http"
+        forwarded_host = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        request_host = forwarded_host or str(self.headers.get("Host", "") or "").strip()
+        if request_host:
+            upstream_headers["X-Forwarded-Host"] = request_host
+            upstream_headers["X-Forwarded-Proto"] = request_scheme
 
         class _NoRedirect(urllib_request.HTTPRedirectHandler):
             def redirect_request(self, req, fp, code, msg, hdrs, newurl):  # noqa: D401
@@ -1568,6 +1633,8 @@ class _UiHandler(BaseHTTPRequestHandler):
                 header_value = self._rewrite_upstream_location(
                     location=header_value,
                     api_base_url=self.server.ui_api_base_url,
+                    ui_scheme=request_scheme,
+                    ui_host=request_host,
                 )
             self.send_header(header_name, header_value)
 

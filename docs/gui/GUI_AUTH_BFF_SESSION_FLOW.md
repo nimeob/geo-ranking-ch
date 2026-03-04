@@ -56,6 +56,9 @@ Für Session-Recovery nutzen `/gui` und `/history` dieselben UX-Messages und den
 - Session fehlt/abgelaufen (`401`, `no_session_cookie`, `session_not_found`, `token_error`):
   - Meldung: **„Session ungültig oder abgelaufen — bitte erneut einloggen.“**
   - Redirect: `/login?next=<current-path>&reason=session_expired`
+- Callback-/State-Fehler (`missing_state`, `missing_session_cookie`, `state_mismatch`, `missing_code_verifier`):
+  - Meldung: **„Login-Status ungültig oder abgelaufen — bitte Anmeldung neu starten.“**
+  - Redirect: `/login?next=<current-path>&reason=invalid_state`
 - Refresh fehlgeschlagen (`refresh_*`, `no_refresh_token`):
   - Meldung: **„Session konnte nicht erneuert werden — bitte erneut einloggen.“**
   - Redirect: `/login?next=<current-path>&reason=refresh_failed`
@@ -115,7 +118,7 @@ python3 -m unittest tests.test_web_service_bff_gui_guard
 Erwartung:
 - `GET /gui` ohne Session -> `302` nach `/login?next=%2Fgui`
 - `GET /history?limit=5` ohne Session -> `302` nach `/login?next=%2Fhistory%3Flimit%3D5`
-- `GET /auth/callback` mit ungültigem/abgelaufenem `state` -> `400` HTML-Fehlerseite mit genau einem Re-Login-CTA (`/login?next=...&reason=session_expired`), ohne Redirect-Loop
+- `GET /auth/callback` mit ungültigem/abgelaufenem `state` -> `400` HTML-Fehlerseite mit genau einem Re-Login-CTA (`/login?next=...&reason=invalid_state`), ohne Redirect-Loop
 - `GET /auth/logout` löscht Session-Cookie (`Max-Age=0`) und liefert IdP-Logout-Redirect
 
 ## Automatisierter Guard- und Session-Proxy-Nachweis (Issue #997)

@@ -754,6 +754,14 @@ def _callback_error_reason(error_code: str) -> str:
     normalized = str(error_code or "").strip().lower()
     if normalized in {"idp_access_denied", "idp_consent_denied"}:
         return "consent_denied"
+    if normalized in {
+        "missing_state",
+        "missing_session_cookie",
+        "session_not_found",
+        "state_mismatch",
+        "missing_code_verifier",
+    }:
+        return "invalid_state"
     return "session_expired"
 
 
@@ -762,6 +770,14 @@ def _callback_error_user_message(error_code: str) -> str:
     normalized = str(error_code or "").strip().lower()
     if normalized in {"idp_access_denied", "idp_consent_denied"}:
         return "Die Anmeldung wurde beim Login-Anbieter abgebrochen oder verweigert."
+    if normalized in {
+        "missing_state",
+        "missing_session_cookie",
+        "session_not_found",
+        "state_mismatch",
+        "missing_code_verifier",
+    }:
+        return "Der Login-Status ist ungültig oder abgelaufen — bitte die Anmeldung neu starten."
     if normalized.startswith("token_"):
         return "Die Anmeldung konnte serverseitig nicht abgeschlossen werden."
     return "Die Anmeldung ist abgelaufen oder ungültig."
@@ -780,7 +796,7 @@ def _build_callback_relogin_location(*, next_path: str, error_code: str) -> str:
         "next": safe_next,
         "reason": _callback_error_reason(error_code),
     }
-    return f"/auth/login?{urlencode(params)}"
+    return f"/login?{urlencode(params)}"
 
 
 def _render_oidc_callback_error_html(
@@ -3834,7 +3850,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if request_path == "/auth/logout":
             logout_result = handle_logout(store, self.headers.get("Cookie"))
-            location = logout_result.redirect_url or "/auth/login"
+            location = logout_result.redirect_url or "/login"
             self._send_redirect(
                 location=location,
                 request_id=request_id,

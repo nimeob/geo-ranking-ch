@@ -163,7 +163,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
 
         self.assertIn("Anmeldung konnte nicht abgeschlossen werden", body)
         self.assertIn("id=\"auth-callback-relogin\"", body)
-        self.assertIn("/auth/login?next=%2Fgui&amp;reason=session_expired", body)
+        self.assertIn("/login?next=%2Fgui&amp;reason=invalid_state", body)
         self.assertIn("id=\"auth-callback-error-code\">missing_session_cookie<", body)
         self.assertIn("id=\"auth-callback-request-id\">", body)
 
@@ -189,7 +189,18 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertNotIn("location", headers)
         self.assertIn("Max-Age=0", str(headers.get("set-cookie") or ""))
         self.assertIn("id=\"auth-callback-relogin\"", body)
-        self.assertIn("reason=session_expired", body)
+        self.assertIn("reason=invalid_state", body)
+
+    def test_callback_consent_denied_reason_stays_deterministic(self):
+        status, body, headers = _http_get(
+            f"{self.base_url}/auth/callback?error=access_denied&error_description=cancelled",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+        self.assertNotIn("location", headers)
+        self.assertIn("id=\"auth-callback-relogin\"", body)
+        self.assertIn("reason=consent_denied", body)
 
     def test_history_redirects_to_login_when_session_cookie_is_invalid(self):
         status, _, headers = _http_get(
@@ -212,7 +223,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
             "logout_uri=http%3A%2F%2F127.0.0.1",
             location,
         )
-        self.assertIn("%2Fauth%2Flogin", location)
+        self.assertIn("%2Flogin", location)
         self.assertNotIn("%2Fauth%2Fcallback", location)
         cookie_header = headers.get("set-cookie", "")
         self.assertIn("Max-Age=0", cookie_header)

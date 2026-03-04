@@ -472,7 +472,7 @@ class TestHandleLogout:
             _client_id_override="cid",
         )
 
-        assert "logout_uri=https%3A%2F%2Fapp.test%2Fauth%2Flogin" in result.redirect_url
+        assert "logout_uri=https%3A%2F%2Fapp.test%2Flogin" in result.redirect_url
 
     def test_logout_missing_cookie_still_clears(self):
         """Even without a session cookie, logout returns a clear-cookie header."""
