@@ -11,13 +11,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib import error, parse, request
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +41,12 @@ DEMOTION_COMMENT_TEMPLATE = (
     "⏸️ Claim-Priorität aktiv: Es gibt aktuell höher priorisierte TODO-Issues "
     "({active_priority}). Dieses Issue wurde daher temporär auf `status:blocked` gesetzt."
 )
+
+WORKER_LABEL_TO_NAME = {
+    "worker-a-active": "Worker A",
+    "worker-b-active": "Worker B",
+}
+CLAIM_TEMPLATE_FIELDS = ("claimed at", "scope:", "next-step:")
 
 
 @dataclass
@@ -110,6 +117,25 @@ class GitHubClient:
             page += 1
 
         return all_issues
+
+    def list_issue_comments(self, repository: str, issue_number: int) -> list[dict[str, Any]]:
+        owner, repo = parse_repository(repository)
+        page = 1
+        all_comments: list[dict[str, Any]] = []
+
+        while True:
+            query = parse.urlencode({"per_page": 100, "page": page})
+            payload = self._request("GET", f"repos/{owner}/{repo}/issues/{issue_number}/comments?{query}")
+            if not isinstance(payload, list):
+                raise GitHubApiError("unexpected response shape for list_issue_comments")
+            if not payload:
+                break
+            all_comments.extend(item for item in payload if isinstance(item, dict))
+            if len(payload) < 100:
+                break
+            page += 1
+
+        return all_comments
 
     def set_issue_labels(self, repository: str, issue_number: int, labels: list[str]) -> None:
         owner, repo = parse_repository(repository)
@@ -323,6 +349,124 @@ def extract_priority(labels: set[str]) -> str | None:
     return ranked[0]
 
 
+def extract_worker_label(labels: set[str]) -> str | None:
+    for worker_label in WORKER_LABEL_TO_NAME:
+        if worker_label in labels:
+            return worker_label
+    return None
+
+
+def normalize_comment_bodies(raw_comments: Any) -> list[str]:
+    if not isinstance(raw_comments, list):
+        return []
+
+    bodies: list[str] = []
+    for entry in raw_comments:
+        candidate: str | None = None
+        if isinstance(entry, str):
+            candidate = entry.strip()
+        elif isinstance(entry, dict) and isinstance(entry.get("body"), str):
+            candidate = entry["body"].strip()
+
+        if candidate:
+            bodies.append(candidate)
+
+    return bodies
+
+
+def issue_comment_bodies_from_snapshot(issue: dict[str, Any]) -> list[str]:
+    return normalize_comment_bodies(issue.get("_comments", []))
+
+
+def find_latest_worker_claim_comment(comment_bodies: list[str], worker_name: str) -> str | None:
+    expected_prefix = f"{worker_name.lower()} claimed at"
+    for body in reversed(comment_bodies):
+        compact = " ".join(body.strip().split())
+        if compact.lower().startswith(expected_prefix):
+            return compact
+    return None
+
+
+def validate_worker_claim_comment(comment: str, worker_name: str) -> str | None:
+    compact = " ".join(comment.strip().split())
+    lower = compact.lower()
+
+    expected_prefix = f"{worker_name.lower()} claimed at"
+    if not lower.startswith(expected_prefix):
+        return "invalid_template_prefix"
+
+    for field in CLAIM_TEMPLATE_FIELDS:
+        if field not in lower:
+            return f"missing_field:{field.rstrip(':')}"
+
+    pattern = re.compile(
+        rf"^{re.escape(worker_name)}\s+claimed at\s+(.+?),\s*scope:\s*(.+?),\s*next-step:\s*(.+?)\.?$",
+        flags=re.IGNORECASE,
+    )
+    match = pattern.match(compact)
+    if not match:
+        return "invalid_template_format"
+
+    timestamp, scope, next_step = (part.strip() for part in match.groups())
+    if not timestamp:
+        return "missing_field:claimed at"
+    if not scope:
+        return "missing_field:scope"
+    if not next_step:
+        return "missing_field:next-step"
+
+    return None
+
+
+def collect_worker_claim_template_violations(
+    open_issues: list[dict[str, Any]],
+    comment_lookup: Callable[[int, dict[str, Any]], list[str]],
+) -> list[dict[str, Any]]:
+    violations: list[dict[str, Any]] = []
+
+    for issue in open_issues:
+        if issue.get("state") not in (None, "open"):
+            continue
+
+        labels = set(normalize_label_names(issue.get("labels", [])))
+        worker_label = extract_worker_label(labels)
+        if worker_label is None:
+            continue
+
+        issue_number = int(issue.get("number", 0) or 0)
+        if issue_number <= 0:
+            continue
+
+        worker_name = WORKER_LABEL_TO_NAME[worker_label]
+        comment_bodies = comment_lookup(issue_number, issue)
+        latest_claim_comment = find_latest_worker_claim_comment(comment_bodies, worker_name)
+
+        if latest_claim_comment is None:
+            violations.append(
+                {
+                    "issue_number": issue_number,
+                    "worker_label": worker_label,
+                    "worker": worker_name,
+                    "reason": "missing_claim_comment_template",
+                }
+            )
+            continue
+
+        validation_error = validate_worker_claim_comment(latest_claim_comment, worker_name)
+        if validation_error is not None:
+            violations.append(
+                {
+                    "issue_number": issue_number,
+                    "worker_label": worker_label,
+                    "worker": worker_name,
+                    "reason": validation_error,
+                    "comment_excerpt": latest_claim_comment[:180],
+                }
+            )
+
+    return violations
+
+
 def compute_reconcile_mutations(open_issues: list[dict[str, Any]]) -> tuple[str | None, list[ReconcileMutation]]:
     candidates: list[tuple[dict[str, Any], set[str], str]] = []
 
@@ -463,6 +607,8 @@ def dispatch_worker_claim_reconcile(
         return result
 
     try:
+        client: GitHubClient | None = None
+
         if issues_snapshot is not None:
             open_issues = load_issues_snapshot(issues_snapshot)
             result["source"] = "issues-snapshot"
@@ -478,6 +624,30 @@ def dispatch_worker_claim_reconcile(
             client = GitHubClient(token=token, base_url=github_base_url)
             open_issues = client.list_open_issues(repository)
             result["source"] = "github-api"
+
+        if issues_snapshot is not None:
+            claim_violations = collect_worker_claim_template_violations(
+                open_issues,
+                comment_lookup=lambda _issue_number, issue: issue_comment_bodies_from_snapshot(issue),
+            )
+        else:
+            assert client is not None
+            comment_cache: dict[int, list[str]] = {}
+
+            def _lookup_live_comments(issue_number: int, _issue: dict[str, Any]) -> list[str]:
+                if issue_number not in comment_cache:
+                    comment_cache[issue_number] = normalize_comment_bodies(
+                        client.list_issue_comments(repository, issue_number)
+                    )
+                return comment_cache[issue_number]
+
+            claim_violations = collect_worker_claim_template_violations(open_issues, comment_lookup=_lookup_live_comments)
+
+        if claim_violations:
+            result["status"] = "dispatch_failed"
+            result["reason"] = "invalid_worker_claim_template"
+            result["claim_template_violations"] = claim_violations
+            return result
 
         active_priority, mutations = compute_reconcile_mutations(open_issues)
         result["active_priority"] = active_priority
@@ -497,8 +667,7 @@ def dispatch_worker_claim_reconcile(
             apply_mutations_to_snapshot(open_issues, mutations)
             save_issues_snapshot(issues_snapshot, open_issues)
         else:
-            token = os.getenv(github_token_env, "").strip()
-            client = GitHubClient(token=token, base_url=github_base_url)
+            assert client is not None
             for mutation in mutations:
                 client.set_issue_labels(repository, mutation.issue_number, mutation.after_labels)
                 if mutation.comment:
@@ -582,6 +751,12 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(f"  - mutation_count: `{dispatch.get('mutation_count', 0)}`")
         if "reason" in dispatch:
             lines.append(f"  - reason: `{dispatch['reason']}`")
+
+        for violation in dispatch.get("claim_template_violations", []):
+            lines.append(
+                f"    - claim-template issue `#{violation['issue_number']}` "
+                f"({violation.get('worker_label', '?')}): `{violation['reason']}`"
+            )
 
         for mutation in dispatch.get("mutations", []):
             lines.append(
