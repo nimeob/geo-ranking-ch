@@ -5,7 +5,10 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.parse import urlsplit
+
+import pytest
 
 
 MODULE_PATH = Path("scripts/smoke/check_ui_login_start.py")
@@ -124,3 +127,92 @@ def test_check_login_start_fails_when_auth_login_hop_does_not_reach_authorize():
 
     assert result.ok is False
     assert result.reason == "auth_login_hop_non_authorize_redirect"
+
+
+def test_check_login_start_retries_transient_request_error(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 302
+
+        def __init__(self, location: str) -> None:
+            self.headers = {"Location": location}
+
+        def getcode(self) -> int:
+            return self.status
+
+    class _FlakyOpener:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def open(self, req, timeout):  # noqa: ARG002
+            self.calls += 1
+            if self.calls == 1:
+                raise TimeoutError("timed out")
+            return _FakeResponse("https://idp.example.test/oauth2/authorize?state=abc")
+
+    opener = _FlakyOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: opener)
+
+    result = module.check_login_start(
+        base_url="https://www.dev.georanking.ch",
+        max_attempts=2,
+        retry_delay_seconds=0,
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert opener.calls == 2
+
+
+def test_check_login_start_retries_transient_http_502(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 302
+
+        def __init__(self, location: str) -> None:
+            self.headers = {"Location": location}
+
+        def getcode(self) -> int:
+            return self.status
+
+    class _FlakyHttpErrorOpener:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def open(self, req, timeout):  # noqa: ARG002
+            self.calls += 1
+            if self.calls == 1:
+                raise HTTPError(req.full_url, 502, "Bad Gateway", {}, None)
+            return _FakeResponse("https://idp.example.test/oauth2/authorize?state=abc")
+
+    opener = _FlakyHttpErrorOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: opener)
+
+    result = module.check_login_start(
+        base_url="https://www.dev.georanking.ch",
+        max_attempts=2,
+        retry_delay_seconds=0,
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert opener.calls == 2
+
+
+def test_check_login_start_raises_when_retries_exhausted(monkeypatch):
+    module = _load_module()
+
+    class _AlwaysFailingOpener:
+        def open(self, req, timeout):  # noqa: ARG002
+            raise TimeoutError("timed out")
+
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: _AlwaysFailingOpener())
+
+    with pytest.raises(RuntimeError, match="request_failed_after_retries"):
+        module.check_login_start(
+            base_url="https://www.dev.georanking.ch",
+            max_attempts=2,
+            retry_delay_seconds=0,
+        )

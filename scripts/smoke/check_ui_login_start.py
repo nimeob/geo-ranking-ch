@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.error import HTTPError
@@ -40,17 +41,41 @@ def _build_request_url(base_url: str, *, next_path: str, reason: str) -> str:
     return f"{normalized_base}/login?{query}"
 
 
-def _send_request(*, request_url: str, timeout_seconds: float) -> tuple[int, str]:
+def _send_request(
+    *,
+    request_url: str,
+    timeout_seconds: float,
+    max_attempts: int,
+    retry_delay_seconds: float,
+) -> tuple[int, str]:
     req = Request(request_url, method="GET")
     opener = build_opener(_NoRedirect)
-    try:
-        resp = opener.open(req, timeout=timeout_seconds)
-    except HTTPError as exc:
-        resp = exc
 
-    status = int(getattr(resp, "status", 0) or resp.getcode())
-    location = str(resp.headers.get("Location") or "").strip()
-    return status, location
+    attempts = max(1, int(max_attempts))
+    last_error: Exception | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            resp = opener.open(req, timeout=timeout_seconds)
+            status = int(getattr(resp, "status", 0) or resp.getcode())
+            location = str(resp.headers.get("Location") or "").strip()
+            return status, location
+        except HTTPError as exc:
+            status = int(getattr(exc, "status", 0) or exc.getcode())
+            location = str(exc.headers.get("Location") or "").strip()
+            if status in {502, 503, 504} and attempt < attempts:
+                time.sleep(max(0.0, retry_delay_seconds))
+                continue
+            return status, location
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            if attempt >= attempts:
+                break
+            time.sleep(max(0.0, retry_delay_seconds))
+
+    raise RuntimeError(
+        f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
+    )
 
 
 def _is_authorize_redirect(location: str) -> bool:
@@ -77,12 +102,16 @@ def check_login_start(
     next_path: str = "/gui",
     reason: str = "manual_login",
     timeout_seconds: float = 15.0,
+    max_attempts: int = 3,
+    retry_delay_seconds: float = 2.0,
 ) -> LoginStartCheckResult:
     request_url = _build_request_url(base_url, next_path=next_path, reason=reason)
 
     first_status, first_location = _send_request(
         request_url=request_url,
         timeout_seconds=timeout_seconds,
+        max_attempts=max_attempts,
+        retry_delay_seconds=retry_delay_seconds,
     )
     if first_status != 302:
         return LoginStartCheckResult(
@@ -133,6 +162,8 @@ def check_login_start(
     second_status, second_location = _send_request(
         request_url=second_request_url,
         timeout_seconds=timeout_seconds,
+        max_attempts=max_attempts,
+        retry_delay_seconds=retry_delay_seconds,
     )
 
     if second_status != 302:
@@ -185,7 +216,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--base-url", required=True, help="UI base URL, e.g. https://www.dev.georanking.ch")
     parser.add_argument("--next", default="/gui", dest="next_path", help="next path for login start (default: /gui)")
     parser.add_argument("--reason", default="manual_login", help="login reason query value (default: manual_login)")
-    parser.add_argument("--timeout", type=float, default=15.0, help="HTTP timeout in seconds (default: 15)")
+    parser.add_argument("--timeout", type=float, default=15.0, help="HTTP timeout per attempt in seconds (default: 15)")
+    parser.add_argument("--max-attempts", type=int, default=3, help="Max HTTP attempts per hop on transient request errors (default: 3)")
+    parser.add_argument("--retry-delay", type=float, default=2.0, help="Delay between retries in seconds (default: 2.0)")
     parser.add_argument("--output-json", help="Optional output path for machine-readable result")
     return parser.parse_args(argv)
 
@@ -205,6 +238,8 @@ def main(argv: list[str] | None = None) -> int:
             next_path=args.next_path,
             reason=args.reason,
             timeout_seconds=args.timeout,
+            max_attempts=args.max_attempts,
+            retry_delay_seconds=args.retry_delay,
         )
     except Exception as exc:  # noqa: BLE001
         payload = {
@@ -215,6 +250,9 @@ def main(argv: list[str] | None = None) -> int:
                 "base_url": args.base_url,
                 "next": args.next_path,
                 "reason": args.reason,
+                "timeout": args.timeout,
+                "max_attempts": args.max_attempts,
+                "retry_delay": args.retry_delay,
             },
         }
         print(json.dumps(payload, ensure_ascii=False))
