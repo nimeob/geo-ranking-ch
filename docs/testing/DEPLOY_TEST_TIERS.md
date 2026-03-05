@@ -43,7 +43,8 @@ Verbindlich für Dev-Smoke-Gating:
   - deterministischer Smoke-Seed ist zentral konfigurierbar (`DEV_SMOKE_TEST_SEED`, CI-Default: `dev-smoke-required-v1`)
   - daraus folgt fix: `max_attempts=2` (ein Initial-Run + max. ein Retry)
   - der Wrapper delegiert je Versuch an `python3 ./scripts/run_deploy_smoke.py --profile pr --flow sync`
-  - PR-Split-Smoke (`./scripts/check_bl334_split_smokes.sh`) enthält als Pflichtpfad zusätzlich den Core-Flow `login -> search (__ok__) -> ranking list -> detail` via `tests/test_auth_regression_smoke_issue_1019.py`
+  - PR-Split-Smoke (`./scripts/check_bl334_split_smokes.sh`) enthält als Pflichtpfad zusätzlich den Core-Flow `login -> search (__ok__) -> ranking list -> detail` via `tests/test_auth_regression_smoke_issue_1019.py`.
+  - Der Core-Flow enthält zusätzlich eine deterministische `/jobs`-Filter+Suche+Share-Link-Probe (`scripts/smoke/run_jobs_filter_search_e2e_probe.mjs`), die über `tests/test_auth_regression_smoke_issue_1019.py::test_jobs_filter_search_query_sync_e2e_probe` fail-closed im selben Dev-Testprofil ausgeführt wird.
   - Der Sync-Smoke-Runner prüft im Dev-Target zusätzlich einen expliziten `/analyze`-Fehlerpfad (`SMOKE_ERROR_QUERY=__validation__`) auf konsistentes `request_id`-Echo in Header+Body; Verstöße failen mit klaren Gründen wie `error_path_request_id_header_mismatch` / `error_path_request_id_body_mismatch`.
   - Der Split-Smoke validiert API-/UI-Health jetzt zusätzlich auf erwartete Version (`SMOKE_EXPECT_HEALTH_VERSION`, Default `bl334-split-smoke`) und bricht mit `expected vs observed`-Fehlerbild ab, falls eine stale Runtime antwortet.
   - Laufzeitbudget für den Core-Flow ist fail-closed (`CORE_FLOW_SMOKE_MAX_SECONDS`, Default `300`)
