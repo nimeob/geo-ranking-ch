@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Smoke-check for UI login start flow.
 
-Ensures `/login?...&start=1` triggers IdP authorize redirect instead of
-falling back to `/login?...reason=login_unavailable`.
+Ensures `/login?...&start=1` reaches an IdP authorize redirect.
+The flow may be either:
+
+1) direct redirect to authorize, or
+2) UI-owned intermediate hop via `/auth/login` followed by authorize.
 """
 
 from __future__ import annotations
@@ -13,7 +16,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode, urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -37,15 +40,7 @@ def _build_request_url(base_url: str, *, next_path: str, reason: str) -> str:
     return f"{normalized_base}/login?{query}"
 
 
-def check_login_start(
-    *,
-    base_url: str,
-    next_path: str = "/gui",
-    reason: str = "manual_login",
-    timeout_seconds: float = 15.0,
-) -> LoginStartCheckResult:
-    request_url = _build_request_url(base_url, next_path=next_path, reason=reason)
-
+def _send_request(*, request_url: str, timeout_seconds: float) -> tuple[int, str]:
     req = Request(request_url, method="GET")
     opener = build_opener(_NoRedirect)
     try:
@@ -55,50 +50,131 @@ def check_login_start(
 
     status = int(getattr(resp, "status", 0) or resp.getcode())
     location = str(resp.headers.get("Location") or "").strip()
+    return status, location
 
-    if status != 302:
+
+def _is_authorize_redirect(location: str) -> bool:
+    parsed_location = urlparse(location)
+    authorize_hint = (
+        f"{parsed_location.path}?{parsed_location.query}"
+        if parsed_location.query
+        else parsed_location.path
+    )
+    return "authorize" in authorize_hint.lower()
+
+
+def _is_auth_login_redirect(location: str) -> bool:
+    return urlparse(location).path.rstrip("/").lower() == "/auth/login"
+
+
+def _is_login_unavailable_redirect(location: str) -> bool:
+    return "reason=login_unavailable" in location.lower()
+
+
+def check_login_start(
+    *,
+    base_url: str,
+    next_path: str = "/gui",
+    reason: str = "manual_login",
+    timeout_seconds: float = 15.0,
+) -> LoginStartCheckResult:
+    request_url = _build_request_url(base_url, next_path=next_path, reason=reason)
+
+    first_status, first_location = _send_request(
+        request_url=request_url,
+        timeout_seconds=timeout_seconds,
+    )
+    if first_status != 302:
         return LoginStartCheckResult(
             ok=False,
-            status_code=status,
-            location=location,
+            status_code=first_status,
+            location=first_location,
             request_url=request_url,
-            reason=f"unexpected_status_{status}",
+            reason=f"unexpected_status_{first_status}",
         )
 
-    if not location:
+    if not first_location:
         return LoginStartCheckResult(
             ok=False,
-            status_code=status,
-            location=location,
+            status_code=first_status,
+            location=first_location,
             request_url=request_url,
             reason="missing_location_header",
         )
 
-    lower_location = location.lower()
-    if "reason=login_unavailable" in lower_location:
+    if _is_login_unavailable_redirect(first_location):
         return LoginStartCheckResult(
             ok=False,
-            status_code=status,
-            location=location,
+            status_code=first_status,
+            location=first_location,
             request_url=request_url,
             reason="login_unavailable_fallback",
         )
 
-    parsed_location = urlparse(location)
-    authorize_hint = f"{parsed_location.path}?{parsed_location.query}" if parsed_location.query else parsed_location.path
-    if "authorize" not in authorize_hint.lower():
+    if _is_authorize_redirect(first_location):
+        return LoginStartCheckResult(
+            ok=True,
+            status_code=first_status,
+            location=first_location,
+            request_url=request_url,
+            reason="ok",
+        )
+
+    if not _is_auth_login_redirect(first_location):
         return LoginStartCheckResult(
             ok=False,
-            status_code=status,
-            location=location,
+            status_code=first_status,
+            location=first_location,
             request_url=request_url,
-            reason="location_is_not_authorize_redirect",
+            reason="location_is_not_authorize_or_auth_login_redirect",
+        )
+
+    second_request_url = urljoin(request_url, first_location)
+    second_status, second_location = _send_request(
+        request_url=second_request_url,
+        timeout_seconds=timeout_seconds,
+    )
+
+    if second_status != 302:
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=second_status,
+            location=second_location,
+            request_url=request_url,
+            reason=f"auth_login_hop_unexpected_status_{second_status}",
+        )
+
+    if not second_location:
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=second_status,
+            location=second_location,
+            request_url=request_url,
+            reason="auth_login_hop_missing_location_header",
+        )
+
+    if _is_login_unavailable_redirect(second_location):
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=second_status,
+            location=second_location,
+            request_url=request_url,
+            reason="auth_login_hop_login_unavailable_fallback",
+        )
+
+    if not _is_authorize_redirect(second_location):
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=second_status,
+            location=second_location,
+            request_url=request_url,
+            reason="auth_login_hop_non_authorize_redirect",
         )
 
     return LoginStartCheckResult(
         ok=True,
-        status_code=status,
-        location=location,
+        status_code=second_status,
+        location=second_location,
         request_url=request_url,
         reason="ok",
     )

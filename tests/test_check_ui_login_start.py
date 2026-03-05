@@ -5,6 +5,7 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 MODULE_PATH = Path("scripts/smoke/check_ui_login_start.py")
@@ -20,16 +21,20 @@ def _load_module():
 
 
 class _StubHandler(BaseHTTPRequestHandler):
-    status_code = 302
-    location = "/oidc/authorize?state=abc"
+    # path -> (status_code, location)
+    routes: dict[str, tuple[int, str | None]] = {
+        "/login": (302, "/oidc/authorize?state=abc"),
+    }
 
     def log_message(self, format, *args):  # noqa: A003
         return
 
     def do_GET(self):  # noqa: N802
-        self.send_response(self.status_code)
-        if self.location is not None:
-            self.send_header("Location", self.location)
+        path = urlsplit(self.path).path
+        status_code, location = self.routes.get(path, (404, ""))
+        self.send_response(status_code)
+        if location is not None:
+            self.send_header("Location", location)
         self.send_header("Content-Length", "0")
         self.end_headers()
 
@@ -56,8 +61,23 @@ class _StubServer:
 
 def test_check_login_start_passes_for_authorize_redirect():
     module = _load_module()
-    _StubHandler.status_code = 302
-    _StubHandler.location = "https://idp.example.test/oauth2/authorize?state=abc"
+    _StubHandler.routes = {
+        "/login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_start(base_url=stub.base_url)
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
+def test_check_login_start_passes_for_ui_auth_login_hop_then_authorize_redirect():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "/auth/login?next=%2Fgui&reason=manual_login"),
+        "/auth/login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+    }
 
     with _StubServer() as stub:
         result = module.check_login_start(base_url=stub.base_url)
@@ -68,8 +88,9 @@ def test_check_login_start_passes_for_authorize_redirect():
 
 def test_check_login_start_fails_for_login_unavailable_fallback():
     module = _load_module()
-    _StubHandler.status_code = 302
-    _StubHandler.location = "/login?next=%2Fgui&reason=login_unavailable"
+    _StubHandler.routes = {
+        "/login": (302, "/login?next=%2Fgui&reason=login_unavailable"),
+    }
 
     with _StubServer() as stub:
         result = module.check_login_start(base_url=stub.base_url)
@@ -80,11 +101,26 @@ def test_check_login_start_fails_for_login_unavailable_fallback():
 
 def test_check_login_start_fails_for_non_redirect_status():
     module = _load_module()
-    _StubHandler.status_code = 200
-    _StubHandler.location = ""
+    _StubHandler.routes = {
+        "/login": (200, ""),
+    }
 
     with _StubServer() as stub:
         result = module.check_login_start(base_url=stub.base_url)
 
     assert result.ok is False
     assert result.reason == "unexpected_status_200"
+
+
+def test_check_login_start_fails_when_auth_login_hop_does_not_reach_authorize():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "/auth/login?next=%2Fgui"),
+        "/auth/login": (302, "/login?next=%2Fgui&reason=manual_login"),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_start(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "auth_login_hop_non_authorize_redirect"
