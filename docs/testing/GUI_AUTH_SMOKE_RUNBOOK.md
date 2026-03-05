@@ -31,7 +31,7 @@ python3 -m pytest -q tests/test_web_service_bff_gui_guard.py tests/test_bff_inte
 ```
 
 Diese Suite deckt insbesondere ab:
-- Protected-Route-Redirects (`/gui`, `/history`) auch bei ungültigem Session-Cookie
+- Protected-Route-Redirects (`/gui`, `/gui/history` (legacy `/history`)) auch bei ungültigem Session-Cookie
 - Session-basierte BFF-Delegation für `GET /portal/api/analyze/history`
 - Session-basierte BFF-Delegation für `POST /portal/api/analyze` (inkl. CSRF-Header-Pfad)
 
@@ -51,7 +51,7 @@ Abdeckung:
 - `POST /analyze` (deterministische Smoke-Query `__ok__`) + `GET /analyze/history` 200
 - Öffnen der Ranking-/Result-Ansicht über `/results/<result_id>` inkl. stabiler Tab-Selektoren
 - `/auth/logout` Redirect + Cookie-Clear + `/auth/me` 401 nach Logout
-- Re-Login nach Logout bleibt stabil (`next=/history` wird wiederhergestellt)
+- Re-Login nach Logout bleibt stabil (`next=/gui/history` (legacy `next=/history` wird kanonisiert) wird wiederhergestellt)
 - Failure-Modes ohne Redirect-Loop: `invalid_state`, `consent_denied`, `session_expired`
 - CI-Guardrail: **kein API-Host im browser-sichtbaren Auth-Flow** (Login/Callback/Logout/Error-CTA)
 
@@ -125,7 +125,7 @@ Preflight-PASS, wenn:
 3. Erwartung: Redirect auf Login (OIDC-Flow).
 4. Mit Testnutzer einloggen.
 5. Nach Rückkehr in die GUI eine Analyse auslösen.
-6. Danach `/history` öffnen und prüfen, dass der neue Eintrag sichtbar ist.
+6. Danach `/gui/history` öffnen (oder Legacy `/history`) und prüfen, dass der neue Eintrag sichtbar ist.
 7. In DevTools prüfen:
    - Session-Cookie ist `HttpOnly`
    - `Secure` aktiv (bei HTTPS)
@@ -149,7 +149,7 @@ Prüfe mindestens zwei Fehlerszenarien:
 ### 5.1 Invalid Session (Cookie löschen)
 
 1. Nach erfolgreichem Login Session-Cookie in DevTools löschen.
-2. `/history` oder `/gui` neu laden.
+2. `/gui/history` (oder Legacy `/history`) bzw. `/gui` neu laden.
 3. Erwartung: Redirect auf Login oder konsistente Session-Fehlermeldung (kein stiller Hard-Fail).
 4. Redirect-Ziel prüfen: `/auth/login?next=...&reason=<...>` (typisch `session_expired` oder `session_missing`).
 
@@ -159,7 +159,7 @@ Prüfe mindestens zwei Fehlerszenarien:
 2. Redirect-Ziel prüfen:
    - mit IdP-Logout-Konfiguration: Provider-Logout-URL (`.../logout?client_id=...&logout_uri=...`), wobei `logout_uri` aus `BFF_OIDC_POST_LOGOUT_REDIRECT_URI` oder aus dem abgeleiteten `.../auth/login` stammt.
    - ohne IdP-Logout-Konfiguration: lokaler Logout/Cookie-Clear ohne externen Redirect
-3. Direkt danach geschützte Seite (`/gui`, `/history`) öffnen.
+3. Direkt danach geschützte Seite (`/gui`, `/gui/history` (legacy `/history`)) öffnen.
 4. Erwartung: Kein Zugriff ohne erneuten Login.
 
 Negative-PASS, wenn:
@@ -207,7 +207,7 @@ Für Deployment-spezifische Details siehe:
 ## Positive Flow
 - [ ] Login erfolgreich
 - [ ] /analyze via GUI erfolgreich
-- [ ] /history zeigt neue Daten
+- [ ] /gui/history (oder Legacy-Redirect von /history) zeigt neue Daten
 - [ ] Cookie-Flags/Storage geprüft
 
 ## Negative Flow

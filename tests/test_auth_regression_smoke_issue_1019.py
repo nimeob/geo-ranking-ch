@@ -433,7 +433,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
             follow_redirects=False,
         )
         self.assertEqual(status, 302)
-        self.assertEqual(headers.get("location"), "/history")
+        self.assertEqual(headers.get("location"), "/gui/history")
         relogin_callback_cookie = _parse_cookie_value(headers.get("set-cookie", ""))
         self.assertTrue(relogin_callback_cookie.startswith("__Host-session="))
 

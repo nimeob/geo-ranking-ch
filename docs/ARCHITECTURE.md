@@ -235,8 +235,9 @@ Guard-Regeln (Legacy + Split):
 Boundary-Inventar (Issue #1168):
 - Vollständige Endpoint-/Owner-Klassifikation inkl. Migrationsreihenfolge: [`docs/api/API_UI_ENDPOINT_OWNERSHIP_INVENTORY.md`](api/API_UI_ENDPOINT_OWNERSHIP_INVENTORY.md)
 
-History-Boundary-Hinweis (2026-03-04):
+History-Boundary-Hinweis (2026-03-05):
 - Front-Facing `GET /history` auf dem API-Service ist deprecated/removed (`410 gone` + Deprecation/Sunset-Header).
+- Legacy-History-Einstiege werden auf den kanonischen UI-Pfad `/gui/history` konsolidiert (inkl. `next=` Redirect-Ziel im Login-Flow).
 - `GET /analyze/history` bleibt als Data-Source-Endpunkt verfügbar, liefert aber ebenfalls Deprecation/Sunset-Header für den geordneten UI-Migrationspfad.
 - UI-Ownership für die History-Ansicht umfasst View-/Filter-/Pagination-Logik (`history_status`, `history_q`, `history_page`, `history_limit` als sharebare UI-Query-Parameter); API liefert dafür nur paginierte Rohdaten (`limit`/`offset` + `history[]` + `total`).
 
@@ -245,8 +246,8 @@ History-Boundary-Hinweis (2026-03-04):
 | Deprecated API endpoint | UI successor | Sunset (GMT) |
 |---|---|---|
 | `GET /login`, `/signin`, `/sign-in`, `/auth/login` (direkt auf API-Host), `/auth/signin`, `/auth/sign-in`, `/oauth/login`, `/oauth2/login` | `/login` (UI-owned; intern via UI-Proxy zu `/auth/login`) | Tue, 30 Jun 2026 23:59:59 GMT |
-| `GET /history` | `/history` (UI-Service Front-Facing) | Tue, 30 Jun 2026 23:59:59 GMT |
-| `GET /analyze/history` (front-facing usage) | `/history` (UI-Service) | Tue, 30 Jun 2026 23:59:59 GMT |
+| `GET /history` | `/gui/history` (UI-Service Front-Facing; Legacy `/history` redirectet auf diesen Pfad) | Tue, 30 Jun 2026 23:59:59 GMT |
+| `GET /analyze/history` (front-facing usage) | `/gui/history` (UI-Service) | Tue, 30 Jun 2026 23:59:59 GMT |
 | `GET /trace` (legacy alias) | `/debug/trace?request_id=<id>` (API Data/Diagnose) | Tue, 30 Jun 2026 23:59:59 GMT |
 
 Migration-Guide/Referenz: `Link: <https://github.com/nimeob/geo-ranking-ch/blob/main/docs/ARCHITECTURE.md#api-deprecation-mapping-dev>; rel="deprecation"`

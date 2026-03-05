@@ -9,7 +9,7 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 
 ## End-to-End Flow
 
-1. **User öffnet geschützte GUI-Route** (`/`, `/gui`, `/history`, `/results/<id>`)
+1. **User öffnet geschützte GUI-Route** (`/`, `/gui`, `/gui/history` *(legacy: `/history`)*, `/results/<id>`)
 2. **Keine gültige Session vorhanden** -> Redirect auf `GET /login?next=<zielpfad>` (UI-owned Entry auf derselben Domain)
 3. **OIDC-Login beim Provider** (Hosted UI)
 4. **Callback trifft auf `GET /auth/callback`**
@@ -23,7 +23,7 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 
 ## Dev-Einstiegspfad (verbindlich)
 
-- Empfohlener Login-Entrypoint in Dev ist **ausschließlich** der UI/BFF-Flow über `GET /login` (direkt oder via Redirect von `/gui`, `/history`, `/results/<id>`).
+- Empfohlener Login-Entrypoint in Dev ist **ausschließlich** der UI/BFF-Flow über `GET /login` (direkt oder via Redirect von `/gui`, `/gui/history` *(legacy `/history`)*, `/results/<id>`).
 - `GET /login` bleibt UI-owned und leitet intern auf den BFF-Auth-Start weiter, ohne den API-Host in der Browser-Adresszeile zu zeigen.
 - Legacy-Direktpfade auf dem API-Host sind **fail-closed** (`403` + Deprecation-Hinweis auf den UI-Pfad).
 - Zusätzlich sind direkte Browser-Aufrufe auf API-Auth-Routen (`/auth/login`, `/auth/callback`, `/auth/logout`) fail-closed; erlaubt ist nur der UI-Proxy-Hop mit `X-Geo-Auth-Proxy: 1`.
@@ -52,7 +52,7 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 
 ## UX-/Redirect-Konvention (Issue #998)
 
-Für Session-Recovery nutzen `/gui` und `/history` dieselben UX-Messages und denselben Redirect-Contract:
+Für Session-Recovery nutzen `/gui` und `/gui/history` (inkl. Legacy-Redirect von `/history`) dieselben UX-Messages und denselben Redirect-Contract:
 
 - Session fehlt/abgelaufen (`401`, `no_session_cookie`, `session_not_found`, `token_error`):
   - Meldung: **„Session ungültig oder abgelaufen — bitte erneut einloggen.“**
@@ -120,10 +120,10 @@ python3 -m pytest -q tests/test_auth_regression_smoke_issue_1019.py
 
 Erwartung:
 - `GET /gui` ohne Session -> `302` nach `/login?next=%2Fgui`
-- `GET /history?limit=5` ohne Session -> `302` nach `/login?next=%2Fhistory%3Flimit%3D5`
+- `GET /history?limit=5` ohne Session -> `302` nach `/login?next=%2Fgui%2Fhistory%3Flimit%3D5`
 - `GET /auth/callback` mit ungültigem/abgelaufenem `state` -> `400` HTML-Fehlerseite mit genau einem Re-Login-CTA (`/login?next=...&reason=invalid_state`), ohne Redirect-Loop
 - `GET /auth/logout` löscht Session-Cookie (`Max-Age=0`) und liefert IdP-Logout-Redirect
-- Re-Login nach Logout bleibt stabil (z. B. `next=/history`)
+- Re-Login nach Logout bleibt stabil (z. B. `next=/gui/history`)
 - Browser-Auth-Flow enthält keinen API-Host in Login-/Callback-/Logout-Redirects und Error-CTAs (Guard: `test_no_api_host_in_browser_auth_flow_guard`)
 
 Konkrete Issue-#1253-Evidenz (Core-Flow + No-API-Host-Guard): [`reports/evidence/issue-1253-auth-no-api-host-guard-20260304T233008Z.md`](../../reports/evidence/issue-1253-auth-no-api-host-guard-20260304T233008Z.md)
@@ -137,7 +137,7 @@ python3 -m pytest -q tests/test_web_service_bff_gui_guard.py tests/test_bff_inte
 ```
 
 Abgedeckte Kernpunkte:
-- Ungültige Session-Cookies auf `/gui` und `/history` führen deterministisch auf `/login?next=...` zurück.
+- Ungültige Session-Cookies auf `/gui` und `/gui/history` (legacy `/history`) führen deterministisch auf `/login?next=...` zurück.
 - Eingeloggte Session kann `GET /portal/api/analyze/history` und `POST /portal/api/analyze` über den BFF-Proxy ausführen.
 - Downstream-Delegation enthält `Authorization: Bearer <token>` (kein Browser-Token-Handling notwendig).
 

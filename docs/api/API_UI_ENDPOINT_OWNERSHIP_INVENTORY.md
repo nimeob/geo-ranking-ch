@@ -1,7 +1,7 @@
 # API/UI Endpoint Ownership Inventory (Issue #1168)
 
 > Parent Epic: [#1166](https://github.com/nimeob/geo-ranking-ch/issues/1166)
-> Stand: 2026-03-04
+> Stand: 2026-03-05
 
 ## Zweck
 
@@ -18,7 +18,8 @@ Diese Inventarliste klassifiziert alle aktuell exponierten HTTP-Endpunkte in **D
 |---|---|---|---|---|---:|---|
 | `/` | GET | API + UI | MIXED | UI-Service (`src/ui/service.py`) | 1 | API-Rendering entfernen, nur UI-Shell beibehalten. |
 | `/gui` | GET | API + UI | MIXED | UI-Service (`src/ui/service.py`) | 1 | Gleichlauf mit `/` konsolidieren. |
-| `/history` | GET | API + UI | MIXED | UI-Service (`src/ui/service.py`) | 1 | Historien-UI nur noch über UI-Service ausliefern. |
+| `/history` | GET | API + UI | MIXED | UI-Service (`src/ui/service.py`) | 1 | Legacy-Pfad bleibt als Redirect auf `/gui/history`; Rendering nur im UI-Service. |
+| `/gui/history` | GET | API + UI | MIXED | UI-Service (`src/ui/service.py`) | 1 | Kanonischer History-UI-Pfad; API liefert nur Deprecation-/`410`-Signal. |
 | `/results/<result_id>` | GET | API + UI | MIXED | UI-Service (`src/ui/service.py`) | 1 | Result-Page-Rendering aus API entfernen. |
 | `/healthz` | GET | API + UI | MIXED | UI-Service (`src/ui/service.py`) | 1 | `healthz` als UI-Liveness standardisieren. |
 | `/health` | GET | API + UI (Alias) | MIXED | API-Service (`src/api/web_service.py`) | 2 | UI-`/health` Alias mittelfristig entfernen; API bleibt kanonisch auf `/health`. |
@@ -46,7 +47,7 @@ Diese Inventarliste klassifiziert alle aktuell exponierten HTTP-Endpunkte in **D
 
 ## Priorisierte Migrationsreihenfolge (abgeleitet)
 
-1. **UI-Doppelrouten aus API entfernen** (`/`, `/gui`, `/history`, `/results/<result_id>`, `/healthz`).
+1. **UI-Doppelrouten aus API entfernen** (`/`, `/gui`, `/history`, `/gui/history`, `/results/<result_id>`, `/healthz`).
 2. **Health/Auth-Konsolidierung** (`/health` Alias-Bereinigung, `/auth/*` Redirect-Bridge stabilisieren).
 3. **DATA-Endpunkte absichern und Contract-fixieren** (`/analyze*`, Dictionaries, Version/Health-Details).
 4. **Diagnose-/Compliance-Endpunkte hardenen** (`/debug/trace`, `/compliance/corrections/*`) inklusive Non-UI-Boundary-Checks.

@@ -265,8 +265,10 @@ _API_DEPRECATION_MIGRATION_LINK_HEADER = (
     f'<{_API_DEPRECATION_MIGRATION_GUIDE_URL}>; rel="deprecation"'
 )
 
+_HISTORY_UI_SUCCESSOR_PATH = "/gui/history"
+
 _HISTORY_API_DEPRECATION_WARNING = (
-    '299 - "History routes on API are deprecated: use UI /history for front-facing flows; '
+    '299 - "History routes on API are deprecated: use UI /gui/history for front-facing flows; '
     'API /analyze/history remains data-source only during migration."'
 )
 _EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING = (
@@ -310,13 +312,13 @@ def _build_deprecation_payload(*, successor: str, scope: str) -> dict[str, str]:
 def _history_api_deprecation_headers() -> dict[str, str]:
     return _build_deprecation_headers(
         warning=_HISTORY_API_DEPRECATION_WARNING,
-        successor_link='</history>; rel="successor-version"',
+        successor_link=f'<{_HISTORY_UI_SUCCESSOR_PATH}>; rel="successor-version"',
     )
 
 
 def _history_api_deprecation_payload() -> dict[str, str]:
     return _build_deprecation_payload(
-        successor="/history",
+        successor=_HISTORY_UI_SUCCESSOR_PATH,
         scope="history-front-facing",
     )
 
@@ -632,7 +634,7 @@ _EXTERNAL_DIRECT_LOGIN_MESSAGE = (
 _UI_AUTH_PROXY_HEADER_NAME = "X-Geo-Auth-Proxy"
 _UI_AUTH_PROXY_HEADER_VALUE = "1"
 
-_PROTECTED_GUI_ROUTES = frozenset({"/", "/gui", "/history"})
+_PROTECTED_GUI_ROUTES = frozenset({"/", "/gui", "/history", _HISTORY_UI_SUCCESSOR_PATH})
 
 _ASYNC_JOB_STORE = build_async_job_store()
 _ASYNC_JOB_RUNTIME = AsyncJobRuntime(store=_ASYNC_JOB_STORE)
@@ -757,9 +759,37 @@ def _is_protected_gui_route(request_path: str) -> bool:
     return normalized.startswith("/results/")
 
 
+def _canonicalize_history_next_path(path: str) -> str:
+    """Normalize legacy ``/history`` targets to the canonical UI path ``/gui/history``."""
+    raw_path = str(path or "").strip()
+    if not raw_path:
+        return "/gui"
+
+    if not raw_path.startswith("/"):
+        raw_path = f"/{raw_path}"
+
+    parsed = urlsplit(raw_path)
+    if parsed.scheme or parsed.netloc or raw_path.startswith("//"):
+        return "/gui"
+
+    normalized_path = re.sub(r"/{2,}", "/", parsed.path or "/")
+    if normalized_path != "/":
+        normalized_path = normalized_path.rstrip("/") or "/"
+
+    if normalized_path == "/history":
+        normalized_path = _HISTORY_UI_SUCCESSOR_PATH
+
+    rebuilt = normalized_path
+    if parsed.query:
+        rebuilt = f"{rebuilt}?{parsed.query}"
+    if parsed.fragment:
+        rebuilt = f"{rebuilt}#{parsed.fragment}"
+    return rebuilt
+
+
 def _build_login_redirect_location(*, request_path: str, raw_query: str) -> str:
     """Build ``/auth/login`` redirect URL preserving the original target route."""
-    next_path = request_path if request_path.startswith("/") else f"/{request_path}"
+    next_path = _canonicalize_history_next_path(request_path)
     query = str(raw_query or "").strip()
     if query:
         next_path = f"{next_path}?{query}"
@@ -802,12 +832,7 @@ def _callback_error_user_message(error_code: str) -> str:
 
 def _build_callback_relogin_location(*, next_path: str, error_code: str) -> str:
     """Build a deterministic re-login URL for callback error pages."""
-    safe_next = str(next_path or "").strip() or "/gui"
-    if not safe_next.startswith("/"):
-        safe_next = f"/{safe_next}"
-    parsed = urlsplit(safe_next)
-    if parsed.scheme or parsed.netloc or safe_next.startswith("//"):
-        safe_next = "/gui"
+    safe_next = _canonicalize_history_next_path(next_path)
 
     params = {
         "next": safe_next,
@@ -3879,7 +3904,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
                 next_path = (query_params.get("next") or ["/"])[0]
-                login_result = build_login_redirect(oidc_cfg, store, next_path=next_path)
+                canonical_next_path = _canonicalize_history_next_path(next_path)
+                login_result = build_login_redirect(oidc_cfg, store, next_path=canonical_next_path)
             except Exception as exc:  # noqa: BLE001
                 _emit_structured_log(
                     event="api.bff.oidc.login_error",
@@ -3942,10 +3968,7 @@ class Handler(BaseHTTPRequestHandler):
                     current_session = store.get(session_id)
                     if current_session and isinstance(current_session.user_claims, dict):
                         raw_next = str(current_session.user_claims.get("_next") or "").strip()
-                        if raw_next.startswith("/") and not raw_next.startswith("//"):
-                            parsed_next = urlsplit(raw_next)
-                            if not parsed_next.scheme and not parsed_next.netloc:
-                                callback_next_path = raw_next
+                        callback_next_path = _canonicalize_history_next_path(raw_next)
                     store.delete(session_id)
                     clear_cookie_header = build_clear_cookie_header()
 
@@ -4019,7 +4042,7 @@ class Handler(BaseHTTPRequestHandler):
             )
             self._capture_response_error(payload=None, status=302)
             self.send_response(302)
-            self.send_header("Location", cb_result.redirect_path)
+            self.send_header("Location", _canonicalize_history_next_path(cb_result.redirect_path))
             self.send_header("Set-Cookie", cb_result.set_cookie_header)
             self.send_header("Cache-Control", "no-store")
             self._set_request_id_headers(request_id)
@@ -4104,7 +4127,7 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            if request_path == "/history":
+            if request_path in {"/history", _HISTORY_UI_SUCCESSOR_PATH}:
                 deprecation_headers = _history_api_deprecation_headers()
                 deprecation_headers["Cache-Control"] = "no-store"
                 self._send_json(
@@ -4112,10 +4135,10 @@ class Handler(BaseHTTPRequestHandler):
                         "ok": False,
                         "error": "gone",
                         "message": (
-                            "GET /history on API is deprecated and removed. "
-                            "Use the UI service /history route for front-facing history flows."
+                            f"GET {request_path} on API is deprecated and removed. "
+                            f"Use the UI service {_HISTORY_UI_SUCCESSOR_PATH} route for front-facing history flows."
                         ),
-                        "next": "/history (UI service)",
+                        "next": f"{_HISTORY_UI_SUCCESSOR_PATH} (UI service)",
                         "data_source": "/analyze/history",
                         "deprecation": _history_api_deprecation_payload(),
                         "request_id": request_id,
