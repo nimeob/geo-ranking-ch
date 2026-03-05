@@ -134,4 +134,10 @@ UNIT_TEST_TARGETS="tests/test_user_docs.py tests/test_markdown_links.py" make de
 - `make dev-check` lokal laufen lassen
 - PR öffnen (kleine, reviewbare Changes)
 
+## Backlog-Duplikate (Pflichtkonvention)
+
+Wenn ein Issue als Duplikat geschlossen wird, muss der Backlog-Eintrag den Duplicate-Marker inkl. Ziel-Issue enthalten.
+
+Siehe Runbook: [`docs/OPERATIONS.md` → Duplicate-Close Marker (Backlog-Sync)](docs/OPERATIONS.md#duplicate-close-marker-backlog-sync)
+
 Siehe auch: `README.md` (Lokale Entwicklung) und Runbooks unter `docs/`.
