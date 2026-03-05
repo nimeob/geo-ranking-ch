@@ -77,7 +77,12 @@ def _resolve_target_config(target: str, environ: Mapping[str, str]) -> tuple[str
             raise ValueError(
                 "Missing DEV_BASE_URL (or SERVICE_API_BASE_URL) for deploy/nightly smoke target 'dev|remote'."
             )
-        return base_url, token, {}, {}
+        sync_defaults = {
+            "SMOKE_OUTPUT_JSON": "artifacts/dev-smoke-analyze.json",
+            "SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO": "1",
+        }
+        async_defaults = {"ASYNC_SMOKE_OUTPUT_JSON": "artifacts/dev-smoke-async-jobs.json"}
+        return base_url, token, sync_defaults, async_defaults
 
     raise ValueError("Invalid --target. Allowed values: dev, remote, staging, prod.")
 
@@ -224,6 +229,29 @@ def _preview(text: str, limit: int = 300) -> str:
     return stripped[:limit]
 
 
+def _read_reason_from_smoke_report(env: Mapping[str, str]) -> str | None:
+    report_path = str(env.get("SMOKE_OUTPUT_JSON") or env.get("ASYNC_SMOKE_OUTPUT_JSON") or "").strip()
+    if not report_path:
+        return None
+
+    candidate = Path(report_path)
+    if not candidate.is_absolute():
+        candidate = REPO_ROOT / candidate
+    if not candidate.exists() or not candidate.is_file():
+        return None
+
+    try:
+        payload = json.loads(candidate.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    reason = str(payload.get("reason") or "").strip()
+    return reason or None
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
@@ -339,13 +367,15 @@ def main(argv: list[str] | None = None) -> int:
 
         completed = subprocess.run(item.command, cwd=str(REPO_ROOT), env=env)
         item_status = "pass" if completed.returncode == 0 else "fail"
+        report_reason = _read_reason_from_smoke_report(env)
+        item_reason = "ok" if completed.returncode == 0 else (report_reason or "command_failed")
         checks.append(
             {
                 "name": item.name,
                 "classification": item.classification,
                 "kind": item.kind,
                 "status": item_status,
-                "reason": "ok" if completed.returncode == 0 else "command_failed",
+                "reason": item_reason,
                 "exit_code": int(completed.returncode),
                 "command": item.command,
             }
@@ -356,7 +386,7 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             overall_status = "fail"
-            overall_reason = "command_failed"
+            overall_reason = item_reason
             failure_code = int(completed.returncode)
             break
 

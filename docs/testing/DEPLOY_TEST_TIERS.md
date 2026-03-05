@@ -44,12 +44,21 @@ Verbindlich für Dev-Smoke-Gating:
   - daraus folgt fix: `max_attempts=2` (ein Initial-Run + max. ein Retry)
   - der Wrapper delegiert je Versuch an `python3 ./scripts/run_deploy_smoke.py --profile pr --flow sync`
   - PR-Split-Smoke (`./scripts/check_bl334_split_smokes.sh`) enthält als Pflichtpfad zusätzlich den Core-Flow `login -> search (__ok__) -> ranking list -> detail` via `tests/test_auth_regression_smoke_issue_1019.py`
+  - Der Sync-Smoke-Runner prüft im Dev-Target zusätzlich einen expliziten `/analyze`-Fehlerpfad (`SMOKE_ERROR_QUERY=__validation__`) auf konsistentes `request_id`-Echo in Header+Body; Verstöße failen mit klaren Gründen wie `error_path_request_id_header_mismatch` / `error_path_request_id_body_mismatch`.
   - Der Split-Smoke validiert API-/UI-Health jetzt zusätzlich auf erwartete Version (`SMOKE_EXPECT_HEALTH_VERSION`, Default `bl334-split-smoke`) und bricht mit `expected vs observed`-Fehlerbild ab, falls eine stale Runtime antwortet.
   - Laufzeitbudget für den Core-Flow ist fail-closed (`CORE_FLOW_SMOKE_MAX_SECONDS`, Default `300`)
   - Bei Fehlern erzeugt der Runner automatisch Failure-Artefakte unter `reports/evidence/core-flow-smoke/<STAMP>/` (Trace + optional GUI-Screenshot)
   - CI-Summary (`$GITHUB_STEP_SUMMARY`) enthält konsistente Counts für `retried checks` und `flaky candidates` sowie den verwendeten `DEV_SMOKE_TEST_SEED`
   - Bei Fail wird immer ein kompaktes Failure-Artefakt hochgeladen (`dev-smoke-required-failure-<run_id>-<run_attempt>`), inklusive `artifacts/pr-dev-smoke-required-summary.md` mit Abschnitt **Failed checks (final attempt)** (Check + Kurzursache) sowie Retry-Report-JSON.
   - Der Workflow loggt die Artefaktpfade explizit (`Log failure artifact paths`), damit Name/Pfad direkt in den CI-Logs sichtbar sind.
+  - Repro für den Fehlerpfad-Request-ID-Gate (lokal):
+    ```bash
+    DEV_BASE_URL="http://127.0.0.1:8000" \
+    DEV_API_AUTH_TOKEN="<token>" \
+    SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO=1 \
+    SMOKE_ERROR_QUERY="__validation__" \
+    ./scripts/run_remote_api_smoketest.sh
+    ```
 - **API-Contract-Fast-Checks (status check `contract-smoke`):**
   - `pytest -q tests/test_api_contract_v1.py tests/test_api_field_catalog.py tests/test_scoring_methodology_golden.py`
   - `python3 scripts/validate_field_catalog.py`

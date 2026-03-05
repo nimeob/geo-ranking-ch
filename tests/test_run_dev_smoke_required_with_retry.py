@@ -34,16 +34,17 @@ count += 1
 state_file.write_text(str(count), encoding='utf-8')
 
 is_fail = count <= fail_attempts
+fail_reason = os.environ.get('FAKE_RUNNER_FAIL_REASON', 'command_failed')
 payload = {
     'schema_version': 'deploy-smoke-report/v1',
     'runner': 'fake',
     'status': 'fail' if is_fail else 'pass',
-    'reason': 'command_failed' if is_fail else 'ok',
+    'reason': fail_reason if is_fail else 'ok',
     'checks': [
         {
             'name': 'pr-split-smoke',
             'status': 'fail' if is_fail else 'pass',
-            'reason': 'command_failed' if is_fail else 'ok',
+            'reason': fail_reason if is_fail else 'ok',
             'kind': 'smoke',
         }
     ],
@@ -64,6 +65,7 @@ def _run_wrapper(
     max_attempts: int = 2,
     max_retries: int | None = None,
     smoke_seed: str | None = None,
+    fail_reason: str = "command_failed",
 ) -> subprocess.CompletedProcess[str]:
     fake_runner = Path(tmpdir) / "fake_runner.py"
     _write_fake_runner(fake_runner)
@@ -76,6 +78,7 @@ def _run_wrapper(
     env = {"PATH": os.environ.get("PATH", "")}
     env["FAKE_RUNNER_STATE_FILE"] = str(state_file)
     env["FAKE_RUNNER_FAIL_ATTEMPTS"] = str(fail_attempts)
+    env["FAKE_RUNNER_FAIL_REASON"] = fail_reason
     env["GITHUB_RUN_ID"] = "987654321"
     env["GITHUB_RUN_ATTEMPT"] = "3"
     env["GITHUB_RUN_NUMBER"] = "77"
@@ -162,6 +165,26 @@ def test_retry_wrapper_returns_failure_when_retries_exhausted() -> None:
         summary = (Path(tmpdir) / "summary.md").read_text(encoding="utf-8")
         assert "### Failed checks (final attempt)" in summary
         assert "`pr-split-smoke` — cause: `command_failed`" in summary
+
+
+def test_retry_wrapper_surfaces_specific_failure_reason_in_final_report() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        proc = _run_wrapper(
+            tmpdir,
+            fail_attempts=5,
+            max_retries=1,
+            fail_reason="error_path_request_id_body_mismatch",
+        )
+        assert proc.returncode != 0
+
+        payload = json.loads((Path(tmpdir) / "retry.json").read_text(encoding="utf-8"))
+        assert payload["status"] == "fail"
+        assert payload["failed_checks_final"] == [
+            {"name": "pr-split-smoke", "reason": "error_path_request_id_body_mismatch"}
+        ]
+
+        summary = (Path(tmpdir) / "summary.md").read_text(encoding="utf-8")
+        assert "`pr-split-smoke` — cause: `error_path_request_id_body_mismatch`" in summary
 
 
 def test_retry_wrapper_reports_smoke_seed_in_json_and_summary() -> None:
