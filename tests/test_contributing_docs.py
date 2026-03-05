@@ -23,6 +23,7 @@ class TestContributingDocs(unittest.TestCase):
             "python -m src.ui.service",
             "pytest -q",
             "pre-commit run --all-files",
+            "npm ci",
         ]
         for marker in required_markers:
             self.assertIn(marker, self.content, msg=f"Marker fehlt in CONTRIBUTING.md: {marker}")
