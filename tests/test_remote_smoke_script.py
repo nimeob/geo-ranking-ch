@@ -144,6 +144,10 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("request_id"), request_id)
         self.assertEqual(data.get("response_request_id"), request_id)
         self.assertEqual(data.get("response_header_request_id"), request_id)
+        self.assertTrue(data.get("error_path_request_id_echo_enforced"))
+        self.assertEqual(data.get("error_path_query"), "__validation__")
+        self.assertEqual(data.get("error_path_status"), "pass")
+        self.assertEqual(data.get("error_path_reason"), "ok")
 
     def test_smoke_script_respects_informational_classification_override(self):
         cp, data, _ = self._run_smoke(
@@ -576,6 +580,38 @@ class TestRemoteSmokeScript(unittest.TestCase):
         self.assertEqual(data.get("status"), "fail")
         self.assertEqual(data.get("reason"), "http_status")
         self.assertEqual(data.get("http_status"), 401)
+
+    def test_smoke_script_fails_when_error_path_does_not_return_http_error(self):
+        cp, data, _ = self._run_smoke(
+            include_token=True,
+            extra_env={
+                "SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO": "1",
+                "SMOKE_ERROR_QUERY": "__ok__",
+            },
+        )
+
+        self.assertNotEqual(cp.returncode, 0)
+        self.assertEqual(data.get("status"), "fail")
+        self.assertEqual(data.get("reason"), "error_path_expected_error_http")
+        self.assertEqual(data.get("error_path_status"), "fail")
+        self.assertEqual(data.get("error_path_reason"), "expected_http_ge_400")
+        self.assertEqual(data.get("error_path_http_status"), 200)
+
+    def test_smoke_script_can_disable_error_path_gate_explicitly(self):
+        cp, data, request_id = self._run_smoke(
+            include_token=True,
+            extra_env={
+                "SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO": "0",
+                "SMOKE_ERROR_QUERY": "__ok__",
+            },
+        )
+
+        self.assertEqual(cp.returncode, 0, msg=cp.stdout + "\n" + cp.stderr)
+        self.assertEqual(data.get("status"), "pass")
+        self.assertEqual(data.get("reason"), "ok")
+        self.assertFalse(data.get("error_path_request_id_echo_enforced"))
+        self.assertEqual(data.get("error_path_status"), "not-run")
+        self.assertEqual(data.get("request_id"), request_id)
 
     def test_smoke_script_rejects_whitespace_only_dev_api_auth_token(self):
         with tempfile.TemporaryDirectory() as tmpdir:

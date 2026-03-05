@@ -2,7 +2,9 @@
 set -euo pipefail
 
 # Reproduzierbarer Remote-Smoke-Test für Issue BL-18.1
-# Erwartet öffentliche Base-URL des Services und prüft POST /analyze auf 200 + ok=true + result-Objekt.
+# Erwartet öffentliche Base-URL des Services und prüft POST /analyze auf
+# (a) Happy-Path: 200 + ok=true + result-Objekt
+# (b) (optional/auto-dev) Fehlerpfad: HTTP>=400 + konsistentes request_id-Echo (Header+Body).
 # DEV_BASE_URL darf optional bereits auf /health oder /analyze enden (wird robust normalisiert).
 #
 # Nutzung:
@@ -23,6 +25,8 @@ set -euo pipefail
 #   SMOKE_REQUEST_ID="bl18-<id>"  # optional; wenn leer/nicht gesetzt wird eine eindeutige ID auto-generiert. Eigene Werte werden getrimmt; ASCII-only, keine Steuerzeichen/Trennzeichen/Whitespaces; max. 128 Zeichen
 #   SMOKE_REQUEST_ID_HEADER="request"  # request|correlation (+ request-id/correlation-id/x-request-id/x-correlation-id/request_id/correlation_id/x_request_id/x_correlation_id Aliasse), Default: request; Short-Aliasse senden Request-Id/Correlation-Id bzw. Request_Id/Correlation_Id, X-Aliasse senden X-Request-Id/X-Correlation-Id bzw. X_Request_Id/X_Correlation_Id
 #   SMOKE_ENFORCE_REQUEST_ID_ECHO="1"  # 1|0|true|false|yes|no|on|off (Default: 1)
+#   SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO="auto"  # auto|1|0|true|false|yes|no|on|off (Default: auto; localhost=on, sonst off)
+#   SMOKE_ERROR_QUERY="__validation__"  # Fehlerpfad-Query für Request-ID-Echo-Check (Default: __validation__)
 #   SMOKE_CLASSIFICATION="must-pass"  # must-pass|informational (Default: must-pass)
 #   SMOKE_OUTPUT_JSON="artifacts/bl18.1-smoke.json"  # wird getrimmt; whitespace-only/Verzeichnisziel -> fail-fast
 #   DEV_TLS_CA_CERT="/pfad/zu/dev-self-signed.crt"  # optional: zusätzlicher Trust-Anchor für HTTPS-Smoke (nutzt curl --cacert, kein globales -k)
@@ -88,6 +92,9 @@ SMOKE_REQUEST_ID_RAW="${SMOKE_REQUEST_ID-}"
 SMOKE_REQUEST_ID="${SMOKE_REQUEST_ID_RAW}"
 SMOKE_REQUEST_ID_HEADER="${SMOKE_REQUEST_ID_HEADER:-request}"
 SMOKE_ENFORCE_REQUEST_ID_ECHO="${SMOKE_ENFORCE_REQUEST_ID_ECHO:-1}"
+SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO="${SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO:-auto}"
+SMOKE_ERROR_QUERY_RAW="${SMOKE_ERROR_QUERY-}"
+SMOKE_ERROR_QUERY="${SMOKE_ERROR_QUERY_RAW}"
 SMOKE_CLASSIFICATION="${SMOKE_CLASSIFICATION:-must-pass}"
 SMOKE_REPORT_SCHEMA_VERSION="deploy-smoke-report/v1"
 DEV_TLS_CA_CERT_RAW="${DEV_TLS_CA_CERT:-}"
@@ -132,6 +139,12 @@ PY
 fi
 
 SMOKE_QUERY="$(python3 - "${SMOKE_QUERY}" <<'PY'
+import sys
+print(sys.argv[1].strip())
+PY
+)"
+
+SMOKE_ERROR_QUERY="$(python3 - "${SMOKE_ERROR_QUERY}" <<'PY'
 import sys
 print(sys.argv[1].strip())
 PY
@@ -485,6 +498,23 @@ case "$SMOKE_ENFORCE_REQUEST_ID_ECHO_NORMALIZED" in
     ;;
 esac
 
+SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO_NORMALIZED="${SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO,,}"
+case "$SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO_NORMALIZED" in
+  1|true|yes|on)
+    SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO="1"
+    ;;
+  0|false|no|off)
+    SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO="0"
+    ;;
+  auto)
+    SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO="auto"
+    ;;
+  *)
+    echo "[BL-18.1] Ungültiger SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO='${SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO}' (erlaubt: auto|0|1|true|false|yes|no|on|off)." >&2
+    exit 2
+    ;;
+esac
+
 strip_trailing_slashes() {
   local value="$1"
   while [[ "$value" == */ ]]; do
@@ -555,6 +585,32 @@ then
   echo "[BL-18.1] DEV_BASE_URL ist nach Normalisierung ungültig (aktuell: ${BASE_URL})." >&2
   exit 2
 fi
+
+if [[ "${SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO}" == "auto" ]]; then
+  if python3 - "${BASE_URL}" <<'PY'
+import sys
+from urllib.parse import urlsplit
+
+host = (urlsplit(sys.argv[1]).hostname or "").lower()
+raise SystemExit(0 if host in {"127.0.0.1", "localhost"} else 1)
+PY
+  then
+    SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO="1"
+  else
+    SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO="0"
+  fi
+fi
+
+if [[ -z "${SMOKE_ERROR_QUERY}" ]]; then
+  SMOKE_ERROR_QUERY="__validation__"
+fi
+
+if [[ "${SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO}" == "1" && -z "${SMOKE_ERROR_QUERY}" ]]; then
+  echo "[BL-18.1] SMOKE_ERROR_QUERY darf nicht leer sein, wenn SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO aktiv ist." >&2
+  exit 2
+fi
+
+export SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO SMOKE_ERROR_QUERY
 
 if [[ -n "${DEV_TLS_CA_CERT_RAW}" && -z "${DEV_TLS_CA_CERT}" ]]; then
   echo "[BL-18.1] DEV_TLS_CA_CERT ist leer nach Whitespace-Normalisierung." >&2
@@ -650,7 +706,9 @@ PY
 
 TMP_BODY="$(mktemp)"
 TMP_HEADERS="$(mktemp)"
-trap 'rm -f "$TMP_BODY" "$TMP_HEADERS"' EXIT
+TMP_ERROR_BODY="$(mktemp)"
+TMP_ERROR_HEADERS="$(mktemp)"
+trap 'rm -f "$TMP_BODY" "$TMP_HEADERS" "$TMP_ERROR_BODY" "$TMP_ERROR_HEADERS"' EXIT
 
 started_at_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 start_epoch="$(date +%s)"
@@ -709,6 +767,13 @@ report = {
     "request_id_header_source": os.environ.get("SMOKE_REQUEST_ID_HEADER", "request"),
     "request_id_header_name": os.environ.get("REQUEST_ID_HEADER_NAME", "X-Request-Id"),
     "request_id_echo_enforced": os.environ.get("SMOKE_ENFORCE_REQUEST_ID_ECHO", "1") == "1",
+    "error_path_request_id_echo_enforced": os.environ.get("SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO", "0") == "1",
+    "error_path_query": os.environ.get("SMOKE_ERROR_QUERY") or None,
+    "error_path_status": "not-run",
+    "error_path_reason": None,
+    "error_path_http_status": None,
+    "error_path_response_request_id": None,
+    "error_path_response_header_request_id": None,
     "response_request_id": None,
     "response_header_request_id": None,
     "dev_smoke_test_seed": os.environ.get("DEV_SMOKE_TEST_SEED") or None,
@@ -724,7 +789,43 @@ PY
   exit 1
 fi
 
-python3 - "$HTTP_CODE" "$TMP_BODY" "$TMP_HEADERS" <<'PY'
+ERROR_HTTP_CODE=""
+ERROR_CURL_EXIT=0
+if [[ "${SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO}" == "1" ]]; then
+  ERROR_REQUEST_BODY="$(python3 - <<'PY'
+import json
+import os
+
+payload = {
+    "query": os.environ["SMOKE_ERROR_QUERY"],
+    "intelligence_mode": os.environ["SMOKE_MODE"],
+    "timeout_seconds": float(os.environ["SMOKE_TIMEOUT_SECONDS"]),
+}
+print(json.dumps(payload, ensure_ascii=False))
+PY
+)"
+
+  set +e
+  ERROR_HTTP_CODE=$(curl -sS -m "${CURL_MAX_TIME}" \
+    --retry "${CURL_RETRY_COUNT}" \
+    --retry-delay "${CURL_RETRY_DELAY}" \
+    --retry-connrefused \
+    --retry-all-errors \
+    -D "$TMP_ERROR_HEADERS" \
+    -o "$TMP_ERROR_BODY" -w "%{http_code}" \
+    -X POST "${ANALYZE_URL}" \
+    -H "Content-Type: application/json" \
+    "${CURL_TLS_ARGS[@]}" \
+    "${REQUEST_ID_HEADERS[@]}" \
+    "${AUTH_HEADER[@]}" \
+    -d "$ERROR_REQUEST_BODY")
+  ERROR_CURL_EXIT=$?
+  set -e
+fi
+
+export ERROR_HTTP_CODE ERROR_CURL_EXIT
+
+python3 - "$HTTP_CODE" "$TMP_BODY" "$TMP_HEADERS" "$TMP_ERROR_BODY" "$TMP_ERROR_HEADERS" <<'PY'
 import json
 import os
 import pathlib
@@ -757,7 +858,9 @@ headers = _extract_last_headers(headers_raw)
 response_header_request_id = headers.get("x-request-id")
 
 enforce_request_id_echo = os.environ.get("SMOKE_ENFORCE_REQUEST_ID_ECHO", "1") == "1"
+enforce_error_path_echo = os.environ.get("SMOKE_ENFORCE_ERROR_PATH_REQUEST_ID_ECHO", "0") == "1"
 expected_request_id = os.environ["SMOKE_REQUEST_ID"]
+error_path_query = os.environ.get("SMOKE_ERROR_QUERY") or None
 
 report = {
     "schema_version": os.environ.get("SMOKE_REPORT_SCHEMA_VERSION", "deploy-smoke-report/v1"),
@@ -770,6 +873,13 @@ report = {
     "request_id_header_source": os.environ.get("SMOKE_REQUEST_ID_HEADER", "request"),
     "request_id_header_name": os.environ.get("REQUEST_ID_HEADER_NAME", "X-Request-Id"),
     "request_id_echo_enforced": enforce_request_id_echo,
+    "error_path_request_id_echo_enforced": enforce_error_path_echo,
+    "error_path_query": error_path_query,
+    "error_path_status": "not-run",
+    "error_path_reason": None,
+    "error_path_http_status": None,
+    "error_path_response_request_id": None,
+    "error_path_response_header_request_id": None,
     "response_request_id": None,
     "response_header_request_id": response_header_request_id,
     "dev_smoke_test_seed": os.environ.get("DEV_SMOKE_TEST_SEED") or None,
@@ -857,6 +967,78 @@ else:
                     indent=2,
                 )
             )
+
+if report["status"] == "pass" and enforce_error_path_echo:
+    error_curl_exit = int(os.environ.get("ERROR_CURL_EXIT") or 0)
+    report["error_path_status"] = "fail"
+
+    if error_curl_exit != 0:
+        report["status"] = "fail"
+        report["reason"] = "error_path_curl_error"
+        report["error_path_reason"] = "curl_error"
+        print(f"[BL-18.1] FAIL: Fehlerpfad-curl-Aufruf fehlgeschlagen (exit={error_curl_exit}).")
+    else:
+        error_http_code_raw = str(os.environ.get("ERROR_HTTP_CODE") or "").strip()
+        try:
+            error_http_code = int(error_http_code_raw)
+        except ValueError:
+            error_http_code = 0
+
+        error_body = pathlib.Path(sys.argv[4]).read_text(encoding="utf-8", errors="replace")
+        error_headers_raw = pathlib.Path(sys.argv[5]).read_text(encoding="utf-8", errors="replace")
+        error_headers = _extract_last_headers(error_headers_raw)
+        error_response_header_request_id = error_headers.get("x-request-id")
+
+        report["error_path_http_status"] = error_http_code
+        report["error_path_response_header_request_id"] = error_response_header_request_id
+
+        try:
+            error_payload = json.loads(error_body)
+        except json.JSONDecodeError:
+            report["status"] = "fail"
+            report["reason"] = "error_path_invalid_json"
+            report["error_path_reason"] = "invalid_json"
+            print(
+                f"[BL-18.1] FAIL: Fehlerpfad-Response ist kein valides JSON (HTTP {error_http_code})."
+            )
+            print(error_body)
+        else:
+            error_response_body_request_id = error_payload.get("request_id")
+            report["error_path_response_request_id"] = error_response_body_request_id
+
+            if error_http_code < 400:
+                report["status"] = "fail"
+                report["reason"] = "error_path_expected_error_http"
+                report["error_path_reason"] = "expected_http_ge_400"
+                print(
+                    "[BL-18.1] FAIL: Fehlerpfad muss HTTP >= 400 liefern, erhielt "
+                    f"{error_http_code}."
+                )
+                print(json.dumps(error_payload, ensure_ascii=False, indent=2))
+            elif error_response_header_request_id != expected_request_id:
+                report["status"] = "fail"
+                report["reason"] = "error_path_request_id_header_mismatch"
+                report["error_path_reason"] = "request_id_header_mismatch"
+                print(
+                    "[BL-18.1] FAIL: Fehlerpfad-Header X-Request-Id stimmt nicht mit Request-ID überein."
+                )
+            elif error_response_body_request_id != expected_request_id:
+                report["status"] = "fail"
+                report["reason"] = "error_path_request_id_body_mismatch"
+                report["error_path_reason"] = "request_id_body_mismatch"
+                print(
+                    "[BL-18.1] FAIL: Fehlerpfad-Body request_id stimmt nicht mit Request-ID überein."
+                )
+            elif not str(error_payload.get("error") or "").strip():
+                report["status"] = "fail"
+                report["reason"] = "error_path_missing_error_code"
+                report["error_path_reason"] = "missing_error_field"
+                print("[BL-18.1] FAIL: Fehlerpfad-Response enthält kein stabiles error-Feld.")
+                print(json.dumps(error_payload, ensure_ascii=False, indent=2))
+            else:
+                report["error_path_status"] = "pass"
+                report["error_path_reason"] = "ok"
+                print("[BL-18.1] PASS: Fehlerpfad liefert konsistentes request_id-Echo + Fehlercode.")
 
 smoke_output_json = os.environ.get("SMOKE_OUTPUT_JSON", "").strip()
 if smoke_output_json:
