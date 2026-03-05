@@ -1481,6 +1481,7 @@ _LOGIN_REASON_MESSAGES: dict[str, str] = {
     "refresh_error": "Die Session konnte nicht erneuert werden. Bitte erneut einloggen.",
     "invalid_state": "Der Login-Status war ungültig oder abgelaufen. Bitte neu starten.",
     "consent_denied": "Die Anmeldung wurde abgebrochen oder verweigert. Bitte erneut versuchen.",
+    "login_unavailable": "Die Anmeldung ist aktuell nicht verfügbar. Bitte später erneut versuchen.",
 }
 
 
@@ -1506,6 +1507,22 @@ def _normalize_login_next_path(raw_value: str) -> str:
     if normalized_path == "/":
         normalized_path = "/gui"
     return urlunsplit(("", "", normalized_path, parsed.query, parsed.fragment))
+
+
+def _extract_upstream_error_code(*, body: bytes, content_type: str) -> str:
+    if "application/json" not in str(content_type or "").lower():
+        return ""
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except Exception:  # noqa: BLE001
+        return ""
+    return str(payload.get("error") or payload.get("code") or "").strip().lower()
+
+
+def _build_login_retry_location(*, next_path: str, reason: str) -> str:
+    normalized_next = _normalize_login_next_path(next_path)
+    normalized_reason = _normalize_login_reason(reason)
+    return f"/login?{urlencode({'next': normalized_next, 'reason': normalized_reason})}"
 
 
 def _build_login_entry_html(*, app_version: str, next_path: str, reason: str) -> str:
@@ -1562,6 +1579,17 @@ def _build_login_entry_html(*, app_version: str, next_path: str, reason: str) ->
       h1 {{ margin: 0; font-size: 1.15rem; }}
       p {{ margin: 0; line-height: 1.45; }}
       .meta {{ color: var(--muted); font-size: 0.9rem; }}
+      .credentials {{ display: grid; gap: 0.45rem; margin-top: 0.3rem; }}
+      .credentials label {{ font-weight: 600; font-size: 0.9rem; }}
+      .credentials input {{
+        width: 100%;
+        padding: 0.55rem 0.62rem;
+        border: 1px solid var(--border);
+        border-radius: 0.55rem;
+        font-size: 0.95rem;
+        background: #fff;
+        color: var(--ink);
+      }}
       .actions {{ display: flex; gap: 0.6rem; flex-wrap: wrap; }}
       a.button {{
         text-decoration: none;
@@ -1591,6 +1619,13 @@ def _build_login_entry_html(*, app_version: str, next_path: str, reason: str) ->
       <section class=\"card\" aria-labelledby=\"login-title\">
         <h1 id=\"login-title\">Login</h1>
         <p id=\"login-reason-text\">{escape(reason_text)}</p>
+        <div class=\"credentials\" aria-label=\"login-credentials-preview\">
+          <label for=\"login-username\">Benutzername</label>
+          <input id=\"login-username\" type=\"text\" autocomplete=\"username\" placeholder=\"name@example.com\" />
+          <label for=\"login-password\">Passwort</label>
+          <input id=\"login-password\" type=\"password\" autocomplete=\"current-password\" placeholder=\"••••••••\" />
+        </div>
+        <p class=\"meta\">Die Authentifizierung erfolgt beim Login-Anbieter nach Klick auf „Anmeldung starten“.</p>
         <p class=\"meta\">Nach erfolgreicher Anmeldung geht es zurück zu <code id=\"login-next\">{escape(normalized_next)}</code>.</p>
         <div class=\"actions\">
           <a class=\"button button-primary\" id=\"login-start-link\" href=\"{escape(start_href, quote=True)}\">Anmeldung starten</a>
@@ -1701,7 +1736,14 @@ class _UiHandler(BaseHTTPRequestHandler):
             )
         )
 
-    def _proxy_auth_request(self, *, request_path: str, raw_query: str) -> bool:
+    def _proxy_auth_request(
+        self,
+        *,
+        request_path: str,
+        raw_query: str,
+        login_next_path: str = "/gui",
+        login_error_reason: str = "login_unavailable",
+    ) -> bool:
         """Proxied ``/auth/*`` calls to API while keeping browser URL on UI host."""
 
         target_url = self._build_api_target_url(request_path=request_path, raw_query=raw_query)
@@ -1751,6 +1793,23 @@ class _UiHandler(BaseHTTPRequestHandler):
 
         body = upstream_resp.read()
         upstream_status = int(getattr(upstream_resp, "status", 0) or upstream_resp.getcode())
+        upstream_content_type = str(upstream_resp.headers.get("Content-Type", "") or "")
+        upstream_error_code = _extract_upstream_error_code(body=body, content_type=upstream_content_type)
+
+        if request_path == "/auth/login" and upstream_status in {401, 403, 500, 502, 503} and upstream_error_code in {
+            "external_direct_login_disabled",
+            "bff_oidc_disabled",
+            "bff_oidc_config_error",
+            "bff_login_error",
+        }:
+            location = _build_login_retry_location(next_path=login_next_path, reason=login_error_reason)
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header("Location", location)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return True
+
         self.send_response(upstream_status)
 
         hop_by_hop_headers = {
@@ -1803,7 +1862,12 @@ class _UiHandler(BaseHTTPRequestHandler):
 
             if start_login:
                 auth_login_query = urlencode({"next": next_path, "reason": reason})
-                if self._proxy_auth_request(request_path="/auth/login", raw_query=auth_login_query):
+                if self._proxy_auth_request(
+                    request_path="/auth/login",
+                    raw_query=auth_login_query,
+                    login_next_path=next_path,
+                    login_error_reason="login_unavailable",
+                ):
                     return
                 self._send_json(
                     {
