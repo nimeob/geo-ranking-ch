@@ -1,0 +1,16 @@
+{
+  "issue": 1295,
+  "timestamp_utc": "20260305T182431Z",
+  "start_url": "https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+  "username": "worker-a-smoke",
+  "idp_login_url": "https://georanking-dev-523234426229.auth.eu-central-1.amazoncognito.com/login?response_type=code&client_id=2308nspfjmffrba3urvje9skai&redirect_uri=https%3A%2F%2Fwww.dev.georanking.ch%2Fauth%2Fcallback&scope=openid+email+profile&state=0e3335fe61c99845abca093a88e06602&code_challenge_method=S256&code_challenge=qa25W4QvdwY2zS6B0-nTutKq6X6ohOI3kqMdk3YIci8",
+  "final_url": "https://www.dev.georanking.ch/gui",
+  "page_title": "geo-ranking.ch GUI MVP",
+  "gui_contains_header": true,
+  "auth_me_status": 200,
+  "authenticated": true,
+  "user_email": "worker-a-smoke@dev.georanking.ch",
+  "has_host_session_cookie": true,
+  "screenshot": "reports/evidence/issue-1295-login-e2e-20260305T182431Z.png",
+  "ok": true
+}

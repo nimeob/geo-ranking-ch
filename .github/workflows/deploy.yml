@@ -231,6 +231,18 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke-Test UI login start redirects to IdP authorize
+        env:
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "${SERVICE_APP_BASE_URL:-}" ]
+          python3 scripts/smoke/check_ui_login_start.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --next "/gui" \
+            --reason "manual_login" \
+            --output-json artifacts/dev-login-start-smoke.json
+
       - name: Deployment summary
         run: |
           cat <<EOF >> "$GITHUB_STEP_SUMMARY"
