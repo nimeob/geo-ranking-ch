@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Smoke-check for UI login start flow.
+
+Ensures `/login?...&start=1` triggers IdP authorize redirect instead of
+falling back to `/login?...reason=login_unavailable`.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from urllib.error import HTTPError
+from urllib.parse import urlencode, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+
+@dataclass(frozen=True)
+class LoginStartCheckResult:
+    ok: bool
+    status_code: int
+    location: str
+    request_url: str
+    reason: str
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+        return None
+
+
+def _build_request_url(base_url: str, *, next_path: str, reason: str) -> str:
+    normalized_base = base_url.strip().rstrip("/")
+    query = urlencode({"next": next_path, "reason": reason, "start": "1"})
+    return f"{normalized_base}/login?{query}"
+
+
+def check_login_start(
+    *,
+    base_url: str,
+    next_path: str = "/gui",
+    reason: str = "manual_login",
+    timeout_seconds: float = 15.0,
+) -> LoginStartCheckResult:
+    request_url = _build_request_url(base_url, next_path=next_path, reason=reason)
+
+    req = Request(request_url, method="GET")
+    opener = build_opener(_NoRedirect)
+    try:
+        resp = opener.open(req, timeout=timeout_seconds)
+    except HTTPError as exc:
+        resp = exc
+
+    status = int(getattr(resp, "status", 0) or resp.getcode())
+    location = str(resp.headers.get("Location") or "").strip()
+
+    if status != 302:
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=status,
+            location=location,
+            request_url=request_url,
+            reason=f"unexpected_status_{status}",
+        )
+
+    if not location:
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=status,
+            location=location,
+            request_url=request_url,
+            reason="missing_location_header",
+        )
+
+    lower_location = location.lower()
+    if "reason=login_unavailable" in lower_location:
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=status,
+            location=location,
+            request_url=request_url,
+            reason="login_unavailable_fallback",
+        )
+
+    parsed_location = urlparse(location)
+    authorize_hint = f"{parsed_location.path}?{parsed_location.query}" if parsed_location.query else parsed_location.path
+    if "authorize" not in authorize_hint.lower():
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=status,
+            location=location,
+            request_url=request_url,
+            reason="location_is_not_authorize_redirect",
+        )
+
+    return LoginStartCheckResult(
+        ok=True,
+        status_code=status,
+        location=location,
+        request_url=request_url,
+        reason="ok",
+    )
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Smoke-check UI login start redirect contract")
+    parser.add_argument("--base-url", required=True, help="UI base URL, e.g. https://www.dev.georanking.ch")
+    parser.add_argument("--next", default="/gui", dest="next_path", help="next path for login start (default: /gui)")
+    parser.add_argument("--reason", default="manual_login", help="login reason query value (default: manual_login)")
+    parser.add_argument("--timeout", type=float, default=15.0, help="HTTP timeout in seconds (default: 15)")
+    parser.add_argument("--output-json", help="Optional output path for machine-readable result")
+    return parser.parse_args(argv)
+
+
+def _write_result(path: str, payload: dict[str, object]) -> None:
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv or sys.argv[1:])
+
+    try:
+        result = check_login_start(
+            base_url=args.base_url,
+            next_path=args.next_path,
+            reason=args.reason,
+            timeout_seconds=args.timeout,
+        )
+    except Exception as exc:  # noqa: BLE001
+        payload = {
+            "ok": False,
+            "reason": "request_failed",
+            "error": str(exc),
+            "request": {
+                "base_url": args.base_url,
+                "next": args.next_path,
+                "reason": args.reason,
+            },
+        }
+        print(json.dumps(payload, ensure_ascii=False))
+        if args.output_json:
+            _write_result(args.output_json, payload)
+        return 1
+
+    payload = {
+        "ok": result.ok,
+        "reason": result.reason,
+        "status_code": result.status_code,
+        "request_url": result.request_url,
+        "location": result.location,
+    }
+    print(json.dumps(payload, ensure_ascii=False))
+    if args.output_json:
+        _write_result(args.output_json, payload)
+
+    return 0 if result.ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

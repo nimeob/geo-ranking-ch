@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "reason": "ok",
+  "status_code": 302,
+  "request_url": "https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+  "location": "https://georanking-dev-523234426229.auth.eu-central-1.amazoncognito.com/oauth2/authorize?response_type=code&client_id=2308nspfjmffrba3urvje9skai&redirect_uri=https%3A%2F%2Fwww.dev.georanking.ch%2Fauth%2Fcallback&scope=openid+email+profile&state=32d02c56833a95242742ef69c24d7f61&code_challenge_method=S256&code_challenge=yWGRDPYPAmBFYS10b4MbxHTEI5_IRh5J_gRR6txn3kI"
+}
