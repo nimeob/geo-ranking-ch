@@ -210,12 +210,18 @@ class AsyncJobStore:
 
     def _persist_state_atomic(self, state: dict[str, Any]) -> None:
         self._store_file.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = self._store_file.with_suffix(f"{self._store_file.suffix}.tmp")
+        tmp_path = self._store_file.with_name(
+            f"{self._store_file.name}.{uuid.uuid4().hex}.tmp"
+        )
         tmp_path.write_text(
             json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2),
             encoding="utf-8",
         )
-        os.replace(tmp_path, self._store_file)
+        try:
+            os.replace(tmp_path, self._store_file)
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
 
     def _append_event_locked(
         self,
