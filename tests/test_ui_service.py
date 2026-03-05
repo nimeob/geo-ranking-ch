@@ -6,6 +6,7 @@ import sys
 import threading
 import time
 import unittest
+from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib import error, request
@@ -64,6 +65,22 @@ class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/auth/login":
             next_value = parse_qs(parsed.query).get("next", ["/gui"])[0]
+            if next_value == "/blocked":
+                payload = json.dumps(
+                    {
+                        "ok": False,
+                        "error": "external_direct_login_disabled",
+                        "message": "direct login is disabled on API",
+                    }
+                ).encode("utf-8")
+                self.send_response(HTTPStatus.FORBIDDEN)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
+
             self.send_response(302)
             self.send_header("Location", f"/oidc/authorize?next={next_value}")
             self.send_header("Set-Cookie", "bff-state=state-123; HttpOnly; Path=/")
@@ -299,6 +316,8 @@ class TestUiService(unittest.TestCase):
         self.assertIn('/login?next=%2Fgui&amp;reason=manual_login&amp;start=1', body)
         self.assertIn('id="login-next">/gui</code>', body)
         self.assertIn('id="login-reason-text"', body)
+        self.assertIn('id="login-username"', body)
+        self.assertIn('id="login-password"', body)
         self.assertNotIn('"error": "external_direct_login_disabled"', body)
 
     def test_login_start_flow_is_proxied_without_browser_redirect_to_auth_login(self):
@@ -318,6 +337,24 @@ class TestUiService(unittest.TestCase):
         ]
         self.assertTrue(auth_login_calls)
         self.assertEqual(str(auth_login_calls[-1].get("proxy_marker") or ""), "1")
+
+    def test_login_start_flow_redirects_back_to_ui_mask_when_upstream_blocks_direct_login(self):
+        self.upstream_server.request_log.clear()
+
+        status, _, headers = _http(
+            f"{self.base_url}/login?next=%2Fblocked&reason=manual_login&start=1",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("location"), "/login?next=%2Fblocked&reason=login_unavailable")
+
+        status, body, headers = _http(f"{self.base_url}{headers.get('location')}", follow_redirects=False)
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("content-type", ""))
+        self.assertIn('id="login-username"', body)
+        self.assertIn('id="login-password"', body)
+        self.assertIn("Die Anmeldung ist aktuell nicht verfügbar", body)
+        self.assertNotIn('"error": "external_direct_login_disabled"', body)
 
     def test_auth_routes_are_proxied_without_api_host_redirect(self):
         self.upstream_server.request_log.clear()
