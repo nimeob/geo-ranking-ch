@@ -11,20 +11,21 @@ Diese Doku beschreibt den kanonischen Auth-Flow für die GUI, wenn die Session �
 
 1. **User öffnet geschützte GUI-Route** (`/`, `/gui`, `/gui/history` *(legacy: `/history`)*, `/results/<id>`)
 2. **Keine gültige Session vorhanden** -> Redirect auf `GET /login?next=<zielpfad>` (UI-owned Entry auf derselben Domain)
-3. **OIDC-Login beim Provider** (Hosted UI)
-4. **Callback trifft auf `GET /auth/callback`**
+3. **UI-Login-Maske auf `/login`** zeigt Reason/Return-Ziel und startet den Auth-Handshake über denselben UI-Pfad (`/login?...&start=1`), ohne browser-sichtbaren Redirect auf `/auth/login`
+4. **OIDC-Login beim Provider** (Hosted UI)
+5. **Callback trifft auf `GET /auth/callback`**
    - Code/State werden serverseitig validiert
    - Session wird im BFF erzeugt/aktualisiert
    - Browser erhält Session-Cookie
-5. **Redirect zurück auf `next`**
-6. **Folgerequests laufen session-basiert über den BFF-Proxy**
+6. **Redirect zurück auf `next`**
+7. **Folgerequests laufen session-basiert über den BFF-Proxy**
    - GUI sendet für Standard-Flow **keinen** manuellen `Authorization: Bearer ...` Header
    - `/analyze` und `/analyze/history` nutzen Login-/Session-Cookie statt Token-Paste im UI
 
 ## Dev-Einstiegspfad (verbindlich)
 
 - Empfohlener Login-Entrypoint in Dev ist **ausschließlich** der UI/BFF-Flow über `GET /login` (direkt oder via Redirect von `/gui`, `/gui/history` *(legacy `/history`)*, `/results/<id>`).
-- `GET /login` bleibt UI-owned und leitet intern auf den BFF-Auth-Start weiter, ohne den API-Host in der Browser-Adresszeile zu zeigen.
+- `GET /login` bleibt UI-owned und zeigt eine UI-Anmeldemaske; der eigentliche Auth-Start läuft serverseitig über denselben Pfad (`/login?...&start=1`), ohne browser-sichtbaren Redirect auf `/auth/login` oder API-Host-Leak.
 - Legacy-Direktpfade auf dem API-Host sind **fail-closed** (`403` + Deprecation-Hinweis auf den UI-Pfad).
 - Zusätzlich sind direkte Browser-Aufrufe auf API-Auth-Routen (`/auth/login`, `/auth/callback`, `/auth/logout`) fail-closed; erlaubt ist nur der UI-Proxy-Hop mit `X-Geo-Auth-Proxy: 1`.
 - Betroffene Direktpfade (Blocker-Fokus, max. 3):

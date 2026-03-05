@@ -289,12 +289,35 @@ class TestUiService(unittest.TestCase):
         self.assertEqual(payload["error"], "not_found")
 
     def test_login_entry_route_stays_ui_owned(self):
-        status, _, headers = _http(
+        status, body, headers = _http(
             f"{self.base_url}/login?next=%2Fgui&reason=manual_login",
             follow_redirects=False,
         )
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("content-type", ""))
+        self.assertIn('id="login-start-link"', body)
+        self.assertIn('/login?next=%2Fgui&amp;reason=manual_login&amp;start=1', body)
+        self.assertIn('id="login-next">/gui</code>', body)
+        self.assertIn('id="login-reason-text"', body)
+        self.assertNotIn('"error": "external_direct_login_disabled"', body)
+
+    def test_login_start_flow_is_proxied_without_browser_redirect_to_auth_login(self):
+        self.upstream_server.request_log.clear()
+
+        status, _, headers = _http(
+            f"{self.base_url}/login?next=%2Fgui&reason=manual_login&start=1",
+            follow_redirects=False,
+        )
         self.assertEqual(status, 302)
-        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui&reason=manual_login")
+        self.assertEqual(headers.get("location"), "/oidc/authorize?next=/gui")
+        self.assertNotIn("/auth/login", str(headers.get("location") or ""))
+        self.assertIn("bff-state=state-123", headers.get("set-cookie", ""))
+
+        auth_login_calls = [
+            entry for entry in self.upstream_server.request_log if entry.get("path") == "/auth/login"
+        ]
+        self.assertTrue(auth_login_calls)
+        self.assertEqual(str(auth_login_calls[-1].get("proxy_marker") or ""), "1")
 
     def test_auth_routes_are_proxied_without_api_host_redirect(self):
         self.upstream_server.request_log.clear()
