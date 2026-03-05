@@ -10,6 +10,7 @@ Dieser Guide ist **dev-only** und bewusst kurz.
 
 - Python **3.12**
 - `git`
+- optional für DX-Bundle (`npm run dev:smoke`): Node.js + npm
 
 Optional (empfohlen): `pre-commit` Hooks für Format/Lint.
 
@@ -23,6 +24,9 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt -r requirements-dev.txt
+
+# optional (für npm run dev:smoke)
+npm ci
 ```
 
 ## Lokaler Dev-Start
