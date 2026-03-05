@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -17,6 +18,7 @@ from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+JOBS_FILTER_SEARCH_PROBE = REPO_ROOT / "scripts" / "smoke" / "run_jobs_filter_search_e2e_probe.mjs"
 
 
 class _NoRedirect(request.HTTPRedirectHandler):
@@ -184,15 +186,55 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
             try:
                 status, _, _ = _http_request("GET", f"{cls.api_base_url}/health")
                 if status == 200:
+                    break
+            except Exception:
+                pass
+            time.sleep(0.2)
+        else:
+            raise RuntimeError("web_service wurde lokal nicht rechtzeitig erreichbar")
+
+        cls.ui_port = _free_port()
+        cls.ui_base_url = f"http://127.0.0.1:{cls.ui_port}"
+        ui_env = os.environ.copy()
+        ui_env.update(
+            {
+                "HOST": "127.0.0.1",
+                "PORT": str(cls.ui_port),
+                "APP_VERSION": "test-auth-regression-1019-ui",
+                "UI_API_BASE_URL": cls.api_base_url,
+                "PYTHONPATH": str(REPO_ROOT),
+            }
+        )
+        cls.ui_proc = subprocess.Popen(
+            [sys.executable, "-m", "src.ui.service"],
+            cwd=str(REPO_ROOT),
+            env=ui_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        ui_deadline = time.time() + 12
+        while time.time() < ui_deadline:
+            try:
+                status, _, _ = _http_request("GET", f"{cls.ui_base_url}/healthz")
+                if status == 200:
                     return
             except Exception:
                 pass
             time.sleep(0.2)
 
-        raise RuntimeError("web_service wurde lokal nicht rechtzeitig erreichbar")
+        raise RuntimeError("ui_service wurde lokal nicht rechtzeitig erreichbar")
 
     @classmethod
     def tearDownClass(cls):
+        if getattr(cls, "ui_proc", None) is not None:
+            cls.ui_proc.terminate()
+            try:
+                cls.ui_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                cls.ui_proc.kill()
+
         if getattr(cls, "api_proc", None) is not None:
             cls.api_proc.terminate()
             try:
@@ -447,6 +489,57 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         relogin_me_payload = json.loads(body)
         self.assertTrue(relogin_me_payload.get("ok"))
         self.assertTrue(relogin_me_payload.get("authenticated"))
+
+    def test_jobs_filter_search_query_sync_e2e_probe(self):
+        node_bin = shutil.which("node")
+        self.assertIsNotNone(node_bin, "node runtime fehlt fuer /jobs E2E-Probe")
+        self.assertTrue(
+            JOBS_FILTER_SEARCH_PROBE.is_file(),
+            "Probe-Skript fehlt: scripts/smoke/run_jobs_filter_search_e2e_probe.mjs",
+        )
+
+        completed = subprocess.run(
+            [
+                str(node_bin),
+                str(JOBS_FILTER_SEARCH_PROBE),
+                "--jobs-url",
+                f"{self.ui_base_url}/jobs",
+            ],
+            cwd=str(REPO_ROOT),
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+
+        self.assertEqual(
+            completed.returncode,
+            0,
+            msg=(
+                "jobs-filter-search E2E-Probe fehlgeschlagen\n"
+                f"stdout:\n{completed.stdout}\n"
+                f"stderr:\n{completed.stderr}"
+            ),
+        )
+
+        payload = json.loads(completed.stdout)
+        self.assertTrue(payload.get("ok"), msg=f"Probe-Output ohne ok-Flag: {payload}")
+
+        scenarios = payload.get("scenarios") or {}
+        self.assertIn("legacyShareLink", scenarios)
+        self.assertIn("interactiveFilterFlow", scenarios)
+        self.assertIn("reloadFromShareLink", scenarios)
+
+        legacy = scenarios["legacyShareLink"]
+        self.assertEqual(legacy.get("statusValue"), "succeeded")
+        self.assertEqual(legacy.get("queryValue"), "job-succeeded")
+
+        interactive = scenarios["interactiveFilterFlow"]
+        self.assertEqual(interactive.get("statusValue"), "succeeded")
+        self.assertEqual(interactive.get("queryValue"), "job-succeeded")
+
+        reload = scenarios["reloadFromShareLink"]
+        self.assertEqual(reload.get("statusValue"), "succeeded")
+        self.assertEqual(reload.get("queryValue"), "job-succeeded")
 
     def test_callback_failure_modes_render_ui_relogin_without_api_host_leak(self):
         # invalid_state via state mismatch
