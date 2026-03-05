@@ -3107,38 +3107,80 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         });
       }
 
+      function projectTraceEvent(rawEvent, index) {
+        const event = rawEvent && typeof rawEvent === "object" ? rawEvent : {};
+        const tsText = String(event.ts || event.timestamp || event.occurred_at || "").trim();
+        const parsedTs = tsText ? Date.parse(tsText) : Number.NaN;
+
+        const eventName = String(event.event || event.event_name || event.type || "unknown_event").trim() || "unknown_event";
+        const phase = String(event.phase || event.stage || "unknown").trim() || "unknown";
+        const summary = String(event.summary || event.message || event.description || "kein Summary verfügbar").trim() || "kein Summary verfügbar";
+        const details = event.details && typeof event.details === "object" && !Array.isArray(event.details)
+          ? event.details
+          : event.meta && typeof event.meta === "object" && !Array.isArray(event.meta)
+            ? event.meta
+            : {};
+
+        return {
+          key: `${eventName}-${index}`,
+          event: eventName,
+          ts: tsText,
+          phase,
+          level: String(event.level || "info").trim() || "info",
+          status: String(event.status || "").trim(),
+          summary,
+          details,
+          component: String(event.component || event.source_component || "").trim(),
+          direction: String(event.direction || event.flow || "").trim(),
+          _sortTs: Number.isFinite(parsedTs) ? parsedTs : Number.POSITIVE_INFINITY,
+          _index: index,
+        };
+      }
+
       function normalizeTraceEvents(rawEvents) {
         if (!Array.isArray(rawEvents)) {
           return [];
         }
 
-        const normalized = rawEvents
-          .filter((event) => event && typeof event === "object")
-          .map((event, index) => {
-            const tsText = String(event.ts || "").trim();
-            const parsedTs = tsText ? Date.parse(tsText) : Number.NaN;
-            return {
-              key: `${String(event.event || "event")}-${index}`,
-              event: String(event.event || "unknown_event"),
-              ts: tsText,
-              phase: String(event.phase || "unknown"),
-              summary: String(event.summary || "kein Summary verfügbar"),
-              details: event.details && typeof event.details === "object" ? event.details : {},
-              component: String(event.component || ""),
-              direction: String(event.direction || ""),
-              _sortTs: Number.isFinite(parsedTs) ? parsedTs : Number.POSITIVE_INFINITY,
-              _index: index,
-            };
-          });
+        const projectedEvents = rawEvents.map((rawEvent, index) => projectTraceEvent(rawEvent, index));
 
-        normalized.sort((left, right) => {
+        projectedEvents.sort((left, right) => {
           if (left._sortTs !== right._sortTs) {
             return left._sortTs - right._sortTs;
           }
           return left._index - right._index;
         });
 
-        return normalized;
+        return projectedEvents;
+      }
+
+      function buildTraceDetailPayload(rawPayload, projectedEvents) {
+        if (!rawPayload || typeof rawPayload !== "object") {
+          return rawPayload;
+        }
+
+        const payload = rawPayload;
+        const tracePayload = payload.trace && typeof payload.trace === "object" ? payload.trace : {};
+        const normalizedEvents = Array.isArray(projectedEvents) ? projectedEvents : [];
+
+        return {
+          ...payload,
+          trace: {
+            ...tracePayload,
+            event_count: normalizedEvents.length,
+            events: normalizedEvents.map((event) => ({
+              ts: event.ts,
+              event: event.event,
+              phase: event.phase,
+              level: event.level,
+              status: event.status,
+              summary: event.summary,
+              component: event.component,
+              direction: event.direction,
+              details: event.details,
+            })),
+          },
+        };
       }
 
       function renderTraceTimeline() {
@@ -5447,6 +5489,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         const traceReason = String(tracePayload.reason || "").trim();
         const rawTraceState = String(tracePayload.state || "").trim();
         const events = normalizeTraceEvents(tracePayload.events);
+        const projectedResponse = buildTraceDetailPayload(parsed, events);
 
         let phase = "success";
         let emptyMessage = "";
@@ -5478,7 +5521,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           ok: true,
           requestId: responseRequestId,
           traceRequestId: String(parsed.trace_request_id || normalizedTraceRequestId),
-          response: parsed,
+          response: projectedResponse,
           authRecoveryReason: "",
           statusCode: response.status,
           phase,

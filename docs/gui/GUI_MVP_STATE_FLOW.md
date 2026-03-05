@@ -106,7 +106,9 @@ Das Result-Column enthält zusätzlich ein dediziertes Trace-Debug-Panel:
 - Formularfelder: `request_id`, optional `lookback_seconds`, optional `max_events`
 - Deep-Link-Rehydrierung aus URL-Parametern (`request_id`, optional `lookback_seconds`, `max_events`)
 - Auto-Lookup beim Laden, wenn ein Deep-Link vorhanden ist
-- Timeline-Rendering sortiert robust nach Timestamp und fällt bei Teil-/Fehldaten auf sichere Defaults zurück
+- Gemeinsame Event-Projection (`projectTraceEvent`) normalisiert Trace-Events einmalig (inkl. Legacy-Fallbacks wie `event_name`/`timestamp`/`meta`) und speist **sowohl** Timeline-Liste als auch Detail-JSON (`buildTraceDetailPayload`) aus derselben Struktur.
+- Timeline-Rendering sortiert robust nach Timestamp und fällt bei Teil-/Fehldaten auf sichere Defaults zurück.
+- Trace-Detailansicht (`trace-json`) rendert die projizierten Events (`ts`, `event`, `phase`, `level`, `status`, `summary`, `component`, `direction`, `details`) statt roher Legacy-Feldpfade.
 - Accessibility-Basics: Fokus-fähiger Link/Button-Flow und `aria-live` Feedback für Copy-/Status-Rückmeldungen
 
 Trace-State-Flow (clientseitig):
