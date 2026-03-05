@@ -841,6 +841,27 @@ def _build_callback_relogin_location(*, next_path: str, error_code: str) -> str:
     return f"/login?{urlencode(params)}"
 
 
+def _normalize_ui_login_reason(raw_reason: str) -> str:
+    normalized = str(raw_reason or "").strip().lower()
+    if re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", normalized):
+        return normalized
+    return "manual_login"
+
+
+def _build_ui_login_reentry_location_from_auth_login_query(raw_query: str) -> str:
+    query_params = parse_qs(str(raw_query or ""), keep_blank_values=False)
+    next_path = _canonicalize_history_next_path((query_params.get("next") or ["/gui"])[0])
+    reason = _normalize_ui_login_reason((query_params.get("reason") or ["manual_login"])[0])
+    return f"/login?{urlencode({'next': next_path, 'reason': reason})}"
+
+
+def _resolve_bff_redirect_host() -> str:
+    redirect_uri = str(os.getenv("BFF_OIDC_REDIRECT_URI", "")).strip()
+    if not redirect_uri:
+        return ""
+    return _extract_host_without_port(urlsplit(redirect_uri).netloc).strip().lower()
+
+
 def _render_oidc_callback_error_html(
     *,
     error_code: str,
@@ -3761,6 +3782,47 @@ class Handler(BaseHTTPRequestHandler):
             },
         )
 
+    def _should_redirect_unproxied_auth_login_to_ui_entry(self, *, request_path: str) -> bool:
+        if request_path != "/auth/login":
+            return False
+
+        forwarded_host_header = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        if not forwarded_host_header:
+            return False
+
+        request_host = _extract_host_without_port(forwarded_host_header).strip().lower()
+        if not request_host:
+            return False
+
+        expected_ui_host = _resolve_bff_redirect_host()
+        if not expected_ui_host or request_host != expected_ui_host:
+            return False
+
+        accept_header = str(self.headers.get("Accept", "") or "").lower()
+        if accept_header and "text/html" not in accept_header and "*/*" not in accept_header:
+            return False
+
+        return True
+
+    def _redirect_unproxied_auth_login_to_ui_entry(self, *, request_id: str) -> None:
+        query = urlsplit(self.path).query
+        location = _build_ui_login_reentry_location_from_auth_login_query(query)
+        _emit_structured_log(
+            event="api.auth.direct_login.ui_reentry_redirect",
+            level="info",
+            trace_id=request_id,
+            request_id=request_id,
+            session_id=str(getattr(self, "_request_lifecycle_session_id", "") or ""),
+            component="api.web_service",
+            direction="client->api",
+            status="redirect",
+            route="/auth/login",
+            method="GET",
+            location=location,
+            reason="ui_host_misroute_without_proxy_marker",
+        )
+        self._send_redirect(location=location, request_id=request_id)
+
     # ------------------------------------------------------------------
     # BFF OIDC helpers
     # ------------------------------------------------------------------
@@ -4062,6 +4124,10 @@ class Handler(BaseHTTPRequestHandler):
             # --- BFF OIDC: /auth/login, /auth/callback, /auth/logout (when BFF is enabled) ---
             if request_path in ("/auth/login", "/auth/callback", "/auth/logout") and is_bff_oidc_enabled():
                 if not _is_ui_auth_proxy_request(self.headers):
+                    if self._should_redirect_unproxied_auth_login_to_ui_entry(request_path=request_path):
+                        self._redirect_unproxied_auth_login_to_ui_entry(request_id=request_id)
+                        return
+
                     self._send_external_direct_login_disabled(
                         request_id=request_id,
                         request_path=request_path,
