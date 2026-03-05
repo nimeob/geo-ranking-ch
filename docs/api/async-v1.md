@@ -121,6 +121,8 @@ Implementierungsnotiz: Neben `ValueError`/`JSONDecodeError` bzw. `KeyError` werd
 
 Präzisierung: `details[]` wird bei `bad_request` sowohl für Body-Validierung (`POST /analyze`) als auch für Query/Header-Validierung auf den GET-Routen (`/analyze/history`, `/analyze/results/{id}`, `/analyze/jobs/{id}/notifications`) konsistent als Liste von `{field, issue}` geliefert.
 
+Regression-Hinweis (Dev): Die Fault-Injection-Triade `__validation__` (`400 bad_request` + `details[]`), `__not_found__` (`404 not_found`) und `__internal__` (`500 internal`) ist in `tests/test_web_service_request_validation.py` als stabile Contract-Absicherung hinterlegt.
+
 ---
 
 ## 4) Tenant-Guard
