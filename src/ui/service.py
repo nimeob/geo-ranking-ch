@@ -1108,8 +1108,11 @@ _JOBS_LIST_PAGE_TEMPLATE = """<!doctype html>
 
         function restoreDeepLink() {
           const url = new URL(window.location.href);
-          state.status = normalizeStatus(url.searchParams.get("jobs_status"));
-          state.q = String(url.searchParams.get("jobs_q") || "").trim();
+          const rawStatus = url.searchParams.get("jobs_status") || url.searchParams.get("status");
+          const rawQuery = url.searchParams.get("jobs_q") || url.searchParams.get("q");
+
+          state.status = normalizeStatus(rawStatus);
+          state.q = String(rawQuery || "").trim();
 
           statusEl.value = state.status;
           qEl.value = state.q;

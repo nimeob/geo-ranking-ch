@@ -207,6 +207,8 @@ class TestUiService(unittest.TestCase):
         self.assertIn(f'const JOBS_ENDPOINT_BASE = "{self.api_base_url}/analyze/jobs";', body)
         self.assertIn("jobs_status", body)
         self.assertIn("jobs_q", body)
+        self.assertIn('url.searchParams.get("jobs_status") || url.searchParams.get("status")', body)
+        self.assertIn('url.searchParams.get("jobs_q") || url.searchParams.get("q")', body)
         self.assertIn('<option value="succeeded">succeeded</option>', body)
         self.assertIn("function canonicalJobStatus", body)
         self.assertIn('normalized === "completed" || normalized === "success"', body)
