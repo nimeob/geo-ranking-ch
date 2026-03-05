@@ -71,6 +71,7 @@ Transitions:
 - `loading -> error(5xx-view)` bei `HTTP 5xx`: einheitlicher Error-View statt gestapelter Einzelmeldungen
 - Ergebnisliste nutzt zusätzlich transiente Zustände `loading` (Spinner + Status-Copy) sowie `error` (Retry-CTA bei fehlgeschlagener Aktualisierung ohne vorhandene Zeilen).
 - Ergebnislisten-Empty-State unterscheidet zusätzlich `no_data | filtered | network | unauthorized`; CTA führt je nach Ursache deterministisch `Reset`/`Retry`/`Login` aus.
+- Auth-Recovery (`/auth/me`, `/analyze`, `/debug/trace`) mappt Session-Fehler konsistent auf die Redirect-Reasons `no_session`, `refresh_error`, `session_expired`.
 - `error -> loading` beim nächsten Submit/Kartenklick oder über den 5xx-Retry-Button (clean retry)
 
 ### Dev-Request-Defaults & Override-Pfad (GET)
@@ -167,7 +168,7 @@ Für Fehler-Events (`ui.api.request.end`, `ui.trace.request.end`, `ui.validation
 
 | Fehlerpfad (repräsentativ) | `error_code` (Beispiel) | `error_class` |
 | --- | --- | --- |
-| Auth-/Session-Failure (401/403, refresh/session Fehler) | `unauthorized`, `no_session_cookie`, `refresh_grant_error` | `AUTH` |
+| Auth-/Session-Failure (401/403, refresh/session Fehler) | `session_expired`, `no_session`, `refresh_error` | `AUTH` |
 | Netzwerk-/Timeout-Fehler | `network_error`, `timeout` | `NETWORK` |
 | API-/Response-Fehler | `invalid_json`, `http_5xx`, sonstige API-Fehlercodes | `API` |
 | UI-Validierungsfehler | `validation` | `UI` |

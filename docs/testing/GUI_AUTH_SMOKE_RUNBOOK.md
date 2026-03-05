@@ -151,7 +151,7 @@ Prüfe mindestens zwei Fehlerszenarien:
 1. Nach erfolgreichem Login Session-Cookie in DevTools löschen.
 2. `/gui/history` (oder Legacy `/history`) bzw. `/gui` neu laden.
 3. Erwartung: Redirect auf Login oder konsistente Session-Fehlermeldung (kein stiller Hard-Fail).
-4. Redirect-Ziel prüfen: `/auth/login?next=...&reason=<...>` (typisch `session_expired` oder `session_missing`).
+4. Redirect-Ziel prüfen: `/auth/login?next=...&reason=<...>` (typisch `session_expired` oder `no_session`).
 
 ### 5.2 Logout-Validity
 
@@ -212,7 +212,7 @@ Für Deployment-spezifische Details siehe:
 
 ## Negative Flow
 - [ ] Cookie gelöscht -> Re-Login/Fehlerbild korrekt
-- [ ] Re-Login-Redirect enthält `reason` (session_expired / refresh_failed / consent_denied)
+- [ ] Re-Login-Redirect enthält `reason` (session_expired / no_session / refresh_error / consent_denied)
 - [ ] Logout invalidiert Session zuverlässig
 - [ ] Logout-Redirect (IdP vs lokal) entspricht der Env-Konfiguration
 
