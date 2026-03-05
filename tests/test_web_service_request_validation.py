@@ -200,6 +200,8 @@ class TestWebServiceRequestValidation(unittest.TestCase):
         self.assertEqual(payload.get("error"), "not_found")
         self.assertEqual(payload.get("code"), "not_found")
         self.assertIn("unknown result_id", str(payload.get("message")))
+        self.assertIsInstance(payload.get("request_id"), str)
+        self.assertTrue(str(payload.get("request_id")).strip())
 
     def test_post_validation_error_is_mapped_to_400(self):
         status, _, payload = _http_raw(
