@@ -5485,7 +5485,7 @@ class Handler(BaseHTTPRequestHandler):
                 request_path.startswith("/analyze/jobs/")
                 and request_path.endswith("/cancel")
             )
-            if request_path not in {"/analyze", "/debug/trace"} and not is_cancel_route:
+            if request_path not in {"/analyze", "/analyze/history", "/debug/trace"} and not is_cancel_route:
                 self._send_json(
                     {"ok": False, "error": "not_found", "request_id": request_id},
                     status=HTTPStatus.NOT_FOUND,
