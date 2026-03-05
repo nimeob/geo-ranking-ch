@@ -166,6 +166,12 @@ Lokaler Dev-Health-Smoke (API `/healthz` inkl. Schema/Statuscodes):
 python -m pytest -q tests/test_web_service_healthz.py
 ```
 
+Optionaler Live-Endpoint-Check (lokal gestarteter API-Service):
+
+```bash
+curl -fsS http://localhost:8080/healthz
+```
+
 ### Docker (wie in ECS)
 
 ```bash
