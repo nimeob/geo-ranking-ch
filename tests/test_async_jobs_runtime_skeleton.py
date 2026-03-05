@@ -8,6 +8,7 @@ import time
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 from urllib import error, request
 
 from src.api.async_jobs import AsyncJobStore
@@ -580,6 +581,27 @@ class TestAsyncJobStoreTransitions(unittest.TestCase):
             self.assertTrue(str(failed_row.get("dedupe_key") or ""))
             self.assertEqual(completed_row.get("payload_json", {}).get("status"), "completed")
             self.assertEqual(failed_row.get("payload_json", {}).get("status"), "failed")
+
+
+    def test_persist_state_uses_unique_tmp_file_names(self):
+        with tempfile.TemporaryDirectory(prefix="async-job-store-") as tmpdir:
+            store_path = Path(tmpdir) / "store.json"
+            store = AsyncJobStore(store_file=store_path)
+
+            replace_calls: list[tuple[str, str]] = []
+            real_replace = os.replace
+
+            def _capture_replace(src, dst):
+                replace_calls.append((str(src), str(dst)))
+                return real_replace(src, dst)
+
+            with patch("src.api.async_jobs.os.replace", side_effect=_capture_replace):
+                store._persist_state_atomic(store._state)
+                store._persist_state_atomic(store._state)
+
+            self.assertEqual(len(replace_calls), 2)
+            self.assertNotEqual(replace_calls[0][0], replace_calls[1][0])
+            self.assertEqual(replace_calls[0][1], replace_calls[1][1])
 
 
 class TestAsyncJobStoreRetentionCleanup(unittest.TestCase):
