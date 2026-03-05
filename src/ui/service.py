@@ -26,7 +26,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib import error as urllib_error
 from urllib import request as urllib_request
-from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
 
 from src.shared.gui_mvp import render_gui_mvp_html
 from src.shared.ui_pages import build_history_page_html, build_result_tabs_page_html
@@ -1474,6 +1474,136 @@ def _build_jobs_list_html(*, app_version: str, api_base_url: str) -> str:
     return html
 
 
+_LOGIN_REASON_MESSAGES: dict[str, str] = {
+    "manual_login": "Bitte melde dich an, um die geschützten UI-Funktionen zu nutzen.",
+    "no_session": "Deine Session ist abgelaufen oder fehlt. Bitte erneut einloggen.",
+    "session_expired": "Deine Session ist abgelaufen. Bitte erneut einloggen.",
+    "refresh_error": "Die Session konnte nicht erneuert werden. Bitte erneut einloggen.",
+    "invalid_state": "Der Login-Status war ungültig oder abgelaufen. Bitte neu starten.",
+    "consent_denied": "Die Anmeldung wurde abgebrochen oder verweigert. Bitte erneut versuchen.",
+}
+
+
+def _normalize_login_reason(raw_value: str) -> str:
+    normalized = str(raw_value or "").strip().lower()
+    if not normalized:
+        return "manual_login"
+    if re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", normalized):
+        return normalized
+    return "manual_login"
+
+
+def _normalize_login_next_path(raw_value: str) -> str:
+    candidate = str(raw_value or "").strip()
+    if not candidate:
+        return "/gui"
+
+    parsed = urlsplit(candidate)
+    if parsed.scheme or parsed.netloc:
+        return "/gui"
+
+    normalized_path = _normalize_path(parsed.path or "/gui")
+    if normalized_path == "/":
+        normalized_path = "/gui"
+    return urlunsplit(("", "", normalized_path, parsed.query, parsed.fragment))
+
+
+def _build_login_entry_html(*, app_version: str, next_path: str, reason: str) -> str:
+    normalized_next = _normalize_login_next_path(next_path)
+    normalized_reason = _normalize_login_reason(reason)
+    start_query = urlencode(
+        {
+            "next": normalized_next,
+            "reason": normalized_reason,
+            "start": "1",
+        }
+    )
+    start_href = f"/login?{start_query}"
+    reason_text = _LOGIN_REASON_MESSAGES.get(normalized_reason, _LOGIN_REASON_MESSAGES["manual_login"])
+
+    return f"""<!doctype html>
+<html lang=\"de\">
+  <head>
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <title>geo-ranking.ch — Login</title>
+    <style>
+      :root {{
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --surface: #ffffff;
+        --ink: #1b2637;
+        --muted: #5a6474;
+        --border: #d5dbea;
+        --primary: #1957d2;
+      }}
+      * {{ box-sizing: border-box; }}
+      body {{
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }}
+      main {{
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1.25rem;
+      }}
+      .card {{
+        width: min(34rem, 100%);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.9rem;
+        padding: 1.2rem;
+        display: grid;
+        gap: 0.9rem;
+      }}
+      h1 {{ margin: 0; font-size: 1.15rem; }}
+      p {{ margin: 0; line-height: 1.45; }}
+      .meta {{ color: var(--muted); font-size: 0.9rem; }}
+      .actions {{ display: flex; gap: 0.6rem; flex-wrap: wrap; }}
+      a.button {{
+        text-decoration: none;
+        border-radius: 0.6rem;
+        padding: 0.6rem 0.9rem;
+        border: 1px solid var(--primary);
+      }}
+      a.button-primary {{
+        background: var(--primary);
+        color: #fff;
+      }}
+      a.button-secondary {{
+        background: #fff;
+        color: var(--ink);
+        border-color: var(--border);
+      }}
+      code {{
+        background: #f1f4fb;
+        border: 1px solid var(--border);
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.4rem;
+      }}
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class=\"card\" aria-labelledby=\"login-title\">
+        <h1 id=\"login-title\">Login</h1>
+        <p id=\"login-reason-text\">{escape(reason_text)}</p>
+        <p class=\"meta\">Nach erfolgreicher Anmeldung geht es zurück zu <code id=\"login-next\">{escape(normalized_next)}</code>.</p>
+        <div class=\"actions\">
+          <a class=\"button button-primary\" id=\"login-start-link\" href=\"{escape(start_href, quote=True)}\">Anmeldung starten</a>
+          <a class=\"button button-secondary\" id=\"login-cancel-link\" href=\"{escape(normalized_next, quote=True)}\">Zurück</a>
+        </div>
+        <p class=\"meta\">Version {escape(app_version)}</p>
+      </section>
+    </main>
+  </body>
+</html>
+"""
+
+
 class _UiHandler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ui/1.0"
 
@@ -1666,14 +1796,31 @@ class _UiHandler(BaseHTTPRequestHandler):
             return
 
         if request_path == "/login":
-            location = "/auth/login"
-            if parsed.query:
-                location = f"{location}?{parsed.query}"
-            self.send_response(HTTPStatus.FOUND)
-            self.send_header("Location", location)
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
+            login_query = parse_qs(parsed.query, keep_blank_values=False)
+            next_path = _normalize_login_next_path((login_query.get("next") or ["/gui"])[0])
+            reason = _normalize_login_reason((login_query.get("reason") or ["manual_login"])[0])
+            start_login = str((login_query.get("start") or [""])[0]).strip().lower() in {"1", "true", "yes"}
+
+            if start_login:
+                auth_login_query = urlencode({"next": next_path, "reason": reason})
+                if self._proxy_auth_request(request_path="/auth/login", raw_query=auth_login_query):
+                    return
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "auth_proxy_not_configured",
+                        "message": "UI auth proxy requires UI_API_BASE_URL",
+                    },
+                    status=HTTPStatus.SERVICE_UNAVAILABLE,
+                )
+                return
+
+            login_html = _build_login_entry_html(
+                app_version=self.server.app_version,
+                next_path=next_path,
+                reason=reason,
+            )
+            self._send_html(login_html)
             return
 
         if request_path.startswith("/auth/"):
