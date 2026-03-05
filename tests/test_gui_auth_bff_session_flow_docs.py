@@ -29,7 +29,7 @@ class TestGuiAuthBffSessionFlowDocs(unittest.TestCase):
         for keyword in ["httpOnly", "SameSite", "Secure", "CSRF"]:
             self.assertIn(keyword, content, msg=f"Security-Keyword fehlt: {keyword}")
 
-        for ux_keyword in ["reason=", "refresh_failed", "invalid_state", "consent_denied", "`/login?next="]:
+        for ux_keyword in ["reason=", "no_session", "refresh_error", "invalid_state", "consent_denied", "`/login?next="]:
             self.assertIn(ux_keyword, content, msg=f"Auth-Recovery-Keyword fehlt: {ux_keyword}")
 
         self.assertIn(
