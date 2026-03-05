@@ -158,6 +158,21 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         dep = payload.get("deprecation") or {}
         self.assertEqual(dep.get("successor"), "/login")
 
+    def test_auth_login_route_redirects_to_ui_entry_when_ui_host_hits_api_without_proxy_marker(self):
+        status, _, headers = _http_get(
+            f"{self.base_url}/auth/login?next=%2Fgui&reason=manual_login",
+            follow_redirects=False,
+            headers={
+                "Accept": "text/html",
+                "Host": "127.0.0.1",
+                "X-Forwarded-Host": "127.0.0.1",
+                "X-Forwarded-Proto": "https",
+            },
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+        self.assertEqual(headers.get("location"), "/login?next=%2Fgui&reason=manual_login")
+
     def test_auth_me_returns_401_without_session(self):
         status, body, headers = _http_get(f"{self.base_url}/auth/me", follow_redirects=False)
         self.assertEqual(status, 401)
