@@ -4,7 +4,7 @@
 Diese Pages werden sowohl vom API-Service als auch vom UI-Service ausgeliefert.
 Sie laden Daten API-first über JSON-Endpunkte.
 
-- /history → GET /analyze/history
+- /gui/history (legacy: /history) → GET /analyze/history
 - /results/<result_id> → GET /analyze/results/<result_id>
 
 Wichtig: Dieses Modul darf *keine* API/UI-spezifischen Module importieren.
@@ -325,7 +325,7 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         <button id="burger-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="burger-menu" aria-label="Navigation umschalten">☰ Menü</button>
         <div id="burger-menu" class="burger-menu" role="menu" aria-label="Hauptnavigation" hidden>
           <a role="menuitem" href="/gui">Abfrage</a>
-          <a role="menuitem" href="/history">Historische Abfragen</a>
+          <a role="menuitem" href="/gui/history">Historische Abfragen</a>
         </div>
       </div>
     </header>
@@ -573,15 +573,15 @@ _HISTORY_PAGE_TEMPLATE = """<!doctype html>
         function buildLoginRedirectUrl(authReason) {
           const normalizedReason = normalizeErrorCode(authReason) || "session_recovery";
           const nextPath = typeof window !== "undefined" && window.location
-            ? `${window.location.pathname || "/history"}${window.location.search || ""}${window.location.hash || ""}`
-            : "/history";
+            ? `${window.location.pathname || "/gui/history"}${window.location.search || ""}${window.location.hash || ""}`
+            : "/gui/history";
 
           if (typeof URLSearchParams === "undefined") {
-            return `${AUTH_LOGIN_ENDPOINT}?next=${encodeURIComponent(nextPath || "/history")}&reason=${encodeURIComponent(normalizedReason)}`;
+            return `${AUTH_LOGIN_ENDPOINT}?next=${encodeURIComponent(nextPath || "/gui/history")}&reason=${encodeURIComponent(normalizedReason)}`;
           }
 
           const params = new URLSearchParams();
-          params.set("next", nextPath || "/history");
+          params.set("next", nextPath || "/gui/history");
           params.set("reason", normalizedReason);
           return `${AUTH_LOGIN_ENDPOINT}?${params.toString()}`;
         }
@@ -1088,7 +1088,7 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
         <button id="burger-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="burger-menu" aria-label="Navigation umschalten">☰ Menü</button>
         <div id="burger-menu" class="burger-menu" role="menu" aria-label="Hauptnavigation" hidden>
           <a role="menuitem" href="/gui">Abfrage</a>
-          <a role="menuitem" href="/history">Historische Abfragen</a>
+          <a role="menuitem" href="/gui/history">Historische Abfragen</a>
         </div>
       </div>
     </header>

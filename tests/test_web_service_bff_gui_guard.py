@@ -111,7 +111,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertEqual(headers.get("cache-control"), "no-store")
         self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
 
-    def test_history_redirect_preserves_next_query(self):
+    def test_legacy_history_redirect_preserves_next_query_with_canonical_successor(self):
         status, _, headers = _http_get(
             f"{self.base_url}/history?limit=5",
             follow_redirects=False,
@@ -119,7 +119,18 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertEqual(status, 302)
         self.assertEqual(
             headers.get("location"),
-            "/auth/login?next=%2Fhistory%3Flimit%3D5",
+            "/auth/login?next=%2Fgui%2Fhistory%3Flimit%3D5",
+        )
+
+    def test_gui_history_redirect_preserves_next_query(self):
+        status, _, headers = _http_get(
+            f"{self.base_url}/gui/history?limit=5",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(
+            headers.get("location"),
+            "/auth/login?next=%2Fgui%2Fhistory%3Flimit%3D5",
         )
 
     def test_gui_redirects_to_login_when_session_cookie_is_invalid(self):
@@ -246,7 +257,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
             headers={"Cookie": "__Host-session=missing-session-id"},
         )
         self.assertEqual(status, 302)
-        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fhistory%3Flimit%3D5")
+        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui%2Fhistory%3Flimit%3D5")
 
     def test_logout_endpoint_clears_cookie_and_redirects_to_idp_with_defined_return_path(self):
         status, _, headers = _http_get(

@@ -946,7 +946,7 @@ _JOBS_LIST_PAGE_TEMPLATE = """<!doctype html>
       </div>
       <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
         <a href="/gui">GUI öffnen</a>
-        <a href="/history">History</a>
+        <a href="/gui/history">History</a>
       </div>
     </header>
 
@@ -1687,6 +1687,17 @@ class _UiHandler(BaseHTTPRequestHandler):
             return
 
         if request_path == "/history":
+            location = "/gui/history"
+            if parsed.query:
+                location = f"{location}?{parsed.query}"
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header("Location", location)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
+        if request_path == "/gui/history":
             html = build_history_page_html(
                 app_version=self.server.app_version,
                 api_base_url=self.server.ui_api_base_url,

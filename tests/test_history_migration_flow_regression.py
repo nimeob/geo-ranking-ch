@@ -213,7 +213,7 @@ class TestHistoryMigrationFlowRegression(unittest.TestCase):
             any(str(row.get("result_id") or "") == self.owner_result_id for row in api_payload.get("history") or [])
         )
         deprecation = api_payload.get("deprecation") or {}
-        self.assertEqual(deprecation.get("successor"), "/history")
+        self.assertEqual(deprecation.get("successor"), "/gui/history")
 
     def test_history_flow_pagination_metadata_and_deprecation_headers(self) -> None:
         status, payload, headers = _http_json(
@@ -257,7 +257,7 @@ class TestHistoryMigrationFlowRegression(unittest.TestCase):
         self.assertEqual(status, 410)
         self.assertFalse(payload.get("ok"))
         self.assertEqual(payload.get("error"), "gone")
-        self.assertEqual(payload.get("next"), "/history (UI service)")
+        self.assertEqual(payload.get("next"), "/gui/history (UI service)")
         self.assertEqual(payload.get("data_source"), "/analyze/history")
         self.assertEqual(headers.get("deprecation"), "true")
         self.assertIn('rel="deprecation"', str(headers.get("link") or ""))
