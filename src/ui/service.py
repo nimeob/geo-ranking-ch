@@ -1562,6 +1562,17 @@ def _build_login_entry_html(*, app_version: str, next_path: str, reason: str) ->
       h1 {{ margin: 0; font-size: 1.15rem; }}
       p {{ margin: 0; line-height: 1.45; }}
       .meta {{ color: var(--muted); font-size: 0.9rem; }}
+      .credentials {{ display: grid; gap: 0.45rem; margin-top: 0.3rem; }}
+      .credentials label {{ font-weight: 600; font-size: 0.9rem; }}
+      .credentials input {{
+        width: 100%;
+        padding: 0.55rem 0.62rem;
+        border: 1px solid var(--border);
+        border-radius: 0.55rem;
+        font-size: 0.95rem;
+        background: #fff;
+        color: var(--ink);
+      }}
       .actions {{ display: flex; gap: 0.6rem; flex-wrap: wrap; }}
       a.button {{
         text-decoration: none;
@@ -1591,6 +1602,13 @@ def _build_login_entry_html(*, app_version: str, next_path: str, reason: str) ->
       <section class=\"card\" aria-labelledby=\"login-title\">
         <h1 id=\"login-title\">Login</h1>
         <p id=\"login-reason-text\">{escape(reason_text)}</p>
+        <div class=\"credentials\" aria-label=\"login-credentials-preview\">
+          <label for=\"login-username\">Benutzername</label>
+          <input id=\"login-username\" type=\"text\" autocomplete=\"username\" placeholder=\"name@example.com\" />
+          <label for=\"login-password\">Passwort</label>
+          <input id=\"login-password\" type=\"password\" autocomplete=\"current-password\" placeholder=\"••••••••\" />
+        </div>
+        <p class=\"meta\">Die Authentifizierung erfolgt beim Login-Anbieter nach Klick auf „Anmeldung starten“.</p>
         <p class=\"meta\">Nach erfolgreicher Anmeldung geht es zurück zu <code id=\"login-next\">{escape(normalized_next)}</code>.</p>
         <div class=\"actions\">
           <a class=\"button button-primary\" id=\"login-start-link\" href=\"{escape(start_href, quote=True)}\">Anmeldung starten</a>

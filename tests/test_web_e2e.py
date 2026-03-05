@@ -279,8 +279,13 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertEqual(body.get("error"), "not_found")
 
     def test_external_direct_login_routes_blocked_for_get_and_post(self):
+        req = request.Request(f"{self.base_url}/login", method="GET")
+        with request.urlopen(req, timeout=10.0) as resp:
+            self.assertEqual(resp.status, 200)
+            body = resp.read().decode("utf-8")
+            self.assertIn("login-username", body)
+
         for method, path in (
-            ("GET", "/login"),
             ("GET", "/auth/login/"),
             ("POST", "/auth/signin"),
             ("POST", "/oauth/login"),

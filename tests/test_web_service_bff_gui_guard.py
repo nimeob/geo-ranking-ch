@@ -109,7 +109,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         status, _, headers = _http_get(f"{self.base_url}/gui", follow_redirects=False)
         self.assertEqual(status, 302)
         self.assertEqual(headers.get("cache-control"), "no-store")
-        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
+        self.assertEqual(headers.get("location"), "/login?next=%2Fgui&reason=no_session")
 
     def test_legacy_history_redirect_preserves_next_query_with_canonical_successor(self):
         status, _, headers = _http_get(
@@ -119,7 +119,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertEqual(status, 302)
         self.assertEqual(
             headers.get("location"),
-            "/auth/login?next=%2Fgui%2Fhistory%3Flimit%3D5",
+            "/login?next=%2Fgui%2Fhistory%3Flimit%3D5&reason=no_session",
         )
 
     def test_gui_history_redirect_preserves_next_query(self):
@@ -130,7 +130,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertEqual(status, 302)
         self.assertEqual(
             headers.get("location"),
-            "/auth/login?next=%2Fgui%2Fhistory%3Flimit%3D5",
+            "/login?next=%2Fgui%2Fhistory%3Flimit%3D5&reason=no_session",
         )
 
     def test_gui_redirects_to_login_when_session_cookie_is_invalid(self):
@@ -140,12 +140,37 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
             headers={"Cookie": "__Host-session=missing-session-id"},
         )
         self.assertEqual(status, 302)
-        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
+        self.assertEqual(headers.get("location"), "/login?next=%2Fgui&reason=no_session")
+
+    def test_login_entry_renders_ui_mask_with_username_password_fields(self):
+        status, body, headers = _http_get(
+            f"{self.base_url}/login?next=%2Fgui&reason=manual_login",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers.get("content-type", ""))
+        self.assertIn('id="login-username"', body)
+        self.assertIn('id="login-password"', body)
+        self.assertIn('id="login-start-link"', body)
+        self.assertIn('/login?next=%2Fgui&amp;reason=manual_login&amp;start=1', body)
+
+    def test_login_start_redirects_to_idp_without_browser_visible_auth_login_hop(self):
+        status, _, headers = _http_get(
+            f"{self.base_url}/login?next=%2Fgui&reason=manual_login&start=1",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        location = str(headers.get("location") or "")
+        self.assertIn("/oauth2/authorize", location)
+        self.assertNotIn("/auth/login", location)
+        self.assertIn("state=", location)
+        self.assertIn("code_challenge=", location)
 
     def test_auth_login_route_is_fail_closed_without_ui_proxy_marker(self):
         status, body, headers = _http_get(
             f"{self.base_url}/auth/login?next=%2Fgui",
             follow_redirects=False,
+            headers={"Accept": "application/json"},
         )
         self.assertEqual(status, 403)
         self.assertEqual(headers.get("deprecation"), "true")
@@ -272,7 +297,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
             headers={"Cookie": "__Host-session=missing-session-id"},
         )
         self.assertEqual(status, 302)
-        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui%2Fhistory%3Flimit%3D5")
+        self.assertEqual(headers.get("location"), "/login?next=%2Fgui%2Fhistory%3Flimit%3D5&reason=no_session")
 
     def test_logout_endpoint_clears_cookie_and_redirects_to_idp_with_defined_return_path(self):
         status, _, headers = _http_get(

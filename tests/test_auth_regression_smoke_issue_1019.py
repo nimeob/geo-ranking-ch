@@ -266,8 +266,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
     def _start_login_flow(self, *, next_path: str) -> tuple[str, str, str]:
         status, _, headers = _http_request(
             "GET",
-            f"{self.api_base_url}/auth/login?next={next_path}",
-            headers=_ui_proxy_headers(),
+            f"{self.api_base_url}/login?next={next_path}&reason=manual_login&start=1",
             follow_redirects=False,
         )
         self.assertEqual(status, 302)
@@ -287,11 +286,22 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
             follow_redirects=False,
         )
         self.assertEqual(status, 302)
-        self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui")
+        self.assertEqual(headers.get("location"), "/login?next=%2Fgui&reason=no_session")
         self._assert_no_api_host_leak(headers.get("location", ""), context="unauth-redirect")
 
-        # 1b) direct API login aliases are deprecated and keep stable 403 status with deprecation headers
-        for legacy_login_path in ("/login", "/signin", "/sign-in", "/oauth/login"):
+        status, login_page_body, login_page_headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/login?next=%2Fgui&reason=manual_login",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", str(login_page_headers.get("content-type") or ""))
+        self.assertIn('id="login-username"', login_page_body)
+        self.assertIn('id="login-password"', login_page_body)
+        self.assertIn('id="login-start-link"', login_page_body)
+
+        # 1b) deprecated API login aliases stay fail-closed with deprecation headers
+        for legacy_login_path in ("/signin", "/sign-in", "/oauth/login"):
             status, body, headers = _http_request(
                 "GET",
                 f"{self.api_base_url}{legacy_login_path}",
@@ -331,6 +341,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         status, body, headers = _http_request(
             "GET",
             f"{self.api_base_url}/auth/login?next=%2Fgui",
+            headers={"Accept": "application/json"},
             follow_redirects=False,
         )
         self.assertEqual(status, 403)

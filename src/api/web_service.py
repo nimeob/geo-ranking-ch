@@ -617,14 +617,13 @@ _TRACE_DEBUG_MAX_EVENTS_ENV = "TRACE_DEBUG_MAX_EVENTS"
 
 _EXTERNAL_DIRECT_LOGIN_BLOCKED_PATHS = frozenset(
     {
-        "/login",
-        "/signin",
-        "/sign-in",
         "/auth/login",
         "/auth/signin",
         "/auth/sign-in",
         "/oauth/login",
         "/oauth2/login",
+        "/signin",
+        "/sign-in",
     }
 )
 _EXTERNAL_DIRECT_LOGIN_ERROR = "external_direct_login_disabled"
@@ -788,12 +787,12 @@ def _canonicalize_history_next_path(path: str) -> str:
 
 
 def _build_login_redirect_location(*, request_path: str, raw_query: str) -> str:
-    """Build ``/auth/login`` redirect URL preserving the original target route."""
+    """Build UI-owned ``/login`` redirect URL preserving target + reason."""
     next_path = _canonicalize_history_next_path(request_path)
     query = str(raw_query or "").strip()
     if query:
         next_path = f"{next_path}?{query}"
-    return f"/auth/login?{urlencode({'next': next_path})}"
+    return f"/login?{urlencode({'next': next_path, 'reason': 'no_session'})}"
 
 
 def _callback_error_reason(error_code: str) -> str:
@@ -855,11 +854,63 @@ def _build_ui_login_reentry_location_from_auth_login_query(raw_query: str) -> st
     return f"/login?{urlencode({'next': next_path, 'reason': reason})}"
 
 
-def _resolve_bff_redirect_host() -> str:
-    redirect_uri = str(os.getenv("BFF_OIDC_REDIRECT_URI", "")).strip()
-    if not redirect_uri:
-        return ""
-    return _extract_host_without_port(urlsplit(redirect_uri).netloc).strip().lower()
+_UI_LOGIN_REASON_MESSAGES: dict[str, str] = {
+    "manual_login": "Bitte melde dich an, um die geschützten UI-Funktionen zu nutzen.",
+    "no_session": "Deine Session ist abgelaufen oder fehlt. Bitte erneut einloggen.",
+    "session_expired": "Deine Session ist abgelaufen. Bitte erneut einloggen.",
+    "refresh_error": "Die Session konnte nicht erneuert werden. Bitte erneut einloggen.",
+    "invalid_state": "Der Login-Status war ungültig oder abgelaufen. Bitte neu starten.",
+    "consent_denied": "Die Anmeldung wurde abgebrochen oder verweigert. Bitte erneut versuchen.",
+}
+
+
+def _build_ui_login_mask_html(*, app_version: str, next_path: str, reason: str) -> str:
+    normalized_next = _canonicalize_history_next_path(next_path)
+    normalized_reason = _normalize_ui_login_reason(reason)
+    reason_text = _UI_LOGIN_REASON_MESSAGES.get(normalized_reason, _UI_LOGIN_REASON_MESSAGES["manual_login"])
+    start_href = f"/login?{urlencode({'next': normalized_next, 'reason': normalized_reason, 'start': '1'})}"
+
+    return (
+        "<!doctype html>"
+        "<html lang=\"de\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<title>geo-ranking.ch — Login</title>"
+        "<style>"
+        ":root{color-scheme:light;--bg:#f6f8fb;--surface:#ffffff;--ink:#1b2637;--muted:#5a6474;--border:#d5dbea;--primary:#1957d2;}"
+        "*{box-sizing:border-box;}"
+        "body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);}"
+        "main{min-height:100vh;display:grid;place-items:center;padding:1.25rem;}"
+        ".card{width:min(34rem,100%);background:var(--surface);border:1px solid var(--border);border-radius:.9rem;padding:1.2rem;display:grid;gap:.9rem;}"
+        "h1{margin:0;font-size:1.15rem;}"
+        "p{margin:0;line-height:1.45;}"
+        ".meta{color:var(--muted);font-size:.9rem;}"
+        ".credentials{display:grid;gap:.45rem;margin-top:.3rem;}"
+        ".credentials label{font-weight:600;font-size:.9rem;}"
+        ".credentials input{width:100%;padding:.55rem .62rem;border:1px solid var(--border);border-radius:.55rem;font-size:.95rem;background:#fff;color:var(--ink);}"
+        ".actions{display:flex;gap:.6rem;flex-wrap:wrap;}"
+        "a.button{text-decoration:none;border-radius:.6rem;padding:.6rem .9rem;border:1px solid var(--primary);}"
+        "a.button-primary{background:var(--primary);color:#fff;}"
+        "a.button-secondary{background:#fff;color:var(--ink);border-color:var(--border);}"
+        "code{background:#f1f4fb;border:1px solid var(--border);padding:.1rem .35rem;border-radius:.4rem;}"
+        "</style></head><body><main>"
+        "<section class=\"card\" aria-labelledby=\"login-title\">"
+        "<h1 id=\"login-title\">Login</h1>"
+        f"<p id=\"login-reason-text\">{escape(reason_text)}</p>"
+        "<div class=\"credentials\" aria-label=\"login-credentials-preview\">"
+        "<label for=\"login-username\">Benutzername</label>"
+        "<input id=\"login-username\" type=\"text\" autocomplete=\"username\" placeholder=\"name@example.com\" />"
+        "<label for=\"login-password\">Passwort</label>"
+        "<input id=\"login-password\" type=\"password\" autocomplete=\"current-password\" placeholder=\"••••••••\" />"
+        "</div>"
+        "<p class=\"meta\">Die Authentifizierung erfolgt beim Login-Anbieter nach Klick auf „Anmeldung starten“.</p>"
+        f"<p class=\"meta\">Nach erfolgreicher Anmeldung geht es zurück zu <code id=\"login-next\">{escape(normalized_next)}</code>.</p>"
+        "<div class=\"actions\">"
+        f"<a class=\"button button-primary\" id=\"login-start-link\" href=\"{escape(start_href, quote=True)}\">Anmeldung starten</a>"
+        f"<a class=\"button button-secondary\" id=\"login-cancel-link\" href=\"{escape(normalized_next, quote=True)}\">Zurück</a>"
+        "</div>"
+        f"<p class=\"meta\">Version {escape(app_version)}</p>"
+        "</section></main></body></html>"
+    )
 
 
 def _render_oidc_callback_error_html(
@@ -3786,23 +3837,12 @@ class Handler(BaseHTTPRequestHandler):
         if request_path != "/auth/login":
             return False
 
-        forwarded_host_header = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
-        if not forwarded_host_header:
-            return False
-
-        request_host = _extract_host_without_port(forwarded_host_header).strip().lower()
-        if not request_host:
-            return False
-
-        expected_ui_host = _resolve_bff_redirect_host()
-        if not expected_ui_host or request_host != expected_ui_host:
-            return False
-
         accept_header = str(self.headers.get("Accept", "") or "").lower()
-        if accept_header and "text/html" not in accept_header and "*/*" not in accept_header:
+        if not accept_header:
             return False
-
-        return True
+        if "application/json" in accept_header and "text/html" not in accept_header:
+            return False
+        return "text/html" in accept_header or "*/*" in accept_header
 
     def _redirect_unproxied_auth_login_to_ui_entry(self, *, request_id: str) -> None:
         query = urlsplit(self.path).query
@@ -3919,6 +3959,57 @@ class Handler(BaseHTTPRequestHandler):
             "mismatch": mismatch,
         }
 
+    def _send_bff_login_redirect(
+        self,
+        *,
+        request_id: str,
+        request_path: str,
+        oidc_cfg: Any,
+        store: Any,
+        next_path: str,
+    ) -> None:
+        try:
+            canonical_next_path = _canonicalize_history_next_path(next_path)
+            login_result = build_login_redirect(oidc_cfg, store, next_path=canonical_next_path)
+        except Exception as exc:  # noqa: BLE001
+            _emit_structured_log(
+                event="api.bff.oidc.login_error",
+                level="error",
+                trace_id=request_id,
+                request_id=request_id,
+                component="api.web_service",
+                route=request_path,
+                error=str(exc),
+            )
+            self._send_json(
+                {"ok": False, "error": "bff_login_error", "request_id": request_id},
+                status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                request_id=request_id,
+                extra_headers={"Cache-Control": "no-store"},
+            )
+            return
+
+        _emit_structured_log(
+            event="api.bff.oidc.login_redirect",
+            level="info",
+            trace_id=request_id,
+            request_id=request_id,
+            session_id=login_result.session.session_id,
+            component="api.web_service",
+            direction="client->api",
+            status="redirect",
+            route=request_path,
+        )
+        self._capture_response_error(payload=None, status=302)
+        self.send_response(302)
+        self.send_header("Location", login_result.redirect_url)
+        self.send_header("Set-Cookie", login_result.set_cookie_header)
+        self.send_header("Cache-Control", "no-store")
+        self._set_request_id_headers(request_id)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        self._finish_request_lifecycle()
+
     def _handle_bff_oidc_get(self, *, request_path: str, request_id: str) -> None:
         """Route ``GET /auth/login`` and ``GET /auth/callback`` to the BFF OIDC handler."""
         try:
@@ -3963,49 +4054,15 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if request_path == "/auth/login":
-            try:
-                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
-                next_path = (query_params.get("next") or ["/"])[0]
-                canonical_next_path = _canonicalize_history_next_path(next_path)
-                login_result = build_login_redirect(oidc_cfg, store, next_path=canonical_next_path)
-            except Exception as exc:  # noqa: BLE001
-                _emit_structured_log(
-                    event="api.bff.oidc.login_error",
-                    level="error",
-                    trace_id=request_id,
-                    request_id=request_id,
-                    component="api.web_service",
-                    route=request_path,
-                    error=str(exc),
-                )
-                self._send_json(
-                    {"ok": False, "error": "bff_login_error", "request_id": request_id},
-                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
-                    request_id=request_id,
-                    extra_headers={"Cache-Control": "no-store"},
-                )
-                return
-
-            _emit_structured_log(
-                event="api.bff.oidc.login_redirect",
-                level="info",
-                trace_id=request_id,
+            query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+            next_path = (query_params.get("next") or ["/"])[0]
+            self._send_bff_login_redirect(
                 request_id=request_id,
-                session_id=login_result.session.session_id,
-                component="api.web_service",
-                direction="client->api",
-                status="redirect",
-                route=request_path,
+                request_path=request_path,
+                oidc_cfg=oidc_cfg,
+                store=store,
+                next_path=next_path,
             )
-            self._capture_response_error(payload=None, status=302)
-            self.send_response(302)
-            self.send_header("Location", login_result.redirect_url)
-            self.send_header("Set-Cookie", login_result.set_cookie_header)
-            self.send_header("Cache-Control", "no-store")
-            self._set_request_id_headers(request_id)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-            self._finish_request_lifecycle()
             return
 
         if request_path == "/auth/callback":
@@ -4174,6 +4231,63 @@ class Handler(BaseHTTPRequestHandler):
                     )
                 return
 
+            if request_path == "/login":
+                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                next_path = (query_params.get("next") or ["/gui"])[0]
+                reason = _normalize_ui_login_reason((query_params.get("reason") or ["manual_login"])[0])
+                start_login = str((query_params.get("start") or [""])[0]).strip().lower() in {"1", "true", "yes"}
+
+                if start_login:
+                    try:
+                        oidc_cfg = build_oidc_config_from_env()
+                    except ValueError as exc:
+                        self._send_json(
+                            {
+                                "ok": False,
+                                "error": "bff_oidc_config_error",
+                                "message": str(exc),
+                                "request_id": request_id,
+                            },
+                            status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                            request_id=request_id,
+                            extra_headers={"Cache-Control": "no-store"},
+                        )
+                        return
+
+                    if oidc_cfg is None:
+                        self._send_json(
+                            {
+                                "ok": False,
+                                "error": "bff_oidc_disabled",
+                                "message": "BFF OIDC login is not configured",
+                                "request_id": request_id,
+                            },
+                            status=HTTPStatus.SERVICE_UNAVAILABLE,
+                            request_id=request_id,
+                            extra_headers={"Cache-Control": "no-store"},
+                        )
+                        return
+
+                    self._send_bff_login_redirect(
+                        request_id=request_id,
+                        request_path=request_path,
+                        oidc_cfg=oidc_cfg,
+                        store=get_session_store(),
+                        next_path=next_path,
+                    )
+                    return
+
+                self._send_html(
+                    _build_ui_login_mask_html(
+                        app_version=os.getenv("APP_VERSION", "dev"),
+                        next_path=next_path,
+                        reason=reason,
+                    ),
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
+
             if _is_external_direct_login_path(request_path):
                 self._send_external_direct_login_disabled(
                     request_id=request_id,
@@ -4187,7 +4301,12 @@ class Handler(BaseHTTPRequestHandler):
 
             if request_path in ("/", "/gui"):
                 self._send_html(
-                    render_gui_mvp_html(app_version=os.getenv("APP_VERSION", "dev")),
+                    render_gui_mvp_html(
+                        app_version=os.getenv("APP_VERSION", "dev"),
+                        auth_login_endpoint="/login",
+                        auth_logout_endpoint="/auth/logout",
+                        auth_me_endpoint="/auth/me",
+                    ),
                     request_id=request_id,
                     extra_headers={"Cache-Control": "no-store"},
                 )

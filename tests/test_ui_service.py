@@ -299,6 +299,8 @@ class TestUiService(unittest.TestCase):
         self.assertIn('/login?next=%2Fgui&amp;reason=manual_login&amp;start=1', body)
         self.assertIn('id="login-next">/gui</code>', body)
         self.assertIn('id="login-reason-text"', body)
+        self.assertIn('id="login-username"', body)
+        self.assertIn('id="login-password"', body)
         self.assertNotIn('"error": "external_direct_login_disabled"', body)
 
     def test_login_start_flow_is_proxied_without_browser_redirect_to_auth_login(self):
