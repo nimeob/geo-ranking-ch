@@ -155,6 +155,27 @@ class TestUserDocumentation(unittest.TestCase):
             msg="Packaging-Konfigurationsmatrix muss auf den User-Config-Guide verlinken",
         )
 
+    def test_duplicate_backlog_sync_convention_is_documented_with_fixed_reference_case(self):
+        operations = (REPO_ROOT / "docs" / "OPERATIONS.md").read_text(encoding="utf-8")
+        self.assertIn("### Duplicate-Close Marker (Backlog-Sync)", operations)
+        self.assertIn("Duplikat", operations)
+        self.assertIn("#908", operations)
+        self.assertIn("#911", operations)
+
+        contributing = (REPO_ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "docs/OPERATIONS.md#duplicate-close-marker-backlog-sync",
+            contributing,
+            msg="CONTRIBUTING muss auf die Duplicate-Close-Konvention in OPERATIONS verlinken",
+        )
+
+        backlog = (REPO_ROOT / "docs" / "BACKLOG.md").read_text(encoding="utf-8")
+        self.assertRegex(
+            backlog,
+            r"\[#908\].*Duplikat von #911",
+            msg="Fixer Referenzfall fehlt: #908 muss als Duplikat von #911 markiert bleiben",
+        )
+
     def test_root_readme_contains_thematic_webservice_feature_list(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 

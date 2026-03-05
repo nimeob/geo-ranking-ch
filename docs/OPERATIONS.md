@@ -535,6 +535,22 @@ Fail-fast-Gate im Worker-Flow:
 - `scripts/run_event_relay_consumer.py` validiert aktive Worker-Claims gegen das Template.
 - Fehlt `scope`, `claimed at` oder `next-step`, bricht der Dispatch mit `invalid_worker_claim_template` ab (`dispatch_failed`).
 
+### Duplicate-Close Marker (Backlog-Sync)
+
+Wenn ein Issue als Duplikat geschlossen wird, muss der Eintrag in `docs/BACKLOG.md` einen expliziten Duplicate-Hinweis enthalten.
+
+Konvention (verbindlich):
+- Formulierung enthält `Duplikat` oder `duplicate`
+- Referenz auf Ziel-Issue(s) als `#<id>` (z. B. `Duplikat von #911` oder `duplicate zu #913/#922`)
+- Nachweis (PR/Commit/Test) bleibt beim Ziel-Issue erhalten und wird im Duplikat-Eintrag kurz referenziert
+
+Cleanup-Workflow (Beispiel):
+1. Duplicate-Issue auf GitHub schließen (mit Verweis auf Ziel-Issue)
+2. `docs/BACKLOG.md`-Eintrag um Duplicate-Marker + Ziel-Issue ergänzen
+3. Doku-Guard laufen lassen: `pytest -q tests/test_user_docs.py tests/test_markdown_links.py`
+
+Fixer Referenzfall im Repo: `#908` ist als „Duplikat von #911“ im Backlog dokumentiert (Guard-Fall).
+
 ## Consistency-Crawler (read-only) — Runbook
 
 Zweck: Drift zwischen Vision, Backlog/Issues, Code und Doku früh erkennen, ohne automatische Mutationen als Default.
