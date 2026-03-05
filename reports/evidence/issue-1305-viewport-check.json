@@ -1,0 +1,32 @@
+[
+  {
+    "viewport": {
+      "name": "mobile390",
+      "width": 390,
+      "height": 844
+    },
+    "screenshot": "reports/evidence/issue-1305-mobile390.png",
+    "overlap": {
+      "legendItems": 5,
+      "overlapPairs": 0,
+      "hasMarker": true,
+      "clickHint": "Letzter Klick: lat 46.762490, lon 8.265952"
+    },
+    "url": "http://127.0.0.1:8787/gui"
+  },
+  {
+    "viewport": {
+      "name": "tablet768",
+      "width": 768,
+      "height": 1024
+    },
+    "screenshot": "reports/evidence/issue-1305-tablet768.png",
+    "overlap": {
+      "legendItems": 5,
+      "overlapPairs": 0,
+      "hasMarker": true,
+      "clickHint": "Letzter Klick: lat 46.757257, lon 8.304404"
+    },
+    "url": "http://127.0.0.1:8787/gui"
+  }
+]
