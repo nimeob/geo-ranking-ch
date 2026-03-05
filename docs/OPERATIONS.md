@@ -516,6 +516,25 @@ Lane-Regeln:
 - **Next:** `status:todo` (außer `priority:P3`)
 - **Later:** `status:blocked` oder `priority:P3`
 
+### Claim-Kommentar-Template (Worker A/B, fail-fast)
+
+Bei jedem Claim mit `worker-a-active` oder `worker-b-active` muss der Claim-Kommentar dieses Template enthalten:
+
+```text
+Worker <A|B> claimed at <timestamp>, scope: <kurzer Scope>, next-step: <konkreter nächster Schritt>.
+```
+
+Copy/Paste-Beispiele:
+
+```text
+Worker A claimed at 2026-03-05 03:05:00 CET, scope: Smoke-Guard für Claim-Template, next-step: Tests erweitern und Doku syncen.
+Worker B claimed at 2026-03-05 03:05:00 CET, scope: Request-ID-Errorpath Gate, next-step: Runner-Check implementieren und Evidence ergänzen.
+```
+
+Fail-fast-Gate im Worker-Flow:
+- `scripts/run_event_relay_consumer.py` validiert aktive Worker-Claims gegen das Template.
+- Fehlt `scope`, `claimed at` oder `next-step`, bricht der Dispatch mit `invalid_worker_claim_template` ab (`dispatch_failed`).
+
 ## Consistency-Crawler (read-only) — Runbook
 
 Zweck: Drift zwischen Vision, Backlog/Issues, Code und Doku früh erkennen, ohne automatische Mutationen als Default.
