@@ -56,10 +56,19 @@ MATCH_STOPWORDS = {
 }
 CODE_DOCS_PRIMARY_PATHS = [
     Path("README.md"),
+    Path("docs/ARCHITECTURE.md"),
     Path("docs/OPERATIONS.md"),
 ]
 CODE_DOCS_API_DOCS_DIR = Path("docs/api")
 CODE_ROUTE_RE = re.compile(r"@app\.(?:route|get|post|put|delete|patch)\(\s*['\"]([^'\"]+)['\"]")
+# Additional patterns for custom stdlib HTTP handler dispatch (BaseHTTPRequestHandler style)
+CODE_ROUTE_EXACT_RE = re.compile(r"request_path\s*==\s*['\"]([/][^'\"]{1,120})['\"]")
+CODE_ROUTE_STARTSWITH_RE = re.compile(r"request_path\.startswith\(['\"]([/][^'\"]{1,120})['\"]")
+# Extract route literals from lines with `request_path in (...)` / `request_path not in {...}`
+CODE_ROUTE_IN_LINE_RE = re.compile(r"request_path\s+(?:not\s+)?in\s+[\({]")
+CODE_ROUTE_LITERAL_RE = re.compile(r"['\"]([/][a-zA-Z0-9_/<>{}*. :-]{1,120})['\"]")
+# Matches lines that are solely a quoted route entry (in frozenset/set/list definitions)
+CODE_ROUTE_SOLO_LINE_RE = re.compile(r"""^\s+['\"]([/][^'\"]{1,120})['\"],?\s*$""")
 DOC_ROUTE_RE = re.compile(r"`(/[^`\s]+)`")
 ENV_FLAG_RE = re.compile(r"getenv\(\s*['\"]([A-Z][A-Z0-9_]{2,})['\"]")
 CODE_DOCS_MAX_FINDINGS = 12
@@ -560,21 +569,37 @@ def extract_code_route_indicators(repo_root: Path = REPO_ROOT) -> list[dict[str,
     if not src_root.exists():
         return indicators
 
+    def _add(route: str, rel_path: str, line_no: int) -> None:
+        r = normalize_route(route)
+        if r.startswith("/"):
+            indicators.append({"route": r, "path": rel_path, "line": line_no})
+
     for file_path in src_root.rglob("*.py"):
         rel_path = file_path.relative_to(repo_root).as_posix()
         text = file_path.read_text(encoding="utf-8", errors="ignore")
         for line_no, line in enumerate(text.splitlines(), start=1):
+            # Pattern 1: Flask-style @app.route decorators
             for match in CODE_ROUTE_RE.finditer(line):
-                route = normalize_route(match.group(1))
-                if not route.startswith("/"):
-                    continue
-                indicators.append(
-                    {
-                        "route": route,
-                        "path": rel_path,
-                        "line": line_no,
-                    }
-                )
+                _add(match.group(1), rel_path, line_no)
+
+            # Pattern 2: Custom handler — exact match: if request_path == "/..."
+            for match in CODE_ROUTE_EXACT_RE.finditer(line):
+                _add(match.group(1), rel_path, line_no)
+
+            # Pattern 3: Custom handler — prefix match: request_path.startswith("/...")
+            for match in CODE_ROUTE_STARTSWITH_RE.finditer(line):
+                _add(match.group(1), rel_path, line_no)
+
+            # Pattern 4: Custom handler — in/not-in set: request_path in ("/a", "/b")
+            if CODE_ROUTE_IN_LINE_RE.search(line):
+                for match in CODE_ROUTE_LITERAL_RE.finditer(line):
+                    _add(match.group(1), rel_path, line_no)
+
+            # Pattern 5: Route collection entries (frozenset/set/list lines with sole route literal)
+            # Matches indented lines like:  "/signin",  or  "/oauth/login"
+            m5 = CODE_ROUTE_SOLO_LINE_RE.match(line)
+            if m5:
+                _add(m5.group(1), rel_path, line_no)
 
     return indicators
 
@@ -701,12 +726,41 @@ def audit_code_docs_drift(max_findings: int = CODE_DOCS_MAX_FINDINGS) -> list[di
         )
 
     known_code_routes = set(route_first_seen.keys())
+
+    def _is_doc_route_covered(doc_route: str) -> bool:
+        """Return True if a documented route is covered by any known code route.
+
+        Handles three cases beyond exact match:
+        1. Parameterized doc routes: /analyze/jobs/<id> covered by /analyze/jobs (startsWith prefix)
+        2. Template-brace routes: /analyze/jobs/{id} same as above
+        3. Wildcard glob routes: /auth/* covered when any code route starts with /auth/
+        """
+        if doc_route in known_code_routes:
+            return True
+
+        # Strip parameter placeholders (<param>, {param}) and trailing wildcards/* to get bare prefix
+        bare = re.sub(r"[<{][^>}]*[>}]", "", doc_route)
+        bare = bare.rstrip("/* ")
+        bare = bare.rstrip("/")
+        if bare and bare in known_code_routes:
+            return True
+
+        # Check if doc route starts with a known code route (covers startsWith-extracted prefixes)
+        for code_route in known_code_routes:
+            if doc_route.startswith(code_route + "/"):
+                return True
+            # Wildcard glob: /auth/* is covered when /auth/login etc. are known code routes
+            if doc_route.endswith("*") and code_route.startswith(doc_route[:-1]):
+                return True
+
+        return False
+
     stale_route_refs: dict[str, dict[str, Any]] = {}
     for doc_ref in documented_route_refs:
         route = doc_ref.get("route")
         if not route:
             continue
-        if route in known_code_routes:
+        if _is_doc_route_covered(route):
             continue
         if route not in stale_route_refs:
             stale_route_refs[route] = doc_ref

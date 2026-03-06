@@ -575,3 +575,100 @@ class TestGithubRepoCrawlerTodoFiltering(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestExtractCodeRouteIndicatorsCustomHandler(unittest.TestCase):
+    """Regression tests for custom HTTP handler route extraction (issue #1318)."""
+
+    def _routes_from_src(self, src_text: str) -> set[str]:
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "src").mkdir(parents=True, exist_ok=True)
+            (root / "src" / "handler.py").write_text(src_text, encoding="utf-8")
+            with patch.object(crawler, "REPO_ROOT", root):
+                indicators = crawler.extract_code_route_indicators(root)
+        return {i["route"] for i in indicators}
+
+    def test_exact_match_pattern(self):
+        routes = self._routes_from_src(
+            'if request_path == "/analyze/history":\n    pass\n'
+        )
+        self.assertIn("/analyze/history", routes)
+
+    def test_startswith_pattern(self):
+        routes = self._routes_from_src(
+            'if request_path.startswith("/analyze/jobs/"):\n    pass\n'
+        )
+        # startswith arg has trailing slash stripped by normalize_route
+        self.assertIn("/analyze/jobs", routes)
+
+    def test_in_set_pattern(self):
+        routes = self._routes_from_src(
+            'if request_path in ("/auth/login", "/auth/callback", "/auth/logout"):\n    pass\n'
+        )
+        self.assertIn("/auth/login", routes)
+        self.assertIn("/auth/callback", routes)
+        self.assertIn("/auth/logout", routes)
+
+    def test_frozenset_multiline_pattern(self):
+        src = (
+            "_BLOCKED = frozenset(\n"
+            "    {\n"
+            '        "/signin",\n'
+            '        "/oauth/login",\n'
+            "    }\n"
+            ")\n"
+        )
+        routes = self._routes_from_src(src)
+        self.assertIn("/signin", routes)
+        self.assertIn("/oauth/login", routes)
+
+    def test_stale_check_prefix_coverage_for_parameterized_doc_routes(self):
+        """Parameterized doc routes like /analyze/jobs/<id> should not be stale
+        when /analyze/jobs is a known code route (from startsWith extraction)."""
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "src").mkdir(parents=True, exist_ok=True)
+            (root / "docs" / "api").mkdir(parents=True, exist_ok=True)
+
+            (root / "src" / "handler.py").write_text(
+                'if request_path.startswith("/analyze/jobs/"):\n    pass\n',
+                encoding="utf-8",
+            )
+            # Doc references parameterized route
+            (root / "README.md").write_text(
+                "| `GET` | `/analyze/jobs/<job_id>` |\n",
+                encoding="utf-8",
+            )
+            (root / "docs" / "ARCHITECTURE.md").write_text("", encoding="utf-8")
+            (root / "docs" / "OPERATIONS.md").write_text("", encoding="utf-8")
+
+            with patch.object(crawler, "REPO_ROOT", root):
+                findings = crawler.audit_code_docs_drift(max_findings=20)
+
+        stale = [f for f in findings if f["type"] == "code_docs_drift_stale_reference"]
+        self.assertEqual(stale, [], msg=f"Expected no stale findings, got: {stale}")
+
+    def test_stale_check_wildcard_doc_route_covered_by_specific_code_routes(self):
+        """/auth/* in docs should not be stale when /auth/login etc. are known code routes."""
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "src").mkdir(parents=True, exist_ok=True)
+            (root / "docs" / "api").mkdir(parents=True, exist_ok=True)
+
+            (root / "src" / "handler.py").write_text(
+                'if request_path in ("/auth/login", "/auth/logout"):\n    pass\n',
+                encoding="utf-8",
+            )
+            (root / "README.md").write_text(
+                "Endpoint `/auth/*` is blocked.\n",
+                encoding="utf-8",
+            )
+            (root / "docs" / "ARCHITECTURE.md").write_text("auth/login auth/logout", encoding="utf-8")
+            (root / "docs" / "OPERATIONS.md").write_text("", encoding="utf-8")
+
+            with patch.object(crawler, "REPO_ROOT", root):
+                findings = crawler.audit_code_docs_drift(max_findings=20)
+
+        stale = [f for f in findings if f["type"] == "code_docs_drift_stale_reference"]
+        self.assertEqual(stale, [], msg=f"Expected no stale findings for /auth/*, got: {stale}")
