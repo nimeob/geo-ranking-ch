@@ -2,3 +2,4 @@
 pytest>=7.0
 pre-commit>=3.5
 psycopg2-binary>=2.9   # DB migration runner (db-migrate.py, #813)
+pyyaml>=6.0            # compliance evidence tests (test_compliance_golive_testlauf_evidence.py, #1322)
