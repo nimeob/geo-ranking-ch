@@ -1,12 +1,12 @@
 # Consistency Report
 
-- Generated at (UTC): `2026-03-06T20:52:14+00:00`
+- Generated at (UTC): `2026-03-06T21:07:19+00:00`
 - Schema version: `1.0`
-- Total findings: **0**
+- Total findings: **1**
 
 ## Priorisierte Zusammenfassung
-- Findings nach Severity: none
-- Findings nach Typ: none
+- Findings nach Severity: medium=1
+- Findings nach Typ: issue_closure_consistency=1
 
 ## Vision ↔ Issue Coverage (MVP)
 
@@ -23,4 +23,6 @@
 
 ## Findings
 
-Keine Findings in diesem Lauf.
+| Severity | Type | Summary | Evidence | Source |
+|---|---|---|---|---|
+| medium | issue_closure_consistency | Geschlossenes Issue #1323 hat inkonsistente Abschlusssignale | `#1323`, `reason_count=1` | github_issue_audit:closed_issue_review |

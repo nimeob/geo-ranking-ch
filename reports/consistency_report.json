@@ -98,12 +98,41 @@
     "unclear": 0,
     "vision_source": "docs/VISION_PRODUCT.md"
   },
-  "findings": [],
-  "generated_at": "2026-03-06T20:52:14+00:00",
+  "findings": [
+    {
+      "evidence": [
+        {
+          "kind": "issue",
+          "number": 1323,
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/1323"
+        },
+        {
+          "kind": "metric",
+          "name": "reason_count",
+          "value": 1
+        }
+      ],
+      "severity": "medium",
+      "source": {
+        "component": "closed_issue_review",
+        "kind": "github_issue_audit",
+        "reasons": [
+          "Issue-Body enthält offene Checklist-Items"
+        ]
+      },
+      "summary": "Geschlossenes Issue #1323 hat inkonsistente Abschlusssignale",
+      "type": "issue_closure_consistency"
+    }
+  ],
+  "generated_at": "2026-03-06T21:07:19+00:00",
   "schema_version": "1.0",
   "summary": {
-    "by_severity": {},
-    "by_type": {},
-    "total_findings": 0
+    "by_severity": {
+      "medium": 1
+    },
+    "by_type": {
+      "issue_closure_consistency": 1
+    },
+    "total_findings": 1
   }
 }
