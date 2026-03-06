@@ -85,6 +85,85 @@ def run_json(args):
     return json.loads(out)
 
 
+_FETCH_CLOSED_ISSUES_GQL = """
+query($cursor: String) {
+  repository(owner: "nimeob", name: "geo-ranking-ch") {
+    issues(states: CLOSED, last: 100, before: $cursor) {
+      pageInfo { hasPreviousPage startCursor }
+      nodes {
+        number
+        title
+        state
+        url
+        labels(first: 15) { nodes { name } }
+        body
+        comments(last: 10) { nodes { body } }
+        timelineItems(itemTypes: [CLOSED_EVENT], last: 5) {
+          nodes {
+            ... on ClosedEvent {
+              closer {
+                ... on PullRequest { number url }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+# Map GraphQL issue shape → shape expected by audit_closed_issues
+def _gql_issue_to_detail(node: dict[str, Any]) -> dict[str, Any]:
+    prs = [
+        item["closer"]
+        for item in node.get("timelineItems", {}).get("nodes", [])
+        if item.get("closer")
+    ]
+    return {
+        "number": node["number"],
+        "title": node["title"],
+        "state": node["state"],
+        "url": node["url"],
+        "labels": node.get("labels", {}).get("nodes", []),
+        "body": node.get("body") or "",
+        "comments": node.get("comments", {}).get("nodes", []),
+        "closedByPullRequestsReferences": prs,
+    }
+
+
+def fetch_closed_issues_batch(limit: int = 200) -> list[dict[str, Any]]:
+    """Fetch up to *limit* most-recently-closed issues in batches via GraphQL.
+
+    Replaces the previous pattern of N individual ``gh issue view`` calls
+    (O(n) network calls) with 1–2 paginated GraphQL requests (~4 s for 200).
+    """
+    results: list[dict[str, Any]] = []
+    cursor: str | None = None
+    pages = (limit + 99) // 100  # ceil(limit / 100)
+
+    for _ in range(pages):
+        args = ["api", "graphql", "-f", f"query={_FETCH_CLOSED_ISSUES_GQL}"]
+        if cursor:
+            args += ["-f", f"cursor={cursor}"]
+        raw = run(args)
+        data = json.loads(raw)
+        repo_issues = data["data"]["repository"]["issues"]
+        nodes = repo_issues["nodes"]
+        page_info = repo_issues["pageInfo"]
+
+        results.extend(_gql_issue_to_detail(n) for n in nodes)
+
+        if not page_info["hasPreviousPage"]:
+            break
+        cursor = page_info["startCursor"]
+
+        if len(results) >= limit:
+            break
+
+    return results[:limit]
+
+
 def now_iso():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -831,19 +910,12 @@ def is_actionable_todo_line(line: str) -> bool:
 
 
 def audit_closed_issues(dry_run: bool) -> list[dict[str, Any]]:
-    closed = run_json([
-        "issue", "list", "--state", "closed", "--limit", "200",
-        "--json", "number,title,labels,closedAt,url"
-    ])
+    closed = fetch_closed_issues_batch(limit=200)
 
     findings: list[dict[str, Any]] = []
 
-    for issue in closed:
-        n = issue["number"]
-        detail = run_json([
-            "issue", "view", str(n),
-            "--json", "number,title,body,labels,comments,closedByPullRequestsReferences,state,url"
-        ])
+    for detail in closed:
+        n = detail["number"]
 
         labels = {l["name"] for l in detail.get("labels", [])}
         body = detail.get("body") or ""

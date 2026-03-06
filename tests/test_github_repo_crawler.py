@@ -768,3 +768,149 @@ class TestExtractCodeRouteIndicatorsCustomHandler(unittest.TestCase):
 
         stale = [f for f in findings if f["type"] == "code_docs_drift_stale_reference"]
         self.assertEqual(stale, [], msg=f"Expected no stale findings for /auth/*, got: {stale}")
+
+
+class TestFetchClosedIssuesBatch(unittest.TestCase):
+    """Tests for fetch_closed_issues_batch + _gql_issue_to_detail."""
+
+    def _make_gql_node(
+        self,
+        number: int = 42,
+        title: str = "Test issue",
+        state: str = "CLOSED",
+        url: str = "https://github.com/nimeob/geo-ranking-ch/issues/42",
+        labels: list[str] | None = None,
+        body: str = "No open items",
+        comments: list[str] | None = None,
+        prs: list[dict] | None = None,
+    ) -> dict:
+        return {
+            "number": number,
+            "title": title,
+            "state": state,
+            "url": url,
+            "labels": {"nodes": [{"name": lbl} for lbl in (labels or [])]},
+            "body": body,
+            "comments": {"nodes": [{"body": c} for c in (comments or [])]},
+            "timelineItems": {
+                "nodes": [
+                    {"closer": pr}
+                    for pr in (prs or [])
+                ]
+            },
+        }
+
+    def _make_gql_response(self, nodes, has_previous=False, start_cursor="abc123"):
+        return json.dumps({
+            "data": {
+                "repository": {
+                    "issues": {
+                        "pageInfo": {
+                            "hasPreviousPage": has_previous,
+                            "startCursor": start_cursor,
+                        },
+                        "nodes": nodes,
+                    }
+                }
+            }
+        })
+
+    def test_gql_issue_to_detail_maps_fields(self):
+        node = self._make_gql_node(
+            number=99,
+            labels=["backlog", "status:todo"],
+            comments=["Closing comment with merged evidence"],
+            prs=[{"number": 200, "url": "https://github.com/nimeob/geo-ranking-ch/pull/200"}],
+        )
+        detail = crawler._gql_issue_to_detail(node)
+
+        self.assertEqual(detail["number"], 99)
+        self.assertEqual({l["name"] for l in detail["labels"]}, {"backlog", "status:todo"})
+        self.assertEqual(len(detail["comments"]), 1)
+        self.assertEqual(detail["comments"][0]["body"], "Closing comment with merged evidence")
+        self.assertEqual(len(detail["closedByPullRequestsReferences"]), 1)
+        self.assertEqual(detail["closedByPullRequestsReferences"][0]["number"], 200)
+
+    def test_gql_issue_to_detail_empty_timeline(self):
+        node = self._make_gql_node(prs=[])
+        detail = crawler._gql_issue_to_detail(node)
+        self.assertEqual(detail["closedByPullRequestsReferences"], [])
+
+    def test_fetch_closed_issues_batch_single_page(self):
+        nodes = [self._make_gql_node(number=i) for i in range(1, 6)]
+        response = self._make_gql_response(nodes, has_previous=False)
+
+        with patch.object(crawler, "run", return_value=response) as mock_run:
+            issues = crawler.fetch_closed_issues_batch(limit=100)
+
+        self.assertEqual(len(issues), 5)
+        self.assertEqual(issues[0]["number"], 1)
+        mock_run.assert_called_once()
+        # Must use graphql API endpoint
+        call_args = mock_run.call_args[0][0]
+        self.assertIn("api", call_args)
+        self.assertIn("graphql", call_args)
+
+    def test_fetch_closed_issues_batch_two_pages(self):
+        page1_nodes = [self._make_gql_node(number=i) for i in range(101, 201)]
+        page2_nodes = [self._make_gql_node(number=i) for i in range(1, 101)]
+
+        page1_response = self._make_gql_response(page1_nodes, has_previous=True, start_cursor="cursor_page2")
+        page2_response = self._make_gql_response(page2_nodes, has_previous=False)
+
+        call_count = [0]
+        def fake_run(args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return page1_response
+            return page2_response
+
+        with patch.object(crawler, "run", side_effect=fake_run):
+            issues = crawler.fetch_closed_issues_batch(limit=200)
+
+        self.assertEqual(len(issues), 200)
+        self.assertEqual(call_count[0], 2)
+
+    def test_fetch_closed_issues_batch_respects_limit(self):
+        nodes = [self._make_gql_node(number=i) for i in range(1, 101)]
+        response = self._make_gql_response(nodes, has_previous=True, start_cursor="cursor2")
+
+        with patch.object(crawler, "run", return_value=response):
+            issues = crawler.fetch_closed_issues_batch(limit=30)
+
+        self.assertLessEqual(len(issues), 30)
+
+    def test_audit_closed_issues_uses_batch_not_issue_view(self):
+        """audit_closed_issues must not call 'issue view'; it should use fetch_closed_issues_batch."""
+        node = self._make_gql_node(
+            number=7,
+            body="Done. Fixes #7",
+            comments=["merged PR #100"],
+            prs=[{"number": 100, "url": "https://github.com/nimeob/geo-ranking-ch/pull/100"}],
+        )
+        response = self._make_gql_response([node], has_previous=False)
+
+        with patch.object(crawler, "run", return_value=response) as mock_run:
+            findings = crawler.audit_closed_issues(dry_run=True)
+
+        self.assertEqual(findings, [])
+        # Must not call "issue view" at all
+        for call in mock_run.call_args_list:
+            args = call[0][0]
+            self.assertNotIn("view", args[:3], msg=f"Unexpected 'issue view' call: {args}")
+
+    def test_audit_closed_issues_detects_open_checklist(self):
+        node = self._make_gql_node(
+            number=8,
+            body="## DoD\n- [ ] Open item\n- [x] Done item",
+            comments=[],
+            prs=[{"number": 50, "url": "https://github.com/nimeob/geo-ranking-ch/pull/50"}],
+        )
+        response = self._make_gql_response([node], has_previous=False)
+
+        with patch.object(crawler, "run", return_value=response):
+            with patch.object(crawler, "reopen_issue") as mock_reopen:
+                findings = crawler.audit_closed_issues(dry_run=True)
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["type"], "issue_closure_consistency")

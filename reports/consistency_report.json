@@ -1,6 +1,6 @@
 {
   "coverage": {
-    "covered": 2,
+    "covered": 5,
     "missing": 0,
     "requirements": [
       {
@@ -10,12 +10,15 @@
           "state": "CLOSED",
           "url": "https://github.com/nimeob/geo-ranking-ch/issues/646"
         },
+        "explicit_issue_refs": [
+          26,
+          27,
+          25
+        ],
         "id": "M1",
         "line": 40,
-        "matched_keywords": [
-          "adress"
-        ],
-        "status": "unclear",
+        "matched_keywords": [],
+        "status": "covered",
         "title": "Gebäudeprofil"
       },
       {
@@ -25,27 +28,32 @@
           "state": "CLOSED",
           "url": "https://github.com/nimeob/geo-ranking-ch/issues/619"
         },
-        "id": "M2",
-        "line": 44,
-        "matched_keywords": [
-          "basis"
+        "explicit_issue_refs": [
+          28,
+          29,
+          646
         ],
-        "status": "unclear",
+        "id": "M2",
+        "line": 45,
+        "matched_keywords": [],
+        "status": "covered",
         "title": "Umfeldprofil"
       },
       {
         "best_match": {
-          "number": 660,
-          "score": 1,
+          "number": 1320,
+          "score": 2,
           "state": "CLOSED",
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/660"
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/1320"
         },
-        "id": "M3",
-        "line": 49,
-        "matched_keywords": [
-          "per"
+        "explicit_issue_refs": [
+          30,
+          31
         ],
-        "status": "unclear",
+        "id": "M3",
+        "line": 51,
+        "matched_keywords": [],
+        "status": "covered",
         "title": "Bau-Eignung am Punkt"
       },
       {
@@ -55,12 +63,14 @@
           "state": "CLOSED",
           "url": "https://github.com/nimeob/geo-ranking-ch/issues/648"
         },
-        "id": "M4",
-        "line": 54,
-        "matched_keywords": [
-          "explainability",
-          "quelle"
+        "explicit_issue_refs": [
+          79,
+          80,
+          648
         ],
+        "id": "M4",
+        "line": 57,
+        "matched_keywords": [],
         "status": "covered",
         "title": "Explainability"
       },
@@ -71,99 +81,29 @@
           "state": "CLOSED",
           "url": "https://github.com/nimeob/geo-ranking-ch/issues/777"
         },
-        "id": "M5",
-        "line": 58,
-        "matched_keywords": [
-          "api",
-          "first",
-          "ergebnis",
-          "panel"
+        "explicit_issue_refs": [
+          22,
+          32,
+          33,
+          777
         ],
+        "id": "M5",
+        "line": 62,
+        "matched_keywords": [],
         "status": "covered",
         "title": "Produktoberflächen"
       }
     ],
     "total_requirements": 5,
-    "unclear": 3,
+    "unclear": 0,
     "vision_source": "docs/VISION_PRODUCT.md"
   },
-  "findings": [
-    {
-      "evidence": [
-        {
-          "kind": "file_line",
-          "line": 40,
-          "path": "docs/VISION_PRODUCT.md"
-        },
-        {
-          "kind": "issue",
-          "number": 646,
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/646"
-        }
-      ],
-      "severity": "medium",
-      "source": {
-        "component": "module_matcher",
-        "kind": "vision_issue_coverage",
-        "requirement_id": "M1"
-      },
-      "summary": "Vision-Anforderung M1 (Gebäudeprofil) ist nur schwach mit Issues verknüpft",
-      "type": "vision_issue_coverage_unclear"
-    },
-    {
-      "evidence": [
-        {
-          "kind": "file_line",
-          "line": 44,
-          "path": "docs/VISION_PRODUCT.md"
-        },
-        {
-          "kind": "issue",
-          "number": 619,
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/619"
-        }
-      ],
-      "severity": "medium",
-      "source": {
-        "component": "module_matcher",
-        "kind": "vision_issue_coverage",
-        "requirement_id": "M2"
-      },
-      "summary": "Vision-Anforderung M2 (Umfeldprofil) ist nur schwach mit Issues verknüpft",
-      "type": "vision_issue_coverage_unclear"
-    },
-    {
-      "evidence": [
-        {
-          "kind": "file_line",
-          "line": 49,
-          "path": "docs/VISION_PRODUCT.md"
-        },
-        {
-          "kind": "issue",
-          "number": 660,
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/660"
-        }
-      ],
-      "severity": "medium",
-      "source": {
-        "component": "module_matcher",
-        "kind": "vision_issue_coverage",
-        "requirement_id": "M3"
-      },
-      "summary": "Vision-Anforderung M3 (Bau-Eignung am Punkt) ist nur schwach mit Issues verknüpft",
-      "type": "vision_issue_coverage_unclear"
-    }
-  ],
-  "generated_at": "2026-03-06T19:16:00+00:00",
+  "findings": [],
+  "generated_at": "2026-03-06T20:03:55+00:00",
   "schema_version": "1.0",
   "summary": {
-    "by_severity": {
-      "medium": 3
-    },
-    "by_type": {
-      "vision_issue_coverage_unclear": 3
-    },
-    "total_findings": 3
+    "by_severity": {},
+    "by_type": {},
+    "total_findings": 0
   }
 }
