@@ -1,7 +1,7 @@
 # Backlog (konsolidiert)
 
 > Quelle: konsolidierte offene Punkte aus `README.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_AWS.md`, `docs/OPERATIONS.md`.
-> Stand: 2026-03-05
+> Stand: 2026-03-06
 
 ## Legende
 
@@ -1229,3 +1229,8 @@ Regelwerk:
 5. **BL-18** (Service weiterentwickeln + Webservice E2E-Tests) ✅
 6. **BL-19** (Userdokumentation) ✅
 7. **BL-20** (Produktvision API+GUI umsetzen) ✅
+
+## Maintenance-Log (2026-03-06)
+
+- ✅ abgeschlossen (2026-03-06): [#1322](https://github.com/nimeob/geo-ranking-ch/issues/1322) — Fix: pyyaml fehlt in requirements-dev.txt → Pytest-Collection-Fehler — `pyyaml>=6.0` in `requirements-dev.txt` ergänzt, `.venv-test` aktualisiert; `pytest --tb=no tests/` → **1454 passed, 4 skipped** (kein Collection-Fehler mehr). Commit: `85bff1c`.
+- ✅ abgeschlossen (2026-03-06): [#1321](https://github.com/nimeob/geo-ranking-ch/issues/1321) — Checklist-Hygiene: alle DoD-Boxen in closed Issue nachgezogen (5/5 checked), `status:todo` Label entfernt. Crawler läuft ohne Reopen-Findings.
