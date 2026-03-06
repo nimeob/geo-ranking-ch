@@ -1,14 +1,14 @@
 {
   "coverage": {
-    "covered": 4,
+    "covered": 2,
     "missing": 0,
     "requirements": [
       {
         "best_match": {
-          "number": 128,
+          "number": 646,
           "score": 1,
           "state": "CLOSED",
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/128"
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/646"
         },
         "id": "M1",
         "line": 40,
@@ -20,67 +20,62 @@
       },
       {
         "best_match": {
-          "number": 329,
-          "score": 2,
+          "number": 619,
+          "score": 1,
           "state": "CLOSED",
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/329"
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/619"
         },
         "id": "M2",
         "line": 44,
         "matched_keywords": [
-          "erreichbarkeit",
           "basis"
         ],
-        "status": "covered",
+        "status": "unclear",
         "title": "Umfeldprofil"
       },
       {
         "best_match": {
-          "number": 405,
-          "score": 2,
+          "number": 660,
+          "score": 1,
           "state": "CLOSED",
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/405"
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/660"
         },
         "id": "M3",
         "line": 49,
         "matched_keywords": [
-          "per",
-          "strasse"
+          "per"
         ],
-        "status": "covered",
+        "status": "unclear",
         "title": "Bau-Eignung am Punkt"
       },
       {
         "best_match": {
-          "number": 409,
-          "score": 3,
+          "number": 648,
+          "score": 2,
           "state": "CLOSED",
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/409"
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/648"
         },
         "id": "M4",
         "line": 54,
         "matched_keywords": [
-          "ergebnis",
-          "quelle",
-          "trennung"
+          "explainability",
+          "quelle"
         ],
         "status": "covered",
         "title": "Explainability"
       },
       {
         "best_match": {
-          "number": 480,
-          "score": 6,
+          "number": 777,
+          "score": 4,
           "state": "CLOSED",
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/480"
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/777"
         },
         "id": "M5",
         "line": 58,
         "matched_keywords": [
           "api",
-          "gui",
-          "karten",
-          "interaktion",
+          "first",
           "ergebnis",
           "panel"
         ],
@@ -89,26 +84,10 @@
       }
     ],
     "total_requirements": 5,
-    "unclear": 1,
+    "unclear": 3,
     "vision_source": "docs/VISION_PRODUCT.md"
   },
   "findings": [
-    {
-      "evidence": [
-        {
-          "kind": "file_line",
-          "line": 165,
-          "path": "README.md"
-        }
-      ],
-      "severity": "medium",
-      "source": {
-        "component": "stale_route_reference",
-        "kind": "code_docs_drift"
-      },
-      "summary": "Doku referenziert Route /analyze, die im Code nicht gefunden wurde",
-      "type": "code_docs_drift_stale_reference"
-    },
     {
       "evidence": [
         {
@@ -118,8 +97,8 @@
         },
         {
           "kind": "issue",
-          "number": 128,
-          "url": "https://github.com/nimeob/geo-ranking-ch/issues/128"
+          "number": 646,
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/646"
         }
       ],
       "severity": "medium",
@@ -134,33 +113,46 @@
     {
       "evidence": [
         {
-          "kind": "metric",
-          "name": "development",
-          "value": 6
+          "kind": "file_line",
+          "line": 44,
+          "path": "docs/VISION_PRODUCT.md"
         },
         {
-          "kind": "metric",
-          "name": "documentation",
-          "value": 9
-        },
-        {
-          "kind": "metric",
-          "name": "testing",
-          "value": 7
-        },
-        {
-          "kind": "metric",
-          "name": "gap",
-          "value": 3
+          "kind": "issue",
+          "number": 619,
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/619"
         }
       ],
       "severity": "medium",
       "source": {
-        "component": "heuristic_counts",
-        "kind": "workstream_balance"
+        "component": "module_matcher",
+        "kind": "vision_issue_coverage",
+        "requirement_id": "M2"
       },
-      "summary": "Workstream-Balance außerhalb Zielkorridor (gap=3, ziel<=2)",
-      "type": "workstream_balance_gap"
+      "summary": "Vision-Anforderung M2 (Umfeldprofil) ist nur schwach mit Issues verknüpft",
+      "type": "vision_issue_coverage_unclear"
+    },
+    {
+      "evidence": [
+        {
+          "kind": "file_line",
+          "line": 49,
+          "path": "docs/VISION_PRODUCT.md"
+        },
+        {
+          "kind": "issue",
+          "number": 660,
+          "url": "https://github.com/nimeob/geo-ranking-ch/issues/660"
+        }
+      ],
+      "severity": "medium",
+      "source": {
+        "component": "module_matcher",
+        "kind": "vision_issue_coverage",
+        "requirement_id": "M3"
+      },
+      "summary": "Vision-Anforderung M3 (Bau-Eignung am Punkt) ist nur schwach mit Issues verknüpft",
+      "type": "vision_issue_coverage_unclear"
     },
     {
       "evidence": [
@@ -198,7 +190,7 @@
       "evidence": [
         {
           "kind": "file_line",
-          "line": 4006,
+          "line": 5149,
           "path": "src/api/web_service.py"
         }
       ],
@@ -214,7 +206,7 @@
       "evidence": [
         {
           "kind": "file_line",
-          "line": 4010,
+          "line": 5153,
           "path": "src/api/web_service.py"
         }
       ],
@@ -230,7 +222,7 @@
       "evidence": [
         {
           "kind": "file_line",
-          "line": 3225,
+          "line": 4190,
           "path": "src/api/web_service.py"
         }
       ],
@@ -240,6 +232,38 @@
         "kind": "code_docs_drift"
       },
       "summary": "Code-Flag APP_VERSION ist in zentraler Doku nicht referenziert",
+      "type": "code_docs_drift_undocumented_feature"
+    },
+    {
+      "evidence": [
+        {
+          "kind": "file_line",
+          "line": 117,
+          "path": "src/shared/async_job_store_db.py"
+        }
+      ],
+      "severity": "low",
+      "source": {
+        "component": "flag_coverage",
+        "kind": "code_docs_drift"
+      },
+      "summary": "Code-Flag ASYNC_DB_URL ist in zentraler Doku nicht referenziert",
+      "type": "code_docs_drift_undocumented_feature"
+    },
+    {
+      "evidence": [
+        {
+          "kind": "file_line",
+          "line": 363,
+          "path": "src/api/web_service.py"
+        }
+      ],
+      "severity": "low",
+      "source": {
+        "component": "flag_coverage",
+        "kind": "code_docs_drift"
+      },
+      "summary": "Code-Flag ASYNC_STORE_BACKEND ist in zentraler Doku nicht referenziert",
       "type": "code_docs_drift_undocumented_feature"
     },
     {
@@ -262,7 +286,7 @@
       "evidence": [
         {
           "kind": "file_line",
-          "line": 374,
+          "line": 859,
           "path": "src/api/web_service.py"
         }
       ],
@@ -271,15 +295,15 @@
         "component": "flag_coverage",
         "kind": "code_docs_drift"
       },
-      "summary": "Code-Flag DICTIONARY_VERSION ist in zentraler Doku nicht referenziert",
+      "summary": "Code-Flag BFF_OIDC_REDIRECT_URI ist in zentraler Doku nicht referenziert",
       "type": "code_docs_drift_undocumented_feature"
     },
     {
       "evidence": [
         {
           "kind": "file_line",
-          "line": 3285,
-          "path": "src/api/web_service.py"
+          "line": 117,
+          "path": "src/shared/async_job_store_db.py"
         }
       ],
       "severity": "low",
@@ -287,15 +311,15 @@
         "component": "flag_coverage",
         "kind": "code_docs_drift"
       },
-      "summary": "Code-Flag GIT_SHA ist in zentraler Doku nicht referenziert",
+      "summary": "Code-Flag DATABASE_URL ist in zentraler Doku nicht referenziert",
       "type": "code_docs_drift_undocumented_feature"
     },
     {
       "evidence": [
         {
           "kind": "file_line",
-          "line": 42,
-          "path": "src/api/oidc_jwt.py"
+          "line": 122,
+          "path": "src/shared/async_job_store_db.py"
         }
       ],
       "severity": "low",
@@ -303,15 +327,15 @@
         "component": "flag_coverage",
         "kind": "code_docs_drift"
       },
-      "summary": "Code-Flag OIDC_CLOCK_SKEW ist in zentraler Doku nicht referenziert",
+      "summary": "Code-Flag DB_HOST ist in zentraler Doku nicht referenziert",
       "type": "code_docs_drift_undocumented_feature"
     },
     {
       "evidence": [
         {
           "kind": "file_line",
-          "line": 4395,
-          "path": "src/api/web_service.py"
+          "line": 130,
+          "path": "src/shared/async_job_store_db.py"
         }
       ],
       "severity": "low",
@@ -319,39 +343,21 @@
         "component": "flag_coverage",
         "kind": "code_docs_drift"
       },
-      "summary": "Code-Flag TLS_REDIRECT_HOST ist in zentraler Doku nicht referenziert",
-      "type": "code_docs_drift_undocumented_feature"
-    },
-    {
-      "evidence": [
-        {
-          "kind": "file_line",
-          "line": 1602,
-          "path": "src/ui/service.py"
-        }
-      ],
-      "severity": "low",
-      "source": {
-        "component": "flag_coverage",
-        "kind": "code_docs_drift"
-      },
-      "summary": "Code-Flag UI_API_BASE_URL ist in zentraler Doku nicht referenziert",
+      "summary": "Code-Flag DB_NAME ist in zentraler Doku nicht referenziert",
       "type": "code_docs_drift_undocumented_feature"
     }
   ],
-  "generated_at": "2026-03-02T18:22:56+00:00",
+  "generated_at": "2026-03-06T17:46:30+00:00",
   "schema_version": "1.0",
   "summary": {
     "by_severity": {
-      "low": 11,
+      "low": 12,
       "medium": 3
     },
     "by_type": {
-      "code_docs_drift_stale_reference": 1,
-      "code_docs_drift_undocumented_feature": 11,
-      "vision_issue_coverage_unclear": 1,
-      "workstream_balance_gap": 1
+      "code_docs_drift_undocumented_feature": 12,
+      "vision_issue_coverage_unclear": 3
     },
-    "total_findings": 14
+    "total_findings": 15
   }
 }
