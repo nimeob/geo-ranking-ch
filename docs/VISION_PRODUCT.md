@@ -1,4 +1,4 @@
-# Produktvision — Geo Intelligence Portal Schweiz
+# Produktvision - Geo Intelligence Portal Schweiz
 
 Stand: 2026-02-26
 
@@ -40,24 +40,29 @@ Für eine Adresse/einen Punkt sollen u. a. schnell sichtbar werden:
 ### M1 — Gebäudeprofil
 - Adress-Geocoding + Parzellen-/Gebäudebezug
 - Gebäudetyp, Baujahr, Renovations-/Mutationshinweise, Energieträger
+- **Umgesetzt durch:** #26 (BL-20.3.a Input-Pipeline Adresse→Entity-Resolution), #27 (BL-20.3.b Gebäudeprofil-Aggregation MVP), #25 (BL-20.2.b Feld-Mapping Quelle→Domain)
 
 ### M2 — Umfeldprofil
 - ÖV-Erreichbarkeit
 - Points of Interest (Supermärkte, Schulen, Basis-Infrastruktur)
 - Lärm- und Belastungsindikatoren
+- **Umgesetzt durch:** #28 (BL-20.4.a Umfelddaten-Radiusmodell), #29 (BL-20.4.b Umfeldprofil-Scoring v1), #646 (POI-Coverage OSM-Kategorien)
 
 ### M3 — Bau-Eignung am Punkt
 - Kartenklick in CH → Standortanalyse
 - Topografie/Hangneigung, Untergrundindikatoren, Zugänglichkeit per Strasse
 - Distanz-/Erschliessungsmetriken
+- **Umgesetzt durch:** #30 (BL-20.5.a Kartenklick→Standort-Resolution), #31 (BL-20.5.b Bau-Eignung light Heuristik)
 
 ### M4 — Explainability
 - Für jedes Ergebnis: Quelle, Aktualität, Vertrauensniveau
-- Trennung von „harte Fakten“ vs. „indikative Ableitungen"
+- Trennung von „harte Fakten" vs. „indikative Ableitungen"
+- **Umgesetzt durch:** #79 (BL-20.1.f.wp1 Score-Katalog), #80 (BL-20.1.f.wp2 Berechnungslogik), #648 (Explainability-Felder API)
 
 ### M5 — Produktoberflächen
 - API-first Webservice
 - GUI mit Karten-Interaktion und Ergebnis-Panel
+- **Umgesetzt durch:** #22 (BL-20.1.a API-Contract v1), #32 (BL-20.6.a GUI-Grundlayout), #33 (BL-20.6.b Karteninteraktion+Ergebnispanel), #777 (API-first Produktoberflächen)
 
 ---
 

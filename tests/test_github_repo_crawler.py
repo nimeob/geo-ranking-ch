@@ -355,6 +355,102 @@ class TestGithubRepoCrawlerVisionIssueCoverage(unittest.TestCase):
         self.assertEqual(findings[0]["type"], "vision_issue_coverage_gap")
         self.assertEqual(findings[1]["type"], "vision_issue_coverage_unclear")
 
+    def test_parse_vision_requirements_extracts_explicit_issue_refs(self):
+        """Umgesetzt-durch annotations must be parsed into explicit_issue_refs."""
+        markdown = """
+## Scope-Module (fachlich)
+### M1 — Gebäudeprofil
+- Adress-Geocoding
+- **Umgesetzt durch:** #26 (Input-Pipeline), #27 (Gebäudeprofil-MVP)
+### M2 — Umfeldprofil
+- ÖV-Erreichbarkeit
+""".strip()
+
+        reqs = crawler.parse_vision_requirements(markdown)
+
+        m1 = next(r for r in reqs if r["id"] == "M1")
+        self.assertEqual(m1.get("explicit_issue_refs"), [26, 27],
+                         "explicit_issue_refs should contain parsed issue numbers")
+        # The Umgesetzt-durch line must NOT appear in tokens (it's not a content bullet)
+        self.assertNotIn("umgesetzt", " ".join(m1.get("tokens", [])))
+
+        m2 = next(r for r in reqs if r["id"] == "M2")
+        self.assertEqual(m2.get("explicit_issue_refs", []), [],
+                         "M2 has no Umgesetzt-durch, so explicit_issue_refs must be empty")
+
+    def test_assess_vision_issue_coverage_explicit_refs_override_keyword_scoring(self):
+        """A requirement with explicit_issue_refs is always 'covered', even with score=0."""
+        requirements = [
+            {
+                "id": "M1",
+                "title": "Gebäudeprofil",
+                "line": 10,
+                "tokens": ["gebäudeprofil"],   # no keyword match expected
+                "explicit_issue_refs": [26, 27],
+            },
+            {
+                "id": "M2",
+                "title": "Umfeldprofil",
+                "line": 14,
+                "tokens": ["umfeld"],
+                # no explicit refs → falls back to keyword matching
+            },
+        ]
+        # Provide an issue that only matches M2 weakly (score=1)
+        issues = [
+            {"number": 99, "title": "Umfeld foo", "body": "", "state": "closed", "url": "https://example/99"},
+            # Also provide the explicitly referenced issue #26
+            {"number": 26, "title": "Input-Pipeline", "body": "adress geocoding", "state": "closed", "url": "https://example/26"},
+        ]
+
+        coverage = crawler.assess_vision_issue_coverage(requirements, issues)
+
+        rows_by_id = {row["id"]: row for row in coverage["requirements"]}
+        self.assertEqual(rows_by_id["M1"]["status"], "covered",
+                         "Explicit refs should force status=covered regardless of keyword score")
+        self.assertEqual(rows_by_id["M1"]["explicit_issue_refs"], [26, 27])
+        # best_match should point to first explicit ref
+        self.assertEqual(rows_by_id["M1"]["best_match"]["number"], 26)
+        # M2 has no explicit refs → still falls through to keyword/unclear path
+        self.assertIn(rows_by_id["M2"]["status"], ("unclear", "missing"),
+                      "M2 without explicit refs should still use keyword scoring")
+        self.assertEqual(coverage["covered"], 1)
+
+    def test_assess_vision_issue_coverage_explicit_refs_no_unclear_findings(self):
+        """collect_vision_issue_coverage_findings must NOT emit unclear/gap for explicit-covered reqs."""
+        coverage = {
+            "requirements": [
+                {
+                    "id": "M1",
+                    "title": "Gebäudeprofil",
+                    "line": 10,
+                    "status": "covered",
+                    "explicit_issue_refs": [26, 27],
+                    "matched_keywords": [],
+                    "best_match": {"number": 26, "state": "closed", "score": 0, "url": "https://example/26"},
+                },
+                {
+                    "id": "M2",
+                    "title": "Umfeldprofil",
+                    "line": 14,
+                    "status": "unclear",
+                    "explicit_issue_refs": [],
+                    "matched_keywords": ["umfeld"],
+                    "best_match": {"number": 99, "state": "closed", "score": 1, "url": "https://example/99"},
+                },
+            ]
+        }
+
+        findings = crawler.collect_vision_issue_coverage_findings(coverage)
+
+        finding_types = {f["type"] for f in findings}
+        self.assertNotIn("vision_issue_coverage_gap", finding_types,
+                         "No gap findings for an explicitly-covered requirement")
+        # M1 is covered → no finding. M2 is unclear → finding present.
+        unclear_findings = [f for f in findings if f["type"] == "vision_issue_coverage_unclear"]
+        self.assertEqual(len(unclear_findings), 1)
+        self.assertIn("M2", unclear_findings[0]["summary"])
+
 
 class TestGithubRepoCrawlerCodeDocsDrift(unittest.TestCase):
     def test_audit_code_docs_drift_detects_undocumented_flag_and_stale_route(self):

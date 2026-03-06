@@ -48,6 +48,8 @@ SEVERITY_PRIORITY = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 VISION_DOC_PATH = Path("docs/VISION_PRODUCT.md")
 VISION_SCOPE_HEADING = "## Scope-Module"
 VISION_REQUIREMENT_HEADING_RE = re.compile(r"^###\s*(M\d+)\s+—\s+(.+?)\s*$")
+# Matches lines like: - **Umgesetzt durch:** #26 (text), #27 (text), ...
+VISION_EXPLICIT_IMPL_RE = re.compile(r"\*\*Umgesetzt durch:\*\*\s*(.+)")
 TOKEN_RE = re.compile(r"[a-z0-9äöüß]{3,}", re.IGNORECASE)
 MATCH_STOPWORDS = {
     "und", "oder", "der", "die", "das", "mit", "von", "für", "ein", "eine", "einer", "eines",
@@ -249,8 +251,8 @@ def render_consistency_report_markdown(report: dict[str, Any]) -> str:
         if requirement_rows:
             lines.extend([
                 "",
-                "| Requirement | Status | Best Match | Matched keywords |",
-                "|---|---|---|---|",
+                "| Requirement | Status | Best Match | Matched keywords | Explicit refs |",
+                "|---|---|---|---|---|",
             ])
             for req in requirement_rows:
                 best_match = req.get("best_match") or {}
@@ -262,12 +264,15 @@ def render_consistency_report_markdown(report: dict[str, Any]) -> str:
                         score=best_match.get("score", 0),
                     )
                 matched_keywords = ", ".join(req.get("matched_keywords") or []) or "--"
+                explicit_refs = req.get("explicit_issue_refs") or []
+                explicit_refs_str = ", ".join(f"#{n}" for n in explicit_refs) if explicit_refs else "--"
                 lines.append(
-                    "| {requirement} | {status} | {best_match} | {keywords} |".format(
+                    "| {requirement} | {status} | {best_match} | {keywords} | {explicit} |".format(
                         requirement=f"{req.get('id', '?')} — {req.get('title', '')}".strip(),
                         status=req.get("status", "unknown"),
                         best_match=best_match_ref,
                         keywords=matched_keywords.replace("|", "\\|"),
+                        explicit=explicit_refs_str,
                     )
                 )
 
@@ -366,7 +371,15 @@ def parse_vision_requirements(markdown: str, source_path: Path = VISION_DOC_PATH
             continue
 
         if current is not None and line.strip().startswith("-"):
-            current["bullets"].append(line.strip().lstrip("-").strip())
+            stripped = line.strip().lstrip("-").strip()
+            explicit_match = VISION_EXPLICIT_IMPL_RE.search(stripped)
+            if explicit_match:
+                # Extract issue numbers from "**Umgesetzt durch:** #26 (...), #27 (...)"
+                refs_raw = explicit_match.group(1)
+                explicit_refs = [int(m) for m in re.findall(r"#(\d+)", refs_raw)]
+                current.setdefault("explicit_issue_refs", []).extend(explicit_refs)
+            else:
+                current["bullets"].append(stripped)
 
     if current is not None:
         scope_text = " ".join(current["bullets"])
@@ -432,13 +445,30 @@ def assess_vision_issue_coverage(requirements: list[dict[str, Any]], issues: lis
     unclear = 0
     missing = 0
 
+    # Build a number→issue lookup for explicit-ref resolution
+    issue_by_number: dict[int, dict[str, Any]] = {
+        int(iss.get("number", 0)): iss for iss in issues if iss.get("number") is not None
+    }
+
     for req in requirements:
+        explicit_refs: list[int] = req.get("explicit_issue_refs") or []
         matches = match_requirement_to_issues(req, issues)
         best_match = matches[0] if matches else None
         status = "missing"
         matched_keywords: list[str] = []
 
-        if best_match is not None:
+        # Explicit "Umgesetzt durch:" annotation overrides keyword scoring
+        if explicit_refs:
+            status = "covered"
+            covered += 1
+            # Use the first explicitly referenced issue as the canonical best_match
+            first_ref = explicit_refs[0]
+            if first_ref in issue_by_number:
+                best_match = issue_by_number[first_ref]
+            elif best_match is None:
+                # Construct a minimal placeholder so the report stays consistent
+                best_match = {"number": first_ref, "state": "closed", "score": 0, "url": None}
+        elif best_match is not None:
             matched_keywords = best_match.get("matched_keywords", [])
             if best_match.get("score", 0) >= 2:
                 status = "covered"
@@ -459,11 +489,12 @@ def assess_vision_issue_coverage(requirements: list[dict[str, Any]], issues: lis
                 "line": req.get("line"),
                 "status": status,
                 "matched_keywords": matched_keywords,
+                "explicit_issue_refs": explicit_refs,
                 "best_match": (
                     {
                         "number": best_match.get("number"),
-                        "state": best_match.get("state"),
-                        "score": best_match.get("score"),
+                        "state": best_match.get("state", "unknown"),
+                        "score": best_match.get("score", 0),
                         "url": best_match.get("url"),
                     }
                     if best_match
