@@ -1094,3 +1094,25 @@ Detail-Runbooks:
 - Routing/TLS Smoke: [`docs/testing/bl31-routing-tls-smoke-catchup.md`](testing/bl31-routing-tls-smoke-catchup.md)
 - Smoke-/Evidence-Matrix: [`docs/testing/bl31-smoke-evidence-matrix.md`](testing/bl31-smoke-evidence-matrix.md)
 - BL-335 Frontdoor Abnahme: [`docs/testing/bl335-frontdoor-redeploy-acceptance-runbook.md`](testing/bl335-frontdoor-redeploy-acceptance-runbook.md)
+
+---
+
+## Environment Variables Reference
+
+Übersicht aller via `os.getenv()` genutzten Env-Flags (zentrale Referenz für Consistency-Checks).
+Detail-Doku ist jeweils in den verlinkten Quellen zu finden.
+
+| Variable | Default | Beschreibung |
+|---|---|---|
+| `ADDRESS_INTEL_MAX_RETRY_AFTER` | `30` | Max. Wartezeit (s) für `Retry-After`-Header bei rate-limited swisstopo-API-Requests (`src/api/address_intel.py`) |
+| `ADDRESS_INTEL_MIN_REQUEST_INTERVAL` | `0.25` | Min. Pause (s) zwischen aufeinanderfolgenden swisstopo-API-Requests (`src/api/address_intel.py`) |
+| `ANALYZE_DEFAULT_TIMEOUT_SECONDS` | `15` | Default für Request-Feld `timeout_seconds`; wird auf `ANALYZE_MAX_TIMEOUT_SECONDS` gekappt. Detail: [`docs/user/configuration-env.md`](user/configuration-env.md) |
+| `ANALYZE_MAX_TIMEOUT_SECONDS` | `45` | Obergrenze (Cap) für den effektiven Analyze-Timeout. Detail: [`docs/user/configuration-env.md`](user/configuration-env.md) |
+| `APP_VERSION` | `dev` | Build-Versionsstring; via ECS-Task-ENV oder Docker-Build-Arg gesetzt (`src/api/web_service.py`) |
+| `ASYNC_DB_URL` | — | PostgreSQL-DSN für Job-Store (explizite Variante). Fallback: `DATABASE_URL`. Aktiv wenn `ASYNC_STORE_BACKEND=db`. Detail: [`docs/ops/async_db_cutover.md`](ops/async_db_cutover.md) |
+| `ASYNC_STORE_BACKEND` | `file` | Job-Store-Backend: `file` (default, in-memory/file) oder `db` (PostgreSQL via `ASYNC_DB_URL`/`DATABASE_URL`) |
+| `ASYNC_WORKER_STAGE_DELAY_MS` | `150` | Künstliche Stage-Pause (ms) im Async-Worker; nur für Debugging/Testing (`src/api/async_worker_runtime.py`) |
+| `BFF_OIDC_REDIRECT_URI` | — | OIDC-Callback-URL; muss exakt mit dem Cognito App-Client übereinstimmen. Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |
+| `DATABASE_URL` | — | PostgreSQL-DSN für RDS-Zugriff (ECS-Secret); Fallback wenn `ASYNC_DB_URL` nicht gesetzt. Detail: [`docs/ops/async_db_cutover.md`](ops/async_db_cutover.md) |
+| `DB_HOST` | — | RDS-Hostname (Pattern C: Komponenten-Vars, wenn `ASYNC_DB_URL` und `DATABASE_URL` nicht gesetzt) |
+| `DB_NAME` | `swisstopo` | DB-Name (Pattern C: Komponenten-Vars, Fallback-Default `swisstopo`) |
