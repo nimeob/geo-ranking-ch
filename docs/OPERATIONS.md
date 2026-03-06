@@ -1116,3 +1116,12 @@ Detail-Doku ist jeweils in den verlinkten Quellen zu finden.
 | `DATABASE_URL` | — | PostgreSQL-DSN für RDS-Zugriff (ECS-Secret); Fallback wenn `ASYNC_DB_URL` nicht gesetzt. Detail: [`docs/ops/async_db_cutover.md`](ops/async_db_cutover.md) |
 | `DB_HOST` | — | RDS-Hostname (Pattern C: Komponenten-Vars, wenn `ASYNC_DB_URL` und `DATABASE_URL` nicht gesetzt) |
 | `DB_NAME` | `swisstopo` | DB-Name (Pattern C: Komponenten-Vars, Fallback-Default `swisstopo`) |
+| `DB_PASSWORD` | — | DB-Passwort; via ECS SecretsManager injiziert, **niemals** als Plaintext setzen |
+| `DB_PORT` | `5432` | Postgres-Port (Pattern C: Komponenten-Vars) |
+| `DB_USERNAME` | `swisstopo` | DB-Login-User (Pattern C: Komponenten-Vars) |
+| `DICTIONARY_VERSION` | `2026-02-27` | Versionstag des globalen Adress-Dictionaries (`src/api/web_service.py`) |
+| `ENABLE_E2E_FAULT_INJECTION` | `0` | Aktiviert Fault-Injection-Pfade im Async-Worker (`1`=ein); nur für E2E-Tests/Debug |
+| `GIT_SHA` | `unknown` | Git-Commit-SHA; via ECS-Task-ENV oder Build-Arg gesetzt, erscheint in `/healthz`-Response |
+| `OIDC_CLOCK_SKEW_SECONDS` | `60` | Toleranz (s) für JWT-Zeitstempel-Prüfung (nbf/exp). Detail: `src/api/oidc_jwt.py` |
+| `TLS_REDIRECT_HOST` | `` | Optionaler Host-Override für TLS-Redirect-Middleware (`src/api/web_service.py`) |
+| `UI_API_BASE_URL` | — | Absolute API-Basis für UI-Auth-Proxy (z. B. `https://api.dev.georanking.ch`); Pflicht wenn UI-Auth-Proxy aktiv |
