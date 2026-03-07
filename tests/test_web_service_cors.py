@@ -110,7 +110,7 @@ class TestWebServiceCorsBehavior(unittest.TestCase):
         self.assertEqual(status, 204)
         self.assertIsNone(body)
         self.assertEqual(headers.get("Access-Control-Allow-Origin"), self.allowed_origin)
-        self.assertEqual(headers.get("Access-Control-Allow-Methods"), "POST, OPTIONS")
+        self.assertEqual(headers.get("Access-Control-Allow-Methods"), "GET, POST, OPTIONS")
 
     def test_options_preflight_rejects_disallowed_origin(self):
         req = request.Request(
