@@ -401,6 +401,40 @@ variable "staging_task_role_arn" {
 }
 
 # ---------------------------------------------------------------------------
+# Staging UI ECS Service (#1329)
+# ---------------------------------------------------------------------------
+
+variable "staging_ui_service_name" {
+  description = "Name des ECS UI Services in staging."
+  type        = string
+  default     = "swisstopo-staging-ui"
+}
+
+variable "staging_ui_task_family" {
+  description = "Task Definition Family für den staging UI Service."
+  type        = string
+  default     = "swisstopo-staging-ui"
+}
+
+variable "staging_ui_container_name" {
+  description = "Container-Name im staging UI Task Definition Container Definitions JSON."
+  type        = string
+  default     = "ui"
+}
+
+variable "staging_ui_container_image" {
+  description = "Container Image für staging UI. Leer => auto: <ecr_ui_repository_url>:latest (wenn verfügbar), sonst nginx Placeholder."
+  type        = string
+  default     = ""
+}
+
+variable "staging_ui_container_port" {
+  description = "Container Port für den staging UI Service (z. B. 8080)."
+  type        = number
+  default     = 8080
+}
+
+# ---------------------------------------------------------------------------
 # Staging DB (INFRA-DB-0.wp1)
 # ---------------------------------------------------------------------------
 

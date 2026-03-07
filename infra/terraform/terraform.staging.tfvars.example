@@ -52,6 +52,13 @@ manage_staging_db = false
 # staging_task_execution_role_arn = "arn:aws:iam::<account-id>:role/<role>"
 # staging_task_role_arn           = "arn:aws:iam::<account-id>:role/<role>"
 
+# --- Staging UI ECS Service (#1329) ---
+staging_ui_service_name   = "swisstopo-staging-ui"
+staging_ui_task_family    = "swisstopo-staging-ui"
+staging_ui_container_name = "ui"
+# staging_ui_container_image = "<ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/swisstopo-staging-ui:<tag>"
+# staging_ui_container_port  = 8080
+
 staging_vpc_cidr = "10.70.0.0/16"
 
 # Public Subnets (mind. 2 empfohlen, unterschiedliche AZs)
