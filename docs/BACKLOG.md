@@ -19,7 +19,7 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- [#1338](https://github.com/nimeob/geo-ranking-ch/issues/1338) — Chore: ignore generated .openclaw/issue_*_body.md artifacts (priority:P2, status:todo)
+- (leer)
 
 ### Next
 - (leer)
@@ -1221,3 +1221,4 @@ Regelwerk:
   Nachweise: PR [#1334](https://github.com/nimeob/geo-ranking-ch/pull/1334) merged (squash Commit [2a907ae](https://github.com/nimeob/geo-ranking-ch/commit/2a907aeca136fa3fb09e9fc57c085a7946dab42d)), `pytest -q tests/test_staging_ecs_cluster_tf.py tests/test_staging_ecs_ui_tf.py tests/test_staging_ecr_ui_tf.py tests/test_markdown_links.py tests/test_user_docs.py` (91 passed).
 - ✅ abgeschlossen (2026-03-07): [#1332](https://github.com/nimeob/geo-ranking-ch/issues/1332) — Operator Runbook: IAM Deploy Role anlegen + GitHub Environment konfigurieren (Staging) — Runbook `docs/STAGING_IAM_GITHUB_ENV_SETUP_RUNBOOK.md` inkl. Variablen-Checkliste und Smoke-Verifikation, plus Guard-Test `tests/test_staging_iam_github_env_setup_runbook_docs.py`.
   Nachweise: PR [#1336](https://github.com/nimeob/geo-ranking-ch/pull/1336) merged (squash Commit [180a248](https://github.com/nimeob/geo-ranking-ch/commit/180a2481781568d8bfe87a9791bda4274fd509b1)), `pytest -q tests/test_staging_iam_github_env_setup_runbook_docs.py tests/test_markdown_links.py tests/test_user_docs.py` (18 passed).
+- ✅ abgeschlossen (2026-03-07): [#1341](https://github.com/nimeob/geo-ranking-ch/issues/1341) — Docs: BACKLOG Now/Next/Later Board nach Issue-Closeouts syncen — `python3 scripts/sync_backlog_issue_status.py --write`; Doc-Checks: `.venv-test/bin/python -m pytest -q tests/test_user_docs.py tests/test_markdown_links.py` (10 passed).
