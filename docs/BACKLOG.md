@@ -19,42 +19,13 @@ Regelwerk:
 - **Later:** `status:blocked` oder `priority:P3`
 
 ### Now
-- (leer)
-- ✅ abgeschlossen (2026-03-03): [#875](https://github.com/nimeob/geo-ranking-ch/issues/875) — [Crawler][P0] Workstream-Balance Catch-up ist nach Re-Baseline nicht mehr nötig (Dev=1, Doku=3, Testing=3, Gap=2 <= Ziel 2). Nachweis: `python3 scripts/github_repo_crawler.py --dry-run --print-workstream-balance --format json`.
-- ✅ abgeschlossen (2026-03-03): [#866](https://github.com/nimeob/geo-ranking-ch/issues/866) — INFRA: Add *.tfplan to .gitignore + commit secret-free dev/staging tfvars (Commit 10a8d33)
-- ✅ abgeschlossen (2026-03-03): [#867](https://github.com/nimeob/geo-ranking-ch/issues/867) — DEV-WIRE-0: Wire dev RDS into ECS task def (DB env + secrets + migrations + smoke) — ECS Task-Def rev 168 mit DB_HOST/PORT/NAME/USERNAME (plain env) + DB_PASSWORD (SecretsManager valueFrom); Migrations 001–003 via ECS-Task-Override angewendet (jobs/job_events/job_results/organizations/users/memberships/api_keys + schema_migrations); ECS Service auf rev 168 deployt (DEPLOYMENT COMPLETED); `/health` → 200, `/analyze/history` → 200, kein DB_PASSWORD in Logs. (2026-03-03 02:22)
+- [#1338](https://github.com/nimeob/geo-ranking-ch/issues/1338) — Chore: ignore generated .openclaw/issue_*_body.md artifacts (priority:P2, status:todo)
 
 ### Next
-- ~~[#780](https://github.com/nimeob/geo-ranking-ch/issues/780) — Auth/Prod: Benutzerverwaltung + per-user Abfragehistorie (no crawler access)~~ ✅ abgeschlossen (2026-03-02): Alle 4 Phase-1 WPs done — #782 Core, #783 Store, #784 UI (PR #849), #786 default-deny (PR #848).
-- ✅ abgeschlossen (2026-03-03): [#800](https://github.com/nimeob/geo-ranking-ch/issues/800) — EPIC: DB Minimalslice + OIDC delegated access (Cognito) — alle Child-Work-Packages inklusive Dev-E2E-Verifikation (#865) abgeschlossen; OIDC-gesicherte Endpunkte + persistente History in dev nachgewiesen (`reports/evidence/issue-865-closeout-verify-20260303T143550Z.json`, `reports/evidence/issue-924-oidc-async-verify-20260303T140858Z.json`).
-- ✅ abgeschlossen (2026-03-03): [#892](https://github.com/nimeob/geo-ranking-ch/issues/892) — INFRA-NET-dev.followup.wp5: Frontdoor/VPC alignment for private ECS subnets — Child-WPs #895/#896/#897 vollständig erledigt; Dev-VPC-ALB/TG + ECS private-subnet switch + DNS-Cutover verifiziert. Evidence u. a. `reports/evidence/issue-897-dns-cutover-verify-20260303T132759Z.{json,md}`.
-- ~~[#801](https://github.com/nimeob/geo-ranking-ch/issues/801)~~ — DB-0: Core Tables (organizations/users/memberships/api_keys) + Migrations — **abgeschlossen 2026-03-02** (4 WPs: #812 PR#816, #813 PR#836, #814 PR#837, #815 PR#823)
-- ✅ abgeschlossen (2026-03-03): [#802](https://github.com/nimeob/geo-ranking-ch/issues/802) — OIDC-0: Cognito Setup + API JWT Validation — geschlossen als COMPLETED (2026-03-03T07:24:31Z).
-- ~~[#803](https://github.com/nimeob/geo-ranking-ch/issues/803)~~ — ASYNC-DB-0: Persist Async Job History in DB + S3 payload pointers — **abgeschlossen 2026-03-02** (5 WPs, PRs #843–#847)
-  - ~~[#838](https://github.com/nimeob/geo-ranking-ch/issues/838)~~ — ASYNC-DB-0.wp1: Schema migration (PR #843)
-  - ~~[#839](https://github.com/nimeob/geo-ranking-ch/issues/839)~~ — ASYNC-DB-0.wp2: DB-backed AsyncJobStore (PR #844)
-  - ~~[#840](https://github.com/nimeob/geo-ranking-ch/issues/840)~~ — ASYNC-DB-0.wp3: Feature-flag cutover (PR #845)
-  - ~~[#841](https://github.com/nimeob/geo-ranking-ch/issues/841)~~ — ASYNC-DB-0.wp4: API /analyze/history per user_id + tenant guards (PR #846)
-  - ~~[#842](https://github.com/nimeob/geo-ranking-ch/issues/842)~~ — ASYNC-DB-0.wp5: Backfill-Script + Cutover-Runbook (PR #847)
-- ~~[#804](https://github.com/nimeob/geo-ranking-ch/issues/804)~~ — INFRA-DB-0: Dev Postgres (RDS) + Secrets wiring for ECS — **abgeschlossen 2026-03-03** (DoD-Checklist im Issue vollständig abgehakt; Runtime-Verifikation: RDS `swisstopo-dev-postgres` `available`, ECS Service steady-state mit DB secret wiring, `/analyze/history` HTTP 200 mit persisted History; Nachweis: `reports/evidence/issue-804-closeout-2026-03-03.md`).
-- ~~[#806](https://github.com/nimeob/geo-ranking-ch/issues/806)~~ — BFF-0: Portal Backend-for-Frontend with server-side OIDC session + user-token delegation — **abgeschlossen 2026-03-02** (alle 5 WPs, PRs #856/#861/#862/#863/#864, 188 Tests)
-  - ~~[#850](https://github.com/nimeob/geo-ranking-ch/issues/850)~~ — BFF-0.wp1: BFF Session Store + httpOnly Cookie Middleware — **abgeschlossen 2026-03-02** (PR #856, 45 Tests)
-  - ~~[#851](https://github.com/nimeob/geo-ranking-ch/issues/851)~~ — BFF-0.wp2: OIDC Auth Code + PKCE Endpunkte (/auth/login, /auth/callback) — **abgeschlossen 2026-03-02** (PR #861, 61 Tests)
-  - ~~[#852](https://github.com/nimeob/geo-ranking-ch/issues/852)~~ — BFF-0.wp3: Token Delegation, Auto-Refresh + /me + /auth/logout — **abgeschlossen 2026-03-02** (PR #862, 32 Tests)
-  - ~~[#853](https://github.com/nimeob/geo-ranking-ch/issues/853)~~ — BFF-0.wp4: Portal Proxy Endpoints + CSRF + Security Hardening — **abgeschlossen 2026-03-02** (PR #863, 51 Tests)
-  - ~~[#854](https://github.com/nimeob/geo-ranking-ch/issues/854)~~ — BFF-0.wp5: BFF Dokumentation + Integration Smoke Tests — **abgeschlossen 2026-03-02** (PR #864, 19 Integration Smoke Tests)
-- ~~[#833](https://github.com/nimeob/geo-ranking-ch/issues/833)~~ — INFRA-DB-0.wp4: Lokale Dev-DB (docker-compose Postgres) für Dev/Test-Harness — **abgeschlossen 2026-03-03** (Checklist-Hygiene im Issue-Body nachgezogen, `docs/local-dev.md` mit `db-migrate.py`-Flow synchronisiert, Regressionstest `tests/test_local_dev_db_harness_docs.py` ergänzt)
+- (leer)
 
 ### Later
-- ~~[#786](https://github.com/nimeob/geo-ranking-ch/issues/786) — Auth Phase 1 (Policy): API default-deny — nur noch via Bearer Token nutzbar~~ ✅ abgeschlossen (2026-03-02): PR #848 merged — GET /analyze/jobs/<id>, /analyze/results/<id>, /analyze/jobs/<id>/notifications → 401 unauthorized (war 404); beide Auth-Systeme (Phase1 + OIDC) konsistent; 10 neue Tests; README.md auth docs.
-- ~~[#813](https://github.com/nimeob/geo-ranking-ch/issues/813) — DB-0.wp2: Postgres migration runner + local/CI harness~~ ✅ abgeschlossen (2026-03-02): PR #836 merged — db-migrate.py + db/migrations/ + CI harness (Postgres 15+16 green)
-- ~~[#814](https://github.com/nimeob/geo-ranking-ch/issues/814) — DB-0.wp3: Minimal DB access layer (org/user/membership bootstrap)~~ ✅ abgeschlossen (2026-03-02): PR #837 merged — src/shared/db_access.py (get_or_create_user_by_external_subject + ensure_membership + get_or_create_default_org) + 25 Unit-Tests + Bootstrap-Policy (invite_only/auto_org)
-- ~~[#820](https://github.com/nimeob/geo-ranking-ch/issues/820)~~ — OIDC-0.wp4: Claim mapping plan (sub -> user) + membership lookup contract — **abgeschlossen 2026-03-02** (`resolve_oidc_subject` in db_access.py + 15 tests, Commit 94f676a)
-- ~~[#784](https://github.com/nimeob/geo-ranking-ch/issues/784) — Auth Phase 1 (UI): Pages nutzen Token, keine privaten Daten ohne Auth~~ ✅ abgeschlossen (2026-03-02, revalidiert 2026-03-03): PR #849 merged; 401-UX-Hint auf /gui, /history, /results/<id>, /jobs/<id>; UI-Service-Tests erneut grün (`pytest -q tests/test_ui_service.py`), Issue-Checkboxen nachgezogen. #780 (Auth/Prod Phase 1) komplett geschlossen.
-- ✅ abgeschlossen (2026-03-03): [#882](https://github.com/nimeob/geo-ranking-ch/issues/882) — INFRA-NET-dev.followup: NAT egress for private ECS subnets — alle Child-WPs (#884, #885, #889, #886) abgeschlossen; NAT-Rollout, private-subnet runtime-egress und Inbound-Härtung vollständig verifiziert.
-- ✅ abgeschlossen (2026-03-03): [#886](https://github.com/nimeob/geo-ranking-ch/issues/886) — INFRA-NET-dev.followup.wp3: Runtime validation ECS private-egress — ECS `swisstopo-dev-api` in privaten Subnets (`assignPublicIp=DISABLED`) verifiziert, NAT-Egress + private Default-Route bestätigt, externes Egress-Proof via OIDC-`POST /analyze` (`geoadmin_search.successes >= 1`), und kein world-open Ingress auf App-Port 8080. Evidence: `reports/evidence/issue-886-runtime-validation-20260303T132531Z.{json,md}`.
-- ✅ abgeschlossen (2026-03-03): [#889](https://github.com/nimeob/geo-ranking-ch/issues/889) — INFRA-NET-dev.followup.wp4: Execute NAT rollout + ECS private-subnet switch — NAT `nat-01c348d29cf09e2f1` aktiv, private Route Table `rtb-0a1fdbf9c13782310` mit `0.0.0.0/0 -> NAT`, ECS `swisstopo-dev-api` läuft auf privaten Subnets (`subnet-0cd8553a1fedbf183`, `subnet-04d5ddec3c5b06d7a`) mit `assignPublicIp=DISABLED`; Smoke `GET https://api.dev.georanking.ch/health` = 200. Evidence: `reports/evidence/issue-889-closeout-20260303T132134Z.{json,md}`.
-- ✅ abgeschlossen (2026-03-04, wontfix): [#550](https://github.com/nimeob/geo-ranking-ch/issues/550) — BL-16.wp2: Optionales externes Hostinger-Rollout + E2E-Verifikation — gemäß Security-Policy „kein externer Inbound auf OpenClaw“ bewusst nicht umgesetzt; Abschluss via Wontfix-Closeout inkl. Parent-Sync (#1).
+- (leer)
 <!-- NOW_NEXT_LATER:END -->
 
 ## Dev-Engineering (non-BL)
