@@ -302,3 +302,12 @@ output "dev_db_master_user_secret_arn" {
   description = "Secrets Manager ARN für das automatisch gemanagte Master-User-Passwort (leer wenn nicht gemanagt)."
   value       = try(aws_db_instance.dev_postgres[0].master_user_secret[0].secret_arn, null)
 }
+
+# ---------------------------------------------------------------------------
+# Staging UI ECS Outputs (#1329)
+# ---------------------------------------------------------------------------
+
+output "staging_ui_service_name" {
+  description = "ECS UI Service Name in staging (leer wenn manage_staging_ecs_compute_effective=false)."
+  value       = try(aws_ecs_service.staging_ui[0].name, null)
+}
