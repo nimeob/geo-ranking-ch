@@ -1,11 +1,17 @@
 locals {
+  manage_staging_ecs_cluster_effective = var.environment == "staging" && var.manage_staging_ecs_cluster
   manage_staging_ecs_compute_effective = var.environment == "staging" && var.manage_staging_ecs_compute && var.manage_staging_network
 
   # Safe indirections (avoid invalid index errors when resources are not created)
   staging_vpc_id            = try(aws_vpc.staging[0].id, null)
   staging_public_subnet_ids = [for s in aws_subnet.staging_public : s.id]
 
-  ecs_cluster_arn_effective    = try(aws_ecs_cluster.dev[0].arn, data.aws_ecs_cluster.existing[0].arn, null)
+  # Dev/shared cluster ARN (used by dev_ecs_compute.tf)
+  ecs_cluster_arn_effective = try(aws_ecs_cluster.dev[0].arn, data.aws_ecs_cluster.existing[0].arn, null)
+
+  # Staging cluster ARN (managed or read-only lookup)
+  staging_ecs_cluster_arn_effective = try(aws_ecs_cluster.staging[0].arn, data.aws_ecs_cluster.existing[0].arn, null)
+
   ecr_repository_url_effective = try(aws_ecr_repository.api[0].repository_url, data.aws_ecr_repository.existing[0].repository_url, null)
 
   # ---------------------------------------------------------------------------
@@ -75,6 +81,30 @@ locals {
 # - This is a skeleton. ALB Target Groups / Listener Rules wiring is handled in separate work.
 # - Roles/Secrets/Logs are referenced via variables; creation/import is handled in other WPs.
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Staging ECS Cluster (#1330)
+#
+# Separate cluster resource to avoid staging relying on aws_ecs_cluster.dev[0]
+# and to keep staging provisioning opt-in.
+# ---------------------------------------------------------------------------
+
+resource "aws_ecs_cluster" "staging" {
+  count = local.manage_staging_ecs_cluster_effective ? 1 : 0
+
+  name = var.ecs_cluster_name
+
+  setting {
+    name  = "containerInsights"
+    value = var.ecs_container_insights_enabled ? "enabled" : "disabled"
+  }
+
+  tags = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
 
 resource "aws_security_group" "staging_ecs_service" {
   count = local.manage_staging_ecs_compute_effective ? 1 : 0
@@ -184,7 +214,7 @@ resource "aws_ecs_service" "staging_api" {
   count = local.manage_staging_ecs_compute_effective ? 1 : 0
 
   name            = var.staging_service_name
-  cluster         = local.ecs_cluster_arn_effective
+  cluster         = local.staging_ecs_cluster_arn_effective
   task_definition = aws_ecs_task_definition.staging_api[0].arn
   desired_count   = var.staging_desired_count
 
@@ -270,7 +300,7 @@ resource "aws_ecs_service" "staging_ui" {
   count = local.manage_staging_ecs_compute_effective ? 1 : 0
 
   name            = var.staging_ui_service_name
-  cluster         = local.ecs_cluster_arn_effective
+  cluster         = local.staging_ecs_cluster_arn_effective
   task_definition = aws_ecs_task_definition.staging_ui[0].arn
   desired_count   = var.staging_desired_count
 

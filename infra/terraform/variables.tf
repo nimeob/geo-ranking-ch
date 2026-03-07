@@ -331,8 +331,14 @@ variable "api_health_path" {
 }
 
 # ---------------------------------------------------------------------------
-# Staging ECS Compute Baseline (WP #661)
+# Staging ECS Cluster + Compute Baseline (WP #661)
 # ---------------------------------------------------------------------------
+
+variable "manage_staging_ecs_cluster" {
+  description = "Wenn true, erstellt Terraform einen eigenen ECS Cluster für staging. Guard: wirkt nur bei environment=staging."
+  type        = bool
+  default     = false
+}
 
 variable "manage_staging_ecs_compute" {
   description = "Wenn true, erstellt Terraform ein staging ECS compute skeleton (SG + TaskDef + Service). Guard: wirkt nur bei environment=staging."
