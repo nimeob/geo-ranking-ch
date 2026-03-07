@@ -1,17 +1,20 @@
 # IAM Least-Privilege Deploy-Role (BL-03)
 
-Status: ✅ **Final abgeschlossen** (2026-02-25/26) — OIDC-Role live, Policy verifiziert, E2E nachgewiesen
+Status: ✅ **Dev: Final abgeschlossen** (2026-02-25/26) — OIDC-Role live, Policy verifiziert, E2E nachgewiesen  
+Status: 📝 **Staging: Policy-Artefakte bereit** (2026-03-07, Issue #1326) — JSON-Templates committed; AWS-Anlage ausstehend (siehe `docs/staging-environment-setup.md`)
 
-Diese Artefakte dokumentieren die minimale IAM-Berechtigungsmenge für den GitHub-Actions-Deploy-Principal dieses Repos.
+Diese Artefakte dokumentieren die minimale IAM-Berechtigungsmenge für den GitHub-Actions-Deploy-Principal dieses Repos — für Dev (aktiv) und Staging (bereit zum Anlegen).
 
 ---
 
 ## Artefakte
 
-| Datei | Inhalt |
-|---|---|
-| `deploy-policy.json` | Least-Privilege Permission-Policy (live als `swisstopo-dev-github-deploy-policy` v2) |
-| `trust-policy.json` | Trust-Policy der OIDC-Deploy-Role (repo-scoped, `main`-only) |
+| Datei | Umgebung | Inhalt |
+|---|---|---|
+| `deploy-policy.json` | **Dev** (live) | Least-Privilege Permission-Policy (live als `swisstopo-dev-github-deploy-policy` v2) |
+| `trust-policy.json` | **Dev** (live) | Trust-Policy der OIDC-Deploy-Role (repo-scoped, `main`-only) |
+| `staging-deploy-policy.json` | **Staging** (bereit) | Permission-Policy für Staging-Deploy-Role (analog Dev, Staging-Ressourcen) |
+| `staging-trust-policy.json` | **Staging** (bereit) | Trust-Policy für Staging-Deploy-Role (GitHub-Environment-scoped) |
 
 ---
 
@@ -93,12 +96,57 @@ Die ursprüngliche Migrationsreihenfolge (1. Policy parallel anhängen → 2. Te
 
 ---
 
-## Hinweise für Staging/Prod
+## Staging-IAM-Ressourcen (bereit zum Anlegen)
 
-Für `staging`/`prod` ist eine **eigene OIDC-Deploy-Role** mit scope auf den jeweiligen Branch/Umgebung anzulegen:
+Die folgenden Artefakte sind committed und können direkt für `aws iam create-role` / `aws iam create-policy` verwendet werden.
 
-- Trust-Bedingung: `repo:nimeob/geo-ranking-ch:ref:refs/heads/staging` (bzw. `main` mit `environment:`-Gate)
-- Separate Permission-Policy mit Scope auf `staging`/`prod`-Ressourcen
-- Empfehlung: GitHub Environment-Protection-Rules als zusätzliches Gate (`environment: staging`)
+### staging-trust-policy.json
 
-Siehe [`docs/ENV_PROMOTION_STRATEGY.md`](../../docs/ENV_PROMOTION_STRATEGY.md) für den Promotion-Pfad.
+Trust-Bedingung: **GitHub-Environment-scoped** (`environment:staging` statt Branch-only).  
+Dies erfordert, dass das GitHub-Environment `staging` konfiguriert ist (Protection Rules optional aber empfohlen).
+
+```
+sub: repo:nimeob/geo-ranking-ch:environment:staging
+```
+
+> **Unterschied zu Dev:** Dev nutzt `ref:refs/heads/main` (Branch-only).  
+> Staging nutzt `environment:staging` — damit greifen GitHub-Environment-Protection-Rules als zusätzliches Gate.
+
+### staging-deploy-policy.json
+
+Analog `deploy-policy.json`, aber auf Staging-Ressourcen eingeschränkt:
+
+| Workflow-Schritt | Erforderliche Actions | Scope |
+|---|---|---|
+| Identity-Check | `sts:GetCallerIdentity` | `*` |
+| ECR Login | `ecr:GetAuthorizationToken` | `*` |
+| ECR Push | `ecr:Batch*/Complete*/Initiate*/Put*/Upload*` | nur `swisstopo-staging-api` + `swisstopo-staging-ui` |
+| ECS Read | `ecs:DescribeServices` | nur Staging-Cluster + Services |
+| ECS Read | `ecs:DescribeTaskDefinition` | `*` (AWS-seitig nicht enger scopeable) |
+| ECS Register | `ecs:RegisterTaskDefinition` | `*` (AWS-seitig nicht enger scopeable) |
+| ECS Rollout | `ecs:UpdateService` | nur Staging-Cluster + Services |
+| PassRole | `iam:PassRole` | nur `swisstopo-staging-ecs-execution-role` + `swisstopo-staging-ecs-task-role` |
+| Secrets (DB/OIDC) | `secretsmanager:GetSecretValue` | nur `/swisstopo/staging/*` |
+| CloudWatch (Trace-Debug) | `logs:FilterLogEvents`, `logs:GetLogEvents`, `logs:Describe*` | nur `/swisstopo/staging/*` Log Groups |
+
+### AWS-Anlage-Runbook (Kurzfassung)
+
+```bash
+# 1. Policy anlegen
+aws iam create-policy \
+  --policy-name swisstopo-staging-github-deploy-policy \
+  --policy-document file://infra/iam/staging-deploy-policy.json
+
+# 2. Role anlegen
+aws iam create-role \
+  --role-name swisstopo-staging-github-deploy-role \
+  --assume-role-policy-document file://infra/iam/staging-trust-policy.json
+
+# 3. Policy anhängen
+aws iam attach-role-policy \
+  --role-name swisstopo-staging-github-deploy-role \
+  --policy-arn arn:aws:iam::523234426229:policy/swisstopo-staging-github-deploy-policy
+```
+
+Vollständige Staging-Prerequisites: [`docs/staging-environment-setup.md`](../../docs/staging-environment-setup.md)  
+Promotion-Strategie: [`docs/ENV_PROMOTION_STRATEGY.md`](../../docs/ENV_PROMOTION_STRATEGY.md)

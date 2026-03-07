@@ -1,0 +1,116 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StsReadIdentity",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrGetAuthorizationToken",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPushOnlyToStagingRepositories",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": [
+        "arn:aws:ecr:eu-central-1:523234426229:repository/swisstopo-staging-api",
+        "arn:aws:ecr:eu-central-1:523234426229:repository/swisstopo-staging-ui"
+      ]
+    },
+    {
+      "Sid": "EcsDescribeServicesStagingOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeServices"
+      ],
+      "Resource": [
+        "arn:aws:ecs:eu-central-1:523234426229:cluster/swisstopo-staging",
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-staging/swisstopo-staging-api",
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-staging/swisstopo-staging-ui"
+      ]
+    },
+    {
+      "Sid": "EcsDescribeTaskDefinition",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeTaskDefinition"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcsRegisterTaskDefinition",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:RegisterTaskDefinition"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcsUpdateOnlyStagingServices",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:UpdateService"
+      ],
+      "Resource": [
+        "arn:aws:ecs:eu-central-1:523234426229:cluster/swisstopo-staging",
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-staging/swisstopo-staging-api",
+        "arn:aws:ecs:eu-central-1:523234426229:service/swisstopo-staging/swisstopo-staging-ui"
+      ]
+    },
+    {
+      "Sid": "IamPassOnlyEcsStagingTaskRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::523234426229:role/swisstopo-staging-ecs-execution-role",
+        "arn:aws:iam::523234426229:role/swisstopo-staging-ecs-task-role"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs-tasks.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "SecretsManagerReadStagingSecrets",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:eu-central-1:523234426229:secret:/swisstopo/staging/*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchReadStagingLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:FilterLogEvents",
+        "logs:GetLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": [
+        "arn:aws:logs:eu-central-1:523234426229:log-group:/swisstopo/staging/*",
+        "arn:aws:logs:eu-central-1:523234426229:log-group:/swisstopo/staging/*:*"
+      ]
+    }
+  ]
+}
