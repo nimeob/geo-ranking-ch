@@ -29,7 +29,7 @@ Regelwerk:
 - ✅ abgeschlossen (2026-03-03): [#800](https://github.com/nimeob/geo-ranking-ch/issues/800) — EPIC: DB Minimalslice + OIDC delegated access (Cognito) — alle Child-Work-Packages inklusive Dev-E2E-Verifikation (#865) abgeschlossen; OIDC-gesicherte Endpunkte + persistente History in dev nachgewiesen (`reports/evidence/issue-865-closeout-verify-20260303T143550Z.json`, `reports/evidence/issue-924-oidc-async-verify-20260303T140858Z.json`).
 - ✅ abgeschlossen (2026-03-03): [#892](https://github.com/nimeob/geo-ranking-ch/issues/892) — INFRA-NET-dev.followup.wp5: Frontdoor/VPC alignment for private ECS subnets — Child-WPs #895/#896/#897 vollständig erledigt; Dev-VPC-ALB/TG + ECS private-subnet switch + DNS-Cutover verifiziert. Evidence u. a. `reports/evidence/issue-897-dns-cutover-verify-20260303T132759Z.{json,md}`.
 - ~~[#801](https://github.com/nimeob/geo-ranking-ch/issues/801)~~ — DB-0: Core Tables (organizations/users/memberships/api_keys) + Migrations — **abgeschlossen 2026-03-02** (4 WPs: #812 PR#816, #813 PR#836, #814 PR#837, #815 PR#823)
-- [#802](https://github.com/nimeob/geo-ranking-ch/issues/802) — OIDC-0: Cognito Setup + API JWT Validation (priority:P1, **status:blocked** — code-complete, 4 WPs done, pending staging deployment + Cognito setup via runbooks)
+- ✅ abgeschlossen (2026-03-03): [#802](https://github.com/nimeob/geo-ranking-ch/issues/802) — OIDC-0: Cognito Setup + API JWT Validation — geschlossen als COMPLETED (2026-03-03T07:24:31Z).
 - ~~[#803](https://github.com/nimeob/geo-ranking-ch/issues/803)~~ — ASYNC-DB-0: Persist Async Job History in DB + S3 payload pointers — **abgeschlossen 2026-03-02** (5 WPs, PRs #843–#847)
   - ~~[#838](https://github.com/nimeob/geo-ranking-ch/issues/838)~~ — ASYNC-DB-0.wp1: Schema migration (PR #843)
   - ~~[#839](https://github.com/nimeob/geo-ranking-ch/issues/839)~~ — ASYNC-DB-0.wp2: DB-backed AsyncJobStore (PR #844)
@@ -1230,8 +1230,9 @@ Regelwerk:
 6. **BL-19** (Userdokumentation) ✅
 7. **BL-20** (Produktvision API+GUI umsetzen) ✅
 
-## Maintenance-Log (2026-03-06)
+## Maintenance-Log (2026-03-07)
 
 - ✅ abgeschlossen (2026-03-06): [#1322](https://github.com/nimeob/geo-ranking-ch/issues/1322) — Fix: pyyaml fehlt in requirements-dev.txt → Pytest-Collection-Fehler — `pyyaml>=6.0` in `requirements-dev.txt` ergänzt, `.venv-test` aktualisiert; `pytest --tb=no tests/` → **1454 passed, 4 skipped** (kein Collection-Fehler mehr). Commit: `85bff1c`.
 - ✅ abgeschlossen (2026-03-06): [#1321](https://github.com/nimeob/geo-ranking-ch/issues/1321) — Checklist-Hygiene: alle DoD-Boxen in closed Issue nachgezogen (5/5 checked), `status:todo` Label entfernt. Crawler läuft ohne Reopen-Findings.
 - ✅ abgeschlossen (2026-03-06, re-closeout): [#1323](https://github.com/nimeob/geo-ranking-ch/issues/1323) — Chore: Stale-Worktrees prunen + Junk-Dateien entfernen + Consistency-Report committen — Worktrees clean (nur Main-Checkout), `=6.0` nicht im Repo, `triage_labels.sh` bereits in `scripts/`, Consistency-Report committed (Commits [1cb168c](https://github.com/nimeob/geo-ranking-ch/commit/1cb168c), [e74b432](https://github.com/nimeob/geo-ranking-ch/commit/e74b432)). Crawler: 0 findings. Tests: 1454 passed, 4 skipped.
+- ✅ Hygiene (2026-03-07): BACKLOG.md Now/Next/Later — #802 (OIDC-0) war als `status:blocked` in der „Next"-Sektion eingetragen, ist aber bereits am 2026-03-03 als COMPLETED geschlossen worden. Eintrag auf ✅ abgeschlossen korrigiert. Kein offenes Issue vorhanden (0 open issues, 0 open PRs, Crawler 0 findings).
