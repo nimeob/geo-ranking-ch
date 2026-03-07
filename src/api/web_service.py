@@ -2149,6 +2149,7 @@ def _build_cors_headers(
 
     headers = {
         "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
         "Vary": "Origin",
     }
     if include_preflight:

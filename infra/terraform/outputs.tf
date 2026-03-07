@@ -131,6 +131,11 @@ output "ecs_cluster_arn" {
   value       = try(aws_ecs_cluster.dev[0].arn, data.aws_ecs_cluster.existing[0].arn, null)
 }
 
+output "staging_ecs_cluster_arn" {
+  description = "ECS-Cluster-ARN für staging (managed oder read-only lookup)."
+  value       = local.staging_ecs_cluster_arn_effective
+}
+
 output "ecr_repository_name" {
   description = "Effektiver ECR-Repository-Name (managed oder read-only erkannt)."
   value       = local.ecr_repository_name_effective

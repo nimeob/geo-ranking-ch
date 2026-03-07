@@ -20,9 +20,13 @@ manage_s3_bucket               = false
 manage_staging_network = false
 manage_staging_ingress = false
 
-# --- Staging ECS Compute Skeleton (WP #661) ---
+# --- Staging ECS Cluster + Compute Skeleton (WP #661) ---
 # Default: deaktiviert. Wird zusätzlich nur bei environment="staging" aktiv.
 # Voraussetzung (aktuell): Staging Network/Subnets werden via manage_staging_network gemanagt.
+# Hinweis: Services benötigen einen Cluster. Entweder:
+#  - manage_staging_ecs_cluster=true (Cluster von Terraform gemanagt)
+#  - oder lookup_existing_resources=true + existing_ecs_cluster_name (Read-only Lookup)
+manage_staging_ecs_cluster = false
 manage_staging_ecs_compute = false
 
 # --- Staging DB (INFRA-DB-0.wp1) ---
