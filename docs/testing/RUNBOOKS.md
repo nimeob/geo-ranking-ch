@@ -10,6 +10,14 @@ Neue, nicht BL-spezifische Test-Runbooks gehören direkt in die Subdirectory-Dat
 - Verbindliche Zuordnung der Gate-Tiers (`PR`, `Deploy`, `Nightly`) inkl. Blocking-Status, Entrypoints und Verantwortlichkeiten.
 - Referenz: [`DEPLOY_TEST_TIERS.md`](DEPLOY_TEST_TIERS.md)
 
+## Staging-Environment Setup (Prerequisites)
+
+*Quelle: `../staging-environment-setup.md` (Issue #1325)*
+
+- Vollständige Checkliste für das Aufsetzen der Staging-Umgebung (GitHub Environment `staging`, AWS-Infra, Aktivierungsreihenfolge, Smoketest-Kriterien).
+- Audit-Ergebnis `deploy-staging.yml`: ✅ vollständig, keine Lücken.
+- Referenz: [`../staging-environment-setup.md`](../staging-environment-setup.md)
+
 ## Dev→Stage Cutover (kanonisch)
 
 *Quelle: `DEV_STAGE_CUTOVER_RUNBOOK.md`*

@@ -423,6 +423,7 @@ Regelwerk:
   - Promotion-Pfad (`dev` → `staging` → `prod`) inkl. Gates dokumentiert.
   - Rollback- und Freigabeprozess pro Umgebung ist festgelegt.
 - **Nachweis:** [`docs/ENV_PROMOTION_STRATEGY.md`](ENV_PROMOTION_STRATEGY.md)
+- **Nächster Schritt (operative Umsetzung):** [`docs/staging-environment-setup.md`](staging-environment-setup.md) — vollständige Prerequisites-Checkliste + Aktivierungsreihenfolge (Issue #1325, 2026-03-07)
 
 ### BL-10 — Lokale Dev-Baseline konsolidieren (Python-Version + pre-commit)
 - **Priorität:** P2
@@ -1236,3 +1237,4 @@ Regelwerk:
 - ✅ abgeschlossen (2026-03-06): [#1321](https://github.com/nimeob/geo-ranking-ch/issues/1321) — Checklist-Hygiene: alle DoD-Boxen in closed Issue nachgezogen (5/5 checked), `status:todo` Label entfernt. Crawler läuft ohne Reopen-Findings.
 - ✅ abgeschlossen (2026-03-06, re-closeout): [#1323](https://github.com/nimeob/geo-ranking-ch/issues/1323) — Chore: Stale-Worktrees prunen + Junk-Dateien entfernen + Consistency-Report committen — Worktrees clean (nur Main-Checkout), `=6.0` nicht im Repo, `triage_labels.sh` bereits in `scripts/`, Consistency-Report committed (Commits [1cb168c](https://github.com/nimeob/geo-ranking-ch/commit/1cb168c), [e74b432](https://github.com/nimeob/geo-ranking-ch/commit/e74b432)). Crawler: 0 findings. Tests: 1454 passed, 4 skipped.
 - ✅ Hygiene (2026-03-07): BACKLOG.md Now/Next/Later — #802 (OIDC-0) war als `status:blocked` in der „Next"-Sektion eingetragen, ist aber bereits am 2026-03-03 als COMPLETED geschlossen worden. Eintrag auf ✅ abgeschlossen korrigiert. Kein offenes Issue vorhanden (0 open issues, 0 open PRs, Crawler 0 findings).
+- ✅ abgeschlossen (2026-03-07): [#1325](https://github.com/nimeob/geo-ranking-ch/issues/1325) — Staging Readiness: Prerequisites-Checklist + GitHub-Environment scaffold — `docs/staging-environment-setup.md` erstellt (vollständige AWS-Infra-Liste, GitHub-Variables/Secrets, Aktivierungsreihenfolge, Smoketest-Kriterien); `deploy-staging.yml` auditiert (✅ vollständig); `docs/testing/RUNBOOKS.md` + BL-09-Nächster-Schritt aktualisiert.
