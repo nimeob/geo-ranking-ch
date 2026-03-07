@@ -65,3 +65,6 @@ node_modules/
 # Runtime-State (Automation-Consumer)
 reports/automation/**/state/
 runtime/
+
+# OpenClaw local artifacts
+/.openclaw/issue_*_body.md
