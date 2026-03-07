@@ -46,6 +46,12 @@ variable "manage_ecr_repository" {
   default     = false
 }
 
+variable "manage_ecr_repository_ui" {
+  description = "Wenn true, verwaltet Terraform das ECR UI Repository (Import vor Apply empfohlen)."
+  type        = bool
+  default     = false
+}
+
 variable "manage_cloudwatch_log_group" {
   description = "Wenn true, verwaltet Terraform die CloudWatch Log Group (Import vor Apply empfohlen)."
   type        = bool
@@ -82,6 +88,12 @@ variable "ecr_repository_name" {
   default     = "swisstopo-dev-api"
 }
 
+variable "ecr_ui_repository_name" {
+  description = "Zielname des ECR UI Repositories (API und UI werden in separate Repos gebaut)."
+  type        = string
+  default     = "swisstopo-dev-ui"
+}
+
 variable "cloudwatch_log_group_name" {
   description = "Zielname der CloudWatch Log Group für den API-Service."
   type        = string
@@ -116,6 +128,12 @@ variable "existing_ecr_repository_name" {
   description = "Name eines bereits existierenden ECR Repositories (Read-Only Lookup)."
   type        = string
   default     = "swisstopo-dev-api"
+}
+
+variable "existing_ecr_ui_repository_name" {
+  description = "Name eines bereits existierenden ECR UI Repositories (Read-Only Lookup)."
+  type        = string
+  default     = "swisstopo-dev-ui"
 }
 
 variable "existing_cloudwatch_log_group_name" {

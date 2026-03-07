@@ -8,6 +8,7 @@ locals {
 
   ecs_cluster_name_effective        = var.manage_ecs_cluster ? var.ecs_cluster_name : (var.lookup_existing_resources ? var.existing_ecs_cluster_name : null)
   ecr_repository_name_effective     = var.manage_ecr_repository ? var.ecr_repository_name : (var.lookup_existing_resources ? var.existing_ecr_repository_name : null)
+  ecr_ui_repository_name_effective  = var.manage_ecr_repository_ui ? var.ecr_ui_repository_name : (var.lookup_existing_resources ? var.existing_ecr_ui_repository_name : null)
   cloudwatch_log_group_effective    = var.manage_cloudwatch_log_group ? var.cloudwatch_log_group_name : (var.lookup_existing_resources ? var.existing_cloudwatch_log_group_name : null)
   cloudwatch_log_group_ui_effective = var.manage_cloudwatch_log_group_ui ? var.cloudwatch_log_group_ui_name : (var.lookup_existing_resources ? var.existing_cloudwatch_log_group_ui_name : null)
   s3_bucket_name_effective          = var.manage_s3_bucket ? var.s3_bucket_name : (var.lookup_existing_resources ? var.existing_s3_bucket_name : null)
@@ -32,6 +33,12 @@ data "aws_ecr_repository" "existing" {
   count = var.lookup_existing_resources && !var.manage_ecr_repository ? 1 : 0
 
   name = var.existing_ecr_repository_name
+}
+
+data "aws_ecr_repository" "existing_ui" {
+  count = var.lookup_existing_resources && !var.manage_ecr_repository_ui ? 1 : 0
+
+  name = var.existing_ecr_ui_repository_name
 }
 
 data "aws_cloudwatch_log_group" "existing" {
@@ -77,6 +84,35 @@ resource "aws_ecr_repository" "api" {
   count = var.manage_ecr_repository ? 1 : 0
 
   name                 = var.ecr_repository_name
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+
+  tags = local.common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# ---------------------------------------------------------------------------
+# ECR Repository — UI (#1328)
+#
+# Separate ECR für den UI-Service (Dockerfile.ui → swisstopo-{env}-ui).
+# Guarded by manage_ecr_repository_ui; lookup via existing_ecr_ui_repository_name
+# wenn lookup_existing_resources=true (analog API-Repo).
+# ---------------------------------------------------------------------------
+resource "aws_ecr_repository" "ui" {
+  count = var.manage_ecr_repository_ui ? 1 : 0
+
+  name                 = var.ecr_ui_repository_name
   image_tag_mutability = "MUTABLE"
   force_delete         = false
 

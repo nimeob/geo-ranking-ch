@@ -141,6 +141,11 @@ output "ecr_repository_url" {
   value       = try(aws_ecr_repository.api[0].repository_url, data.aws_ecr_repository.existing[0].repository_url, null)
 }
 
+output "ecr_ui_repository_url" {
+  description = "ECR UI Repository URL (falls managed oder erfolgreich read-only aufgelöst). Wird vom deploy-staging.yml als ECR_UI_REPOSITORY referenziert."
+  value       = try(aws_ecr_repository.ui[0].repository_url, data.aws_ecr_repository.existing_ui[0].repository_url, null)
+}
+
 output "cloudwatch_log_group_name" {
   description = "Effektiver CloudWatch Log Group Name (managed oder read-only erkannt)."
   value       = local.cloudwatch_log_group_effective

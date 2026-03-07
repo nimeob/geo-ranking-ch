@@ -71,6 +71,8 @@ ecs_cluster_name               = "swisstopo-staging"
 ecs_container_insights_enabled = false
 
 ecr_repository_name       = "swisstopo-staging-api"
+manage_ecr_repository_ui  = true
+ecr_ui_repository_name    = "swisstopo-staging-ui"
 cloudwatch_log_group_name    = "/swisstopo/staging/ecs/api"
 cloudwatch_log_group_ui_name = "/swisstopo/staging/ecs/ui"
 cloudwatch_log_retention_days = 30
@@ -81,6 +83,7 @@ s3_bucket_name = "swisstopo-staging-523234426229"
 
 existing_ecs_cluster_name          = "swisstopo-staging"
 existing_ecr_repository_name       = "swisstopo-staging-api"
+existing_ecr_ui_repository_name    = "swisstopo-staging-ui"
 existing_cloudwatch_log_group_name    = "/swisstopo/staging/ecs/api"
 existing_cloudwatch_log_group_ui_name = "/swisstopo/staging/ecs/ui"
 existing_s3_bucket_name               = "swisstopo-staging-523234426229"
