@@ -4349,10 +4349,26 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             if request_path == "/analyze/history":
+                cors_headers = self._cors_headers_for_analyze(include_preflight=False)
                 query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
                 history_route_headers = _history_api_deprecation_headers()
                 history_route_headers["Cache-Control"] = "no-store"
                 history_deprecation_payload = _history_api_deprecation_payload()
+
+                if cors_headers is None:
+                    self._send_json(
+                        {
+                            "ok": False,
+                            "error": "cors_origin_not_allowed",
+                            "deprecation": history_deprecation_payload,
+                            "request_id": request_id,
+                        },
+                        status=HTTPStatus.FORBIDDEN,
+                        request_id=request_id,
+                        extra_headers=history_route_headers,
+                    )
+                    return
+                self._cors_response_headers = cors_headers
 
                 provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
