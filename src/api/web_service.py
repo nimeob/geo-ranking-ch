@@ -4371,24 +4371,31 @@ class Handler(BaseHTTPRequestHandler):
                 self._cors_response_headers = cors_headers
 
                 provided_token = _extract_bearer_token(self.headers.get("Authorization", ""))
+
+                # Clean fix: allow browser-origin calls to authenticate via the BFF OIDC session cookie.
+                # After a successful GUI login the access_token is stored server-side in the session store,
+                # but the UI does not (and should not) have direct access to it.
+                if not provided_token and is_bff_oidc_enabled():
+                    store = get_session_store()
+                    session_id = parse_session_id_from_cookie(self.headers.get("Cookie"))
+                    session = store.get(session_id) if session_id else None
+                    session_token = str(getattr(session, "access_token", "") or "").strip()
+                    if session_token:
+                        provided_token = session_token
+
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
 
                 if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
-                    # UI calls this legacy data-source route without an Authorization header.
-                    # Returning 401 here triggers an auth recovery redirect loop in the GUI.
-                    # Until the UI is fully migrated off this endpoint, degrade gracefully and
-                    # return an empty history payload.
                     self._send_json(
                         {
-                            "ok": True,
-                            "rows": [],
-                            "total": 0,
-                            "limit": 0,
-                            "offset": 0,
+                            "ok": False,
+                            "error": "unauthorized",
+                            "message": "missing or invalid bearer token",
                             "deprecation": history_deprecation_payload,
                             "request_id": request_id,
                         },
+                        status=HTTPStatus.UNAUTHORIZED,
                         request_id=request_id,
                         extra_headers=history_route_headers,
                     )
