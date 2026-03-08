@@ -4375,15 +4375,20 @@ class Handler(BaseHTTPRequestHandler):
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
 
                 if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
+                    # UI calls this legacy data-source route without an Authorization header.
+                    # Returning 401 here triggers an auth recovery redirect loop in the GUI.
+                    # Until the UI is fully migrated off this endpoint, degrade gracefully and
+                    # return an empty history payload.
                     self._send_json(
                         {
-                            "ok": False,
-                            "error": "unauthorized",
-                            "message": "missing or invalid bearer token",
+                            "ok": True,
+                            "rows": [],
+                            "total": 0,
+                            "limit": 0,
+                            "offset": 0,
                             "deprecation": history_deprecation_payload,
                             "request_id": request_id,
                         },
-                        status=HTTPStatus.UNAUTHORIZED,
                         request_id=request_id,
                         extra_headers=history_route_headers,
                     )
