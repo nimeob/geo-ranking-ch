@@ -463,7 +463,7 @@ def _build_health_details_payload(
 
 _CORS_ALLOW_ORIGINS_ENV = "CORS_ALLOW_ORIGINS"
 _CORS_ALLOW_METHODS = "GET, POST, OPTIONS"
-_CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Org-Id, X-Tenant-Id"
+_CORS_ALLOW_HEADERS = "Content-Type, Authorization, X-Request-Id, X-Session-Id, X-Org-Id, X-Tenant-Id, X-Correlation-Id"
 _CORS_MAX_AGE_SECONDS = "600"
 _TOP_LEVEL_STATUS_KEYS = {
     "confidence",
