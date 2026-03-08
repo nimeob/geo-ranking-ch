@@ -1879,6 +1879,14 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           const response = historyFetch.response;
           const data = await response.json();
           if (!response.ok || !data || data.ok !== true) {
+            // History is a best-effort, non-critical panel.
+            // A 401 here must NOT trigger global session recovery (redirect loop), because
+            // /analyze/history may be served by a different backend path during migration.
+            if (response.status === 401) {
+              renderHistoryItems([]);
+              return;
+            }
+
             const errCode = data && data.error ? String(data.error) : `http_${response.status}`;
             const fallbackMessage = (data && data.message) || `history fetch failed (${response.status})`;
             const authFailure = resolveAuthFailure(response.status, errCode, fallbackMessage);
