@@ -1,7 +1,7 @@
 # Backlog (konsolidiert)
 
 > Quelle: konsolidierte offene Punkte aus `README.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT_AWS.md`, `docs/OPERATIONS.md`.
-> Stand: 2026-03-06
+> Stand: 2026-03-09
 
 ## Legende
 
@@ -30,6 +30,8 @@ Regelwerk:
 
 ## Dev-Engineering (non-BL)
 
+- ✅ abgeschlossen (2026-03-09): [#1344](https://github.com/nimeob/geo-ranking-ch/issues/1344) — CI: stündlicher Dev-Deploy fehlgeschlagen — Root-Cause im fehlgeschlagenen Deploy-Run [#22826358350](https://github.com/nimeob/geo-ranking-ch/actions/runs/22826358350): Unit-Tests erwarteten für `/analyze/history` noch `401`, kollidierten aber mit dem kurzzeitig eingeführten Login-Loop-Hotfix (unauthenticated history = `200` mit leerem Payload). Nachhaltiger Fix auf `main` erfolgte über Session-Cookie-gestützten BFF-Token-Pfad für History (`fix(auth): let /analyze/history use BFF OIDC session token`, Commit [976c56c](https://github.com/nimeob/geo-ranking-ch/commit/976c56c)) plus UI-Recovery-Härtung (`fix(ui): do not trigger auth recovery redirect on history 401`, Commit [1c21620](https://github.com/nimeob/geo-ranking-ch/commit/1c21620)). Redeploy danach stabil grün (z. B. Run [#22827462935](https://github.com/nimeob/geo-ranking-ch/actions/runs/22827462935), `success`).
+  Nachweise: `gh run view 22826358350 --log-failed`, `gh run list --workflow "Deploy to AWS (ECS dev)" --limit 10`, Commits `976c56c`, `1c21620` auf `main`.
 - ✅ abgeschlossen (2026-03-06): [#1321](https://github.com/nimeob/geo-ranking-ch/issues/1321) — Crawler: audit_closed_issues O(n)-API-Calls durch GraphQL-Batch ersetzt — `fetch_closed_issues_batch()` via `_FETCH_CLOSED_ISSUES_GQL` (100 Issues/Seite, body/labels/comments/closing-PRs in einem Request); Laufzeit 200s+ → **12s**; 7 neue Regressionstests; Consistency-Report regeneriert (0 Findings); DoD-Hygiene in #1318/#1320 nachgezogen.
   Nachweise: `pytest -q tests/test_github_repo_crawler.py` (38 passed), Commit [71fea7e](https://github.com/nimeob/geo-ranking-ch/commit/71fea7e).
 - ✅ abgeschlossen (2026-03-06): [#1320](https://github.com/nimeob/geo-ranking-ch/issues/1320) — Crawler: Vision-Coverage M1–M5 — `**Umgesetzt durch:**`-Annotationen in `docs/VISION_PRODUCT.md` für alle 5 Scope-Module + Explicit-Override-Logik im Crawler (`explicit_issue_refs` → immer `covered`) + 3 Regressionstests. Ergebnis: `covered=5, unclear=0, missing=0, findings=0` (vorher: 3 `vision_issue_coverage_unclear`-Findings).
