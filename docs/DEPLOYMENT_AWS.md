@@ -392,7 +392,7 @@ Smoke-Verhalten:
 | Secret | Beschreibung |
 |---|---|
 | `SERVICE_API_AUTH_TOKEN` | **Pflicht-Secret (deploy/auth preflight):** Bearer-Token für den API-Analyze-Smoke (`run_remote_api_smoketest.sh`). Fehlend/leer → Workflow-Abbruch vor dem eigentlichen Rollout. |
-| _(keine AWS-Credentials erforderlich)_ | AWS Auth läuft via GitHub OIDC Role Assume (`aws-actions/configure-aws-credentials@v4`) |
+| _(keine AWS-Credentials erforderlich)_ | AWS Auth läuft via GitHub OIDC Token + `aws sts assume-role-with-web-identity` (ohne externes AWS-Action-Dependency) |
 
 **Benötigte GitHub Variables (zu setzen unter Settings → Variables):**
 
@@ -463,8 +463,10 @@ Fehlerbeispiel (gekürzt):
 - Zusätzlicher Nachweis: `artifacts/deploy/<sha>-deploy-gate-report.json` (Status, letzte Probe, Retry-/Timeout-Config, Rollback-Hint).
 
 **OIDC-Rollenbindung (AWS):**
-- Workflow verwendet `aws-actions/configure-aws-credentials@v4` mit
-  `role-to-assume: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`.
+- Workflow nutzt den GitHub OIDC-Endpoint direkt (`ACTIONS_ID_TOKEN_REQUEST_*`) und übernimmt die Rolle per
+  `aws sts assume-role-with-web-identity` auf
+  `arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role`.
+- ECR-Login erfolgt anschließend per `aws ecr get-login-password | docker login`.
 - Erforderliche Minimalrechte siehe `infra/iam/deploy-policy.json`.
 
 ### Deployment via GitHub Actions (staging)

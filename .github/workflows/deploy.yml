@@ -67,13 +67,64 @@ jobs:
           python3 scripts/validate_required_deploy_env.py
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role
-          aws-region: ${{ env.AWS_REGION }}
+        env:
+          AWS_ROLE_TO_ASSUME: arn:aws:iam::523234426229:role/swisstopo-dev-github-deploy-role
+        run: |
+          set -euo pipefail
+
+          OIDC_URL="${ACTIONS_ID_TOKEN_REQUEST_URL}"
+          if [[ "$OIDC_URL" == *"?"* ]]; then
+            OIDC_URL="${OIDC_URL}&audience=sts.amazonaws.com"
+          else
+            OIDC_URL="${OIDC_URL}?audience=sts.amazonaws.com"
+          fi
+
+          OIDC_TOKEN=$(curl -fsSL \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "$OIDC_URL" \
+            | jq -r '.value')
+
+          if [ -z "${OIDC_TOKEN}" ] || [ "${OIDC_TOKEN}" = "null" ]; then
+            echo "::error::OIDC token request failed (empty token)."
+            exit 1
+          fi
+
+          SESSION_NAME="gha-deploy-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          CREDENTIALS_JSON=$(aws sts assume-role-with-web-identity \
+            --role-arn "${AWS_ROLE_TO_ASSUME}" \
+            --role-session-name "${SESSION_NAME}" \
+            --web-identity-token "${OIDC_TOKEN}" \
+            --duration-seconds 3600)
+
+          AWS_ACCESS_KEY_ID=$(echo "$CREDENTIALS_JSON" | jq -r '.Credentials.AccessKeyId')
+          AWS_SECRET_ACCESS_KEY=$(echo "$CREDENTIALS_JSON" | jq -r '.Credentials.SecretAccessKey')
+          AWS_SESSION_TOKEN=$(echo "$CREDENTIALS_JSON" | jq -r '.Credentials.SessionToken')
+
+          if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ "${AWS_ACCESS_KEY_ID}" = "null" ]; then
+            echo "::error::Failed to assume OIDC role: AccessKeyId missing."
+            exit 1
+          fi
+
+          echo "::add-mask::${AWS_ACCESS_KEY_ID}"
+          echo "::add-mask::${AWS_SECRET_ACCESS_KEY}"
+          echo "::add-mask::${AWS_SESSION_TOKEN}"
+
+          {
+            echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
+            echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+            echo "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
+          } >> "$GITHUB_ENV"
+
+          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          echo "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}" >> "$GITHUB_ENV"
 
       - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
+        run: |
+          set -euo pipefail
+          [ -n "${AWS_ACCOUNT_ID:-}" ]
+          aws ecr get-login-password --region "${AWS_REGION}" \
+            | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
       - name: Build and push API/UI images
         id: images
@@ -83,8 +134,9 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE_TAG="${GITHUB_SHA::7}"
-          API_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_API_REPOSITORY}:${IMAGE_TAG}"
-          UI_IMAGE_URI="523234426229.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_UI_REPOSITORY}:${IMAGE_TAG}"
+          [ -n "${AWS_ACCOUNT_ID:-}" ]
+          API_IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_API_REPOSITORY}:${IMAGE_TAG}"
+          UI_IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_UI_REPOSITORY}:${IMAGE_TAG}"
 
           rm -f .dockerignore
           export DOCKER_BUILDKIT=0
