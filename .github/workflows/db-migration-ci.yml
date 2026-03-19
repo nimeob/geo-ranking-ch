@@ -42,10 +42,10 @@ jobs:
       DATABASE_URL: postgresql://georanking:ci_test_password@localhost:5432/georanking_ci
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"
