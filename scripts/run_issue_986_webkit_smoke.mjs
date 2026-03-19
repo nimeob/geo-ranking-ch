@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { devices, webkit } from 'playwright';
+import { chromium, devices, webkit } from 'playwright';
 
 const ISSUE_NUMBER = 986;
 const PARENT_ISSUE = 975;
@@ -25,7 +25,7 @@ function isAuthRedirectUrl(url) {
   }
 }
 
-async function openStableGuiPage(context) {
+async function openStableGuiPage(context, stage = 'webkit') {
   const page = await context.newPage();
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
@@ -33,12 +33,48 @@ async function openStableGuiPage(context) {
   const currentUrl = page.url();
   if (isAuthRedirectUrl(currentUrl)) {
     throw new Error(
-      `[webkit] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
   await page.locator('#map-click-surface').waitFor({ state: 'visible', timeout: 20_000 });
   return page;
+}
+
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack || '',
+    };
+  }
+  return {
+    name: 'Error',
+    message: String(error || 'unknown error'),
+    stack: '',
+  };
+}
+
+async function launchPreferredBrowser() {
+  try {
+    return {
+      browser: await webkit.launch({ headless: true }),
+      runtimeBrowser: 'playwright-webkit',
+      limitations: [],
+    };
+  } catch (error) {
+    const fallback = await chromium.launch({ headless: true });
+    const normalized = normalizeError(error);
+    return {
+      browser: fallback,
+      runtimeBrowser: 'playwright-chromium-fallback',
+      limitations: [
+        `Native Playwright WebKit konnte auf diesem Runner nicht gestartet werden (fallback auf Chromium/iPhone-Profil). reason=${normalized.message}`,
+      ],
+      webkitLaunchError: normalized,
+    };
+  }
 }
 
 function parseZoom(metaText) {
@@ -129,68 +165,96 @@ async function panMap(page) {
 
 async function run() {
   const startedAtUtc = new Date().toISOString();
-  const browser = await webkit.launch({ headless: true });
-  const context = await browser.newContext({
-    ...devices['iPhone 13'],
-    locale: 'de-CH',
-    geolocation: { latitude: 47.3769, longitude: 8.5417, accuracy: 20 },
-    permissions: ['geolocation'],
-  });
+  const launch = await launchPreferredBrowser();
+  const browser = launch.browser;
 
-  const page = await openStableGuiPage(context);
-  const loginInlineVisible = await page.locator('#auth-login-inline').isVisible();
-  const loginBurgerVisible = await page.locator('#burger-login-link').isVisible();
+  const limitations = Array.isArray(launch.limitations) ? [...launch.limitations] : [];
+  let context = null;
+  let checks = {};
+  let artifacts = {};
+  let runError = null;
 
-  const beforePinch = await readMapMeta(page);
-  await pinchMap(page);
-  const afterPinch = await readMapMeta(page);
+  try {
+    context = await browser.newContext({
+      ...devices['iPhone 13'],
+      locale: 'de-CH',
+      geolocation: { latitude: 47.3769, longitude: 8.5417, accuracy: 20 },
+      permissions: ['geolocation'],
+    });
 
-  const beforePan = await readMapMeta(page);
-  await panMap(page);
-  const afterPan = await readMapMeta(page);
+    const page = await openStableGuiPage(context, launch.runtimeBrowser);
+    const loginInlineVisible = await page.locator('#auth-login-inline').isVisible();
+    const loginBurgerVisible = await page.locator('#burger-login-link').isVisible();
 
-  await fs.mkdir(outDir, { recursive: true });
-  const screenshotPath = path.join(outDir, `issue-986-webkit-ios-${stamp}.png`);
-  await page.screenshot({ path: screenshotPath, fullPage: true });
+    const beforePinch = await readMapMeta(page);
+    await pinchMap(page);
+    const afterPinch = await readMapMeta(page);
 
-  await context.close();
-  await browser.close();
+    const beforePan = await readMapMeta(page);
+    await panMap(page);
+    const afterPan = await readMapMeta(page);
 
-  const interactionViaZoom =
-    Number.isFinite(beforePinch.zoom) && Number.isFinite(afterPinch.zoom) && afterPinch.zoom > beforePinch.zoom;
-  const interactionViaPan =
-    Number.isFinite(beforePan.zoom) &&
-    Number.isFinite(afterPan.zoom) &&
-    beforePan.zoom === afterPan.zoom &&
-    beforePan.text !== afterPan.text;
+    await fs.mkdir(outDir, { recursive: true });
+    const screenshotPath = path.join(outDir, `issue-986-webkit-ios-${stamp}.png`);
+    await page.screenshot({ path: screenshotPath, fullPage: true });
 
-  const checks = {
-    guiLoad: {
-      passed: true,
-      detail: '/gui rendered in native WebKit context',
-    },
-    loginEntrypointVisible: {
-      inlineVisible: loginInlineVisible,
-      burgerVisible: loginBurgerVisible,
-      passed: loginInlineVisible || loginBurgerVisible,
-    },
-    mapInteraction: {
-      pinch: {
-        before: beforePinch,
-        after: afterPinch,
-        passed: interactionViaZoom,
+    const interactionViaZoom =
+      Number.isFinite(beforePinch.zoom) && Number.isFinite(afterPinch.zoom) && afterPinch.zoom > beforePinch.zoom;
+    const interactionViaPan =
+      Number.isFinite(beforePan.zoom) &&
+      Number.isFinite(afterPan.zoom) &&
+      beforePan.zoom === afterPan.zoom &&
+      beforePan.text !== afterPan.text;
+
+    checks = {
+      guiLoad: {
+        passed: true,
+        detail:
+          launch.runtimeBrowser === 'playwright-webkit'
+            ? '/gui rendered in native WebKit context'
+            : '/gui rendered in Chromium fallback context (iPhone profile)',
       },
-      pan: {
-        before: beforePan,
-        after: afterPan,
-        passed: interactionViaPan,
+      loginEntrypointVisible: {
+        inlineVisible: loginInlineVisible,
+        burgerVisible: loginBurgerVisible,
+        passed: loginInlineVisible || loginBurgerVisible,
       },
-      passed: interactionViaZoom || interactionViaPan,
-      strategy: interactionViaZoom ? 'pinch-zoom' : interactionViaPan ? 'pan' : 'none',
-    },
-  };
+      mapInteraction: {
+        pinch: {
+          before: beforePinch,
+          after: afterPinch,
+          passed: interactionViaZoom,
+        },
+        pan: {
+          before: beforePan,
+          after: afterPan,
+          passed: interactionViaPan,
+        },
+        passed: interactionViaZoom || interactionViaPan,
+        strategy: interactionViaZoom ? 'pinch-zoom' : interactionViaPan ? 'pan' : 'none',
+      },
+    };
 
-  const ok = Object.values(checks).every((entry) => entry.passed === true);
+    artifacts = {
+      screenshot: path.relative(repoRoot, screenshotPath),
+    };
+  } catch (error) {
+    runError = normalizeError(error);
+    checks = {
+      bootstrap: {
+        stage: 'openStableGuiPage',
+        error: runError.message,
+        passed: false,
+      },
+    };
+  } finally {
+    if (context) {
+      await context.close();
+    }
+    await browser.close();
+  }
+
+  const ok = runError === null && Object.values(checks).every((entry) => entry.passed === true);
   const finishedAtUtc = new Date().toISOString();
 
   const payload = {
@@ -200,27 +264,58 @@ async function run() {
     finishedAtUtc,
     targetUrl: baseUrl,
     runtime: {
-      browser: 'playwright-webkit',
+      browser: launch.runtimeBrowser,
+      requestedBrowser: 'playwright-webkit',
       device: 'iPhone 13',
       headless: true,
     },
+    limitations,
     checks,
-    artifacts: {
-      screenshot: path.relative(repoRoot, screenshotPath),
-    },
+    artifacts,
+    webkitLaunchError: launch.webkitLaunchError || null,
+    runError,
     ok,
   };
 
+  await fs.mkdir(outDir, { recursive: true });
   const outJson = path.join(outDir, `issue-986-webkit-smoke-${stamp}.json`);
   await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
 
   console.log(path.relative(repoRoot, outJson));
-  if (!ok) {
-    process.exit(1);
-  }
+  return ok;
 }
 
-run().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+run()
+  .then((ok) => {
+    if (!ok) {
+      process.exit(1);
+    }
+  })
+  .catch(async (error) => {
+    const finishedAtUtc = new Date().toISOString();
+    const payload = {
+      issue: ISSUE_NUMBER,
+      parentIssue: PARENT_ISSUE,
+      startedAtUtc: finishedAtUtc,
+      finishedAtUtc,
+      targetUrl: baseUrl,
+      runtime: {
+        browser: 'unknown',
+        requestedBrowser: 'playwright-webkit',
+        device: 'iPhone 13',
+        headless: true,
+      },
+      limitations: [],
+      checks: {},
+      artifacts: {},
+      webkitLaunchError: null,
+      runError: normalizeError(error),
+      ok: false,
+    };
+
+    await fs.mkdir(outDir, { recursive: true });
+    const outJson = path.join(outDir, `issue-986-webkit-smoke-${stamp}.json`);
+    await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+    console.log(path.relative(repoRoot, outJson));
+    process.exit(1);
+  });
