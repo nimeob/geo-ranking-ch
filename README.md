@@ -147,8 +147,9 @@ make dev-check
 Der Target bündelt drei Schritte fail-closed:
 
 1. `pre-commit run` (Lint/Format auf geänderten/staged Dateien)
-2. `python -m compileall -q src tests scripts` (Type-/Syntax-Check)
-3. `pytest -q` (Unit-Tests)
+2. `python scripts/check_bl31_service_boundaries.py --src-dir src` (Architektur-/Boundary-Guard)
+3. `python -m compileall -q src tests scripts` (Type-/Syntax-Check)
+4. `pytest -q` (Unit-Tests)
 
 Optional:
 

@@ -45,7 +45,9 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
         self.assertIn("passed", result.stdout.lower())
 
-    def _build_legacy_src(self, root: Path, overrides: dict[str, str] | None = None) -> Path:
+    def _build_legacy_src(
+        self, root: Path, overrides: dict[str, str] | None = None
+    ) -> Path:
         src_dir = root / "src"
         src_dir.mkdir(parents=True, exist_ok=True)
         contents = dict(LEGACY_POLICY_MODULES)
@@ -69,7 +71,9 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
             (src_dir / "address_intel.py").write_text("", encoding="utf-8")
             (src_dir / "personalized_scoring.py").write_text("", encoding="utf-8")
             (src_dir / "suitability_light.py").write_text("", encoding="utf-8")
-            (src_dir / "ui_service.py").write_text("import src.address_intel\n", encoding="utf-8")
+            (src_dir / "ui_service.py").write_text(
+                "import src.address_intel\n", encoding="utf-8"
+            )
             (src_dir / "gui_mvp.py").write_text("", encoding="utf-8")
             (src_dir / "geo_utils.py").write_text("", encoding="utf-8")
             (src_dir / "gwr_codes.py").write_text("", encoding="utf-8")
@@ -95,7 +99,9 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
             (src_dir / "personalized_scoring.py").write_text("", encoding="utf-8")
             (src_dir / "suitability_light.py").write_text("", encoding="utf-8")
             (src_dir / "ui_service.py").write_text("", encoding="utf-8")
-            (src_dir / "gui_mvp.py").write_text("from src.web_service import app\n", encoding="utf-8")
+            (src_dir / "gui_mvp.py").write_text(
+                "from src.web_service import app\n", encoding="utf-8"
+            )
             (src_dir / "geo_utils.py").write_text("", encoding="utf-8")
             (src_dir / "gwr_codes.py").write_text("", encoding="utf-8")
             (src_dir / "mapping_transform_rules.py").write_text("", encoding="utf-8")
@@ -133,7 +139,9 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
                     violations = self._analyze(src_dir)
                     self.assertEqual([], violations)
 
-    def test_legacy_import_boundary_matrix_rejects_forbidden_paths_with_clear_messages(self) -> None:
+    def test_legacy_import_boundary_matrix_rejects_forbidden_paths_with_clear_messages(
+        self,
+    ) -> None:
         negative_cases = [
             (
                 "api importing ui",
@@ -166,9 +174,15 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
             (src_dir / "ui").mkdir(parents=True, exist_ok=True)
             (src_dir / "shared").mkdir(parents=True, exist_ok=True)
 
-            (src_dir / "api" / "analyze.py").write_text("from src.shared.helpers import helper\n", encoding="utf-8")
-            (src_dir / "ui" / "app.py").write_text("from src.shared.helpers import helper\n", encoding="utf-8")
-            (src_dir / "shared" / "helpers.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+            (src_dir / "api" / "analyze.py").write_text(
+                "from src.shared.helpers import helper\n", encoding="utf-8"
+            )
+            (src_dir / "ui" / "app.py").write_text(
+                "from src.shared.helpers import helper\n", encoding="utf-8"
+            )
+            (src_dir / "shared" / "helpers.py").write_text(
+                "def helper():\n    return 1\n", encoding="utf-8"
+            )
 
             result = subprocess.run(
                 [str(SCRIPT), "--src-dir", str(src_dir)],
@@ -188,7 +202,9 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
             (src_dir / "shared").mkdir(parents=True, exist_ok=True)
 
             (src_dir / "api" / "analyze.py").write_text("", encoding="utf-8")
-            (src_dir / "ui" / "app.py").write_text("from src.api.analyze import run\n", encoding="utf-8")
+            (src_dir / "ui" / "app.py").write_text(
+                "from src.api.analyze import run\n", encoding="utf-8"
+            )
             (src_dir / "shared" / "helpers.py").write_text("", encoding="utf-8")
 
             result = subprocess.run(
@@ -200,6 +216,50 @@ class TestCheckBl31ServiceBoundaries(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("must not import API module", result.stdout)
+
+    def test_split_layout_rejects_ui_importing_api_via_relative_import(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            src_dir = Path(tmp) / "src"
+            (src_dir / "api").mkdir(parents=True, exist_ok=True)
+            (src_dir / "ui").mkdir(parents=True, exist_ok=True)
+            (src_dir / "shared").mkdir(parents=True, exist_ok=True)
+
+            (src_dir / "api" / "analyze.py").write_text("", encoding="utf-8")
+            (src_dir / "ui" / "app.py").write_text(
+                "from ..api import analyze\n", encoding="utf-8"
+            )
+            (src_dir / "shared" / "helpers.py").write_text("", encoding="utf-8")
+
+            violations = self._analyze(src_dir)
+
+            self.assertIn(
+                "UI module 'ui.app' must not import API module 'api.analyze'",
+                violations,
+            )
+
+    def test_split_layout_allows_relative_imports_inside_same_service_namespace(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            src_dir = Path(tmp) / "src"
+            (src_dir / "api").mkdir(parents=True, exist_ok=True)
+            (src_dir / "ui").mkdir(parents=True, exist_ok=True)
+            (src_dir / "shared").mkdir(parents=True, exist_ok=True)
+
+            (src_dir / "api" / "helpers.py").write_text("VALUE = 1\n", encoding="utf-8")
+            (src_dir / "api" / "analyze.py").write_text(
+                "from . import helpers\n", encoding="utf-8"
+            )
+            (src_dir / "ui" / "service.py").write_text(
+                "from src.shared.helpers import helper\n", encoding="utf-8"
+            )
+            (src_dir / "shared" / "helpers.py").write_text(
+                "def helper():\n    return 1\n", encoding="utf-8"
+            )
+
+            violations = self._analyze(src_dir)
+
+            self.assertEqual([], violations)
 
     def test_split_layout_rejects_api_route_outside_policy(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

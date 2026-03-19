@@ -53,6 +53,9 @@ else
   fi
 fi
 
+echo "[dev-check] boundaries: ${PYTHON_BIN} scripts/check_bl31_service_boundaries.py --src-dir src"
+"${PYTHON_BIN}" scripts/check_bl31_service_boundaries.py --src-dir src
+
 echo "[dev-check] typecheck: ${PYTHON_BIN} -m compileall -q ${TYPECHECK_TARGETS}"
 "${PYTHON_BIN}" -m compileall -q ${TYPECHECK_TARGETS}
 

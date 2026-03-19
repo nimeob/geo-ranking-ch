@@ -26,3 +26,23 @@ def test_git_check_ignore_ignores_openclaw_issue_body_snapshots() -> None:
         assert "issue_*_body.md" in completed.stdout
     finally:
         probe.unlink(missing_ok=True)
+
+
+def test_git_check_ignore_ignores_local_tools_directory() -> None:
+    probe = Path(".tools/gitignore-probe.txt")
+    probe.parent.mkdir(parents=True, exist_ok=True)
+    probe.write_text("probe", encoding="utf-8")
+    try:
+        completed = subprocess.run(
+            ["git", "check-ignore", "-v", str(probe)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode == 0, (
+            f"expected {probe} to be ignored by git, got rc={completed.returncode}, "
+            f"stdout={completed.stdout!r}, stderr={completed.stderr!r}"
+        )
+        assert ".tools/" in completed.stdout
+    finally:
+        probe.unlink(missing_ok=True)

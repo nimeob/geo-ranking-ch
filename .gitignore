@@ -68,3 +68,4 @@ runtime/
 
 # OpenClaw local artifacts
 /.openclaw/issue_*_body.md
+.tools/

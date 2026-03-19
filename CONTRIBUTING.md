@@ -76,7 +76,7 @@ Nützliche reproduzierbare Checks:
 ./scripts/check_docs_quality_gate.sh
 make dev-smoke  # Standard-Entry-Point (delegiert auf scripts/check_bl334_split_smokes.sh)
 npm run dev:smoke  # DX-Bundle: Lint + Typecheck + Smoke-Subset
-make dev-check  # Pre-PR-Entry-Point (Lint + Type/Syntax + Unit-Tests)
+make dev-check  # Pre-PR-Entry-Point (Lint + Boundary-Guard + Type/Syntax + Unit-Tests)
 ```
 
 ## Lint / Format
@@ -115,8 +115,9 @@ make dev-check
 Der Target läuft fail-closed und bündelt:
 
 1. `pre-commit run`
-2. `python -m compileall -q src tests scripts`
-3. `pytest -q`
+2. `python scripts/check_bl31_service_boundaries.py --src-dir src`
+3. `python -m compileall -q src tests scripts`
+4. `pytest -q`
 
 Optional:
 

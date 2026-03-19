@@ -91,7 +91,11 @@ def _detect_layout_mode(local_modules: Set[str]) -> str:
 
 def _normalize_local_module(import_name: str, local_modules: Set[str]) -> str | None:
     """Map an import name to a local module key when possible."""
-    clean_name = import_name.split("src.", 1)[1] if import_name.startswith("src.") else import_name
+    clean_name = (
+        import_name.split("src.", 1)[1]
+        if import_name.startswith("src.")
+        else import_name
+    )
 
     # Prefer longest local-module match first so dotted modules resolve correctly.
     for module in sorted(local_modules, key=len, reverse=True):
@@ -104,7 +108,46 @@ def _normalize_local_module(import_name: str, local_modules: Set[str]) -> str | 
     return None
 
 
-def _collect_local_imports(file_path: Path, local_modules: Set[str]) -> Set[str]:
+def _iter_import_from_candidates(importer: str, node: ast.ImportFrom) -> Iterable[str]:
+    importer_parts = importer.split(".")
+    package_parts = importer_parts[:-1]
+
+    if node.level > 0:
+        levels_up = node.level - 1
+        if levels_up > len(package_parts):
+            return []
+        base_parts = package_parts[: len(package_parts) - levels_up]
+    else:
+        base_parts = []
+
+    module_name = node.module or ""
+    if module_name.startswith("src."):
+        module_name = module_name.split("src.", 1)[1]
+
+    candidate_prefix_parts = [
+        part for part in (*base_parts, *module_name.split(".")) if part
+    ]
+    candidate_prefix = ".".join(candidate_prefix_parts)
+
+    candidates: list[str] = []
+    if candidate_prefix:
+        candidates.append(candidate_prefix)
+
+    for alias in node.names:
+        if alias.name == "*":
+            continue
+        alias_candidate = ".".join(
+            part for part in (candidate_prefix, alias.name) if part
+        )
+        if alias_candidate:
+            candidates.append(alias_candidate)
+
+    return candidates
+
+
+def _collect_local_imports(
+    file_path: Path, module_name: str, local_modules: Set[str]
+) -> Set[str]:
     tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
     imports: Set[str] = set()
 
@@ -115,15 +158,8 @@ def _collect_local_imports(file_path: Path, local_modules: Set[str]) -> Set[str]
                 if module:
                     imports.add(module)
         elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                module = _normalize_local_module(node.module, local_modules)
-                if module:
-                    imports.add(module)
-                continue
-
-            # Relative import like `from . import foo`
-            for alias in node.names:
-                module = _normalize_local_module(alias.name, local_modules)
+            for candidate in _iter_import_from_candidates(module_name, node):
+                module = _normalize_local_module(candidate, local_modules)
                 if module:
                     imports.add(module)
 
@@ -153,17 +189,25 @@ def _validate_expected_modules(local_modules: Set[str], layout_mode: str) -> Lis
 
     if layout_mode == "split":
         if not any(module.startswith("api.") for module in local_modules):
-            violations.append("Split layout requires at least one module below src/api/")
+            violations.append(
+                "Split layout requires at least one module below src/api/"
+            )
         if not any(module.startswith("ui.") for module in local_modules):
             violations.append("Split layout requires at least one module below src/ui/")
         if not any(module.startswith("shared.") for module in local_modules):
-            violations.append("Split layout requires at least one module below src/shared/")
+            violations.append(
+                "Split layout requires at least one module below src/shared/"
+            )
         return violations
 
     expected_modules = API_SERVICE_MODULES | UI_SERVICE_MODULES | SHARED_MODULES
-    missing_modules = sorted(module for module in expected_modules if module not in local_modules)
+    missing_modules = sorted(
+        module for module in expected_modules if module not in local_modules
+    )
     if missing_modules:
-        violations.append("Policy modules missing in src/: " + ", ".join(missing_modules))
+        violations.append(
+            "Policy modules missing in src/: " + ", ".join(missing_modules)
+        )
     return violations
 
 
@@ -180,13 +224,19 @@ def _extract_request_path_route_patterns(py_file: Path) -> tuple[Set[str], Set[s
     prefix_routes: Set[str] = set()
 
     for node in ast.walk(tree):
-        if isinstance(node, ast.Compare) and isinstance(node.left, ast.Name) and node.left.id == "request_path":
+        if (
+            isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == "request_path"
+        ):
             for op, comparator in zip(node.ops, node.comparators):
                 if isinstance(op, ast.Eq):
                     value = _extract_string_literal(comparator)
                     if value and value.startswith("/"):
                         exact_routes.add(value)
-                elif isinstance(op, ast.In) and isinstance(comparator, (ast.Tuple, ast.List, ast.Set)):
+                elif isinstance(op, ast.In) and isinstance(
+                    comparator, (ast.Tuple, ast.List, ast.Set)
+                ):
                     for element in comparator.elts:
                         value = _extract_string_literal(element)
                         if value and value.startswith("/"):
@@ -209,7 +259,9 @@ def _extract_request_path_route_patterns(py_file: Path) -> tuple[Set[str], Set[s
     return exact_routes, prefix_routes
 
 
-def _is_route_allowed(route: str, allowed_exact: Set[str], allowed_prefixes: tuple[str, ...]) -> bool:
+def _is_route_allowed(
+    route: str, allowed_exact: Set[str], allowed_prefixes: tuple[str, ...]
+) -> bool:
     if route in allowed_exact:
         return True
     return any(route.startswith(prefix) for prefix in allowed_prefixes)
@@ -228,12 +280,16 @@ def _analyze_route_ownership(src_dir: Path, layout_mode: str) -> List[str]:
     if api_file.exists():
         exact_routes, prefix_routes = _extract_request_path_route_patterns(api_file)
         for route in sorted(exact_routes):
-            if not _is_route_allowed(route, API_ALLOWED_EXACT_ROUTES, API_ALLOWED_PREFIX_ROUTES):
+            if not _is_route_allowed(
+                route, API_ALLOWED_EXACT_ROUTES, API_ALLOWED_PREFIX_ROUTES
+            ):
                 violations.append(
                     f"API route policy violation in '{api_file.relative_to(src_dir)}': exact route '{route}' is outside API ownership"
                 )
         for route_prefix in sorted(prefix_routes):
-            if not _is_route_allowed(route_prefix, API_ALLOWED_EXACT_ROUTES, API_ALLOWED_PREFIX_ROUTES):
+            if not _is_route_allowed(
+                route_prefix, API_ALLOWED_EXACT_ROUTES, API_ALLOWED_PREFIX_ROUTES
+            ):
                 violations.append(
                     f"API route policy violation in '{api_file.relative_to(src_dir)}': route prefix '{route_prefix}' is outside API ownership"
                 )
@@ -241,12 +297,16 @@ def _analyze_route_ownership(src_dir: Path, layout_mode: str) -> List[str]:
     if ui_file.exists():
         exact_routes, prefix_routes = _extract_request_path_route_patterns(ui_file)
         for route in sorted(exact_routes):
-            if not _is_route_allowed(route, UI_ALLOWED_EXACT_ROUTES, UI_ALLOWED_PREFIX_ROUTES):
+            if not _is_route_allowed(
+                route, UI_ALLOWED_EXACT_ROUTES, UI_ALLOWED_PREFIX_ROUTES
+            ):
                 violations.append(
                     f"UI route policy violation in '{ui_file.relative_to(src_dir)}': exact route '{route}' is outside UI ownership"
                 )
         for route_prefix in sorted(prefix_routes):
-            if not _is_route_allowed(route_prefix, UI_ALLOWED_EXACT_ROUTES, UI_ALLOWED_PREFIX_ROUTES):
+            if not _is_route_allowed(
+                route_prefix, UI_ALLOWED_EXACT_ROUTES, UI_ALLOWED_PREFIX_ROUTES
+            ):
                 violations.append(
                     f"UI route policy violation in '{ui_file.relative_to(src_dir)}': route prefix '{route_prefix}' is outside UI ownership"
                 )
@@ -265,7 +325,7 @@ def analyze_service_boundaries(src_dir: Path) -> List[str]:
 
     import_graph: Dict[str, Set[str]] = {}
     for module, py_file in module_files.items():
-        import_graph[module] = _collect_local_imports(py_file, local_modules)
+        import_graph[module] = _collect_local_imports(py_file, module, local_modules)
 
     for importer, dependencies in sorted(import_graph.items()):
         importer_group = _service_group(importer, layout_mode)
@@ -314,7 +374,9 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     src_dir = Path(args.src_dir)
-    local_modules = set(_collect_local_python_modules(src_dir)) if src_dir.exists() else set()
+    local_modules = (
+        set(_collect_local_python_modules(src_dir)) if src_dir.exists() else set()
+    )
     layout_mode = _detect_layout_mode(local_modules) if local_modules else "legacy"
     violations = analyze_service_boundaries(src_dir)
     ok = len(violations) == 0
