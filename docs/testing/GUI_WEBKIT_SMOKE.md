@@ -50,6 +50,14 @@ Voraussetzung: lokaler GUI-Service ist erreichbar (z. B. `PORT=8877 python3 -m s
 BASE_URL="http://127.0.0.1:8877/gui" node scripts/run_issue_986_webkit_smoke.mjs
 ```
 
+Optional mit Stabilitätsfenster (ms) für Redirect-Guard:
+
+```bash
+BASE_URL="https://www.dev.georanking.ch/" GUI_STABILITY_WAIT_MS=1500 node scripts/run_issue_986_webkit_smoke.mjs
+```
+
+Hinweis: Der Smoke beendet sich früh mit klarer Fehlermeldung, wenn die GUI kurz nach Load auf `auth.*`/`/login` umleitet. Damit werden false positives vermieden, die bei verzögerten Redirects sonst als Locator-Timeout erscheinen.
+
 Output:
 - JSON Evidence: `reports/evidence/issue-986-webkit-smoke-<timestamp>.json`
 - Screenshot: `reports/evidence/issue-986-webkit-ios-<timestamp>.png`

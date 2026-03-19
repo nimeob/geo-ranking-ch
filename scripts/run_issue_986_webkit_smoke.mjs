@@ -7,8 +7,39 @@ const ISSUE_NUMBER = 986;
 const PARENT_ISSUE = 975;
 const repoRoot = process.cwd();
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
+const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function isAuthRedirectUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    const hasOauthLoginQuery = parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+    if (hostname.startsWith('auth.')) return true;
+    if (pathname === '/login' && hasOauthLoginQuery) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function openStableGuiPage(context) {
+  const page = await context.newPage();
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
+
+  const currentUrl = page.url();
+  if (isAuthRedirectUrl(currentUrl)) {
+    throw new Error(
+      `[webkit] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+    );
+  }
+
+  await page.locator('#map-click-surface').waitFor({ state: 'visible', timeout: 20_000 });
+  return page;
+}
 
 function parseZoom(metaText) {
   const match = /Zoom\s+(\d+)/i.exec(metaText || '');
@@ -106,10 +137,7 @@ async function run() {
     permissions: ['geolocation'],
   });
 
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-
-  await page.locator('#map-click-surface').waitFor({ state: 'visible', timeout: 20_000 });
+  const page = await openStableGuiPage(context);
   const loginInlineVisible = await page.locator('#auth-login-inline').isVisible();
   const loginBurgerVisible = await page.locator('#burger-login-link').isVisible();
 
