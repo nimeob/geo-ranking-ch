@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
+const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -26,6 +27,74 @@ const devices = [
     geolocation: { latitude: 46.948, longitude: 7.4474, accuracy: 18 },
   },
 ];
+
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack || '',
+    };
+  }
+  return {
+    name: 'Error',
+    message: String(error || 'unknown error'),
+    stack: '',
+  };
+}
+
+function buildBootstrapFailure(device, error) {
+  const normalized = normalizeError(error);
+  return {
+    device: device.label,
+    key: device.key,
+    checks: {
+      bootstrap: {
+        stage: 'openStableGuiPage',
+        error: normalized.message,
+        passed: false,
+      },
+    },
+    artifacts: {},
+    error: normalized,
+  };
+}
+
+function isAuthRedirectUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    const hasOauthLoginQuery = parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+    if (hostname.startsWith('auth.')) return true;
+    if (pathname === '/login' && hasOauthLoginQuery) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function openStableGuiPage(context, stageLabel) {
+  const page = await context.newPage();
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
+
+  const currentUrl = page.url();
+  if (isAuthRedirectUrl(currentUrl)) {
+    throw new Error(
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+    );
+  }
+
+  const guiVisible = await page.locator('#analyze-form').isVisible().catch(() => false);
+  if (!guiVisible) {
+    throw new Error(
+      `[${stageLabel}] GUI-Shell nicht bereit: #analyze-form nach ${guiStabilityWaitMs}ms nicht sichtbar (url=${currentUrl}).`
+    );
+  }
+
+  return page;
+}
 
 async function readMeta(page) {
   const text = (await page.locator('#map-view-meta').textContent()) || '';
@@ -109,8 +178,7 @@ async function geolocDenied(browser, device) {
     hasTouch: true,
     locale: 'de-CH',
   });
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  const page = await openStableGuiPage(context, `${device.key}:geoloc-denied`);
   await page.locator('#map-locate-btn').click();
   await page.waitForTimeout(300);
 
@@ -134,8 +202,7 @@ async function runDevice(browser, device) {
     permissions: ['geolocation'],
   });
 
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  const page = await openStableGuiPage(context, `${device.key}:geoloc-allowed`);
 
   const initial = await readMeta(page);
   await pinchOnMap(page);
@@ -196,15 +263,34 @@ async function runDevice(browser, device) {
 
 async function main() {
   const startedAtUtc = new Date().toISOString();
-  const browser = await chromium.launch({ headless: true });
   const checks = [];
-  for (const device of devices) {
-    checks.push(await runDevice(browser, device));
-  }
-  await browser.close();
-  const finishedAtUtc = new Date().toISOString();
+  const fatalErrors = [];
 
-  const ok = checks.every((entry) => Object.values(entry.checks).every((check) => check.passed));
+  let browser = null;
+  try {
+    browser = await chromium.launch({ headless: true });
+
+    for (const device of devices) {
+      try {
+        checks.push(await runDevice(browser, device));
+      } catch (error) {
+        checks.push(buildBootstrapFailure(device, error));
+      }
+    }
+  } catch (error) {
+    fatalErrors.push(normalizeError(error));
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+
+  const finishedAtUtc = new Date().toISOString();
+  const ok =
+    fatalErrors.length === 0
+    && checks.length > 0
+    && checks.every((entry) => Object.values(entry.checks).every((check) => check.passed));
+
   const payload = {
     issue: 981,
     parentIssue: 975,
@@ -215,6 +301,7 @@ async function main() {
       'Native Playwright WebKit (Safari engine) konnte auf diesem Runner wegen fehlender System-Libraries nicht gestartet werden; iOS-Check daher als iPhone-Profil-Simulator auf Chromium durchgeführt.',
     ],
     checks,
+    fatalErrors,
     ok,
   };
 
@@ -226,7 +313,22 @@ async function main() {
   if (!ok) process.exit(1);
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch(async (error) => {
+  const finishedAtUtc = new Date().toISOString();
+  const payload = {
+    issue: 981,
+    parentIssue: 975,
+    startedAtUtc: finishedAtUtc,
+    finishedAtUtc,
+    targetUrl: baseUrl,
+    checks: [],
+    fatalErrors: [normalizeError(error)],
+    ok: false,
+  };
+
+  await fs.mkdir(outDir, { recursive: true });
+  const outJson = path.join(outDir, `issue-981-mobile-e2e-smoke-${stamp}.json`);
+  await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  console.log(path.relative(repoRoot, outJson));
   process.exit(1);
 });

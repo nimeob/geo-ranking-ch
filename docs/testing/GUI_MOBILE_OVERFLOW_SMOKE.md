@@ -33,6 +33,14 @@ Optional mit anderem Ziel:
 BASE_URL="http://127.0.0.1:8877/gui" node scripts/run_issue_1039_mobile_overflow_smoke.cjs
 ```
 
+Optional mit stabilitätsfenster (ms) für Redirect-Guard:
+
+```bash
+BASE_URL="https://www.dev.georanking.ch/" GUI_STABILITY_WAIT_MS=1500 node scripts/run_issue_1039_mobile_overflow_smoke.cjs
+```
+
+Hinweis: Der Smoke bricht bewusst früh ab, wenn die GUI innerhalb des Stabilitätsfensters auf einen Auth-Login (`auth.*`/`/login`) umleitet. So werden false positives vermieden, bei denen Checks kurz vor einem Redirect noch grün laufen.
+
 ## Artefakte
 
 - JSON Evidence: `reports/evidence/issue-1039-mobile-overflow-smoke-<timestamp>.json`
