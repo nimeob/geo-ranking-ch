@@ -2163,6 +2163,45 @@ def _build_cors_headers(
     return headers
 
 
+def _extract_optional_object(
+    container: dict[str, Any],
+    field_name: str,
+    *,
+    field_path: str,
+) -> dict[str, Any]:
+    raw_value = container.get(field_name)
+    if raw_value is None:
+        return {}
+    if not isinstance(raw_value, dict):
+        raise ValueError(f"{field_path} must be an object when provided")
+    return raw_value
+
+
+def _extract_optional_bool(
+    container: dict[str, Any],
+    field_name: str,
+    *,
+    field_path: str,
+    default: bool = False,
+) -> bool:
+    raw_value = container.get(field_name, default)
+    if isinstance(raw_value, bool):
+        return raw_value
+    raise ValueError(f"{field_path} must be a boolean")
+
+
+def _extract_optional_non_negative_int(
+    container: dict[str, Any],
+    field_name: str,
+    *,
+    field_path: str,
+) -> int | None:
+    raw_value = container.get(field_name)
+    if raw_value is None:
+        return None
+    return _as_non_negative_int(raw_value, field_path)
+
+
 def _extract_request_options(data: dict[str, Any]) -> dict[str, Any]:
     """Liest den optionalen options-Envelope robust und rückwärtskompatibel.
 
@@ -2171,12 +2210,7 @@ def _extract_request_options(data: dict[str, Any]) -> dict[str, Any]:
     - `options` muss ein JSON-Objekt sein (sonst 400 bad_request)
     - unbekannte optionale Keys sind additive No-Op-Felder (Forward-Compatibility)
     """
-    raw_options = data.get("options")
-    if raw_options is None:
-        return {}
-    if not isinstance(raw_options, dict):
-        raise ValueError("options must be an object when provided")
-    return raw_options
+    return _extract_optional_object(data, "options", field_path="options")
 
 
 def _extract_response_mode(options: dict[str, Any]) -> str:
@@ -2201,16 +2235,17 @@ def _reject_legacy_options(options: dict[str, Any]) -> None:
 
 def _extract_async_mode_request(options: dict[str, Any]) -> bool:
     """Liest den additiven Async-Mode-Schalter aus `options.async_mode.requested`."""
-    async_mode_raw = options.get("async_mode")
-    if async_mode_raw is None:
-        return False
-    if not isinstance(async_mode_raw, dict):
-        raise ValueError("options.async_mode must be an object when provided")
-
-    requested_raw = async_mode_raw.get("requested", False)
-    if isinstance(requested_raw, bool):
-        return requested_raw
-    raise ValueError("options.async_mode.requested must be a boolean")
+    async_mode = _extract_optional_object(
+        options,
+        "async_mode",
+        field_path="options.async_mode",
+    )
+    return _extract_optional_bool(
+        async_mode,
+        "requested",
+        field_path="options.async_mode.requested",
+        default=False,
+    )
 
 
 def _resolve_request_owner_user_id(
@@ -2418,62 +2453,55 @@ def _extract_deep_mode_request(
     *,
     intelligence_mode: str,
 ) -> dict[str, Any]:
-    capabilities_raw = options.get("capabilities")
-    if capabilities_raw is not None and not isinstance(capabilities_raw, dict):
-        raise ValueError("options.capabilities must be an object when provided")
-    capabilities = capabilities_raw if isinstance(capabilities_raw, dict) else {}
+    capabilities = _extract_optional_object(
+        options,
+        "capabilities",
+        field_path="options.capabilities",
+    )
+    entitlements = _extract_optional_object(
+        options,
+        "entitlements",
+        field_path="options.entitlements",
+    )
 
-    entitlements_raw = options.get("entitlements")
-    if entitlements_raw is not None and not isinstance(entitlements_raw, dict):
-        raise ValueError("options.entitlements must be an object when provided")
-    entitlements = entitlements_raw if isinstance(entitlements_raw, dict) else {}
+    deep_cap = _extract_optional_object(
+        capabilities,
+        "deep_mode",
+        field_path="options.capabilities.deep_mode",
+    )
+    deep_ent = _extract_optional_object(
+        entitlements,
+        "deep_mode",
+        field_path="options.entitlements.deep_mode",
+    )
 
-    deep_cap_raw = capabilities.get("deep_mode")
-    if deep_cap_raw is not None and not isinstance(deep_cap_raw, dict):
-        raise ValueError("options.capabilities.deep_mode must be an object when provided")
-    deep_cap = deep_cap_raw if isinstance(deep_cap_raw, dict) else {}
-
-    deep_ent_raw = entitlements.get("deep_mode")
-    if deep_ent_raw is not None and not isinstance(deep_ent_raw, dict):
-        raise ValueError("options.entitlements.deep_mode must be an object when provided")
-    deep_ent = deep_ent_raw if isinstance(deep_ent_raw, dict) else {}
-
-    raw_requested = deep_cap.get("requested")
-    if raw_requested is None:
-        requested = False
-    elif isinstance(raw_requested, bool):
-        requested = raw_requested
-    else:
-        raise ValueError("options.capabilities.deep_mode.requested must be a boolean")
-
+    requested = _extract_optional_bool(
+        deep_cap,
+        "requested",
+        field_path="options.capabilities.deep_mode.requested",
+        default=False,
+    )
     profile = _resolve_deep_mode_profile(
         raw_profile=deep_cap.get("profile"),
         intelligence_mode=intelligence_mode,
     )
+    max_budget_tokens = _extract_optional_non_negative_int(
+        deep_cap,
+        "max_budget_tokens",
+        field_path="options.capabilities.deep_mode.max_budget_tokens",
+    )
 
-    raw_max_budget_tokens = deep_cap.get("max_budget_tokens")
-    max_budget_tokens: int | None = None
-    if raw_max_budget_tokens is not None:
-        max_budget_tokens = _as_non_negative_int(
-            raw_max_budget_tokens,
-            "options.capabilities.deep_mode.max_budget_tokens",
-        )
-
-    raw_allowed = deep_ent.get("allowed")
-    if raw_allowed is None:
-        allowed = False
-    elif isinstance(raw_allowed, bool):
-        allowed = raw_allowed
-    else:
-        raise ValueError("options.entitlements.deep_mode.allowed must be a boolean")
-
-    raw_quota_remaining = deep_ent.get("quota_remaining")
-    quota_remaining: int | None = None
-    if raw_quota_remaining is not None:
-        quota_remaining = _as_non_negative_int(
-            raw_quota_remaining,
-            "options.entitlements.deep_mode.quota_remaining",
-        )
+    allowed = _extract_optional_bool(
+        deep_ent,
+        "allowed",
+        field_path="options.entitlements.deep_mode.allowed",
+        default=False,
+    )
+    quota_remaining = _extract_optional_non_negative_int(
+        deep_ent,
+        "quota_remaining",
+        field_path="options.entitlements.deep_mode.quota_remaining",
+    )
 
     return {
         "requested": requested,
