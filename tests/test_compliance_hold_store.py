@@ -19,16 +19,17 @@ from datetime import datetime, timedelta, timezone
 from src.compliance.hold_store import HoldStore, HoldStatus
 from src.compliance.deletion_scheduler import DeletionScheduler, DeletionStatus
 
-_NOW = datetime(2026, 3, 5, 12, 0, 0, tzinfo=timezone.utc)
-_REVIEW_DUE = _NOW + timedelta(days=14)
 
-_BASE_HOLD = dict(
-    hold_reason="Laufendes Rechtsverfahren — Dokument gesperrt bis Klärung",
-    requested_by_role="IT Product Owner",
-    approved_by_role="Compliance Lead",
-    counter_approved_by_role="Legal Counsel",
-    review_due_at=_REVIEW_DUE,
-)
+def _base_hold(**overrides):
+    payload = dict(
+        hold_reason="Laufendes Rechtsverfahren — Dokument gesperrt bis Klärung",
+        requested_by_role="IT Product Owner",
+        approved_by_role="Compliance Lead",
+        counter_approved_by_role="Legal Counsel",
+        review_due_at=datetime.now(tz=timezone.utc) + timedelta(days=14),
+    )
+    payload.update(overrides)
+    return payload
 
 _RELEASE_ARGS = dict(
     release_reason="Rechtsverfahren abgeschlossen — Hold aufgehoben",
@@ -43,14 +44,14 @@ class TestHoldSetAndQuery(unittest.TestCase):
 
     def test_set_hold_creates_active_record(self):
         store = self._store()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         self.assertEqual(record.status, HoldStatus.ACTIVE)
         self.assertEqual(record.document_id, "DOC-001")
         self.assertTrue(store.is_held("DOC-001"))
 
     def test_set_hold_returns_record_with_id(self):
         store = self._store()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         self.assertTrue(record.hold_id)
 
     def test_document_without_hold_is_not_held(self):
@@ -59,22 +60,22 @@ class TestHoldSetAndQuery(unittest.TestCase):
 
     def test_list_holds_by_document_id(self):
         store = self._store()
-        r1 = store.set_hold("DOC-A", **_BASE_HOLD)
-        store.set_hold("DOC-B", **_BASE_HOLD)
+        r1 = store.set_hold("DOC-A", **_base_hold())
+        store.set_hold("DOC-B", **_base_hold())
         result = store.list_holds(document_id="DOC-A")
         self.assertEqual([r.hold_id for r in result], [r1.hold_id])
 
     def test_list_holds_by_status(self):
         store = self._store()
-        r1 = store.set_hold("DOC-A", **_BASE_HOLD)
+        r1 = store.set_hold("DOC-A", **_base_hold())
         store.release_hold(r1.hold_id, **_RELEASE_ARGS)
-        r2 = store.set_hold("DOC-B", **_BASE_HOLD)
+        r2 = store.set_hold("DOC-B", **_base_hold())
         active = store.list_holds(status=HoldStatus.ACTIVE)
         self.assertEqual([r.hold_id for r in active], [r2.hold_id])
 
     def test_get_hold_by_id(self):
         store = self._store()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         fetched = store.get_hold(record.hold_id)
         self.assertIs(fetched, record)
 
@@ -89,7 +90,7 @@ class TestDeletionGuard(unittest.TestCase):
 
     def test_deletion_guard_raises_when_held(self):
         store = HoldStore()
-        store.set_hold("DOC-GUARDED", **_BASE_HOLD)
+        store.set_hold("DOC-GUARDED", **_base_hold())
         with self.assertRaises(RuntimeError, msg="deletion_guard must raise for held document"):
             store.deletion_guard("DOC-GUARDED")
 
@@ -100,7 +101,7 @@ class TestDeletionGuard(unittest.TestCase):
 
     def test_deletion_guard_includes_hold_id_in_message(self):
         store = HoldStore()
-        record = store.set_hold("DOC-GUARDED", **_BASE_HOLD)
+        record = store.set_hold("DOC-GUARDED", **_base_hold())
         try:
             store.deletion_guard("DOC-GUARDED")
             self.fail("Expected RuntimeError")
@@ -109,7 +110,7 @@ class TestDeletionGuard(unittest.TestCase):
 
     def test_deletion_guard_released_after_all_holds_lifted(self):
         store = HoldStore()
-        record = store.set_hold("DOC-RELEASE", **_BASE_HOLD)
+        record = store.set_hold("DOC-RELEASE", **_base_hold())
         # Guard raises while hold is active
         with self.assertRaises(RuntimeError):
             store.deletion_guard("DOC-RELEASE")
@@ -122,7 +123,7 @@ class TestDeletionGuard(unittest.TestCase):
 class TestHoldRelease(unittest.TestCase):
     def test_release_sets_status_to_released(self):
         store = HoldStore()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         store.release_hold(record.hold_id, **_RELEASE_ARGS)
         self.assertEqual(record.status, HoldStatus.RELEASED)
         self.assertIsNotNone(record.released_at)
@@ -130,14 +131,14 @@ class TestHoldRelease(unittest.TestCase):
 
     def test_releasing_already_released_raises(self):
         store = HoldStore()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         store.release_hold(record.hold_id, **_RELEASE_ARGS)
         with self.assertRaises(ValueError):
             store.release_hold(record.hold_id, **_RELEASE_ARGS)
 
     def test_release_requires_reason(self):
         store = HoldStore()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         with self.assertRaises(ValueError):
             store.release_hold(record.hold_id,
                                release_reason="",
@@ -146,7 +147,7 @@ class TestHoldRelease(unittest.TestCase):
 
     def test_release_reason_must_be_substantive(self):
         store = HoldStore()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         with self.assertRaises(ValueError):
             store.release_hold(record.hold_id,
                                release_reason="kurz",
@@ -157,11 +158,10 @@ class TestHoldRelease(unittest.TestCase):
 class TestMultipleHolds(unittest.TestCase):
     def test_multiple_active_holds_document_still_held(self):
         store = HoldStore()
-        r1 = store.set_hold("DOC-MULTI", **_BASE_HOLD)
-        r2 = store.set_hold("DOC-MULTI", **{
-            **_BASE_HOLD,
-            "hold_reason": "Zweite Sperre — sicherheitsrelevanter Vorfall gemeldet",
-        })
+        r1 = store.set_hold("DOC-MULTI", **_base_hold())
+        r2 = store.set_hold("DOC-MULTI", **_base_hold(
+            hold_reason="Zweite Sperre — sicherheitsrelevanter Vorfall gemeldet",
+        ))
         # Both active
         self.assertEqual(len(store.active_hold_ids("DOC-MULTI")), 2)
 
@@ -176,8 +176,8 @@ class TestMultipleHolds(unittest.TestCase):
 
     def test_multiple_documents_independent(self):
         store = HoldStore()
-        store.set_hold("DOC-A", **_BASE_HOLD)
-        store.set_hold("DOC-B", **_BASE_HOLD)
+        store.set_hold("DOC-A", **_base_hold())
+        store.set_hold("DOC-B", **_base_hold())
         # Releasing DOC-A hold doesn't affect DOC-B
         for hold in store.list_holds(document_id="DOC-A"):
             store.release_hold(hold.hold_id, **_RELEASE_ARGS)
@@ -198,28 +198,26 @@ class TestGovernanceEnforcement(unittest.TestCase):
     def test_unauthorized_role_set_raises_permission_error(self):
         store = HoldStore()
         with self.assertRaises(PermissionError):
-            store.set_hold("DOC-001", **{**_BASE_HOLD, "approved_by_role": "IT Product Owner"})
+            store.set_hold("DOC-001", **_base_hold(approved_by_role="IT Product Owner"))
 
     def test_unauthorized_counter_role_set_raises_permission_error(self):
         store = HoldStore()
         with self.assertRaises(PermissionError):
-            store.set_hold("DOC-001", **{
-                **_BASE_HOLD,
-                "counter_approved_by_role": "Operations",
-            })
+            store.set_hold("DOC-001", **_base_hold(
+                counter_approved_by_role="Operations",
+            ))
 
     def test_same_role_both_approvals_raises(self):
         store = HoldStore()
         with self.assertRaises(ValueError):
-            store.set_hold("DOC-001", **{
-                **_BASE_HOLD,
-                "approved_by_role": "Compliance Lead",
-                "counter_approved_by_role": "Compliance Lead",
-            })
+            store.set_hold("DOC-001", **_base_hold(
+                approved_by_role="Compliance Lead",
+                counter_approved_by_role="Compliance Lead",
+            ))
 
     def test_unauthorized_release_role_raises(self):
         store = HoldStore()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         with self.assertRaises(PermissionError):
             store.release_hold(record.hold_id,
                                release_reason="Freigabeversuch ohne Berechtigung",
@@ -228,7 +226,7 @@ class TestGovernanceEnforcement(unittest.TestCase):
 
     def test_same_role_release_vier_augen_raises(self):
         store = HoldStore()
-        record = store.set_hold("DOC-001", **_BASE_HOLD)
+        record = store.set_hold("DOC-001", **_base_hold())
         with self.assertRaises(ValueError):
             store.release_hold(record.hold_id,
                                release_reason="Freigabe mit identischer Rolle — soll scheitern",
@@ -238,30 +236,30 @@ class TestGovernanceEnforcement(unittest.TestCase):
     def test_empty_hold_reason_raises(self):
         store = HoldStore()
         with self.assertRaises(ValueError):
-            store.set_hold("DOC-001", **{**_BASE_HOLD, "hold_reason": ""})
+            store.set_hold("DOC-001", **_base_hold(hold_reason=""))
 
     def test_short_hold_reason_raises(self):
         store = HoldStore()
         with self.assertRaises(ValueError):
-            store.set_hold("DOC-001", **{**_BASE_HOLD, "hold_reason": "kurz"})
+            store.set_hold("DOC-001", **_base_hold(hold_reason="kurz"))
 
     def test_review_due_past_raises(self):
         store = HoldStore()
         past = datetime.now(tz=timezone.utc) - timedelta(days=1)
         with self.assertRaises(ValueError):
-            store.set_hold("DOC-001", **{**_BASE_HOLD, "review_due_at": past})
+            store.set_hold("DOC-001", **_base_hold(review_due_at=past))
 
     def test_review_due_over_30_days_raises(self):
         store = HoldStore()
         too_far = datetime.now(tz=timezone.utc) + timedelta(days=31)
         with self.assertRaises(ValueError):
-            store.set_hold("DOC-001", **{**_BASE_HOLD, "review_due_at": too_far})
+            store.set_hold("DOC-001", **_base_hold(review_due_at=too_far))
 
     def test_naive_review_due_raises(self):
         store = HoldStore()
         naive = datetime(2026, 3, 20, 0, 0, 0)
         with self.assertRaises(ValueError):
-            store.set_hold("DOC-001", **{**_BASE_HOLD, "review_due_at": naive})
+            store.set_hold("DOC-001", **_base_hold(review_due_at=naive))
 
 
 class TestHoldDeletionSchedulerIntegration(unittest.TestCase):
@@ -303,10 +301,9 @@ class TestHoldDeletionSchedulerIntegration(unittest.TestCase):
         # Set hold before execution
         hold_record = hold_store.set_hold(
             "DOC-HOLD-INT",
-            **{
-                **_BASE_HOLD,
-                "review_due_at": datetime.now(tz=timezone.utc) + timedelta(days=7),
-            },
+            **_base_hold(
+                review_due_at=datetime.now(tz=timezone.utc) + timedelta(days=7),
+            ),
         )
 
         # Tick at execute_after — on_execute raises via deletion_guard
@@ -340,10 +337,9 @@ class TestHoldDeletionSchedulerIntegration(unittest.TestCase):
 
         hold_record = hold_store.set_hold(
             "DOC-RELEASE-INT",
-            **{
-                **_BASE_HOLD,
-                "review_due_at": datetime.now(tz=timezone.utc) + timedelta(days=7),
-            },
+            **_base_hold(
+                review_due_at=datetime.now(tz=timezone.utc) + timedelta(days=7),
+            ),
         )
         hold_store.release_hold(hold_record.hold_id, **_RELEASE_ARGS)
 
