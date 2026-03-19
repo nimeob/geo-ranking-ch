@@ -3314,8 +3314,11 @@ def _read_json_request_object(
         raise ValueError("empty body")
 
     raw = rfile.read(length)
-    if not raw:
-        return {}
+    if raw is None:
+        raw = b""
+
+    if len(raw) != length:
+        raise ValueError("incomplete body")
 
     try:
         decoded_body = raw.decode("utf-8")

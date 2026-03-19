@@ -46,6 +46,14 @@ class TestWebServicePostJsonBodyReader(unittest.TestCase):
         parsed = self._call(body=b"", content_length="0", allow_empty_body=True)
         self.assertEqual(parsed, {})
 
+    def test_rejects_truncated_body_when_content_length_exceeds_payload(self):
+        with self.assertRaisesRegex(ValueError, "incomplete body"):
+            self._call(body=b"{}", content_length="4", allow_empty_body=False)
+
+    def test_rejects_truncated_body_even_when_empty_body_allowed(self):
+        with self.assertRaisesRegex(ValueError, "incomplete body"):
+            self._call(body=b"", content_length="1", allow_empty_body=True)
+
     def test_rejects_non_utf8_body(self):
         with self.assertRaisesRegex(ValueError, "body must be valid utf-8 json"):
             self._call(body=b"\xff", content_length="1", allow_empty_body=False)
