@@ -1114,40 +1114,75 @@ def load_gwr_codes(module_path: Path):
     return mod
 
 
-def parse_query_parts(query: str) -> QueryParts:
-    normalized_input = normalize_address_query_input(query)
-    norm = normalize_text(normalized_input)
-    tokens = tokenize(norm)
-
+def _extract_postal_code_from_query(norm: str) -> Optional[str]:
     postal_match = re.search(r"\b(\d{4})\b", norm)
-    postal_code = postal_match.group(1) if postal_match else None
+    return postal_match.group(1) if postal_match else None
 
-    street = None
-    house_number = None
-    city = None
 
+def _extract_street_and_house_number(normalized_input: str) -> Tuple[Optional[str], Optional[str]]:
     parts = [p.strip() for p in re.split(r",", normalized_input) if p.strip()]
     first = parts[0] if parts else normalized_input
     first_norm = normalize_text(first)
 
-    m = re.match(
+    match = re.match(
         r"^(?P<street>.+?)\s+(?P<number>\d+[a-zA-Z]?(?:[/-]\d+[a-zA-Z]?)?)\s*$",
         first_norm,
     )
-    if m:
-        street = _normalize_street_fragment(m.group("street")) or None
-        house_number = m.group("number").lower()
-    else:
-        street = _normalize_street_fragment(first_norm) or None
+    if match:
+        return (
+            _normalize_street_fragment(match.group("street")) or None,
+            match.group("number").lower(),
+        )
+    return _normalize_street_fragment(first_norm) or None, None
 
+
+def _extract_city_from_query(
+    *,
+    normalized_input: str,
+    norm: str,
+    postal_code: Optional[str],
+) -> Optional[str]:
     if postal_code:
-        m_city = re.search(rf"\b{postal_code}\b\s*([a-z0-9\-\.\s'/]+)$", norm)
-        if m_city:
-            city = m_city.group(1).strip(" ,")
-    if not city and len(parts) >= 2:
-        second_norm = normalize_text(parts[-1])
-        if second_norm and not re.fullmatch(r"\d{4}", second_norm):
-            city = re.sub(r"^\d{4}\s*", "", second_norm).strip() or None
+        city_match = re.search(rf"\b{postal_code}\b\s*([a-z0-9\-\.\s'/]+)$", norm)
+        if city_match:
+            city = city_match.group(1).strip(" ,")
+            if city:
+                return city
+
+    parts = [p.strip() for p in re.split(r",", normalized_input) if p.strip()]
+    if len(parts) < 2:
+        return None
+
+    second_norm = normalize_text(parts[-1])
+    if not second_norm or re.fullmatch(r"\d{4}", second_norm):
+        return None
+    return re.sub(r"^\d{4}\s*", "", second_norm).strip() or None
+
+
+def _classify_text_match(*, haystack: str, needle: Optional[str]) -> str:
+    needle_norm = normalize_text(needle)
+    if not needle_norm:
+        return "missing"
+    if needle_norm in haystack:
+        return "exact"
+
+    needle_tokens = tokenize(needle_norm)
+    if needle_tokens and all(token in haystack for token in needle_tokens):
+        return "tokens"
+    return "none"
+
+
+def parse_query_parts(query: str) -> QueryParts:
+    normalized_input = normalize_address_query_input(query)
+    norm = normalize_text(normalized_input)
+    tokens = tokenize(norm)
+    postal_code = _extract_postal_code_from_query(norm)
+    street, house_number = _extract_street_and_house_number(normalized_input)
+    city = _extract_city_from_query(
+        normalized_input=normalized_input,
+        norm=norm,
+        postal_code=postal_code,
+    )
 
     return QueryParts(
         raw=query,
@@ -1221,18 +1256,16 @@ def score_candidate_pre(attrs: Dict[str, Any], query: QueryParts) -> Tuple[float
     haystack = f"{normalize_text(label)} {normalize_text(detail)}"
 
     # Street
-    if query.street:
-        street_norm = normalize_text(query.street)
-        street_tokens = tokenize(street_norm)
-        if street_norm and street_norm in haystack:
-            score += 35
-            reasons.append("Strasse exakt im Treffertext")
-        elif street_tokens and all(t in haystack for t in street_tokens):
-            score += 18
-            reasons.append("Strassen-Tokens vollständig enthalten")
-        else:
-            score -= 20
-            reasons.append("Strasse nicht ausreichend enthalten")
+    street_match = _classify_text_match(haystack=haystack, needle=query.street)
+    if street_match == "exact":
+        score += 35
+        reasons.append("Strasse exakt im Treffertext")
+    elif street_match == "tokens":
+        score += 18
+        reasons.append("Strassen-Tokens vollständig enthalten")
+    elif street_match == "none":
+        score -= 20
+        reasons.append("Strasse nicht ausreichend enthalten")
 
     # House number
     if query.house_number:
@@ -1253,18 +1286,16 @@ def score_candidate_pre(attrs: Dict[str, Any], query: QueryParts) -> Tuple[float
             reasons.append("PLZ fehlt")
 
     # City
-    if query.city:
-        city_norm = normalize_text(query.city)
-        city_tokens = tokenize(city_norm)
-        if city_norm and city_norm in haystack:
-            score += 15
-            reasons.append("Ort passt")
-        elif city_tokens and all(t in haystack for t in city_tokens):
-            score += 10
-            reasons.append("Orts-Tokens passen")
-        else:
-            score -= 6
-            reasons.append("Ort nicht erkannt")
+    city_match = _classify_text_match(haystack=haystack, needle=query.city)
+    if city_match == "exact":
+        score += 15
+        reasons.append("Ort passt")
+    elif city_match == "tokens":
+        score += 10
+        reasons.append("Orts-Tokens passen")
+    elif city_match == "none":
+        score -= 6
+        reasons.append("Ort nicht erkannt")
 
     if attrs.get("origin") == "address":
         score += 5
@@ -1299,17 +1330,16 @@ def score_candidate_detail(
 
     gwr_street = normalize_text(gwr_attrs.get("strname_deinr") or "")
 
-    if query.street and gwr_street:
-        street_norm = normalize_text(query.street)
-        if street_norm and street_norm in gwr_street:
-            score += 20
-            reasons.append("GWR-Strasse bestätigt")
-        elif all(t in gwr_street for t in tokenize(street_norm)):
-            score += 10
-            reasons.append("GWR-Strassen-Tokens bestätigt")
-        else:
-            score -= 8
-            reasons.append("GWR-Strasse weicht ab")
+    street_match = _classify_text_match(haystack=gwr_street, needle=query.street)
+    if street_match == "exact":
+        score += 20
+        reasons.append("GWR-Strasse bestätigt")
+    elif street_match == "tokens":
+        score += 10
+        reasons.append("GWR-Strassen-Tokens bestätigt")
+    elif street_match == "none":
+        score -= 8
+        reasons.append("GWR-Strasse weicht ab")
 
     if query.house_number and gwr_street:
         if re.search(rf"\b{re.escape(query.house_number)}\b", gwr_street):
@@ -1335,7 +1365,7 @@ def score_candidate_detail(
             if city_norm in gwr_city or gwr_city in city_norm:
                 score += 8
                 reasons.append("GWR-Ort/Gemeinde bestätigt")
-            elif all(t in gwr_city for t in tokenize(city_norm)):
+            elif _classify_text_match(haystack=gwr_city, needle=city_norm) == "tokens":
                 score += 5
                 reasons.append("GWR-Orts-Tokens bestätigt")
             else:

@@ -40,6 +40,37 @@ class TestCoreFunctions(unittest.TestCase):
         self.assertEqual(qp.postal_code, "8640")
         self.assertEqual(qp.city, "rapperswil")
 
+    def test_extract_city_from_query_falls_back_to_last_segment(self):
+        city = address_intel._extract_city_from_query(
+            normalized_input="Untere Poststrasse 7, Chur",
+            norm=address_intel.normalize_text("Untere Poststrasse 7, Chur"),
+            postal_code=None,
+        )
+        self.assertEqual(city, "chur")
+
+    def test_classify_text_match_distinguishes_exact_and_token_matches(self):
+        self.assertEqual(
+            address_intel._classify_text_match(
+                haystack="st leonhard strasse 39 9000 st gallen",
+                needle="St. Leonhard-Str.",
+            ),
+            "tokens",
+        )
+        self.assertEqual(
+            address_intel._classify_text_match(
+                haystack="wassergasse 24 9000 st gallen",
+                needle="Wassergasse",
+            ),
+            "exact",
+        )
+        self.assertEqual(
+            address_intel._classify_text_match(
+                haystack="burgstrasse 24 9000 st gallen",
+                needle="Wassergasse",
+            ),
+            "none",
+        )
+
     def test_derive_resolution_identifiers_prefers_egid_and_lv95(self):
         ids = address_intel.derive_resolution_identifiers(
             feature_id="123_0",
