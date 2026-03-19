@@ -62,6 +62,27 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for direct script exe
         return {}
 
 try:
+    from src.api.address_intel_building_profile import (
+        build_building_core_profile,
+        compact_energy_summary,
+    )
+    from src.api.address_intel_report_summary import (
+        build_executive_summary as _build_executive_summary_impl,
+        build_field_provenance as _build_field_provenance_impl,
+        source_catalog_view as _source_catalog_view_impl,
+    )
+except ModuleNotFoundError:  # pragma: no cover - fallback for direct script execution
+    from address_intel_building_profile import (  # type: ignore[no-redef]
+        build_building_core_profile,
+        compact_energy_summary,
+    )
+    from address_intel_report_summary import (  # type: ignore[no-redef]
+        build_executive_summary as _build_executive_summary_impl,
+        build_field_provenance as _build_field_provenance_impl,
+        source_catalog_view as _source_catalog_view_impl,
+    )
+
+try:
     from src.api.osm_poi_config import (
         build_osm_poi_overpass_query,
         load_osm_poi_overpass_query_config,
@@ -6354,172 +6375,20 @@ def compute_confidence(
     }
 
 
-def _is_present_value(value: Any) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        return normalized not in {"", "null", "none", "n/a", "nan", "-"}
-    if isinstance(value, (list, tuple, dict, set)):
-        return len(value) > 0
-    if isinstance(value, float):
-        return math.isfinite(value)
-    return True
-
-
-def _first_present(*values: Any) -> Any:
-    for value in values:
-        if _is_present_value(value):
-            return value
-    return None
-
-
-def _to_optional_int(value: Any) -> Optional[int]:
-    if not _is_present_value(value):
-        return None
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(number):
-        return None
-    rounded = int(round(number))
-    return rounded if rounded >= 0 else None
-
-
-def _to_optional_float(value: Any) -> Optional[float]:
-    if not _is_present_value(value):
-        return None
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(number):
-        return None
-    return number if number >= 0 else None
-
-
-def build_building_core_profile(
-    *,
-    gwr: Dict[str, Any],
-    decoded: Dict[str, Any],
-    address_registry: Dict[str, Any],
-) -> Dict[str, Any]:
-    """Aggregiert Gebäude-Kernfelder robust mit klarer Priorisierungslogik."""
-    name = _first_present(
-        gwr.get("gbez"),
-        gwr.get("strname_deinr"),
-        address_registry.get("adr_street"),
-    )
-    baujahr = _to_optional_int(_first_present(gwr.get("gbauj"), decoded.get("baujahr")))
-    flaeche = _to_optional_float(_first_present(gwr.get("garea"), decoded.get("grundflaeche_m2")))
-    geschosse = _to_optional_int(_first_present(gwr.get("gastw"), decoded.get("stockwerke")))
-    wohnungen = _to_optional_int(gwr.get("ganzwhg"))
-
-    if isinstance(name, str):
-        name = name.strip() or None
-
-    return {
-        "name": name,
-        "baujahr": baujahr,
-        "bauperiode": _first_present(gwr.get("gbaup")),
-        "flaeche_m2": flaeche,
-        "geschosse": geschosse,
-        "wohnungen": wohnungen,
-        "codes": {
-            "gstat": gwr.get("gstat"),
-            "gkat": gwr.get("gkat"),
-            "gklas": gwr.get("gklas"),
-        },
-        "decoded": decoded,
-    }
-
-
-def compact_energy_summary(decoded: Dict[str, Any]) -> Dict[str, str]:
-    hz = decoded.get("heizung") or []
-    ww = decoded.get("warmwasser") or []
-    return {
-        "heizung": ", ".join(hz) if hz else "keine Angabe",
-        "warmwasser": ", ".join(ww) if ww else "keine Angabe",
-    }
-
-
 def source_catalog_view(source_status: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    out: Dict[str, Dict[str, Any]] = {}
-    for name, meta in SOURCE_CATALOG.items():
-        state = source_status.get(name, {})
-        authority = str(meta.get("authority") or "unknown")
-        out[name] = {
-            "tier": meta.get("tier"),
-            "authority": authority,
-            "policy_rank": SOURCE_POLICY_RANK.get(authority, SOURCE_POLICY_RANK["unknown"]),
-            "purpose": meta.get("purpose"),
-            "status": state.get("status", "not_used"),
-            "optional": state.get("optional", meta.get("tier") != "core"),
-        }
-    return out
-
-
-def get_nested(data: Dict[str, Any], dotted_path: str) -> Any:
-    cur: Any = data
-    for part in dotted_path.split("."):
-        if not isinstance(cur, dict):
-            return None
-        cur = cur.get(part)
-    return cur
+    return _source_catalog_view_impl(
+        source_status,
+        source_catalog=SOURCE_CATALOG,
+        source_policy_rank=SOURCE_POLICY_RANK,
+    )
 
 
 def build_field_provenance(report: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    mapping = {
-        "ids.egid": ["geoadmin_gwr"],
-        "ids.egrid": ["geoadmin_gwr"],
-        "administrative.gemeinde": ["geoadmin_gwr", "swissboundaries_identify"],
-        "administrative.kanton": ["geoadmin_gwr", "swissboundaries_identify"],
-        "cross_source.plz_layer.plz": ["plz_layer_identify"],
-        "cross_source.admin_boundary.gemeinde": ["swissboundaries_identify"],
-        "cross_source.elevation.height_m": ["swisstopo_height"],
-        "building.codes": ["geoadmin_gwr"],
-        "building.decoded": ["geoadmin_gwr", "gwr_codes"],
-        "energy.raw_codes": ["geoadmin_gwr"],
-        "energy.heating_layer": ["bfs_heating_layer"],
-        "cross_source.osm_reverse": ["osm_reverse"],
-        "intelligence.tenants_businesses.entities": ["osm_poi_overpass"],
-        "intelligence.incidents_timeline.events": ["google_news_rss"],
-        "intelligence.environment_noise_risk.score": ["osm_poi_overpass"],
-        "intelligence.consistency_checks": ["geoadmin_gwr", "geoadmin_address", "google_news_rss"],
-        "intelligence.executive_risk_summary": ["geoadmin_gwr", "osm_poi_overpass", "google_news_rss"],
-        "suitability_light.score": ["swisstopo_height", "plz_layer_identify", "swissboundaries_identify", "geoadmin_gwr", "osm_reverse"],
-        "suitability_light.traffic_light": ["swisstopo_height", "plz_layer_identify", "swissboundaries_identify", "geoadmin_gwr", "osm_reverse"],
-    }
-    out: Dict[str, Dict[str, Any]] = {}
-    for field_path, source_names in mapping.items():
-        value = get_nested(report, field_path)
-        out[field_path] = {
-            "sources": source_names,
-            "primary_source": source_names[0],
-            "present": value is not None and value != "" and value != [],
-            "authority": SOURCE_CATALOG.get(source_names[0], {}).get("authority"),
-        }
-    return out
+    return _build_field_provenance_impl(report, source_catalog=SOURCE_CATALOG)
 
 
 def build_executive_summary(report: Dict[str, Any]) -> Dict[str, Any]:
-    conf = report.get("confidence") or {}
-    ambiguity = conf.get("ambiguity") or {}
-    warnings = list(conf.get("warnings") or [])
-    needs_review = conf.get("level") == "low" or ambiguity.get("level") in {"medium", "high"}
-    verdict = "review" if needs_review else "ok"
-
-    return {
-        "verdict": verdict,
-        "needs_review": needs_review,
-        "headline": (
-            "Treffer wirkt stabil" if not needs_review else "Treffer prüfen (Ambiguität oder geringe Confidence)"
-        ),
-        "ambiguity_level": ambiguity.get("level", "none"),
-        "ambiguity_gap": ambiguity.get("score_gap_to_next"),
-        "warnings": warnings,
-    }
+    return _build_executive_summary_impl(report)
 
 
 def build_report(
