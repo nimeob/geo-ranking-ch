@@ -6,6 +6,22 @@ web_service = importlib.import_module("src.api.web_service")
 
 
 class TestWebServiceOptionExtractors(unittest.TestCase):
+    def test_query_param_resolvers_cover_history_and_notifications(self):
+        self.assertEqual(web_service._resolve_result_projection_mode("requested"), "requested")
+        self.assertEqual(web_service._resolve_notification_channel(" EMAIL "), "email")
+        self.assertEqual(web_service._resolve_notification_limit("999"), 200)
+        self.assertEqual(web_service._resolve_history_limit(None), 50)
+        self.assertEqual(web_service._resolve_history_offset("12"), 12)
+
+        with self.assertRaisesRegex(ValueError, "view must be one of"):
+            web_service._resolve_result_projection_mode("legacy")
+        with self.assertRaisesRegex(ValueError, "channel must be one of"):
+            web_service._resolve_notification_channel("sms")
+        with self.assertRaisesRegex(ValueError, "limit must be an integer >= 1"):
+            web_service._resolve_notification_limit("0")
+        with self.assertRaisesRegex(ValueError, "offset must be a non-negative integer"):
+            web_service._resolve_history_offset("-1")
+
     def test_extract_request_options_rejects_non_object(self):
         with self.assertRaisesRegex(ValueError, "options must be an object"):
             web_service._extract_request_options({"options": []})

@@ -67,6 +67,13 @@ from src.api.bff_oidc import (
 )
 from src.api.bff_session import build_clear_cookie_header, get_session_store, parse_session_id_from_cookie
 from src.api.bff_token_delegation import handle_logout, handle_me
+from src.api.web_service_query_params import (
+    _resolve_history_limit,
+    _resolve_history_offset,
+    _resolve_notification_channel,
+    _resolve_notification_limit,
+    _resolve_result_projection_mode,
+)
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -2276,61 +2283,6 @@ def _normalize_async_org_id(raw_value: Any) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_.:-]+", value):
         raise ValueError("x-org-id header contains unsupported characters")
     return value
-
-
-def _resolve_result_projection_mode(raw_value: str | None) -> str:
-    mode = str(raw_value or "latest").strip().lower() or "latest"
-    if mode not in {"latest", "requested"}:
-        raise ValueError("view must be one of ['latest', 'requested']")
-    return mode
-
-
-def _resolve_notification_channel(raw_value: str | None) -> str | None:
-    normalized = str(raw_value or "").strip().lower()
-    if not normalized:
-        return None
-    if normalized not in {"in_app", "email", "webhook"}:
-        raise ValueError("channel must be one of ['in_app', 'email', 'webhook']")
-    return normalized
-
-
-def _resolve_notification_limit(raw_value: str | None) -> int:
-    normalized = str(raw_value or "").strip()
-    if not normalized:
-        return 50
-    try:
-        parsed = int(normalized)
-    except ValueError as exc:
-        raise ValueError("limit must be an integer >= 1") from exc
-    if parsed < 1:
-        raise ValueError("limit must be an integer >= 1")
-    return min(parsed, 200)
-
-
-def _resolve_history_limit(raw_value: str | None) -> int:
-    normalized = str(raw_value or "").strip()
-    if not normalized:
-        return 50
-    try:
-        parsed = int(normalized)
-    except ValueError as exc:
-        raise ValueError("limit must be an integer >= 1") from exc
-    if parsed < 1:
-        raise ValueError("limit must be an integer >= 1")
-    return min(parsed, 200)
-
-
-def _resolve_history_offset(raw_value: str | None) -> int:
-    normalized = str(raw_value or "").strip()
-    if not normalized:
-        return 0
-    try:
-        parsed = int(normalized)
-    except ValueError as exc:
-        raise ValueError("offset must be a non-negative integer") from exc
-    if parsed < 0:
-        raise ValueError("offset must be a non-negative integer")
-    return parsed
 
 
 def _select_async_result_snapshot(
