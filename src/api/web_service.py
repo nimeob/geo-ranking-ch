@@ -51,7 +51,7 @@ from src.api.debug_trace import (
     normalize_max_events,
     normalize_request_id,
 )
-from src.api.oidc_jwt import JwksCache, JwtValidationError, OidcJwtConfig, OidcJwtValidator
+from src.api.oidc_jwt import JwtValidationError, OidcJwtValidator
 from src.shared.gui_mvp import render_gui_mvp_html
 from src.shared.ui_pages import build_result_tabs_page_html, normalize_result_id
 from src.shared.structured_logging import build_event, emit_event
@@ -79,6 +79,9 @@ from src.api.web_service_phase1_auth import (
     load_phase1_auth_users_from_config as _load_phase1_auth_users_from_config_impl,
     normalize_phase1_auth_scalar as _normalize_phase1_auth_scalar_impl,
     resolve_phase1_auth_user as _resolve_phase1_auth_user_impl,
+)
+from src.api.web_service_oidc_loader import (
+    load_oidc_jwt_validator_from_env as _load_oidc_jwt_validator_from_env_impl,
 )
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
@@ -125,68 +128,8 @@ def _resolve_phase1_auth_user(bearer_token: str) -> _Phase1AuthUser | None:
     return _resolve_phase1_auth_user_impl(bearer_token, _PHASE1_AUTH_USERS)
 
 
-_OIDC_JWKS_URL_ENV = "OIDC_JWKS_URL"
-_OIDC_JWT_ISSUER_ENV = "OIDC_JWT_ISSUER"
-_OIDC_JWT_AUDIENCE_ENV = "OIDC_JWT_AUDIENCE"
-_OIDC_JWKS_TTL_SECONDS_ENV = "OIDC_JWKS_TTL_SECONDS"
-_OIDC_JWKS_TIMEOUT_SECONDS_ENV = "OIDC_JWKS_TIMEOUT_SECONDS"
-_OIDC_CLOCK_SKEW_SECONDS_ENV = "OIDC_CLOCK_SKEW_SECONDS"
-
-
 def _load_oidc_jwt_validator_from_env() -> OidcJwtValidator | None:
-    """Build an OIDC JWT validator from environment configuration.
-
-    OIDC auth is enabled when `OIDC_JWKS_URL` is set.
-
-    Notes:
-    - This function must be safe at import time: it must not fetch the JWKS.
-    - If configured but invalid, we fail-fast (better crash than silently disable auth).
-    """
-
-    jwks_url = str(os.getenv(_OIDC_JWKS_URL_ENV, "") or "").strip()
-    if not jwks_url:
-        return None
-
-    issuer = str(os.getenv(_OIDC_JWT_ISSUER_ENV, "") or "").strip()
-    audience = str(os.getenv(_OIDC_JWT_AUDIENCE_ENV, "") or "").strip()
-
-    raw_ttl = str(os.getenv(_OIDC_JWKS_TTL_SECONDS_ENV, "300") or "300").strip()
-    raw_timeout = str(os.getenv(_OIDC_JWKS_TIMEOUT_SECONDS_ENV, "5") or "5").strip()
-    raw_skew = str(os.getenv(_OIDC_CLOCK_SKEW_SECONDS_ENV, "60") or "60").strip()
-
-    try:
-        ttl_seconds = float(raw_ttl)
-    except Exception as exc:
-        raise ValueError(f"{_OIDC_JWKS_TTL_SECONDS_ENV} must be a number") from exc
-    if not math.isfinite(ttl_seconds) or ttl_seconds < 0:
-        raise ValueError(f"{_OIDC_JWKS_TTL_SECONDS_ENV} must be finite and >= 0")
-
-    try:
-        timeout_seconds = float(raw_timeout)
-    except Exception as exc:
-        raise ValueError(f"{_OIDC_JWKS_TIMEOUT_SECONDS_ENV} must be a number") from exc
-    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
-        raise ValueError(f"{_OIDC_JWKS_TIMEOUT_SECONDS_ENV} must be finite and > 0")
-
-    try:
-        clock_skew_seconds = float(raw_skew)
-    except Exception as exc:
-        raise ValueError(f"{_OIDC_CLOCK_SKEW_SECONDS_ENV} must be a number") from exc
-    if not math.isfinite(clock_skew_seconds) or clock_skew_seconds < 0:
-        raise ValueError(f"{_OIDC_CLOCK_SKEW_SECONDS_ENV} must be finite and >= 0")
-
-    config = OidcJwtConfig(
-        issuer=issuer,
-        audience=audience,
-        clock_skew_seconds=clock_skew_seconds,
-        require_exp=True,
-    )
-    jwks_cache = JwksCache(
-        jwks_url=jwks_url,
-        ttl_seconds=ttl_seconds,
-        timeout_seconds=timeout_seconds,
-    )
-    return OidcJwtValidator(config=config, jwks=jwks_cache)
+    return _load_oidc_jwt_validator_from_env_impl()
 
 
 _OIDC_JWT_VALIDATOR = _load_oidc_jwt_validator_from_env()
