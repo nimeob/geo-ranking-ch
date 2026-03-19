@@ -1847,7 +1847,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         if (!historyShell) return;
         const isAuthenticated = await refreshAuthSession({ force: false });
         if (!isAuthenticated && authState.authCheckSupported) {
-          scheduleReLoginRedirect(401, "no_session_cookie", "");
+          // Keep GUI shell usable for anonymous sessions; history is optional.
+          // Login redirect is reserved for protected user actions (analyze, result drill-down, etc.).
+          renderHistoryItems([]);
           return;
         }
 
