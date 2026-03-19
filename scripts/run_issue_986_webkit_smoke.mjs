@@ -25,11 +25,7 @@ function isAuthRedirectUrl(url) {
   }
 }
 
-async function openStableGuiPage(context, stage = 'webkit') {
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
-
+async function waitForGuiOrAuthRedirect(page, { stage, selector, timeoutMs }) {
   const currentUrl = page.url();
   if (isAuthRedirectUrl(currentUrl)) {
     throw new Error(
@@ -37,7 +33,56 @@ async function openStableGuiPage(context, stage = 'webkit') {
     );
   }
 
-  await page.locator('#map-click-surface').waitFor({ state: 'visible', timeout: 20_000 });
+  const guiWait = page
+    .locator(selector)
+    .waitFor({ state: 'visible', timeout: timeoutMs })
+    .then(() => ({ kind: 'gui-ready' }))
+    .catch((error) => ({ kind: 'gui-timeout', error }));
+
+  const authWait = page
+    .waitForURL((url) => isAuthRedirectUrl(String(url)), { timeout: timeoutMs })
+    .then(() => ({ kind: 'auth-redirect' }))
+    .catch(() => ({ kind: 'auth-timeout' }));
+
+  const winner = await Promise.race([guiWait, authWait]);
+
+  if (winner.kind === 'auth-redirect') {
+    const authUrl = page.url();
+    throw new Error(
+      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${authUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+    );
+  }
+
+  if (winner.kind === 'gui-ready') {
+    return;
+  }
+
+  const finalUrl = page.url();
+  if (isAuthRedirectUrl(finalUrl)) {
+    throw new Error(
+      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${finalUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+    );
+  }
+
+  if (winner.kind === 'gui-timeout') {
+    const reason = winner.error instanceof Error ? winner.error.message : String(winner.error || 'timeout');
+    throw new Error(`[${stage}] GUI-Shell nicht bereit: ${selector} nach ${timeoutMs}ms nicht sichtbar (url=${finalUrl}). reason=${reason}`);
+  }
+
+  throw new Error(`[${stage}] GUI-Shell nicht bereit: ${selector} nach ${timeoutMs}ms nicht sichtbar (url=${finalUrl}).`);
+}
+
+async function openStableGuiPage(context, stage = 'webkit') {
+  const page = await context.newPage();
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
+
+  await waitForGuiOrAuthRedirect(page, {
+    stage,
+    selector: '#map-click-surface',
+    timeoutMs: 20_000,
+  });
+
   return page;
 }
 
