@@ -27,6 +27,14 @@ Optionales Ziel setzen:
 BASE_URL="http://127.0.0.1:8877/gui" node scripts/run_issue_1016_mobile_ux_smoke.mjs
 ```
 
+Optional mit stabilitätsfenster (ms) für Redirect-Guard:
+
+```bash
+BASE_URL="https://www.dev.georanking.ch/" GUI_STABILITY_WAIT_MS=1500 node scripts/run_issue_1016_mobile_ux_smoke.mjs
+```
+
+Hinweis: Der Smoke prüft zuerst, ob die GUI nach dem Initial-Load stabil bleibt. Bei Redirect auf Auth-Login (`auth.*`/`/login`) wird der Lauf mit klarer Fehlermeldung beendet statt später mit Locator-Timeout zu kippen.
+
 ## Evidence
 Der Smoke erzeugt pro Lauf:
 

@@ -5,9 +5,46 @@ import path from 'node:path';
 
 const issueNumber = 1016;
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
+const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function isAuthRedirectUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    const hasOauthLoginQuery = parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+    if (hostname.startsWith('auth.')) return true;
+    if (pathname === '/login' && hasOauthLoginQuery) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function openStableGuiPage(context) {
+  const page = await context.newPage();
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
+
+  const currentUrl = page.url();
+  if (isAuthRedirectUrl(currentUrl)) {
+    throw new Error(
+      `[mobile-ux] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+    );
+  }
+
+  const guiVisible = await page.locator('#analyze-form').isVisible().catch(() => false);
+  if (!guiVisible) {
+    throw new Error(
+      `[mobile-ux] GUI-Shell nicht bereit: #analyze-form nach ${guiStabilityWaitMs}ms nicht sichtbar (url=${currentUrl}).`
+    );
+  }
+
+  return page;
+}
 
 async function readMetaZoom(page) {
   const text = (await page.locator('#map-view-meta').textContent()) || '';
@@ -167,8 +204,7 @@ async function main() {
     locale: 'de-CH',
   });
 
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  const page = await openStableGuiPage(context);
 
   const burger = await runBurgerSmoke(page);
   const pinch = await runPinchSmoke(page);

@@ -6,9 +6,46 @@ const { chromium } = require('playwright');
 
 const issueNumber = 1039;
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
+const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function isAuthRedirectUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    const hasOauthLoginQuery = parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+    if (hostname.startsWith('auth.')) return true;
+    if (pathname === '/login' && hasOauthLoginQuery) return true;
+    return false;
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function openStableGuiPage(context, stageLabel) {
+  const page = await context.newPage();
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
+
+  const currentUrl = page.url();
+  if (isAuthRedirectUrl(currentUrl)) {
+    throw new Error(
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+    );
+  }
+
+  const guiVisible = await page.locator('#analyze-form').isVisible().catch(() => false);
+  if (!guiVisible) {
+    throw new Error(
+      `[${stageLabel}] GUI-Shell nicht bereit: #analyze-form nach ${guiStabilityWaitMs}ms nicht sichtbar (url=${currentUrl}).`
+    );
+  }
+
+  return page;
+}
 
 async function collectViewportMetrics(page) {
   return page.evaluate(() => {
@@ -75,9 +112,7 @@ async function captureMobileEvidence(browser) {
     viewport: { width: 360, height: 800 },
     locale: 'de-CH',
   });
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(300);
+  const page = await openStableGuiPage(context, 'mobile');
 
   const metrics = await collectViewportMetrics(page);
   const functionsProbe = await runMainFunctionsProbe(page);
@@ -100,9 +135,7 @@ async function captureDesktopEvidence(browser) {
     viewport: { width: 1280, height: 800 },
     locale: 'de-CH',
   });
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(300);
+  const page = await openStableGuiPage(context, 'desktop');
 
   const metrics = await collectViewportMetrics(page);
 

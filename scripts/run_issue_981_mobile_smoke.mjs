@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
+const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -26,6 +27,42 @@ const devices = [
     geolocation: { latitude: 46.948, longitude: 7.4474, accuracy: 18 },
   },
 ];
+
+function isAuthRedirectUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    const hasOauthLoginQuery = parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+    if (hostname.startsWith('auth.')) return true;
+    if (pathname === '/login' && hasOauthLoginQuery) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function openStableGuiPage(context, stageLabel) {
+  const page = await context.newPage();
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
+
+  const currentUrl = page.url();
+  if (isAuthRedirectUrl(currentUrl)) {
+    throw new Error(
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+    );
+  }
+
+  const guiVisible = await page.locator('#analyze-form').isVisible().catch(() => false);
+  if (!guiVisible) {
+    throw new Error(
+      `[${stageLabel}] GUI-Shell nicht bereit: #analyze-form nach ${guiStabilityWaitMs}ms nicht sichtbar (url=${currentUrl}).`
+    );
+  }
+
+  return page;
+}
 
 async function readMeta(page) {
   const text = (await page.locator('#map-view-meta').textContent()) || '';
@@ -109,8 +146,7 @@ async function geolocDenied(browser, device) {
     hasTouch: true,
     locale: 'de-CH',
   });
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  const page = await openStableGuiPage(context, `${device.key}:geoloc-denied`);
   await page.locator('#map-locate-btn').click();
   await page.waitForTimeout(300);
 
@@ -134,8 +170,7 @@ async function runDevice(browser, device) {
     permissions: ['geolocation'],
   });
 
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  const page = await openStableGuiPage(context, `${device.key}:geoloc-allowed`);
 
   const initial = await readMeta(page);
   await pinchOnMap(page);

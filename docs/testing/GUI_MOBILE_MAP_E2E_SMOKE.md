@@ -45,3 +45,11 @@ Smoke ausführen:
 ```bash
 node scripts/run_issue_981_mobile_smoke.mjs
 ```
+
+Optional mit explizitem Ziel + Stabilitätsfenster (ms):
+
+```bash
+BASE_URL="https://www.dev.georanking.ch/" GUI_STABILITY_WAIT_MS=1500 node scripts/run_issue_981_mobile_smoke.mjs
+```
+
+Hinweis: Der Smoke schützt gegen false positives durch verzögerte Auth-Redirects. Wenn die GUI kurz nach Load auf `auth.*`/`/login` springt, wird der Lauf früh und diagnostizierbar abgebrochen.
