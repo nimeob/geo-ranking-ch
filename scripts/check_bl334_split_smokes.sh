@@ -62,7 +62,8 @@ wait_http_200() {
 
   while true; do
     local http_code
-    http_code="$(${CURL_BIN} -sS -o /dev/null -w "%{http_code}" "${url}" || true)"
+    # Probe loop should stay quiet while services boot; surface only final timeout details.
+    http_code="$(${CURL_BIN} -s -o /dev/null -w "%{http_code}" "${url}" || true)"
     if [[ "${http_code}" == "200" ]]; then
       return 0
     fi
