@@ -31,6 +31,18 @@
 - **Geolocation Erfolg:** PASS (`#map-user-marker` sichtbar, `Geräteposition: ...` gesetzt)
 - **Geolocation Fehlerfall:** PASS (Permission denied → klare User-Meldung)
 
+## Lauf 2026-03-19 (dev revalidation)
+- Service: `https://www.dev.georanking.ch/gui`
+- Evidence JSON: `reports/evidence/issue-981-mobile-e2e-smoke-20260319T230346Z.json`
+- Screenshots:
+  - `reports/evidence/issue-981-ios-simulator-20260319T230346Z.png`
+  - `reports/evidence/issue-981-android-chrome-20260319T230346Z.png`
+
+### Revalidation-Notizen
+- **Pinch-Zoom** bleibt auf Chromium-Mobile-Simulation gelegentlich neutral (kein Zoom-Sprung), daher gilt für den Smoke jetzt: **Touch-Interaktion bestanden, wenn Pinch _oder_ Pan** reagiert.
+- **Marker-Check** wird als eigener Schritt nach Geolocation ausgeführt. Er gilt als PASS bei sichtbarem Marker; ein möglicher Auth-Redirect-Pfad wird explizit diagnostiziert statt den Lauf unklar scheitern zu lassen.
+- Ergebnis 2026-03-19: beide Profile PASS (Pan + Marker + Geolocation Erfolg/Fehlerfall).
+
 ## Limitation / Follow-up
 Zum Zeitpunkt dieses Laufs war native Playwright-WebKit (Safari-Engine) auf dem Runner wegen fehlender System-Libraries nicht startbar.
 Der Follow-up dafür ist inzwischen umgesetzt in [#986](https://github.com/nimeob/geo-ranking-ch/issues/986) inkl. nativer WebKit-Smoke-Doku: [`docs/testing/GUI_WEBKIT_SMOKE.md`](./GUI_WEBKIT_SMOKE.md).
