@@ -74,6 +74,12 @@ from src.api.web_service_query_params import (
     _resolve_notification_limit,
     _resolve_result_projection_mode,
 )
+from src.api.web_service_phase1_auth import (
+    Phase1AuthUser as _Phase1AuthUser,
+    load_phase1_auth_users_from_config as _load_phase1_auth_users_from_config_impl,
+    normalize_phase1_auth_scalar as _normalize_phase1_auth_scalar_impl,
+    resolve_phase1_auth_user as _resolve_phase1_auth_user_impl,
+)
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -82,20 +88,8 @@ _PHASE1_AUTH_USERS_JSON_ENV = "PHASE1_AUTH_USERS_JSON"
 _PHASE1_AUTH_USERS_FILE_ENV = "PHASE1_AUTH_USERS_FILE"
 
 
-@dataclass(frozen=True)
-class _Phase1AuthUser:
-    token: str
-    user_id: str
-    org_id: str
-
-
 def _normalize_phase1_auth_scalar(value: Any, *, field_name: str) -> str:
-    normalized = str(value or "").strip()
-    if not normalized:
-        raise ValueError(f"{field_name} must be a non-empty string")
-    if any(ord(ch) < 32 or ord(ch) == 127 for ch in normalized):
-        raise ValueError(f"{field_name} must not contain control characters")
-    return normalized
+    return _normalize_phase1_auth_scalar_impl(value, field_name=field_name)
 
 
 def _load_phase1_auth_users_from_env() -> list[_Phase1AuthUser]:
@@ -113,47 +107,9 @@ def _load_phase1_auth_users_from_env() -> list[_Phase1AuthUser]:
     - org_id is optional; when omitted it defaults to user_id (per-user tenant).
     - This function is intentionally stdlib-only and fail-fast if configured but invalid.
     """
-
     raw_file = str(os.getenv(_PHASE1_AUTH_USERS_FILE_ENV, "") or "").strip()
     raw_json = str(os.getenv(_PHASE1_AUTH_USERS_JSON_ENV, "") or "").strip()
-
-    if not raw_file and not raw_json:
-        return []
-
-    if raw_file:
-        payload_text = Path(raw_file).read_text(encoding="utf-8")
-    else:
-        payload_text = raw_json
-
-    try:
-        parsed = json.loads(payload_text)
-    except json.JSONDecodeError as exc:
-        raise ValueError("PHASE1 auth users config must be valid JSON") from exc
-
-    if isinstance(parsed, dict) and "users" in parsed:
-        users_raw = parsed.get("users")
-    else:
-        users_raw = parsed
-
-    if not isinstance(users_raw, list):
-        raise ValueError("PHASE1 auth users config must be a list or {users:[...]} object")
-
-    users: list[_Phase1AuthUser] = []
-    for idx, row in enumerate(users_raw):
-        if not isinstance(row, dict):
-            raise ValueError(f"PHASE1 auth users entry #{idx+1} must be an object")
-        token = _normalize_phase1_auth_scalar(row.get("token"), field_name="token")
-        user_id = _normalize_phase1_auth_scalar(row.get("user_id"), field_name="user_id")
-        org_id_raw = str(row.get("org_id") or "").strip()
-        org_id = org_id_raw if org_id_raw else user_id
-        org_id = _normalize_phase1_auth_scalar(org_id, field_name="org_id")
-
-        users.append(_Phase1AuthUser(token=token, user_id=user_id, org_id=org_id))
-
-    if not users:
-        raise ValueError("PHASE1 auth users config must contain at least one user")
-
-    return users
+    return _load_phase1_auth_users_from_config_impl(raw_file=raw_file, raw_json=raw_json)
 
 
 _PHASE1_AUTH_USERS: list[_Phase1AuthUser] = _load_phase1_auth_users_from_env()
@@ -166,16 +122,7 @@ def _resolve_phase1_auth_user(bearer_token: str) -> _Phase1AuthUser | None:
     Uses hmac.compare_digest and avoids early-exit on match to reduce trivial timing
     differences (small N expected).
     """
-
-    token = str(bearer_token or "").strip()
-    if not token or not _PHASE1_AUTH_USERS:
-        return None
-
-    match: _Phase1AuthUser | None = None
-    for user in _PHASE1_AUTH_USERS:
-        if hmac.compare_digest(token, user.token):
-            match = user
-    return match
+    return _resolve_phase1_auth_user_impl(bearer_token, _PHASE1_AUTH_USERS)
 
 
 _OIDC_JWKS_URL_ENV = "OIDC_JWKS_URL"
