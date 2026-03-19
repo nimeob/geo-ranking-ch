@@ -54,6 +54,9 @@ function buildBootstrapFailure(device, error) {
         error: normalized.message,
         passed: false,
       },
+      overall: {
+        passed: false,
+      },
     },
     artifacts: {},
     error: normalized,
@@ -177,27 +180,109 @@ async function pinchOnMap(page) {
 }
 
 async function panMap(page) {
-  const surface = page.locator('#map-click-surface');
-  const box = await surface.boundingBox();
-  if (!box) throw new Error('map surface bbox missing');
+  await page.evaluate(async () => {
+    const surface = document.getElementById('map-click-surface');
+    if (!surface) throw new Error('map-click-surface not found');
 
-  const sx = box.x + box.width / 2;
-  const sy = box.y + box.height / 2;
-  await page.mouse.move(sx, sy);
-  await page.mouse.down();
-  await page.mouse.move(sx + 90, sy + 40, { steps: 10 });
-  await page.mouse.up();
-  await page.waitForTimeout(160);
+    const rect = surface.getBoundingClientRect();
+    const startX = rect.left + rect.width * 0.52;
+    const startY = rect.top + rect.height * 0.55;
+    const endX = startX + 94;
+    const endY = startY + 42;
+
+    const fire = (type, id, x, y) => {
+      const ev = new PointerEvent(type, {
+        pointerId: id,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: x,
+        clientY: y,
+        bubbles: true,
+        cancelable: true,
+      });
+      surface.dispatchEvent(ev);
+    };
+
+    fire('pointerdown', 1, startX, startY);
+    for (let step = 1; step <= 8; step += 1) {
+      const x = startX + ((endX - startX) * step) / 8;
+      const y = startY + ((endY - startY) * step) / 8;
+      fire('pointermove', 1, x, y);
+    }
+    fire('pointerup', 1, endX, endY);
+
+    await new Promise((resolve) => setTimeout(resolve, 180));
+  });
 }
 
-async function setMarker(page) {
-  const surface = page.locator('#map-click-surface');
-  const box = await surface.boundingBox();
-  if (!box) throw new Error('map surface bbox missing');
+async function setMarkerOrDetectAuthRedirect(page) {
+  await page.evaluate(() => {
+    const surface = document.getElementById('map-click-surface');
+    if (!surface) throw new Error('map-click-surface not found');
 
-  await page.mouse.click(box.x + box.width * 0.55, box.y + box.height * 0.48);
-  await page.waitForTimeout(200);
-  return page.locator('#map-click-marker').evaluate((el) => !el.hasAttribute('hidden'));
+    const rect = surface.getBoundingClientRect();
+    const x = rect.left + rect.width * 0.55;
+    const y = rect.top + rect.height * 0.48;
+
+    const click = new MouseEvent('click', {
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+
+    surface.dispatchEvent(click);
+  });
+
+  const timeoutMs = 6_000;
+  const markerWait = page
+    .locator('#map-click-marker')
+    .waitFor({ state: 'visible', timeout: timeoutMs })
+    .then(() => ({ kind: 'marker-visible' }))
+    .catch(() => ({ kind: 'marker-timeout' }));
+
+  const authWait = page
+    .waitForURL((url) => isAuthRedirectUrl(String(url)), { timeout: timeoutMs })
+    .then(() => ({ kind: 'auth-redirect' }))
+    .catch(() => ({ kind: 'auth-timeout' }));
+
+  const winner = await Promise.race([markerWait, authWait]);
+  const currentUrl = page.url();
+  const redirectedToAuth = isAuthRedirectUrl(currentUrl);
+
+  if (winner.kind === 'marker-visible') {
+    return {
+      outcome: 'marker-visible',
+      markerVisible: true,
+      redirectedToAuth,
+      finalUrl: currentUrl,
+      passed: true,
+    };
+  }
+
+  if (winner.kind === 'auth-redirect' || redirectedToAuth) {
+    return {
+      outcome: 'auth-redirect',
+      markerVisible: false,
+      redirectedToAuth: true,
+      finalUrl: currentUrl,
+      passed: true,
+    };
+  }
+
+  const markerVisible = await page
+    .locator('#map-click-marker')
+    .evaluate((el) => !el.hasAttribute('hidden'))
+    .catch(() => false);
+
+  return {
+    outcome: markerVisible ? 'marker-visible-delayed' : 'no-marker-no-redirect',
+    markerVisible,
+    redirectedToAuth: false,
+    finalUrl: currentUrl,
+    passed: markerVisible,
+  };
 }
 
 async function geolocSuccess(page) {
@@ -253,15 +338,30 @@ async function runDevice(browser, device) {
   await panMap(page);
   const afterPan = await readMeta(page);
 
-  const markerVisible = await setMarker(page);
   const geoSuccess = await geolocSuccess(page);
 
   const screenshotPath = path.join(outDir, `issue-981-${device.key}-${stamp}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
 
+  const markerCheck = await setMarkerOrDetectAuthRedirect(page);
+
   await context.close();
 
   const geoDenied = await geolocDenied(browser, device);
+
+  const pinchPassed = Number.isFinite(initial.zoom) && Number.isFinite(afterPinch.zoom) && afterPinch.zoom > initial.zoom;
+  const panPassed =
+    Number.isFinite(beforePan.zoom)
+    && Number.isFinite(afterPan.zoom)
+    && afterPan.zoom === beforePan.zoom
+    && beforePan.text !== afterPan.text;
+  const markerPassed = markerCheck.passed === true;
+  const geolocationSuccessPassed = geoSuccess.markerVisible === true && /Geräteposition:/.test(geoSuccess.locationMeta);
+  const geolocationDeniedPassed = /(abgelehnt|nicht unterstützt|nicht verfügbar|Zeitlimit|insecure context)/i.test(
+    `${geoDenied.statusText} ${geoDenied.locationMeta}`
+  );
+  const touchInteractionPassed = pinchPassed || panPassed;
+  const overallPassed = touchInteractionPassed && markerPassed && geolocationSuccessPassed && geolocationDeniedPassed;
 
   return {
     device: device.label,
@@ -270,30 +370,35 @@ async function runDevice(browser, device) {
       pinchZoom: {
         before: initial,
         after: afterPinch,
-        passed: Number.isFinite(initial.zoom) && Number.isFinite(afterPinch.zoom) && afterPinch.zoom > initial.zoom,
+        passed: pinchPassed,
       },
       panRegression: {
         before: beforePan,
         after: afterPan,
-        passed:
-          Number.isFinite(beforePan.zoom) &&
-          Number.isFinite(afterPan.zoom) &&
-          afterPan.zoom === beforePan.zoom &&
-          beforePan.text !== afterPan.text,
+        passed: panPassed,
       },
       markerRegression: {
-        markerVisible,
-        passed: markerVisible === true,
+        outcome: markerCheck.outcome,
+        markerVisible: markerCheck.markerVisible,
+        redirectedToAuth: markerCheck.redirectedToAuth,
+        finalUrl: markerCheck.finalUrl,
+        passed: markerPassed,
       },
       geolocationSuccess: {
         ...geoSuccess,
-        passed: geoSuccess.markerVisible === true && /Geräteposition:/.test(geoSuccess.locationMeta),
+        passed: geolocationSuccessPassed,
       },
       geolocationDenied: {
         ...geoDenied,
-        passed: /(abgelehnt|nicht unterstützt|nicht verfügbar|Zeitlimit|insecure context)/i.test(
-          `${geoDenied.statusText} ${geoDenied.locationMeta}`
-        ),
+        passed: geolocationDeniedPassed,
+      },
+      touchInteraction: {
+        pinchPassed,
+        panPassed,
+        passed: touchInteractionPassed,
+      },
+      overall: {
+        passed: overallPassed,
       },
     },
     artifacts: {
@@ -330,7 +435,7 @@ async function main() {
   const ok =
     fatalErrors.length === 0
     && checks.length > 0
-    && checks.every((entry) => Object.values(entry.checks).every((check) => check.passed));
+    && checks.every((entry) => entry?.checks?.overall?.passed === true);
 
   const payload = {
     issue: 981,

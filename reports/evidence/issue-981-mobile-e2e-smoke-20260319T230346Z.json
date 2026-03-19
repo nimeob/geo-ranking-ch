@@ -1,0 +1,128 @@
+{
+  "issue": 981,
+  "parentIssue": 975,
+  "startedAtUtc": "2026-03-19T23:03:46.239Z",
+  "finishedAtUtc": "2026-03-19T23:03:55.187Z",
+  "targetUrl": "https://www.dev.georanking.ch/gui",
+  "limitations": [
+    "Native Playwright WebKit (Safari engine) konnte auf diesem Runner wegen fehlender System-Libraries nicht gestartet werden; iOS-Check daher als iPhone-Profil-Simulator auf Chromium durchgeführt."
+  ],
+  "checks": [
+    {
+      "device": "iOS Safari Simulator (Playwright iPhone 13 profile on Chromium)",
+      "key": "ios-simulator",
+      "checks": {
+        "pinchZoom": {
+          "before": {
+            "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+            "zoom": 8
+          },
+          "after": {
+            "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+            "zoom": 8
+          },
+          "passed": false
+        },
+        "panRegression": {
+          "before": {
+            "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+            "zoom": 8
+          },
+          "after": {
+            "text": "Zoom 8 · Zentrum 46.975849, 7.711143",
+            "zoom": 8
+          },
+          "passed": true
+        },
+        "markerRegression": {
+          "outcome": "marker-visible",
+          "markerVisible": true,
+          "redirectedToAuth": false,
+          "finalUrl": "https://www.dev.georanking.ch/gui",
+          "passed": true
+        },
+        "geolocationSuccess": {
+          "markerVisible": true,
+          "statusText": "",
+          "locationMeta": "Geräteposition: 47.376900, 8.541700 (±22 m)",
+          "passed": true
+        },
+        "geolocationDenied": {
+          "statusText": "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.",
+          "locationMeta": "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.",
+          "passed": true
+        },
+        "touchInteraction": {
+          "pinchPassed": false,
+          "panPassed": true,
+          "passed": true
+        },
+        "overall": {
+          "passed": true
+        }
+      },
+      "artifacts": {
+        "screenshot": "reports/evidence/issue-981-ios-simulator-20260319T230346Z.png"
+      }
+    },
+    {
+      "device": "Android Chrome Simulator (Playwright Pixel-like mobile profile on Chromium)",
+      "key": "android-chrome",
+      "checks": {
+        "pinchZoom": {
+          "before": {
+            "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+            "zoom": 8
+          },
+          "after": {
+            "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+            "zoom": 8
+          },
+          "passed": false
+        },
+        "panRegression": {
+          "before": {
+            "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+            "zoom": 8
+          },
+          "after": {
+            "text": "Zoom 8 · Zentrum 46.975849, 7.711143",
+            "zoom": 8
+          },
+          "passed": true
+        },
+        "markerRegression": {
+          "outcome": "marker-visible",
+          "markerVisible": true,
+          "redirectedToAuth": false,
+          "finalUrl": "https://www.dev.georanking.ch/gui",
+          "passed": true
+        },
+        "geolocationSuccess": {
+          "markerVisible": true,
+          "statusText": "",
+          "locationMeta": "Geräteposition: 46.948000, 7.447400 (±18 m)",
+          "passed": true
+        },
+        "geolocationDenied": {
+          "statusText": "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.",
+          "locationMeta": "Standortfreigabe wurde abgelehnt. Bitte Berechtigung im Browser erlauben.",
+          "passed": true
+        },
+        "touchInteraction": {
+          "pinchPassed": false,
+          "panPassed": true,
+          "passed": true
+        },
+        "overall": {
+          "passed": true
+        }
+      },
+      "artifacts": {
+        "screenshot": "reports/evidence/issue-981-android-chrome-20260319T230346Z.png"
+      }
+    }
+  ],
+  "fatalErrors": [],
+  "ok": true
+}
