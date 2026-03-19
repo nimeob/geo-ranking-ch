@@ -161,6 +161,73 @@ class TestCoreFunctions(unittest.TestCase):
         s_fuzzy, _ = address_intel.score_candidate_pre(fuzzy, qp)
         self.assertGreater(s_exact, s_fuzzy)
 
+    def test_build_lv95_identify_url_contains_common_identify_params(self):
+        url = address_intel._build_lv95_identify_url(
+            layer="ch.swisstopo-vd.ortschaftenverzeichnis_plz",
+            lv95_e=2745000,
+            lv95_n=1256000,
+        )
+
+        self.assertIn("MapServer/identify?", url)
+        self.assertIn("layers=all%3Ach.swisstopo-vd.ortschaftenverzeichnis_plz", url)
+        self.assertIn("geometry=2745000%2C1256000", url)
+        self.assertIn("mapExtent=2744800%2C1255800%2C2745200%2C1256200", url)
+        self.assertIn("sr=2056", url)
+
+    def test_fetch_plz_layer_at_lv95_uses_shared_identify_helper(self):
+        sources = address_intel.SourceRegistry()
+
+        with mock.patch.object(address_intel, "tracked_get_json", return_value={
+            "results": [
+                {"attributes": {"plz": 9000, "langtext": "St. Gallen"}},
+                {"attributes": {"plz": 9001}},
+            ]
+        }) as tracked:
+            attrs = address_intel.fetch_plz_layer_at_lv95(
+                client=mock.sentinel.client,
+                sources=sources,
+                lv95_e=2745000,
+                lv95_n=1256000,
+            )
+
+        self.assertEqual(attrs, {"plz": 9000, "langtext": "St. Gallen"})
+        tracked.assert_called_once()
+        self.assertEqual(tracked.call_args.args[2], "plz_layer_identify")
+        self.assertIn("layers=all%3Ach.swisstopo-vd.ortschaftenverzeichnis_plz", tracked.call_args.args[3])
+
+    def test_fetch_swissboundaries_at_lv95_prefers_current_year_result(self):
+        sources = address_intel.SourceRegistry()
+
+        with mock.patch.object(address_intel, "tracked_get_json", return_value={
+            "results": [
+                {"attributes": {"gemname": "Altstätten", "is_current_jahr": 0}},
+                {"attributes": {"gemname": "St. Gallen", "is_current_jahr": 1}},
+            ]
+        }):
+            attrs = address_intel.fetch_swissboundaries_at_lv95(
+                client=mock.sentinel.client,
+                sources=sources,
+                lv95_e=2745000,
+                lv95_n=1256000,
+            )
+
+        self.assertEqual(attrs, {"gemname": "St. Gallen", "is_current_jahr": 1})
+
+    def test_fetch_lv95_identify_results_disables_source_without_coordinates(self):
+        sources = address_intel.SourceRegistry()
+
+        results = address_intel._fetch_lv95_identify_results(
+            client=mock.sentinel.client,
+            sources=sources,
+            source_name="plz_layer_identify",
+            layer="ch.swisstopo-vd.ortschaftenverzeichnis_plz",
+            lv95_e=None,
+            lv95_n=1256000,
+        )
+
+        self.assertEqual(results, [])
+        self.assertEqual(sources.as_dict()["plz_layer_identify"]["status"], "disabled")
+
     def test_confidence_levels(self):
         sources = address_intel.SourceRegistry()
         sources.note_success("geoadmin_search", "https://example")

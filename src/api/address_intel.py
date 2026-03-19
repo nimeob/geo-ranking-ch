@@ -1399,6 +1399,57 @@ def fetch_heating_layer(
     return attrs
 
 
+def _build_lv95_identify_url(
+    *,
+    layer: str,
+    lv95_e: float,
+    lv95_n: float,
+    margin: float = 200,
+    tolerance: int = 5,
+) -> str:
+    params = {
+        "geometry": f"{lv95_e},{lv95_n}",
+        "geometryType": "esriGeometryPoint",
+        "imageDisplay": "500,500,96",
+        "mapExtent": f"{lv95_e-margin},{lv95_n-margin},{lv95_e+margin},{lv95_n+margin}",
+        "tolerance": str(tolerance),
+        "layers": f"all:{layer}",
+        "sr": "2056",
+        "lang": "de",
+        "returnGeometry": "false",
+        "f": "json",
+    }
+    return "https://api3.geo.admin.ch/rest/services/api/MapServer/identify?" + urllib.parse.urlencode(params)
+
+
+def _fetch_lv95_identify_results(
+    client: HttpClient,
+    sources: SourceRegistry,
+    *,
+    source_name: str,
+    layer: str,
+    lv95_e: Optional[float],
+    lv95_n: Optional[float],
+    optional: bool = True,
+) -> List[Dict[str, Any]]:
+    if lv95_e is None or lv95_n is None:
+        sources.disable(source_name, "keine LV95-Koordinaten verfügbar")
+        return []
+
+    url = _build_lv95_identify_url(layer=layer, lv95_e=lv95_e, lv95_n=lv95_n)
+    data = tracked_get_json(client, sources, source_name, url, optional=optional)
+    if not isinstance(data, dict):
+        return []
+
+    results = data.get("results") or []
+    return [result for result in results if isinstance(result, dict)]
+
+
+def _extract_identify_attributes(result: Dict[str, Any]) -> Dict[str, Any]:
+    attrs = (result.get("attributes") or {}) if isinstance(result, dict) else {}
+    return attrs if isinstance(attrs, dict) else {}
+
+
 def fetch_plz_layer_at_lv95(
     client: HttpClient,
     sources: SourceRegistry,
@@ -1406,32 +1457,18 @@ def fetch_plz_layer_at_lv95(
     lv95_e: Optional[float],
     lv95_n: Optional[float],
 ) -> Dict[str, Any]:
-    if lv95_e is None or lv95_n is None:
-        sources.disable("plz_layer_identify", "keine LV95-Koordinaten verfügbar")
-        return {}
-
-    margin = 200
-    params = {
-        "geometry": f"{lv95_e},{lv95_n}",
-        "geometryType": "esriGeometryPoint",
-        "imageDisplay": "500,500,96",
-        "mapExtent": f"{lv95_e-margin},{lv95_n-margin},{lv95_e+margin},{lv95_n+margin}",
-        "tolerance": "5",
-        "layers": "all:ch.swisstopo-vd.ortschaftenverzeichnis_plz",
-        "sr": "2056",
-        "lang": "de",
-        "returnGeometry": "false",
-        "f": "json",
-    }
-    url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify?" + urllib.parse.urlencode(params)
-    data = tracked_get_json(client, sources, "plz_layer_identify", url, optional=True)
-    if not data:
-        return {}
-    results = data.get("results") or []
+    results = _fetch_lv95_identify_results(
+        client,
+        sources,
+        source_name="plz_layer_identify",
+        layer="ch.swisstopo-vd.ortschaftenverzeichnis_plz",
+        lv95_e=lv95_e,
+        lv95_n=lv95_n,
+        optional=True,
+    )
     if not results:
         return {}
-    attrs = (results[0] or {}).get("attributes") or {}
-    return attrs if isinstance(attrs, dict) else {}
+    return _extract_identify_attributes(results[0])
 
 
 def fetch_swissboundaries_at_lv95(
@@ -1441,33 +1478,20 @@ def fetch_swissboundaries_at_lv95(
     lv95_e: Optional[float],
     lv95_n: Optional[float],
 ) -> Dict[str, Any]:
-    if lv95_e is None or lv95_n is None:
-        sources.disable("swissboundaries_identify", "keine LV95-Koordinaten verfügbar")
-        return {}
+    results = _fetch_lv95_identify_results(
+        client,
+        sources,
+        source_name="swissboundaries_identify",
+        layer="ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill",
+        lv95_e=lv95_e,
+        lv95_n=lv95_n,
+        optional=True,
+    )
 
-    margin = 200
-    params = {
-        "geometry": f"{lv95_e},{lv95_n}",
-        "geometryType": "esriGeometryPoint",
-        "imageDisplay": "500,500,96",
-        "mapExtent": f"{lv95_e-margin},{lv95_n-margin},{lv95_e+margin},{lv95_n+margin}",
-        "tolerance": "5",
-        "layers": "all:ch.swisstopo.swissboundaries3d-gemeinde-flaeche.fill",
-        "sr": "2056",
-        "lang": "de",
-        "returnGeometry": "false",
-        "f": "json",
-    }
-    url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify?" + urllib.parse.urlencode(params)
-    data = tracked_get_json(client, sources, "swissboundaries_identify", url, optional=True)
-    if not data:
-        return {}
-
-    results = data.get("results") or []
     best: Optional[Dict[str, Any]] = None
     for result in results:
-        attrs = (result or {}).get("attributes") or {}
-        if not isinstance(attrs, dict):
+        attrs = _extract_identify_attributes(result)
+        if not attrs:
             continue
         if attrs.get("is_current_jahr"):
             best = attrs
