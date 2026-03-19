@@ -28,6 +28,38 @@ const devices = [
   },
 ];
 
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack || '',
+    };
+  }
+  return {
+    name: 'Error',
+    message: String(error || 'unknown error'),
+    stack: '',
+  };
+}
+
+function buildBootstrapFailure(device, error) {
+  const normalized = normalizeError(error);
+  return {
+    device: device.label,
+    key: device.key,
+    checks: {
+      bootstrap: {
+        stage: 'openStableGuiPage',
+        error: normalized.message,
+        passed: false,
+      },
+    },
+    artifacts: {},
+    error: normalized,
+  };
+}
+
 function isAuthRedirectUrl(url) {
   try {
     const parsed = new URL(url);
@@ -231,15 +263,34 @@ async function runDevice(browser, device) {
 
 async function main() {
   const startedAtUtc = new Date().toISOString();
-  const browser = await chromium.launch({ headless: true });
   const checks = [];
-  for (const device of devices) {
-    checks.push(await runDevice(browser, device));
-  }
-  await browser.close();
-  const finishedAtUtc = new Date().toISOString();
+  const fatalErrors = [];
 
-  const ok = checks.every((entry) => Object.values(entry.checks).every((check) => check.passed));
+  let browser = null;
+  try {
+    browser = await chromium.launch({ headless: true });
+
+    for (const device of devices) {
+      try {
+        checks.push(await runDevice(browser, device));
+      } catch (error) {
+        checks.push(buildBootstrapFailure(device, error));
+      }
+    }
+  } catch (error) {
+    fatalErrors.push(normalizeError(error));
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+
+  const finishedAtUtc = new Date().toISOString();
+  const ok =
+    fatalErrors.length === 0
+    && checks.length > 0
+    && checks.every((entry) => Object.values(entry.checks).every((check) => check.passed));
+
   const payload = {
     issue: 981,
     parentIssue: 975,
@@ -250,6 +301,7 @@ async function main() {
       'Native Playwright WebKit (Safari engine) konnte auf diesem Runner wegen fehlender System-Libraries nicht gestartet werden; iOS-Check daher als iPhone-Profil-Simulator auf Chromium durchgeführt.',
     ],
     checks,
+    fatalErrors,
     ok,
   };
 
@@ -261,7 +313,22 @@ async function main() {
   if (!ok) process.exit(1);
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch(async (error) => {
+  const finishedAtUtc = new Date().toISOString();
+  const payload = {
+    issue: 981,
+    parentIssue: 975,
+    startedAtUtc: finishedAtUtc,
+    finishedAtUtc,
+    targetUrl: baseUrl,
+    checks: [],
+    fatalErrors: [normalizeError(error)],
+    ok: false,
+  };
+
+  await fs.mkdir(outDir, { recursive: true });
+  const outJson = path.join(outDir, `issue-981-mobile-e2e-smoke-${stamp}.json`);
+  await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  console.log(path.relative(repoRoot, outJson));
   process.exit(1);
 });
