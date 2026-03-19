@@ -3293,6 +3293,95 @@ def _normalize_error_payload(payload: dict[str, Any], *, status: int) -> dict[st
     return normalized
 
 
+def _read_json_request_object(
+    *,
+    headers: Any,
+    rfile: Any,
+    allow_empty_body: bool,
+) -> dict[str, Any]:
+    raw_length = headers.get("Content-Length", "0")
+    try:
+        length = int(raw_length)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid content length") from exc
+
+    if length < 0:
+        raise ValueError("invalid content length")
+
+    if length == 0:
+        if allow_empty_body:
+            return {}
+        raise ValueError("empty body")
+
+    raw = rfile.read(length)
+    if not raw:
+        return {}
+
+    try:
+        decoded_body = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("body must be valid utf-8 json") from exc
+
+    try:
+        payload = json.loads(decoded_body)
+    except json.JSONDecodeError as exc:
+        raise ValueError("invalid json") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("json body must be an object")
+
+    return payload
+
+
+def _build_sync_history_persist_callbacks(
+    *,
+    state: dict[str, str | None],
+) -> tuple[Callable[[dict[str, Any]], None], Callable[..., None]]:
+    def _current_job_id() -> str:
+        return str(state.get("job_id") or "").strip()
+
+    def _persist_sync_history_success(grouped_result_payload: dict[str, Any]) -> None:
+        sync_history_job_id = _current_job_id()
+        if not sync_history_job_id:
+            return
+        try:
+            result_record = _ASYNC_JOB_STORE.create_result(
+                job_id=sync_history_job_id,
+                result_payload=grouped_result_payload,
+                result_kind="final",
+            )
+            result_id = str(result_record.get("result_id") or "")
+            _ASYNC_JOB_STORE.transition_job(
+                job_id=sync_history_job_id,
+                to_status="completed",
+                progress_percent=100,
+                result_id=result_id or None,
+                actor_type="system",
+            )
+        except Exception:
+            return
+
+    def _persist_sync_history_failure(*, error_code: str, error_message: str) -> None:
+        sync_history_job_id = _current_job_id()
+        if not sync_history_job_id:
+            return
+        try:
+            _ASYNC_JOB_STORE.transition_job(
+                job_id=sync_history_job_id,
+                to_status="failed",
+                progress_percent=5,
+                error_code=str(error_code or "internal"),
+                error_message=str(error_message or "sync analyze failed"),
+                retryable=False,
+                retry_hint=None,
+                actor_type="system",
+            )
+        except Exception:
+            return
+
+    return _persist_sync_history_success, _persist_sync_history_failure
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "geo-ranking-ch/0.1"
 
@@ -4819,10 +4908,12 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
                 try:
-                    length = int(self.headers.get("Content-Length", "0"))
-                    raw = self.rfile.read(length) if length > 0 else b""
-                    payload = json.loads(raw.decode("utf-8")) if raw else {}
-                except Exception:
+                    payload = _read_json_request_object(
+                        headers=self.headers,
+                        rfile=self.rfile,
+                        allow_empty_body=True,
+                    )
+                except ValueError:
                     payload = {}
                 body, status = handle_correction_request(
                     document_id=document_id,
@@ -4878,71 +4969,16 @@ class Handler(BaseHTTPRequestHandler):
                 # Ensure history-persistence hooks exist even when request parsing
                 # fails early (before sync-history setup). Otherwise, exception
                 # handlers may hit an UnboundLocalError and drop the connection.
-                sync_history_job_id: str | None = None
+                sync_history_state: dict[str, str | None] = {"job_id": None}
+                _persist_sync_history_success, _persist_sync_history_failure = (
+                    _build_sync_history_persist_callbacks(state=sync_history_state)
+                )
 
-                def _persist_sync_history_success(grouped_result_payload: dict[str, Any]) -> None:
-                    if not sync_history_job_id:
-                        return
-                    try:
-                        result_record = _ASYNC_JOB_STORE.create_result(
-                            job_id=sync_history_job_id,
-                            result_payload=grouped_result_payload,
-                            result_kind="final",
-                        )
-                        result_id = str(result_record.get("result_id") or "")
-                        _ASYNC_JOB_STORE.transition_job(
-                            job_id=sync_history_job_id,
-                            to_status="completed",
-                            progress_percent=100,
-                            result_id=result_id or None,
-                            actor_type="system",
-                        )
-                    except Exception:
-                        return
-
-                def _persist_sync_history_failure(*, error_code: str, error_message: str) -> None:
-                    if not sync_history_job_id:
-                        return
-                    try:
-                        _ASYNC_JOB_STORE.transition_job(
-                            job_id=sync_history_job_id,
-                            to_status="failed",
-                            progress_percent=5,
-                            error_code=str(error_code or "internal"),
-                            error_message=str(error_message or "sync analyze failed"),
-                            retryable=False,
-                            retry_hint=None,
-                            actor_type="system",
-                        )
-                    except Exception:
-                        return
-
-                raw_length = self.headers.get("Content-Length", "0")
-                try:
-                    length = int(raw_length)
-                except (TypeError, ValueError) as exc:
-                    raise ValueError("invalid content length") from exc
-                if length < 0:
-                    raise ValueError("invalid content length")
-
-                if length == 0 and not is_cancel_route:
-                    raise ValueError("empty body")
-
-                raw = self.rfile.read(length) if length > 0 else b""
-                if raw:
-                    try:
-                        decoded_body = raw.decode("utf-8")
-                    except UnicodeDecodeError as exc:
-                        raise ValueError("body must be valid utf-8 json") from exc
-                    try:
-                        data = json.loads(decoded_body)
-                    except json.JSONDecodeError as exc:
-                        raise ValueError("invalid json") from exc
-                else:
-                    data = {}
-
-                if not isinstance(data, dict):
-                    raise ValueError("json body must be an object")
+                data = _read_json_request_object(
+                    headers=self.headers,
+                    rfile=self.rfile,
+                    allow_empty_body=is_cancel_route,
+                )
 
                 session_id = str(getattr(self, "_request_lifecycle_session_id", "") or "")
 
@@ -5095,7 +5131,6 @@ class Handler(BaseHTTPRequestHandler):
 
                 # Sync-Requests ebenfalls in den persistenten Job/Result-Store schreiben,
                 # damit "Historische Abfragen" ohne neue Infrastruktur funktioniert.
-                sync_history_job_id: str | None = None
                 if os.getenv("ENABLE_QUERY_HISTORY", "1") != "0":
                     request_org_id = "default-org"
                     if _PHASE1_AUTH_ENABLED and phase1_user is not None:
@@ -5120,53 +5155,20 @@ class Handler(BaseHTTPRequestHandler):
                             ),
                             owner_org_id=phase1_user.org_id if phase1_user else request_org_id,
                         )
-                        sync_history_job_id = str(created_job.get("job_id") or "") or None
-                        if sync_history_job_id:
+                        created_job_id = str(created_job.get("job_id") or "") or None
+                        # Persist the created job id into the shared sync_history_state so the
+                        # previously-built callbacks (_persist_sync_history_success/failure)
+                        # can operate on it without duplicated logic.
+                        sync_history_state["job_id"] = created_job_id or None
+                        if created_job_id:
                             _ASYNC_JOB_STORE.transition_job(
-                                job_id=sync_history_job_id,
+                                job_id=created_job_id,
                                 to_status="running",
                                 progress_percent=5,
                                 actor_type="system",
                             )
                     except Exception:
-                        sync_history_job_id = None
-
-                def _persist_sync_history_success(grouped_result_payload: dict[str, Any]) -> None:
-                    if not sync_history_job_id:
-                        return
-                    try:
-                        result_record = _ASYNC_JOB_STORE.create_result(
-                            job_id=sync_history_job_id,
-                            result_payload=grouped_result_payload,
-                            result_kind="final",
-                        )
-                        result_id = str(result_record.get("result_id") or "")
-                        _ASYNC_JOB_STORE.transition_job(
-                            job_id=sync_history_job_id,
-                            to_status="completed",
-                            progress_percent=100,
-                            result_id=result_id or None,
-                            actor_type="system",
-                        )
-                    except Exception:
-                        return
-
-                def _persist_sync_history_failure(*, error_code: str, error_message: str) -> None:
-                    if not sync_history_job_id:
-                        return
-                    try:
-                        _ASYNC_JOB_STORE.transition_job(
-                            job_id=sync_history_job_id,
-                            to_status="failed",
-                            progress_percent=5,
-                            error_code=str(error_code or "internal"),
-                            error_message=str(error_message or "sync analyze failed"),
-                            retryable=False,
-                            retry_hint=None,
-                            actor_type="system",
-                        )
-                    except Exception:
-                        return
+                        sync_history_state["job_id"] = None
 
                 if os.getenv("ENABLE_E2E_FAULT_INJECTION", "0") == "1":
                     if query == "__timeout__":
