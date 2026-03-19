@@ -11,6 +11,22 @@ const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack || '',
+    };
+  }
+
+  return {
+    name: 'Error',
+    message: String(error || 'unknown error'),
+    stack: '',
+  };
+}
+
 function isAuthRedirectUrl(url) {
   try {
     const parsed = new URL(url);
@@ -25,11 +41,7 @@ function isAuthRedirectUrl(url) {
   }
 }
 
-async function openStableGuiPage(context, stageLabel) {
-  const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
-
+async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs }) {
   const currentUrl = page.url();
   if (isAuthRedirectUrl(currentUrl)) {
     throw new Error(
@@ -37,12 +49,57 @@ async function openStableGuiPage(context, stageLabel) {
     );
   }
 
-  const guiVisible = await page.locator('#analyze-form').isVisible().catch(() => false);
-  if (!guiVisible) {
+  const guiWait = page
+    .locator(selector)
+    .waitFor({ state: 'visible', timeout: timeoutMs })
+    .then(() => ({ kind: 'gui-ready' }))
+    .catch((error) => ({ kind: 'gui-timeout', error }));
+
+  const authWait = page
+    .waitForURL((url) => isAuthRedirectUrl(String(url)), { timeout: timeoutMs })
+    .then(() => ({ kind: 'auth-redirect' }))
+    .catch(() => ({ kind: 'auth-timeout' }));
+
+  const winner = await Promise.race([guiWait, authWait]);
+
+  if (winner.kind === 'auth-redirect') {
+    const authUrl = page.url();
     throw new Error(
-      `[${stageLabel}] GUI-Shell nicht bereit: #analyze-form nach ${guiStabilityWaitMs}ms nicht sichtbar (url=${currentUrl}).`
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${authUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
+
+  if (winner.kind === 'gui-ready') {
+    return;
+  }
+
+  const finalUrl = page.url();
+  if (isAuthRedirectUrl(finalUrl)) {
+    throw new Error(
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${finalUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+    );
+  }
+
+  if (winner.kind === 'gui-timeout') {
+    const reason = winner.error instanceof Error ? winner.error.message : String(winner.error || 'timeout');
+    throw new Error(
+      `[${stageLabel}] GUI-Shell nicht bereit: ${selector} nach ${timeoutMs}ms nicht sichtbar (url=${finalUrl}). reason=${reason}`
+    );
+  }
+
+  throw new Error(`[${stageLabel}] GUI-Shell nicht bereit: ${selector} nach ${timeoutMs}ms nicht sichtbar (url=${finalUrl}).`);
+}
+
+async function openStableGuiPage(context, stageLabel) {
+  const page = await context.newPage();
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
+
+  await waitForGuiOrAuthRedirect(page, {
+    stageLabel,
+    selector: '#analyze-form',
+    timeoutMs: 20_000,
+  });
 
   return page;
 }
@@ -152,49 +209,70 @@ async function captureDesktopEvidence(browser) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  const startedAtUtc = new Date().toISOString();
+  let browser = null;
+  let payload = null;
 
-  const mobile = await captureMobileEvidence(browser);
-  const desktop = await captureDesktopEvidence(browser);
+  try {
+    browser = await chromium.launch({ headless: true });
 
-  await browser.close();
+    const mobile = await captureMobileEvidence(browser);
+    const desktop = await captureDesktopEvidence(browser);
 
-  const payload = {
-    issue: issueNumber,
-    targetUrl: baseUrl,
-    checks: {
-      mobileNoHorizontalScroll: {
-        ...mobile.metrics.pageWidth,
-        passed: mobile.metrics.pageWidth.matches,
-        assertion: 'document.scrollingElement.scrollWidth === document.scrollingElement.clientWidth',
+    payload = {
+      issue: issueNumber,
+      targetUrl: baseUrl,
+      checks: {
+        mobileNoHorizontalScroll: {
+          ...mobile.metrics.pageWidth,
+          passed: mobile.metrics.pageWidth.matches,
+          assertion: 'document.scrollingElement.scrollWidth === document.scrollingElement.clientWidth',
+        },
+        mainFunctionsReachable: mobile.functionsProbe,
+        desktopRegressionNoHorizontalScroll: {
+          ...desktop.metrics.pageWidth,
+          passed: desktop.metrics.pageWidth.matches,
+        },
       },
-      mainFunctionsReachable: mobile.functionsProbe,
-      desktopRegressionNoHorizontalScroll: {
-        ...desktop.metrics.pageWidth,
-        passed: desktop.metrics.pageWidth.matches,
+      snapshots: {
+        mobile: {
+          viewport: mobile.metrics.viewport,
+          mainGridColumns: mobile.metrics.mainGridColumns,
+          mapMeta: mobile.metrics.mapMeta,
+          screenshot: mobile.screenshot,
+        },
+        desktop: {
+          viewport: desktop.metrics.viewport,
+          mainGridColumns: desktop.metrics.mainGridColumns,
+          mapMeta: desktop.metrics.mapMeta,
+          screenshot: desktop.screenshot,
+        },
       },
-    },
-    snapshots: {
-      mobile: {
-        viewport: mobile.metrics.viewport,
-        mainGridColumns: mobile.metrics.mainGridColumns,
-        mapMeta: mobile.metrics.mapMeta,
-        screenshot: mobile.screenshot,
-      },
-      desktop: {
-        viewport: desktop.metrics.viewport,
-        mainGridColumns: desktop.metrics.mainGridColumns,
-        mapMeta: desktop.metrics.mapMeta,
-        screenshot: desktop.screenshot,
-      },
-    },
-  };
+      runError: null,
+      ok:
+        mobile.metrics.pageWidth.matches &&
+        mobile.functionsProbe.passed &&
+        desktop.metrics.pageWidth.matches,
+    };
+  } catch (error) {
+    payload = {
+      issue: issueNumber,
+      targetUrl: baseUrl,
+      checks: {},
+      snapshots: {},
+      runError: normalizeError(error),
+      ok: false,
+    };
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
 
-  payload.ok =
-    payload.checks.mobileNoHorizontalScroll.passed &&
-    payload.checks.mainFunctionsReachable.passed &&
-    payload.checks.desktopRegressionNoHorizontalScroll.passed;
+  payload.startedAtUtc = startedAtUtc;
+  payload.finishedAtUtc = new Date().toISOString();
 
+  await fs.mkdir(outDir, { recursive: true });
   const outJson = path.join(outDir, `issue-${issueNumber}-mobile-overflow-smoke-${stamp}.json`);
   await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
 
@@ -204,7 +282,21 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch(async (error) => {
+  const outJson = path.join(outDir, `issue-${issueNumber}-mobile-overflow-smoke-${stamp}.json`);
+  const payload = {
+    issue: issueNumber,
+    targetUrl: baseUrl,
+    startedAtUtc: new Date().toISOString(),
+    finishedAtUtc: new Date().toISOString(),
+    checks: {},
+    snapshots: {},
+    runError: normalizeError(error),
+    ok: false,
+  };
+
+  await fs.mkdir(outDir, { recursive: true });
+  await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  console.log(path.relative(repoRoot, outJson));
   process.exit(1);
 });
