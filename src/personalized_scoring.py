@@ -5,8 +5,6 @@ Die kanonische Implementierung wurde in den API-Source-Bereich migriert.
 Der Wrapper hält den Legacy-Importpfad unter ``src`` kompatibel.
 """
 
-from importlib import import_module
-import sys
+from src._legacy_module_proxy import install_module_alias
 
-_api_module = import_module("src.api.personalized_scoring")
-sys.modules[__name__] = _api_module
+_api_module = install_module_alias(__name__, "src.api.personalized_scoring")

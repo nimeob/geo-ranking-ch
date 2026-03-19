@@ -6,11 +6,9 @@ verschoben. Dieser Wrapper hält bestehende Entrypoints stabil
 (``python -m src.ui_service``).
 """
 
-from importlib import import_module
-import sys
+from src._legacy_module_proxy import install_module_alias
 
-_ui_module = import_module("src.ui.service")
-sys.modules[__name__] = _ui_module
+_ui_module = install_module_alias(__name__, "src.ui.service")
 
 if __name__ == "__main__":
     _ui_module.main()

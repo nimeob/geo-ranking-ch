@@ -7,11 +7,9 @@ Dieser Wrapper hält bestehende Aufrufe (``python -m src.web_service`` und
 separaten Source-Bereich migriert wurde.
 """
 
-from importlib import import_module
-import sys
+from src._legacy_module_proxy import install_module_alias
 
-_api_module = import_module("src.api.web_service")
-sys.modules[__name__] = _api_module
+_api_module = install_module_alias(__name__, "src.api.web_service")
 
 if __name__ == "__main__":
     _api_module.main()
