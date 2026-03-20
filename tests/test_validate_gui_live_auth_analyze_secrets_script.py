@@ -13,6 +13,8 @@ WORKFLOW = REPO_ROOT / ".github" / "workflows" / "gui-dev-live-auth-analyze-smok
 
 def _run(tmp_path: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     merged_env = os.environ.copy()
+    for key in ("DEV_UI_SMOKE_RUN_ID", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT"):
+        merged_env.pop(key, None)
     merged_env.update(env)
     return subprocess.run(
         [str(SCRIPT)],
