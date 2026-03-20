@@ -36,6 +36,16 @@ Regel:
 - **S**: <30s
 - **M**: 60-240s
 
+## Live-DEV Ergänzung (echter Browser-Login + Analyze)
+
+Zusätzlich zur PR-Matrix existiert ein separater **Live-DEV Smoke** für echten Browser-Login gegen das laufende AWS-DEV-System:
+
+- Script: `scripts/run_dev_ui_auth_analyze_smoke.mjs`
+- Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml`
+- Runbook: `docs/testing/GUI_DEV_LIVE_AUTH_ANALYZE_SMOKE.md`
+
+Dieser Lauf ist explizit auf echte End-to-End-Verifikation ausgerichtet (Login, neue CH-Adresse pro Lauf, tatsächlicher Analyze-Submit, vollständige Resultate, kein `401`/`session_expired`/Idle-Fallback) und ergänzt die PR-Gates um einen Runtime-Nachweis.
+
 ## Änderungsregel
 
 Änderungen an Pflichtfällen oder Gate-Zuordnung müssen in:
