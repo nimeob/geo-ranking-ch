@@ -132,7 +132,7 @@ class TestUserOrgGuardInListJobs(unittest.TestCase):
 
 
 class TestResultOrgGuard(unittest.TestCase):
-    """get_result_with_org_guard must include org_id in WHERE clause."""
+    """Result-Read-Guards: org- und owner-basierte SQL-Filter."""
 
     def test_org_guard_present_in_sql(self):
         factory, mock_cursor, _ = _make_conn_factory(fetchone_values=[None])
@@ -142,6 +142,32 @@ class TestResultOrgGuard(unittest.TestCase):
         sqls = _all_sqls_joined(mock_cursor)
         self.assertIn("org_id", sqls)
         self.assertNone_or_dict(result)
+
+    def test_owner_guard_present_in_sql(self):
+        factory, mock_cursor, _ = _make_conn_factory(fetchone_values=[None])
+        store = DbAsyncJobStore(conn_factory=factory)
+        result = store.get_result_for_owner(
+            "result-id-x",
+            owner_user_id="user-123",
+            owner_org_id="org-abc",
+        )
+
+        sqls = _all_sqls_joined(mock_cursor)
+        self.assertIn("owner_user_id", sqls)
+        self.assertIn("owner_org_id", sqls)
+        self.assertNone_or_dict(result)
+
+    def test_owner_guard_rejects_missing_owner_inputs(self):
+        factory, mock_cursor, _ = _make_conn_factory(fetchone_values=[None])
+        store = DbAsyncJobStore(conn_factory=factory)
+        result = store.get_result_for_owner(
+            "result-id-x",
+            owner_user_id="",
+            owner_org_id="org-abc",
+        )
+
+        self.assertIsNone(result)
+        self.assertEqual(mock_cursor.execute.call_count, 0)
 
     def assertNone_or_dict(self, value):
         self.assertIsNone(value)  # our mock returns None

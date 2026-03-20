@@ -62,7 +62,7 @@ sequenceDiagram
 |---|---|
 | `GET /auth/login` | New session created; `Set-Cookie: __Host-session=<id>; HttpOnly; SameSite=Lax; Path=/` |
 | `GET /auth/callback` | Cookie renewed (same ID, refreshed Max-Age) |
-| `GET /me` | Cookie read; no change |
+| `GET /me` | Cookie read; bei naher Expiry optional Session-Renewal (sliding TTL) |
 | `GET /portal/api/*` | Cookie read; token auto-refreshed if near expiry |
 | `POST /auth/logout` | `Set-Cookie: __Host-session=deleted; Max-Age=0; …` |
 | Session TTL exceeded | Session evicted on next access; client gets 401 |
@@ -97,6 +97,16 @@ Für `/auth/callback`-Fehler enthält die JSON-Antwort zusätzlich:
 - `correlation_id` (identisch zu `request_id`) für UI↔Log-Korrelation.
 - `redirect_diagnostics.expected_redirect` vs. `redirect_diagnostics.received_redirect`
   (nur `scheme`/`host`/`path`, **ohne** Query-Parameter wie `code` oder `state`).
+
+### 3.1 Owner-AuthZ (Jobs/Resultate/Notifications)
+
+Für authentifizierte Endnutzer (OIDC/BFF-Session oder Phase-1-Token) gilt strikt:
+- Zugriff nur auf Ressourcen mit exakt passendem `owner_user_id` **und** `owner_org_id`.
+- Gleiches Org alleine reicht nicht.
+- Unbekannte/fremde Ressourcen liefern `404 not_found` (keine Enumeration).
+
+Legacy-Daten ohne Owner-Metadaten (`owner_user_id`/`owner_org_id` leer) werden im
+Owner-Flow bewusst **nicht** ausgeliefert (fail-closed).
 
 ---
 
@@ -173,6 +183,7 @@ All BFF env vars are optional by default (BFF OIDC is disabled when `BFF_OIDC_IS
 | `BFF_OIDC_NEXT_PARAM_ALLOW_SAME_ORIGIN` | No | `1` | Allow `?next=<path>` redirect after login. Set `0` to disable. Default: `1`. |
 | `BFF_SESSION_COOKIE_NAME` | No | `__Host-session` | Session cookie name. Default: `__Host-session` (requires Secure + Path=/). Invalid names are rejected and fall back to default. |
 | `BFF_SESSION_TTL_SECONDS` | No | `3600` | Session lifetime in seconds. Default: 3600 (1 hour). |
+| `BFF_ME_RENEW_WINDOW_SECONDS` | No | `300` | `GET /auth/me` verlängert Session nur, wenn Restlaufzeit ≤ dieses Fensters (Sekunden). `0` deaktiviert Renewal via `/auth/me`. |
 | `BFF_SESSION_SECURE_COOKIE` | No | `1` | Set `0` to disable `Secure` flag (local dev only). If cookie name uses `__Host-`, runtime auto-downgrades to `bff-session` to avoid invalid host-prefix cookies over HTTP. |
 | `BFF_PORTAL_API_BASE_URL` | Yes (for proxy) | `http://localhost:8080` | Base URL of the internal API for portal proxy forwarding. |
 | `BFF_CSRF_HEADER_NAME` | No | `X-BFF-CSRF` | Custom CSRF header name. Default: `X-BFF-CSRF`. |

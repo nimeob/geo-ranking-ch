@@ -1096,16 +1096,8 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
     <main>
       <section class="card">
         <h2>Loader</h2>
-        <p class="meta">Lädt via <code>GET /analyze/results/&lt;result_id&gt;</code>. Optional: Bearer-Token + Tenant (<code>X-Org-Id</code>).</p>
+        <p class="meta">Lädt via <code>GET /analyze/results/&lt;result_id&gt;</code> mit bestehender Session (same-origin, BFF/OIDC).</p>
         <div class="grid-3">
-          <label>
-            API Token (optional)
-            <input id="api-token" type="password" placeholder="Bearer-Token" autocomplete="off" />
-          </label>
-          <label>
-            X-Org-Id (Tenant)
-            <input id="org-id" type="text" placeholder="default-org" />
-          </label>
           <label>
             view
             <select id="view-mode">
@@ -1150,11 +1142,7 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
       <script>
         const RESULT_ID = __RESULT_ID_JSON__;
         const RESULTS_ENDPOINT_BASE = __RESULTS_ENDPOINT_BASE_JSON__;
-        const TOKEN_STORAGE_KEY = "geo-ranking-ui-api-token";
-        const ORG_STORAGE_KEY = "geo-ranking-ui-org-id";
 
-        const tokenEl = document.getElementById("api-token");
-        const orgEl = document.getElementById("org-id");
         const viewModeEl = document.getElementById("view-mode");
         const statusEl = document.getElementById("status");
         const loadBtn = document.getElementById("load-btn");
@@ -1213,34 +1201,24 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           return `${RESULTS_ENDPOINT_BASE}/${encodedId}?view=${encodeURIComponent(view)}`;
         }
 
-        function persistInputs() {
-          try {
-            if (typeof window !== "undefined" && window.sessionStorage) {
-              const token = String(tokenEl.value || "").trim();
-              if (token) window.sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
-              else window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+        function buildLoginUrl(reason = "session_expired") {
+          const next = `${window.location.pathname}${window.location.search}`;
+          const params = new URLSearchParams();
+          params.set("next", next);
+          params.set("reason", reason || "session_expired");
+          return `/auth/login?${params.toString()}`;
+        }
 
-              const orgId = String(orgEl.value || "").trim();
-              if (orgId) window.sessionStorage.setItem(ORG_STORAGE_KEY, orgId);
-              else window.sessionStorage.removeItem(ORG_STORAGE_KEY);
-            }
+        function redirectToLogin(reason = "session_expired") {
+          const target = buildLoginUrl(reason);
+          try {
+            window.location.assign(target);
           } catch (error) {
-            // ignore
+            window.location.href = target;
           }
         }
 
         function applyInitialState() {
-          try {
-            if (typeof window !== "undefined" && window.sessionStorage) {
-              const token = String(window.sessionStorage.getItem(TOKEN_STORAGE_KEY) || "").trim();
-              if (token) tokenEl.value = token;
-              const orgId = String(window.sessionStorage.getItem(ORG_STORAGE_KEY) || "").trim();
-              if (orgId) orgEl.value = orgId;
-            }
-          } catch (error) {
-            // ignore
-          }
-          if (!String(orgEl.value || "").trim()) orgEl.value = "default-org";
           rawLinkEl.href = buildResultUrl();
         }
 
@@ -1257,10 +1235,6 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
             headers["X-Request-Id"] = normalizedRequestId;
             headers["X-Correlation-Id"] = normalizedRequestId;
           }
-          const token = String(tokenEl.value || "").trim();
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-          const orgId = String(orgEl.value || "").trim();
-          if (orgId) headers["X-Org-Id"] = orgId;
           return headers;
         }
 
@@ -1443,7 +1417,6 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
 
         async function loadResult() {
           setError("");
-          persistInputs();
           setStatus("loading");
           loadBtn.disabled = true;
 
@@ -1469,8 +1442,8 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           if (!response.ok || !parsed || !parsed.ok) {
             setStatus("error");
             if (response.status === 401) {
-              const hasToken = Boolean(String(tokenEl.value || "").trim());
-              setError(hasToken ? "Authorization fehlgeschlagen — Token ungültig oder abgelaufen" : "Bitte Bearer-Token setzen — API erfordert Authentifizierung");
+              setError("Session ungültig oder abgelaufen — weiter zur Anmeldung …");
+              window.setTimeout(() => redirectToLogin("session_expired"), 250);
             } else {
               const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
               const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";

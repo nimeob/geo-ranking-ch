@@ -492,17 +492,7 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
     <main>
       <section class="card">
         <h2>Loader</h2>
-        <p class="meta">Die Seite lädt JSON via <code>GET /analyze/jobs/&lt;job_id&gt;</code> und <code>GET /analyze/jobs/&lt;job_id&gt;/notifications</code>. Optional kann ein Bearer-Token gesetzt werden (z. B. für geschützte Deployments). Tenant-Scope via <code>X-Org-Id</code>.</p>
-        <div class="grid-2">
-          <label>
-            API Token (optional)
-            <input id="api-token" type="password" placeholder="Bearer-Token" autocomplete="off" />
-          </label>
-          <label>
-            X-Org-Id (Tenant)
-            <input id="org-id" type="text" placeholder="default-org" />
-          </label>
-        </div>
+        <p class="meta">Die Seite lädt JSON via <code>GET /analyze/jobs/&lt;job_id&gt;</code> und <code>GET /analyze/jobs/&lt;job_id&gt;/notifications</code> über bestehende Session (same-origin, BFF/OIDC).</p>
         <div class="links">
           <button id="refresh-btn" type="button">Refresh</button>
           <button id="toggle-polling-btn" class="secondary" type="button">Polling: on</button>
@@ -530,11 +520,6 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
         const JOBS_ENDPOINT_BASE = __JOBS_ENDPOINT_BASE_JSON__;
         const RESULTS_PAGE_BASE = "/results";
 
-        const TOKEN_STORAGE_KEY = "geo-ranking-ui-api-token";
-        const ORG_STORAGE_KEY = "geo-ranking-ui-org-id";
-
-        const tokenEl = document.getElementById("api-token");
-        const orgEl = document.getElementById("org-id");
         const statusEl = document.getElementById("status");
         const refreshBtn = document.getElementById("refresh-btn");
         const togglePollingBtn = document.getElementById("toggle-polling-btn");
@@ -601,49 +586,27 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
         }
 
         function headersFromInputs() {
-          const headers = { "Accept": "application/json" };
-          const token = String(tokenEl.value || "").trim();
-          if (token) {
-            headers["Authorization"] = `Bearer ${token}`;
-          }
-          const orgId = String(orgEl.value || "").trim();
-          if (orgId) {
-            headers["X-Org-Id"] = orgId;
-          }
-          return headers;
+          return { "Accept": "application/json" };
         }
 
-        function persistInputs() {
-          try {
-            if (typeof window !== "undefined" && window.sessionStorage) {
-              const token = String(tokenEl.value || "").trim();
-              if (token) window.sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
-              else window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+        function buildLoginUrl(reason = "session_expired") {
+          const next = `${window.location.pathname}${window.location.search}`;
+          const params = new URLSearchParams();
+          params.set("next", next);
+          params.set("reason", reason || "session_expired");
+          return `/auth/login?${params.toString()}`;
+        }
 
-              const orgId = String(orgEl.value || "").trim();
-              if (orgId) window.sessionStorage.setItem(ORG_STORAGE_KEY, orgId);
-              else window.sessionStorage.removeItem(ORG_STORAGE_KEY);
-            }
+        function redirectToLogin(reason = "session_expired") {
+          const target = buildLoginUrl(reason);
+          try {
+            window.location.assign(target);
           } catch (error) {
-            // ignore
+            window.location.href = target;
           }
         }
 
         function applyInitialState() {
-          try {
-            if (typeof window !== "undefined" && window.sessionStorage) {
-              const token = String(window.sessionStorage.getItem(TOKEN_STORAGE_KEY) || "").trim();
-              if (token) tokenEl.value = token;
-              const orgId = String(window.sessionStorage.getItem(ORG_STORAGE_KEY) || "").trim();
-              if (orgId) orgEl.value = orgId;
-            }
-          } catch (error) {
-            // ignore
-          }
-          if (!String(orgEl.value || "").trim()) {
-            orgEl.value = "default-org";
-          }
-
           rawJobLinkEl.href = buildJobUrl();
           rawNotificationsLinkEl.href = buildNotificationsUrl();
         }
@@ -656,7 +619,7 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
           const headers = headersFromInputs();
           let response;
           try {
-            response = await fetch(url, { method: "GET", headers });
+            response = await fetch(url, { method: "GET", headers, credentials: "include" });
           } catch (error) {
             throw new Error(error instanceof Error ? error.message : "network_error");
           }
@@ -670,8 +633,7 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
 
           if (!response.ok || !parsed || !parsed.ok) {
             if (response.status === 401) {
-              const hasToken = Boolean(headersFromInputs()["Authorization"]);
-              throw new Error(hasToken ? "Authorization fehlgeschlagen — Token ungültig oder abgelaufen" : "Bitte Bearer-Token setzen — API erfordert Authentifizierung");
+              throw new Error("auth_session_expired");
             }
             const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
             const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
@@ -683,7 +645,6 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
 
         async function refreshOnce() {
           setError("");
-          persistInputs();
 
           const jobUrl = buildJobUrl();
           const notificationsUrl = buildNotificationsUrl();
@@ -699,8 +660,14 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
           try {
             jobPayload = await fetchJson(jobUrl);
           } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
             setStatus("error");
-            setError(error instanceof Error ? error.message : String(error));
+            if (message === "auth_session_expired") {
+              setError("Session ungültig oder abgelaufen — weiter zur Anmeldung …");
+              window.setTimeout(() => redirectToLogin("session_expired"), 250);
+            } else {
+              setError(message);
+            }
             refreshBtn.disabled = false;
             return { ok: false };
           }
@@ -708,8 +675,14 @@ _JOB_PAGE_TEMPLATE = """<!doctype html>
           try {
             notificationsPayload = await fetchJson(notificationsUrl);
           } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
             setStatus("error");
-            setError(error instanceof Error ? error.message : String(error));
+            if (message === "auth_session_expired") {
+              setError("Session ungültig oder abgelaufen — weiter zur Anmeldung …");
+              window.setTimeout(() => redirectToLogin("session_expired"), 250);
+            } else {
+              setError(message);
+            }
             refreshBtn.disabled = false;
             jobPayloadEl.textContent = prettyPrint(jobPayload);
             return { ok: false };
