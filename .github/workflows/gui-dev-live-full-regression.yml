@@ -1,0 +1,49 @@
+name: gui-dev-live-full-regression
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: gui-dev-live-full-regression-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-ui-full-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DEV_UI_BASE_URL: https://www.dev.georanking.ch
+      DEV_UI_SMOKE_USERNAME: ${{ secrets.DEV_UI_SMOKE_USERNAME }}
+      DEV_UI_SMOKE_PASSWORD: ${{ secrets.DEV_UI_SMOKE_PASSWORD }}
+      DEV_UI_FULL_EVIDENCE_JSON: artifacts/dev-ui-full/latest/dev-ui-full-regression.json
+      DEV_UI_FULL_SCREENSHOT_DIR: artifacts/dev-ui-full/latest/screenshots
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium + system deps
+        run: npx playwright install --with-deps chromium
+
+      - name: Run DEV live full UI regression
+        run: node scripts/run_dev_ui_live_full_regression.mjs
+
+      - name: Upload full-regression artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-dev-live-full-regression-artifacts
+          path: |
+            artifacts/dev-ui-full/latest/**
+          if-no-files-found: warn
