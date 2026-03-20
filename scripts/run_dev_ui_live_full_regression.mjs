@@ -151,11 +151,16 @@ async function main() {
       const url = new URL(response.url());
       if (!url.origin.endsWith(base.hostname)) return;
       if (!url.pathname.startsWith("/analyze") && !url.pathname.startsWith("/auth") && !url.pathname.startsWith("/debug/trace")) return;
+      let bodySnippet = "";
+      if (response.status() >= 500) {
+        bodySnippet = String(await response.text().catch(() => "")).slice(0, 800);
+      }
       networkLog.push({
         ts: new Date().toISOString(),
         status: response.status(),
         method: response.request().method(),
         path: `${url.pathname}${url.search}`,
+        bodySnippet,
       });
     } catch {
       // ignore parse errors
@@ -302,7 +307,7 @@ async function main() {
     await page.waitForFunction(() => {
       const el = document.getElementById("phase-pill");
       return el && /success/i.test(String(el.textContent || ""));
-    }, { timeout: MAX_WAIT_MS });
+    }, undefined, { timeout: MAX_WAIT_MS });
 
     const serverErrorAfterAnalyze = await page.locator("#server-error-view").isVisible().catch(() => false);
     const errorBoxAfterAnalyze = await page.locator("#error-box").isVisible().catch(() => false);
@@ -322,7 +327,7 @@ async function main() {
     await page.waitForFunction(() => {
       const el = document.getElementById("status");
       return el && /Status:\s*(loaded|success|ok)/i.test(String(el.textContent || ""));
-    }, { timeout: MAX_WAIT_MS });
+    }, undefined, { timeout: MAX_WAIT_MS });
 
     await page.click('.tab-btn[data-tab="sources"]');
     await page.click('.tab-btn[data-tab="derived"]');
