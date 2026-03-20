@@ -73,7 +73,7 @@ jobs:
 
       - name: Upload dev-smoke failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dev-smoke-required-failure-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
