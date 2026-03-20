@@ -153,8 +153,10 @@ class TestResultOrgGuard(unittest.TestCase):
         )
 
         sqls = _all_sqls_joined(mock_cursor)
-        self.assertIn("owner_user_id", sqls)
-        self.assertIn("owner_org_id", sqls)
+        self.assertIn("user_id", sqls)
+        self.assertIn("org_id", sqls)
+        self.assertNotIn("owner_user_id", sqls)
+        self.assertNotIn("owner_org_id", sqls)
         self.assertNone_or_dict(result)
 
     def test_owner_guard_rejects_missing_owner_inputs(self):
