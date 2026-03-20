@@ -1,0 +1,60 @@
+# DEV ALB Listener Rules — Source of Truth
+
+## Ziel
+
+Verhindern, dass auf dem DEV-ALB (`swisstopo-dev-vpc-alb`) veraltete Redirect-Regeln für
+`/login` oder `/signin` auf den UI-Hosts wieder auftauchen (Incident #1360).
+
+## Autoritative Quelle
+
+Die **verbindliche Runtime-Quelle** ist:
+
+1. `scripts/reconcile_dev_alb_listener_rules.py`
+2. Step **"Reconcile DEV ALB listener login-entry rules"** in `.github/workflows/deploy.yml`
+
+Damit wird Drift pro Deploy-Lauf erkannt und (gezielt) bereinigt.
+
+## Listener-Intent (DEV)
+
+Für beide Listener-Ports `80` und `443` gilt:
+
+- UI-Hosts
+  - `www.dev.georanking.ch`
+  - `www.dev.geo-ranking.ch`
+- müssen über Host-Header-Regeln auf die UI-Target-Group weiterleiten
+  (`swisstopo-dev-vpc-ui-tg`).
+- Es dürfen **keine** UI-Host-Regeln existieren, die
+  - `path-pattern` `/login`/`/signin` (inkl. `*`) matchen und
+  - per Redirect nach `/auth/login` umleiten.
+
+## Reconcile / Check lokal
+
+Read-only Check (failt bei Drift):
+
+```bash
+python3 scripts/reconcile_dev_alb_listener_rules.py \
+  --lb-name swisstopo-dev-vpc-alb \
+  --region eu-central-1 \
+  --output-json artifacts/dev-alb-listener-reconcile.json
+```
+
+Aktive Bereinigung (löscht nur erkannte stale Redirect-Regeln):
+
+```bash
+python3 scripts/reconcile_dev_alb_listener_rules.py \
+  --lb-name swisstopo-dev-vpc-alb \
+  --region eu-central-1 \
+  --apply \
+  --output-json artifacts/dev-alb-listener-reconcile.json
+```
+
+## Safety
+
+Das Script ist absichtlich eng begrenzt:
+
+- löscht nur nicht-default Regeln,
+- nur bei UI-Hosts,
+- nur bei Login/Signin-Path-Match + Redirect-Ziel `/auth/login`,
+- und verweigert Mutation, wenn für einen Pflicht-Listener keine UI-Forward-Regel vorhanden ist.
+
+So bleibt die gewünschte UI-Weiterleitung erhalten, während die alte Redirect-Drift nicht zurückkehrt.

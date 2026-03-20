@@ -283,6 +283,17 @@ jobs:
             exit 1
           fi
 
+      - name: Reconcile DEV ALB listener login-entry rules
+        env:
+          DEV_ALB_NAME: ${{ vars.DEV_ALB_NAME }}
+        run: |
+          set -euo pipefail
+          python3 scripts/reconcile_dev_alb_listener_rules.py \
+            --lb-name "${DEV_ALB_NAME:-swisstopo-dev-vpc-alb}" \
+            --region "${AWS_REGION}" \
+            --apply \
+            --output-json artifacts/dev-alb-listener-reconcile.json
+
       - name: Smoke-Test UI login start redirects to IdP authorize
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
