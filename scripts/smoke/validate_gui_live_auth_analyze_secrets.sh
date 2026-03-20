@@ -8,9 +8,24 @@ print(sys.argv[1].strip())
 PY
 }
 
-RUN_ID="$(trim "${DEV_UI_SMOKE_RUN_ID:-${GITHUB_RUN_ID:-}}")"
+RUN_ID="$(trim "${DEV_UI_SMOKE_RUN_ID:-}")"
+RUN_ATTEMPT="$(trim "${GITHUB_RUN_ATTEMPT:-1}")"
+if [[ -z "${RUN_ATTEMPT}" ]]; then
+  RUN_ATTEMPT="1"
+fi
+
 if [[ -z "${RUN_ID}" ]]; then
-  RUN_ID="$(date +%s)"
+  RUN_NUMBER="$(trim "${GITHUB_RUN_NUMBER:-}")"
+  if [[ -n "${RUN_NUMBER}" ]]; then
+    RUN_ID="${RUN_NUMBER}-${RUN_ATTEMPT}"
+  else
+    RUN_BASE="$(trim "${GITHUB_RUN_ID:-}")"
+    if [[ -n "${RUN_BASE}" ]]; then
+      RUN_ID="${RUN_BASE}-${RUN_ATTEMPT}"
+    else
+      RUN_ID="$(date +%s)"
+    fi
+  fi
 fi
 
 USERNAME="$(trim "${DEV_UI_SMOKE_USERNAME:-}")"

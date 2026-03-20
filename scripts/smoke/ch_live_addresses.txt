@@ -1,5 +1,6 @@
 # Kuratierte Schweizer Adressen für DEV Live-UI-Smoke.
 # Pro Lauf wird deterministisch eine andere Adresse via DEV_UI_SMOKE_RUN_ID ausgewählt.
+# Standard in GitHub Actions: DEV_UI_SMOKE_RUN_ID=<run_number>-<run_attempt>.
 Bahnhofstrasse 1, 8001 Zürich
 Fraumünsterstrasse 8, 8001 Zürich
 Limmatquai 55, 8001 Zürich

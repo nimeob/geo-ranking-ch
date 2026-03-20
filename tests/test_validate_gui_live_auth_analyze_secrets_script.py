@@ -27,13 +27,14 @@ def test_preflight_writes_blocker_evidence_when_secrets_are_missing(tmp_path: Pa
     proc = _run(tmp_path, {"GITHUB_RUN_ID": "4242"})
 
     assert proc.returncode == 1
-    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-4242.json"
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-4242-1.json"
     assert blocked_file.exists()
 
     payload = json.loads(blocked_file.read_text(encoding="utf-8"))
     assert payload["ok"] is False
     assert payload["blocked"] is True
     assert payload["reason"] == "missing_required_github_secrets"
+    assert payload["run_id"] == "4242-1"
     assert payload["required"] == ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"]
     assert payload["missing"] == ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"]
     assert payload["next_step"].startswith("Set both repository secrets")
@@ -69,12 +70,30 @@ def test_preflight_passes_when_all_required_secrets_exist(tmp_path: Path) -> Non
     )
 
     assert proc.returncode == 0, proc.stdout + "\n" + proc.stderr
-    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-7331.json"
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-7331-1.json"
     assert not blocked_file.exists()
     assert "required secrets present" in proc.stdout
+
+
+def test_preflight_prefers_github_run_number_and_attempt_when_run_id_is_missing(tmp_path: Path) -> None:
+    proc = _run(
+        tmp_path,
+        {
+            "GITHUB_RUN_NUMBER": "77",
+            "GITHUB_RUN_ATTEMPT": "3",
+        },
+    )
+
+    assert proc.returncode == 1
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-77-3.json"
+    assert blocked_file.exists()
+
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    assert payload["run_id"] == "77-3"
 
 
 def test_workflow_uses_preflight_script_and_uploads_blocker_artifact() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
     assert "run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh" in content
     assert "dev-ui-auth-analyze-smoke-blocked-*.json" in content
+    assert "DEV_UI_SMOKE_RUN_ID: ${{ github.run_number }}-${{ github.run_attempt }}" in content
