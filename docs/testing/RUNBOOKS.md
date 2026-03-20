@@ -238,6 +238,28 @@ Abgesichert durch: `tests/test_check_bl335_frontdoor_runtime.py`
 
 ---
 
+## DEV ALB Listener Rule Reconcile (Login-Entry Drift Guard)
+
+*Quelle: `../DEV_ALB_LISTENER_RULES.md` (Issue #1362)*
+
+**Script:** `scripts/reconcile_dev_alb_listener_rules.py`
+
+Prüft/erzwingt den DEV-Listener-Intent auf `swisstopo-dev-vpc-alb`:
+- UI-Hosts (`www.dev.georanking.ch`, `www.dev.geo-ranking.ch`) müssen auf UI-TG forwarden.
+- Stale Redirect-Regeln (`/login`/`/signin` -> `/auth/login`) werden erkannt bzw. bei `--apply` entfernt.
+
+```bash
+python3 scripts/reconcile_dev_alb_listener_rules.py \
+  --lb-name swisstopo-dev-vpc-alb \
+  --region eu-central-1 \
+  --apply \
+  --output-json artifacts/dev-alb-listener-reconcile.json
+```
+
+Referenz: [`../DEV_ALB_LISTENER_RULES.md`](../DEV_ALB_LISTENER_RULES.md)
+
+---
+
 ## BL-335 Frontdoor Redeploy-Abnahme
 
 *Quelle: `bl335-frontdoor-redeploy-acceptance-runbook.md`*
