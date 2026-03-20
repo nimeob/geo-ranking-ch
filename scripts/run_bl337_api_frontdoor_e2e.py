@@ -179,6 +179,25 @@ def _excerpt(raw_text: str, *, limit: int = 400) -> str:
     return clean[: limit - 1] + "…"
 
 
+def _is_auth_blocked(response: HttpResponse) -> bool:
+    if response.http_status not in {401, 403}:
+        return False
+
+    text = response.body_text.lower()
+    if any(marker in text for marker in ("unauthorized", "forbidden", "auth", "token", "session")):
+        return True
+
+    if isinstance(response.json_body, dict):
+        for key in ("error", "code", "message", "auth_reason", "reason"):
+            value = response.json_body.get(key)
+            if isinstance(value, str) and any(
+                marker in value.lower() for marker in ("unauthorized", "forbidden", "auth", "token", "session")
+            ):
+                return True
+
+    return False
+
+
 def _run_api_checks(config: Config) -> list[ApiCheckResult]:
     analyze_payload = json.dumps(
         {
@@ -257,7 +276,11 @@ def _run_api_checks(config: Config) -> list[ApiCheckResult]:
             )
             continue
 
-        outcome = _evaluate_case(test_id=test_id, response=response)
+        outcome = _evaluate_case(
+            test_id=test_id,
+            response=response,
+            auth_token_provided=config.auth_token is not None,
+        )
         results.append(
             ApiCheckResult(
                 test_id=test_id,
@@ -273,10 +296,12 @@ def _run_api_checks(config: Config) -> list[ApiCheckResult]:
     return results
 
 
-def _evaluate_case(*, test_id: str, response: HttpResponse) -> dict[str, str]:
+def _evaluate_case(*, test_id: str, response: HttpResponse, auth_token_provided: bool) -> dict[str, str]:
     http_status = response.http_status
     json_body = response.json_body
     ok_flag = isinstance(json_body, dict) and json_body.get("ok") is True
+
+    auth_blocked_without_token = (not auth_token_provided) and _is_auth_blocked(response)
 
     if test_id == "API.HEALTH.200":
         passed = http_status == 200 and isinstance(json_body, dict)
@@ -292,6 +317,16 @@ def _evaluate_case(*, test_id: str, response: HttpResponse) -> dict[str, str]:
 
     if test_id == "API.ANALYZE.POST.200":
         has_result = isinstance(json_body, dict) and isinstance(json_body.get("result"), dict)
+        if auth_blocked_without_token:
+            return {
+                "status": "blocked",
+                "reason": "auth_required_for_analyze_probe",
+                "actual_result": (
+                    f"HTTP {http_status}; ok={ok_flag}; result_object={has_result}; "
+                    "auth_token_provided=False"
+                ),
+            }
+
         passed = http_status == 200 and ok_flag and has_result
         reason = "ok" if passed else "expected_http_200_ok_true_result_object"
         return {
@@ -311,6 +346,16 @@ def _evaluate_case(*, test_id: str, response: HttpResponse) -> dict[str, str]:
             and isinstance(json_body.get("error"), str)
             and isinstance(json_body.get("message"), str)
         )
+        if auth_blocked_without_token:
+            return {
+                "status": "blocked",
+                "reason": "auth_required_for_analyze_probe",
+                "actual_result": (
+                    f"HTTP {http_status}; ok={ok_flag}; result_object={has_result}; "
+                    f"structured_error={has_structured_error}; auth_token_provided=False"
+                ),
+            }
+
         passed = (http_status == 200 and ok_flag and has_result) or has_structured_error
         reason = "ok" if passed else "expected_success_or_structured_error_final_state"
         return {
@@ -324,6 +369,13 @@ def _evaluate_case(*, test_id: str, response: HttpResponse) -> dict[str, str]:
         }
 
     if test_id == "API.ANALYZE.INVALID_PAYLOAD.400":
+        if auth_blocked_without_token:
+            return {
+                "status": "blocked",
+                "reason": "auth_required_for_analyze_probe",
+                "actual_result": f"HTTP {http_status}; body_is_json={json_body is not None}; auth_token_provided=False",
+            }
+
         passed = http_status == 400
         reason = "ok" if passed else "expected_http_400"
         return {

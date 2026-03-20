@@ -30,6 +30,8 @@ def _free_port() -> int:
 
 class _ApiHandler(BaseHTTPRequestHandler):
     health_status_code = 200
+    require_auth = False
+    expected_token = "token-123"
 
     def _write_json(self, code: int, payload: dict) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -57,6 +59,13 @@ class _ApiHandler(BaseHTTPRequestHandler):
         if self.path != "/analyze":
             self._write_json(404, {"ok": False, "error": "not_found"})
             return
+
+        if self.require_auth:
+            auth = self.headers.get("Authorization", "")
+            expected = f"Bearer {self.expected_token}"
+            if auth != expected:
+                self._write_json(401, {"ok": False, "error": "unauthorized", "message": "missing or invalid token"})
+                return
 
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length)
@@ -214,6 +223,7 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
 
     def test_main_updates_matrix_and_evidence_when_all_pass(self) -> None:
         _ApiHandler.health_status_code = 200
+        _ApiHandler.require_auth = False
         with tempfile.TemporaryDirectory() as tmpdir:
             matrix = Path(tmpdir) / "matrix.json"
             evidence = Path(tmpdir) / "evidence.json"
@@ -247,6 +257,7 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
 
     def test_main_returns_nonzero_when_expectation_fails(self) -> None:
         _ApiHandler.health_status_code = 503
+        _ApiHandler.require_auth = False
         with tempfile.TemporaryDirectory() as tmpdir:
             matrix = Path(tmpdir) / "matrix.json"
             evidence = Path(tmpdir) / "evidence.json"
@@ -259,6 +270,35 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
             first_api = next(case for case in matrix_payload["tests"] if case.get("testId") == "API.HEALTH.200")
             self.assertEqual(first_api["status"], "fail")
             self.assertIn("WP2 runtime reason", first_api["notes"])
+
+    def test_main_marks_auth_protected_analyze_cases_as_blocked_without_token(self) -> None:
+        _ApiHandler.health_status_code = 200
+        _ApiHandler.require_auth = True
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            matrix = Path(tmpdir) / "matrix.json"
+            evidence = Path(tmpdir) / "evidence.json"
+            self._build_matrix(f"http://127.0.0.1:{self.port}", matrix)
+
+            rc = module.main(["--matrix", str(matrix), "--evidence-json", str(evidence)])
+            self.assertEqual(rc, 1)
+
+            matrix_payload = json.loads(matrix.read_text(encoding="utf-8"))
+            by_id = {case.get("testId"): case for case in matrix_payload["tests"] if isinstance(case, dict)}
+            self.assertEqual(by_id["API.HEALTH.200"]["status"], "pass")
+            self.assertEqual(by_id["API.ANALYZE.POST.200"]["status"], "blocked")
+            self.assertEqual(by_id["API.ANALYZE.NON_BASIC.FINAL_STATE"]["status"], "blocked")
+            self.assertEqual(by_id["API.ANALYZE.INVALID_PAYLOAD.400"]["status"], "blocked")
+
+            for test_id in (
+                "API.ANALYZE.POST.200",
+                "API.ANALYZE.NON_BASIC.FINAL_STATE",
+                "API.ANALYZE.INVALID_PAYLOAD.400",
+            ):
+                self.assertIn("auth_required_for_analyze_probe", by_id[test_id].get("notes", ""))
+
+            evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
+            self.assertEqual(evidence_payload["summary"]["blocked"], 3)
 
 
 if __name__ == "__main__":
