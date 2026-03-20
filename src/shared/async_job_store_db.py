@@ -602,7 +602,7 @@ class DbAsyncJobStore:
     ) -> dict[str, Any] | None:
         """Fetch result only for exact owner user+org.
 
-        Legacy rows without owner metadata are intentionally excluded.
+        Legacy rows without user metadata are intentionally excluded.
         """
         owner_user_id_norm = str(owner_user_id or "").strip()
         owner_org_id_norm = str(owner_org_id or "").strip()
@@ -617,8 +617,8 @@ class DbAsyncJobStore:
                 SELECT *
                 FROM job_results
                 WHERE result_id = %s
-                  AND owner_user_id = %s
-                  AND COALESCE(owner_org_id, org_id, '') = %s
+                  AND user_id = %s
+                  AND COALESCE(org_id, '') = %s
                 """,
                 (
                     str(result_id),
