@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Smoke-check for UI login start flow.
+"""Smoke-check for the UI-owned login contract.
 
-Ensures `/login?...&start=1` reaches an IdP authorize redirect.
-The flow may be either:
+Verifies both contracts:
+1) ``/login?next=...&reason=...`` renders a UI HTML entry page (no redirect), and
+2) ``/login?next=...&reason=...&start=1`` reaches an IdP authorize redirect.
 
-1) direct redirect to authorize, or
-2) UI-owned intermediate hop via `/auth/login` followed by authorize.
+The start flow may be either:
+- direct redirect to authorize, or
+- UI-owned intermediate hop via ``/auth/login`` followed by authorize.
 """
 
 from __future__ import annotations
@@ -22,6 +24,16 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 @dataclass(frozen=True)
+class LoginEntryCheckResult:
+    ok: bool
+    status_code: int
+    location: str
+    request_url: str
+    content_type: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class LoginStartCheckResult:
     ok: bool
     status_code: int
@@ -30,24 +42,39 @@ class LoginStartCheckResult:
     reason: str
 
 
+@dataclass(frozen=True)
+class _HttpProbeResult:
+    status_code: int
+    location: str
+    content_type: str
+    body_preview: str
+
+
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
         return None
 
 
-def _build_request_url(base_url: str, *, next_path: str, reason: str) -> str:
+def _build_entry_request_url(base_url: str, *, next_path: str, reason: str) -> str:
+    normalized_base = base_url.strip().rstrip("/")
+    query = urlencode({"next": next_path, "reason": reason})
+    return f"{normalized_base}/login?{query}"
+
+
+def _build_start_request_url(base_url: str, *, next_path: str, reason: str) -> str:
     normalized_base = base_url.strip().rstrip("/")
     query = urlencode({"next": next_path, "reason": reason, "start": "1"})
     return f"{normalized_base}/login?{query}"
 
 
-def _send_request(
+def _send_request_probe(
     *,
     request_url: str,
     timeout_seconds: float,
     max_attempts: int,
     retry_delay_seconds: float,
-) -> tuple[int, str]:
+    read_body_preview: bool = False,
+) -> _HttpProbeResult:
     req = Request(request_url, method="GET")
     opener = build_opener(_NoRedirect)
 
@@ -60,21 +87,42 @@ def _send_request(
             try:
                 status = int(getattr(resp, "status", 0) or resp.getcode())
                 location = str(resp.headers.get("Location") or "").strip()
+                content_type = str(resp.headers.get("Content-Type") or "").strip()
+                body_preview = ""
+                if read_body_preview:
+                    body_preview = resp.read(4096).decode("utf-8", errors="replace")
             finally:
                 close_fn = getattr(resp, "close", None)
                 if callable(close_fn):
                     close_fn()
-            return status, location
+            return _HttpProbeResult(
+                status_code=status,
+                location=location,
+                content_type=content_type,
+                body_preview=body_preview,
+            )
         except HTTPError as exc:
             try:
                 status = int(getattr(exc, "status", 0) or exc.getcode())
                 location = str(exc.headers.get("Location") or "").strip()
+                content_type = str(exc.headers.get("Content-Type") or "").strip()
+                body_preview = ""
+                if read_body_preview and exc.fp is not None:
+                    try:
+                        body_preview = exc.read(4096).decode("utf-8", errors="replace")
+                    except Exception:  # noqa: BLE001
+                        body_preview = ""
             finally:
                 exc.close()
             if status in {502, 503, 504} and attempt < attempts:
                 time.sleep(max(0.0, retry_delay_seconds))
                 continue
-            return status, location
+            return _HttpProbeResult(
+                status_code=status,
+                location=location,
+                content_type=content_type,
+                body_preview=body_preview,
+            )
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             if attempt >= attempts:
@@ -84,6 +132,23 @@ def _send_request(
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
     )
+
+
+def _send_request(
+    *,
+    request_url: str,
+    timeout_seconds: float,
+    max_attempts: int,
+    retry_delay_seconds: float,
+) -> tuple[int, str]:
+    probe = _send_request_probe(
+        request_url=request_url,
+        timeout_seconds=timeout_seconds,
+        max_attempts=max_attempts,
+        retry_delay_seconds=retry_delay_seconds,
+        read_body_preview=False,
+    )
+    return probe.status_code, probe.location
 
 
 def _is_authorize_redirect(location: str) -> bool:
@@ -104,6 +169,69 @@ def _is_login_unavailable_redirect(location: str) -> bool:
     return "reason=login_unavailable" in location.lower()
 
 
+def check_login_entry(
+    *,
+    base_url: str,
+    next_path: str = "/gui",
+    reason: str = "manual_login",
+    timeout_seconds: float = 15.0,
+    max_attempts: int = 3,
+    retry_delay_seconds: float = 2.0,
+) -> LoginEntryCheckResult:
+    request_url = _build_entry_request_url(base_url, next_path=next_path, reason=reason)
+    probe = _send_request_probe(
+        request_url=request_url,
+        timeout_seconds=timeout_seconds,
+        max_attempts=max_attempts,
+        retry_delay_seconds=retry_delay_seconds,
+        read_body_preview=True,
+    )
+
+    if probe.status_code != 200:
+        reason_code = f"unexpected_entry_status_{probe.status_code}"
+        if _is_login_unavailable_redirect(probe.location):
+            reason_code = "entry_redirected_login_unavailable"
+        return LoginEntryCheckResult(
+            ok=False,
+            status_code=probe.status_code,
+            location=probe.location,
+            request_url=request_url,
+            content_type=probe.content_type,
+            reason=reason_code,
+        )
+
+    content_type = str(probe.content_type or "").lower()
+    if "text/html" not in content_type:
+        return LoginEntryCheckResult(
+            ok=False,
+            status_code=probe.status_code,
+            location=probe.location,
+            request_url=request_url,
+            content_type=probe.content_type,
+            reason="entry_content_type_not_html",
+        )
+
+    body_preview = probe.body_preview.lower()
+    if "start=1" not in body_preview:
+        return LoginEntryCheckResult(
+            ok=False,
+            status_code=probe.status_code,
+            location=probe.location,
+            request_url=request_url,
+            content_type=probe.content_type,
+            reason="entry_missing_start_link",
+        )
+
+    return LoginEntryCheckResult(
+        ok=True,
+        status_code=probe.status_code,
+        location=probe.location,
+        request_url=request_url,
+        content_type=probe.content_type,
+        reason="ok",
+    )
+
+
 def check_login_start(
     *,
     base_url: str,
@@ -113,7 +241,7 @@ def check_login_start(
     max_attempts: int = 3,
     retry_delay_seconds: float = 2.0,
 ) -> LoginStartCheckResult:
-    request_url = _build_request_url(base_url, next_path=next_path, reason=reason)
+    request_url = _build_start_request_url(base_url, next_path=next_path, reason=reason)
 
     first_status, first_location = _send_request(
         request_url=request_url,
@@ -127,7 +255,7 @@ def check_login_start(
             status_code=first_status,
             location=first_location,
             request_url=request_url,
-            reason=f"unexpected_status_{first_status}",
+            reason=f"unexpected_start_status_{first_status}",
         )
 
     if not first_location:
@@ -220,7 +348,7 @@ def check_login_start(
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Smoke-check UI login start redirect contract")
+    parser = argparse.ArgumentParser(description="Smoke-check UI-owned login entry + login-start redirect contract")
     parser.add_argument("--base-url", required=True, help="UI base URL, e.g. https://www.dev.georanking.ch")
     parser.add_argument("--next", default="/gui", dest="next_path", help="next path for login start (default: /gui)")
     parser.add_argument("--reason", default="manual_login", help="login reason query value (default: manual_login)")
@@ -240,8 +368,41 @@ def _write_result(path: str, payload: dict[str, object]) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
+    request_meta = {
+        "base_url": args.base_url,
+        "next": args.next_path,
+        "reason": args.reason,
+        "timeout": args.timeout,
+        "max_attempts": args.max_attempts,
+        "retry_delay": args.retry_delay,
+    }
+
     try:
-        result = check_login_start(
+        entry_result = check_login_entry(
+            base_url=args.base_url,
+            next_path=args.next_path,
+            reason=args.reason,
+            timeout_seconds=args.timeout,
+            max_attempts=args.max_attempts,
+            retry_delay_seconds=args.retry_delay,
+        )
+        if not entry_result.ok:
+            payload = {
+                "ok": False,
+                "phase": "entry",
+                "reason": entry_result.reason,
+                "status_code": entry_result.status_code,
+                "request_url": entry_result.request_url,
+                "location": entry_result.location,
+                "content_type": entry_result.content_type,
+                "request": request_meta,
+            }
+            print(json.dumps(payload, ensure_ascii=False))
+            if args.output_json:
+                _write_result(args.output_json, payload)
+            return 1
+
+        start_result = check_login_start(
             base_url=args.base_url,
             next_path=args.next_path,
             reason=args.reason,
@@ -252,16 +413,10 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:  # noqa: BLE001
         payload = {
             "ok": False,
+            "phase": "request",
             "reason": "request_failed",
             "error": str(exc),
-            "request": {
-                "base_url": args.base_url,
-                "next": args.next_path,
-                "reason": args.reason,
-                "timeout": args.timeout,
-                "max_attempts": args.max_attempts,
-                "retry_delay": args.retry_delay,
-            },
+            "request": request_meta,
         }
         print(json.dumps(payload, ensure_ascii=False))
         if args.output_json:
@@ -269,17 +424,26 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     payload = {
-        "ok": result.ok,
-        "reason": result.reason,
-        "status_code": result.status_code,
-        "request_url": result.request_url,
-        "location": result.location,
+        "ok": start_result.ok,
+        "phase": "start",
+        "reason": start_result.reason,
+        "status_code": start_result.status_code,
+        "request_url": start_result.request_url,
+        "location": start_result.location,
+        "entry": {
+            "ok": entry_result.ok,
+            "reason": entry_result.reason,
+            "status_code": entry_result.status_code,
+            "request_url": entry_result.request_url,
+            "location": entry_result.location,
+            "content_type": entry_result.content_type,
+        },
     }
     print(json.dumps(payload, ensure_ascii=False))
     if args.output_json:
         _write_result(args.output_json, payload)
 
-    return 0 if result.ok else 1
+    return 0 if start_result.ok else 1
 
 
 if __name__ == "__main__":

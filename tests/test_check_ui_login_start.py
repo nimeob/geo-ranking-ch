@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
 
 import pytest
 
@@ -24,22 +24,38 @@ def _load_module():
 
 
 class _StubHandler(BaseHTTPRequestHandler):
-    # path -> (status_code, location)
-    routes: dict[str, tuple[int, str | None]] = {
+    # request-target -> tuple(status_code, location) or rich dict
+    routes: dict[str, object] = {
         "/login": (302, "/oidc/authorize?state=abc"),
     }
 
     def log_message(self, format, *args):  # noqa: A003
         return
 
+    def _resolve_route(self) -> object:
+        return self.routes.get(self.path, self.routes.get(self.path.split("?", 1)[0], (404, "")))
+
     def do_GET(self):  # noqa: N802
-        path = urlsplit(self.path).path
-        status_code, location = self.routes.get(path, (404, ""))
+        route = self._resolve_route()
+
+        if isinstance(route, dict):
+            status_code = int(route.get("status", 200))
+            location = route.get("location")
+            content_type = str(route.get("content_type", "text/html; charset=utf-8"))
+            body = str(route.get("body", "")).encode("utf-8")
+        else:
+            status_code, location = route  # type: ignore[misc]
+            content_type = "text/html; charset=utf-8"
+            body = b""
+
         self.send_response(status_code)
         if location is not None:
-            self.send_header("Location", location)
-        self.send_header("Content-Length", "0")
+            self.send_header("Location", str(location))
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
+        if body:
+            self.wfile.write(body)
 
 
 class _StubServer:
@@ -60,6 +76,50 @@ class _StubServer:
         self.httpd.shutdown()
         self.thread.join(timeout=2)
         self.httpd.server_close()
+
+
+def test_check_login_entry_passes_for_html_with_start_link():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": {
+            "status": 200,
+            "body": '<a href="/login?next=%2Fgui&amp;reason=manual_login&amp;start=1">Jetzt anmelden</a>',
+        },
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
+def test_check_login_entry_fails_for_redirect_regression():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": (302, "/auth/login?next=%2Fgui"),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "unexpected_entry_status_302"
+
+
+def test_main_fails_with_entry_phase_when_login_entry_contract_broken(capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": (302, "/auth/login?next=%2Fgui"),
+    }
+
+    with _StubServer() as stub:
+        exit_code = module.main(["--base-url", stub.base_url])
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["phase"] == "entry"
+    assert payload["reason"] == "unexpected_entry_status_302"
 
 
 def test_check_login_start_passes_for_authorize_redirect():
@@ -112,7 +172,7 @@ def test_check_login_start_fails_for_non_redirect_status():
         result = module.check_login_start(base_url=stub.base_url)
 
     assert result.ok is False
-    assert result.reason == "unexpected_status_200"
+    assert result.reason == "unexpected_start_status_200"
 
 
 def test_check_login_start_fails_when_auth_login_hop_does_not_reach_authorize():
