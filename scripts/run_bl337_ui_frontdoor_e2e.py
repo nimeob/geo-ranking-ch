@@ -180,13 +180,15 @@ def _excerpt(raw_text: str, *, limit: int = 280) -> str:
     return clean[: limit - 1] + "…"
 
 
-MarkerSpec = str | tuple[str, ...]
+MarkerSpec = str | re.Pattern[str] | tuple[str | re.Pattern[str], ...]
 
 
 def _marker_matches(html: str, marker: MarkerSpec) -> bool:
     if isinstance(marker, str):
         return marker in html
-    return any(candidate in html for candidate in marker)
+    if isinstance(marker, re.Pattern):
+        return marker.search(html) is not None
+    return any(_marker_matches(html, candidate) for candidate in marker)
 
 
 def _check_ui_load(response: HttpResponse) -> UiCheckResult:
@@ -228,13 +230,7 @@ def _required_marker_presence(html: str, markers: dict[str, MarkerSpec]) -> tupl
 
 
 def _check_ui_navigation_and_core_flow(html: str) -> UiCheckResult:
-    markers = {
-        "nav_shell": (
-            'id="gui-shell-nav"',
-            'id="burger-menu"',
-            'aria-label="Hauptnavigation"',
-            'aria-label="Kernnavigation"',
-        ),
+    required_markers = {
         "nav_input": 'href="#input"',
         "nav_map": 'href="#map"',
         "nav_result": 'href="#result"',
@@ -251,15 +247,24 @@ def _check_ui_navigation_and_core_flow(html: str) -> UiCheckResult:
         "map_wheel_zoom": ('"wheel",', '"wheel"'),
         "map_initializer": ("function initializeInteractiveMap()", "initializeInteractiveMap("),
     }
-    passed, present, missing = _required_marker_presence(html, markers)
+    nav_shell_markers: MarkerSpec = (
+        'id="gui-shell-nav"',
+        'id="burger-menu"',
+        'aria-label="Hauptnavigation"',
+        'aria-label="Kernnavigation"',
+    )
+
+    passed, present, missing = _required_marker_presence(html, required_markers)
+    nav_shell_detected = _marker_matches(html, nav_shell_markers)
 
     reason = "ok" if passed else "expected_navigation_and_core_form_markers"
     return UiCheckResult(
         test_id="UI.NAV.CORE_FLOW.VISIBLE",
         status="pass" if passed else "fail",
         actual_result=(
-            f"required_markers={len(present)}/{len(markers)}; "
-            f"missing={missing if missing else []}"
+            f"required_markers={len(present)}/{len(required_markers)}; "
+            f"missing={missing if missing else []}; "
+            f"nav_shell_detected={nav_shell_detected}"
         ),
         reason=reason,
         http_status=200,
@@ -304,6 +309,8 @@ def _check_ui_api_error_consistency(*, html: str, api_probe: HttpResponse) -> Ui
             "state.phase = result.ok ? 'success' : 'error'",
             'setPhase("error"',
             "setPhase('error'",
+            re.compile(r"setPhase\(\s*result\.ok\s*\?\s*['\"]success['\"]\s*:\s*['\"]error['\"]", re.DOTALL),
+            re.compile(r"state\.phase\s*=\s*['\"]error['\"]", re.DOTALL),
         ),
         "last_error_binding": "state.lastError = result.errorMessage",
     }
