@@ -27,3 +27,25 @@
 - Branch committen/pushen, PR gegen `main` öffnen (Ziel: Flaky/False-Negative im Live-Regression-Workflow eliminieren).
 - Nach Merge: `gui-dev-live-full-regression` erneut triggern und grünen Lauf dokumentieren.
 - Parallel laufenden Deploy-Run `23366192511` weiter beobachten; bei Failure gezielt triagieren.
+
+## 00:56 CET – Full-Regression nach Deploy erneut geprüft
+- Deploy-Run auf `main` (`23366640003`) erfolgreich abgeschlossen.
+- Anschließend `gui-dev-live-full-regression` erneut getriggert:
+  - `23367064199` → weiterhin **failure**.
+- Neue Root Cause aus Artefakt:
+  - Sync-Analyze liefert `result_id`, aber unmittelbarer Fetch `GET /analyze/results/<id>?view=latest` liefert transient `404 not_found`.
+  - UI bricht sofort ab, dadurch Timeout auf Ergebnis-Status.
+
+## 01:03 CET – Fix für transienten Latest-Result-Read-Race
+- Neuer Branch: `fix/ui-result-latest-404-retry`.
+- Änderung in `src/shared/ui_pages.py`:
+  - Result-Loader retryt bei `view=latest` transientes `404/not_found` (bounded retries + delay), statt sofort hart zu failen.
+  - Fehler-/Auth-Handling für 401 und nicht-transiente Fehler bleibt unverändert.
+- Tests ergänzt: `tests/test_ui_service.py` (Contract-Checks für Retry-Guard).
+- Validierung: relevante UI/Workflow-Tests grün (`27 passed`).
+- PR erstellt: **#1400** `fix(ui): retry transient latest-result 404s before failing`.
+
+## Aktueller Status
+- PR #1397 ist gemerged (Timeout-Signatur-Fix `waitForFunction`).
+- Persistenter Live-Blocker jetzt als Race Condition adressiert in PR #1400.
+- Nächster Schritt nach Merge von #1400: Full-Regression erneut triggern und auf green verifizieren.

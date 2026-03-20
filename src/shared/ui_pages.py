@@ -1251,6 +1251,29 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           return headers;
         }
 
+        const RESULT_LOAD_MAX_RETRIES = 8;
+        const RESULT_LOAD_RETRY_DELAY_MS = 1500;
+
+        function delayMs(durationMs) {
+          const normalized = Number(durationMs);
+          if (!Number.isFinite(normalized) || normalized <= 0) {
+            return Promise.resolve();
+          }
+          return new Promise((resolve) => window.setTimeout(resolve, normalized));
+        }
+
+        function isTransientResultNotFound(response, parsed) {
+          const statusCode = Number(response && response.status);
+          if (statusCode !== 404) {
+            return false;
+          }
+
+          const errorCode = String(parsed && parsed.error ? parsed.error : "")
+            .trim()
+            .toLowerCase();
+          return errorCode === "not_found" || errorCode === "result_not_found";
+        }
+
         function setActiveTab(tabKey) {
           const key = String(tabKey || "overview").trim();
           const mapping = {
@@ -1435,30 +1458,46 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
 
           const url = buildResultUrl();
           rawLinkEl.href = url;
+          const requestId = createUiCorrelationId("req");
+          const maxRetries = normalizedViewMode() === "latest" ? RESULT_LOAD_MAX_RETRIES : 0;
 
           let response;
           let parsed;
-          const requestId = createUiCorrelationId("req");
-          try {
-            response = await fetch(url, { method: "GET", headers: headersFromInputs(requestId), credentials: "include" });
-            parsed = await response.json();
-          } catch (error) {
-            setStatus("error");
-            setError(error instanceof Error ? error.message : "network_error");
-            payloadEl.textContent = prettyPrint({ ok: false, error: "network_error" });
-            loadBtn.disabled = false;
-            return;
+          for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+            try {
+              response = await fetch(url, { method: "GET", headers: headersFromInputs(requestId), credentials: "include" });
+              parsed = await response.json();
+            } catch (error) {
+              setStatus("error");
+              setError(error instanceof Error ? error.message : "network_error");
+              payloadEl.textContent = prettyPrint({ ok: false, error: "network_error" });
+              loadBtn.disabled = false;
+              return;
+            }
+
+            payloadEl.textContent = prettyPrint(parsed);
+
+            if (response.ok && parsed && parsed.ok) {
+              break;
+            }
+
+            const shouldRetry = attempt < maxRetries && isTransientResultNotFound(response, parsed);
+            if (!shouldRetry) {
+              break;
+            }
+
+            const nextAttempt = attempt + 1;
+            setStatus(`retrying(${nextAttempt}/${maxRetries})`);
+            await delayMs(RESULT_LOAD_RETRY_DELAY_MS);
           }
 
-          payloadEl.textContent = prettyPrint(parsed);
-
-          if (!response.ok || !parsed || !parsed.ok) {
+          if (!response || !response.ok || !parsed || !parsed.ok) {
             setStatus("error");
-            if (response.status === 401) {
+            if (response && response.status === 401) {
               setError("Session ungültig oder abgelaufen — weiter zur Anmeldung …");
               window.setTimeout(() => redirectToLogin("session_expired"), 250);
             } else {
-              const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
+              const errCode = parsed && parsed.error ? parsed.error : `http_${response ? response.status : 0}`;
               const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
               setError(`${errCode}: ${errMsg}`);
             }
