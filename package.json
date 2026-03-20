@@ -5,7 +5,8 @@
   "description": "Node tooling for GUI smoke scripts",
   "scripts": {
     "dev:smoke": "./scripts/run_dev_smoke_bundle.sh",
-    "smoke:gui:webkit": "node scripts/run_issue_986_webkit_smoke.mjs"
+    "smoke:gui:webkit": "node scripts/run_issue_986_webkit_smoke.mjs",
+    "smoke:gui:dev-live-auth-analyze": "node scripts/run_dev_ui_auth_analyze_smoke.mjs"
   },
   "devDependencies": {
     "playwright": "1.52.0"

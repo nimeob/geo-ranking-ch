@@ -61,6 +61,16 @@ Bei Failures schreibt `check_bl334_split_smokes.sh` automatisch Debug-Artefakte 
 
 Aktueller Referenzlauf (Issue #1253): `reports/evidence/issue-1253-auth-no-api-host-guard-20260304T233008Z.md`.
 
+### 1.3 Live-DEV Browser-Smoke (echter Login + Analyze)
+
+Für den externen Runtime-Nachweis auf AWS-DEV gibt es ergänzend einen echten Browser-Smoke:
+
+- Script: `scripts/run_dev_ui_auth_analyze_smoke.mjs`
+- Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml`
+- Runbook: `docs/testing/GUI_DEV_LIVE_AUTH_ANALYZE_SMOKE.md`
+
+Der Lauf gilt nur als grün, wenn Login+Analyze vollständig live durchlaufen wurden (inkl. Address-Submit-Check, vollständigem Result-Payload und Guard gegen `401`/`session_expired`/Idle-Fallback).
+
 ---
 
 ## 2) Standardisierte Evidence-Pfade
