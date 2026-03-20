@@ -49,19 +49,24 @@ def _http(url: str, *, timeout: float = 10.0, follow_redirects: bool = True):
 class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
     server_version = "auth-stub/1.0"
 
+    def _log_request(self, parsed_path, *, body: str = "") -> None:
+        self.server.request_log.append(
+            {
+                "path": parsed_path.path,
+                "query": parsed_path.query,
+                "cookie": self.headers.get("Cookie", ""),
+                "proxy_marker": self.headers.get("X-Geo-Auth-Proxy", ""),
+                "body": body,
+                "method": self.command,
+            }
+        )
+
     def log_message(self, fmt, *args):  # noqa: D401 - test silence
         return
 
     def do_GET(self):  # noqa: N802 - stdlib callback
         parsed = urlparse(self.path)
-        self.server.request_log.append(
-            {
-                "path": parsed.path,
-                "query": parsed.query,
-                "cookie": self.headers.get("Cookie", ""),
-                "proxy_marker": self.headers.get("X-Geo-Auth-Proxy", ""),
-            }
-        )
+        self._log_request(parsed)
 
         if parsed.path == "/auth/login":
             next_value = parse_qs(parsed.query).get("next", ["/gui"])[0]
@@ -105,6 +110,56 @@ class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
 
         if parsed.path == "/auth/me":
             payload = json.dumps({"ok": True, "subject": "demo-user"}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == "/debug/trace":
+            payload = json.dumps({"ok": True, "events": [{"kind": "demo"}]}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        if parsed.path == "/analyze/history":
+            payload = json.dumps({"ok": True, "rows": []}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_POST(self):  # noqa: N802 - stdlib callback
+        parsed = urlparse(self.path)
+        content_length = int(self.headers.get("Content-Length", "0") or "0")
+        raw_body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else ""
+        self._log_request(parsed, body=raw_body)
+
+        if parsed.path == "/analyze":
+            payload = json.dumps(
+                {
+                    "ok": True,
+                    "result": {
+                        "matched_address": "Bahnhofstrasse 1, 8001 Zürich",
+                        "suitability_score": 0.71,
+                        "module_scores": [{"module": "competition", "score": 0.62}],
+                    },
+                    "request_id": "req-ui-proxy-test",
+                }
+            ).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
@@ -188,20 +243,20 @@ class TestUiService(unittest.TestCase):
         self.assertEqual(payload["version"], "ui-test-v1")
         self.assertEqual(payload["api_base_url"], self.api_base_url)
 
-    def test_gui_endpoint_uses_absolute_api_base_when_configured(self):
+    def test_gui_endpoint_keeps_same_origin_api_endpoints_when_configured(self):
         status, body, headers = _http(f"{self.base_url}//gui///?probe=1")
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("geo-ranking.ch GUI MVP", body)
         self.assertIn("Version ui-test-v1", body)
         self.assertIn('fetch("/analyze"', body)
-        self.assertIn(f'const TRACE_DEBUG_ENDPOINT = "{self.api_base_url}/debug/trace";', body)
+        self.assertIn('const TRACE_DEBUG_ENDPOINT = "/debug/trace";', body)
         self.assertIn('function projectTraceEvent(rawEvent, index)', body)
         self.assertIn('function normalizeTraceEvents(rawEvents)', body)
         self.assertIn('function buildTraceDetailPayload(rawPayload, projectedEvents)', body)
         self.assertIn('const projectedResponse = buildTraceDetailPayload(parsed, events);', body)
-        self.assertIn(f'const ANALYZE_JOBS_ENDPOINT_BASE = "{self.api_base_url}/analyze/jobs";', body)
-        self.assertIn(f'const ANALYZE_HISTORY_ENDPOINT = "{self.api_base_url}/analyze/history";', body)
+        self.assertIn('const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";', body)
+        self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";', body)
         self.assertIn('const AUTH_LOGIN_ENDPOINT = "/login";', body)
         self.assertIn('const AUTH_LOGOUT_ENDPOINT = "/auth/logout";', body)
         self.assertIn('const AUTH_ME_ENDPOINT = "/auth/me";', body)
@@ -378,6 +433,43 @@ class TestUiService(unittest.TestCase):
         }
         self.assertEqual(markers.get("/auth/login"), "1")
         self.assertEqual(markers.get("/auth/me"), "1")
+
+    def test_same_origin_analyze_post_is_proxied_to_upstream_api(self):
+        self.upstream_server.request_log.clear()
+
+        payload = json.dumps({"query": "Bahnhofstrasse 1, 8001 Zürich"}).encode("utf-8")
+        req = request.Request(
+            f"{self.base_url}/analyze",
+            data=payload,
+            method="POST",
+            headers={"Content-Type": "application/json", "Accept": "application/json", "Cookie": "demo=1"},
+        )
+        with request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8")
+            self.assertEqual(resp.status, 200)
+            self.assertIn("application/json", resp.headers.get("Content-Type", ""))
+
+        response_payload = json.loads(body)
+        self.assertTrue(response_payload.get("ok"))
+        self.assertEqual(response_payload.get("request_id"), "req-ui-proxy-test")
+
+        analyze_calls = [entry for entry in self.upstream_server.request_log if entry.get("path") == "/analyze"]
+        self.assertTrue(analyze_calls)
+        self.assertEqual(analyze_calls[-1].get("method"), "POST")
+        self.assertIn("Bahnhofstrasse", str(analyze_calls[-1].get("body") or ""))
+
+    def test_same_origin_trace_get_is_proxied_to_upstream_api(self):
+        self.upstream_server.request_log.clear()
+
+        status, body, headers = _http(f"{self.base_url}/debug/trace?request_id=req-123")
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", headers.get("content-type", ""))
+        payload = json.loads(body)
+        self.assertTrue(payload.get("ok"))
+
+        trace_calls = [entry for entry in self.upstream_server.request_log if entry.get("path") == "/debug/trace"]
+        self.assertTrue(trace_calls)
+        self.assertEqual(trace_calls[-1].get("method"), "GET")
 
     def test_auth_logout_proxy_rewrites_nested_logout_uri_to_ui_login(self):
         self.upstream_server.request_log.clear()
