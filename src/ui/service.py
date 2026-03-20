@@ -21,6 +21,7 @@ import json
 import os
 import posixpath
 import re
+import socket
 from html import escape
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -36,6 +37,20 @@ _JOB_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 _UI_AUTH_PROXY_HEADER_NAME = "X-Geo-Auth-Proxy"
 _UI_AUTH_PROXY_HEADER_VALUE = "1"
 _API_PROXY_PREFIXES = ("/analyze", "/debug/trace")
+
+
+def _parse_positive_int_env(name: str, default: int) -> int:
+    raw = str(os.getenv(name, "") or "").strip()
+    if not raw:
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return default
+    return max(1, parsed)
+
+
+_UI_API_PROXY_TIMEOUT_SECONDS = _parse_positive_int_env("UI_API_PROXY_TIMEOUT_SECONDS", 35)
 
 _RESULT_PAGE_TEMPLATE = """<!doctype html>
 <html lang="de">
@@ -1853,17 +1868,19 @@ class _UiHandler(BaseHTTPRequestHandler):
 
         req = urllib_request.Request(target_url, data=request_body, method=self.command, headers=upstream_headers)
         try:
-            upstream_resp = urllib_request.urlopen(req, timeout=20)
+            upstream_resp = urllib_request.urlopen(req, timeout=_UI_API_PROXY_TIMEOUT_SECONDS)
         except urllib_error.HTTPError as exc:
             upstream_resp = exc
-        except urllib_error.URLError:
+        except urllib_error.URLError as exc:
+            reason = getattr(exc, "reason", None)
+            is_timeout = isinstance(reason, TimeoutError | socket.timeout) or "timed out" in str(reason or "").lower()
             self._send_json(
                 {
                     "ok": False,
-                    "error": "upstream_unavailable",
-                    "message": "api upstream unavailable",
+                    "error": "upstream_timeout" if is_timeout else "upstream_unavailable",
+                    "message": "api upstream timeout" if is_timeout else "api upstream unavailable",
                 },
-                status=HTTPStatus.BAD_GATEWAY,
+                status=HTTPStatus.GATEWAY_TIMEOUT if is_timeout else HTTPStatus.BAD_GATEWAY,
             )
             return True
 
@@ -2144,7 +2161,8 @@ def main() -> None:
     )
     print(
         f"[geo-ranking-ch-ui] serving on http://{host}:{port} "
-        f"(version={app_version}, api_base_url={ui_api_base_url or '/analyze (relative)'})"
+        f"(version={app_version}, api_base_url={ui_api_base_url or '/analyze (relative)'}, "
+        f"proxy_timeout_s={_UI_API_PROXY_TIMEOUT_SECONDS})"
     )
     httpd.serve_forever()
 

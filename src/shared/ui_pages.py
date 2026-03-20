@@ -31,13 +31,26 @@ def normalize_result_id(raw_value: str) -> str:
 
 
 def _results_endpoint_base(api_base_url: str) -> str:
-    base = str(api_base_url or "").strip().rstrip("/")
-    return f"{base}/analyze/results" if base else "/analyze/results"
+    """Return UI-owned result endpoint base.
+
+    ``api_base_url`` wird absichtlich ignoriert: Result-Permalinks laufen
+    browserseitig immer same-origin über den UI-/API-Host, damit
+    Host-only-Cookies (``__Host-session``) und Auth-Proxy konsistent bleiben.
+    """
+
+    _ = api_base_url
+    return "/analyze/results"
 
 
 def _history_endpoint(api_base_url: str) -> str:
-    base = str(api_base_url or "").strip().rstrip("/")
-    return f"{base}/analyze/history" if base else "/analyze/history"
+    """Return UI-owned history endpoint.
+
+    ``api_base_url`` bleibt absichtlich ungenutzt, um CORS/Preflight-Probleme
+    bei Cross-Origin-Calls aus dem Browser zu vermeiden.
+    """
+
+    _ = api_base_url
+    return "/analyze/history"
 
 
 def _auth_login_endpoint(api_base_url: str) -> str:

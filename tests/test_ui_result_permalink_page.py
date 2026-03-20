@@ -24,10 +24,11 @@ def test_build_result_permalink_html_uses_relative_api_when_base_is_empty() -> N
     assert "Raw JSON" in html
 
 
-def test_build_result_permalink_html_injects_api_base_url() -> None:
+def test_build_result_permalink_html_keeps_same_origin_even_when_api_base_is_set() -> None:
     html = _build_result_permalink_html(
         app_version="test",
         api_base_url="https://api.example.test/",
         result_id="res-123",
     )
-    assert 'const RESULTS_ENDPOINT_BASE = "https://api.example.test/analyze/results";' in html
+    assert 'const RESULTS_ENDPOINT_BASE = "/analyze/results";' in html
+    assert "https://api.example.test/analyze/results" not in html

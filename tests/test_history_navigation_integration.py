@@ -181,7 +181,8 @@ class TestHistoryNavigationIntegration(unittest.TestCase):
         self.assertIn('aria-label="Hauptnavigation"', body)
         self.assertIn('function setBurgerOpen(nextOpen)', body)
         self.assertIn('"pointerdown",', body)
-        self.assertIn(f'const ANALYZE_HISTORY_ENDPOINT = "{self.api_base_url}/analyze/history"', body)
+        self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "/analyze/history"', body)
+        self.assertNotIn(f'{self.api_base_url}/analyze/history', body)
 
     def test_ui_result_page_renders_tabs_and_targets_api_base(self) -> None:
         status, body, headers = _http_text(f"{self.ui_base_url}/results/{self.result_id}")
@@ -195,7 +196,8 @@ class TestHistoryNavigationIntegration(unittest.TestCase):
         self.assertIn('aria-label="Hauptnavigation"', body)
         self.assertIn('if (event.key === "ArrowDown")', body)
         self.assertIn('window.addEventListener("keydown"', body)
-        self.assertIn(f'const RESULTS_ENDPOINT_BASE = "{self.api_base_url}/analyze/results"', body)
+        self.assertIn('const RESULTS_ENDPOINT_BASE = "/analyze/results"', body)
+        self.assertNotIn(f'{self.api_base_url}/analyze/results', body)
 
 
 if __name__ == "__main__":

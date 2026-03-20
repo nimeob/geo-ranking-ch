@@ -289,12 +289,13 @@ class TestUiService(unittest.TestCase):
         self.assertIn("function canonicalJobStatus", body)
         self.assertIn('normalized === "completed" || normalized === "success"', body)
 
-    def test_history_page_renders_and_targets_absolute_api_endpoints(self):
+    def test_history_page_renders_and_targets_same_origin_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/history")
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("Historische Abfragen", body)
-        self.assertIn(f'const ANALYZE_HISTORY_ENDPOINT = "{self.api_base_url}/analyze/history"', body)
+        self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "/analyze/history"', body)
+        self.assertNotIn(f'{self.api_base_url}/analyze/history', body)
         self.assertIn('const AUTH_LOGIN_ENDPOINT = "/login"', body)
         self.assertIn('credentials: "include"', body)
         self.assertIn("/results/", body)
@@ -333,8 +334,9 @@ class TestUiService(unittest.TestCase):
         self.assertIn('<div id="tab-derived" class="tab-panel" hidden>', body)
         self.assertIn('<div id="tab-raw" class="tab-panel" hidden>', body)
 
-        # API base URL must be wired for UI deployments.
-        self.assertIn(f'const RESULTS_ENDPOINT_BASE = "{self.api_base_url}/analyze/results";', body)
+        # Result-Permalink muss same-origin bleiben (Cookie-/CORS-sicher).
+        self.assertIn('const RESULTS_ENDPOINT_BASE = "/analyze/results";', body)
+        self.assertNotIn(f'{self.api_base_url}/analyze/results', body)
 
         # Regression guard (Issue #1123): missing optional metadata must not hard-crash rendering.
         self.assertIn('function asObject(value)', body)

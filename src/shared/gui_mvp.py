@@ -1390,6 +1390,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         userClaims: {},
         checkedAtMs: 0,
         sessionExpiresAtMs: 0,
+        sessionExpiresInSeconds: 0,
         warningShownForExpiryMs: 0,
       };
 
@@ -1628,18 +1629,28 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return Math.round(numeric * 1000);
       }
 
+      function parseSessionExpiryInSeconds(rawValue) {
+        const numeric = Number(rawValue);
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+          return 0;
+        }
+        return Math.max(0, Math.round(numeric));
+      }
+
       function hideSessionExpiryWarning() {
         if (sessionExpiryWarningEl) {
           sessionExpiryWarningEl.hidden = true;
         }
       }
 
-      function showSessionExpiryWarning(expiresAtMs) {
+      function showSessionExpiryWarning(expiresAtMs, remainingMs) {
         if (!sessionExpiryWarningEl || !sessionExpiryWarningTextEl) {
           return;
         }
-        const remainingMs = Math.max(0, Number(expiresAtMs) - Date.now());
-        const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+        const boundedRemainingMs = Number.isFinite(Number(remainingMs))
+          ? Math.max(0, Number(remainingMs))
+          : Math.max(0, Number(expiresAtMs) - Date.now());
+        const remainingSeconds = Math.max(1, Math.ceil(boundedRemainingMs / 1000));
         const remainingMinutes = Math.ceil(remainingSeconds / 60);
         const copy = remainingMinutes <= 1
           ? "Session läuft in weniger als 1 Minute ab. Jetzt neu anmelden, damit Eingaben nicht verloren gehen."
@@ -1651,23 +1662,34 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       function updateSessionExpiryWarning(payload) {
         const nextExpiryMs = parseSessionExpiryMs(payload && payload.session_expires_at);
+        const nextExpiryInSeconds = parseSessionExpiryInSeconds(payload && payload.session_expires_in_seconds);
         authState.sessionExpiresAtMs = nextExpiryMs;
+        authState.sessionExpiresInSeconds = nextExpiryInSeconds;
 
-        if (authState.authenticated !== true || nextExpiryMs <= 0) {
+        if (authState.authenticated !== true) {
           authState.warningShownForExpiryMs = 0;
           hideSessionExpiryWarning();
           return;
         }
 
-        const remainingMs = nextExpiryMs - Date.now();
+        const remainingMs = nextExpiryInSeconds > 0
+          ? nextExpiryInSeconds * 1000
+          : nextExpiryMs > 0
+            ? nextExpiryMs - Date.now()
+            : -1;
+
+        if (remainingMs <= 0) {
+          authState.warningShownForExpiryMs = 0;
+          hideSessionExpiryWarning();
+          return;
+        }
+
         if (remainingMs > SESSION_EXPIRY_WARNING_LEAD_MS) {
           hideSessionExpiryWarning();
           return;
         }
 
-        if (authState.warningShownForExpiryMs !== nextExpiryMs) {
-          showSessionExpiryWarning(nextExpiryMs);
-        }
+        showSessionExpiryWarning(nextExpiryMs, remainingMs);
       }
 
       function scheduleAuthSessionPolling() {
@@ -4636,6 +4658,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           authCheckSupported = true,
           checkedAtMs = Date.now(),
           sessionExpiresAtMs = null,
+          sessionExpiresInSeconds = null,
         } = {}
       ) {
         if (typeof nextAuthenticated === "boolean") {
@@ -4653,8 +4676,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           hideSessionExpiryWarning();
         }
 
+        if (Number.isFinite(Number(sessionExpiresInSeconds)) && Number(sessionExpiresInSeconds) > 0) {
+          authState.sessionExpiresInSeconds = Math.round(Number(sessionExpiresInSeconds));
+        } else if (sessionExpiresInSeconds === 0) {
+          authState.sessionExpiresInSeconds = 0;
+        }
+
         if (authState.authenticated !== true) {
           authState.sessionExpiresAtMs = 0;
+          authState.sessionExpiresInSeconds = 0;
           authState.warningShownForExpiryMs = 0;
           hideSessionExpiryWarning();
         }
@@ -4724,6 +4754,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             userClaims: authState.userClaims,
             authCheckSupported: false,
             sessionExpiresAtMs: 0,
+            sessionExpiresInSeconds: 0,
           });
           return authState.authenticated === true;
         }
@@ -4737,10 +4768,12 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         if (response.ok && payload && payload.ok === true) {
           const sessionExpiresAtMs = parseSessionExpiryMs(payload.session_expires_at);
+          const sessionExpiresInSeconds = parseSessionExpiryInSeconds(payload.session_expires_in_seconds);
           setAuthState(true, {
             userClaims: payload.user_claims || {},
             authCheckSupported: true,
             sessionExpiresAtMs,
+            sessionExpiresInSeconds,
           });
           updateSessionExpiryWarning(payload);
           return true;
@@ -4751,6 +4784,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             userClaims: {},
             authCheckSupported: true,
             sessionExpiresAtMs: 0,
+            sessionExpiresInSeconds: 0,
           });
           return false;
         }
