@@ -194,7 +194,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("geo-ranking.ch GUI MVP", body)
         self.assertIn("Version ui-test-v1", body)
-        self.assertIn(f'fetch("{self.api_base_url}/analyze"', body)
+        self.assertIn('fetch("/analyze"', body)
         self.assertIn(f'const TRACE_DEBUG_ENDPOINT = "{self.api_base_url}/debug/trace";', body)
         self.assertIn('function projectTraceEvent(rawEvent, index)', body)
         self.assertIn('function normalizeTraceEvents(rawEvents)', body)
