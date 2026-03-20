@@ -147,7 +147,10 @@ def _http_request(*, url: str, method: str, timeout_seconds: float, body_bytes: 
                 json_body=_try_parse_json(raw),
             )
     except error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
+        try:
+            raw = exc.read().decode("utf-8", errors="replace")
+        finally:
+            exc.close()
         return HttpResponse(
             http_status=int(exc.code),
             body_text=raw,

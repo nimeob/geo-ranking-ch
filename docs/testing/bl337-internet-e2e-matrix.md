@@ -75,6 +75,12 @@ BL337_API_AUTH_TOKEN="<token>" \
 python3 scripts/run_bl337_api_frontdoor_e2e.py
 ```
 
+Optional für nächtliche Public-Probes ohne Token (401/403 auf Analyze wird als `blocked` dokumentiert, aber Exit-Code bleibt 0):
+
+```bash
+python3 scripts/run_bl337_api_frontdoor_e2e.py --allow-auth-blocked
+```
+
 Ergebnis:
 - API-Testfälle (`API.*`) werden in der Matrix von `planned` auf `pass|fail|blocked` fortgeschrieben.
 - Der Non-Basic-Sicherheitsfall `API.ANALYZE.NON_BASIC.FINAL_STATE` prüft explizit, dass `intelligence_mode=extended` deterministisch terminiert (Success **oder** strukturierter Error-State).

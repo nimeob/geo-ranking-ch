@@ -33,6 +33,7 @@ class Config:
     query: str
     intelligence_mode: str
     auth_token: str | None
+    allow_auth_blocked: bool
 
 
 @dataclass
@@ -87,6 +88,14 @@ def _load_config(argv: Iterable[str] | None = None) -> Config:
     parser.add_argument("--query", default=DEFAULT_QUERY)
     parser.add_argument("--intelligence-mode", default=DEFAULT_MODE)
     parser.add_argument("--auth-token", default=os.getenv("BL337_API_AUTH_TOKEN", ""))
+    parser.add_argument(
+        "--allow-auth-blocked",
+        action="store_true",
+        help=(
+            "Treat analyze checks blocked only by missing auth token as non-fatal "
+            "(exit 0 unless other failures/blockers exist)."
+        ),
+    )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
@@ -131,6 +140,7 @@ def _load_config(argv: Iterable[str] | None = None) -> Config:
         query=args.query.strip(),
         intelligence_mode=mode,
         auth_token=auth_token or None,
+        allow_auth_blocked=bool(args.allow_auth_blocked),
     )
 
 
@@ -157,7 +167,10 @@ def _perform_request(
                 json_body=_try_parse_json(raw),
             )
     except error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
+        try:
+            raw = exc.read().decode("utf-8", errors="replace")
+        finally:
+            exc.close()
         return HttpResponse(
             http_status=int(exc.code),
             body_text=raw,
@@ -448,6 +461,14 @@ def _update_matrix(matrix_payload: dict[str, Any], results: list[ApiCheckResult]
     summary["blocked"] = counts["blocked"]
 
 
+def _is_only_auth_blocked(results: list[ApiCheckResult]) -> bool:
+    blocked = [result for result in results if result.status == "blocked"]
+    if not blocked:
+        return False
+
+    return all(result.reason == "auth_required_for_analyze_probe" for result in blocked)
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     try:
         config = _load_config(argv)
@@ -481,6 +502,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             "query": config.query,
             "intelligence_mode": config.intelligence_mode,
             "auth_token_provided": config.auth_token is not None,
+            "allow_auth_blocked": config.allow_auth_blocked,
             "timeout_seconds": config.timeout_seconds,
         },
         "results": [
@@ -512,7 +534,18 @@ def main(argv: Iterable[str] | None = None) -> int:
             f"(http={result.http_status}, reason={result.reason})"
         )
 
-    if any(result.status != "pass" for result in results):
+    has_failures = any(result.status == "fail" for result in results)
+    has_blocked = any(result.status == "blocked" for result in results)
+
+    if has_failures:
+        print(f"[BL-337.wp2] OVERALL: fail (evidence={config.evidence_json})")
+        return 1
+
+    if has_blocked:
+        if config.allow_auth_blocked and _is_only_auth_blocked(results):
+            print(f"[BL-337.wp2] OVERALL: pass_with_auth_blocked (evidence={config.evidence_json})")
+            return 0
+
         print(f"[BL-337.wp2] OVERALL: fail (evidence={config.evidence_json})")
         return 1
 
