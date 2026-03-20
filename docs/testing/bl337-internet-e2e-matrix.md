@@ -119,7 +119,10 @@ Für autonome Runs gibt es einen kombinierten Entry-Point, der WP1+WP2+WP3 in ei
 ```
 
 Verhalten bei Auth:
-- `BL337_AUTH_MODE=auto` (Default): ohne `BL337_API_AUTH_TOKEN` wird API-WP2 mit `--allow-auth-blocked` gefahren.
+- `BL337_AUTH_MODE=auto` (Default):
+  - mit `BL337_API_AUTH_TOKEN` läuft API-WP2 strikt mit Token.
+  - ohne Token versucht der Wrapper bei gesetzten OIDC-Hints (`OIDC_TOKEN_URL`, `OIDC_CLIENT_ID`) automatisch `scripts/smoke/auth_preflight.sh` und nutzt den geminteten Bearer-Token.
+  - wenn kein Token verfügbar ist oder das Preflight scheitert, wird API-WP2 mit `--allow-auth-blocked` gefahren.
 - `BL337_AUTH_MODE=allow`: `--allow-auth-blocked` immer aktiv.
 - `BL337_AUTH_MODE=strict`: `--allow-auth-blocked` nie aktiv.
 
@@ -127,3 +130,5 @@ Optional relevante Overrides:
 - `BL337_API_BASE_URL`, `BL337_APP_BASE_URL`
 - `BL337_TIMEOUT_SECONDS`
 - `BL337_MATRIX_PATH`, `BL337_API_EVIDENCE_JSON`, `BL337_UI_EVIDENCE_JSON`
+- `BL337_AUTH_PREFLIGHT_SCRIPT` (z. B. für lokale/CI-Stubs)
+- OIDC-Hints für Auto-Minting: `OIDC_TOKEN_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET|OIDC_CLIENT_SECRET_FILE`, optional `OIDC_SCOPE`, `OIDC_AUDIENCE`

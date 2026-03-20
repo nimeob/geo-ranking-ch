@@ -355,6 +355,7 @@ python3 scripts/run_bl337_ui_frontdoor_e2e.py \
 ```bash
 ./scripts/run_bl337_frontdoor_e2e.sh
 # Auth-Modus optional: BL337_AUTH_MODE=auto|allow|strict
+# auto: nutzt BL337_API_AUTH_TOKEN falls gesetzt, versucht sonst OIDC auth_preflight, fallback = --allow-auth-blocked
 ```
 
 ---
