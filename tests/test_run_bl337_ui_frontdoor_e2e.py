@@ -119,6 +119,107 @@ GOOD_UI_HTML = """<!doctype html>
 </html>
 """
 
+ALT_NAV_AND_PHASE_UI_HTML = """<!doctype html>
+<html lang="de">
+  <head><title>geo-ranking.ch GUI MVP</title></head>
+  <body>
+    <button id="burger-toggle" aria-expanded="false" aria-controls="burger-menu">☰ Menü</button>
+    <div id="burger-menu" role="menu" aria-label="Hauptnavigation">
+      <a role="menuitem" href="#input">Input</a>
+      <a role="menuitem" href="#map">Karte</a>
+      <a role="menuitem" href="#result">Result-Panel</a>
+    </div>
+    <article id="input">
+      <form id="analyze-form" class="stack">
+        <input id="query" name="query" type="text" required />
+        <select id="intelligence-mode" name="intelligence_mode"><option>basic</option></select>
+        <input id="api-token" type="password" />
+        <button id="submit-btn" type="submit">Senden</button>
+      </form>
+    </article>
+    <article id="map">
+      <div id="map-click-surface" role="application">
+        <div id="map-tile-layer" aria-hidden="true"></div>
+        <div class="map-zoom-controls" aria-label="Zoom-Steuerung">
+          <button id="map-zoom-in" type="button">+</button>
+          <button id="map-zoom-out" type="button">−</button>
+        </div>
+      </div>
+    </article>
+    <article id="result"></article>
+    <script>
+      const formEl = document.getElementById("analyze-form");
+      const queryEl = document.getElementById("query");
+      const modeEl = document.getElementById("intelligence-mode");
+      const tokenEl = document.getElementById("api-token");
+      const submitBtn = document.getElementById("submit-btn");
+      const mapSurface = document.getElementById("map-click-surface");
+      const state = { phase: "idle", lastError: null };
+
+      function buildOsmTileUrl(zoom, tileX, tileY) {
+        return `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+      }
+
+      function initializeInteractiveMap() {
+        const mapTile = document.getElementById("map-tile-layer");
+        mapTile.setAttribute("data-src", buildOsmTileUrl(8, 133, 88));
+        mapSurface.addEventListener("wheel", (event) => {
+          event.preventDefault();
+        }, { passive: false });
+      }
+
+      function setPhase(nextPhase) {
+        state.phase = nextPhase;
+      }
+
+      async function runAnalyze(payload, token) {
+        const response = await fetch("https://api.dev.georanking.ch/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const parsed = await response.json();
+        if (!response.ok || !parsed.ok) {
+          const errCode = parsed && parsed.error ? parsed.error : `http_${response.status}`;
+          const errMsg = parsed && parsed.message ? parsed.message : "Unbekannter Fehler";
+          const richError = `${errCode}: ${errMsg}`;
+          return { ok: false, response: parsed, errorMessage: richError };
+        }
+        return { ok: true, response: parsed, errorMessage: null };
+      }
+
+      async function startAnalyze(payload) {
+        const result = await runAnalyze(payload, (tokenEl.value || "").trim());
+        if (!result.ok) {
+          setPhase("error");
+        } else {
+          setPhase("success");
+        }
+        state.lastError = result.errorMessage;
+      }
+
+      initializeInteractiveMap();
+
+      formEl.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const query = (queryEl.value || "").trim();
+        if (!query) {
+          setPhase("error");
+          state.lastError = "Bitte eine Adresse eingeben.";
+          state.lastPayload = {
+            ok: false,
+            error: "validation",
+            message: "query darf nicht leer sein",
+          };
+          return;
+        }
+        await startAnalyze({ query, intelligence_mode: modeEl.value || "basic" });
+      });
+    </script>
+  </body>
+</html>
+"""
+
 BROKEN_UI_HTML = """<!doctype html>
 <html><head><title>broken</title></head><body><p>UI down</p></body></html>
 """
@@ -351,6 +452,31 @@ class TestRunBl337UiFrontdoorE2E(unittest.TestCase):
             evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
             self.assertEqual(evidence_payload["summary"]["pass"], 4)
             self.assertEqual(evidence_payload["summary"]["fail"], 0)
+
+    def test_main_accepts_alt_navigation_and_phase_markers(self) -> None:
+        _UiHandler.html = ALT_NAV_AND_PHASE_UI_HTML
+        _UiHandler.status_code = 200
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            matrix = Path(tmpdir) / "matrix.json"
+            evidence = Path(tmpdir) / "evidence.json"
+            self._build_matrix(
+                app_base_url=f"http://127.0.0.1:{self.ui_port}",
+                api_base_url=f"http://127.0.0.1:{self.api_port}",
+                path=matrix,
+            )
+
+            rc = module.main(["--matrix", str(matrix), "--evidence-json", str(evidence)])
+            self.assertEqual(rc, 0)
+
+            matrix_payload = json.loads(matrix.read_text(encoding="utf-8"))
+            ui_rows = [
+                case
+                for case in matrix_payload["tests"]
+                if case.get("testId", "").startswith("UI.")
+            ]
+            for row in ui_rows:
+                self.assertEqual(row["status"], "pass")
 
     def test_main_returns_nonzero_when_dom_markers_are_missing(self) -> None:
         _UiHandler.html = BROKEN_UI_HTML

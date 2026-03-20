@@ -177,6 +177,15 @@ def _excerpt(raw_text: str, *, limit: int = 280) -> str:
     return clean[: limit - 1] + "…"
 
 
+MarkerSpec = str | tuple[str, ...]
+
+
+def _marker_matches(html: str, marker: MarkerSpec) -> bool:
+    if isinstance(marker, str):
+        return marker in html
+    return any(candidate in html for candidate in marker)
+
+
 def _check_ui_load(response: HttpResponse) -> UiCheckResult:
     body = response.body_text
     lower_body = body.lower()
@@ -204,11 +213,11 @@ def _check_ui_load(response: HttpResponse) -> UiCheckResult:
     )
 
 
-def _required_marker_presence(html: str, markers: dict[str, str]) -> tuple[bool, list[str], list[str]]:
+def _required_marker_presence(html: str, markers: dict[str, MarkerSpec]) -> tuple[bool, list[str], list[str]]:
     present: list[str] = []
     missing: list[str] = []
     for name, marker in markers.items():
-        if marker in html:
+        if _marker_matches(html, marker):
             present.append(name)
         else:
             missing.append(name)
@@ -217,7 +226,12 @@ def _required_marker_presence(html: str, markers: dict[str, str]) -> tuple[bool,
 
 def _check_ui_navigation_and_core_flow(html: str) -> UiCheckResult:
     markers = {
-        "nav_shell": 'id="gui-shell-nav"',
+        "nav_shell": (
+            'id="gui-shell-nav"',
+            'id="burger-menu"',
+            'aria-label="Hauptnavigation"',
+            'aria-label="Kernnavigation"',
+        ),
         "nav_input": 'href="#input"',
         "nav_map": 'href="#map"',
         "nav_result": 'href="#result"',
@@ -231,8 +245,8 @@ def _check_ui_navigation_and_core_flow(html: str) -> UiCheckResult:
         "map_zoom_in": 'id="map-zoom-in"',
         "map_zoom_out": 'id="map-zoom-out"',
         "map_tile_url": "https://tile.openstreetmap.org/",
-        "map_wheel_zoom": '"wheel",',
-        "map_initializer": "function initializeInteractiveMap()",
+        "map_wheel_zoom": ('"wheel",', '"wheel"'),
+        "map_initializer": ("function initializeInteractiveMap()", "initializeInteractiveMap("),
     }
     passed, present, missing = _required_marker_presence(html, markers)
 
@@ -282,7 +296,12 @@ def _check_ui_api_error_consistency(*, html: str, api_probe: HttpResponse) -> Ui
         "error_code_mapping": "parsed && parsed.error",
         "error_message_mapping": "parsed && parsed.message",
         "rich_error": "`${errCode}: ${errMsg}`",
-        "phase_error_switch": 'state.phase = result.ok ? "success" : "error"',
+        "phase_error_switch": (
+            'state.phase = result.ok ? "success" : "error"',
+            "state.phase = result.ok ? 'success' : 'error'",
+            'setPhase("error"',
+            "setPhase('error'",
+        ),
         "last_error_binding": "state.lastError = result.errorMessage",
     }
     ui_passed, present, missing = _required_marker_presence(html, ui_markers)
