@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     env:
       BASE_URL: https://www.dev.georanking.ch
-      DEV_UI_SMOKE_RUN_ID: ${{ github.run_id }}
+      DEV_UI_SMOKE_RUN_ID: ${{ github.run_number }}-${{ github.run_attempt }}
       DEV_UI_SMOKE_USERNAME: ${{ secrets.DEV_UI_SMOKE_USERNAME }}
       DEV_UI_SMOKE_PASSWORD: ${{ secrets.DEV_UI_SMOKE_PASSWORD }}
 

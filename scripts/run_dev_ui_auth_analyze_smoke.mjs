@@ -16,9 +16,23 @@ const loginStartUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&r
 
 const username = String(process.env.DEV_UI_SMOKE_USERNAME || '').trim();
 const password = String(process.env.DEV_UI_SMOKE_PASSWORD || '');
+
+const explicitRunMarker = String(process.env.DEV_UI_SMOKE_RUN_ID || '').trim();
+const githubRunNumber = String(process.env.GITHUB_RUN_NUMBER || '').trim();
+const githubRunAttempt = String(process.env.GITHUB_RUN_ATTEMPT || '').trim() || '1';
+const githubRunId = String(process.env.GITHUB_RUN_ID || '').trim();
+const runMarkerSource = explicitRunMarker
+  ? 'DEV_UI_SMOKE_RUN_ID'
+  : githubRunNumber
+    ? 'GITHUB_RUN_NUMBER+GITHUB_RUN_ATTEMPT'
+    : githubRunId
+      ? 'GITHUB_RUN_ID+GITHUB_RUN_ATTEMPT'
+      : 'timestamp';
 const runMarker =
-  String(process.env.DEV_UI_SMOKE_RUN_ID || process.env.GITHUB_RUN_ID || process.env.GITHUB_RUN_NUMBER || stamp).trim() ||
-  stamp;
+  explicitRunMarker
+  || (githubRunNumber ? `${githubRunNumber}-${githubRunAttempt}` : '')
+  || (githubRunId ? `${githubRunId}-${githubRunAttempt}` : '')
+  || stamp;
 
 const addressFile = process.env.DEV_UI_SMOKE_ADDRESS_FILE
   ? path.resolve(repoRoot, String(process.env.DEV_UI_SMOKE_ADDRESS_FILE))
@@ -69,9 +83,34 @@ function safeJsonParse(raw) {
 }
 
 function selectAddressIndex(poolSize, marker) {
-  const digest = crypto.createHash('sha256').update(String(marker || ''), 'utf8').digest('hex');
+  if (!Number.isFinite(poolSize) || poolSize <= 0) {
+    return 0;
+  }
+
+  const normalized = String(marker || '').trim();
+  const runTuple = normalized.match(/^(\d+)(?:\D+(\d+))?$/);
+  if (runTuple) {
+    const primary = Number.parseInt(runTuple[1], 10);
+    const attempt = Number.parseInt(runTuple[2] || '1', 10);
+    if (Number.isFinite(primary) && Number.isFinite(attempt) && attempt > 0) {
+      return Math.abs((primary + attempt - 1) % poolSize);
+    }
+  }
+
+  const numericChunks = normalized.match(/\d+/g);
+  if (numericChunks && numericChunks.length) {
+    let rolling = 0;
+    for (const chunk of numericChunks) {
+      const value = Number.parseInt(chunk, 10);
+      if (!Number.isFinite(value)) continue;
+      rolling = (rolling * 31 + Math.abs(value)) % poolSize;
+    }
+    return rolling;
+  }
+
+  const digest = crypto.createHash('sha256').update(normalized || stamp, 'utf8').digest('hex');
   const asInt = Number.parseInt(digest.slice(0, 12), 16);
-  return Number.isFinite(asInt) && poolSize > 0 ? asInt % poolSize : 0;
+  return Number.isFinite(asInt) ? asInt % poolSize : 0;
 }
 
 async function readAddressPool(filePath) {
@@ -494,6 +533,10 @@ async function run() {
       headless,
       timeoutMs,
       runMarker,
+      runMarkerSource,
+      githubRunNumber,
+      githubRunAttempt,
+      githubRunId,
     },
     credentials: {
       usernameMasked: maskUsername(username),
@@ -504,6 +547,7 @@ async function run() {
       index: addressIndex,
       selectedAddress,
       runMarker,
+      runMarkerSource,
     },
     login: {
       idpLoginUrl,
@@ -564,6 +608,10 @@ run()
         headless,
         timeoutMs,
         runMarker,
+        runMarkerSource,
+        githubRunNumber,
+        githubRunAttempt,
+        githubRunId,
       },
       credentials: {
         usernameMasked: maskUsername(username),

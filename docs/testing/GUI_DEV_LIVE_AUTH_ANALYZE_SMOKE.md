@@ -5,7 +5,7 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 
 1. Login startet über die Live-UI (`/login?...&start=1`) und geht auf den echten IdP.
 2. Login mit echten Credentials kommt zurück nach `/gui`.
-3. Pro Lauf wird eine neue Schweizer Adresse aus einem rotierenden Pool ausgewählt.
+3. Pro Lauf wird eine neue Schweizer Adresse aus einem rotierenden Pool ausgewählt (Workflow-Run-Marker: `<run_number>-<run_attempt>` für stabile Rotation auch bei Re-Runs).
 4. Die Adresse wird wirklich per `POST /analyze` abgeschickt (Payload-Check auf exakten Query-String).
 5. Vollständige Resultate kommen zurück (`ok=true`, `result.data.modules`, `match`, `suitability`).
 6. Kein `401`, kein `session_expired`/`no_session` und kein Idle-Fallback im Analyze-Flow.
