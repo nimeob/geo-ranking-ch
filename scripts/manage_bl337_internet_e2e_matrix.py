@@ -51,12 +51,12 @@ TEST_BLUEPRINTS: list[dict[str, Any]] = [
         "expectedResult": "HTTP 4xx (erwartet 400) mit klarer Fehlermeldung im Error-Body.",
     },
     {
-        "testId": "API.ANALYZE.METHOD_MISMATCH.405",
+        "testId": "API.ANALYZE.METHOD_MISMATCH.4XX",
         "area": "api",
-        "title": "Method-Mismatch auf Analyze wird korrekt abgewiesen",
+        "title": "Method-Mismatch auf Analyze wird mit 4xx korrekt abgewiesen",
         "preconditions": ["Keine"],
         "steps": ["GET {apiBaseUrl}/analyze"],
-        "expectedResult": "HTTP 405 (oder dokumentierter 4xx-Reject) mit nachvollziehbarer Fehlermeldung.",
+        "expectedResult": "HTTP 405 oder anderer dokumentierter 4xx-Reject mit nachvollziehbarer Fehlermeldung.",
     },
     {
         "testId": "UI.LOAD.HOME.200",
