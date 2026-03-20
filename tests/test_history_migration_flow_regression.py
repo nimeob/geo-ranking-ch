@@ -199,7 +199,8 @@ class TestHistoryMigrationFlowRegression(unittest.TestCase):
         ui_status, ui_body, ui_headers = _http_text("GET", f"{self.ui_base_url}/history")
         self.assertEqual(ui_status, 200)
         self.assertIn("text/html", ui_headers.get("content-type", ""))
-        self.assertIn(f'const ANALYZE_HISTORY_ENDPOINT = "{self.api_base_url}/analyze/history"', ui_body)
+        self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "/analyze/history"', ui_body)
+        self.assertNotIn(f'{self.api_base_url}/analyze/history', ui_body)
 
         api_status, api_payload, api_headers = _http_json(
             "GET",
