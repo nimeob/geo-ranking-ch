@@ -22,6 +22,7 @@ class TestGuiDevLiveAuthAnalyzeSmokeDocs(unittest.TestCase):
             "401",
             "gui-dev-live-auth-analyze-smoke-artifacts",
             "dev-ui-auth-analyze-smoke-",
+            "dev-ui-auth-analyze-smoke-blocked-",
         ]
         for marker in required_markers:
             self.assertIn(marker, content)

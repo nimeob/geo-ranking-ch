@@ -25,6 +25,8 @@ Das Script erzeugt JSON-Evidence + Screenshot:
 - `DEV_UI_SMOKE_PASSWORD`
 
 Ohne diese Secrets schlägt der Workflow absichtlich mit klarer Fehlermeldung fehl, statt ein falsches „grün“ zu liefern.
+Zusätzlich wird ein Blocker-Evidence-File erzeugt:
+- `reports/evidence/dev-ui-auth-analyze-smoke-blocked-<run_id>.json`
 
 ## Lokaler Lauf
 ```bash
