@@ -371,6 +371,8 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         status, body, _ = _http_text(f"{self.base_url}/gui")
         self.assertEqual(status, 200)
         self.assertIn("--touch-target-min: 44px", body)
+        self.assertIn("[hidden] {", body)
+        self.assertIn("display: none !important;", body)
         self.assertIn('.burger-menu[hidden],', body)
         self.assertIn('.burger-backdrop[hidden] {', body)
         self.assertIn("@media (max-width: 768px)", body)

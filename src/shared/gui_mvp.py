@@ -111,6 +111,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         background: rgba(15, 23, 42, 0.28);
         z-index: 24;
       }
+      [hidden] {
+        display: none !important;
+      }
       .burger-menu[hidden],
       .burger-backdrop[hidden] {
         display: none !important;
