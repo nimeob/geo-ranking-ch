@@ -30,6 +30,12 @@ fi
 
 USERNAME="$(trim "${DEV_UI_SMOKE_USERNAME:-}")"
 PASSWORD="$(trim "${DEV_UI_SMOKE_PASSWORD:-}")"
+WORKFLOW_NAME="$(trim "${DEV_UI_SMOKE_WORKFLOW_NAME:-gui-dev-live-auth-analyze-smoke}")"
+BLOCKER_PREFIX="$(trim "${DEV_UI_SMOKE_BLOCKER_PREFIX:-dev-ui-auth-analyze-smoke-blocked}")"
+BLOCKER_DIR="$(trim "${DEV_UI_SMOKE_BLOCKER_DIR:-reports/evidence}")"
+if [[ -z "${BLOCKER_DIR}" ]]; then
+  BLOCKER_DIR="reports/evidence"
+fi
 
 MISSING=()
 if [[ -z "${USERNAME}" ]]; then
@@ -40,27 +46,33 @@ if [[ -z "${PASSWORD}" ]]; then
 fi
 
 if (( ${#MISSING[@]} > 0 )); then
-  mkdir -p reports/evidence
-  OUT="reports/evidence/dev-ui-auth-analyze-smoke-blocked-${RUN_ID}.json"
+  mkdir -p "${BLOCKER_DIR}"
+  OUT="${BLOCKER_DIR}/${BLOCKER_PREFIX}-${RUN_ID}.json"
 
-  python3 - "${OUT}" "${RUN_ID}" "${MISSING[@]}" <<'PY'
+  python3 - "${OUT}" "${RUN_ID}" "${WORKFLOW_NAME}" "${MISSING[@]}" <<'PY'
 import json
 import pathlib
 import sys
 
 out = pathlib.Path(sys.argv[1])
 run_id = sys.argv[2]
-missing = sys.argv[3:]
+workflow_name = sys.argv[3]
+missing = sys.argv[4:]
 required = ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"]
+
+next_step = "Set both repository secrets and re-run the workflow."
+if workflow_name:
+    next_step = f"Set both repository secrets and re-run {workflow_name} workflow."
 
 payload = {
     "ok": False,
     "blocked": True,
     "reason": "missing_required_github_secrets",
     "run_id": run_id,
+    "workflow": workflow_name,
     "required": required,
     "missing": missing,
-    "next_step": "Set both repository secrets and re-run gui-dev-live-auth-analyze-smoke workflow.",
+    "next_step": next_step,
 }
 out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY

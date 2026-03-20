@@ -94,6 +94,28 @@ def test_preflight_prefers_github_run_number_and_attempt_when_run_id_is_missing(
     assert payload["run_id"] == "77-3"
 
 
+def test_preflight_supports_custom_blocker_target_and_workflow_name(tmp_path: Path) -> None:
+    proc = _run(
+        tmp_path,
+        {
+            "GITHUB_RUN_NUMBER": "12",
+            "GITHUB_RUN_ATTEMPT": "2",
+            "DEV_UI_SMOKE_WORKFLOW_NAME": "gui-dev-live-full-regression",
+            "DEV_UI_SMOKE_BLOCKER_PREFIX": "dev-ui-full-regression-blocked",
+            "DEV_UI_SMOKE_BLOCKER_DIR": "artifacts/dev-ui-full/latest",
+        },
+    )
+
+    assert proc.returncode == 1
+    blocked_file = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-blocked-12-2.json"
+    assert blocked_file.exists()
+
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    assert payload["run_id"] == "12-2"
+    assert payload["workflow"] == "gui-dev-live-full-regression"
+    assert payload["next_step"] == "Set both repository secrets and re-run gui-dev-live-full-regression workflow."
+
+
 def test_workflow_uses_preflight_script_and_uploads_blocker_artifact() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
     assert "run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh" in content
