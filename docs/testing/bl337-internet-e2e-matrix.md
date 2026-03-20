@@ -109,3 +109,21 @@ Ergebnis:
 - UI-Testfälle (`UI.*`) werden in der Matrix von `planned` auf `pass|fail|blocked` fortgeschrieben.
 - Pro Lauf werden drei Evidence-Artefakte erzeugt: `*-wp3-ui-frontdoor-e2e.json`, `*-home.html`, `*-api-probe.json`.
 - Die Checks decken Homepage-Load, Kernnavigation/Form-Render **inkl. Karten-Basemap-Marker (Tile-Layer/Zoom-Handler)**, Client-Side-Validierungsfehler und UI/API-Fehlerkonsistenz ab.
+
+## 7) One-shot Wrapper für Nightly/Worker-Läufe
+
+Für autonome Runs gibt es einen kombinierten Entry-Point, der WP1+WP2+WP3 in einem Durchlauf ausführt:
+
+```bash
+./scripts/run_bl337_frontdoor_e2e.sh
+```
+
+Verhalten bei Auth:
+- `BL337_AUTH_MODE=auto` (Default): ohne `BL337_API_AUTH_TOKEN` wird API-WP2 mit `--allow-auth-blocked` gefahren.
+- `BL337_AUTH_MODE=allow`: `--allow-auth-blocked` immer aktiv.
+- `BL337_AUTH_MODE=strict`: `--allow-auth-blocked` nie aktiv.
+
+Optional relevante Overrides:
+- `BL337_API_BASE_URL`, `BL337_APP_BASE_URL`
+- `BL337_TIMEOUT_SECONDS`
+- `BL337_MATRIX_PATH`, `BL337_API_EVIDENCE_JSON`, `BL337_UI_EVIDENCE_JSON`

@@ -351,6 +351,12 @@ python3 scripts/run_bl337_ui_frontdoor_e2e.py \
   --evidence-json artifacts/bl337/<timestamp>-wp3-ui-frontdoor-e2e.json
 ```
 
+**One-shot Wrapper (Nightly/Worker-freundlich):**
+```bash
+./scripts/run_bl337_frontdoor_e2e.sh
+# Auth-Modus optional: BL337_AUTH_MODE=auto|allow|strict
+```
+
 ---
 
 ## Remote / Internet Smoke (staging/prod, sync + async)
