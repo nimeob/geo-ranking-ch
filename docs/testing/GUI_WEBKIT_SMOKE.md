@@ -58,6 +58,8 @@ BASE_URL="https://www.dev.georanking.ch/" GUI_STABILITY_WAIT_MS=1500 node script
 
 Hinweis: Der Smoke beendet sich früh mit klarer Fehlermeldung, wenn die GUI kurz nach Load auf `auth.*`/`/login` umleitet. Damit werden false positives vermieden, die bei verzögerten Redirects sonst als Locator-Timeout erscheinen.
 
+Wenn native WebKit auf dem Runner nicht verfügbar ist und der Smoke auf Chromium fallbackt, wird für den Pinch-Teil zusätzlich ein CDP-Gesture-Fallback (`Input.synthesizePinchGesture`) genutzt. Die Methode ist im JSON-Nachweis unter `checks.mapInteraction.pinch.method` inkl. `fallbackAttempted/fallbackUsed` sichtbar.
+
 Output:
 - JSON Evidence: `reports/evidence/issue-986-webkit-smoke-<timestamp>.json`
 - Screenshot: `reports/evidence/issue-986-webkit-ios-<timestamp>.png`

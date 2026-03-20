@@ -135,7 +135,7 @@ async function readMapMeta(page) {
   };
 }
 
-async function pinchMap(page) {
+async function pinchMapSyntheticPointer(page) {
   return page.evaluate(async () => {
     const surface = document.getElementById('map-click-surface');
     if (!surface) {
@@ -168,6 +168,97 @@ async function pinchMap(page) {
 
     await new Promise((resolve) => setTimeout(resolve, 220));
   });
+}
+
+function pinchIncreasedZoom(before, after) {
+  return Number.isFinite(before?.zoom) && Number.isFinite(after?.zoom) && after.zoom > before.zoom;
+}
+
+async function pinchMapChromiumCdp(page, context) {
+  const surfaceCenter = await page.evaluate(() => {
+    const surface = document.getElementById('map-click-surface');
+    if (!surface) {
+      throw new Error('map-click-surface not found');
+    }
+    surface.scrollIntoView({ block: 'center', inline: 'center' });
+    const rect = surface.getBoundingClientRect();
+    const viewportWidth = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+    const viewportHeight = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+    const x = Math.round(Math.min(Math.max(rect.left + rect.width / 2, 2), viewportWidth - 2));
+    const y = Math.round(Math.min(Math.max(rect.top + rect.height / 2, 2), viewportHeight - 2));
+    return { x, y, viewportWidth, viewportHeight };
+  });
+
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.synthesizePinchGesture', {
+    x: surfaceCenter.x,
+    y: surfaceCenter.y,
+    scaleFactor: 1.8,
+    relativeSpeed: 800,
+    gestureSourceType: 'touch',
+  });
+
+  await page.waitForTimeout(260);
+}
+
+async function runPinchWithFallback(page, context, runtimeBrowser) {
+  const before = await readMapMeta(page);
+  await pinchMapSyntheticPointer(page);
+  const afterSynthetic = await readMapMeta(page);
+
+  if (pinchIncreasedZoom(before, afterSynthetic)) {
+    return {
+      before,
+      after: afterSynthetic,
+      passed: true,
+      method: 'synthetic_pointer',
+      fallbackAttempted: false,
+      fallbackUsed: false,
+      fallbackError: null,
+      syntheticResult: null,
+    };
+  }
+
+  const canUseCdpFallback = String(runtimeBrowser || '').startsWith('playwright-chromium');
+  if (!canUseCdpFallback) {
+    return {
+      before,
+      after: afterSynthetic,
+      passed: false,
+      method: 'synthetic_pointer',
+      fallbackAttempted: false,
+      fallbackUsed: false,
+      fallbackError: null,
+      syntheticResult: null,
+    };
+  }
+
+  try {
+    await pinchMapChromiumCdp(page, context);
+    const afterCdp = await readMapMeta(page);
+    const passed = pinchIncreasedZoom(before, afterCdp);
+    return {
+      before,
+      after: afterCdp,
+      passed,
+      method: passed ? 'chromium_cdp_synthesizePinchGesture' : 'synthetic_pointer',
+      fallbackAttempted: true,
+      fallbackUsed: passed,
+      fallbackError: null,
+      syntheticResult: afterSynthetic,
+    };
+  } catch (error) {
+    return {
+      before,
+      after: afterSynthetic,
+      passed: false,
+      method: 'synthetic_pointer',
+      fallbackAttempted: true,
+      fallbackUsed: false,
+      fallbackError: error instanceof Error ? error.message : String(error || 'unknown error'),
+      syntheticResult: null,
+    };
+  }
 }
 
 async function panMap(page) {
@@ -231,9 +322,7 @@ async function run() {
     const loginInlineVisible = await page.locator('#auth-login-inline').isVisible();
     const loginBurgerVisible = await page.locator('#burger-login-link').isVisible();
 
-    const beforePinch = await readMapMeta(page);
-    await pinchMap(page);
-    const afterPinch = await readMapMeta(page);
+    const pinchResult = await runPinchWithFallback(page, context, launch.runtimeBrowser);
 
     const beforePan = await readMapMeta(page);
     await panMap(page);
@@ -243,8 +332,7 @@ async function run() {
     const screenshotPath = path.join(outDir, `issue-986-webkit-ios-${stamp}.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
-    const interactionViaZoom =
-      Number.isFinite(beforePinch.zoom) && Number.isFinite(afterPinch.zoom) && afterPinch.zoom > beforePinch.zoom;
+    const interactionViaZoom = pinchResult.passed === true;
     const interactionViaPan =
       Number.isFinite(beforePan.zoom) &&
       Number.isFinite(afterPan.zoom) &&
@@ -266,9 +354,14 @@ async function run() {
       },
       mapInteraction: {
         pinch: {
-          before: beforePinch,
-          after: afterPinch,
+          before: pinchResult.before,
+          after: pinchResult.after,
           passed: interactionViaZoom,
+          method: pinchResult.method,
+          fallbackAttempted: pinchResult.fallbackAttempted,
+          fallbackUsed: pinchResult.fallbackUsed,
+          fallbackError: pinchResult.fallbackError,
+          syntheticResult: pinchResult.syntheticResult,
         },
         pan: {
           before: beforePan,

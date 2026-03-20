@@ -1,0 +1,71 @@
+{
+  "issue": 986,
+  "parentIssue": 975,
+  "startedAtUtc": "2026-03-20T06:27:38.282Z",
+  "finishedAtUtc": "2026-03-20T06:27:41.943Z",
+  "targetUrl": "https://www.dev.georanking.ch/gui",
+  "runtime": {
+    "browser": "playwright-chromium-fallback",
+    "requestedBrowser": "playwright-webkit",
+    "device": "iPhone 13",
+    "headless": true
+  },
+  "limitations": [
+    "Native Playwright WebKit konnte auf diesem Runner nicht gestartet werden (fallback auf Chromium/iPhone-Profil). reason=browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libicudata.so.66                                 ║\n║     libicui18n.so.66                                 ║\n║     libicuuc.so.66                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libevent-2.1.so.7                                ║\n║     libwebpdemux.so.2                                ║\n║     libharfbuzz-icu.so.0                             ║\n║     libjpeg.so.8                                     ║\n║     libwebpmux.so.3                                  ║\n║     libwebp.so.6                                     ║\n║     libenchant-2.so.2                                ║\n║     libhyphen.so.0                                   ║\n║     libffi.so.7                                      ║\n║     libevdev.so.2                                    ║\n║     libjson-glib-1.0.so.0                            ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝"
+  ],
+  "checks": {
+    "guiLoad": {
+      "passed": true,
+      "detail": "/gui rendered in Chromium fallback context (iPhone profile)"
+    },
+    "loginEntrypointVisible": {
+      "inlineVisible": true,
+      "burgerVisible": false,
+      "passed": true
+    },
+    "mapInteraction": {
+      "pinch": {
+        "before": {
+          "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+          "zoom": 8
+        },
+        "after": {
+          "text": "Zoom 9 · Zentrum 46.816673, 8.230247",
+          "zoom": 9
+        },
+        "passed": true,
+        "method": "chromium_cdp_synthesizePinchGesture",
+        "fallbackAttempted": true,
+        "fallbackUsed": true,
+        "fallbackError": null,
+        "syntheticResult": {
+          "text": "Zoom 8 · Zentrum 46.818200, 8.227500",
+          "zoom": 8
+        }
+      },
+      "pan": {
+        "before": {
+          "text": "Zoom 9 · Zentrum 46.816673, 8.230247",
+          "zoom": 9
+        },
+        "after": {
+          "text": "Zoom 9 · Zentrum 46.895557, 7.972068",
+          "zoom": 9
+        },
+        "passed": true
+      },
+      "passed": true,
+      "strategy": "pinch-zoom"
+    }
+  },
+  "artifacts": {
+    "screenshot": "reports/evidence/issue-986-webkit-ios-20260320T062738Z.png"
+  },
+  "webkitLaunchError": {
+    "name": "Error",
+    "message": "browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libicudata.so.66                                 ║\n║     libicui18n.so.66                                 ║\n║     libicuuc.so.66                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libevent-2.1.so.7                                ║\n║     libwebpdemux.so.2                                ║\n║     libharfbuzz-icu.so.0                             ║\n║     libjpeg.so.8                                     ║\n║     libwebpmux.so.3                                  ║\n║     libwebp.so.6                                     ║\n║     libenchant-2.so.2                                ║\n║     libhyphen.so.0                                   ║\n║     libffi.so.7                                      ║\n║     libevdev.so.2                                    ║\n║     libjson-glib-1.0.so.0                            ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝",
+    "stack": "browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libicudata.so.66                                 ║\n║     libicui18n.so.66                                 ║\n║     libicuuc.so.66                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libevent-2.1.so.7                                ║\n║     libwebpdemux.so.2                                ║\n║     libharfbuzz-icu.so.0                             ║\n║     libjpeg.so.8                                     ║\n║     libwebpmux.so.3                                  ║\n║     libwebp.so.6                                     ║\n║     libenchant-2.so.2                                ║\n║     libhyphen.so.0                                   ║\n║     libffi.so.7                                      ║\n║     libevdev.so.2                                    ║\n║     libjson-glib-1.0.so.0                            ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝\n    at launchPreferredBrowser (/data/.openclaw/workspace/geo-ranking-ch-nw0615/scripts/run_issue_986_webkit_smoke.mjs:107:29)\n    at run (/data/.openclaw/workspace/geo-ranking-ch-nw0615/scripts/run_issue_986_webkit_smoke.mjs:304:24)\n    at /data/.openclaw/workspace/geo-ranking-ch-nw0615/scripts/run_issue_986_webkit_smoke.mjs:426:1"
+  },
+  "runError": null,
+  "ok": true
+}
