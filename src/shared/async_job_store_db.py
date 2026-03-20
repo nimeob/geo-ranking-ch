@@ -593,6 +593,44 @@ class DbAsyncJobStore:
         finally:
             conn.close()
 
+    def get_result_for_owner(
+        self,
+        result_id: str,
+        *,
+        owner_user_id: str,
+        owner_org_id: str,
+    ) -> dict[str, Any] | None:
+        """Fetch result only for exact owner user+org.
+
+        Legacy rows without owner metadata are intentionally excluded.
+        """
+        owner_user_id_norm = str(owner_user_id or "").strip()
+        owner_org_id_norm = str(owner_org_id or "").strip()
+        if not owner_user_id_norm or not owner_org_id_norm:
+            return None
+
+        conn = self._connect()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT *
+                FROM job_results
+                WHERE result_id = %s
+                  AND owner_user_id = %s
+                  AND COALESCE(owner_org_id, org_id, '') = %s
+                """,
+                (
+                    str(result_id),
+                    owner_user_id_norm,
+                    owner_org_id_norm,
+                ),
+            )
+            row = cur.fetchone()
+            return _row_to_dict(cur, row) if row else None
+        finally:
+            conn.close()
+
     # ------------------------------------------------------------------
     # list_results / list_events
     # ------------------------------------------------------------------

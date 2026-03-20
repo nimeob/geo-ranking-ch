@@ -546,27 +546,27 @@ class TestUiService(unittest.TestCase):
         self.assertIn('function applyClientFilters(rows)', body)
         self.assertIn('function renderPageMeta(filteredCount)', body)
 
-    def test_results_page_has_token_input_and_sets_authorization_header(self):
-        """GET /results/<id>: Token input vorhanden + JS setzt Authorization: Bearer <token> Header."""
+    def test_results_page_uses_session_auth_and_login_recovery(self):
+        """GET /results/<id>: kein Token-Input, same-origin Session-Flow und Login-Recovery bei 401."""
         status, body, _ = _http(f"{self.base_url}/results/result-xyz")
         self.assertEqual(status, 200)
-        self.assertIn('id="api-token"', body, "/results muss Token-Input #api-token haben")
-        self.assertIn('type="password"', body, "Token-Input muss type=password sein")
-        self.assertIn('Authorization', body, "/results muss Authorization Header-Code enthalten")
-        self.assertIn('Bearer', body, "/results muss Bearer-Token-Code enthalten")
+        self.assertNotIn('id="api-token"', body, "/results darf kein Token-Input #api-token haben")
+        self.assertNotIn('Bitte Bearer-Token setzen', body, "/results darf keinen Bearer-Hinweis zeigen")
+        self.assertIn('credentials: "include"', body)
+        self.assertIn('window.setTimeout(() => redirectToLogin("session_expired"), 250);', body)
+        self.assertIn('return `/auth/login?', body)
         self.assertIn('headers["X-Request-Id"] = normalizedRequestId;', body)
         self.assertIn('headers["X-Correlation-Id"] = normalizedRequestId;', body)
-        self.assertIn('Bitte Bearer-Token setzen', body, "/results muss 401-UX-Hint enthalten")
 
-    def test_job_page_has_token_input_and_sets_authorization_header(self):
-        """GET /jobs/<id>: Token input vorhanden + JS setzt Authorization: Bearer <token> Header."""
+    def test_job_page_uses_session_auth_and_login_recovery(self):
+        """GET /jobs/<id>: kein Token-Input, same-origin Session-Flow und Login-Recovery bei 401."""
         status, body, _ = _http(f"{self.base_url}/jobs/job-xyz")
         self.assertEqual(status, 200)
-        self.assertIn('id="api-token"', body, "/jobs/<id> muss Token-Input #api-token haben")
-        self.assertIn('type="password"', body, "Token-Input muss type=password sein")
-        self.assertIn('Authorization', body, "/jobs/<id> muss Authorization Header-Code enthalten")
-        self.assertIn('Bearer', body, "/jobs/<id> muss Bearer-Token-Code enthalten")
-        self.assertIn('Bitte Bearer-Token setzen', body, "/jobs/<id> muss 401-UX-Hint enthalten")
+        self.assertNotIn('id="api-token"', body, "/jobs/<id> darf kein Token-Input #api-token haben")
+        self.assertNotIn('Bitte Bearer-Token setzen', body, "/jobs/<id> darf keinen Bearer-Hinweis zeigen")
+        self.assertIn('credentials: "include"', body)
+        self.assertIn('window.setTimeout(() => redirectToLogin("session_expired"), 250);', body)
+        self.assertIn('return `/auth/login?', body)
 
 
 if __name__ == "__main__":

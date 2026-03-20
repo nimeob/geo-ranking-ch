@@ -2145,10 +2145,24 @@ def _extract_async_mode_request(options: dict[str, Any]) -> bool:
     )
 
 
+_OWNER_ORG_CLAIM_KEYS = ("org_id", "organization", "tenant", "org")
+
+
+def _resolve_org_id_from_claims(claims: dict[str, Any] | None) -> str | None:
+    if not isinstance(claims, dict):
+        return None
+    for key in _OWNER_ORG_CLAIM_KEYS:
+        candidate = str(claims.get(key) or "").strip()
+        if candidate:
+            return _normalize_async_org_id(candidate)
+    return None
+
+
 def _resolve_request_owner_user_id(
     *,
     phase1_user: Any | None,
     oidc_claims: dict[str, Any] | None,
+    bff_session_claims: dict[str, Any] | None = None,
 ) -> str | None:
     """Resolve owner user for history/async job ownership metadata."""
     if phase1_user is not None:
@@ -2156,12 +2170,31 @@ def _resolve_request_owner_user_id(
         if phase1_id:
             return phase1_id
 
-    if isinstance(oidc_claims, dict):
-        oidc_sub = str(oidc_claims.get("sub") or "").strip()
-        if oidc_sub:
-            return oidc_sub
+    for claims in (oidc_claims, bff_session_claims):
+        if isinstance(claims, dict):
+            oidc_sub = str(claims.get("sub") or "").strip()
+            if oidc_sub:
+                return oidc_sub
 
     return None
+
+
+def _resolve_request_owner_org_id(
+    *,
+    phase1_user: Any | None,
+    oidc_claims: dict[str, Any] | None,
+    bff_session_claims: dict[str, Any] | None = None,
+    fallback_org_id: str,
+) -> str:
+    if phase1_user is not None:
+        return _normalize_async_org_id(getattr(phase1_user, "org_id", ""))
+
+    for claims in (oidc_claims, bff_session_claims):
+        org_id = _resolve_org_id_from_claims(claims)
+        if org_id:
+            return org_id
+
+    return _normalize_async_org_id(fallback_org_id)
 
 
 def _normalize_async_org_id(raw_value: Any) -> str:
@@ -3456,18 +3489,55 @@ class Handler(BaseHTTPRequestHandler):
         session_token = str(getattr(session, "access_token", "") or "").strip()
         return session_token
 
-    def _has_authenticated_bff_session(self) -> bool:
-        """Return True when a BFF session cookie resolves to a session with access token."""
+    def _authenticated_bff_session_claims(self) -> dict[str, Any] | None:
+        """Return authenticated BFF session claims or None."""
         if not is_bff_oidc_enabled():
-            return False
+            return None
         session_id = parse_session_id_from_cookie(self.headers.get("Cookie"))
         if not session_id:
-            return False
+            return None
         store = get_session_store()
         session = store.get(session_id)
         if session is None:
-            return False
-        return bool(str(getattr(session, "access_token", "") or "").strip())
+            return None
+        if not str(getattr(session, "access_token", "") or "").strip():
+            return None
+        claims = getattr(session, "user_claims", None)
+        if not isinstance(claims, dict):
+            return None
+        return claims
+
+    def _has_authenticated_bff_session(self) -> bool:
+        """Return True when a BFF session cookie resolves to a session with access token."""
+        return self._authenticated_bff_session_claims() is not None
+
+    def _resolve_request_owner_context(
+        self,
+        *,
+        phase1_user: Any | None,
+        oidc_claims: dict[str, Any] | None,
+        bff_session_claims: dict[str, Any] | None,
+    ) -> tuple[str | None, str]:
+        owner_user_id = _resolve_request_owner_user_id(
+            phase1_user=phase1_user,
+            oidc_claims=oidc_claims,
+            bff_session_claims=bff_session_claims,
+        )
+
+        claims_org_id = _resolve_org_id_from_claims(oidc_claims) or _resolve_org_id_from_claims(
+            bff_session_claims
+        )
+        fallback_org_id = claims_org_id or "default-org"
+        if phase1_user is None and not claims_org_id:
+            fallback_org_id = self._request_org_id()
+
+        owner_org_id = _resolve_request_owner_org_id(
+            phase1_user=phase1_user,
+            oidc_claims=oidc_claims,
+            bff_session_claims=bff_session_claims,
+            fallback_org_id=fallback_org_id,
+        )
+        return owner_user_id, owner_org_id
 
     @staticmethod
     def _job_visible_for_org(job_record: dict[str, Any], request_org_id: str) -> bool:
@@ -3475,24 +3545,57 @@ class Handler(BaseHTTPRequestHandler):
         return job_org_id == request_org_id
 
     @staticmethod
-    def _job_visible_for_auth_user(job_record: dict[str, Any], auth_user: _Phase1AuthUser) -> bool:
-        """Visibility rule for Phase-1 auth (per-user).
+    def _job_visible_for_owner(
+        job_record: dict[str, Any],
+        *,
+        owner_user_id: str,
+        owner_org_id: str,
+    ) -> bool:
+        """Strict per-owner visibility check.
 
-        Legacy behavior:
-        - Jobs without `owner_user_id` are treated as NOT visible in auth mode
-          (conservative default to avoid cross-user enumeration when upgrading).
+        Conservative default for legacy rows:
+        - Missing owner metadata => not visible in authenticated owner mode.
         """
-
         job_owner_user_id = str(job_record.get("owner_user_id") or "").strip()
         if not job_owner_user_id:
             return False
-        if job_owner_user_id != str(auth_user.user_id):
+        if job_owner_user_id != str(owner_user_id):
             return False
 
         job_owner_org_id = str(
             job_record.get("owner_org_id") or job_record.get("org_id") or ""
         ).strip()
-        return _normalize_async_org_id(job_owner_org_id) == str(auth_user.org_id)
+        if not job_owner_org_id:
+            return False
+        return _normalize_async_org_id(job_owner_org_id) == _normalize_async_org_id(owner_org_id)
+
+    @staticmethod
+    def _result_visible_for_owner(
+        result_record: dict[str, Any],
+        *,
+        owner_user_id: str,
+        owner_org_id: str,
+    ) -> bool:
+        result_owner_user_id = str(result_record.get("owner_user_id") or "").strip()
+        if not result_owner_user_id:
+            return False
+        if result_owner_user_id != str(owner_user_id):
+            return False
+
+        result_owner_org_id = str(
+            result_record.get("owner_org_id") or result_record.get("org_id") or ""
+        ).strip()
+        if not result_owner_org_id:
+            return False
+        return _normalize_async_org_id(result_owner_org_id) == _normalize_async_org_id(owner_org_id)
+
+    @staticmethod
+    def _job_visible_for_auth_user(job_record: dict[str, Any], auth_user: _Phase1AuthUser) -> bool:
+        return GeoRankingHandler._job_visible_for_owner(
+            job_record,
+            owner_user_id=str(auth_user.user_id),
+            owner_org_id=str(auth_user.org_id),
+        )
 
     def _send_error(
         self,
@@ -4361,10 +4464,11 @@ class Handler(BaseHTTPRequestHandler):
 
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
-                bff_session_ok = self._has_authenticated_bff_session()
+                bff_session_claims = self._authenticated_bff_session_claims()
+                bff_session_ok = bff_session_claims is not None
 
                 if (
-                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED)
+                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled())
                     and auth_user is None
                     and oidc_claims is None
                     and not bff_session_ok
@@ -4384,7 +4488,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 try:
-                    request_org_id = auth_user.org_id if auth_user else self._request_org_id()
+                    owner_user_id, request_org_id = self._resolve_request_owner_context(
+                        phase1_user=auth_user,
+                        oidc_claims=oidc_claims,
+                        bff_session_claims=bff_session_claims,
+                    )
                     limit = _resolve_history_limit(query_params.get("limit", [""])[0])
                     offset = _resolve_history_offset(query_params.get("offset", [""])[0])
                 except ValueError as exc:
@@ -4408,12 +4516,7 @@ class Handler(BaseHTTPRequestHandler):
                 # ------------------------------------------------------------------
                 from src.shared.async_job_store_db import DbAsyncJobStore as _DbStore  # noqa: PLC0415
                 if isinstance(_ASYNC_JOB_STORE, _DbStore):
-                    # Resolve user_id for OIDC (sub) or phase1 auth
-                    db_user_id: str | None = None
-                    if oidc_claims:
-                        db_user_id = str(oidc_claims.get("sub") or "").strip() or None
-                    elif auth_user:
-                        db_user_id = str(auth_user.user_id or "").strip() or None
+                    db_user_id = str(owner_user_id or "").strip() or None
 
                     if db_user_id:
                         db_jobs = _ASYNC_JOB_STORE.list_jobs_for_user(
@@ -4476,8 +4579,12 @@ class Handler(BaseHTTPRequestHandler):
                     job_record = _ASYNC_JOB_STORE.get_job(job_id)
                     if job_record is None:
                         continue
-                    if auth_user is not None:
-                        if not self._job_visible_for_auth_user(job_record, auth_user):
+                    if owner_user_id:
+                        if not self._job_visible_for_owner(
+                            job_record,
+                            owner_user_id=owner_user_id,
+                            owner_org_id=request_org_id,
+                        ):
                             continue
                     elif not self._job_visible_for_org(job_record, request_org_id):
                         continue
@@ -4543,9 +4650,10 @@ class Handler(BaseHTTPRequestHandler):
                 provided_token = self._resolve_api_auth_token()
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
-                bff_session_ok = self._has_authenticated_bff_session()
+                bff_session_claims = self._authenticated_bff_session_claims()
+                bff_session_ok = bff_session_claims is not None
                 if (
-                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED)
+                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled())
                     and auth_user is None
                     and oidc_claims is None
                     and not bff_session_ok
@@ -4564,7 +4672,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 try:
-                    request_org_id = auth_user.org_id if auth_user else self._request_org_id()
+                    owner_user_id, request_org_id = self._resolve_request_owner_context(
+                        phase1_user=auth_user,
+                        oidc_claims=oidc_claims,
+                        bff_session_claims=bff_session_claims,
+                    )
                     channel = _resolve_notification_channel(query_params.get("channel", [""])[0])
                     limit = _resolve_notification_limit(query_params.get("limit", [""])[0])
                 except ValueError as exc:
@@ -4582,8 +4694,12 @@ class Handler(BaseHTTPRequestHandler):
                 if job_record is None:
                     self._send_not_found(request_id=request_id, message="unknown job_id")
                     return
-                if auth_user is not None:
-                    if not self._job_visible_for_auth_user(job_record, auth_user):
+                if owner_user_id:
+                    if not self._job_visible_for_owner(
+                        job_record,
+                        owner_user_id=owner_user_id,
+                        owner_org_id=request_org_id,
+                    ):
                         self._send_not_found(request_id=request_id, message="unknown job_id")
                         return
                 elif not self._job_visible_for_org(job_record, request_org_id):
@@ -4614,9 +4730,10 @@ class Handler(BaseHTTPRequestHandler):
                 provided_token = self._resolve_api_auth_token()
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
-                bff_session_ok = self._has_authenticated_bff_session()
+                bff_session_claims = self._authenticated_bff_session_claims()
+                bff_session_ok = bff_session_claims is not None
                 if (
-                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED)
+                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled())
                     and auth_user is None
                     and oidc_claims is None
                     and not bff_session_ok
@@ -4635,7 +4752,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 try:
-                    request_org_id = auth_user.org_id if auth_user else self._request_org_id()
+                    owner_user_id, request_org_id = self._resolve_request_owner_context(
+                        phase1_user=auth_user,
+                        oidc_claims=oidc_claims,
+                        bff_session_claims=bff_session_claims,
+                    )
                 except ValueError as exc:
                     self._send_error(
                         request_id=request_id,
@@ -4651,8 +4772,12 @@ class Handler(BaseHTTPRequestHandler):
                 if job_record is None:
                     self._send_not_found(request_id=request_id, message="unknown job_id")
                     return
-                if auth_user is not None:
-                    if not self._job_visible_for_auth_user(job_record, auth_user):
+                if owner_user_id:
+                    if not self._job_visible_for_owner(
+                        job_record,
+                        owner_user_id=owner_user_id,
+                        owner_org_id=request_org_id,
+                    ):
                         self._send_not_found(request_id=request_id, message="unknown job_id")
                         return
                 elif not self._job_visible_for_org(job_record, request_org_id):
@@ -4681,9 +4806,10 @@ class Handler(BaseHTTPRequestHandler):
                 provided_token = self._resolve_api_auth_token()
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
-                bff_session_ok = self._has_authenticated_bff_session()
+                bff_session_claims = self._authenticated_bff_session_claims()
+                bff_session_ok = bff_session_claims is not None
                 if (
-                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED)
+                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled())
                     and auth_user is None
                     and oidc_claims is None
                     and not bff_session_ok
@@ -4702,7 +4828,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 try:
-                    request_org_id = auth_user.org_id if auth_user else self._request_org_id()
+                    owner_user_id, request_org_id = self._resolve_request_owner_context(
+                        phase1_user=auth_user,
+                        oidc_claims=oidc_claims,
+                        bff_session_claims=bff_session_claims,
+                    )
                     projection_mode = _resolve_result_projection_mode(query_params.get("view", [""])[0])
                 except ValueError as exc:
                     self._send_error(
@@ -4715,12 +4845,20 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
-                # DB-store path: use org-guarded result fetch (tenant guard at DB level)
+                # DB-store path: enforce strict owner guard when owner identity is known.
                 from src.shared.async_job_store_db import DbAsyncJobStore as _DbStore2  # noqa: PLC0415
                 if isinstance(_ASYNC_JOB_STORE, _DbStore2):
-                    requested_result = _ASYNC_JOB_STORE.get_result_with_org_guard(
-                        result_id, org_id=request_org_id
-                    )
+                    if owner_user_id:
+                        requested_result = _ASYNC_JOB_STORE.get_result_for_owner(
+                            result_id,
+                            owner_user_id=owner_user_id,
+                            owner_org_id=request_org_id,
+                        )
+                    else:
+                        requested_result = _ASYNC_JOB_STORE.get_result_with_org_guard(
+                            result_id,
+                            org_id=request_org_id,
+                        )
                 else:
                     requested_result = _ASYNC_JOB_STORE.get_result(result_id)
 
@@ -4733,10 +4871,28 @@ class Handler(BaseHTTPRequestHandler):
                 if job_record is None:
                     self._send_not_found(request_id=request_id, message="unknown result_id")
                     return
+                if owner_user_id and not self._job_visible_for_owner(
+                    job_record,
+                    owner_user_id=owner_user_id,
+                    owner_org_id=request_org_id,
+                ):
+                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    return
                 if not isinstance(_ASYNC_JOB_STORE, _DbStore2):
-                    # File-store: enforce org guard in application layer
-                    if auth_user is not None:
-                        if not self._job_visible_for_auth_user(job_record, auth_user):
+                    # File-store: enforce owner/org guard in application layer.
+                    if owner_user_id:
+                        if not self._result_visible_for_owner(
+                            requested_result,
+                            owner_user_id=owner_user_id,
+                            owner_org_id=request_org_id,
+                        ):
+                            self._send_not_found(request_id=request_id, message="unknown result_id")
+                            return
+                        if not self._job_visible_for_owner(
+                            job_record,
+                            owner_user_id=owner_user_id,
+                            owner_org_id=request_org_id,
+                        ):
                             self._send_not_found(request_id=request_id, message="unknown result_id")
                             return
                     elif not self._job_visible_for_org(job_record, request_org_id):
@@ -4982,7 +5138,8 @@ class Handler(BaseHTTPRequestHandler):
             provided_token = self._resolve_api_auth_token()
             phase1_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
             oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
-            bff_session_ok = self._has_authenticated_bff_session()
+            bff_session_claims = self._authenticated_bff_session_claims()
+            bff_session_ok = bff_session_claims is not None
 
             legacy_token_ok = bool(required_token) and hmac.compare_digest(provided_token, required_token)
             phase1_token_ok = phase1_user is not None
@@ -4993,7 +5150,7 @@ class Handler(BaseHTTPRequestHandler):
             # - phase1: PHASE1_AUTH_USERS_* enables per-user tokens
             # - oidc: OIDC_JWKS_URL enables RS256 JWT validation
             # - bff: authenticated OIDC GUI session cookie is accepted on analyze endpoints
-            if required_token or _PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED:
+            if required_token or _PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled():
                 if not (legacy_token_ok or phase1_token_ok or oidc_token_ok or bff_session_ok):
                     self._send_json(
                         {
@@ -5015,6 +5172,12 @@ class Handler(BaseHTTPRequestHandler):
                 sync_history_state: dict[str, str | None] = {"job_id": None}
                 _persist_sync_history_success, _persist_sync_history_failure = (
                     _build_sync_history_persist_callbacks(state=sync_history_state)
+                )
+
+                owner_user_id, request_org_id = self._resolve_request_owner_context(
+                    phase1_user=phase1_user,
+                    oidc_claims=oidc_claims,
+                    bff_session_claims=bff_session_claims,
                 )
 
                 data = _read_json_request_object(
@@ -5043,6 +5206,49 @@ class Handler(BaseHTTPRequestHandler):
                     canceled_by = str(data.get("canceled_by") or "user").strip() or "user"
 
                     _ensure_async_runtime_started()
+
+                    existing_job = _ASYNC_JOB_STORE.get_job(job_id)
+                    if existing_job is None:
+                        self._send_json(
+                            {
+                                "ok": False,
+                                "error": "not_found",
+                                "message": "unknown job_id",
+                                "request_id": request_id,
+                            },
+                            status=HTTPStatus.NOT_FOUND,
+                            request_id=request_id,
+                        )
+                        return
+                    if owner_user_id:
+                        if not self._job_visible_for_owner(
+                            existing_job,
+                            owner_user_id=owner_user_id,
+                            owner_org_id=request_org_id,
+                        ):
+                            self._send_json(
+                                {
+                                    "ok": False,
+                                    "error": "not_found",
+                                    "message": "unknown job_id",
+                                    "request_id": request_id,
+                                },
+                                status=HTTPStatus.NOT_FOUND,
+                                request_id=request_id,
+                            )
+                            return
+                    elif not self._job_visible_for_org(existing_job, request_org_id):
+                        self._send_json(
+                            {
+                                "ok": False,
+                                "error": "not_found",
+                                "message": "unknown job_id",
+                                "request_id": request_id,
+                            },
+                            status=HTTPStatus.NOT_FOUND,
+                            request_id=request_id,
+                        )
+                        return
 
                     try:
                         cancel_outcome = _ASYNC_JOB_STORE.request_cancel(
@@ -5136,9 +5342,6 @@ class Handler(BaseHTTPRequestHandler):
                 timeout = min(timeout, max_timeout)
 
                 if async_mode_requested:
-                    request_org_id = self._request_org_id()
-                    if _PHASE1_AUTH_ENABLED and phase1_user is not None:
-                        request_org_id = phase1_user.org_id
                     _ensure_async_runtime_started()
                     created_job = _ASYNC_JOB_STORE.create_job(
                         request_payload=data,
@@ -5146,11 +5349,8 @@ class Handler(BaseHTTPRequestHandler):
                         query=query,
                         intelligence_mode=mode,
                         org_id=request_org_id,
-                        owner_user_id=_resolve_request_owner_user_id(
-                            phase1_user=phase1_user,
-                            oidc_claims=oidc_claims,
-                        ),
-                        owner_org_id=phase1_user.org_id if phase1_user else request_org_id,
+                        owner_user_id=owner_user_id,
+                        owner_org_id=request_org_id,
                     )
                     created_job_id = str(created_job.get("job_id") or "")
                     if created_job_id:
@@ -5175,16 +5375,6 @@ class Handler(BaseHTTPRequestHandler):
                 # Sync-Requests ebenfalls in den persistenten Job/Result-Store schreiben,
                 # damit "Historische Abfragen" ohne neue Infrastruktur funktioniert.
                 if os.getenv("ENABLE_QUERY_HISTORY", "1") != "0":
-                    request_org_id = "default-org"
-                    if _PHASE1_AUTH_ENABLED and phase1_user is not None:
-                        request_org_id = phase1_user.org_id
-                    else:
-                        try:
-                            request_org_id = self._request_org_id()
-                        except ValueError:
-                            # Best-effort: invalid tenant header must not break sync /analyze.
-                            request_org_id = "default-org"
-
                     try:
                         created_job = _ASYNC_JOB_STORE.create_job(
                             request_payload=data,
@@ -5192,11 +5382,8 @@ class Handler(BaseHTTPRequestHandler):
                             query=query,
                             intelligence_mode=mode,
                             org_id=request_org_id,
-                            owner_user_id=_resolve_request_owner_user_id(
-                                phase1_user=phase1_user,
-                                oidc_claims=oidc_claims,
-                            ),
-                            owner_org_id=phase1_user.org_id if phase1_user else request_org_id,
+                            owner_user_id=owner_user_id,
+                            owner_org_id=request_org_id,
                         )
                         created_job_id = str(created_job.get("job_id") or "") or None
                         # Persist the created job id into the shared sync_history_state so the

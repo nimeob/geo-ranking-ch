@@ -132,6 +132,15 @@ def _api_call_timeout() -> int:
         return _DEFAULT_API_CALL_TIMEOUT
 
 
+def _me_renew_window_seconds() -> int:
+    raw = os.environ.get("BFF_ME_RENEW_WINDOW_SECONDS", "300")
+    try:
+        value = int(raw)
+    except (ValueError, TypeError):
+        value = 300
+    return max(0, value)
+
+
 # ---------------------------------------------------------------------------
 # Logging redaction
 # ---------------------------------------------------------------------------
@@ -605,13 +614,22 @@ def handle_me(
             error="session_not_found",
         )
 
+    expires_at = float(session.session_expires_at or 0.0)
+    remaining = max(0.0, expires_at - time.time()) if expires_at > 0 else 0.0
+    renew_window = _me_renew_window_seconds()
+    if renew_window > 0 and 0 < remaining <= float(renew_window):
+        if session_store.renew(session_id):
+            refreshed = session_store.get(session_id)
+            if refreshed is not None:
+                session = refreshed
+                expires_at = float(session.session_expires_at or 0.0)
+
     # Return only safe claims — never tokens, never internal _next key
     safe_claims = {
         k: v
         for k, v in session.user_claims.items()
         if k not in _TOKEN_FIELDS and not k.startswith("_")
     }
-    expires_at = float(session.session_expires_at or 0.0)
     expires_in = max(0, int(expires_at - time.time())) if expires_at > 0 else 0
     return MeResult(
         http_status=200,

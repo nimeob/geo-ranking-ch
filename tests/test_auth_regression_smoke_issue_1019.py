@@ -113,16 +113,26 @@ class _MockOidcHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
+        code = str((params.get("code") or [""])[0] or "").strip()
+        subject = "u-smoke-1019"
+        email = "smoke-1019@example.test"
+        if code in {"smoke-user-a", "owner-a"}:
+            subject = "u-owner-a"
+            email = "owner-a@example.test"
+        elif code in {"smoke-user-b", "owner-b"}:
+            subject = "u-owner-b"
+            email = "owner-b@example.test"
+
         id_token = _make_id_token(
             {
-                "sub": "u-smoke-1019",
-                "email": "smoke-1019@example.test",
+                "sub": subject,
+                "email": email,
                 "aud": "test-client-id",
             }
         )
         payload = {
-            "access_token": "AT-smoke-1019",
-            "refresh_token": "RT-smoke-1019",
+            "access_token": f"AT-{subject}",
+            "refresh_token": f"RT-{subject}",
             "id_token": id_token,
             "expires_in": 3600,
             "token_type": "Bearer",
@@ -279,6 +289,41 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         state = parse_qs(urlparse(login_redirect).query).get("state", [""])[0]
         self.assertTrue(state)
         return state, session_cookie, login_redirect
+
+    def _complete_login_flow(self, *, next_path: str, code: str) -> str:
+        state, session_cookie, _ = self._start_login_flow(next_path=next_path)
+        callback_query = urlencode({"code": code, "state": state})
+        status, _, headers = _http_request(
+            "GET",
+            f"{self.api_base_url}/auth/callback?{callback_query}",
+            headers=_ui_proxy_headers({"Cookie": session_cookie}),
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        callback_cookie = _parse_cookie_value(headers.get("set-cookie", ""))
+        self.assertTrue(callback_cookie.startswith("__Host-session="))
+        return callback_cookie
+
+    def _wait_for_job_success(self, *, cookie: str, job_id: str, timeout_seconds: float = 25.0) -> dict:
+        deadline = time.time() + timeout_seconds
+        while time.time() < deadline:
+            status, body, _ = _http_request(
+                "GET",
+                f"{self.api_base_url}/analyze/jobs/{job_id}",
+                headers={"Cookie": cookie},
+                follow_redirects=False,
+            )
+            self.assertEqual(status, 200)
+            payload = json.loads(body)
+            self.assertTrue(payload.get("ok"))
+            job = payload.get("job") or {}
+            job_status = str(job.get("status") or "").lower()
+            if job_status in {"succeeded", "completed"}:
+                return payload
+            if job_status in {"failed", "canceled"}:
+                self.fail(f"Job {job_id} endete unerwartet mit Status={job_status}")
+            time.sleep(0.25)
+        self.fail(f"Timeout beim Warten auf Job {job_id}")
 
     def test_login_search_ranking_logout_regression_smoke(self):
         # 1) unauth GUI must redirect to login
@@ -490,6 +535,97 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         relogin_me_payload = json.loads(body)
         self.assertTrue(relogin_me_payload.get("ok"))
         self.assertTrue(relogin_me_payload.get("authenticated"))
+
+    def test_owner_isolation_for_bff_session_result_job_flow(self):
+        owner_a_cookie = self._complete_login_flow(next_path="%2Fgui", code="owner-a")
+
+        status, body, _ = _http_request(
+            "POST",
+            f"{self.api_base_url}/analyze",
+            headers={"Cookie": owner_a_cookie},
+            payload={
+                "query": "owner isolation smoke",
+                "mode": "fast",
+                "options": {"async_mode": {"requested": True}},
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 202)
+        analyze_payload = json.loads(body)
+        self.assertTrue(analyze_payload.get("ok"))
+        job_payload = analyze_payload.get("job") or {}
+        job_id = str(job_payload.get("id") or job_payload.get("job_id") or "").strip()
+        self.assertTrue(job_id)
+
+        job_payload = self._wait_for_job_success(cookie=owner_a_cookie, job_id=job_id)
+        job_record = job_payload.get("job") or {}
+        result_id = str(job_record.get("result_id") or "").strip()
+        self.assertTrue(result_id)
+
+        status, body, _ = _http_request(
+            "GET",
+            f"{self.api_base_url}/analyze/results/{result_id}",
+            headers={"Cookie": owner_a_cookie},
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 200)
+        result_payload = json.loads(body)
+        self.assertTrue(result_payload.get("ok"))
+
+        status, body, _ = _http_request(
+            "GET",
+            f"{self.api_base_url}/analyze/jobs/{job_id}/notifications",
+            headers={"Cookie": owner_a_cookie},
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 200)
+        notifications_payload = json.loads(body)
+        self.assertTrue(notifications_payload.get("ok"))
+
+        owner_b_cookie = self._complete_login_flow(next_path="%2Fgui", code="owner-b")
+
+        for path in (
+            f"/analyze/jobs/{job_id}",
+            f"/analyze/jobs/{job_id}/notifications",
+            f"/analyze/results/{result_id}",
+        ):
+            status, body, _ = _http_request(
+                "GET",
+                f"{self.api_base_url}{path}",
+                headers={"Cookie": owner_b_cookie},
+                follow_redirects=False,
+            )
+            self.assertEqual(status, 404, msg=f"fremder Zugriff muss 404 liefern: {path}")
+            denied_payload = json.loads(body)
+            self.assertFalse(denied_payload.get("ok", True))
+            self.assertEqual(denied_payload.get("error"), "not_found")
+
+        status, body, _ = _http_request(
+            "GET",
+            f"{self.api_base_url}/analyze/history",
+            headers={"Cookie": owner_b_cookie},
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 200)
+        history_payload = json.loads(body)
+        self.assertTrue(history_payload.get("ok"))
+        items = history_payload.get("items") or []
+        self.assertFalse(any(str((item or {}).get("job_id") or "") == job_id for item in items))
+
+        for path in (
+            f"/analyze/jobs/{job_id}",
+            f"/analyze/jobs/{job_id}/notifications",
+            f"/analyze/results/{result_id}",
+        ):
+            status, body, _ = _http_request(
+                "GET",
+                f"{self.api_base_url}{path}",
+                follow_redirects=False,
+            )
+            self.assertEqual(status, 401, msg=f"anonymer Zugriff muss 401 liefern: {path}")
+            unauth_payload = json.loads(body)
+            self.assertFalse(unauth_payload.get("ok", True))
+            self.assertIn(str(unauth_payload.get("error") or ""), {"auth_required", "unauthorized"})
 
     def test_jobs_filter_search_query_sync_e2e_probe(self):
         node_bin = shutil.which("node")

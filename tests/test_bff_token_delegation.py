@@ -515,6 +515,38 @@ class TestHandleMe:
         assert result.session_expires_in_seconds >= 0
         assert result.error == ""
 
+    def test_me_renews_near_expiry_with_default_window(self, monkeypatch):
+        monkeypatch.delenv("BFF_ME_RENEW_WINDOW_SECONDS", raising=False)
+        store = _make_store()
+        session = _make_session(
+            store,
+            claims={"sub": "u-renew", "email": "renew@test.com"},
+        )
+        session.session_expires_at = time.time() + 5
+        cookie = _cookie_header(session.session_id)
+
+        result = handle_me(store, cookie)
+
+        assert result.http_status == 200
+        assert result.session_expires_at > time.time() + 60
+        assert result.session_expires_in_seconds > 60
+
+    def test_me_does_not_renew_when_window_disabled(self, monkeypatch):
+        monkeypatch.setenv("BFF_ME_RENEW_WINDOW_SECONDS", "0")
+        store = _make_store()
+        session = _make_session(
+            store,
+            claims={"sub": "u-no-renew", "email": "norenew@test.com"},
+        )
+        session.session_expires_at = time.time() + 5
+        previous_expiry = session.session_expires_at
+        cookie = _cookie_header(session.session_id)
+
+        result = handle_me(store, cookie)
+
+        assert result.http_status == 200
+        assert result.session_expires_at <= previous_expiry + 0.5
+
     def test_401_no_cookie(self):
         store = _make_store()
         result = handle_me(store, None)
