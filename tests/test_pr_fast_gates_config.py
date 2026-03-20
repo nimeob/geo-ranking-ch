@@ -25,7 +25,7 @@ class TestPrFastGatesConfig(unittest.TestCase):
         self.assertIn("Run deterministic flaky demo marker", content)
         self.assertIn("Log failure artifact paths", content)
         self.assertIn("Upload dev-smoke failure artifacts", content)
-        self.assertIn("actions/upload-artifact@v4", content)
+        self.assertRegex(content, r"actions/upload-artifact@v\d+")
         self.assertIn("artifacts/pr-dev-smoke-required-summary.md", content)
 
     def test_contract_smoke_workflow_triggers_on_pull_request(self):
