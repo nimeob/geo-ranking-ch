@@ -1393,12 +1393,13 @@ def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
     if not normalized_base_url:
         return html
 
-    analyze_url = f"{normalized_base_url}/analyze"
+    # GUI Analyze bleibt bewusst same-origin (`/analyze`), damit der __Host-session Cookie
+    # im Browser-Flow erhalten bleibt. Absolute API-Origins würden den Cookie nicht tragen
+    # und bei OIDC-geschützten Deployments zu `401 unauthorized` führen.
     trace_debug_url = f"{normalized_base_url}/debug/trace"
     analyze_jobs_base = f"{normalized_base_url}/analyze/jobs"
     analyze_history_url = f"{normalized_base_url}/analyze/history"
 
-    html = html.replace('fetch("/analyze", {', f"fetch({json.dumps(analyze_url)}, {{")
     html = html.replace(
         'const TRACE_DEBUG_ENDPOINT = "/debug/trace";',
         f"const TRACE_DEBUG_ENDPOINT = {json.dumps(trace_debug_url)};",
