@@ -15,13 +15,18 @@ DEFAULT_QUERY = "St. Leonhard-Strasse 40, St. Gallen"
 DEFAULT_MODE = "basic"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 
-API_TEST_IDS = {
-    "API.HEALTH.200",
-    "API.ANALYZE.POST.200",
-    "API.ANALYZE.NON_BASIC.FINAL_STATE",
-    "API.ANALYZE.INVALID_PAYLOAD.400",
-    "API.ANALYZE.METHOD_MISMATCH.405",
+METHOD_MISMATCH_TEST_IDS = {
+    "API.ANALYZE.METHOD_MISMATCH.4XX",
+    "API.ANALYZE.METHOD_MISMATCH.405",  # backward-compat for older matrices
 }
+
+REQUIRED_API_TEST_ID_GROUPS = [
+    {"API.HEALTH.200"},
+    {"API.ANALYZE.POST.200"},
+    {"API.ANALYZE.NON_BASIC.FINAL_STATE"},
+    {"API.ANALYZE.INVALID_PAYLOAD.400"},
+    METHOD_MISMATCH_TEST_IDS,
+]
 
 
 @dataclass(frozen=True)
@@ -257,7 +262,7 @@ def _run_api_checks(config: Config) -> list[ApiCheckResult]:
             "body": b'{"query": ',
         },
         {
-            "test_id": "API.ANALYZE.METHOD_MISMATCH.405",
+            "test_id": "API.ANALYZE.METHOD_MISMATCH.4XX",
             "url": f"{config.api_base_url}/analyze",
             "method": "GET",
             "body": None,
@@ -397,9 +402,9 @@ def _evaluate_case(*, test_id: str, response: HttpResponse, auth_token_provided:
             "actual_result": f"HTTP {http_status}; body_is_json={json_body is not None}",
         }
 
-    if test_id == "API.ANALYZE.METHOD_MISMATCH.405":
-        passed = http_status == 405 or (400 <= http_status < 500)
-        reason = "ok" if passed else "expected_http_405_or_other_4xx"
+    if test_id in METHOD_MISMATCH_TEST_IDS:
+        passed = 400 <= http_status < 500
+        reason = "ok" if passed else "expected_http_4xx_method_reject"
         return {
             "status": "pass" if passed else "fail",
             "reason": reason,
@@ -419,6 +424,10 @@ def _update_matrix(matrix_payload: dict[str, Any], results: list[ApiCheckResult]
         raise ValueError("matrix.tests missing or invalid")
 
     by_id = {result.test_id: result for result in results}
+    if "API.ANALYZE.METHOD_MISMATCH.4XX" in by_id:
+        by_id.setdefault("API.ANALYZE.METHOD_MISMATCH.405", by_id["API.ANALYZE.METHOD_MISMATCH.4XX"])
+    if "API.ANALYZE.METHOD_MISMATCH.405" in by_id:
+        by_id.setdefault("API.ANALYZE.METHOD_MISMATCH.4XX", by_id["API.ANALYZE.METHOD_MISMATCH.405"])
 
     seen: set[str] = set()
     for case in tests:
@@ -440,9 +449,13 @@ def _update_matrix(matrix_payload: dict[str, Any], results: list[ApiCheckResult]
             note_prefix = f"WP2 runtime reason: {result.reason}"
             case["notes"] = note_prefix if not isinstance(note, str) or not note.strip() else f"{note_prefix}; {note}"
 
-    missing = sorted(API_TEST_IDS - seen)
-    if missing:
-        raise ValueError(f"matrix missing required API test ids: {', '.join(missing)}")
+    missing_groups: list[str] = []
+    for group in REQUIRED_API_TEST_ID_GROUPS:
+        if seen.intersection(group):
+            continue
+        missing_groups.append("{" + ", ".join(sorted(group)) + "}")
+    if missing_groups:
+        raise ValueError("matrix missing required API test id groups: " + "; ".join(missing_groups))
 
     counts = {"planned": 0, "pass": 0, "fail": 0, "blocked": 0}
     for case in tests:

@@ -99,7 +99,13 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join(timeout=5)
 
-    def _build_matrix(self, target_api: str, path: Path) -> None:
+    def _build_matrix(
+        self,
+        target_api: str,
+        path: Path,
+        *,
+        method_mismatch_test_id: str = "API.ANALYZE.METHOD_MISMATCH.4XX",
+    ) -> None:
         payload = {
             "schemaVersion": "bl337.internet-e2e.v1",
             "generatedAtUtc": "2026-03-01T00:00:00Z",
@@ -158,12 +164,12 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
                     "notes": "",
                 },
                 {
-                    "testId": "API.ANALYZE.METHOD_MISMATCH.405",
+                    "testId": method_mismatch_test_id,
                     "area": "api",
                     "title": "method mismatch",
                     "preconditions": [],
                     "steps": ["GET"],
-                    "expectedResult": "HTTP 405",
+                    "expectedResult": "HTTP 4xx",
                     "actualResult": None,
                     "status": "planned",
                     "evidenceLinks": [],
@@ -323,6 +329,27 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
             evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
             self.assertEqual(evidence_payload["summary"]["blocked"], 3)
             self.assertTrue(evidence_payload["request"]["allow_auth_blocked"])
+
+    def test_main_supports_legacy_method_mismatch_405_test_id(self) -> None:
+        _ApiHandler.health_status_code = 200
+        _ApiHandler.require_auth = False
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            matrix = Path(tmpdir) / "matrix.json"
+            evidence = Path(tmpdir) / "evidence.json"
+            self._build_matrix(
+                f"http://127.0.0.1:{self.port}",
+                matrix,
+                method_mismatch_test_id="API.ANALYZE.METHOD_MISMATCH.405",
+            )
+
+            rc = module.main(["--matrix", str(matrix), "--evidence-json", str(evidence)])
+            self.assertEqual(rc, 0)
+
+            matrix_payload = json.loads(matrix.read_text(encoding="utf-8"))
+            by_id = {case.get("testId"): case for case in matrix_payload["tests"] if isinstance(case, dict)}
+            self.assertEqual(by_id["API.ANALYZE.METHOD_MISMATCH.405"]["status"], "pass")
+            self.assertIn("HTTP", by_id["API.ANALYZE.METHOD_MISMATCH.405"]["actualResult"])
 
 
 if __name__ == "__main__":
