@@ -169,6 +169,7 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
                 "BFF_OIDC_CLIENT_ID": "test-client-id",
                 "BFF_OIDC_REDIRECT_URI": f"{cls.ui_public_origin}/auth/callback",
                 "BFF_OIDC_POST_LOGOUT_REDIRECT_URI": f"{cls.ui_public_origin}/login",
+                "API_AUTH_TOKEN": "legacy-required-token",
             }
         )
 

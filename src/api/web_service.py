@@ -3456,6 +3456,19 @@ class Handler(BaseHTTPRequestHandler):
         session_token = str(getattr(session, "access_token", "") or "").strip()
         return session_token
 
+    def _has_authenticated_bff_session(self) -> bool:
+        """Return True when a BFF session cookie resolves to a session with access token."""
+        if not is_bff_oidc_enabled():
+            return False
+        session_id = parse_session_id_from_cookie(self.headers.get("Cookie"))
+        if not session_id:
+            return False
+        store = get_session_store()
+        session = store.get(session_id)
+        if session is None:
+            return False
+        return bool(str(getattr(session, "access_token", "") or "").strip())
+
     @staticmethod
     def _job_visible_for_org(job_record: dict[str, Any], request_org_id: str) -> bool:
         job_org_id = _normalize_async_org_id(job_record.get("org_id"))
@@ -4348,8 +4361,14 @@ class Handler(BaseHTTPRequestHandler):
 
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+                bff_session_ok = self._has_authenticated_bff_session()
 
-                if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
+                if (
+                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED)
+                    and auth_user is None
+                    and oidc_claims is None
+                    and not bff_session_ok
+                ):
                     self._send_json(
                         {
                             "ok": False,
@@ -4524,7 +4543,13 @@ class Handler(BaseHTTPRequestHandler):
                 provided_token = self._resolve_api_auth_token()
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
-                if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
+                bff_session_ok = self._has_authenticated_bff_session()
+                if (
+                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED)
+                    and auth_user is None
+                    and oidc_claims is None
+                    and not bff_session_ok
+                ):
                     self._send_json(
                         {
                             "ok": False,
@@ -4589,7 +4614,13 @@ class Handler(BaseHTTPRequestHandler):
                 provided_token = self._resolve_api_auth_token()
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
-                if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
+                bff_session_ok = self._has_authenticated_bff_session()
+                if (
+                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED)
+                    and auth_user is None
+                    and oidc_claims is None
+                    and not bff_session_ok
+                ):
                     self._send_json(
                         {
                             "ok": False,
@@ -4650,7 +4681,13 @@ class Handler(BaseHTTPRequestHandler):
                 provided_token = self._resolve_api_auth_token()
                 auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
                 oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
-                if (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED) and auth_user is None and oidc_claims is None:
+                bff_session_ok = self._has_authenticated_bff_session()
+                if (
+                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED)
+                    and auth_user is None
+                    and oidc_claims is None
+                    and not bff_session_ok
+                ):
                     self._send_json(
                         {
                             "ok": False,
@@ -4945,6 +4982,7 @@ class Handler(BaseHTTPRequestHandler):
             provided_token = self._resolve_api_auth_token()
             phase1_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
             oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+            bff_session_ok = self._has_authenticated_bff_session()
 
             legacy_token_ok = bool(required_token) and hmac.compare_digest(provided_token, required_token)
             phase1_token_ok = phase1_user is not None
@@ -4954,8 +4992,9 @@ class Handler(BaseHTTPRequestHandler):
             # - legacy: API_AUTH_TOKEN (single token) still supported
             # - phase1: PHASE1_AUTH_USERS_* enables per-user tokens
             # - oidc: OIDC_JWKS_URL enables RS256 JWT validation
+            # - bff: authenticated OIDC GUI session cookie is accepted on analyze endpoints
             if required_token or _PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED:
-                if not (legacy_token_ok or phase1_token_ok or oidc_token_ok):
+                if not (legacy_token_ok or phase1_token_ok or oidc_token_ok or bff_session_ok):
                     self._send_json(
                         {
                             "ok": False,
