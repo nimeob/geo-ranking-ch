@@ -2,10 +2,12 @@
 """Smoke-check for the UI-owned login contract.
 
 Verifies both contracts:
-1) ``/login?next=...&reason=...`` renders a UI HTML entry page (no redirect), and
+1) ``/login?next=...&reason=...`` is viable as an entrypoint and either
+   - renders a UI HTML entry page with a ``start=1`` action, or
+   - redirects directly into the login redirect chain,
 2) ``/login?next=...&reason=...&start=1`` reaches an IdP authorize redirect.
 
-The start flow may be either:
+The redirect chain may be either:
 - direct redirect to authorize, or
 - UI-owned intermediate hop via ``/auth/login`` followed by authorize.
 """
@@ -187,17 +189,54 @@ def check_login_entry(
         read_body_preview=True,
     )
 
-    if probe.status_code != 200:
-        reason_code = f"unexpected_entry_status_{probe.status_code}"
+    if probe.status_code == 302:
+        if not probe.location:
+            return LoginEntryCheckResult(
+                ok=False,
+                status_code=probe.status_code,
+                location=probe.location,
+                request_url=request_url,
+                content_type=probe.content_type,
+                reason="entry_redirect_missing_location_header",
+            )
+
         if _is_login_unavailable_redirect(probe.location):
-            reason_code = "entry_redirected_login_unavailable"
+            return LoginEntryCheckResult(
+                ok=False,
+                status_code=probe.status_code,
+                location=probe.location,
+                request_url=request_url,
+                content_type=probe.content_type,
+                reason="entry_redirected_login_unavailable",
+            )
+
+        if _is_authorize_redirect(probe.location) or _is_auth_login_redirect(probe.location):
+            return LoginEntryCheckResult(
+                ok=True,
+                status_code=probe.status_code,
+                location=probe.location,
+                request_url=request_url,
+                content_type=probe.content_type,
+                reason="ok_redirect",
+            )
+
         return LoginEntryCheckResult(
             ok=False,
             status_code=probe.status_code,
             location=probe.location,
             request_url=request_url,
             content_type=probe.content_type,
-            reason=reason_code,
+            reason="entry_redirect_non_login_target",
+        )
+
+    if probe.status_code != 200:
+        return LoginEntryCheckResult(
+            ok=False,
+            status_code=probe.status_code,
+            location=probe.location,
+            request_url=request_url,
+            content_type=probe.content_type,
+            reason=f"unexpected_entry_status_{probe.status_code}",
         )
 
     content_type = str(probe.content_type or "").lower()
