@@ -16,15 +16,29 @@ class AwsClient(Protocol):
     def call(self, args: list[str], *, region: str) -> None: ...
 
 
+class AwsCliError(RuntimeError):
+    def __init__(self, *, command: list[str], returncode: int, stderr: str) -> None:
+        self.command = command
+        self.returncode = returncode
+        self.stderr = stderr
+        super().__init__(f"aws command failed ({returncode}): {' '.join(command)} :: {stderr.strip()}")
+
+
 class AwsCli:
     def json(self, args: list[str], *, region: str) -> dict[str, Any]:
         command = ["aws", *args, "--region", region, "--output", "json"]
-        completed = subprocess.run(command, check=True, capture_output=True, text=True)
+        try:
+            completed = subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as exc:
+            raise AwsCliError(command=command, returncode=exc.returncode, stderr=exc.stderr or "") from exc
         return json.loads(completed.stdout or "{}")
 
     def call(self, args: list[str], *, region: str) -> None:
         command = ["aws", *args, "--region", region]
-        subprocess.run(command, check=True, capture_output=True, text=True)
+        try:
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as exc:
+            raise AwsCliError(command=command, returncode=exc.returncode, stderr=exc.stderr or "") from exc
 
 
 @dataclass(frozen=True)
@@ -338,6 +352,16 @@ def _write_json(path: str, payload: dict[str, Any]) -> None:
     target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def _is_access_denied(stderr: str) -> bool:
+    text = (stderr or "").lower()
+    return (
+        "accessdenied" in text
+        or "not authorized" in text
+        or "is not authorized" in text
+        or "unauthorizedoperation" in text
+    )
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     try:
         config = _load_config(argv)
@@ -345,7 +369,42 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(f"ERROR: {exc}")
         return 2
 
-    exit_code, payload = reconcile(config)
+    try:
+        exit_code, payload = reconcile(config)
+    except AwsCliError as exc:
+        access_denied = _is_access_denied(exc.stderr)
+        payload = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "overall": {
+                "status": "warn" if access_denied else "fail",
+                "reason": "aws_access_denied" if access_denied else "aws_cli_error",
+            },
+            "config": {
+                "lb_name": config.lb_name,
+                "region": config.region,
+                "required_ports": list(config.required_ports),
+                "ui_hosts": sorted(config.ui_hosts),
+                "ui_target_group_substring": config.ui_target_group_substring,
+                "apply": config.apply,
+            },
+            "summary": {
+                "stale_rule_count": 0,
+                "deleted_rule_count": 0,
+                "error_count": 1,
+            },
+            "findings": [
+                {
+                    "severity": "warning" if access_denied else "error",
+                    "reason": "aws_access_denied" if access_denied else "aws_cli_error",
+                    "command": exc.command,
+                    "returncode": exc.returncode,
+                    "stderr": exc.stderr,
+                }
+            ],
+            "actions": [],
+        }
+        exit_code = 3 if access_denied else 1
+
     print(json.dumps(payload, ensure_ascii=False))
 
     if config.output_json:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -187,3 +188,25 @@ def test_reconcile_fails_when_ui_forward_rule_missing():
     assert payload["overall"]["reason"] == "missing_ui_host_forward_rule"
     assert payload["summary"]["error_count"] >= 1
     assert aws.delete_calls == []
+
+
+def test_main_returns_warning_exit_code_on_access_denied(tmp_path, capsys, monkeypatch):
+    module = _load_module()
+
+    def _raise_access_denied(_config):
+        raise module.AwsCliError(
+            command=["aws", "elbv2", "describe-load-balancers", "--names", "swisstopo-dev-vpc-alb"],
+            returncode=254,
+            stderr="An error occurred (AccessDenied) when calling the DescribeLoadBalancers operation",
+        )
+
+    monkeypatch.setattr(module, "reconcile", _raise_access_denied)
+
+    output_json = tmp_path / "reconcile.json"
+    code = module.main(["--output-json", str(output_json)])
+
+    assert code == 3
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["overall"]["status"] == "warn"
+    assert payload["overall"]["reason"] == "aws_access_denied"
+    assert output_json.exists()

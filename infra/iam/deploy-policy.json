@@ -73,6 +73,26 @@
       ]
     },
     {
+      "Sid": "Elbv2DescribeForDevAlbRuleReconcile",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeRules"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Elbv2DeleteDevAlbListenerRulesForReconcile",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:DeleteRule"
+      ],
+      "Resource": [
+        "arn:aws:elasticloadbalancing:eu-central-1:523234426229:listener-rule/app/swisstopo-dev-vpc-alb/*/*/*"
+      ]
+    },
+    {
       "Sid": "IamPassOnlyEcsTaskRoles",
       "Effect": "Allow",
       "Action": [

@@ -14,6 +14,10 @@ Die **verbindliche Runtime-Quelle** ist:
 
 Damit wird Drift pro Deploy-Lauf erkannt und (gezielt) bereinigt.
 
+> Hinweis zu CI-Least-Privilege: Wenn die GitHub-Deploy-Role aktuell keine `elasticloadbalancing:*Rule*`-Rechte hat,
+> liefert das Script `overall.reason=aws_access_denied` (Exit-Code 3). Der Workflow warnt dann explizit und läuft weiter;
+> der nachfolgende Login-Smoke-Test bleibt weiterhin ein hartes Gate.
+
 ## Listener-Intent (DEV)
 
 Für beide Listener-Ports `80` und `443` gilt:
