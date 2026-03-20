@@ -35,6 +35,7 @@ _RESULT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 _JOB_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 _UI_AUTH_PROXY_HEADER_NAME = "X-Geo-Auth-Proxy"
 _UI_AUTH_PROXY_HEADER_VALUE = "1"
+_API_PROXY_PREFIXES = ("/analyze", "/debug/trace")
 
 _RESULT_PAGE_TEMPLATE = """<!doctype html>
 <html lang="de">
@@ -1355,6 +1356,14 @@ def _normalize_path(path: str) -> str:
     return normalized
 
 
+def _is_api_proxy_path(request_path: str) -> bool:
+    normalized = _normalize_path(request_path)
+    for prefix in _API_PROXY_PREFIXES:
+        if normalized == prefix or normalized.startswith(f"{prefix}/"):
+            return True
+    return False
+
+
 def _normalize_result_id(raw_value: str) -> str:
     normalized = str(raw_value or "").strip()
     if not normalized:
@@ -1396,9 +1405,10 @@ def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
     # GUI Analyze bleibt bewusst same-origin (`/analyze`), damit der __Host-session Cookie
     # im Browser-Flow erhalten bleibt. Absolute API-Origins würden den Cookie nicht tragen
     # und bei OIDC-geschützten Deployments zu `401 unauthorized` führen.
-    trace_debug_url = f"{normalized_base_url}/debug/trace"
-    analyze_jobs_base = f"{normalized_base_url}/analyze/jobs"
-    analyze_history_url = f"{normalized_base_url}/analyze/history"
+    # Gleiches Prinzip auch für Trace/Jobs/History: same-origin Endpunkte, Proxy im UI-Service.
+    trace_debug_url = "/debug/trace"
+    analyze_jobs_base = "/analyze/jobs"
+    analyze_history_url = "/analyze/history"
 
     html = html.replace(
         'const TRACE_DEBUG_ENDPOINT = "/debug/trace";',
@@ -1843,6 +1853,75 @@ class _UiHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         return True
 
+    def _proxy_api_request(self, *, request_path: str, raw_query: str) -> bool:
+        """Proxy same-origin API calls (e.g. /analyze, /debug/trace) to UI_API_BASE_URL."""
+
+        target_url = self._build_api_target_url(request_path=request_path, raw_query=raw_query)
+        if not target_url:
+            return False
+
+        upstream_headers: dict[str, str] = {}
+        for header_name in ("Cookie", "Accept", "Content-Type"):
+            header_value = self.headers.get(header_name)
+            if header_value:
+                upstream_headers[header_name] = header_value
+
+        forwarded_proto = str(self.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip().lower()
+        request_scheme = forwarded_proto if forwarded_proto in {"http", "https"} else "http"
+        forwarded_host = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        request_host = forwarded_host or str(self.headers.get("Host", "") or "").strip()
+        if request_host:
+            upstream_headers["X-Forwarded-Host"] = request_host
+            upstream_headers["X-Forwarded-Proto"] = request_scheme
+
+        content_length_header = str(self.headers.get("Content-Length", "") or "").strip()
+        content_length = int(content_length_header) if content_length_header.isdigit() else 0
+        request_body = self.rfile.read(content_length) if content_length > 0 else None
+
+        req = urllib_request.Request(target_url, data=request_body, method=self.command, headers=upstream_headers)
+        try:
+            upstream_resp = urllib_request.urlopen(req, timeout=20)
+        except urllib_error.HTTPError as exc:
+            upstream_resp = exc
+        except urllib_error.URLError:
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "upstream_unavailable",
+                    "message": "api upstream unavailable",
+                },
+                status=HTTPStatus.BAD_GATEWAY,
+            )
+            return True
+
+        body = upstream_resp.read()
+        upstream_status = int(getattr(upstream_resp, "status", 0) or upstream_resp.getcode())
+
+        self.send_response(upstream_status)
+
+        hop_by_hop_headers = {
+            "connection",
+            "keep-alive",
+            "proxy-authenticate",
+            "proxy-authorization",
+            "te",
+            "trailer",
+            "transfer-encoding",
+            "upgrade",
+            "content-length",
+        }
+        for header_name, header_value in upstream_resp.headers.items():
+            normalized_name = header_name.lower()
+            if normalized_name in hop_by_hop_headers:
+                continue
+            self.send_header(header_name, header_value)
+
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if body:
+            self.wfile.write(body)
+        return True
+
     def do_GET(self) -> None:  # noqa: N802 - stdlib callback name
         parsed = urlparse(self.path)
         request_path = _normalize_path(parsed.path)
@@ -1902,6 +1981,19 @@ class _UiHandler(BaseHTTPRequestHandler):
                     "ok": False,
                     "error": "auth_proxy_not_configured",
                     "message": "UI auth proxy requires UI_API_BASE_URL",
+                },
+                status=HTTPStatus.SERVICE_UNAVAILABLE,
+            )
+            return
+
+        if _is_api_proxy_path(request_path):
+            if self._proxy_api_request(request_path=request_path, raw_query=parsed.query):
+                return
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "api_proxy_not_configured",
+                    "message": "UI API proxy requires UI_API_BASE_URL",
                 },
                 status=HTTPStatus.SERVICE_UNAVAILABLE,
             )
@@ -2016,6 +2108,32 @@ class _UiHandler(BaseHTTPRequestHandler):
                         "path_template": "/jobs/<job_id>",
                     },
                 }
+            )
+            return
+
+        self._send_json(
+            {
+                "ok": False,
+                "error": "not_found",
+                "message": f"Unknown endpoint: {request_path}",
+            },
+            status=HTTPStatus.NOT_FOUND,
+        )
+
+    def do_POST(self) -> None:  # noqa: N802 - stdlib callback name
+        parsed = urlparse(self.path)
+        request_path = _normalize_path(parsed.path)
+
+        if _is_api_proxy_path(request_path):
+            if self._proxy_api_request(request_path=request_path, raw_query=parsed.query):
+                return
+            self._send_json(
+                {
+                    "ok": False,
+                    "error": "api_proxy_not_configured",
+                    "message": "UI API proxy requires UI_API_BASE_URL",
+                },
+                status=HTTPStatus.SERVICE_UNAVAILABLE,
             )
             return
 
