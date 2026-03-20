@@ -3,10 +3,54 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-DEFAULT_PYTHON="python3"
-if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
-  DEFAULT_PYTHON="${REPO_ROOT}/.venv/bin/python"
-fi
+python_has_module() {
+  local python_bin="$1"
+  local module_name="$2"
+  "${python_bin}" - "${module_name}" >/dev/null 2>&1 <<'PY'
+import importlib.util
+import sys
+module_name = sys.argv[1]
+raise SystemExit(0 if importlib.util.find_spec(module_name) else 1)
+PY
+}
+
+pick_python_bin() {
+  local -a candidates=()
+
+  if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
+    candidates+=("${REPO_ROOT}/.venv/bin/python")
+  fi
+
+  candidates+=("python3")
+
+  if [[ -x "/usr/bin/python3" ]]; then
+    candidates+=("/usr/bin/python3")
+  fi
+
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if ! command -v "${candidate}" >/dev/null 2>&1; then
+      continue
+    fi
+
+    if python_has_module "${candidate}" "pytest"; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  # Fallback to the first executable candidate and let pytest fail with a clear message later.
+  for candidate in "${candidates[@]}"; do
+    if command -v "${candidate}" >/dev/null 2>&1; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+DEFAULT_PYTHON="$(pick_python_bin)"
 
 DEFAULT_PRE_COMMIT="pre-commit"
 if [[ -x "${REPO_ROOT}/.venv/bin/pre-commit" ]]; then
