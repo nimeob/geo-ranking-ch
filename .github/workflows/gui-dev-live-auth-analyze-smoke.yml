@@ -26,18 +26,15 @@ jobs:
           set -euo pipefail
           if [ -z "${DEV_UI_SMOKE_USERNAME:-}" ] || [ -z "${DEV_UI_SMOKE_PASSWORD:-}" ]; then
             mkdir -p reports/evidence
-            cat > "reports/evidence/dev-ui-auth-analyze-smoke-blocked-${GITHUB_RUN_ID}.json" <<'JSON'
-            {
-              "ok": false,
-              "blocked": true,
-              "reason": "missing_required_github_secrets",
-              "required": [
-                "DEV_UI_SMOKE_USERNAME",
-                "DEV_UI_SMOKE_PASSWORD"
-              ],
-              "next_step": "Set both repository secrets and re-run gui-dev-live-auth-analyze-smoke workflow."
-            }
-            JSON
+            out="reports/evidence/dev-ui-auth-analyze-smoke-blocked-${GITHUB_RUN_ID}.json"
+            printf '%s\n' \
+              '{' \
+              '  "ok": false,' \
+              '  "blocked": true,' \
+              '  "reason": "missing_required_github_secrets",' \
+              '  "required": ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"],' \
+              '  "next_step": "Set both repository secrets and re-run gui-dev-live-auth-analyze-smoke workflow."' \
+              '}' > "${out}"
             echo "::error::Missing required secrets DEV_UI_SMOKE_USERNAME / DEV_UI_SMOKE_PASSWORD for real UI login smoke."
             exit 1
           fi
