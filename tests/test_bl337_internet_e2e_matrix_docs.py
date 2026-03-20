@@ -29,6 +29,9 @@ def test_bl337_internet_e2e_matrix_runbook_contains_required_sections_and_comman
         "## 6) WP3 UI-Frontdoor-Ausführung (Issue #398)",
         "scripts/run_bl337_ui_frontdoor_e2e.py",
         "*-wp3-ui-frontdoor-e2e.json",
+        "## 7) One-shot Wrapper für Nightly/Worker-Läufe",
+        "scripts/run_bl337_frontdoor_e2e.sh",
+        "BL337_AUTH_MODE",
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in text]
