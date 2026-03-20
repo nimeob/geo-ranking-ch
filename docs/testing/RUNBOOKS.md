@@ -317,6 +317,9 @@ Status-Werte: `planned`, `pass`, `fail`, `blocked`
 python3 scripts/run_bl337_api_frontdoor_e2e.py \
   --matrix artifacts/bl337/latest-internet-e2e-matrix.json \
   --evidence-json artifacts/bl337/<timestamp>-wp2-api-frontdoor-e2e.json
+
+# Optional für Public-Probe ohne Token: Auth-blocked Analyze-Cases als nicht-fatal behandeln
+python3 scripts/run_bl337_api_frontdoor_e2e.py --allow-auth-blocked
 ```
 
 **WP3 UI-Frontdoor (Issue #398):**

@@ -300,6 +300,30 @@ class TestRunBl337ApiFrontdoorE2E(unittest.TestCase):
             evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
             self.assertEqual(evidence_payload["summary"]["blocked"], 3)
 
+    def test_main_allows_auth_blocked_with_explicit_flag(self) -> None:
+        _ApiHandler.health_status_code = 200
+        _ApiHandler.require_auth = True
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            matrix = Path(tmpdir) / "matrix.json"
+            evidence = Path(tmpdir) / "evidence.json"
+            self._build_matrix(f"http://127.0.0.1:{self.port}", matrix)
+
+            rc = module.main(
+                [
+                    "--matrix",
+                    str(matrix),
+                    "--evidence-json",
+                    str(evidence),
+                    "--allow-auth-blocked",
+                ]
+            )
+            self.assertEqual(rc, 0)
+
+            evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
+            self.assertEqual(evidence_payload["summary"]["blocked"], 3)
+            self.assertTrue(evidence_payload["request"]["allow_auth_blocked"])
+
 
 if __name__ == "__main__":
     unittest.main()
