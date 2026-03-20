@@ -298,7 +298,7 @@ jobs:
           set -e
 
           if [ "$RECONCILE_RC" -eq 3 ]; then
-            echo "::warning::DEV ALB reconcile skipped (AWS access denied for deploy role); see artifacts/dev-alb-listener-reconcile.json"
+            echo "::warning::DEV ALB reconcile skipped (AWS access denied for deploy role). Remediation: update swisstopo-dev-github-deploy-policy from infra/iam/deploy-policy.json (see docs/DEV_ALB_LISTENER_RULES.md, section 'CI-Remediation bei aws_access_denied'). Artifact: artifacts/dev-alb-listener-reconcile.json"
           elif [ "$RECONCILE_RC" -ne 0 ]; then
             exit "$RECONCILE_RC"
           fi

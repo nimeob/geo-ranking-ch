@@ -18,6 +18,29 @@ Damit wird Drift pro Deploy-Lauf erkannt und (gezielt) bereinigt.
 > liefert das Script `overall.reason=aws_access_denied` (Exit-Code 3). Der Workflow warnt dann explizit und läuft weiter;
 > der nachfolgende Login-Smoke-Test bleibt weiterhin ein hartes Gate.
 
+### CI-Remediation bei `aws_access_denied`
+
+Wenn im Deploy-Lauf die Warnung `DEV ALB reconcile skipped (AWS access denied for deploy role)` auftaucht,
+ist meist die AWS-IAM-Policy an der Role `swisstopo-dev-github-deploy-role` veraltet oder nicht korrekt attached.
+
+Schneller Fix (mit Admin-Rechten in AWS-Account `523234426229`):
+
+```bash
+# 1) Policy aus Repo als neue Default-Version setzen
+aws iam create-policy-version \
+  --policy-arn arn:aws:iam::523234426229:policy/swisstopo-dev-github-deploy-policy \
+  --policy-document file://infra/iam/deploy-policy.json \
+  --set-as-default
+
+# 2) Sicherstellen, dass die Deploy-Role die Policy wirklich attached hat
+aws iam attach-role-policy \
+  --role-name swisstopo-dev-github-deploy-role \
+  --policy-arn arn:aws:iam::523234426229:policy/swisstopo-dev-github-deploy-policy
+```
+
+Danach sollte der Reconcile-Step wieder ohne Skip laufen (kein Exit-Code 3).
+Relevant sind mindestens: `elasticloadbalancing:DescribeLoadBalancers`, `DescribeListeners`, `DescribeRules`, `DeleteRule`.
+
 ## Listener-Intent (DEV)
 
 Für beide Listener-Ports `80` und `443` gilt:
