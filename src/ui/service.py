@@ -1858,7 +1858,13 @@ class _UiHandler(BaseHTTPRequestHandler):
             login_query = parse_qs(parsed.query, keep_blank_values=False)
             next_path = _normalize_login_next_path((login_query.get("next") or ["/gui"])[0])
             reason = _normalize_login_reason((login_query.get("reason") or ["manual_login"])[0])
-            start_login = str((login_query.get("start") or [""])[0]).strip().lower() in {"1", "true", "yes"}
+            explicit_start = str((login_query.get("start") or [""])[0]).strip().lower()
+            start_login = explicit_start in {"1", "true", "yes"}
+            # UX default: do not show an intermediate local login card for normal reasons.
+            # Keep manual fallback page only when explicitly requested (start=0/no)
+            # or when the caller already indicates provider unavailability.
+            if explicit_start == "":
+                start_login = reason != "login_unavailable"
 
             if start_login:
                 auth_login_query = urlencode({"next": next_path, "reason": reason})
