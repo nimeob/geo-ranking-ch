@@ -13,6 +13,7 @@ class TestGuiDevLiveAuthAnalyzeSmokeDocs(unittest.TestCase):
         content = doc_path.read_text(encoding="utf-8")
         required_markers = [
             "scripts/run_dev_ui_auth_analyze_smoke.mjs",
+            "scripts/smoke/validate_gui_live_auth_analyze_secrets.sh",
             "scripts/smoke/ch_live_addresses.txt",
             "gui-dev-live-auth-analyze-smoke.yml",
             "DEV_UI_SMOKE_USERNAME",

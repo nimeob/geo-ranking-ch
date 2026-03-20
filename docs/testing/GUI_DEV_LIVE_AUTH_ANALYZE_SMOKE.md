@@ -12,6 +12,7 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 
 ## Implementierung
 - Script: `scripts/run_dev_ui_auth_analyze_smoke.mjs`
+- Preflight (Secrets + Blocker-Evidence): `scripts/smoke/validate_gui_live_auth_analyze_secrets.sh`
 - Address-Pool: `scripts/smoke/ch_live_addresses.txt`
 - Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml`
 - Artifact: `gui-dev-live-auth-analyze-smoke-artifacts`
