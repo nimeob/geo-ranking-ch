@@ -35,12 +35,8 @@ jobs:
       - name: Install Playwright Chromium + system deps
         run: npx playwright install --with-deps chromium
 
-      - name: Run DEV live UI full regression
-        env:
-          DEV_UI_BASE_URL: ${{ env.BASE_URL }}
-          DEV_UI_FULL_EVIDENCE_JSON: artifacts/dev-ui-full/latest/dev-ui-full-regression.json
-          DEV_UI_FULL_SCREENSHOT_DIR: artifacts/dev-ui-full/latest/screenshots
-        run: node scripts/run_dev_ui_live_full_regression.mjs
+      - name: Run DEV live UI auth+analyze smoke
+        run: node scripts/run_dev_ui_auth_analyze_smoke.mjs
 
       - name: Upload smoke artifacts
         if: always()
@@ -51,5 +47,4 @@ jobs:
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
             reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
-            artifacts/dev-ui-full/latest/**
           if-no-files-found: warn
