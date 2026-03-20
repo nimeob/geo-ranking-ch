@@ -427,11 +427,15 @@ def _probe_once(
                 "host_header": host_header,
             }
     except error.HTTPError as exc:
+        try:
+            status_code = int(exc.code)
+        finally:
+            exc.close()
         return {
             "url": url,
-            "status": int(exc.code),
+            "status": status_code,
             "ok": False,
-            "error": f"http_error:{exc.code}",
+            "error": f"http_error:{status_code}",
             "host_header": host_header,
         }
     except Exception as exc:  # noqa: BLE001

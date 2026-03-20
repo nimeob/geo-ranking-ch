@@ -316,6 +316,8 @@ def _default_token_exchange(
             err_body = exc.read().decode("utf-8", errors="replace")
         except Exception:
             err_body = "(unreadable)"
+        finally:
+            exc.close()
         raise OidcCallbackError(
             f"token endpoint returned HTTP {exc.code}: {err_body}",
             http_status=502,

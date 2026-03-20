@@ -87,7 +87,10 @@ class GitHubClient:
             with request.urlopen(req, timeout=30) as resp:
                 body = resp.read().decode("utf-8")
         except error.HTTPError as exc:  # pragma: no cover - network path
-            detail = exc.read().decode("utf-8", errors="replace")
+            try:
+                detail = exc.read().decode("utf-8", errors="replace")
+            finally:
+                exc.close()
             raise GitHubApiError(f"{method} {url} failed: HTTP {exc.code}: {detail}") from exc
         except error.URLError as exc:  # pragma: no cover - network path
             raise GitHubApiError(f"{method} {url} failed: {exc}") from exc

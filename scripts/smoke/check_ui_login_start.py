@@ -57,12 +57,20 @@ def _send_request(
     for attempt in range(1, attempts + 1):
         try:
             resp = opener.open(req, timeout=timeout_seconds)
-            status = int(getattr(resp, "status", 0) or resp.getcode())
-            location = str(resp.headers.get("Location") or "").strip()
+            try:
+                status = int(getattr(resp, "status", 0) or resp.getcode())
+                location = str(resp.headers.get("Location") or "").strip()
+            finally:
+                close_fn = getattr(resp, "close", None)
+                if callable(close_fn):
+                    close_fn()
             return status, location
         except HTTPError as exc:
-            status = int(getattr(exc, "status", 0) or exc.getcode())
-            location = str(exc.headers.get("Location") or "").strip()
+            try:
+                status = int(getattr(exc, "status", 0) or exc.getcode())
+                location = str(exc.headers.get("Location") or "").strip()
+            finally:
+                exc.close()
             if status in {502, 503, 504} and attempt < attempts:
                 time.sleep(max(0.0, retry_delay_seconds))
                 continue

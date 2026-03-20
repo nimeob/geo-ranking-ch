@@ -237,6 +237,8 @@ def _do_token_refresh(
             err_body = exc.read().decode("utf-8", errors="replace")
         except Exception:  # noqa: BLE001
             err_body = "(unreadable)"
+        finally:
+            exc.close()
         raise BffTokenError(
             f"token refresh endpoint returned HTTP {exc.code}: {err_body}",
             error_code="refresh_http_error",
@@ -449,6 +451,8 @@ def bff_api_call(
             raw_body = exc.read()
         except Exception:  # noqa: BLE001
             raw_body = b""
+        finally:
+            exc.close()
         ct = exc.headers.get("Content-Type", "") if exc.headers else ""
         return BffApiResponse(
             status_code=exc.code,
