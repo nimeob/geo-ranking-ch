@@ -22,22 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate required secrets
-        run: |
-          set -euo pipefail
-          if [ -z "${DEV_UI_SMOKE_USERNAME:-}" ] || [ -z "${DEV_UI_SMOKE_PASSWORD:-}" ]; then
-            mkdir -p reports/evidence
-            out="reports/evidence/dev-ui-auth-analyze-smoke-blocked-${GITHUB_RUN_ID}.json"
-            printf '%s\n' \
-              '{' \
-              '  "ok": false,' \
-              '  "blocked": true,' \
-              '  "reason": "missing_required_github_secrets",' \
-              '  "required": ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"],' \
-              '  "next_step": "Set both repository secrets and re-run gui-dev-live-auth-analyze-smoke workflow."' \
-              '}' > "${out}"
-            echo "::error::Missing required secrets DEV_UI_SMOKE_USERNAME / DEV_UI_SMOKE_PASSWORD for real UI login smoke."
-            exit 1
-          fi
+        run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
