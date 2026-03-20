@@ -39,9 +39,20 @@
   - `reports/evidence/issue-981-android-chrome-20260319T230346Z.png`
 
 ### Revalidation-Notizen
-- **Pinch-Zoom** bleibt auf Chromium-Mobile-Simulation gelegentlich neutral (kein Zoom-Sprung), daher gilt für den Smoke jetzt: **Touch-Interaktion bestanden, wenn Pinch _oder_ Pan** reagiert.
+- **Pinch-Zoom** bleibt auf rein synthetischen Pointer-Events in Chromium-Mobile-Simulation gelegentlich neutral. Der Smoke nutzt deshalb zusätzlich einen **Chromium-CDP-Fallback** (`Input.synthesizePinchGesture`) und protokolliert die verwendete Methode im Evidence-JSON (`pinchZoom.method`, `fallback*`).
 - **Marker-Check** wird als eigener Schritt nach Geolocation ausgeführt. Er gilt als PASS bei sichtbarem Marker; ein möglicher Auth-Redirect-Pfad wird explizit diagnostiziert statt den Lauf unklar scheitern zu lassen.
 - Ergebnis 2026-03-19: beide Profile PASS (Pan + Marker + Geolocation Erfolg/Fehlerfall).
+
+## Lauf 2026-03-20 (dev revalidation, CDP pinch fallback)
+- Service: `https://www.dev.georanking.ch/gui`
+- Evidence JSON: `reports/evidence/issue-981-mobile-e2e-smoke-20260320T062717Z.json`
+- Screenshots:
+  - `reports/evidence/issue-981-ios-simulator-20260320T062717Z.png`
+  - `reports/evidence/issue-981-android-chrome-20260320T062717Z.png`
+
+### Ergebnis
+- **Pinch-Zoom:** PASS auf beiden Profilen (über `chromium_cdp_synthesizePinchGesture` dokumentiert)
+- **Pan + Marker + Geolocation Erfolg/Fehlerfall:** PASS
 
 ## Limitation / Follow-up
 Zum Zeitpunkt dieses Laufs war native Playwright-WebKit (Safari-Engine) auf dem Runner wegen fehlender System-Libraries nicht startbar.

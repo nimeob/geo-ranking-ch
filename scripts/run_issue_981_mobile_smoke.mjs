@@ -146,7 +146,7 @@ async function readMeta(page) {
   return { text: text.trim(), zoom: m ? Number(m[1]) : null };
 }
 
-async function pinchOnMap(page) {
+async function pinchOnMapSyntheticPointer(page) {
   await page.evaluate(async () => {
     const surface = document.getElementById('map-click-surface');
     if (!surface) throw new Error('map-click-surface not found');
@@ -175,8 +175,83 @@ async function pinchOnMap(page) {
     fire('pointerup', 1, cx - 118, cy - 6);
     fire('pointerup', 2, cx + 118, cy + 6);
 
-    await new Promise((resolve) => setTimeout(resolve, 180));
+    await new Promise((resolve) => setTimeout(resolve, 220));
   });
+}
+
+async function pinchOnMapChromiumCdp(page, context) {
+  const surfaceCenter = await page.evaluate(() => {
+    const surface = document.getElementById('map-click-surface');
+    if (!surface) {
+      throw new Error('map-click-surface not found');
+    }
+    surface.scrollIntoView({ block: 'center', inline: 'center' });
+    const rect = surface.getBoundingClientRect();
+    const viewportWidth = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+    const viewportHeight = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+    const x = Math.round(Math.min(Math.max(rect.left + rect.width / 2, 2), viewportWidth - 2));
+    const y = Math.round(Math.min(Math.max(rect.top + rect.height / 2, 2), viewportHeight - 2));
+    return { x, y, viewportWidth, viewportHeight };
+  });
+
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.synthesizePinchGesture', {
+    x: surfaceCenter.x,
+    y: surfaceCenter.y,
+    scaleFactor: 1.8,
+    relativeSpeed: 800,
+    gestureSourceType: 'touch',
+  });
+
+  await page.waitForTimeout(260);
+}
+
+function pinchIncreasedZoom(before, after) {
+  return Number.isFinite(before?.zoom) && Number.isFinite(after?.zoom) && after.zoom > before.zoom;
+}
+
+async function runPinchWithFallback(page, context) {
+  const before = await readMeta(page);
+  await pinchOnMapSyntheticPointer(page);
+  const afterSynthetic = await readMeta(page);
+
+  if (pinchIncreasedZoom(before, afterSynthetic)) {
+    return {
+      before,
+      after: afterSynthetic,
+      method: 'synthetic_pointer',
+      fallbackAttempted: false,
+      fallbackUsed: false,
+      fallbackError: null,
+      passed: true,
+    };
+  }
+
+  try {
+    await pinchOnMapChromiumCdp(page, context);
+    const afterCdp = await readMeta(page);
+    const passed = pinchIncreasedZoom(before, afterCdp);
+    return {
+      before,
+      after: afterCdp,
+      method: passed ? 'chromium_cdp_synthesizePinchGesture' : 'synthetic_pointer',
+      fallbackAttempted: true,
+      fallbackUsed: passed,
+      fallbackError: null,
+      passed,
+      syntheticResult: afterSynthetic,
+    };
+  } catch (error) {
+    return {
+      before,
+      after: afterSynthetic,
+      method: 'synthetic_pointer',
+      fallbackAttempted: true,
+      fallbackUsed: false,
+      fallbackError: error instanceof Error ? error.message : String(error || 'unknown error'),
+      passed: false,
+    };
+  }
 }
 
 async function panMap(page) {
@@ -330,9 +405,7 @@ async function runDevice(browser, device) {
 
   const page = await openStableGuiPage(context, `${device.key}:geoloc-allowed`);
 
-  const initial = await readMeta(page);
-  await pinchOnMap(page);
-  const afterPinch = await readMeta(page);
+  const pinchResult = await runPinchWithFallback(page, context);
 
   const beforePan = await readMeta(page);
   await panMap(page);
@@ -349,7 +422,7 @@ async function runDevice(browser, device) {
 
   const geoDenied = await geolocDenied(browser, device);
 
-  const pinchPassed = Number.isFinite(initial.zoom) && Number.isFinite(afterPinch.zoom) && afterPinch.zoom > initial.zoom;
+  const pinchPassed = pinchResult.passed === true;
   const panPassed =
     Number.isFinite(beforePan.zoom)
     && Number.isFinite(afterPan.zoom)
@@ -368,9 +441,14 @@ async function runDevice(browser, device) {
     key: device.key,
     checks: {
       pinchZoom: {
-        before: initial,
-        after: afterPinch,
+        before: pinchResult.before,
+        after: pinchResult.after,
         passed: pinchPassed,
+        method: pinchResult.method,
+        fallbackAttempted: pinchResult.fallbackAttempted,
+        fallbackUsed: pinchResult.fallbackUsed,
+        fallbackError: pinchResult.fallbackError,
+        syntheticResult: pinchResult.syntheticResult || null,
       },
       panRegression: {
         before: beforePan,
