@@ -63,7 +63,10 @@ def _fetch_json(url: str, timeout_seconds: float) -> tuple[int, dict[str, object
                 return int(response.status), None, "response_json_not_object"
             return int(response.status), payload, None
     except error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
+        try:
+            raw = exc.read().decode("utf-8", errors="replace")
+        finally:
+            exc.close()
         try:
             payload = json.loads(raw)
             if not isinstance(payload, dict):

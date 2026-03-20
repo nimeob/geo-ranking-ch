@@ -87,7 +87,10 @@ def _preflight(url: str, origin: str, timeout_seconds: float) -> tuple[int, dict
             headers = {k.lower(): v for k, v in response.headers.items()}
             return int(response.status), headers
     except error.HTTPError as exc:
-        headers = {k.lower(): v for k, v in exc.headers.items()}
+        try:
+            headers = {k.lower(): v for k, v in exc.headers.items()}
+        finally:
+            exc.close()
         return int(exc.code), headers
 
 
