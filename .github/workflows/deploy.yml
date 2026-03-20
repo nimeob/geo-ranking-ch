@@ -288,11 +288,20 @@ jobs:
           DEV_ALB_NAME: ${{ vars.DEV_ALB_NAME }}
         run: |
           set -euo pipefail
+          set +e
           python3 scripts/reconcile_dev_alb_listener_rules.py \
             --lb-name "${DEV_ALB_NAME:-swisstopo-dev-vpc-alb}" \
             --region "${AWS_REGION}" \
             --apply \
             --output-json artifacts/dev-alb-listener-reconcile.json
+          RECONCILE_RC=$?
+          set -e
+
+          if [ "$RECONCILE_RC" -eq 3 ]; then
+            echo "::warning::DEV ALB reconcile skipped (AWS access denied for deploy role); see artifacts/dev-alb-listener-reconcile.json"
+          elif [ "$RECONCILE_RC" -ne 0 ]; then
+            exit "$RECONCILE_RC"
+          fi
 
       - name: Smoke-Test UI login start redirects to IdP authorize
         env:
