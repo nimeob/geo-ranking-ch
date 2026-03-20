@@ -20,7 +20,7 @@ jobs:
           python-version: "3.12"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
 
@@ -75,7 +75,7 @@ jobs:
           cp /tmp/gui-webkit-service.log artifacts/gui-webkit-smoke/ || true
 
       - name: Upload native WebKit smoke artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: gui-webkit-smoke-artifacts
           path: artifacts/gui-webkit-smoke
