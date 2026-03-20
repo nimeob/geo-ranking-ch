@@ -348,6 +348,13 @@ class TestUiService(unittest.TestCase):
         self.assertIn('rows.push(kvRow("IDs", formatFallback(ids, "nicht verfügbar")));', body)
         self.assertIn('rows.push(kvRow("Administrative", formatFallback(admin, "nicht verfügbar")));', body)
 
+        # Regression guard: latest-view result loading retries transient 404/not_found before failing hard.
+        self.assertIn('const RESULT_LOAD_MAX_RETRIES = 8;', body)
+        self.assertIn('const RESULT_LOAD_RETRY_DELAY_MS = 1500;', body)
+        self.assertIn('function isTransientResultNotFound(response, parsed)', body)
+        self.assertIn('const maxRetries = normalizedViewMode() === "latest" ? RESULT_LOAD_MAX_RETRIES : 0;', body)
+        self.assertIn('setStatus(`retrying(${nextAttempt}/${maxRetries})`);', body)
+
     def test_invalid_job_id_returns_not_found_payload(self):
         status, body, _ = _http(f"{self.base_url}/jobs/!!!")
         self.assertEqual(status, 404)
