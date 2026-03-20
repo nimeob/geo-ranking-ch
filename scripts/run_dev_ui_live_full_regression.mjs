@@ -64,6 +64,32 @@ function pickAddress(exclude = "") {
   return choices[Math.floor(Math.random() * choices.length)] || ADDRESS_POOL[0];
 }
 
+function isIdpLoginUrl(urlValue) {
+  try {
+    const parsed = new URL(String(urlValue));
+    const host = String(parsed.hostname || "").toLowerCase();
+    const pathname = String(parsed.pathname || "").toLowerCase();
+    if (!host.includes("auth.")) return false;
+    return pathname === "/login" || pathname.endsWith("/login");
+  } catch {
+    return false;
+  }
+}
+
+async function locateFirstVisible(page, selectors, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    for (const selector of selectors) {
+      const locator = page.locator(selector).first();
+      if (await locator.isVisible().catch(() => false)) {
+        return locator;
+      }
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`Visible selector not found. candidates=${selectors.join(",")}`);
+}
+
 async function fetchAuthMe(page) {
   return await page.evaluate(async () => {
     try {
@@ -148,18 +174,39 @@ async function main() {
     recordCheck("healthz.version_present", Boolean(healthJson?.version), `version=${healthJson?.version || ""}`);
 
     await page.goto(loginStart, { waitUntil: "domcontentloaded", timeout: MAX_WAIT_MS });
+    await page.waitForURL((url) => isIdpLoginUrl(String(url)), { timeout: MAX_WAIT_MS });
 
-    const auth0Form = page.locator('input[name="username"]');
-    if (await auth0Form.isVisible({ timeout: 7_500 }).catch(() => false)) {
-      await page.fill('input[name="username"]', USERNAME);
-      await page.fill('input[name="password"]', PASSWORD);
-      await Promise.all([
-        page.waitForURL((url) => url.origin === baseOrigin && url.pathname.startsWith(guiPath), { timeout: MAX_WAIT_MS }),
-        page.locator('button[type="submit"]').click(),
-      ]);
-    } else {
-      await page.waitForURL((url) => url.origin === baseOrigin && url.pathname.startsWith(guiPath), { timeout: MAX_WAIT_MS });
-    }
+    const usernameField = await locateFirstVisible(
+      page,
+      ['input[name="username"]', '#username', 'input[type="email"]', 'input[name="email"]'],
+      MAX_WAIT_MS,
+    );
+    const passwordField = await locateFirstVisible(
+      page,
+      ['input[name="password"]', '#password', 'input[type="password"]'],
+      MAX_WAIT_MS,
+    );
+
+    await usernameField.fill(USERNAME);
+    await passwordField.fill(PASSWORD);
+
+    const submitLogin = await locateFirstVisible(
+      page,
+      ['button[type="submit"]', 'input[type="submit"]', 'button[name="signInSubmitButton"]', 'input[name="signInSubmitButton"]'],
+      MAX_WAIT_MS,
+    );
+
+    await Promise.all([
+      page.waitForURL((url) => {
+        try {
+          const parsed = new URL(String(url));
+          return parsed.origin === baseOrigin && parsed.pathname === guiPath;
+        } catch {
+          return false;
+        }
+      }, { timeout: MAX_WAIT_MS }),
+      submitLogin.click(),
+    ]);
 
     await page.waitForSelector("#analyze-form", { timeout: MAX_WAIT_MS });
     await safeScreenshot(page, "01-after-login");
