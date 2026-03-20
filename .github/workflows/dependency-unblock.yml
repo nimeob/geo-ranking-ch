@@ -2,18 +2,29 @@ name: dependency-unblock
 
 on:
   issues:
-    types: [opened, reopened, closed, edited, labeled, unlabeled]
+    # Keep the high-signal issue events. Avoid labeled/unlabeled churn,
+    # because this workflow mutates labels itself and can self-trigger bursts.
+    types: [opened, reopened, closed, edited]
   issue_comment:
-    types: [created, edited, deleted]
+    # Dependency references are typically added via new comments.
+    # Ignore edit/delete noise.
+    types: [created]
   workflow_dispatch:
   schedule:
     - cron: "*/30 * * * *"
+
+concurrency:
+  # Collapse bursts from rapid issue/comment activity into one latest run.
+  group: dependency-unblock
+  cancel-in-progress: true
 
 permissions:
   issues: write
 
 jobs:
   unblock-when-dependencies-closed:
+    # For comment-triggered runs, ignore bot chatter and comments without issue refs.
+    if: github.event_name != 'issue_comment' || (github.event.sender.type != 'Bot' && contains(github.event.comment.body, '#'))
     runs-on: ubuntu-latest
     steps:
       - name: Unblock issues when all referenced dependencies are closed
