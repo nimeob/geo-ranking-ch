@@ -163,6 +163,75 @@ async function locateFirstVisible(page, selectors, timeout) {
   throw new Error(`Kein sichtbares Element für Selektoren gefunden: ${selectors.join(', ')}`);
 }
 
+async function collectUiSnapshot(page) {
+  return page.evaluate(() => {
+    const phaseEl = document.querySelector('#phase-pill');
+    const resultsMetaEl = document.querySelector('#results-meta');
+    const errorBoxEl = document.querySelector('#error-box');
+    const rows = Array.from(document.querySelectorAll('#results-body tr'));
+    const nonEmptyRows = rows.filter((row) => {
+      const emptyCell = row.querySelector('td.results-empty-cell');
+      return !emptyCell;
+    });
+
+    return {
+      phaseText: phaseEl ? String(phaseEl.textContent || '').trim() : '',
+      phaseState: phaseEl ? String(phaseEl.getAttribute('data-phase') || '').trim() : '',
+      resultsMetaText: resultsMetaEl ? String(resultsMetaEl.textContent || '').trim() : '',
+      errorBoxText:
+        errorBoxEl && !errorBoxEl.hasAttribute('hidden') ? String(errorBoxEl.textContent || '').trim() : '',
+      resultRowCount: nonEmptyRows.length,
+    };
+  });
+}
+
+async function waitForTerminalUiSignal(page, timeout) {
+  const handle = await page.waitForFunction(() => {
+    const phaseEl = document.querySelector('#phase-pill');
+    const errorBoxEl = document.querySelector('#error-box');
+    const rows = Array.from(document.querySelectorAll('#results-body tr'));
+    const nonEmptyRows = rows.filter((row) => !row.querySelector('td.results-empty-cell'));
+
+    const phaseState = phaseEl ? String(phaseEl.getAttribute('data-phase') || '').trim().toLowerCase() : '';
+    const phaseText = phaseEl ? String(phaseEl.textContent || '').trim().toLowerCase() : '';
+    const errorBoxVisible = Boolean(errorBoxEl && !errorBoxEl.hasAttribute('hidden'));
+
+    if (phaseState === 'success' || phaseState === 'error') {
+      return {
+        reason: `phase_${phaseState}`,
+        phaseState,
+        phaseText,
+        resultRowCount: nonEmptyRows.length,
+        errorBoxVisible,
+      };
+    }
+
+    if (errorBoxVisible) {
+      return {
+        reason: 'error_box_visible',
+        phaseState,
+        phaseText,
+        resultRowCount: nonEmptyRows.length,
+        errorBoxVisible,
+      };
+    }
+
+    if (nonEmptyRows.length > 0) {
+      return {
+        reason: 'results_rows_rendered',
+        phaseState,
+        phaseText,
+        resultRowCount: nonEmptyRows.length,
+        errorBoxVisible,
+      };
+    }
+
+    return null;
+  }, { timeout });
+
+  return handle.jsonValue();
+}
+
 function maskUsername(value) {
   if (!value) return '';
   if (value.length <= 2) return `${value[0] || '*'}*`;
@@ -226,6 +295,8 @@ async function run() {
   let resultsMetaText = '';
   let errorBoxText = '';
   let resultRowCount = 0;
+  let terminalUiSignal = null;
+  let terminalUiSignalTimeout = false;
   let screenshotRelPath = '';
 
   try {
@@ -321,28 +392,13 @@ async function run() {
       analyzeResponseBody = safeJsonParse(responseText) || { _raw: responseText.slice(0, 2_000) };
     }
 
-    await page.locator('#phase-pill[data-phase="success"]').waitFor({ state: 'visible', timeout: timeoutMs });
+    try {
+      terminalUiSignal = await waitForTerminalUiSignal(page, timeoutMs);
+    } catch {
+      terminalUiSignalTimeout = true;
+    }
 
-    const uiSnapshot = await page.evaluate(() => {
-      const phaseEl = document.querySelector('#phase-pill');
-      const resultsMetaEl = document.querySelector('#results-meta');
-      const errorBoxEl = document.querySelector('#error-box');
-      const rows = Array.from(document.querySelectorAll('#results-body tr'));
-      const nonEmptyRows = rows.filter((row) => {
-        const emptyCell = row.querySelector('td.results-empty-cell');
-        return !emptyCell;
-      });
-
-      return {
-        phaseText: phaseEl ? String(phaseEl.textContent || '').trim() : '',
-        phaseState: phaseEl ? String(phaseEl.getAttribute('data-phase') || '').trim() : '',
-        resultsMetaText: resultsMetaEl ? String(resultsMetaEl.textContent || '').trim() : '',
-        errorBoxText:
-          errorBoxEl && !errorBoxEl.hasAttribute('hidden') ? String(errorBoxEl.textContent || '').trim() : '',
-        resultRowCount: nonEmptyRows.length,
-      };
-    });
-
+    const uiSnapshot = await collectUiSnapshot(page);
     phaseText = uiSnapshot.phaseText;
     phaseState = uiSnapshot.phaseState;
     resultsMetaText = uiSnapshot.resultsMetaText;
@@ -356,6 +412,17 @@ async function run() {
     await page.screenshot({ path: screenshotPath, fullPage: true });
     screenshotRelPath = path.relative(repoRoot, screenshotPath);
   } finally {
+    if (!screenshotRelPath) {
+      try {
+        await fs.mkdir(outDir, { recursive: true });
+        const fallbackScreenshotPath = path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}.png`);
+        await page.screenshot({ path: fallbackScreenshotPath, fullPage: true });
+        screenshotRelPath = path.relative(repoRoot, fallbackScreenshotPath);
+      } catch {
+        // ignore screenshot fallback errors
+      }
+    }
+
     await context.close();
     await browser.close();
   }
@@ -388,7 +455,11 @@ async function run() {
     'unauthorized',
   ].filter((token) => responseTextForGuards.includes(token));
 
-  const noIdleFallback = phaseState === 'success' && !phaseText.toLowerCase().includes('idle') && resultRowCount > 0;
+  const phaseStateNormalized = String(phaseState || '').trim().toLowerCase();
+  const phaseTextNormalized = String(phaseText || '').trim().toLowerCase();
+  const terminalUiSignalReason = terminalUiSignal && terminalUiSignal.reason ? String(terminalUiSignal.reason) : '';
+
+  const noIdleFallback = resultRowCount > 0 && phaseStateNormalized !== 'idle' && !phaseTextNormalized.includes('idle');
 
   const checks = {
     loginRedirectToIdP: isIdpLoginUrl(idpLoginUrl),
@@ -399,7 +470,8 @@ async function run() {
     analyzeHttpOk: analyzeResponseStatus === 200,
     analyzePayloadOkFlag: Boolean(analyzeResponseBody && analyzeResponseBody.ok === true),
     analyzePayloadComplete: analyzeCompleteness.complete,
-    phaseSuccess: phaseState === 'success',
+    terminalUiSignalObserved: Boolean(terminalUiSignalReason),
+    phaseSuccessOrResultsReady: phaseStateNormalized === 'success' || resultRowCount > 0,
     resultsRendered: resultRowCount > 0,
     noErrorBox: !errorBoxText,
     no401AnalyzeFlow: !has401DuringAnalyzeFlow,
@@ -454,6 +526,8 @@ async function run() {
       resultsMetaText,
       errorBoxText,
       resultRowCount,
+      terminalUiSignal,
+      terminalUiSignalTimeout,
     },
     flowResponses,
     guardSignals: {

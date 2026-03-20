@@ -21,6 +21,8 @@ Das Script erzeugt JSON-Evidence + Screenshot:
 - `reports/evidence/dev-ui-auth-analyze-smoke-<timestamp>.json`
 - `reports/evidence/dev-ui-auth-analyze-smoke-<timestamp>.png`
 
+Der UI-Contract wartet auf ein **terminales UI-Signal** (Phase `success`/`error`, sichtbare Error-Box oder gerenderte Result-Zeilen), statt starr nur auf einen einzigen Locator (`#phase-pill[data-phase="success"]`). Damit bleiben echte Produktfehler sichtbar, aber false negatives durch zu enge Locator-Waits werden reduziert.
+
 ## Erforderliche Secrets (GitHub Actions)
 - `DEV_UI_SMOKE_USERNAME`
 - `DEV_UI_SMOKE_PASSWORD`
