@@ -266,7 +266,7 @@ async function waitForTerminalUiSignal(page, timeout) {
     }
 
     return null;
-  }, { timeout });
+  }, undefined, { timeout });
 
   return handle.jsonValue();
 }
