@@ -5227,6 +5227,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         return {
           ...base,
           intelligence_mode: mode,
+          level: mode,
           timeout_seconds: timeoutSecondsForMode(mode),
           options,
         };
