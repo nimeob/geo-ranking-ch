@@ -1441,6 +1441,10 @@ def _build_job_permalink_html(*, app_version: str, api_base_url: str, job_id: st
 
     Die Page pollt die Job- und Notification-Endpunkte und zeigt bei terminalen
     Jobs eine UI-Notification inkl. Link zur Result-Page.
+
+    Wichtig: Die Browser-Calls bleiben same-origin auf ``/analyze/jobs``.
+    So bleibt der Session-Cookie auf der UI-Domain aktiv und CORS-/401-Probleme
+    durch direkte API-Origin-Aufrufe werden vermieden.
     """
 
     normalized_job_id = _normalize_job_id(job_id)
@@ -1448,10 +1452,7 @@ def _build_job_permalink_html(*, app_version: str, api_base_url: str, job_id: st
         raise ValueError("invalid job_id")
 
     safe_job_id = escape(normalized_job_id)
-    normalized_base_url = api_base_url.rstrip("/")
-    jobs_endpoint_base = (
-        f"{normalized_base_url}/analyze/jobs" if normalized_base_url else "/analyze/jobs"
-    )
+    jobs_endpoint_base = "/analyze/jobs"
 
     html = _JOB_PAGE_TEMPLATE
     html = html.replace("__JOB_ID__", safe_job_id)
@@ -1462,10 +1463,7 @@ def _build_job_permalink_html(*, app_version: str, api_base_url: str, job_id: st
 
 
 def _build_jobs_list_html(*, app_version: str, api_base_url: str) -> str:
-    normalized_base_url = api_base_url.rstrip("/")
-    jobs_endpoint_base = (
-        f"{normalized_base_url}/analyze/jobs" if normalized_base_url else "/analyze/jobs"
-    )
+    jobs_endpoint_base = "/analyze/jobs"
 
     html = _JOBS_LIST_PAGE_TEMPLATE
     html = html.replace("__APP_VERSION__", escape(app_version))

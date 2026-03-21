@@ -264,15 +264,16 @@ class TestUiService(unittest.TestCase):
         self.assertIn('href="/auth/logout"', body)
         self.assertIn('credentials: "include"', body)
 
-    def test_job_permalink_page_renders_and_targets_absolute_api_endpoints(self):
+    def test_job_permalink_page_renders_and_targets_same_origin_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/jobs/job-123")
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("Async Job", body)
         self.assertIn("job-123", body)
-        self.assertIn(f'const JOBS_ENDPOINT_BASE = "{self.api_base_url}/analyze/jobs";', body)
+        self.assertIn('const JOBS_ENDPOINT_BASE = "/analyze/jobs";', body)
+        self.assertNotIn(f'{self.api_base_url}/analyze/jobs', body)
 
-    def test_jobs_list_page_renders_and_targets_absolute_api_endpoints(self):
+    def test_jobs_list_page_renders_and_targets_same_origin_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/jobs")
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers.get("content-type", ""))
@@ -280,7 +281,8 @@ class TestUiService(unittest.TestCase):
         self.assertIn('id="jobs-status"', body)
         self.assertIn('id="jobs-q"', body)
         self.assertIn('id="jobs-add-id"', body)
-        self.assertIn(f'const JOBS_ENDPOINT_BASE = "{self.api_base_url}/analyze/jobs";', body)
+        self.assertIn('const JOBS_ENDPOINT_BASE = "/analyze/jobs";', body)
+        self.assertNotIn(f'{self.api_base_url}/analyze/jobs', body)
         self.assertIn("jobs_status", body)
         self.assertIn("jobs_q", body)
         self.assertIn('url.searchParams.get("jobs_status") || url.searchParams.get("status")', body)
