@@ -914,3 +914,22 @@ class TestFetchClosedIssuesBatch(unittest.TestCase):
 
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0]["type"], "issue_closure_consistency")
+        mock_reopen.assert_not_called()
+
+    def test_audit_closed_issues_reopens_when_checklist_open_and_no_evidence(self):
+        node = self._make_gql_node(
+            number=9,
+            body="## DoD\n- [ ] Open item\n- [x] Done item",
+            comments=[],
+            prs=[],
+            labels=["status:todo"],
+        )
+        response = self._make_gql_response([node], has_previous=False)
+
+        with patch.object(crawler, "run", return_value=response):
+            with patch.object(crawler, "reopen_issue") as mock_reopen:
+                findings = crawler.audit_closed_issues(dry_run=True)
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["type"], "issue_closure_consistency")
+        mock_reopen.assert_called_once()
