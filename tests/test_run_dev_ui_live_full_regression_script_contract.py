@@ -25,4 +25,5 @@ def test_auth_me_fetch_uses_ui_base_origin_not_current_page_origin() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
     assert 'targetUrl: new URL("/auth/me", baseOrigin).toString()' in content
-    assert "const redirectedToIdpLogin = isIdpLoginUrl(logoutUrl);" in content
+    assert "async function waitForLoggedOutState(page, timeoutMs)" in content
+    assert "const logoutState = await waitForLoggedOutState(page, LOGOUT_SETTLE_MS);" in content
