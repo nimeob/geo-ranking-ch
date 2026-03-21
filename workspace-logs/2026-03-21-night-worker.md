@@ -128,3 +128,13 @@
 
 ## Nächster Schritt
 - Branch committen, pushen und PR eröffnen (UI-nahe Deploy-Gate-Härtung).
+
+## 23:09 CET – Push + PR
+- Commit: `7c53975` — **Add /gui/jobs login-start smoke coverage in deploy gates**
+- Branch: `night/worker-20260321-2300`
+- Push: `origin/night/worker-20260321-2300`
+- PR erstellt: **#1424**
+  - https://github.com/nimeob/geo-ranking-ch/pull/1424
+- Blocker + Lösung:
+  - initialer Push scheiterte wegen priorisiertem globalem `gh auth git-credential` (invalid host token).
+  - für Push explizit command-local Credential-Helper auf `scripts/gha auth git-credential` gesetzt (`git -c credential.helper= -c credential.helper='!...' push ...`).
