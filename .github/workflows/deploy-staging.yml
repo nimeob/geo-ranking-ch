@@ -468,7 +468,7 @@ jobs:
             exit 1
           fi
 
-      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history)
+      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /gui/jobs)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
@@ -500,10 +500,20 @@ jobs:
             --retry-delay 5 \
             --output-json artifacts/staging-login-start-smoke-gui-history.json
           LOGIN_HISTORY_RC=$?
+
+          python3 scripts/smoke/check_ui_login_start.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --next "/gui/jobs" \
+            --reason "manual_login" \
+            --timeout 20 \
+            --max-attempts 8 \
+            --retry-delay 5 \
+            --output-json artifacts/staging-login-start-smoke-gui-jobs.json
+          LOGIN_JOBS_RC=$?
           set -e
 
-          if [ "$LOGIN_GUI_RC" -ne 0 ] || [ "$LOGIN_HISTORY_RC" -ne 0 ]; then
-            echo "::error::UI login-start smoke failed (gui_rc=${LOGIN_GUI_RC}, gui_history_rc=${LOGIN_HISTORY_RC}). See artifacts/staging-login-start-smoke*.json"
+          if [ "$LOGIN_GUI_RC" -ne 0 ] || [ "$LOGIN_HISTORY_RC" -ne 0 ] || [ "$LOGIN_JOBS_RC" -ne 0 ]; then
+            echo "::error::UI login-start smoke failed (gui_rc=${LOGIN_GUI_RC}, gui_history_rc=${LOGIN_HISTORY_RC}, gui_jobs_rc=${LOGIN_JOBS_RC}). See artifacts/staging-login-start-smoke*.json"
             exit 1
           fi
 
@@ -516,6 +526,7 @@ jobs:
           path: |
             artifacts/staging-login-start-smoke.json
             artifacts/staging-login-start-smoke-gui-history.json
+            artifacts/staging-login-start-smoke-gui-jobs.json
 
       - name: Optional strict split smoke (API + UI routing)
         env:
