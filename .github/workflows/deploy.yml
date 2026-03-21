@@ -303,12 +303,13 @@ jobs:
             exit "$RECONCILE_RC"
           fi
 
-      - name: Smoke-Test UI login start redirects to IdP authorize
+      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
           set -euo pipefail
           [ -n "${SERVICE_APP_BASE_URL:-}" ]
+
           python3 scripts/smoke/check_ui_login_start.py \
             --base-url "${SERVICE_APP_BASE_URL}" \
             --next "/gui" \
@@ -317,6 +318,15 @@ jobs:
             --max-attempts 8 \
             --retry-delay 5 \
             --output-json artifacts/dev-login-start-smoke.json
+
+          python3 scripts/smoke/check_ui_login_start.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --next "/gui/history" \
+            --reason "manual_login" \
+            --timeout 20 \
+            --max-attempts 8 \
+            --retry-delay 5 \
+            --output-json artifacts/dev-login-start-smoke-gui-history.json
 
       - name: Deployment summary
         run: |
