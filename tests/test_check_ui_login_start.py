@@ -135,6 +135,25 @@ def test_main_fails_with_entry_phase_when_login_entry_redirect_target_is_invalid
     assert payload["reason"] == "entry_redirect_non_login_target"
 
 
+def test_main_accepts_json_out_alias_and_writes_result(tmp_path, capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+    }
+    output_path = tmp_path / "login-start.json"
+
+    with _StubServer() as stub:
+        exit_code = module.main(["--base-url", stub.base_url, "--json-out", str(output_path)])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+
+    file_payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert file_payload["ok"] is True
+    assert file_payload["phase"] == "start"
+
+
 def test_check_login_start_passes_for_authorize_redirect():
     module = _load_module()
     _StubHandler.routes = {

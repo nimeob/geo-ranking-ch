@@ -431,7 +431,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=15.0, help="HTTP timeout per attempt in seconds (default: 15)")
     parser.add_argument("--max-attempts", type=int, default=3, help="Max HTTP attempts per hop on transient request errors (default: 3)")
     parser.add_argument("--retry-delay", type=float, default=2.0, help="Delay between retries in seconds (default: 2.0)")
-    parser.add_argument("--output-json", help="Optional output path for machine-readable result")
+    parser.add_argument(
+        "--output-json",
+        "--json-out",
+        dest="output_json",
+        help="Optional output path for machine-readable result",
+    )
     return parser.parse_args(argv)
 
 
