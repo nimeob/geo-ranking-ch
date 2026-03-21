@@ -507,6 +507,16 @@ async function main() {
       if (/loading/i.test(text)) return false;
       return /(queued|running|partial|completed|failed|canceled|error)/i.test(text);
     }, undefined, { timeout: MAX_WAIT_MS });
+    await page.waitForFunction(() => {
+      const raw = String(document.getElementById("notifications-payload")?.textContent || "").trim();
+      if (!raw || /loading/i.test(raw)) return false;
+      try {
+        const payload = JSON.parse(raw);
+        return payload && payload.ok === true && Array.isArray(payload.notifications);
+      } catch {
+        return false;
+      }
+    }, undefined, { timeout: MAX_WAIT_MS });
 
     const jobStatusText = await page.locator("#status").innerText();
     recordCheck("job_page_status_not_stuck_loading", !/loading/i.test(jobStatusText) && /Status:/i.test(jobStatusText), jobStatusText);
