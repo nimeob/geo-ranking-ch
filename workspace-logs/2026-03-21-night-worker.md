@@ -69,3 +69,26 @@
 ## Nächster Schritt
 - Commit + Push + PR für DB-Guard-Fallback.
 - Nach Merge & Deploy: Full-Regression nochmals triggern, Ziel = durchgehend grün.
+
+## 06:31–06:36 CET – DEV Live-Retest + CLI-Compatibility-Härtung
+- Neuer sauberer Arbeitszweig für Nachtarbeit von `origin/main` erstellt: `night/worker-20260321-0630` (Worktree `../geo-ranking-ch-night0630`).
+- Relevante Contract-Suites lokal erneut verifiziert:
+  - `tests/test_check_ui_login_start.py`
+  - `tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py`
+  - `tests/test_run_dev_ui_live_full_regression_script_contract.py`
+  - Ergebnis: **18 passed**.
+- Live-UI-Checks gegen `https://www.dev.georanking.ch` ausgeführt:
+  - `/login?next=/gui` → IdP authorize redirect (**ok=true**)
+  - `/login?next=/gui/history` → IdP authorize redirect (**ok=true**)
+  - Artefakte:
+    - `artifacts/nightworker/20260321T053158Z-dev-login-start-smoke-gui.json`
+    - `artifacts/nightworker/20260321T053158Z-dev-login-start-smoke-gui-history.json`
+- GitHub Actions Live-Retest manuell getriggert und überwacht:
+  - `gui-dev-live-full-regression` Run **#23373014225** → **success**
+  - `gui-dev-live-auth-analyze-smoke` Run **#23373033268** → **success**
+- ROI-Fix umgesetzt (Operator/Runbook-Kompatibilität):
+  - `scripts/smoke/check_ui_login_start.py` akzeptiert jetzt zusätzlich Alias `--json-out` (neben `--output-json`).
+  - Hintergrund: reduziert Bedienfehler bei manuellen/älteren Aufrufen, ohne bestehende CI-Aufrufe zu brechen.
+  - Regressionstest ergänzt: `test_main_accepts_json_out_alias_and_writes_result`.
+- Hinweis Blocker-Handling:
+  - Browser-Tool war in dieser Session nicht verfügbar (Gateway-Timeout), daher UI-Verifikation über bestehende Smoke-Skripte + Live-Workflows abgesichert.
