@@ -602,7 +602,8 @@ class DbAsyncJobStore:
     ) -> dict[str, Any] | None:
         """Fetch result only for exact owner user+org.
 
-        Legacy rows without user metadata are intentionally excluded.
+        Backward-compatibility: for legacy `job_results` rows with incomplete owner/org
+        metadata, fall back to the authoritative owner guard on the parent `jobs` row.
         """
         owner_user_id_norm = str(owner_user_id or "").strip()
         owner_org_id_norm = str(owner_org_id or "").strip()
@@ -617,17 +618,47 @@ class DbAsyncJobStore:
                 SELECT *
                 FROM job_results
                 WHERE result_id = %s
-                  AND user_id = %s
-                  AND COALESCE(org_id, '') = %s
+                  AND (COALESCE(org_id, '') = %s OR COALESCE(org_id, '') = '')
                 """,
                 (
                     str(result_id),
-                    owner_user_id_norm,
                     owner_org_id_norm,
                 ),
             )
             row = cur.fetchone()
-            return _row_to_dict(cur, row) if row else None
+            if row is None:
+                return None
+
+            projected = _row_to_dict(cur, row)
+            result_user_id = str(projected.get("user_id") or "").strip()
+            result_org_id = str(projected.get("org_id") or "").strip()
+
+            # Fast path: row already carries strict owner metadata.
+            if result_user_id and result_org_id:
+                if result_user_id == owner_user_id_norm and result_org_id == owner_org_id_norm:
+                    return projected
+                return None
+
+            # Legacy fallback: allow only when the parent job is owned by the caller.
+            job_id = str(projected.get("job_id") or "").strip()
+            if not job_id:
+                return None
+
+            cur.execute(
+                """
+                SELECT 1
+                FROM jobs
+                WHERE job_id = %s
+                  AND user_id = %s
+                  AND org_id = %s
+                """,
+                (
+                    job_id,
+                    owner_user_id_norm,
+                    owner_org_id_norm,
+                ),
+            )
+            return projected if cur.fetchone() else None
         finally:
             conn.close()
 
