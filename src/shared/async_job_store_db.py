@@ -785,20 +785,7 @@ class DbAsyncJobStore:
         try:
             cur = conn.cursor()
             cur.execute(
-                """
-                SELECT
-                    job_id,
-                    status,
-                    result_id,
-                    progress_percent,
-                    error_code,
-                    retry_hint,
-                    finished_at,
-                    updated_at,
-                    queued_at
-                FROM jobs
-                WHERE job_id = %s
-                """,
+                "SELECT * FROM jobs WHERE job_id = %s",
                 (normalized_job_id,),
             )
             row = cur.fetchone()
