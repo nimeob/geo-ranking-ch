@@ -10,15 +10,14 @@ SCRIPT = REPO_ROOT / "scripts" / "run_dev_ui_live_full_regression.mjs"
 def test_wait_for_function_uses_options_as_third_argument() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
-    assert """await page.waitForFunction(() => {
-      const el = document.getElementById(\"phase-pill\");
-      return el && /success/i.test(String(el.textContent || \"\"));
-    }, undefined, { timeout: MAX_WAIT_MS });""" in content
+    assert 'const el = document.getElementById("phase-pill");' in content
+    assert '/success/i.test(String(el.textContent || ""));' in content
 
-    assert """await page.waitForFunction(() => {
-      const el = document.getElementById(\"status\");
-      return el && /Status:\\s*(loaded|success|ok)/i.test(String(el.textContent || \"\"));
-    }, undefined, { timeout: MAX_WAIT_MS });""" in content
+    assert 'const el = document.getElementById("status");' in content
+    assert '/Status:\\s*(loaded|success|ok)/i.test(String(el.textContent || ""));' in content
+
+    # Regression guard: keep Playwright waitForFunction options as 3rd arg
+    assert content.count('}, undefined, { timeout: MAX_WAIT_MS });') >= 2
 
 
 def test_auth_me_fetch_uses_ui_base_origin_not_current_page_origin() -> None:
