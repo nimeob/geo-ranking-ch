@@ -24,4 +24,5 @@ def test_wait_for_function_uses_options_as_third_argument() -> None:
 def test_auth_me_fetch_uses_ui_base_origin_not_current_page_origin() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
-    assert 'apiRequestContext.get(new URL("/auth/me", baseOrigin).toString()' in content
+    assert 'targetUrl: new URL("/auth/me", baseOrigin).toString()' in content
+    assert "const redirectedToIdpLogin = isIdpLoginUrl(logoutUrl);" in content
