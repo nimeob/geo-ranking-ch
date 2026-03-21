@@ -203,6 +203,23 @@ def test_deploy_workflow_smokes_login_contract_for_gui_and_history_routes():
     assert not missing, f"deploy.yml fehlt Login-Contract-Smoke-Coverage: {missing}"
 
 
+def test_deploy_staging_workflow_smokes_login_contract_for_gui_and_history_routes():
+    workflow = Path(".github/workflows/deploy-staging.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history)",
+        '--next "/gui"',
+        '--next "/gui/history"',
+        "artifacts/staging-login-start-smoke.json",
+        "artifacts/staging-login-start-smoke-gui-history.json",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert not missing, f"deploy-staging.yml fehlt Login-Contract-Smoke-Coverage: {missing}"
+
+
 def test_deployment_aws_doc_mentions_deploy_gate_rollback_required_marker():
     doc = Path("docs/DEPLOYMENT_AWS.md")
     assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
