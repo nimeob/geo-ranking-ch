@@ -92,3 +92,56 @@
   - Regressionstest ergänzt: `test_main_accepts_json_out_alias_and_writes_result`.
 - Hinweis Blocker-Handling:
   - Browser-Tool war in dieser Session nicht verfügbar (Gateway-Timeout), daher UI-Verifikation über bestehende Smoke-Skripte + Live-Workflows abgesichert.
+
+## 23:00 CET – Nacht-Session Restart (Plan)
+- Start auf cleanem Worktree von `origin/main`: Branch `night/worker-20260321-2300`.
+- Fokus/ROI für diese Runde:
+  1. UI-nahen Full-Regression-Runner (`scripts/run_dev_ui_live_full_regression.mjs`) gegen Placeholder-/Payload-Drift auf `/jobs/<id>` härten.
+  2. Contract-Test ergänzen, damit die Guardrail in CI nicht regressiert.
+  3. Relevante Test-Suite lokal laufen lassen und anschließend DEV-Login-Contract kurz live gegen `https://www.dev.georanking.ch` gegenprüfen.
+- Ziel: frühere Klasse „`Loading...` statt Notifications-Payload“ deterministisch früher failen lassen (klarer Fehlergrund, weniger Flakes).
+
+## 23:06 CET – Paket: Login-Start-Smoke auf `/gui/jobs` erweitert (DEV+STAGING Deploy-Gates)
+- Problem/ROI: Deploy-Gates prüften Login-Start nur für `/gui` und `/gui/history`; die UI-Route `/gui/jobs` war nicht in den Gate-Smokes enthalten.
+- Änderung umgesetzt:
+  - `.github/workflows/deploy.yml`
+    - Smoke-Step erweitert auf `/gui/jobs`.
+    - zusätzlicher Return-Code `LOGIN_JOBS_RC`.
+    - Fehlerausgabe enthält jetzt `gui_jobs_rc=...`.
+    - Artifact-Upload erweitert um `artifacts/dev-login-start-smoke-gui-jobs.json`.
+  - `.github/workflows/deploy-staging.yml`
+    - gleiche Erweiterung für Staging.
+    - Artifact-Upload erweitert um `artifacts/staging-login-start-smoke-gui-jobs.json`.
+  - `tests/test_deploy_version_trace_docs.py`
+    - Contract-Assertions auf neuen dritten Route-Check + Artifact + `LOGIN_JOBS_RC` angepasst.
+- Lokal validiert:
+  - `pytest -q tests/test_deploy_version_trace_docs.py tests/test_check_ui_login_start.py` → **32 passed**.
+- Live gegen DEV geprüft (UI-nah):
+  - `scripts/smoke/check_ui_login_start.py` erfolgreich für:
+    - `/gui`
+    - `/gui/history`
+    - `/gui/jobs`
+  - neue Artefakte:
+    - `artifacts/nightworker/20260321T220616Z-dev-login-start-smoke-gui.json`
+    - `artifacts/nightworker/20260321T220616Z-dev-login-start-smoke-gui-history.json`
+    - `artifacts/nightworker/20260321T220616Z-dev-login-start-smoke-gui-jobs.json`
+
+## Nächster Schritt
+- Branch committen, pushen und PR eröffnen (UI-nahe Deploy-Gate-Härtung).
+
+## 23:09 CET – Push + PR
+- Commit: `7c53975` — **Add /gui/jobs login-start smoke coverage in deploy gates**
+- Branch: `night/worker-20260321-2300`
+- Push: `origin/night/worker-20260321-2300`
+- PR erstellt: **#1424**
+  - https://github.com/nimeob/geo-ranking-ch/pull/1424
+- Blocker + Lösung:
+  - initialer Push scheiterte wegen priorisiertem globalem `gh auth git-credential` (invalid host token).
+  - für Push explizit command-local Credential-Helper auf `scripts/gha auth git-credential` gesetzt (`git -c credential.helper= -c credential.helper='!...' push ...`).
+
+## 23:12 CET – PR-Checks überwacht
+- PR #1424 CI-Status aktiv überwacht (`gh pr checks --watch`).
+- Ergebnis:
+  - `dev-smoke-required` ✅ pass
+  - `gui-webkit-smoke` ✅ pass
+- PR ist damit technisch review-ready; kein akuter Blocker offen.
