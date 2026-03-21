@@ -289,3 +289,39 @@ def test_check_login_start_raises_when_retries_exhausted(monkeypatch):
             max_attempts=2,
             retry_delay_seconds=0,
         )
+
+
+def test_check_login_start_retries_transient_http_429_with_retry_after(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 302
+
+        def __init__(self, location: str) -> None:
+            self.headers = {"Location": location}
+
+        def getcode(self) -> int:
+            return self.status
+
+    class _FlakyRateLimitOpener:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def open(self, req, timeout):  # noqa: ARG002
+            self.calls += 1
+            if self.calls == 1:
+                raise HTTPError(req.full_url, 429, "Too Many Requests", {"Retry-After": "0"}, None)
+            return _FakeResponse("https://idp.example.test/oauth2/authorize?state=abc")
+
+    opener = _FlakyRateLimitOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: opener)
+
+    result = module.check_login_start(
+        base_url="https://www.dev.georanking.ch",
+        max_attempts=2,
+        retry_delay_seconds=0,
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert opener.calls == 2
