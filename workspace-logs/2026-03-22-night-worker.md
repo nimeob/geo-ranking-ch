@@ -19,3 +19,11 @@
 
 - Der vorherige Deploy-Fehler ist auf dem aktuellen `main`-Stand nicht mehr reproduzierbar.
 - Aktuell keine offenen CI-Blocker sichtbar.
+
+## 00:17 CET — Changelog-Commit + Push
+
+- Commit: `ec961ba` — `docs: log 2026-03-22 nightly deploy verification`
+- Branch: `night/worker-20260322-0005`
+- Push: `origin/night/worker-20260322-0005`
+- PR optional (noch nicht eröffnet):
+  - https://github.com/nimeob/geo-ranking-ch/pull/new/night/worker-20260322-0005
