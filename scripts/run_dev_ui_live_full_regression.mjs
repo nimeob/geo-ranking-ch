@@ -7,6 +7,7 @@ const UI_BASE_URL = (process.env.DEV_UI_BASE_URL || "").trim();
 const USERNAME = (process.env.DEV_UI_SMOKE_USERNAME || "").trim();
 const PASSWORD = (process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
 const MAX_WAIT_MS = Number(process.env.DEV_UI_FULL_MAX_WAIT_MS || 120_000);
+const LOGOUT_SETTLE_MS = Number(process.env.DEV_UI_FULL_LOGOUT_SETTLE_MS || 10_000);
 const EVIDENCE_JSON = (process.env.DEV_UI_FULL_EVIDENCE_JSON || "artifacts/dev-ui-full/latest/dev-ui-full-regression.json").trim();
 const SCREENSHOT_DIR = (process.env.DEV_UI_FULL_SCREENSHOT_DIR || "artifacts/dev-ui-full/latest/screenshots").trim();
 
@@ -118,6 +119,59 @@ async function fetchAuthMe(page) {
       };
     }
   }, { targetUrl: new URL("/auth/me", baseOrigin).toString() });
+}
+
+async function waitForLoggedOutState(page, timeoutMs) {
+  const deadline = Date.now() + Math.max(0, Number(timeoutMs) || 0);
+  const observations = [];
+
+  while (Date.now() <= deadline) {
+    const logoutUrl = page.url();
+    const redirectedToIdpLogin = isIdpLoginUrl(logoutUrl);
+    if (redirectedToIdpLogin) {
+      return {
+        ok: true,
+        reason: "idp_login_redirect",
+        logoutUrl,
+        redirectedToIdpLogin,
+        authAfterLogout: null,
+        observations,
+      };
+    }
+
+    const authAfterLogout = await fetchAuthMe(page);
+    observations.push({
+      ts: new Date().toISOString(),
+      logoutUrl,
+      authStatus: authAfterLogout?.status ?? null,
+      authOk: Boolean(authAfterLogout?.ok),
+    });
+
+    if (authAfterLogout?.status === 401) {
+      return {
+        ok: true,
+        reason: "auth_me_401",
+        logoutUrl,
+        redirectedToIdpLogin,
+        authAfterLogout,
+        observations,
+      };
+    }
+
+    await page.waitForTimeout(500);
+  }
+
+  const logoutUrl = page.url();
+  const redirectedToIdpLogin = isIdpLoginUrl(logoutUrl);
+  const authAfterLogout = redirectedToIdpLogin ? null : await fetchAuthMe(page);
+  return {
+    ok: Boolean(redirectedToIdpLogin || authAfterLogout?.status === 401),
+    reason: "timeout",
+    logoutUrl,
+    redirectedToIdpLogin,
+    authAfterLogout,
+    observations,
+  };
 }
 
 function deriveRemainingSeconds(payload) {
@@ -401,15 +455,11 @@ async function main() {
       page.click("#burger-logout-link"),
     ]);
 
-    // allow redirects to settle
-    await page.waitForTimeout(1_500);
-    const logoutUrl = page.url();
-    const redirectedToIdpLogin = isIdpLoginUrl(logoutUrl);
-    const authAfterLogout = redirectedToIdpLogin ? null : await fetchAuthMe(page);
+    const logoutState = await waitForLoggedOutState(page, LOGOUT_SETTLE_MS);
     recordCheck(
       "auth.me_after_logout_401",
-      redirectedToIdpLogin || authAfterLogout?.status === 401,
-      JSON.stringify({ logoutUrl, redirectedToIdpLogin, authAfterLogout }),
+      logoutState.ok,
+      JSON.stringify(logoutState),
     );
 
     await safeScreenshot(page, "99-final-state");
