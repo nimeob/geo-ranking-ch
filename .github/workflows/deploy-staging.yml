@@ -468,6 +468,34 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history)
+        env:
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SERVICE_APP_BASE_URL:-}" ]; then
+            echo "::error::Missing SERVICE_APP_BASE_URL for UI login-start smoke"
+            exit 1
+          fi
+
+          python3 scripts/smoke/check_ui_login_start.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --next "/gui" \
+            --reason "manual_login" \
+            --timeout 20 \
+            --max-attempts 8 \
+            --retry-delay 5 \
+            --output-json artifacts/staging-login-start-smoke.json
+
+          python3 scripts/smoke/check_ui_login_start.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --next "/gui/history" \
+            --reason "manual_login" \
+            --timeout 20 \
+            --max-attempts 8 \
+            --retry-delay 5 \
+            --output-json artifacts/staging-login-start-smoke-gui-history.json
+
       - name: Optional strict split smoke (API + UI routing)
         env:
           SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
