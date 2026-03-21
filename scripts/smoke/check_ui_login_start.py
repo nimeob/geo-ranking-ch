@@ -72,6 +72,11 @@ def _build_start_request_url(base_url: str, *, next_path: str, reason: str) -> s
 
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
+_REDIRECT_HTTP_STATUSES = frozenset({301, 302, 303, 307, 308})
+
+
+def _is_redirect_status(status_code: int) -> bool:
+    return int(status_code) in _REDIRECT_HTTP_STATUSES
 
 
 def _resolve_retry_delay(*, retry_after_header: str, default_delay_seconds: float) -> float:
@@ -226,7 +231,7 @@ def check_login_entry(
         read_body_preview=True,
     )
 
-    if probe.status_code == 302:
+    if _is_redirect_status(probe.status_code):
         if not probe.location:
             return LoginEntryCheckResult(
                 ok=False,
@@ -325,7 +330,7 @@ def check_login_start(
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
     )
-    if first_status != 302:
+    if not _is_redirect_status(first_status):
         return LoginStartCheckResult(
             ok=False,
             status_code=first_status,
@@ -378,7 +383,7 @@ def check_login_start(
         retry_delay_seconds=retry_delay_seconds,
     )
 
-    if second_status != 302:
+    if not _is_redirect_status(second_status):
         return LoginStartCheckResult(
             ok=False,
             status_code=second_status,

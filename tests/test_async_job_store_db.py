@@ -642,6 +642,80 @@ class TestDbResultPayloadHydration(unittest.TestCase):
         self.assertEqual(loaded_rows[1].get("result_payload"), payload_final)
 
 
+class TestListNotifications(unittest.TestCase):
+    def test_returns_terminal_in_app_notification_for_completed_job(self):
+        factory, mock_cursor, _ = _make_conn_factory(
+            fetchone_values=[(
+                "job-123",
+                "completed",
+                "result-1",
+                100,
+                None,
+                None,
+                "2026-03-21T07:00:00+00:00",
+                "2026-03-21T07:00:00+00:00",
+                "2026-03-21T06:59:00+00:00",
+            )]
+        )
+        mock_cursor.description = [
+            ("job_id",),
+            ("status",),
+            ("result_id",),
+            ("progress_percent",),
+            ("error_code",),
+            ("retry_hint",),
+            ("finished_at",),
+            ("updated_at",),
+            ("queued_at",),
+        ]
+
+        store = DbAsyncJobStore(conn_factory=factory)
+        rows = store.list_notifications("job-123", channel="in_app")
+
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row.get("job_id"), "job-123")
+        self.assertEqual(row.get("channel"), "in_app")
+        self.assertEqual(row.get("template_key"), "async.job.completed")
+        self.assertEqual(row.get("payload_json", {}).get("result_id"), "result-1")
+
+    def test_returns_empty_for_non_terminal_job(self):
+        factory, mock_cursor, _ = _make_conn_factory(
+            fetchone_values=[(
+                "job-123",
+                "running",
+                None,
+                40,
+                None,
+                None,
+                None,
+                "2026-03-21T07:00:00+00:00",
+                "2026-03-21T06:59:00+00:00",
+            )]
+        )
+        mock_cursor.description = [
+            ("job_id",),
+            ("status",),
+            ("result_id",),
+            ("progress_percent",),
+            ("error_code",),
+            ("retry_hint",),
+            ("finished_at",),
+            ("updated_at",),
+            ("queued_at",),
+        ]
+
+        store = DbAsyncJobStore(conn_factory=factory)
+        rows = store.list_notifications("job-123", channel="in_app")
+        self.assertEqual(rows, [])
+
+    def test_returns_empty_for_unsupported_channel(self):
+        factory, _, _ = _make_conn_factory(fetchone_values=[None])
+        store = DbAsyncJobStore(conn_factory=factory)
+        self.assertEqual(store.list_notifications("job-123", channel="email"), [])
+
+
+
 class TestFromEnv(unittest.TestCase):
     def test_missing_env_raises_runtime_error(self):
         import os

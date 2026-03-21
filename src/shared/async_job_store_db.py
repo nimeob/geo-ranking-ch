@@ -760,6 +760,93 @@ class DbAsyncJobStore:
         finally:
             conn.close()
 
+    def list_notifications(
+        self,
+        job_id: str,
+        *,
+        channel: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return terminal in-app notifications for a job.
+
+        DB schema v2 has no dedicated ``job_notifications`` table yet. For API/UI
+        compatibility we synthesize a deterministic in-app notification from the
+        current terminal job state (completed/failed).
+        """
+
+        normalized_job_id = str(job_id or "").strip()
+        if not normalized_job_id:
+            return []
+
+        normalized_channel = str(channel).strip().lower() if channel else None
+        if normalized_channel and normalized_channel != "in_app":
+            return []
+
+        conn = self._connect()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT
+                    job_id,
+                    status,
+                    result_id,
+                    progress_percent,
+                    error_code,
+                    retry_hint,
+                    finished_at,
+                    updated_at,
+                    queued_at
+                FROM jobs
+                WHERE job_id = %s
+                """,
+                (normalized_job_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return []
+            job_record = _row_to_dict(cur, row)
+        finally:
+            conn.close()
+
+        status = str(job_record.get("status") or "").strip().lower()
+        if status not in {"completed", "failed"}:
+            return []
+
+        template_key = f"async.job.{status}"
+        dedupe_key = f"{normalized_job_id}:in_app:{template_key}"
+        created_at = str(
+            job_record.get("finished_at")
+            or job_record.get("updated_at")
+            or job_record.get("queued_at")
+            or _utc_now_iso()
+        )
+        notification_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"db-notify:{dedupe_key}"))
+
+        return [
+            {
+                "notification_id": notification_id,
+                "job_id": normalized_job_id,
+                "channel": "in_app",
+                "template_key": template_key,
+                "delivery_status": "pending",
+                "attempt_count": 0,
+                "last_error": None,
+                "dedupe_key": dedupe_key,
+                "scheduled_at": created_at,
+                "sent_at": None,
+                "created_at": created_at,
+                "payload_json": {
+                    "job_id": normalized_job_id,
+                    "status": status,
+                    "result_id": job_record.get("result_id"),
+                    "progress_percent": int(job_record.get("progress_percent", 0) or 0),
+                    "error_code": job_record.get("error_code"),
+                    "retry_hint": job_record.get("retry_hint"),
+                    "finished_at": job_record.get("finished_at"),
+                },
+            },
+        ]
+
     # ------------------------------------------------------------------
     # list_jobs_for_org / list_jobs_for_user  (DB-only, not in file store)
     # ------------------------------------------------------------------
