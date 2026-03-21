@@ -709,6 +709,38 @@ class TestListNotifications(unittest.TestCase):
         rows = store.list_notifications("job-123", channel="in_app")
         self.assertEqual(rows, [])
 
+    def test_handles_legacy_schema_without_retry_hint_column(self):
+        factory, mock_cursor, _ = _make_conn_factory(
+            fetchone_values=[(
+                "job-123",
+                "failed",
+                None,
+                100,
+                "internal",
+                "2026-03-21T07:01:00+00:00",
+                "2026-03-21T07:01:00+00:00",
+                "2026-03-21T07:00:00+00:00",
+            )]
+        )
+        mock_cursor.description = [
+            ("job_id",),
+            ("status",),
+            ("result_id",),
+            ("progress_percent",),
+            ("error_code",),
+            ("finished_at",),
+            ("updated_at",),
+            ("queued_at",),
+        ]
+
+        store = DbAsyncJobStore(conn_factory=factory)
+        rows = store.list_notifications("job-123", channel="in_app")
+
+        self.assertEqual(len(rows), 1)
+        payload = rows[0].get("payload_json", {})
+        self.assertEqual(payload.get("status"), "failed")
+        self.assertIsNone(payload.get("retry_hint"))
+
     def test_returns_empty_for_unsupported_channel(self):
         factory, _, _ = _make_conn_factory(fetchone_values=[None])
         store = DbAsyncJobStore(conn_factory=factory)
