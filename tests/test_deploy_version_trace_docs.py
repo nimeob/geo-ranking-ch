@@ -197,6 +197,11 @@ def test_deploy_workflow_smokes_login_contract_for_gui_and_history_routes():
         '--next "/gui/history"',
         "artifacts/dev-login-start-smoke.json",
         "artifacts/dev-login-start-smoke-gui-history.json",
+        "Upload login-start smoke artifacts (dev)",
+        "actions/upload-artifact@v4",
+        "dev-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}",
+        "LOGIN_GUI_RC",
+        "LOGIN_HISTORY_RC",
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
@@ -214,6 +219,11 @@ def test_deploy_staging_workflow_smokes_login_contract_for_gui_and_history_route
         '--next "/gui/history"',
         "artifacts/staging-login-start-smoke.json",
         "artifacts/staging-login-start-smoke-gui-history.json",
+        "Upload login-start smoke artifacts (staging)",
+        "actions/upload-artifact@v4",
+        "staging-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}",
+        "LOGIN_GUI_RC",
+        "LOGIN_HISTORY_RC",
     ]
 
     missing = [snippet for snippet in required if snippet not in text]

@@ -478,6 +478,9 @@ jobs:
             exit 1
           fi
 
+          mkdir -p artifacts
+
+          set +e
           python3 scripts/smoke/check_ui_login_start.py \
             --base-url "${SERVICE_APP_BASE_URL}" \
             --next "/gui" \
@@ -486,6 +489,7 @@ jobs:
             --max-attempts 8 \
             --retry-delay 5 \
             --output-json artifacts/staging-login-start-smoke.json
+          LOGIN_GUI_RC=$?
 
           python3 scripts/smoke/check_ui_login_start.py \
             --base-url "${SERVICE_APP_BASE_URL}" \
@@ -495,6 +499,23 @@ jobs:
             --max-attempts 8 \
             --retry-delay 5 \
             --output-json artifacts/staging-login-start-smoke-gui-history.json
+          LOGIN_HISTORY_RC=$?
+          set -e
+
+          if [ "$LOGIN_GUI_RC" -ne 0 ] || [ "$LOGIN_HISTORY_RC" -ne 0 ]; then
+            echo "::error::UI login-start smoke failed (gui_rc=${LOGIN_GUI_RC}, gui_history_rc=${LOGIN_HISTORY_RC}). See artifacts/staging-login-start-smoke*.json"
+            exit 1
+          fi
+
+      - name: Upload login-start smoke artifacts (staging)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          path: |
+            artifacts/staging-login-start-smoke.json
+            artifacts/staging-login-start-smoke-gui-history.json
 
       - name: Optional strict split smoke (API + UI routing)
         env:
