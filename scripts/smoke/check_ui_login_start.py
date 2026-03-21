@@ -94,7 +94,9 @@ def _resolve_retry_delay(*, retry_after_header: str, default_delay_seconds: floa
         retry_at = retry_at.replace(tzinfo=timezone.utc)
 
     delta_seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
-    return max(0.0, delta_seconds)
+    if delta_seconds <= 0:
+        return fallback_delay
+    return delta_seconds
 
 
 def _send_request_probe(
