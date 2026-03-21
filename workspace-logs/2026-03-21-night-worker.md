@@ -49,3 +49,23 @@
 - PR #1397 ist gemerged (Timeout-Signatur-Fix `waitForFunction`).
 - Persistenter Live-Blocker jetzt als Race Condition adressiert in PR #1400.
 - Nächster Schritt nach Merge von #1400: Full-Regression erneut triggern und auf green verifizieren.
+
+## 01:26 CET – Persistenter `/analyze/results/<id>` 404 trotz UI-Retry
+- Nach Merge von PR #1400 und erfolgreichem Deploy (`23367269014`) Full-Regression erneut ausgeführt (`23367469775`).
+- Ergebnis weiterhin **failure**: wiederholte `404 not_found` auf `/analyze/results/<id>?view=latest`.
+- Beobachtung:
+  - History enthält Result-Link (Job wurde mit `result_id` aktualisiert).
+  - Result-Fetch bleibt dennoch 404.
+- Schlussfolgerung: wahrscheinlich Ownership-Guard/Legacy-Metadaten-Lücke zwischen `job_results` und `jobs`.
+
+## 01:34 CET – DB Owner-Guard Legacy-Fallback implementiert
+- Änderung in `DbAsyncJobStore.get_result_for_owner`:
+  - strikter Owner-Fast-Path bleibt erhalten (user_id+org_id direkt auf Result-Row).
+  - für Legacy-/teilweise Metadaten auf Result-Row: zusätzlicher Guard über Parent-Job (`jobs.job_id + user_id + org_id`).
+  - Zugriff nur bei eindeutiger Job-Ownership, kein Relaxing ohne Guard.
+- Tests ergänzt/angepasst: `tests/test_async_job_store_db.py` (inkl. Legacy-Fallback-Szenario).
+- Relevante Testmatrix erneut grün (`61 passed`).
+
+## Nächster Schritt
+- Commit + Push + PR für DB-Guard-Fallback.
+- Nach Merge & Deploy: Full-Regression nochmals triggern, Ziel = durchgehend grün.
