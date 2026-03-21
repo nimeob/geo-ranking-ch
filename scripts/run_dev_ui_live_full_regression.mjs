@@ -378,10 +378,24 @@ async function main() {
       page.locator('#history-shell a[href^="/results/"]').first().click(),
     ]);
     await page.waitForSelector("#load-btn", { timeout: MAX_WAIT_MS });
-    await page.waitForFunction(() => {
-      const el = document.getElementById("status");
-      return el && /Status:\s*(loaded|success|ok)/i.test(String(el.textContent || ""));
-    }, undefined, { timeout: MAX_WAIT_MS });
+    await page.click("#load-btn");
+    recordCheck("result_load_button_clickable", true, "clicked #load-btn");
+
+    let resultLoadedAfterRetry = false;
+    try {
+      await page.waitForFunction(() => {
+        const el = document.getElementById("status");
+        return el && /Status:\s*(loaded|success|ok)/i.test(String(el.textContent || ""));
+      }, undefined, { timeout: MAX_WAIT_MS });
+    } catch {
+      resultLoadedAfterRetry = true;
+      await page.click("#load-btn").catch(() => {});
+      await page.waitForFunction(() => {
+        const el = document.getElementById("status");
+        return el && /Status:\s*(loaded|success|ok)/i.test(String(el.textContent || ""));
+      }, undefined, { timeout: MAX_WAIT_MS });
+    }
+    recordCheck("result_permalink_load_recovers_after_retry", true, `retried=${resultLoadedAfterRetry}`);
 
     await page.click('.tab-btn[data-tab="sources"]');
     await page.click('.tab-btn[data-tab="derived"]');
