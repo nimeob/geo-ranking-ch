@@ -37,6 +37,7 @@ const checks = [];
 const consoleErrors = [];
 const pageErrors = [];
 const networkLog = [];
+const requestFailures = [];
 
 function recordCheck(name, ok, detail = "") {
   checks.push({ name, ok: Boolean(ok), detail: String(detail || "") });
@@ -184,6 +185,44 @@ function deriveRemainingSeconds(payload) {
   return Math.max(0, Math.floor((expiryMs - Date.now()) / 1000));
 }
 
+function hasSyncResponseShape(payload) {
+  return Boolean(
+    payload
+      && payload.ok === true
+      && payload.result
+      && typeof payload.result === "object"
+      && payload.result.data
+      && typeof payload.result.data === "object"
+      && payload.result.data.modules
+      && typeof payload.result.data.modules === "object"
+      && payload.result.status
+      && typeof payload.result.status === "object"
+  );
+}
+
+function hasAsyncResponseShape(payload) {
+  return Boolean(
+    payload
+      && payload.ok === true
+      && payload.accepted === true
+      && payload.job
+      && typeof payload.job === "object"
+      && typeof payload.job.job_id === "string"
+      && payload.job.job_id.trim().length > 0
+      && typeof payload.job.status === "string"
+      && payload.job.status.trim().length > 0
+  );
+}
+
+function isBlockingJobsConsoleError(message) {
+  const text = String(message || "").toLowerCase();
+  if (!text) return false;
+  const touchesJobs = text.includes("/analyze/jobs") || text.includes("analyze/jobs");
+  const isCors = text.includes("cors") || text.includes("access-control-allow-origin");
+  const isNetworkFail = text.includes("net::err_failed") || text.includes("failed to load resource");
+  return touchesJobs && (isCors || isNetworkFail);
+}
+
 async function main() {
   const startedAt = new Date().toISOString();
   const browser = await chromium.launch({ headless: true });
@@ -215,6 +254,20 @@ async function main() {
         method: response.request().method(),
         path: `${url.pathname}${url.search}`,
         bodySnippet,
+      });
+    } catch {
+      // ignore parse errors
+    }
+  });
+  page.on("requestfailed", (request) => {
+    try {
+      const url = request.url();
+      if (!url.includes("/analyze/jobs")) return;
+      requestFailures.push({
+        ts: new Date().toISOString(),
+        url,
+        method: request.method(),
+        failureText: String(request.failure()?.errorText || ""),
       });
     } catch {
       // ignore parse errors
@@ -357,6 +410,7 @@ async function main() {
     const syncPayload = await syncResponse.json().catch(() => null);
     recordCheck("analyze_sync_status_200", syncStatus === 200, `status=${syncStatus}`);
     recordCheck("analyze_sync_payload_ok", Boolean(syncPayload?.ok), JSON.stringify(syncPayload));
+    recordCheck("analyze_sync_response_shape_valid", hasSyncResponseShape(syncPayload), JSON.stringify(syncPayload));
 
     await page.waitForFunction(() => {
       const el = document.getElementById("phase-pill");
@@ -432,6 +486,7 @@ async function main() {
     const asyncStatus = asyncResponse.status();
     const asyncPayload = await asyncResponse.json().catch(() => null);
     recordCheck("analyze_async_status_202", asyncStatus === 202, `status=${asyncStatus}`);
+    recordCheck("analyze_async_response_shape_valid", hasAsyncResponseShape(asyncPayload), JSON.stringify(asyncPayload));
     currentJobId = String(asyncPayload?.job?.job_id || "").trim();
     recordCheck("analyze_async_returns_job_id", Boolean(currentJobId), JSON.stringify(asyncPayload));
 
@@ -446,20 +501,79 @@ async function main() {
     await page.waitForSelector("#refresh-btn", { timeout: MAX_WAIT_MS });
     await page.click("#refresh-btn");
     await page.waitForSelector("#notifications-payload", { timeout: MAX_WAIT_MS });
-    const jobStatusText = await page.locator("#status").innerText();
-    recordCheck("job_page_loaded", /Status:/i.test(jobStatusText), jobStatusText);
+    await page.waitForFunction(() => {
+      const text = String(document.getElementById("status")?.textContent || "");
+      if (!/status:/i.test(text)) return false;
+      if (/loading/i.test(text)) return false;
+      return /(queued|running|partial|completed|failed|canceled|error)/i.test(text);
+    }, undefined, { timeout: MAX_WAIT_MS });
 
-    const rawNotificationsHref = await page.locator("#raw-notifications-link").getAttribute("href");
-    recordCheck("job_notifications_link_present", Boolean(rawNotificationsHref && rawNotificationsHref.includes("/notifications")), rawNotificationsHref || "");
+    const jobStatusText = await page.locator("#status").innerText();
+    recordCheck("job_page_status_not_stuck_loading", !/loading/i.test(jobStatusText) && /Status:/i.test(jobStatusText), jobStatusText);
+
+    const jobSnapshot = await page.evaluate(() => {
+      const statusText = String(document.getElementById("status")?.textContent || "");
+      const rawJobHref = String(document.getElementById("raw-job-link")?.getAttribute("href") || "");
+      const rawNotificationsHref = String(document.getElementById("raw-notifications-link")?.getAttribute("href") || "");
+
+      function parsePre(id) {
+        const text = String(document.getElementById(id)?.textContent || "").trim();
+        if (!text) return null;
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      }
+
+      const jobPayload = parsePre("job-payload");
+      const notificationsPayload = parsePre("notifications-payload");
+      return { statusText, rawJobHref, rawNotificationsHref, jobPayload, notificationsPayload };
+    });
+
+    const currentJobPayloadId = String(jobSnapshot?.jobPayload?.job?.job_id || "").trim();
+    recordCheck(
+      "job_page_job_payload_shape_valid",
+      Boolean(jobSnapshot?.jobPayload?.ok === true && currentJobPayloadId === currentJobId),
+      JSON.stringify(jobSnapshot?.jobPayload || null),
+    );
+    const notificationsArray = jobSnapshot?.notificationsPayload?.notifications;
+    recordCheck(
+      "job_notifications_payload_shape_valid",
+      Boolean(jobSnapshot?.notificationsPayload?.ok === true && Array.isArray(notificationsArray)),
+      JSON.stringify(jobSnapshot?.notificationsPayload || null),
+    );
+
+    const rawNotificationsHref = String(jobSnapshot?.rawNotificationsHref || "");
+    const rawJobHref = String(jobSnapshot?.rawJobHref || "");
+    recordCheck(
+      "job_links_same_origin_proxy",
+      rawJobHref.startsWith("/analyze/jobs/") && rawNotificationsHref.startsWith("/analyze/jobs/") && rawNotificationsHref.includes("/notifications"),
+      JSON.stringify({ rawJobHref, rawNotificationsHref }),
+    );
 
     await page.goto(new URL("/jobs", baseOrigin).toString(), { waitUntil: "domcontentloaded", timeout: MAX_WAIT_MS });
     await page.waitForSelector("#jobs-refresh", { timeout: MAX_WAIT_MS });
     await page.fill("#jobs-add-id", currentJobId);
     await page.click("#jobs-add-btn");
     await page.click("#jobs-refresh");
+    await page.waitForFunction((jobId) => {
+      const meta = String(document.getElementById("jobs-meta")?.textContent || "");
+      const bodyText = String(document.getElementById("jobs-body")?.textContent || "");
+      if (/loading/i.test(meta)) return false;
+      if (!bodyText.toLowerCase().includes(String(jobId || "").toLowerCase())) return false;
+      return /angezeigt|jobs/i.test(meta);
+    }, currentJobId, { timeout: MAX_WAIT_MS });
     await page.waitForSelector("#jobs-body tr", { timeout: MAX_WAIT_MS });
     const jobsMeta = await page.locator("#jobs-meta").innerText();
-    recordCheck("jobs_list_refresh_ok", /angezeigt|Loading|jobs/i.test(jobsMeta), jobsMeta);
+    recordCheck("jobs_list_refresh_ok", /angezeigt|jobs/i.test(jobsMeta) && !/loading/i.test(jobsMeta), jobsMeta);
+    const jobsOpenHref = await page.locator(`#jobs-body a[href="/jobs/${encodeURIComponent(currentJobId)}"]`).first().getAttribute("href").catch(() => "");
+    recordCheck("jobs_list_open_link_present", String(jobsOpenHref || "").startsWith(`/jobs/${encodeURIComponent(currentJobId)}`), jobsOpenHref || "");
+
+    const blockingJobConsoleErrors = consoleErrors.filter((item) => isBlockingJobsConsoleError(item));
+    recordCheck("no_jobs_cors_console_errors", blockingJobConsoleErrors.length === 0, JSON.stringify(blockingJobConsoleErrors.slice(0, 4)));
+    const crossOriginJobFailures = requestFailures.filter((item) => String(item.url || "").includes("api.dev.georanking.ch"));
+    recordCheck("no_cross_origin_job_request_failures", crossOriginJobFailures.length === 0, JSON.stringify(crossOriginJobFailures.slice(0, 4)));
 
     await page.goto(guiUrl, { waitUntil: "domcontentloaded", timeout: MAX_WAIT_MS });
     await page.waitForSelector("#burger-btn", { timeout: MAX_WAIT_MS });
@@ -507,6 +621,7 @@ async function main() {
     consoleErrors,
     pageErrors,
     networkLog,
+    requestFailures,
     error: finalError,
   };
 
