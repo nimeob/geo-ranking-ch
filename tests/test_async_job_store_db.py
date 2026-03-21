@@ -496,6 +496,152 @@ class TestCreateResult(unittest.TestCase):
 # from_env
 # ---------------------------------------------------------------------------
 
+class TestDbResultPayloadHydration(unittest.TestCase):
+    def _make_store_for_create_result(self):
+        # Sequence in create_result:
+        # 1) SELECT org_id, user_id FROM jobs ...
+        # 2) SELECT 1 FROM job_results ... final guard
+        # 3) SELECT COALESCE(MAX(result_seq), 0) ...
+        fetchone_values = [
+            ("org-1", "user-1"),
+            None,
+            (0,),
+        ]
+        factory, _, conn = _make_conn_factory(fetchone_values=fetchone_values)
+        return DbAsyncJobStore(conn_factory=factory), conn
+
+    def test_create_result_persists_full_payload_inline_when_no_s3_key(self):
+        store, _ = self._make_store_for_create_result()
+        grouped_payload = {
+            "status": {"state": "ok", "confidence": 0.91},
+            "data": {"entity": {"query": "Bahnhofstrasse 1, Zürich"}},
+        }
+
+        created = store.create_result(
+            job_id="job-1",
+            result_payload=grouped_payload,
+            result_kind="final",
+            org_id="org-1",
+        )
+
+        persisted_summary = json.loads(str(created.get("summary_json") or "{}"))
+        self.assertEqual(
+            persisted_summary,
+            grouped_payload,
+            "summary_json must contain the grouped payload for DB rows without s3_key",
+        )
+
+    def test_get_result_hydrates_result_payload_from_summary_json(self):
+        hydrated_payload = {
+            "status": {"state": "ok"},
+            "data": {"entity": {"matched_address": "Bahnhofstrasse 1, 8001 Zürich"}},
+        }
+        fetchone_values = [
+            (
+                "result-1",
+                "job-1",
+                "org-1",
+                "user-1",
+                "final",
+                1,
+                "v1",
+                None,
+                None,
+                None,
+                "application/json",
+                256,
+                json.dumps(hydrated_payload),
+                "2026-03-21T07:00:00+00:00",
+            )
+        ]
+        factory, mock_cursor, _ = _make_conn_factory(fetchone_values=fetchone_values)
+        mock_cursor.description = [
+            ("result_id",),
+            ("job_id",),
+            ("org_id",),
+            ("user_id",),
+            ("result_kind",),
+            ("result_seq",),
+            ("schema_version",),
+            ("s3_bucket",),
+            ("s3_key",),
+            ("checksum_sha256",),
+            ("content_type",),
+            ("size_bytes",),
+            ("summary_json",),
+            ("created_at",),
+        ]
+
+        store = DbAsyncJobStore(conn_factory=factory)
+        loaded = store.get_result("result-1")
+
+        self.assertIsInstance(loaded, dict)
+        assert loaded is not None
+        self.assertEqual(loaded.get("result_payload"), hydrated_payload)
+
+    def test_list_results_hydrates_payload_for_latest_view(self):
+        payload_partial = {"status": {"state": "partial"}, "data": {"progress": 50}}
+        payload_final = {"status": {"state": "completed"}, "data": {"progress": 100}}
+        rows = [
+            (
+                "result-partial",
+                "job-1",
+                "org-1",
+                "user-1",
+                "partial",
+                1,
+                "v1",
+                None,
+                None,
+                None,
+                "application/json",
+                128,
+                json.dumps(payload_partial),
+                "2026-03-21T07:00:00+00:00",
+            ),
+            (
+                "result-final",
+                "job-1",
+                "org-1",
+                "user-1",
+                "final",
+                2,
+                "v1",
+                None,
+                None,
+                None,
+                "application/json",
+                256,
+                json.dumps(payload_final),
+                "2026-03-21T07:00:01+00:00",
+            ),
+        ]
+        factory, mock_cursor, _ = _make_conn_factory(fetchall_values=rows)
+        mock_cursor.description = [
+            ("result_id",),
+            ("job_id",),
+            ("org_id",),
+            ("user_id",),
+            ("result_kind",),
+            ("result_seq",),
+            ("schema_version",),
+            ("s3_bucket",),
+            ("s3_key",),
+            ("checksum_sha256",),
+            ("content_type",),
+            ("size_bytes",),
+            ("summary_json",),
+            ("created_at",),
+        ]
+
+        store = DbAsyncJobStore(conn_factory=factory)
+        loaded_rows = store.list_results("job-1")
+
+        self.assertEqual(len(loaded_rows), 2)
+        self.assertEqual(loaded_rows[0].get("result_payload"), payload_partial)
+        self.assertEqual(loaded_rows[1].get("result_payload"), payload_final)
+
+
 class TestListNotifications(unittest.TestCase):
     def test_returns_terminal_in_app_notification_for_completed_job(self):
         factory, mock_cursor, _ = _make_conn_factory(
@@ -567,6 +713,7 @@ class TestListNotifications(unittest.TestCase):
         factory, _, _ = _make_conn_factory(fetchone_values=[None])
         store = DbAsyncJobStore(conn_factory=factory)
         self.assertEqual(store.list_notifications("job-123", channel="email"), [])
+
 
 
 class TestFromEnv(unittest.TestCase):

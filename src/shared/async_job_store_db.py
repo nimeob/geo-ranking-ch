@@ -83,6 +83,52 @@ def _row_to_dict(cursor: Any, row: tuple[Any, ...]) -> dict[str, Any]:
     return dict(zip(cols, row))
 
 
+def _parse_json_object(raw_value: Any) -> dict[str, Any]:
+    """Best-effort parser for TEXT/JSON(B) payload columns.
+
+    Returns an object dict or ``{}`` when parsing fails / payload is not an object.
+    """
+    if isinstance(raw_value, dict):
+        return dict(raw_value)
+
+    normalized_text = ""
+    if isinstance(raw_value, (bytes, bytearray)):
+        normalized_text = raw_value.decode("utf-8", errors="ignore").strip()
+    elif isinstance(raw_value, str):
+        normalized_text = raw_value.strip()
+
+    if not normalized_text:
+        return {}
+
+    try:
+        parsed = json.loads(normalized_text)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+
+    if isinstance(parsed, dict):
+        return parsed
+    return {}
+
+
+def _hydrate_result_record(record: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Normalize DB result rows to AsyncJobStore-compatible shape.
+
+    DB rows contain ``summary_json`` (TEXT) but no dedicated ``result_payload``
+    column. The API/UI path expects ``result_payload``; therefore we derive it from
+    ``summary_json`` when absent.
+    """
+    if record is None:
+        return None
+
+    projected = dict(record)
+    existing_payload = projected.get("result_payload")
+    if isinstance(existing_payload, dict) and existing_payload:
+        return projected
+
+    projected["result_payload"] = _parse_json_object(projected.get("summary_json"))
+    return projected
+
+
 def _normalize_owner_org_id(raw_value: Any) -> str:
     value = str(raw_value or "").strip()
     return value or "default-org"
@@ -480,9 +526,23 @@ class DbAsyncJobStore:
         if normalized_kind not in {"partial", "final"}:
             raise ValueError("result_kind must be 'partial' or 'final'")
 
+        normalized_payload = result_payload if isinstance(result_payload, dict) else {}
+
         result_id = str(uuid.uuid4())
         now = _utc_now_iso()
-        summary = json.dumps(result_payload.get("summary") or {}, ensure_ascii=False)
+
+        # DB schema has no dedicated result_payload column. Persist an inline payload in
+        # summary_json when no external object storage key is provided.
+        if s3_key:
+            inline_payload = normalized_payload.get("summary")
+            if not isinstance(inline_payload, dict) or not inline_payload:
+                inline_payload = normalized_payload
+        else:
+            inline_payload = normalized_payload
+        if not isinstance(inline_payload, dict):
+            inline_payload = {}
+
+        summary = json.dumps(inline_payload, ensure_ascii=False)
 
         with self._lock:
             conn = self._connect()
@@ -552,6 +612,7 @@ class DbAsyncJobStore:
             "content_type": content_type,
             "size_bytes": size_bytes,
             "summary_json": summary,
+            "result_payload": deepcopy(normalized_payload),
             "created_at": now,
         }
 
@@ -575,7 +636,7 @@ class DbAsyncJobStore:
             cur = conn.cursor()
             cur.execute("SELECT * FROM job_results WHERE result_id = %s", (str(result_id),))
             row = cur.fetchone()
-            return _row_to_dict(cur, row) if row else None
+            return _hydrate_result_record(_row_to_dict(cur, row) if row else None)
         finally:
             conn.close()
 
@@ -594,7 +655,7 @@ class DbAsyncJobStore:
                 (str(result_id), str(org_id)),
             )
             row = cur.fetchone()
-            return _row_to_dict(cur, row) if row else None
+            return _hydrate_result_record(_row_to_dict(cur, row) if row else None)
         finally:
             conn.close()
 
@@ -638,7 +699,7 @@ class DbAsyncJobStore:
             # Fast path: result row already has complete owner metadata.
             if result_user_id:
                 if result_user_id == owner_user_id_norm and result_org_id_norm == owner_org_id_norm:
-                    return projected
+                    return _hydrate_result_record(projected)
                 return None
 
             # Legacy fallback: allow only when the parent job owner matches.
@@ -664,7 +725,7 @@ class DbAsyncJobStore:
                 return None
             if parent_org_id_norm != owner_org_id_norm:
                 return None
-            return projected
+            return _hydrate_result_record(projected)
         finally:
             conn.close()
 
@@ -680,7 +741,10 @@ class DbAsyncJobStore:
                 "SELECT * FROM job_results WHERE job_id = %s ORDER BY result_seq ASC",
                 (str(job_id),),
             )
-            return [_row_to_dict(cur, row) for row in cur.fetchall()]
+            return [
+                _hydrate_result_record(_row_to_dict(cur, row)) or {}
+                for row in cur.fetchall()
+            ]
         finally:
             conn.close()
 
