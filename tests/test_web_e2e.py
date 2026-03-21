@@ -435,6 +435,40 @@ class TestWebServiceE2E(unittest.TestCase):
         self.assertTrue(body.get("ok"))
         self.assertIn("result", body)
 
+    def test_analyze_accepts_legacy_level_alias_extended(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "level": "extended",
+                "timeout_seconds": 2,
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+        modules = body.get("result", {}).get("data", {}).get("modules", {})
+        self.assertEqual(modules.get("summary_compact", {}).get("intelligence_mode"), "extended")
+        self.assertEqual(modules.get("intelligence", {}).get("mode"), "extended")
+
+    def test_analyze_accepts_legacy_level_alias_risk(self):
+        status, body = _http_json(
+            "POST",
+            f"{self.base_url}/analyze",
+            payload={
+                "query": "__ok__",
+                "level": "risk",
+                "timeout_seconds": 2,
+            },
+            headers={"Authorization": "Bearer bl18-token"},
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("ok"))
+        modules = body.get("result", {}).get("data", {}).get("modules", {})
+        self.assertEqual(modules.get("summary_compact", {}).get("intelligence_mode"), "risk")
+        self.assertEqual(modules.get("intelligence", {}).get("mode"), "risk")
+
     def test_analyze_ignores_unknown_options_keys_as_additive_noop(self):
         status, body = _http_json(
             "POST",

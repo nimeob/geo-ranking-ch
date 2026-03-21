@@ -2145,6 +2145,32 @@ def _extract_async_mode_request(options: dict[str, Any]) -> bool:
     )
 
 
+def _resolve_intelligence_mode(data: dict[str, Any]) -> tuple[str, str]:
+    """Auflösen des Analyse-Levels (kanonisch: intelligence_mode, legacy: level).
+
+    Rückgabe:
+      - mode: normalisiert (`basic|extended|risk`)
+      - source_field: Feldname, aus dem der Wert stammt
+    """
+
+    source_field = "intelligence_mode"
+    raw_mode = data.get("intelligence_mode")
+
+    if raw_mode is None or str(raw_mode).strip() == "":
+        legacy_mode = data.get("level")
+        if legacy_mode is not None and str(legacy_mode).strip() != "":
+            raw_mode = legacy_mode
+            source_field = "level"
+
+    mode = str(raw_mode if raw_mode is not None else "basic").strip().lower() or "basic"
+    if mode not in SUPPORTED_INTELLIGENCE_MODES:
+        raise ValueError(
+            f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}"
+        )
+
+    return mode, source_field
+
+
 _OWNER_ORG_CLAIM_KEYS = ("org_id", "organization", "tenant", "org")
 
 
@@ -5314,12 +5340,11 @@ class Handler(BaseHTTPRequestHandler):
                     upstream_log_emitter=_emit_upstream_for_request,
                 )
 
-                mode = str(data.get("intelligence_mode", "basic")).strip() or "basic"
-                mode = mode.lower()
-                if mode not in SUPPORTED_INTELLIGENCE_MODES:
-                    raise ValueError(
-                        f"intelligence_mode must be one of {sorted(SUPPORTED_INTELLIGENCE_MODES)}"
-                    )
+                mode, mode_source = _resolve_intelligence_mode(data)
+                # Kanonische Persistenz für History/Async-Payloads: bei Legacy-Feld
+                # den normalisierten Wert zusätzlich als `intelligence_mode` mitschreiben.
+                if mode_source != "intelligence_mode":
+                    data["intelligence_mode"] = mode
 
                 # Forward-Compatibility: optionaler, additiver Namespace für spätere
                 # Request-Erweiterungen (z. B. Deep-Mode) ohne Breaking Changes.
@@ -5450,7 +5475,16 @@ class Handler(BaseHTTPRequestHandler):
                                     {"key": "data_quality", "score": 88.0, "weight": 0.20},
                                 ],
                             },
+                            "intelligence": {
+                                "mode": mode,
+                                "executive_risk_summary": {
+                                    "risk_score": 36 if mode == "risk" else (15 if mode == "extended" else 5),
+                                    "traffic_light": "yellow" if mode == "risk" else "green",
+                                    "status": "ok",
+                                },
+                            },
                             "summary_compact": {
+                                "intelligence_mode": mode,
                                 "suitability_light": {
                                     "status": "ok",
                                     "score": 80,
@@ -5458,7 +5492,13 @@ class Handler(BaseHTTPRequestHandler):
                                     "classification": "geeignet",
                                     "base_score": 80.1,
                                     "personalized_score": 80.1,
-                                }
+                                },
+                                "intelligence": {
+                                    "executive_risk": {
+                                        "risk_score": 36 if mode == "risk" else (15 if mode == "extended" else 5),
+                                        "traffic_light": "yellow" if mode == "risk" else "green",
+                                    }
+                                },
                             },
                             "sources": {"e2e_fault_injection": {"status": "ok"}},
                             "source_classification": {

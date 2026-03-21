@@ -68,6 +68,27 @@ class TestWebServiceOptionExtractors(unittest.TestCase):
                 intelligence_mode="basic",
             )
 
+    def test_resolve_intelligence_mode_supports_legacy_level_values(self):
+        extended_mode, extended_source = web_service._resolve_intelligence_mode(
+            {"query": "X", "level": "  ExTenDeD "}
+        )
+        risk_mode, risk_source = web_service._resolve_intelligence_mode(
+            {"query": "X", "level": "risk"}
+        )
+
+        self.assertEqual((extended_mode, extended_source), ("extended", "level"))
+        self.assertEqual((risk_mode, risk_source), ("risk", "level"))
+
+    def test_resolve_intelligence_mode_prefers_canonical_field(self):
+        mode, source = web_service._resolve_intelligence_mode(
+            {"query": "X", "intelligence_mode": "extended", "level": "risk"}
+        )
+        self.assertEqual((mode, source), ("extended", "intelligence_mode"))
+
+    def test_resolve_intelligence_mode_rejects_invalid_legacy_level(self):
+        with self.assertRaisesRegex(ValueError, "intelligence_mode must be one of"):
+            web_service._resolve_intelligence_mode({"query": "X", "level": "future-mode"})
+
 
 if __name__ == "__main__":
     unittest.main()
