@@ -19,3 +19,9 @@ def test_wait_for_function_uses_options_as_third_argument() -> None:
       const el = document.getElementById(\"status\");
       return el && /Status:\\s*(loaded|success|ok)/i.test(String(el.textContent || \"\"));
     }, undefined, { timeout: MAX_WAIT_MS });""" in content
+
+
+def test_auth_me_fetch_uses_ui_base_origin_not_current_page_origin() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'apiRequestContext.get(new URL("/auth/me", baseOrigin).toString()' in content
