@@ -679,6 +679,39 @@ class TestListNotifications(unittest.TestCase):
         self.assertEqual(row.get("template_key"), "async.job.completed")
         self.assertEqual(row.get("payload_json", {}).get("result_id"), "result-1")
 
+    def test_list_notifications_query_is_schema_compatible_for_missing_retry_hint_column(self):
+        factory, mock_cursor, _ = _make_conn_factory(
+            fetchone_values=[(
+                "job-123",
+                "completed",
+                "result-1",
+                100,
+                None,
+                None,
+                "2026-03-21T07:00:00+00:00",
+                "2026-03-21T07:00:00+00:00",
+                "2026-03-21T06:59:00+00:00",
+            )]
+        )
+        mock_cursor.description = [
+            ("job_id",),
+            ("status",),
+            ("result_id",),
+            ("progress_percent",),
+            ("error_code",),
+            ("retry_hint",),
+            ("finished_at",),
+            ("updated_at",),
+            ("queued_at",),
+        ]
+
+        store = DbAsyncJobStore(conn_factory=factory)
+        store.list_notifications("job-123", channel="in_app")
+
+        sqls = _all_sqls_joined(mock_cursor)
+        self.assertIn("to_jsonb(jobs)->>'retry_hint' AS retry_hint", sqls)
+
+
     def test_returns_empty_for_non_terminal_job(self):
         factory, mock_cursor, _ = _make_conn_factory(
             fetchone_values=[(

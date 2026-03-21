@@ -792,7 +792,7 @@ class DbAsyncJobStore:
                     result_id,
                     progress_percent,
                     error_code,
-                    retry_hint,
+                    to_jsonb(jobs)->>'retry_hint' AS retry_hint,
                     finished_at,
                     updated_at,
                     queued_at
