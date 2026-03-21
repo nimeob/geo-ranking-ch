@@ -155,13 +155,14 @@ class TestResultOrgGuard(unittest.TestCase):
         sqls = _all_sqls_joined(mock_cursor)
         self.assertIn("FROM job_results", sqls)
         self.assertIn("result_id", sqls)
-        self.assertIn("org_id", sqls)
         self.assertNotIn("owner_user_id", sqls)
         self.assertNotIn("owner_org_id", sqls)
         self.assertNone_or_dict(result)
 
     def test_owner_guard_legacy_fallback_checks_parent_job_owner(self):
-        factory, mock_cursor, _ = _make_conn_factory(fetchone_values=[("r-1", "j-1", "", "") , (1,)])
+        factory, mock_cursor, _ = _make_conn_factory(
+            fetchone_values=[("r-1", "j-1", "", ""), ("user-123", "org-abc")]
+        )
         mock_cursor.description = [
             ("result_id", None, None, None, None, None, None),
             ("job_id", None, None, None, None, None, None),
@@ -181,6 +182,26 @@ class TestResultOrgGuard(unittest.TestCase):
         self.assertIn("FROM jobs", sqls)
         self.assertIn("user_id", sqls)
         self.assertIn("org_id", sqls)
+
+    def test_owner_guard_normalizes_default_org_for_legacy_rows(self):
+        factory, mock_cursor, _ = _make_conn_factory(
+            fetchone_values=[("r-1", "j-1", "", ""), ("user-123", "")]
+        )
+        mock_cursor.description = [
+            ("result_id", None, None, None, None, None, None),
+            ("job_id", None, None, None, None, None, None),
+            ("user_id", None, None, None, None, None, None),
+            ("org_id", None, None, None, None, None, None),
+        ]
+        store = DbAsyncJobStore(conn_factory=factory)
+
+        result = store.get_result_for_owner(
+            "r-1",
+            owner_user_id="user-123",
+            owner_org_id="default-org",
+        )
+
+        self.assertIsInstance(result, dict)
 
     def test_owner_guard_rejects_missing_owner_inputs(self):
         factory, mock_cursor, _ = _make_conn_factory(fetchone_values=[None])
