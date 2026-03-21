@@ -956,146 +956,278 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>geo-ranking.ch — Result __RESULT_ID__</title>
+    <title>Result __RESULT_ID__ · geo-ranking-ch</title>
     <style>
       :root {
-        color-scheme: light;
-        --bg: #f6f8fb;
+        --bg: #f3f6fb;
         --surface: #ffffff;
-        --ink: #1b2637;
-        --muted: #5a6474;
-        --border: #d5dbea;
-        --primary: #1957d2;
-        --danger: #b93a2f;
+        --surface-soft: #f8fbff;
+        --ink: #172236;
+        --muted: #5f6c81;
+        --border: #d8e2f0;
+        --primary: #2159d3;
+        --primary-soft: #e9f1ff;
+        --success: #1b8f4f;
+        --warning: #a06400;
+        --danger: #b42338;
+        --radius: 0.9rem;
+        --shadow: 0 10px 28px rgba(15, 25, 40, 0.08);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
         background: var(--bg);
         color: var(--ink);
+        line-height: 1.45;
       }
       header {
-        background: var(--surface);
-        border-bottom: 1px solid var(--border);
-        padding: 1rem 1.25rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
         display: flex;
         justify-content: space-between;
+        align-items: flex-start;
         gap: 1rem;
-        flex-wrap: wrap;
-        align-items: baseline;
+        padding: 1rem 1.2rem;
+        background: linear-gradient(180deg, #0f2342 0%, #173059 100%);
+        color: #fff;
+        box-shadow: 0 8px 20px rgba(9, 20, 38, 0.26);
       }
-      header h1 { margin: 0; font-size: 1.05rem; }
-      header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
-      __BURGER_CSS__
-
+      h1 {
+        margin: 0;
+        font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+        letter-spacing: 0.01em;
+      }
+      h2 {
+        margin: 0;
+        font-size: 1.02rem;
+      }
+      .header-meta {
+        margin-top: 0.2rem;
+        color: rgba(255, 255, 255, 0.84);
+        font-size: 0.84rem;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
       main {
-        padding: 1rem 1.25rem 1.5rem;
-        display: grid;
-        gap: 1rem;
-        max-width: 1100px;
+        max-width: 1160px;
+        margin: 1rem auto 2.2rem;
+        padding: 0 0.9rem;
       }
       .card {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 0.85rem;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
         padding: 1rem;
+        margin-bottom: 0.95rem;
       }
-      .card h2 { margin: 0 0 0.75rem; font-size: 1rem; }
-      .meta { font-size: 0.84rem; color: var(--muted); }
+      .loader-grid {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
       label {
         display: grid;
-        gap: 0.3rem;
+        gap: 0.35rem;
         font-size: 0.86rem;
         color: var(--muted);
       }
-      input, select, button {
-        border: 1px solid var(--border);
-        border-radius: 0.5rem;
-        padding: 0.55rem 0.6rem;
+      select, button {
         font: inherit;
+      }
+      select {
+        border: 1px solid var(--border);
+        border-radius: 0.55rem;
+        background: #fff;
+        padding: 0.46rem 0.58rem;
+        min-width: 130px;
+      }
+      .loader-actions {
+        margin-top: 0.8rem;
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        align-items: center;
       }
       button {
         background: var(--primary);
         color: #fff;
-        border-color: var(--primary);
+        border: 0;
+        border-radius: 0.55rem;
+        padding: 0.55rem 0.9rem;
         cursor: pointer;
       }
-      button[disabled] { opacity: 0.65; cursor: not-allowed; }
+      button:disabled {
+        opacity: 0.58;
+        cursor: default;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      .tab-btn:focus-visible {
+        outline: 3px solid #9ac1ff;
+        outline-offset: 2px;
+      }
+      .meta,
+      .subtle {
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+      a {
+        color: var(--primary);
+      }
       .error {
-        border: 1px solid rgba(185, 58, 47, 0.35);
-        background: rgba(185, 58, 47, 0.08);
-        padding: 0.75rem;
-        border-radius: 0.65rem;
+        margin-top: 0.7rem;
+        border: 1px solid #efbac5;
+        background: #fff5f7;
         color: var(--danger);
-        white-space: pre-wrap;
-      }
-      pre {
-        margin: 0;
-        max-height: 34rem;
-        overflow: auto;
-        background: #f8faff;
-        border: 1px solid var(--border);
         border-radius: 0.65rem;
-        padding: 0.75rem;
-      }
-      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-
-      .grid-3 {
-        display: grid;
-        gap: 0.65rem;
-        grid-template-columns: 1fr 1fr 1fr;
-      }
-      @media (max-width: 860px) {
-        .grid-3 { grid-template-columns: 1fr; }
+        padding: 0.7rem;
+        white-space: pre-wrap;
       }
 
       .tabs {
         display: flex;
-        gap: 0.45rem;
         flex-wrap: wrap;
-        margin-bottom: 0.75rem;
+        gap: 0.45rem;
+        margin-bottom: 0.95rem;
       }
       .tab-btn {
-        background: #fff;
-        color: var(--ink);
         border: 1px solid var(--border);
         border-radius: 999px;
-        padding: 0.35rem 0.75rem;
-        cursor: pointer;
-        font-size: 0.88rem;
+        padding: 0.36rem 0.76rem;
+        background: #fff;
+        color: var(--ink);
+        font-size: 0.86rem;
       }
-      .tab-btn[data-active="true"] {
-        background: #f3f7ff;
-        border-color: #c9d8ff;
-        color: var(--primary);
+      .tab-btn[aria-selected="true"] {
+        background: var(--primary-soft);
+        color: #10377f;
+        border-color: #bdd2ff;
+        font-weight: 600;
       }
       .tab-panel[hidden] { display: none; }
 
-      .kv {
+      .panel-content {
         display: grid;
-        gap: 0.35rem;
+        gap: 0.78rem;
       }
-      .kv-row {
-        display: grid;
-        grid-template-columns: minmax(160px, 260px) 1fr;
-        gap: 0.75rem;
-        align-items: baseline;
-        border-bottom: 1px dashed rgba(213, 219, 234, 0.75);
-        padding: 0.35rem 0;
+      .data-section {
+        border: 1px solid var(--border);
+        border-radius: 0.8rem;
+        background: var(--surface-soft);
+        padding: 0.72rem;
       }
-      @media (max-width: 720px) {
-        .kv-row { grid-template-columns: 1fr; }
+      .data-section h3 {
+        margin: 0;
+        font-size: 0.95rem;
       }
-      .kv-row dt { color: var(--muted); font-size: 0.86rem; }
-      .kv-row dd { margin: 0; }
+      .data-section .subtle {
+        margin: 0.2rem 0 0.55rem;
+      }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-bottom: 0.55rem;
+      }
+      .badge {
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        padding: 0.23rem 0.62rem;
+        border: 1px solid transparent;
+        background: #eef2f8;
+        color: #334155;
+      }
+      .badge.good { background: #ecfdf3; border-color: #b7ebcb; color: #166534; }
+      .badge.warn { background: #fff7e6; border-color: #fbd28b; color: #9a5800; }
+      .badge.bad { background: #fff1f2; border-color: #f6c2ca; color: #9f1239; }
+      .badge.info { background: #ebf3ff; border-color: #c8dbff; color: #1d4ed8; }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid #dce5f4;
+        border-radius: 0.62rem;
+        background: #fff;
+      }
+      table.data-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 420px;
+      }
+      .data-table th,
+      .data-table td {
+        padding: 0.48rem 0.58rem;
+        border-bottom: 1px solid #e6edf8;
+        vertical-align: top;
+        text-align: left;
+        font-size: 0.86rem;
+      }
+      .data-table th {
+        width: 34%;
+        color: #475569;
+        font-weight: 600;
+        background: #f8fbff;
+      }
+      .data-table td {
+        color: #122238;
+      }
+      .data-table tr:last-child th,
+      .data-table tr:last-child td { border-bottom: 0; }
+
+      .cell-empty { color: #7a879a; }
+      .inline-json {
+        display: inline-block;
+        max-width: 100%;
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #f8fbff;
+        border: 1px solid #d7e4f6;
+        border-radius: 0.5rem;
+        padding: 0.1rem 0.28rem;
+        font-size: 0.78rem;
+      }
+      pre {
+        margin: 0;
+        max-height: 32rem;
+        overflow: auto;
+        background: #f8fbff;
+        border: 1px solid var(--border);
+        border-radius: 0.7rem;
+        padding: 0.75rem;
+        font-size: 0.78rem;
+      }
+      .empty-state {
+        border: 1px dashed #ccd8ea;
+        border-radius: 0.62rem;
+        background: #f9fbff;
+        color: #607089;
+        padding: 0.65rem;
+        font-size: 0.86rem;
+      }
+
+      @media (max-width: 760px) {
+        header {
+          padding: 0.9rem;
+          align-items: center;
+        }
+        .card { padding: 0.85rem; }
+        .data-table th,
+        .data-table td { padding: 0.42rem 0.5rem; }
+      }
+
+      __BURGER_CSS__
     </style>
   </head>
   <body>
     <header>
       <div>
-        <h1>Result</h1>
-        <p>result_id: <code id="result-id" data-result-id="__RESULT_ID__">__RESULT_ID__</code> · Version __APP_VERSION__</p>
+        <h1>Result Explorer</h1>
+        <p class="header-meta">result_id: <code id="result-id" data-result-id="__RESULT_ID__">__RESULT_ID__</code> · Version __APP_VERSION__</p>
       </div>
       <div class="burger">
         <button id="burger-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="burger-menu" aria-label="Navigation umschalten">☰ Menü</button>
@@ -1107,48 +1239,91 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
     </header>
 
     <main>
-      <section class="card">
-        <h2>Loader</h2>
-        <p class="meta">Lädt via <code>GET /analyze/results/&lt;result_id&gt;</code> mit bestehender Session (same-origin, BFF/OIDC).</p>
-        <div class="grid-3">
+      <section class="card" aria-labelledby="loader-title">
+        <h2 id="loader-title">Daten laden</h2>
+        <p class="meta">Quelle: <code>GET /analyze/results/&lt;result_id&gt;</code> mit bestehender Session (same-origin, BFF/OIDC).</p>
+
+        <div class="loader-grid">
           <label>
-            view
-            <select id="view-mode">
+            Ansicht
+            <select id="view-mode" aria-label="Ansichtsmodus auswählen">
               <option value="latest" selected>latest</option>
               <option value="requested">requested</option>
             </select>
           </label>
         </div>
-        <div style="display:flex; gap: 0.65rem; flex-wrap: wrap; margin-top: 0.85rem; align-items: center;">
+
+        <div class="loader-actions">
           <button id="load-btn" type="button">Result laden</button>
-          <a id="raw-link" class="meta" href="#" target="_blank" rel="noopener noreferrer">Raw JSON öffnen</a>
-          <span id="status" class="meta">Status: idle</span>
+          <a id="raw-link" class="subtle" href="#" target="_blank" rel="noopener noreferrer">Raw JSON öffnen</a>
+          <span id="status" class="subtle" role="status" aria-live="polite">Status: idle</span>
         </div>
+
         <div id="error" class="error" hidden></div>
       </section>
 
-      <section class="card">
-        <div class="tabs" role="tablist" aria-label="Result Tabs">
-          <button class="tab-btn" type="button" data-tab="overview" data-active="true">Overview</button>
-          <button class="tab-btn" type="button" data-tab="sources" data-active="false">Sources / Evidence</button>
-          <button class="tab-btn" type="button" data-tab="derived" data-active="false">Generated / Derived</button>
-          <button class="tab-btn" type="button" data-tab="raw" data-active="false">Raw JSON</button>
+      <section class="card" aria-labelledby="tabs-title">
+        <h2 id="tabs-title">Resultat nach Themen</h2>
+        <p class="meta">Lesbare Übersicht mit thematischen Tabs. Leere Datenbereiche werden robust abgefedert.</p>
+
+        <div class="tabs" role="tablist" aria-label="Resultat-Tabs">
+          <button id="tab-btn-overview" class="tab-btn" type="button" role="tab" data-tab="overview" aria-selected="true" aria-controls="tab-overview" tabindex="0">Übersicht</button>
+          <button id="tab-btn-location" class="tab-btn" type="button" role="tab" data-tab="location" aria-selected="false" aria-controls="tab-location" tabindex="-1">Lage</button>
+          <button id="tab-btn-demographics" class="tab-btn" type="button" role="tab" data-tab="demographics" aria-selected="false" aria-controls="tab-demographics" tabindex="-1">Demografie</button>
+          <button id="tab-btn-safety" class="tab-btn" type="button" role="tab" data-tab="safety" aria-selected="false" aria-controls="tab-safety" tabindex="-1">Sicherheit</button>
+          <button id="tab-btn-housing" class="tab-btn" type="button" role="tab" data-tab="housing" aria-selected="false" aria-controls="tab-housing" tabindex="-1">Preise &amp; Miete</button>
+          <button id="tab-btn-education" class="tab-btn" type="button" role="tab" data-tab="education" aria-selected="false" aria-controls="tab-education" tabindex="-1">Bildung</button>
+          <button id="tab-btn-transport" class="tab-btn" type="button" role="tab" data-tab="transport" aria-selected="false" aria-controls="tab-transport" tabindex="-1">Verkehr</button>
+          <button id="tab-btn-environment" class="tab-btn" type="button" role="tab" data-tab="environment" aria-selected="false" aria-controls="tab-environment" tabindex="-1">Umwelt</button>
+          <button id="tab-btn-sources" class="tab-btn" type="button" role="tab" data-tab="sources" aria-selected="false" aria-controls="tab-sources" tabindex="-1">Quellen &amp; Methodik</button>
+          <button id="tab-btn-derived" class="tab-btn" type="button" role="tab" data-tab="derived" aria-selected="false" aria-controls="tab-derived" tabindex="-1">Signale / Derived</button>
+          <button id="tab-btn-raw" class="tab-btn" type="button" role="tab" data-tab="raw" aria-selected="false" aria-controls="tab-raw" tabindex="-1">Raw JSON</button>
         </div>
 
-        <div id="tab-overview" class="tab-panel">
-          <div id="overview" class="meta">Noch nicht geladen.</div>
+        <div id="tab-overview" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-overview" tabindex="0">
+          <div id="panel-overview" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
         </div>
 
-        <div id="tab-sources" class="tab-panel" hidden>
-          <div id="sources" class="meta">Noch nicht geladen.</div>
+        <div id="tab-location" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-location" tabindex="0" hidden>
+          <div id="panel-location" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
         </div>
 
-        <div id="tab-derived" class="tab-panel" hidden>
-          <div id="derived" class="meta">Noch nicht geladen.</div>
+        <div id="tab-demographics" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-demographics" tabindex="0" hidden>
+          <div id="panel-demographics" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
         </div>
 
-        <div id="tab-raw" class="tab-panel" hidden>
-          <pre id="payload">{\n  "hint": "Loading..."\n}</pre>
+        <div id="tab-safety" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-safety" tabindex="0" hidden>
+          <div id="panel-safety" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
+        </div>
+
+        <div id="tab-housing" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-housing" tabindex="0" hidden>
+          <div id="panel-housing" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
+        </div>
+
+        <div id="tab-education" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-education" tabindex="0" hidden>
+          <div id="panel-education" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
+        </div>
+
+        <div id="tab-transport" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-transport" tabindex="0" hidden>
+          <div id="panel-transport" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
+        </div>
+
+        <div id="tab-environment" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-environment" tabindex="0" hidden>
+          <div id="panel-environment" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
+        </div>
+
+        <div id="tab-sources" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-sources" tabindex="0" hidden>
+          <div id="panel-sources" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
+        </div>
+
+        <div id="tab-derived" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-derived" tabindex="0" hidden>
+          <div id="panel-derived" class="panel-content"><div class="empty-state">Noch nicht geladen.</div></div>
+        </div>
+
+        <div id="tab-raw" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-raw" tabindex="0" hidden>
+          <pre id="payload">{
+  "hint": "Loading..."
+}</pre>
         </div>
       </section>
 
@@ -1163,9 +1338,33 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
         const errorEl = document.getElementById("error");
         const rawLinkEl = document.getElementById("raw-link");
 
-        const overviewEl = document.getElementById("overview");
-        const sourcesEl = document.getElementById("sources");
-        const derivedEl = document.getElementById("derived");
+        const panelEls = {
+          overview: document.getElementById("panel-overview"),
+          location: document.getElementById("panel-location"),
+          demographics: document.getElementById("panel-demographics"),
+          safety: document.getElementById("panel-safety"),
+          housing: document.getElementById("panel-housing"),
+          education: document.getElementById("panel-education"),
+          transport: document.getElementById("panel-transport"),
+          environment: document.getElementById("panel-environment"),
+          sources: document.getElementById("panel-sources"),
+          derived: document.getElementById("panel-derived"),
+          raw: payloadEl,
+        };
+
+        const TAB_SEQUENCE = [
+          "overview",
+          "location",
+          "demographics",
+          "safety",
+          "housing",
+          "education",
+          "transport",
+          "environment",
+          "sources",
+          "derived",
+          "raw",
+        ];
 
         __BURGER_JS__
 
@@ -1185,6 +1384,50 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
             .replace(/>/g, "&gt;")
             .replace(/\"/g, "&quot;")
             .replace(/'/g, "&#039;");
+        }
+
+        function asObject(value) {
+          if (!value || typeof value !== "object" || Array.isArray(value)) {
+            return {};
+          }
+          return value;
+        }
+
+        function asArray(value) {
+          return Array.isArray(value) ? value : [];
+        }
+
+        function hasValue(value) {
+          if (value == null) return false;
+          if (typeof value === "string") return value.trim().length > 0;
+          if (Array.isArray(value)) return value.length > 0;
+          if (typeof value === "object") return Object.keys(value).length > 0;
+          return true;
+        }
+
+        function formatFallback(value, fallback = "—") {
+          if (!hasValue(value)) return fallback;
+          if (typeof value === "object") return prettyPrint(value);
+          return String(value);
+        }
+
+        function getPath(payload, path, fallback = null) {
+          if (!payload || typeof payload !== "object") return fallback;
+          let current = payload;
+          for (const key of asArray(path)) {
+            if (!current || typeof current !== "object" || !(key in current)) {
+              return fallback;
+            }
+            current = current[key];
+          }
+          return current;
+        }
+
+        function firstValue(values, fallback = null) {
+          for (const item of asArray(values)) {
+            if (hasValue(item)) return item;
+          }
+          return fallback;
         }
 
         function setStatus(value) {
@@ -1274,49 +1517,835 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           return errorCode === "not_found" || errorCode === "result_not_found";
         }
 
-        function setActiveTab(tabKey) {
-          const key = String(tabKey || "overview").trim();
-          const mapping = {
-            overview: document.getElementById("tab-overview"),
-            sources: document.getElementById("tab-sources"),
-            derived: document.getElementById("tab-derived"),
-            raw: document.getElementById("tab-raw"),
-          };
-          Object.entries(mapping).forEach(([k, el]) => {
-            if (!el) return;
-            el.hidden = k !== key;
-          });
-          document.querySelectorAll(".tab-btn").forEach((btn) => {
-            const isActive = btn.getAttribute("data-tab") === key;
-            btn.setAttribute("data-active", isActive ? "true" : "false");
-          });
+        function formatNumber(value, fractionDigits = 2) {
+          const parsed = Number(value);
+          if (!Number.isFinite(parsed)) return String(value || "");
+          if (Number.isInteger(parsed)) return String(parsed);
+          return parsed.toFixed(fractionDigits);
         }
 
-        function kvRow(label, value) {
-          const safeLabel = escapeHtml(label);
-          const safeValue = escapeHtml(value);
-          return `<div class="kv-row"><dt>${safeLabel}</dt><dd>${safeValue || "—"}</dd></div>`;
+        function formatConfidence(confidence) {
+          const conf = asObject(confidence);
+          if (!Object.keys(conf).length) return "—";
+          const score = hasValue(conf.score) ? formatNumber(conf.score, 0) : "?";
+          const max = hasValue(conf.max) ? formatNumber(conf.max, 0) : "100";
+          const level = hasValue(conf.level) ? String(conf.level) : "unknown";
+          return `${score}/${max} (${level})`;
         }
 
-        function asObject(value) {
-          if (!value || typeof value !== "object" || Array.isArray(value)) {
-            return {};
+        function badgeClassByValue(value) {
+          const normalized = String(value || "").trim().toLowerCase();
+          if (["ok", "high", "green", "stable", "active", "succeeded", "pass"].includes(normalized)) return "good";
+          if (["medium", "partial", "warn", "warning", "yellow", "attention", "pending"].includes(normalized)) return "warn";
+          if (["low", "error", "failed", "critical", "red", "missing", "disabled", "review", "fail"].includes(normalized)) return "bad";
+          return "info";
+        }
+
+        function renderCellValue(value) {
+          if (!hasValue(value)) {
+            return '<span class="cell-empty">—</span>';
           }
-          return value;
+          if (typeof value === "boolean") {
+            return value ? "Ja" : "Nein";
+          }
+          if (typeof value === "number") {
+            return escapeHtml(formatNumber(value));
+          }
+          if (typeof value === "string") {
+            return escapeHtml(value);
+          }
+          if (Array.isArray(value)) {
+            const primitiveOnly = value.every((item) => ["string", "number", "boolean"].includes(typeof item));
+            if (primitiveOnly) {
+              return escapeHtml(value.map((item) => String(item)).join(", "));
+            }
+            const preview = prettyPrint(value.slice(0, 4));
+            return `<code class="inline-json">${escapeHtml(preview)}</code>`;
+          }
+          const jsonText = prettyPrint(value);
+          const compact = jsonText.length > 420 ? `${jsonText.slice(0, 420)} …` : jsonText;
+          return `<code class="inline-json">${escapeHtml(compact)}</code>`;
         }
 
-        function hasValue(value) {
-          if (value == null) return false;
-          if (typeof value === "string") return value.trim().length > 0;
-          if (Array.isArray(value)) return value.length > 0;
-          if (typeof value === "object") return Object.keys(value).length > 0;
-          return true;
+        function normalizeRows(rows) {
+          return asArray(rows)
+            .filter((entry) => entry && typeof entry === "object" && hasValue(entry.label))
+            .filter((entry) => entry.allowEmpty || hasValue(entry.value))
+            .map((entry) => ({
+              label: String(entry.label),
+              value: entry.value,
+            }));
         }
 
-        function formatFallback(value, fallback = "—") {
-          if (!hasValue(value)) return fallback;
-          if (typeof value === "object") return prettyPrint(value);
-          return String(value);
+        function renderKeyValueTable(rows, emptyText = "Keine Daten verfügbar.") {
+          const normalizedRows = normalizeRows(rows);
+          if (!normalizedRows.length) {
+            return `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
+          }
+          const htmlRows = normalizedRows
+            .map((row) => `<tr><th scope="row">${escapeHtml(row.label)}</th><td>${renderCellValue(row.value)}</td></tr>`)
+            .join("");
+          return `<div class="table-wrap"><table class="data-table"><tbody>${htmlRows}</tbody></table></div>`;
+        }
+
+        function renderMatrixTable(columns, rows, emptyText = "Keine Daten verfügbar.") {
+          const normalizedColumns = asArray(columns).map((entry) => ({
+            key: String(entry && entry.key ? entry.key : "").trim(),
+            label: String(entry && entry.label ? entry.label : "").trim(),
+          })).filter((entry) => entry.key && entry.label);
+
+          const normalizedRows = asArray(rows).filter((row) => row && typeof row === "object");
+          if (!normalizedColumns.length || !normalizedRows.length) {
+            return `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
+          }
+
+          const headHtml = normalizedColumns.map((column) => `<th scope="col">${escapeHtml(column.label)}</th>`).join("");
+          const bodyHtml = normalizedRows.map((row) => {
+            const cells = normalizedColumns.map((column) => `<td>${renderCellValue(row[column.key])}</td>`).join("");
+            return `<tr>${cells}</tr>`;
+          }).join("");
+          return `<div class="table-wrap"><table class="data-table"><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+        }
+
+        function renderBadgeRow(badges) {
+          const normalized = asArray(badges)
+            .filter((badge) => badge && hasValue(badge.label) && hasValue(badge.value))
+            .map((badge) => {
+              const cls = badgeClassByValue(badge.value);
+              return `<span class="badge ${cls}">${escapeHtml(String(badge.label))}: ${escapeHtml(String(badge.value))}</span>`;
+            });
+
+          if (!normalized.length) return "";
+          return `<div class="badge-row">${normalized.join("")}</div>`;
+        }
+
+        function renderSections(targetEl, sections) {
+          const safeSections = asArray(sections).filter((section) => section && typeof section === "object");
+          if (!safeSections.length) {
+            targetEl.innerHTML = '<div class="empty-state">Keine Daten verfügbar.</div>';
+            return;
+          }
+
+          const html = safeSections.map((section) => {
+            const title = hasValue(section.title) ? String(section.title) : "Bereich";
+            const subtitle = hasValue(section.subtitle) ? String(section.subtitle) : "";
+            const badges = renderBadgeRow(section.badges || []);
+
+            const tableHtml = section.type === "matrix"
+              ? renderMatrixTable(section.columns, section.rows, section.emptyText)
+              : renderKeyValueTable(section.rows, section.emptyText);
+
+            const subtitleHtml = subtitle ? `<p class="subtle">${escapeHtml(subtitle)}</p>` : "";
+
+            return `
+              <article class="data-section">
+                <h3>${escapeHtml(title)}</h3>
+                ${subtitleHtml}
+                ${badges}
+                ${tableHtml}
+              </article>
+            `;
+          }).join("");
+
+          targetEl.innerHTML = html;
+        }
+
+        function normalizeGroupedResult(groupedResult) {
+          if (!groupedResult || typeof groupedResult !== "object") {
+            return { ok: false, reason: "empty", raw: groupedResult };
+          }
+
+          const status = asObject(groupedResult.status);
+          const data = asObject(groupedResult.data);
+          const entity = asObject(data.entity);
+          const modules = asObject(data.modules);
+          const quality = asObject(status.quality);
+          const sourceMeta = asObject(status.source_meta);
+          const sourceHealth = asObject(status.source_health);
+
+          const summaryCompact = asObject(firstValue([
+            modules.summary_compact,
+            getPath(modules, ["summary", "compact"]),
+          ]));
+
+          const confidence = asObject(firstValue([
+            quality.confidence,
+            status.confidence,
+            summaryCompact.confidence,
+          ]));
+
+          const executiveSummary = asObject(firstValue([
+            quality.executive_summary,
+            status.executive_summary,
+            summaryCompact.executive,
+          ]));
+
+          const intelligence = asObject(modules.intelligence);
+          const suitability = asObject(firstValue([
+            modules.suitability_light,
+            summaryCompact.suitability_light,
+          ]));
+
+          return {
+            ok: Boolean(Object.keys(status).length || Object.keys(data).length),
+            raw: groupedResult,
+            status,
+            data,
+            entity,
+            modules,
+            quality,
+            sourceMeta,
+            sourceHealth,
+            summaryCompact,
+            confidence,
+            executiveSummary,
+            intelligence,
+            suitability,
+          };
+        }
+
+        function renderUnknownFormat(targetEl, groupedResult, message) {
+          targetEl.innerHTML = `
+            <div class="empty-state">${escapeHtml(message)}</div>
+            <pre>${escapeHtml(prettyPrint(groupedResult))}</pre>
+          `;
+        }
+
+        function renderOverview(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.overview, groupedResult, "Unbekanntes Result-Format.");
+            return;
+          }
+
+          const entity = normalized.entity;
+          const modules = normalized.modules;
+          const match = asObject(modules.match);
+          const ids = asObject(entity.ids);
+          const coords = asObject(entity.coordinates);
+
+          const intelligenceRisk = asObject(firstValue([
+            normalized.intelligence.executive_risk_summary,
+            getPath(normalized.summaryCompact, ["intelligence", "executive_risk"]),
+          ]));
+
+          const sections = [
+            {
+              title: "Kernaussage",
+              subtitle: "Schneller Überblick zu Qualität, Confidence und Gesamteindruck.",
+              badges: [
+                { label: "Confidence", value: normalized.confidence.level || "unknown" },
+                { label: "Verdict", value: normalized.executiveSummary.verdict || "n/a" },
+                { label: "Suitability", value: normalized.suitability.traffic_light || "n/a" },
+              ],
+              rows: [
+                { label: "Suchanfrage", value: entity.query },
+                { label: "Gematchte Adresse", value: entity.matched_address },
+                { label: "Confidence", value: formatConfidence(normalized.confidence), allowEmpty: true },
+                { label: "Executive Verdict", value: normalized.executiveSummary.verdict },
+                { label: "Executive Hinweis", value: normalized.executiveSummary.recommendation || normalized.executiveSummary.summary },
+                { label: "Suitability Score", value: normalized.suitability.score },
+                { label: "Suitability Klasse", value: normalized.suitability.classification },
+                { label: "Risikoampel", value: intelligenceRisk.traffic_light },
+              ],
+              emptyText: "Kernaussage aktuell nicht verfügbar.",
+            },
+            {
+              title: "Match & Identifikatoren",
+              subtitle: "Technische Kernwerte zur Adressauflösung.",
+              rows: [
+                { label: "Match Score", value: match.selected_score },
+                { label: "Kandidaten", value: match.candidate_count },
+                { label: "Feature-ID", value: ids.feature_id },
+                { label: "EGID", value: ids.egid },
+                { label: "EGRID", value: ids.egrid },
+                { label: "Entity-ID", value: ids.entity_id },
+                { label: "Koordinaten", value: coords },
+              ],
+              emptyText: "Keine Match-/ID-Daten vorhanden.",
+            },
+          ];
+
+          renderSections(panelEls.overview, sections);
+        }
+
+        function renderLocation(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.location, groupedResult, "Lage-Daten nicht interpretierbar.");
+            return;
+          }
+
+          const entity = normalized.entity;
+          const modules = normalized.modules;
+          const crossSource = asObject(modules.cross_source);
+          const coords = asObject(entity.coordinates);
+          const admin = asObject(entity.administrative);
+          const plzLayer = asObject(crossSource.plz_layer);
+          const adminBoundary = asObject(crossSource.admin_boundary);
+          const elevation = asObject(crossSource.elevation);
+          const osmReverse = asObject(crossSource.osm_reverse);
+          const links = asObject(modules.links);
+
+          const sections = [
+            {
+              title: "Koordinaten",
+              rows: [
+                { label: "Latitude", value: coords.lat },
+                { label: "Longitude", value: coords.lon },
+                { label: "LV95 Easting", value: coords.lv95_e },
+                { label: "LV95 Northing", value: coords.lv95_n },
+              ],
+              emptyText: "Keine Koordinaten verfügbar.",
+            },
+            {
+              title: "Administrative Einordnung",
+              rows: [
+                { label: "Gemeinde", value: admin.gemeinde },
+                { label: "Gemeinde BFS", value: admin.gemeinde_bfs },
+                { label: "Kanton", value: admin.kanton },
+                { label: "Ort", value: admin.ort },
+                { label: "PLZ", value: admin.plz_plz6 },
+                { label: "Straße", value: admin.strasse_nummer },
+              ],
+              emptyText: "Keine administrativen Daten verfügbar.",
+            },
+            {
+              title: "Cross-Source Lageprüfung",
+              rows: [
+                { label: "PLZ-Layer", value: plzLayer },
+                { label: "Boundary", value: adminBoundary },
+                { label: "Höhenlage", value: elevation.height_m || elevation },
+                { label: "OSM Reverse", value: osmReverse },
+                { label: "GeoAdmin Karte", value: links.map_geo_admin || normalized.summaryCompact.map },
+              ],
+              emptyText: "Keine Cross-Source Lageinformationen verfügbar.",
+            },
+          ];
+
+          renderSections(panelEls.location, sections);
+        }
+
+        function renderDemographics(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.demographics, groupedResult, "Demografie-Daten nicht interpretierbar.");
+            return;
+          }
+
+          const building = asObject(normalized.modules.building);
+          const tenants = asObject(getPath(normalized.intelligence, ["tenants_businesses"]));
+          const countsByCategory = asObject(tenants.counts_by_category);
+
+          const categoryRows = Object.entries(countsByCategory).slice(0, 20).map(([key, value]) => ({
+            metric: key,
+            value,
+          }));
+
+          const sections = [
+            {
+              title: "Gebäudeprofil",
+              subtitle: "Mangels klassischer Bevölkerungsdaten werden strukturelle Gebäude-Merkmale gezeigt.",
+              rows: [
+                { label: "Name", value: building.name },
+                { label: "Baujahr", value: building.baujahr },
+                { label: "Bauperiode", value: building.bauperiode },
+                { label: "Wohnungen", value: building.wohnungen },
+                { label: "Geschosse", value: building.geschosse },
+                { label: "Fläche m²", value: building.flaeche_m2 },
+                { label: "Gebäudecodes", value: building.codes },
+              ],
+              emptyText: "Keine demografisch interpretierbaren Gebäude-Merkmale vorhanden.",
+            },
+            {
+              title: "Nutzungsindikatoren (POI)",
+              type: "matrix",
+              subtitle: "Annäherung über lokale Nutzungs- und Geschäftsindikatoren.",
+              columns: [
+                { key: "metric", label: "Kategorie" },
+                { key: "value", label: "Anzahl" },
+              ],
+              rows: categoryRows,
+              emptyText: "Keine Nutzungsindikatoren verfügbar.",
+            },
+          ];
+
+          renderSections(panelEls.demographics, sections);
+        }
+
+        function renderSafety(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.safety, groupedResult, "Sicherheitsdaten nicht interpretierbar.");
+            return;
+          }
+
+          const intelligence = normalized.intelligence;
+          const incidents = asObject(intelligence.incidents_timeline);
+          const consistency = asObject(intelligence.consistency_checks);
+          const executiveRisk = asObject(intelligence.executive_risk_summary);
+          const noiseRisk = asObject(intelligence.environment_noise_risk);
+
+          const riskReasons = asArray(executiveRisk.reasons).slice(0, 8).map((entry, index) => ({
+            metric: `Grund ${index + 1}`,
+            value: entry,
+          }));
+
+          const checkRows = asArray(consistency.checks).slice(0, 12).map((check) => ({
+            check: check.id || "check",
+            result: check.result,
+            severity: check.severity,
+            confidence: check.confidence,
+          }));
+
+          const sections = [
+            {
+              title: "Executive Risk",
+              badges: [
+                { label: "Ampel", value: executiveRisk.traffic_light || "n/a" },
+                { label: "Status", value: executiveRisk.status || "n/a" },
+              ],
+              rows: [
+                { label: "Risk Score", value: executiveRisk.risk_score },
+                { label: "Summary", value: executiveRisk.summary },
+                { label: "Modus", value: executiveRisk.mode },
+              ],
+              emptyText: "Kein Executive-Risk verfügbar.",
+            },
+            {
+              title: "Incidents & Konsistenz",
+              rows: [
+                { label: "Incidents Status", value: incidents.status },
+                { label: "Events gesamt", value: asArray(incidents.events).length },
+                { label: "Relevante Events", value: incidents.relevant_event_count },
+                { label: "Konsistenz Overall", value: consistency.overall },
+                { label: "Konsistenz Risk Score", value: consistency.risk_score },
+                { label: "Konsistenz Counts", value: consistency.counts },
+                { label: "Noise Risk", value: noiseRisk.level ? `${noiseRisk.level} (${noiseRisk.score})` : noiseRisk.score },
+              ],
+              emptyText: "Keine Incident-/Konsistenzdaten verfügbar.",
+            },
+            {
+              title: "Risikotreiber",
+              type: "matrix",
+              columns: [
+                { key: "metric", label: "Treiber" },
+                { key: "value", label: "Detail" },
+              ],
+              rows: riskReasons,
+              emptyText: "Keine Risikotreiber vorhanden.",
+            },
+            {
+              title: "Konsistenzchecks (Auszug)",
+              type: "matrix",
+              columns: [
+                { key: "check", label: "Check" },
+                { key: "result", label: "Result" },
+                { key: "severity", label: "Severity" },
+                { key: "confidence", label: "Confidence" },
+              ],
+              rows: checkRows,
+              emptyText: "Keine Konsistenzchecks vorhanden.",
+            },
+          ];
+
+          renderSections(panelEls.safety, sections);
+        }
+
+        function renderHousing(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.housing, groupedResult, "Preis-/Mietdaten nicht interpretierbar.");
+            return;
+          }
+
+          const modules = normalized.modules;
+          const building = asObject(modules.building);
+          const energy = asObject(modules.energy);
+          const market = asObject(firstValue([modules.pricing, modules.market, modules.rent]));
+
+          const sections = [
+            {
+              title: "Preis-/Mietdaten",
+              subtitle: "Direkte Marktpreise liegen oft nicht im API-Payload. Fallback zeigt robuste Gebäudekennzahlen.",
+              rows: [
+                { label: "Preisindex", value: market.price_index },
+                { label: "Mietindex", value: market.rent_index },
+                { label: "Median-Miete", value: market.median_rent },
+                { label: "Preisquelle", value: market.source },
+              ],
+              emptyText: "Keine direkten Preis-/Mietdaten vorhanden.",
+            },
+            {
+              title: "Gebäude & Energie als Kostenindikator",
+              rows: [
+                { label: "Baujahr", value: building.baujahr },
+                { label: "Wohnungen", value: building.wohnungen },
+                { label: "Energie-Codes", value: energy.codes || energy.raw_codes },
+                { label: "Heizungszusammenfassung", value: getPath(energy, ["decoded_summary", "heizung"]) },
+                { label: "Warmwasser", value: getPath(energy, ["decoded_summary", "warmwasser"]) },
+                { label: "Heating Layer", value: energy.heating_layer },
+              ],
+              emptyText: "Keine Gebäude-/Energieindikatoren verfügbar.",
+            },
+          ];
+
+          renderSections(panelEls.housing, sections);
+        }
+
+        function renderEducation(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.education, groupedResult, "Bildungsdaten nicht interpretierbar.");
+            return;
+          }
+
+          const environmentProfile = asObject(getPath(normalized.intelligence, ["environment_profile"]));
+          const countsByDomain = asObject(getPath(environmentProfile, ["counts", "by_domain"]));
+          const metrics = asObject(environmentProfile.metrics);
+          const explainability = asObject(normalized.modules.explainability);
+
+          const schoolFactors = asArray(getPath(explainability, ["base", "factors"], []))
+            .concat(asArray(getPath(explainability, ["personalized", "factors"], [])))
+            .filter((factor) => String(factor.key || "").toLowerCase().includes("school"))
+            .slice(0, 8)
+            .map((factor) => ({
+              factor: factor.key,
+              contribution: factor.contribution,
+              reason: factor.reason,
+            }));
+
+          const sections = [
+            {
+              title: "Bildungsnahe Umfeldwerte",
+              rows: [
+                { label: "Domain education_family", value: countsByDomain.education_family },
+                { label: "Family Support Score", value: metrics.family_support_score },
+                { label: "Accessibility Score", value: metrics.accessibility_score },
+                { label: "POI total", value: getPath(environmentProfile, ["counts", "poi_total"]) },
+              ],
+              emptyText: "Keine Bildungs-/Familienindikatoren vorhanden.",
+            },
+            {
+              title: "Explainability-Faktoren Bildung",
+              type: "matrix",
+              columns: [
+                { key: "factor", label: "Faktor" },
+                { key: "contribution", label: "Contribution" },
+                { key: "reason", label: "Begründung" },
+              ],
+              rows: schoolFactors,
+              emptyText: "Keine bildungsbezogenen Explainability-Faktoren im Payload.",
+            },
+          ];
+
+          renderSections(panelEls.education, sections);
+        }
+
+        function renderTransport(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.transport, groupedResult, "Verkehrsdaten nicht interpretierbar.");
+            return;
+          }
+
+          const match = asObject(normalized.modules.match);
+          const environmentProfile = asObject(getPath(normalized.intelligence, ["environment_profile"]));
+          const countsByDomain = asObject(getPath(environmentProfile, ["counts", "by_domain"]));
+          const metrics = asObject(environmentProfile.metrics);
+          const model = asObject(environmentProfile.model);
+
+          const sections = [
+            {
+              title: "Erreichbarkeit",
+              badges: [
+                { label: "Model", value: model.id || "n/a" },
+                { label: "Status", value: environmentProfile.status || "n/a" },
+              ],
+              rows: [
+                { label: "Transit-Domain", value: countsByDomain.transit },
+                { label: "Accessibility Score", value: metrics.accessibility_score },
+                { label: "Radius (m)", value: model.radius_m },
+                { label: "Distance weighting", value: model.distance_weighting },
+              ],
+              emptyText: "Keine Verkehrsmetriken verfügbar.",
+            },
+            {
+              title: "Adressauflösung / Match",
+              rows: [
+                { label: "Match Score", value: match.selected_score },
+                { label: "Kandidaten", value: match.candidate_count },
+                { label: "Resolution", value: match.resolution },
+                { label: "Query parts", value: match.query_parts },
+              ],
+              emptyText: "Keine Match-/Resolutiondaten verfügbar.",
+            },
+          ];
+
+          renderSections(panelEls.transport, sections);
+        }
+
+        function renderEnvironment(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.environment, groupedResult, "Umweltdaten nicht interpretierbar.");
+            return;
+          }
+
+          const environmentProfile = asObject(getPath(normalized.intelligence, ["environment_profile"]));
+          const noiseRisk = asObject(getPath(normalized.intelligence, ["environment_noise_risk"]));
+          const metrics = asObject(environmentProfile.metrics);
+          const countsByDomain = asObject(getPath(environmentProfile, ["counts", "by_domain"]));
+          const counts = asObject(environmentProfile.counts);
+          const crossSource = asObject(normalized.modules.cross_source);
+          const elevation = asObject(crossSource.elevation);
+
+          const noiseReasons = asArray(noiseRisk.reasons).slice(0, 8).map((entry, index) => ({
+            metric: `Hinweis ${index + 1}`,
+            value: entry,
+          }));
+
+          const sections = [
+            {
+              title: "Umfeldprofil",
+              badges: [
+                { label: "Status", value: environmentProfile.status || "n/a" },
+                { label: "Overall", value: metrics.overall_score || "n/a" },
+              ],
+              rows: [
+                { label: "Density Score", value: metrics.density_score },
+                { label: "Diversity Score", value: metrics.diversity_score },
+                { label: "Quietness Score", value: metrics.quietness_score },
+                { label: "Leisure/Green Domain", value: countsByDomain.leisure_green },
+                { label: "Nightlife Domain", value: countsByDomain.nightlife },
+                { label: "POI Dichte / km²", value: counts.density_per_km2 },
+              ],
+              emptyText: "Keine Umfeldmetriken verfügbar.",
+            },
+            {
+              title: "Lärm-/Aktivitätsrisiko",
+              badges: [
+                { label: "Level", value: noiseRisk.level || "n/a" },
+                { label: "Ampel", value: noiseRisk.traffic_light || "n/a" },
+              ],
+              rows: [
+                { label: "Noise Score", value: noiseRisk.score },
+                { label: "Status", value: noiseRisk.status },
+                { label: "Top Indicators", value: asArray(noiseRisk.indicators).slice(0, 4) },
+                { label: "Höhenlage", value: elevation.height_m },
+              ],
+              emptyText: "Keine Noise-Risk-Daten verfügbar.",
+            },
+            {
+              title: "Umwelt-Hinweise",
+              type: "matrix",
+              columns: [
+                { key: "metric", label: "Hinweis" },
+                { key: "value", label: "Detail" },
+              ],
+              rows: noiseReasons,
+              emptyText: "Keine zusätzlichen Umwelt-Hinweise.",
+            },
+          ];
+
+          renderSections(panelEls.environment, sections);
+        }
+
+        function renderSources(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.sources, groupedResult, "Quellen-/Methodikdaten nicht interpretierbar.");
+            return;
+          }
+
+          const sourceHealth = asObject(normalized.sourceHealth);
+          const sourceMeta = asObject(normalized.sourceMeta);
+          const sourceAttribution = asObject(sourceMeta.source_attribution);
+          const sourceClassification = asObject(sourceMeta.source_classification);
+          const derivedFrom = asObject(firstValue([sourceMeta.derived_from, sourceMeta.field_provenance]));
+          const bySource = asObject(normalized.data.by_source);
+
+          const sourceRows = Object.entries(sourceHealth).map(([source, payload]) => {
+            const meta = asObject(payload);
+            return {
+              source,
+              status: meta.status,
+              records: meta.records,
+              optional: meta.optional,
+            };
+          });
+
+          const attributionRows = Object.entries(sourceAttribution).map(([domain, sources]) => ({
+            domain,
+            sources,
+          }));
+
+          const derivedRows = Object.entries(derivedFrom).slice(0, 25).map(([fieldPath, meta]) => ({
+            field: fieldPath,
+            primary_source: asObject(meta).primary_source,
+            present: asObject(meta).present,
+            authority: asObject(meta).authority,
+          }));
+
+          const bySourceRows = Object.entries(bySource).slice(0, 20).map(([source, payload]) => ({
+            source,
+            groups: Object.keys(asObject(asObject(payload).data)).join(", ") || "—",
+            detail: asObject(payload).data,
+          }));
+
+          const sections = [
+            {
+              title: "Source Health",
+              type: "matrix",
+              columns: [
+                { key: "source", label: "Quelle" },
+                { key: "status", label: "Status" },
+                { key: "records", label: "Records" },
+                { key: "optional", label: "Optional" },
+              ],
+              rows: sourceRows,
+              emptyText: "Keine Source-Health-Daten vorhanden.",
+            },
+            {
+              title: "Source Attribution",
+              type: "matrix",
+              columns: [
+                { key: "domain", label: "Domain" },
+                { key: "sources", label: "Quellen" },
+              ],
+              rows: attributionRows,
+              emptyText: "Keine Source-Attribution vorhanden.",
+            },
+            {
+              title: "Derived-from / Feldprovenienz",
+              type: "matrix",
+              columns: [
+                { key: "field", label: "Feld" },
+                { key: "primary_source", label: "Primary Source" },
+                { key: "present", label: "Present" },
+                { key: "authority", label: "Authority" },
+              ],
+              rows: derivedRows,
+              emptyText: "Keine Feldprovenienz verfügbar.",
+            },
+            {
+              title: "by_source Projektion",
+              type: "matrix",
+              columns: [
+                { key: "source", label: "Quelle" },
+                { key: "groups", label: "Daten-Gruppen" },
+                { key: "detail", label: "Detail" },
+              ],
+              rows: bySourceRows,
+              emptyText: "Keine by_source-Daten verfügbar.",
+            },
+            {
+              title: "Source Classification (raw)",
+              rows: [
+                { label: "source_classification", value: sourceClassification },
+              ],
+              emptyText: "Keine Source-Classification vorhanden.",
+            },
+          ];
+
+          renderSections(panelEls.sources, sections);
+        }
+
+        function renderDerived(groupedResult) {
+          const normalized = normalizeGroupedResult(groupedResult);
+          if (!normalized.ok) {
+            renderUnknownFormat(panelEls.derived, groupedResult, "Derived-Daten nicht interpretierbar.");
+            return;
+          }
+
+          const modules = normalized.modules;
+          const suitability = asObject(normalized.suitability);
+          const explainability = asObject(modules.explainability);
+          const confidenceWarnings = asArray(normalized.confidence.warnings);
+
+          const topFactors = asArray(suitability.top_factors).slice(0, 12).map((factor) => ({
+            key: factor.key,
+            name: factor.name,
+            contribution: factor.contribution,
+          }));
+
+          const explainabilityRows = asArray(getPath(explainability, ["base", "factors"], []))
+            .concat(asArray(getPath(explainability, ["personalized", "factors"], [])))
+            .slice(0, 20)
+            .map((factor) => ({
+              key: factor.key,
+              direction: factor.direction,
+              weight: factor.weight,
+              contribution: factor.contribution,
+              reason: factor.reason,
+            }));
+
+          const warningRows = confidenceWarnings.map((entry, index) => ({
+            metric: `Warnung ${index + 1}`,
+            value: entry,
+          }));
+
+          const sections = [
+            {
+              title: "Suitability (abgeleitet)",
+              rows: [
+                { label: "Status", value: suitability.status },
+                { label: "Score", value: suitability.score },
+                { label: "Traffic Light", value: suitability.traffic_light },
+                { label: "Classification", value: suitability.classification },
+              ],
+              emptyText: "Keine Suitability-Daten vorhanden.",
+            },
+            {
+              title: "Top-Faktoren",
+              type: "matrix",
+              columns: [
+                { key: "key", label: "Key" },
+                { key: "name", label: "Name" },
+                { key: "contribution", label: "Contribution" },
+              ],
+              rows: topFactors,
+              emptyText: "Keine Top-Faktoren verfügbar.",
+            },
+            {
+              title: "Explainability Faktoren",
+              type: "matrix",
+              columns: [
+                { key: "key", label: "Faktor" },
+                { key: "direction", label: "Richtung" },
+                { key: "weight", label: "Gewicht" },
+                { key: "contribution", label: "Contribution" },
+                { key: "reason", label: "Reason" },
+              ],
+              rows: explainabilityRows,
+              emptyText: "Keine Explainability-Faktoren im Payload.",
+            },
+            {
+              title: "Confidence-Warnungen",
+              type: "matrix",
+              columns: [
+                { key: "metric", label: "Typ" },
+                { key: "value", label: "Hinweis" },
+              ],
+              rows: warningRows,
+              emptyText: "Keine Confidence-Warnungen vorhanden.",
+            },
+          ];
+
+          renderSections(panelEls.derived, sections);
+        }
+
+        function renderAllTabs(groupedResult) {
+          renderSafe(renderOverview, panelEls.overview, groupedResult, "Übersicht konnte nicht gerendert werden.");
+          renderSafe(renderLocation, panelEls.location, groupedResult, "Lage konnte nicht gerendert werden.");
+          renderSafe(renderDemographics, panelEls.demographics, groupedResult, "Demografie konnte nicht gerendert werden.");
+          renderSafe(renderSafety, panelEls.safety, groupedResult, "Sicherheit konnte nicht gerendert werden.");
+          renderSafe(renderHousing, panelEls.housing, groupedResult, "Preise/Miete konnten nicht gerendert werden.");
+          renderSafe(renderEducation, panelEls.education, groupedResult, "Bildung konnte nicht gerendert werden.");
+          renderSafe(renderTransport, panelEls.transport, groupedResult, "Verkehr konnte nicht gerendert werden.");
+          renderSafe(renderEnvironment, panelEls.environment, groupedResult, "Umwelt konnte nicht gerendert werden.");
+          renderSafe(renderSources, panelEls.sources, groupedResult, "Quellen/Methodik konnten nicht gerendert werden.");
+          renderSafe(renderDerived, panelEls.derived, groupedResult, "Derived konnte nicht gerendert werden.");
         }
 
         function renderSafe(renderer, targetEl, groupedResult, fallbackLabel) {
@@ -1325,130 +2354,85 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           } catch (error) {
             const message = error instanceof Error ? error.message : "render_error";
             targetEl.innerHTML = `
-              <div class="meta">${escapeHtml(fallbackLabel)}</div>
+              <div class="empty-state">${escapeHtml(fallbackLabel)}</div>
               <pre>${escapeHtml(prettyPrint({ error: "render_error", message, result: groupedResult || null }))}</pre>
             `;
           }
         }
 
-        function renderOverview(groupedResult) {
-          if (!groupedResult || typeof groupedResult !== "object") {
-            overviewEl.innerHTML = '<div class="meta">No result payload.</div>';
-            return;
-          }
+        function setActiveTab(tabKey, options = {}) {
+          const key = TAB_SEQUENCE.includes(tabKey) ? tabKey : "overview";
+          const shouldFocus = Boolean(options.focus);
 
-          const isGrouped = Boolean(groupedResult.status && groupedResult.data);
-          if (!isGrouped) {
-            overviewEl.innerHTML = `<div class="meta">Unbekanntes Result-Format.</div><pre>${escapeHtml(prettyPrint(groupedResult))}</pre>`;
-            return;
-          }
+          TAB_SEQUENCE.forEach((entry) => {
+            const panel = document.getElementById(`tab-${entry}`);
+            const button = document.getElementById(`tab-btn-${entry}`);
+            const isActive = entry === key;
+            if (panel) {
+              panel.hidden = !isActive;
+            }
+            if (button) {
+              button.setAttribute("aria-selected", isActive ? "true" : "false");
+              button.setAttribute("tabindex", isActive ? "0" : "-1");
+            }
+          });
 
-          const status = asObject(groupedResult.status);
-          const data = asObject(groupedResult.data);
-          const entity = asObject(data.entity);
-          const modules = asObject(data.modules);
-          const summaryCompact = asObject(modules.summary_compact);
-          const quality = asObject(status.quality);
-
-          const executiveSummary = status.executive_summary || summaryCompact.executive_summary || "";
-          const confidence = status.confidence || quality.confidence || null;
-          const coords = entity.coordinates || entity.coords || null;
-          const ids = asObject(entity.ids);
-          const admin = asObject(entity.administrative || entity.admin);
-
-          const rows = [];
-          rows.push(kvRow("Query", formatFallback(entity.query)));
-          rows.push(kvRow("Matched address", formatFallback(entity.matched_address)));
-          rows.push(kvRow("Confidence", formatFallback(confidence && typeof confidence === "object" ? (confidence.level || confidence.score) : confidence)));
-          rows.push(kvRow("Coordinates", formatFallback(coords, "nicht verfügbar")));
-          rows.push(kvRow("IDs", formatFallback(ids, "nicht verfügbar")));
-          rows.push(kvRow("Administrative", formatFallback(admin, "nicht verfügbar")));
-
-          const headerParts = [];
-          if (String(executiveSummary || "").trim()) {
-            headerParts.push(`<p style="margin: 0 0 0.75rem;"><strong>Executive summary</strong><br>${escapeHtml(executiveSummary)}</p>`);
-          }
-
-          const overviewPayload = {
-            executive_summary: executiveSummary || null,
-            confidence: confidence || null,
-            matched_address: entity.matched_address || null,
-            coords: hasValue(coords) ? coords : null,
-            ids: hasValue(ids) ? ids : null,
-            admin: hasValue(admin) ? admin : null,
-            status: status,
-          };
-
-          overviewEl.innerHTML = `${headerParts.join("")}<dl class="kv">${rows.join("")}</dl><pre style="margin-top: 0.85rem;">${escapeHtml(prettyPrint(overviewPayload))}</pre>`;
-        }
-
-        function renderSources(groupedResult) {
-          if (!groupedResult || typeof groupedResult !== "object") {
-            sourcesEl.innerHTML = '<div class="meta">No result payload.</div>';
-            return;
-          }
-          const isGrouped = Boolean(groupedResult.status && groupedResult.data);
-          if (!isGrouped) {
-            sourcesEl.innerHTML = `<pre>${escapeHtml(prettyPrint(groupedResult))}</pre>`;
-            return;
-          }
-
-          const status = asObject(groupedResult.status);
-          const data = asObject(groupedResult.data);
-          const payload = {
-            sources: status.sources || null,
-            source_attribution: status.source_attribution || null,
-            source_classification: status.source_classification || null,
-            source_health: status.source_health || null,
-            source_meta: status.source_meta || null,
-            by_source: data.by_source || null,
-          };
-          sourcesEl.innerHTML = `<pre>${escapeHtml(prettyPrint(payload))}</pre>`;
-        }
-
-        function renderDerived(groupedResult) {
-          if (!groupedResult || typeof groupedResult !== "object") {
-            derivedEl.innerHTML = '<div class="meta">No result payload.</div>';
-            return;
-          }
-          const isGrouped = Boolean(groupedResult.status && groupedResult.data);
-          if (!isGrouped) {
-            derivedEl.innerHTML = `<pre>${escapeHtml(prettyPrint(groupedResult))}</pre>`;
-            return;
-          }
-
-          // Derived should focus on computed signals and exclude raw sources + summary views.
-          let payload;
-          try {
-            payload = JSON.parse(JSON.stringify(groupedResult));
-          } catch (error) {
-            payload = null;
-          }
-
-          if (payload && payload.status && typeof payload.status === "object") {
-            delete payload.status.sources;
-            delete payload.status.source_attribution;
-            delete payload.status.source_classification;
-            delete payload.status.source_health;
-            delete payload.status.source_meta;
-            delete payload.status.executive_summary;
-          }
-
-          if (payload && payload.data && typeof payload.data === "object") {
-            delete payload.data.by_source;
-            if (payload.data.modules && typeof payload.data.modules === "object") {
-              delete payload.data.modules.summary_compact;
+          if (shouldFocus) {
+            const activeButton = document.getElementById(`tab-btn-${key}`);
+            if (activeButton && typeof activeButton.focus === "function") {
+              activeButton.focus();
             }
           }
+        }
 
-          const hasAnyContent = Boolean(
-            payload && typeof payload === "object" && (
-              (payload.status && Object.keys(payload.status || {}).length) ||
-              (payload.data && Object.keys(payload.data || {}).length)
-            )
-          );
+        function focusTabByOffset(currentKey, offset) {
+          const currentIndex = TAB_SEQUENCE.indexOf(currentKey);
+          if (currentIndex < 0) {
+            setActiveTab("overview", { focus: true });
+            return;
+          }
+          const nextIndex = (currentIndex + offset + TAB_SEQUENCE.length) % TAB_SEQUENCE.length;
+          setActiveTab(TAB_SEQUENCE[nextIndex], { focus: true });
+        }
 
-          derivedEl.innerHTML = `<pre>${escapeHtml(prettyPrint(hasAnyContent ? payload : groupedResult))}</pre>`;
+        function focusBoundaryTab(which) {
+          if (which === "first") {
+            setActiveTab(TAB_SEQUENCE[0], { focus: true });
+            return;
+          }
+          setActiveTab(TAB_SEQUENCE[TAB_SEQUENCE.length - 1], { focus: true });
+        }
+
+        function onTabKeyDown(event) {
+          const target = event.currentTarget;
+          const tabKey = String(target && target.getAttribute("data-tab") || "").trim();
+          if (!tabKey) return;
+
+          const key = event.key;
+          if (key === "ArrowRight") {
+            event.preventDefault();
+            focusTabByOffset(tabKey, 1);
+            return;
+          }
+          if (key === "ArrowLeft") {
+            event.preventDefault();
+            focusTabByOffset(tabKey, -1);
+            return;
+          }
+          if (key === "Home") {
+            event.preventDefault();
+            focusBoundaryTab("first");
+            return;
+          }
+          if (key === "End") {
+            event.preventDefault();
+            focusBoundaryTab("last");
+            return;
+          }
+          if (key === "Enter" || key === " ") {
+            event.preventDefault();
+            setActiveTab(tabKey, { focus: true });
+          }
         }
 
         async function loadResult() {
@@ -1506,17 +2490,16 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
           }
 
           setStatus("success");
-          const groupedResult = parsed.result;
-          renderSafe(renderOverview, overviewEl, groupedResult, "Overview konnte wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.");
-          renderSafe(renderSources, sourcesEl, groupedResult, "Sources konnten wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.");
-          renderSafe(renderDerived, derivedEl, groupedResult, "Derived konnte wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.");
+          renderAllTabs(parsed.result);
           loadBtn.disabled = false;
         }
 
         document.querySelectorAll(".tab-btn").forEach((btn) => {
           btn.addEventListener("click", () => {
-            setActiveTab(btn.getAttribute("data-tab"));
+            const key = btn.getAttribute("data-tab");
+            setActiveTab(String(key || "overview"), { focus: false });
           });
+          btn.addEventListener("keydown", onTabKeyDown);
         });
 
         viewModeEl.addEventListener("change", () => {
@@ -1528,7 +2511,7 @@ _RESULT_TABS_PAGE_TEMPLATE = """<!doctype html>
         });
 
         applyInitialState();
-        setActiveTab("overview");
+        setActiveTab("overview", { focus: false });
         void loadResult();
       </script>
     </main>

@@ -18,9 +18,10 @@ def test_build_result_permalink_html_uses_relative_api_when_base_is_empty() -> N
     html = _build_result_permalink_html(app_version="test", api_base_url="", result_id="res-123")
     assert "res-123" in html
     assert 'const RESULTS_ENDPOINT_BASE = "/analyze/results";' in html
-    assert "Overview" in html
-    assert "Sources / Evidence" in html
-    assert "Generated / Derived" in html
+    assert "Übersicht" in html
+    assert "Lage" in html
+    assert "Quellen &amp; Methodik" in html
+    assert "Signale / Derived" in html
     assert "Raw JSON" in html
 
 
