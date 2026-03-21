@@ -325,3 +325,48 @@ def test_check_login_start_retries_transient_http_429_with_retry_after(monkeypat
     assert result.ok is True
     assert result.reason == "ok"
     assert opener.calls == 2
+
+
+def test_check_login_start_retries_transient_http_429_with_stale_retry_after_uses_default_delay(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 302
+
+        def __init__(self, location: str) -> None:
+            self.headers = {"Location": location}
+
+        def getcode(self) -> int:
+            return self.status
+
+    class _FlakyRateLimitOpener:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def open(self, req, timeout):  # noqa: ARG002
+            self.calls += 1
+            if self.calls == 1:
+                raise HTTPError(
+                    req.full_url,
+                    429,
+                    "Too Many Requests",
+                    {"Retry-After": "Sun, 06 Nov 1994 08:49:37 GMT"},
+                    None,
+                )
+            return _FakeResponse("https://idp.example.test/oauth2/authorize?state=abc")
+
+    sleep_calls: list[float] = []
+    opener = _FlakyRateLimitOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: opener)
+    monkeypatch.setattr(module.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    result = module.check_login_start(
+        base_url="https://www.dev.georanking.ch",
+        max_attempts=2,
+        retry_delay_seconds=1.25,
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert opener.calls == 2
+    assert sleep_calls == [1.25]
