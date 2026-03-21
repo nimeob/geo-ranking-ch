@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 JOBS_FILTER_SEARCH_PROBE = REPO_ROOT / "scripts" / "smoke" / "run_jobs_filter_search_e2e_probe.mjs"
+RESULT_TABS_KEYBOARD_PROBE = REPO_ROOT / "scripts" / "smoke" / "run_result_tabs_keyboard_probe.mjs"
 
 
 class _NoRedirect(request.HTTPRedirectHandler):
@@ -677,6 +678,47 @@ class TestAuthRegressionSmokeIssue1019(unittest.TestCase):
         reload = scenarios["reloadFromShareLink"]
         self.assertEqual(reload.get("statusValue"), "succeeded")
         self.assertEqual(reload.get("queryValue"), "job-succeeded")
+
+    def test_result_tabs_keyboard_navigation_e2e_probe(self):
+        node_bin = shutil.which("node")
+        self.assertIsNotNone(node_bin, "node runtime fehlt fuer Result-Tabs E2E-Probe")
+        self.assertTrue(
+            RESULT_TABS_KEYBOARD_PROBE.is_file(),
+            "Probe-Skript fehlt: scripts/smoke/run_result_tabs_keyboard_probe.mjs",
+        )
+
+        completed = subprocess.run(
+            [
+                str(node_bin),
+                str(RESULT_TABS_KEYBOARD_PROBE),
+                "--result-url",
+                f"{self.ui_base_url}/results/res-probe-123",
+            ],
+            cwd=str(REPO_ROOT),
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+
+        self.assertEqual(
+            completed.returncode,
+            0,
+            msg=(
+                "result-tabs keyboard E2E-Probe fehlgeschlagen\n"
+                f"stdout:\n{completed.stdout}\n"
+                f"stderr:\n{completed.stderr}"
+            ),
+        )
+
+        payload = json.loads(completed.stdout)
+        self.assertTrue(payload.get("ok"), msg=f"Probe-Output ohne ok-Flag: {payload}")
+
+        states = payload.get("states") or {}
+        self.assertEqual((states.get("initial") or {}).get("selected"), "true")
+        self.assertEqual((states.get("afterArrowRight") or {}).get("selected"), "true")
+        self.assertEqual((states.get("afterEnd") or {}).get("selected"), "true")
+        self.assertEqual((states.get("afterHome") or {}).get("selected"), "true")
+        self.assertEqual((states.get("afterClickDerived") or {}).get("selected"), "true")
 
     def test_callback_failure_modes_render_ui_relogin_without_api_host_leak(self):
         # invalid_state via state mismatch

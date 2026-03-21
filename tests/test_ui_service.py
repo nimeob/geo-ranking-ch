@@ -320,35 +320,65 @@ class TestUiService(unittest.TestCase):
         self.assertIn("Result", body)
         self.assertIn("res-123", body)
 
-        # Tabs (Order is relevant for UX; keep assertions explicit.)
-        self.assertIn('data-tab="overview"', body)
-        self.assertIn('data-tab="sources"', body)
-        self.assertIn('data-tab="derived"', body)
-        self.assertIn('data-tab="raw"', body)
-        self.assertIn(">Overview<", body)
-        self.assertIn(">Sources / Evidence<", body)
-        self.assertIn(">Generated / Derived<", body)
-        self.assertIn(">Raw JSON<", body)
+        # IA: thematische Tabs + Legacy-Schlüssel (sources/derived/raw) bleiben stabil.
+        for tab_key in [
+            "overview",
+            "location",
+            "demographics",
+            "safety",
+            "housing",
+            "education",
+            "transport",
+            "environment",
+            "sources",
+            "derived",
+            "raw",
+        ]:
+            self.assertIn(f'data-tab="{tab_key}"', body)
 
-        # Initial state: Overview visible, other panels hidden.
-        self.assertIn('<div id="tab-overview" class="tab-panel">', body)
-        self.assertIn('<div id="tab-sources" class="tab-panel" hidden>', body)
-        self.assertIn('<div id="tab-derived" class="tab-panel" hidden>', body)
-        self.assertIn('<div id="tab-raw" class="tab-panel" hidden>', body)
+        for label in [
+            "Übersicht",
+            "Lage",
+            "Demografie",
+            "Sicherheit",
+            "Preise &amp; Miete",
+            "Bildung",
+            "Verkehr",
+            "Umwelt",
+            "Quellen &amp; Methodik",
+            "Signale / Derived",
+            "Raw JSON",
+        ]:
+            self.assertIn(label, body)
+
+        # Initial state: Overview sichtbar, weitere Panels hidden.
+        self.assertIn('<div id="tab-overview" class="tab-panel" role="tabpanel"', body)
+        self.assertIn('<div id="tab-location" class="tab-panel" role="tabpanel"', body)
+        self.assertIn('<div id="tab-sources" class="tab-panel" role="tabpanel"', body)
+        self.assertIn('<div id="tab-derived" class="tab-panel" role="tabpanel"', body)
+        self.assertIn('<div id="tab-raw" class="tab-panel" role="tabpanel"', body)
+        self.assertIn('id="tab-location" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-location" tabindex="0" hidden', body)
+
+        # Accessibility-Basics für Tabs.
+        self.assertIn('role="tablist" aria-label="Resultat-Tabs"', body)
+        self.assertIn('role="tab" data-tab="overview" aria-selected="true"', body)
+        self.assertIn('aria-controls="tab-overview"', body)
+        self.assertIn('function onTabKeyDown(event)', body)
+        self.assertIn('if (key === "ArrowRight")', body)
+        self.assertIn('if (key === "ArrowLeft")', body)
+        self.assertIn('if (key === "Home")', body)
+        self.assertIn('if (key === "End")', body)
 
         # Result-Permalink muss same-origin bleiben (Cookie-/CORS-sicher).
         self.assertIn('const RESULTS_ENDPOINT_BASE = "/analyze/results";', body)
         self.assertNotIn(f'{self.api_base_url}/analyze/results', body)
 
-        # Regression guard (Issue #1123): missing optional metadata must not hard-crash rendering.
+        # Robustheit: uneinheitliche / optionale Daten dürfen nicht crashen.
         self.assertIn('function asObject(value)', body)
         self.assertIn('function formatFallback(value, fallback = "—")', body)
+        self.assertIn('function normalizeGroupedResult(groupedResult)', body)
         self.assertIn('function renderSafe(renderer, targetEl, groupedResult, fallbackLabel)', body)
-        self.assertIn('Overview konnte wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.', body)
-        self.assertIn('Sources konnten wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.', body)
-        self.assertIn('Derived konnte wegen fehlender optionaler Metadaten nicht vollständig gerendert werden.', body)
-        self.assertIn('rows.push(kvRow("IDs", formatFallback(ids, "nicht verfügbar")));', body)
-        self.assertIn('rows.push(kvRow("Administrative", formatFallback(admin, "nicht verfügbar")));', body)
+        self.assertIn('Leere Datenbereiche werden robust abgefedert.', body)
 
         # Regression guard: latest-view result loading retries transient 404/not_found before failing hard.
         self.assertIn('const RESULT_LOAD_MAX_RETRIES = 8;', body)
