@@ -83,6 +83,11 @@ def _row_to_dict(cursor: Any, row: tuple[Any, ...]) -> dict[str, Any]:
     return dict(zip(cols, row))
 
 
+def _normalize_owner_org_id(raw_value: Any) -> str:
+    value = str(raw_value or "").strip()
+    return value or "default-org"
+
+
 # ---------------------------------------------------------------------------
 # DbAsyncJobStore
 # ---------------------------------------------------------------------------
@@ -602,12 +607,13 @@ class DbAsyncJobStore:
     ) -> dict[str, Any] | None:
         """Fetch result only for exact owner user+org.
 
-        Backward-compatibility: for legacy `job_results` rows with incomplete owner/org
-        metadata, fall back to the authoritative owner guard on the parent `jobs` row.
+        Legacy compatibility:
+        - New rows: enforce strict `job_results.user_id + job_results.org_id` match.
+        - Old rows with partial metadata: fall back to the parent `jobs` owner guard.
         """
         owner_user_id_norm = str(owner_user_id or "").strip()
-        owner_org_id_norm = str(owner_org_id or "").strip()
-        if not owner_user_id_norm or not owner_org_id_norm:
+        owner_org_id_norm = _normalize_owner_org_id(owner_org_id)
+        if not owner_user_id_norm:
             return None
 
         conn = self._connect()
@@ -618,12 +624,8 @@ class DbAsyncJobStore:
                 SELECT *
                 FROM job_results
                 WHERE result_id = %s
-                  AND (COALESCE(org_id, '') = %s OR COALESCE(org_id, '') = '')
                 """,
-                (
-                    str(result_id),
-                    owner_org_id_norm,
-                ),
+                (str(result_id),),
             )
             row = cur.fetchone()
             if row is None:
@@ -631,34 +633,38 @@ class DbAsyncJobStore:
 
             projected = _row_to_dict(cur, row)
             result_user_id = str(projected.get("user_id") or "").strip()
-            result_org_id = str(projected.get("org_id") or "").strip()
+            result_org_id_norm = _normalize_owner_org_id(projected.get("org_id"))
 
-            # Fast path: row already carries strict owner metadata.
-            if result_user_id and result_org_id:
-                if result_user_id == owner_user_id_norm and result_org_id == owner_org_id_norm:
+            # Fast path: result row already has complete owner metadata.
+            if result_user_id:
+                if result_user_id == owner_user_id_norm and result_org_id_norm == owner_org_id_norm:
                     return projected
                 return None
 
-            # Legacy fallback: allow only when the parent job is owned by the caller.
+            # Legacy fallback: allow only when the parent job owner matches.
             job_id = str(projected.get("job_id") or "").strip()
             if not job_id:
                 return None
 
             cur.execute(
                 """
-                SELECT 1
+                SELECT user_id, org_id
                 FROM jobs
                 WHERE job_id = %s
-                  AND user_id = %s
-                  AND org_id = %s
                 """,
-                (
-                    job_id,
-                    owner_user_id_norm,
-                    owner_org_id_norm,
-                ),
+                (job_id,),
             )
-            return projected if cur.fetchone() else None
+            parent_row = cur.fetchone()
+            if parent_row is None:
+                return None
+
+            parent_user_id = str(parent_row[0] or "").strip()
+            parent_org_id_norm = _normalize_owner_org_id(parent_row[1])
+            if parent_user_id != owner_user_id_norm:
+                return None
+            if parent_org_id_norm != owner_org_id_norm:
+                return None
+            return projected
         finally:
             conn.close()
 

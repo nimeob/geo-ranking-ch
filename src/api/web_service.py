@@ -3553,10 +3553,13 @@ class Handler(BaseHTTPRequestHandler):
     ) -> bool:
         """Strict per-owner visibility check.
 
-        Conservative default for legacy rows:
-        - Missing owner metadata => not visible in authenticated owner mode.
+        Compatibility:
+        - Preferred fields: owner_user_id/owner_org_id
+        - Legacy DB rows: user_id/org_id
         """
-        job_owner_user_id = str(job_record.get("owner_user_id") or "").strip()
+        job_owner_user_id = str(
+            job_record.get("owner_user_id") or job_record.get("user_id") or ""
+        ).strip()
         if not job_owner_user_id:
             return False
         if job_owner_user_id != str(owner_user_id):
@@ -3576,7 +3579,9 @@ class Handler(BaseHTTPRequestHandler):
         owner_user_id: str,
         owner_org_id: str,
     ) -> bool:
-        result_owner_user_id = str(result_record.get("owner_user_id") or "").strip()
+        result_owner_user_id = str(
+            result_record.get("owner_user_id") or result_record.get("user_id") or ""
+        ).strip()
         if not result_owner_user_id:
             return False
         if result_owner_user_id != str(owner_user_id):
