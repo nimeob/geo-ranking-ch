@@ -923,15 +923,29 @@ def audit_closed_issues(dry_run: bool) -> list[dict[str, Any]]:
         prs = detail.get("closedByPullRequestsReferences", [])
 
         reasons = []
+        reopen_reasons = []
         stale_status_label = ("status:todo" in labels or "status:in-progress" in labels)
-        if re.search(r"^- \[ \] ", body, flags=re.MULTILINE):
+
+        has_open_checklist = bool(re.search(r"^- \[ \] ", body, flags=re.MULTILINE))
+        if has_open_checklist:
             reasons.append("Issue-Body enthält offene Checklist-Items")
+
         no_closure_evidence = (not prs and not EVIDENCE_RE.search(comments))
         if no_closure_evidence:
-            reasons.append("Kein PR-Link und kein belastbarer Abschlussnachweis im Kommentar")
+            msg = "Kein PR-Link und kein belastbarer Abschlussnachweis im Kommentar"
+            reasons.append(msg)
+            reopen_reasons.append(msg)
+
         # Nur ein veraltetes Status-Label ist noch kein Reopen-Grund.
         if stale_status_label and no_closure_evidence:
-            reasons.append("Status-Label ist noch todo/in-progress")
+            msg = "Status-Label ist noch todo/in-progress"
+            reasons.append(msg)
+            reopen_reasons.append(msg)
+
+        # Ein offener DoD-Punkt alleine (bei vorhandenem Abschlussnachweis) ist inkonsistent,
+        # aber kein harter Reopen-Trigger mehr: erst Hinweis/Finding, dann manuelle Korrektur.
+        if has_open_checklist and no_closure_evidence:
+            reopen_reasons.append("Issue-Body enthält offene Checklist-Items")
 
         if reasons:
             findings.append(
@@ -942,11 +956,18 @@ def audit_closed_issues(dry_run: bool) -> list[dict[str, Any]]:
                     evidence=[
                         {"kind": "issue", "number": n, "url": detail.get("url")},
                         {"kind": "metric", "name": "reason_count", "value": len(reasons)},
+                        {"kind": "metric", "name": "reopen_reason_count", "value": len(reopen_reasons)},
                     ],
-                    source={"kind": "github_issue_audit", "component": "closed_issue_review", "reasons": reasons},
+                    source={
+                        "kind": "github_issue_audit",
+                        "component": "closed_issue_review",
+                        "reasons": reasons,
+                        "reopen_reasons": reopen_reasons,
+                    },
                 )
             )
-            reopen_issue(n, "; ".join(reasons), dry_run=dry_run)
+            if reopen_reasons:
+                reopen_issue(n, "; ".join(reopen_reasons), dry_run=dry_run)
 
     return findings
 
