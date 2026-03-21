@@ -19,6 +19,8 @@ import json
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urljoin, urlparse
@@ -69,6 +71,32 @@ def _build_start_request_url(base_url: str, *, next_path: str, reason: str) -> s
     return f"{normalized_base}/login?{query}"
 
 
+_TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
+
+
+def _resolve_retry_delay(*, retry_after_header: str, default_delay_seconds: float) -> float:
+    fallback_delay = max(0.0, float(default_delay_seconds))
+    candidate = retry_after_header.strip()
+    if not candidate:
+        return fallback_delay
+
+    try:
+        return max(0.0, float(candidate))
+    except ValueError:
+        pass
+
+    try:
+        retry_at = parsedate_to_datetime(candidate)
+    except (TypeError, ValueError):
+        return fallback_delay
+
+    if retry_at.tzinfo is None:
+        retry_at = retry_at.replace(tzinfo=timezone.utc)
+
+    delta_seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+    return max(0.0, delta_seconds)
+
+
 def _send_request_probe(
     *,
     request_url: str,
@@ -106,8 +134,10 @@ def _send_request_probe(
         except HTTPError as exc:
             try:
                 status = int(getattr(exc, "status", 0) or exc.getcode())
-                location = str(exc.headers.get("Location") or "").strip()
-                content_type = str(exc.headers.get("Content-Type") or "").strip()
+                headers = exc.headers or {}
+                location = str(headers.get("Location") or "").strip()
+                content_type = str(headers.get("Content-Type") or "").strip()
+                retry_after_header = str(headers.get("Retry-After") or "").strip()
                 body_preview = ""
                 if read_body_preview and exc.fp is not None:
                     try:
@@ -116,8 +146,13 @@ def _send_request_probe(
                         body_preview = ""
             finally:
                 exc.close()
-            if status in {502, 503, 504} and attempt < attempts:
-                time.sleep(max(0.0, retry_delay_seconds))
+            if status in _TRANSIENT_HTTP_STATUSES and attempt < attempts:
+                time.sleep(
+                    _resolve_retry_delay(
+                        retry_after_header=retry_after_header,
+                        default_delay_seconds=retry_delay_seconds,
+                    )
+                )
                 continue
             return _HttpProbeResult(
                 status_code=status,
