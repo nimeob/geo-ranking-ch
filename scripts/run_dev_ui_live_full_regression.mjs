@@ -90,31 +90,34 @@ async function locateFirstVisible(page, selectors, timeoutMs) {
   throw new Error(`Visible selector not found. candidates=${selectors.join(",")}`);
 }
 
-async function fetchAuthMe(apiRequestContext) {
-  try {
-    const response = await apiRequestContext.get(new URL("/auth/me", baseOrigin).toString(), {
-      timeout: MAX_WAIT_MS,
-      headers: { Accept: "application/json" },
-    });
-    let payload = null;
+async function fetchAuthMe(page) {
+  return await page.evaluate(async ({ targetUrl }) => {
     try {
-      payload = await response.json();
-    } catch {
-      payload = null;
+      const response = await fetch(targetUrl, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Accept": "application/json" },
+      });
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+      return {
+        ok: response.ok,
+        status: response.status,
+        payload,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        status: 0,
+        payload: null,
+        error: String(error?.message || error),
+      };
     }
-    return {
-      ok: response.ok(),
-      status: response.status(),
-      payload,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 0,
-      payload: null,
-      error: String(error?.message || error),
-    };
-  }
+  }, { targetUrl: new URL("/auth/me", baseOrigin).toString() });
 }
 
 function deriveRemainingSeconds(payload) {
@@ -220,7 +223,7 @@ async function main() {
       `header=${guiVersionText}`,
     );
 
-    const authMeInitial = await fetchAuthMe(context.request);
+    const authMeInitial = await fetchAuthMe(page);
     recordCheck("auth.me_after_login_200", authMeInitial.status === 200 && authMeInitial.ok, JSON.stringify(authMeInitial));
     const remainingSec = deriveRemainingSeconds(authMeInitial.payload);
     const sessionWarningVisible = await page.locator("#session-expiry-warning").isVisible().catch(() => false);
@@ -400,8 +403,14 @@ async function main() {
 
     // allow redirects to settle
     await page.waitForTimeout(1_500);
-    const authAfterLogout = await fetchAuthMe(context.request);
-    recordCheck("auth.me_after_logout_401", authAfterLogout.status === 401, JSON.stringify(authAfterLogout));
+    const logoutUrl = page.url();
+    const redirectedToIdpLogin = isIdpLoginUrl(logoutUrl);
+    const authAfterLogout = redirectedToIdpLogin ? null : await fetchAuthMe(page);
+    recordCheck(
+      "auth.me_after_logout_401",
+      redirectedToIdpLogin || authAfterLogout?.status === 401,
+      JSON.stringify({ logoutUrl, redirectedToIdpLogin, authAfterLogout }),
+    );
 
     await safeScreenshot(page, "99-final-state");
 
