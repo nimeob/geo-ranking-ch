@@ -36,3 +36,15 @@ def test_result_tabs_keyboard_navigation_guard_present() -> None:
     assert 'await locationTabButton.press("End");' in content
     assert 'await rawTabButton.press("Home");' in content
     assert '"result_tabs_keyboard_navigation"' in content
+
+
+def test_check_details_encode_observed_visibility_state() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert "server_error_visible=${preServerErrorVisible}" in content
+    assert "server_error_after_reload=${serverErrorAfterReload}" in content
+    assert "query_visible=${queryVisible}" in content
+    assert "mode_visible=${modeVisible}" in content
+    assert "submit_visible=${submitVisible}" in content
+    assert "server_error_visible_after_analyze=${serverErrorAfterAnalyze}" in content
+    assert "error_box_visible_after_analyze=${errorBoxAfterAnalyze}" in content

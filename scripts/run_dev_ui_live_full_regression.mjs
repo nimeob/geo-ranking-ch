@@ -348,7 +348,11 @@ async function main() {
     }
 
     const preServerErrorVisible = await page.locator("#server-error-view").isVisible().catch(() => false);
-    recordCheck("no_immediate_5xx_banner_after_login", !preServerErrorVisible, "server-error-view visible right after login");
+    recordCheck(
+      "no_immediate_5xx_banner_after_login",
+      !preServerErrorVisible,
+      `server_error_visible=${preServerErrorVisible}`,
+    );
 
     await page.evaluate(() => {
       try {
@@ -366,7 +370,11 @@ async function main() {
     await page.reload({ waitUntil: "domcontentloaded", timeout: MAX_WAIT_MS });
     await page.waitForSelector("#analyze-form", { timeout: MAX_WAIT_MS });
     const serverErrorAfterReload = await page.locator("#server-error-view").isVisible().catch(() => false);
-    recordCheck("stale_local_state_does_not_trigger_5xx_banner", !serverErrorAfterReload, "5xx banner became visible after reload");
+    recordCheck(
+      "stale_local_state_does_not_trigger_5xx_banner",
+      !serverErrorAfterReload,
+      `server_error_after_reload=${serverErrorAfterReload}`,
+    );
 
     const queryInput = page.locator("#query");
     const modeSelect = page.locator("#intelligence-mode");
@@ -377,7 +385,14 @@ async function main() {
     const mapLocate = page.locator("#map-locate-btn");
     const filtersToggle = page.locator("#results-filters-toggle");
 
-    recordCheck("main_controls_visible", await queryInput.isVisible() && await modeSelect.isVisible() && await submitBtn.isVisible(), "query/mode/submit missing");
+    const queryVisible = await queryInput.isVisible();
+    const modeVisible = await modeSelect.isVisible();
+    const submitVisible = await submitBtn.isVisible();
+    recordCheck(
+      "main_controls_visible",
+      queryVisible && modeVisible && submitVisible,
+      `query_visible=${queryVisible} mode_visible=${modeVisible} submit_visible=${submitVisible}`,
+    );
 
     await mapZoomIn.click();
     await mapZoomOut.click();
@@ -428,8 +443,16 @@ async function main() {
 
     const serverErrorAfterAnalyze = await page.locator("#server-error-view").isVisible().catch(() => false);
     const errorBoxAfterAnalyze = await page.locator("#error-box").isVisible().catch(() => false);
-    recordCheck("no_5xx_banner_after_successful_sync_analyze", !serverErrorAfterAnalyze, "server-error-view visible after 200 response");
-    recordCheck("no_generic_error_after_successful_sync_analyze", !errorBoxAfterAnalyze, "error-box visible after 200 response");
+    recordCheck(
+      "no_5xx_banner_after_successful_sync_analyze",
+      !serverErrorAfterAnalyze,
+      `server_error_visible_after_analyze=${serverErrorAfterAnalyze}`,
+    );
+    recordCheck(
+      "no_generic_error_after_successful_sync_analyze",
+      !errorBoxAfterAnalyze,
+      `error_box_visible_after_analyze=${errorBoxAfterAnalyze}`,
+    );
 
     await page.waitForSelector('#history-shell a[href^="/results/"]', { timeout: MAX_WAIT_MS });
     const firstHistoryHref = await page.locator('#history-shell a[href^="/results/"]').first().getAttribute("href");
