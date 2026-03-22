@@ -186,50 +186,62 @@ def test_deploy_workflow_wires_database_reachability_gate_inputs():
     assert not missing, f"deploy.yml fehlt Health-Gate-Verdrahtung: {missing}"
 
 
-def test_deploy_workflow_smokes_login_contract_for_gui_history_and_jobs_routes():
+def test_deploy_workflow_smokes_login_contract_for_gui_history_jobs_and_legacy_routes():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
 
     text = workflow.read_text(encoding="utf-8")
     required = [
-        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs)",
+        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs + legacy /gui/jobs*)",
         '--next "/gui"',
         '--next "/gui/history"',
         '--next "/jobs"',
+        '--next "/gui/jobs"',
+        '--next "/gui/jobs/demo-job"',
         "artifacts/dev-login-start-smoke.json",
         "artifacts/dev-login-start-smoke-gui-history.json",
         "artifacts/dev-login-start-smoke-jobs.json",
+        "artifacts/dev-login-start-smoke-gui-jobs-legacy.json",
+        "artifacts/dev-login-start-smoke-gui-jobs-legacy-detail.json",
         "Upload login-start smoke artifacts (dev)",
         "actions/upload-artifact@v6",
         "dev-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}",
         "LOGIN_GUI_RC",
         "LOGIN_HISTORY_RC",
         "LOGIN_JOBS_RC",
+        "LOGIN_GUI_JOBS_LEGACY_RC",
+        "LOGIN_GUI_JOBS_LEGACY_DETAIL_RC",
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
     assert not missing, f"deploy.yml fehlt Login-Contract-Smoke-Coverage: {missing}"
 
 
-def test_deploy_staging_workflow_smokes_login_contract_for_gui_history_and_jobs_routes():
+def test_deploy_staging_workflow_smokes_login_contract_for_gui_history_jobs_and_legacy_routes():
     workflow = Path(".github/workflows/deploy-staging.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
 
     text = workflow.read_text(encoding="utf-8")
     required = [
-        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs)",
+        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs + legacy /gui/jobs*)",
         '--next "/gui"',
         '--next "/gui/history"',
         '--next "/jobs"',
+        '--next "/gui/jobs"',
+        '--next "/gui/jobs/demo-job"',
         "artifacts/staging-login-start-smoke.json",
         "artifacts/staging-login-start-smoke-gui-history.json",
         "artifacts/staging-login-start-smoke-jobs.json",
+        "artifacts/staging-login-start-smoke-gui-jobs-legacy.json",
+        "artifacts/staging-login-start-smoke-gui-jobs-legacy-detail.json",
         "Upload login-start smoke artifacts (staging)",
         "actions/upload-artifact@v6",
         "staging-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}",
         "LOGIN_GUI_RC",
         "LOGIN_HISTORY_RC",
         "LOGIN_JOBS_RC",
+        "LOGIN_GUI_JOBS_LEGACY_RC",
+        "LOGIN_GUI_JOBS_LEGACY_DETAIL_RC",
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
