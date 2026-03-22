@@ -77,6 +77,23 @@ require_cmd "git"
 
 cd "${REPO_ROOT}"
 
+FORBIDDEN_WIP_LINT_FILES=(
+  "reports/consistency_report.json"
+  "reports/consistency_report.md"
+  "triage_add_labels.sh"
+)
+
+is_forbidden_lint_file() {
+  local candidate="$1"
+  local forbidden
+  for forbidden in "${FORBIDDEN_WIP_LINT_FILES[@]}"; do
+    if [[ "${candidate}" == "${forbidden}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 if [[ "${LINT_SCOPE}" == "all" ]]; then
   echo "[dev-check] lint: ${PRE_COMMIT_BIN} run --all-files"
   "${PRE_COMMIT_BIN}" run --all-files
@@ -85,7 +102,14 @@ else
     {
       git diff --name-only --diff-filter=ACMR HEAD
       git ls-files --others --exclude-standard
-    } | awk 'NF' | sort -u
+    } | awk 'NF' | sort -u | while IFS= read -r file; do
+      [[ -n "${file}" ]] || continue
+      [[ -f "${file}" ]] || continue
+      if is_forbidden_lint_file "${file}"; then
+        continue
+      fi
+      printf '%s\n' "${file}"
+    done
   )
 
   if (( ${#lint_files[@]} > 0 )); then
