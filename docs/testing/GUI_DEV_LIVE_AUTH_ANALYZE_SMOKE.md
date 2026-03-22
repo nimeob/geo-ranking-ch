@@ -5,7 +5,7 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 
 1. Login startet über die Live-UI (`/login?...&start=1`) und geht auf den echten IdP.
 2. Login mit echten Credentials kommt zur angeforderten GUI-Route zurück (Default: `/gui`, optional z. B. `/gui/history`).
-3. Pro Lauf wird eine neue Schweizer Adresse aus einem rotierenden Pool ausgewählt (Workflow-Run-Marker: `<run_number>-<run_attempt>` für stabile Rotation auch bei Re-Runs).
+3. Pro Route wird eine neue Schweizer Adresse aus einem rotierenden Pool ausgewählt (Workflow-Run-Marker: `<run_number>-<run_attempt>-<route_ordinal>` für stabile Rotation auch bei Re-Runs).
 4. Die Adresse wird wirklich per `POST /analyze` abgeschickt (Payload-Check auf exakten Query-String).
 5. Vollständige Resultate kommen zurück (`ok=true`, `result.data.modules`, `match`, `suitability`).
 6. Kein `401`, kein `session_expired`/`no_session` und kein Idle-Fallback im Analyze-Flow.
@@ -14,8 +14,9 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 - Script: `scripts/run_dev_ui_auth_analyze_smoke.mjs`
 - Preflight (Secrets + Blocker-Evidence): `scripts/smoke/validate_gui_live_auth_analyze_secrets.sh`
 - Address-Pool: `scripts/smoke/ch_live_addresses.txt`
-- Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml` (Matrix über `/gui`, `/gui/history`, `/gui/jobs`, `/jobs`, `/gui/jobs/demo-job`, `/jobs/demo-job`, seriell)
-- Artifact: `gui-dev-live-auth-analyze-smoke-artifacts-<path_slug>`
+- Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt `/gui`, `/gui/history`, `/gui/jobs`, `/jobs`, `/gui/jobs/demo-job`, `/jobs/demo-job` seriell in **einem** Workflow-Job aus)
+- Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml`
+- Artifact: `gui-dev-live-auth-analyze-smoke-artifacts`
 
 Das Script erzeugt JSON-Evidence + Screenshot:
 - `reports/evidence/dev-ui-auth-analyze-smoke-<timestamp>.json`

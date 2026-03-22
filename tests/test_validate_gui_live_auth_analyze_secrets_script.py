@@ -120,4 +120,4 @@ def test_workflow_uses_preflight_script_and_uploads_blocker_artifact() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
     assert "run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh" in content
     assert "dev-ui-auth-analyze-smoke-blocked-*.json" in content
-    assert "DEV_UI_SMOKE_RUN_ID: ${{ github.run_number }}-${{ github.run_attempt }}" in content
+    assert "run: ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh" in content

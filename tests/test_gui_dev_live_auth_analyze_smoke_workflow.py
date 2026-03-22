@@ -5,25 +5,28 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "gui-dev-live-auth-analyze-smoke.yml"
+ROUTE_SET_SCRIPT = REPO_ROOT / "scripts" / "smoke" / "run_gui_live_auth_analyze_route_set.sh"
 
 
-def test_workflow_runs_deeplink_matrix_serially_with_route_specific_artifacts() -> None:
+def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
 
-    assert "strategy:" in content
-    assert "max-parallel: 1" in content
-    assert "gui_path: /gui" in content
-    assert "gui_path: /gui/history" in content
-    assert "gui_path: /gui/jobs" in content
-    assert "gui_path: /jobs" in content
-    assert "gui_path: /gui/jobs/demo-job" in content
-    assert "gui_path: /jobs/demo-job" in content
-    assert "DEV_UI_SMOKE_GUI_PATH: ${{ matrix.gui_path }}" in content
-    assert (
-        "DEV_UI_SMOKE_RUN_ID: ${{ github.run_number }}-${{ github.run_attempt }}-${{ matrix.path_ordinal }}"
-        in content
-    )
-    assert "Run DEV live UI auth+analyze smoke (${{ matrix.gui_path }})" in content
-    assert (
-        "gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}" in content
-    )
+    assert "strategy:" not in content
+    assert "Run DEV live UI auth+analyze smoke (all routes)" in content
+    assert "run: ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh" in content
+    assert "gui-dev-live-auth-analyze-smoke-artifacts" in content
+    assert "gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}" not in content
+
+
+def test_route_set_script_covers_all_required_gui_paths_and_route_specific_run_ids() -> None:
+    content = ROUTE_SET_SCRIPT.read_text(encoding="utf-8")
+
+    assert '"/gui"' in content
+    assert '"/gui/history"' in content
+    assert '"/gui/jobs"' in content
+    assert '"/jobs"' in content
+    assert '"/gui/jobs/demo-job"' in content
+    assert '"/jobs/demo-job"' in content
+    assert 'DEV_UI_SMOKE_GUI_PATH="${route}"' in content
+    assert 'DEV_UI_SMOKE_RUN_ID="${run_id}"' in content
+    assert 'run_id="${base_run_id}-${ordinal}"' in content
