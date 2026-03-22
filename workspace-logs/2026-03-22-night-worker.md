@@ -11,3 +11,5 @@
 - Live-UI/Dev Checks:
   - `check_ui_login_start.py` für `next=/gui`, `next=/gui/history`, `next=/gui/jobs` jeweils ✅ (302 zu Cognito Authorize)
   - Direktzugriff `GET https://www.dev.georanking.ch/gui/jobs` aktuell `404` (Baseline vor Deploy).
+- Commit: `6a5c437`
+- PR: #1430 `UI: fix /gui/jobs deep-link by aliasing to canonical /jobs routes`
