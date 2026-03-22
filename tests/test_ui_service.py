@@ -291,6 +291,24 @@ class TestUiService(unittest.TestCase):
         self.assertIn("function canonicalJobStatus", body)
         self.assertIn('normalized === "completed" || normalized === "success"', body)
 
+    def test_legacy_gui_jobs_route_redirects_to_jobs_list_and_preserves_query(self):
+        status, _, headers = _http(
+            f"{self.base_url}/gui/jobs?jobs_status=running&jobs_q=job-123",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+        self.assertEqual(headers.get("location"), "/jobs?jobs_status=running&jobs_q=job-123")
+
+    def test_legacy_gui_job_permalink_redirects_to_jobs_permalink(self):
+        status, _, headers = _http(
+            f"{self.base_url}/gui/jobs/job-123?channel=in_app",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+        self.assertEqual(headers.get("location"), "/jobs/job-123?channel=in_app")
+
     def test_history_page_renders_and_targets_same_origin_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/history")
         self.assertEqual(status, 200)

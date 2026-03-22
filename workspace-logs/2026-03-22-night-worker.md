@@ -1,0 +1,13 @@
+## 01:48 CET — UI login deep-link hardening (`/gui/jobs` alias)
+- Branch: `night/worker-20260322-0135` (worktree: `geo-ranking-ch-night-20260322-0135`).
+- Befund (live): `https://www.dev.georanking.ch/gui/jobs` liefert aktuell `404` (ohne Session), obwohl Login-Smoke bereits `next=/gui/jobs` prüft.
+- Umsetzung:
+  - `src/ui/service.py`: Legacy-Deep-Links `/gui/jobs` und `/gui/jobs/<job_id>` via 302 + `Cache-Control: no-store` auf kanonische `/jobs...`-Routen umgeleitet (Query bleibt erhalten).
+  - `tests/test_ui_service.py`: neue Guards für Redirect inkl. Query-Preservation (`/gui/jobs` + `/gui/jobs/<job_id>`).
+- Verifikation lokal:
+  - `python3 -m unittest tests.test_ui_service` ✅ (21 Tests)
+  - `python3 -m unittest tests.test_web_service_bff_gui_guard` ✅ (13 Tests)
+  - Ad-hoc check: `/gui/jobs -> 302 /jobs`, `/gui/jobs/job-777?channel=in_app -> 302 /jobs/job-777?channel=in_app` ✅
+- Live-UI/Dev Checks:
+  - `check_ui_login_start.py` für `next=/gui`, `next=/gui/history`, `next=/gui/jobs` jeweils ✅ (302 zu Cognito Authorize)
+  - Direktzugriff `GET https://www.dev.georanking.ch/gui/jobs` aktuell `404` (Baseline vor Deploy).
