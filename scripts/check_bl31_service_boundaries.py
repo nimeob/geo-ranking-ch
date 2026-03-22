@@ -57,12 +57,14 @@ UI_ALLOWED_EXACT_ROUTES: Set[str] = {
     "/login",
     "/history",
     "/gui/history",
+    "/gui/jobs",  # legacy alias (redirect -> /jobs)
     "/jobs",
     "/health",
     "/healthz",
 }
 UI_ALLOWED_PREFIX_ROUTES: Tuple[str, ...] = (
     "/results/",
+    "/gui/jobs/",  # legacy alias (redirect -> /jobs/<job_id>)
     "/jobs/",
     "/auth/",
 )

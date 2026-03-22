@@ -28,6 +28,8 @@ Diese Inventarliste klassifiziert alle aktuell exponierten HTTP-Endpunkte in **D
 | `/auth/callback` | GET | API (BFF) | UI | API-BFF Auth (`src/api/web_service.py`) | 2 | OIDC Callback im BFF belassen. |
 | `/auth/logout` | GET | API (BFF) | UI | API-BFF Auth (`src/api/web_service.py`) | 2 | Session/Logout bleibt BFF-owned. |
 | `/auth/me` | GET | API (BFF) | UI | API-BFF Auth (`src/api/web_service.py`) | 2 | Session-Status-Endpunkt für UI/BFF. |
+| `/gui/jobs` (legacy alias) | GET | UI | UI | UI-Service (`src/ui/service.py`) | 3 | Legacy-Deep-Link bleibt als Redirect auf `/jobs`; kanonischer Pfad bleibt `/jobs`. |
+| `/gui/jobs/<job_id>` (legacy alias) | GET | UI | UI | UI-Service (`src/ui/service.py`) | 3 | Legacy-Deep-Link bleibt als Redirect auf `/jobs/<job_id>`. |
 | `/jobs` | GET | UI | UI | UI-Service (`src/ui/service.py`) | 3 | Bereits korrekt getrennt; nur stabilisieren. |
 | `/jobs/<job_id>` | GET | UI | UI | UI-Service (`src/ui/service.py`) | 3 | Bereits korrekt getrennt; nur stabilisieren. |
 | `/version` | GET | API | DATA | API-Service (`src/api/web_service.py`) | 3 | Im API-Layer belassen. |
