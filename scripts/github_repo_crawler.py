@@ -930,9 +930,10 @@ def audit_closed_issues(dry_run: bool) -> list[dict[str, Any]]:
         if has_open_checklist:
             reasons.append("Issue-Body enthält offene Checklist-Items")
 
-        no_closure_evidence = (not prs and not EVIDENCE_RE.search(comments))
+        has_closure_evidence = bool(prs) or bool(EVIDENCE_RE.search(body)) or bool(EVIDENCE_RE.search(comments))
+        no_closure_evidence = not has_closure_evidence
         if no_closure_evidence:
-            msg = "Kein PR-Link und kein belastbarer Abschlussnachweis im Kommentar"
+            msg = "Kein PR-Link und kein belastbarer Abschlussnachweis im Kommentar/Issue-Body"
             reasons.append(msg)
             reopen_reasons.append(msg)
 

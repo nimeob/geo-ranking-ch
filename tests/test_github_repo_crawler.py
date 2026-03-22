@@ -933,3 +933,24 @@ class TestFetchClosedIssuesBatch(unittest.TestCase):
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0]["type"], "issue_closure_consistency")
         mock_reopen.assert_called_once()
+
+    def test_audit_closed_issues_accepts_closure_evidence_in_issue_body(self):
+        node = self._make_gql_node(
+            number=10,
+            body=(
+                "## Abschlussnachweis\n"
+                "- Funktionaler Fix: PR #1430, Merge-Commit 980b48f\n"
+                "- Re-Validierung: pytest -q tests/test_deploy_version_trace_docs.py\n"
+            ),
+            comments=[],
+            prs=[],
+            labels=["status:todo"],
+        )
+        response = self._make_gql_response([node], has_previous=False)
+
+        with patch.object(crawler, "run", return_value=response):
+            with patch.object(crawler, "reopen_issue") as mock_reopen:
+                findings = crawler.audit_closed_issues(dry_run=True)
+
+        self.assertEqual(findings, [])
+        mock_reopen.assert_not_called()
