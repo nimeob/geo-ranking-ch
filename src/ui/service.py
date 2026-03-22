@@ -2006,20 +2006,6 @@ class _UiHandler(BaseHTTPRequestHandler):
             self._send_html(html)
             return
 
-        if request_path == "/gui/jobs" or request_path.startswith("/gui/jobs/"):
-            legacy_jobs_target = request_path.removeprefix("/gui")
-            if not legacy_jobs_target or legacy_jobs_target == "/":
-                legacy_jobs_target = "/jobs"
-            location = legacy_jobs_target
-            if parsed.query:
-                location = f"{location}?{parsed.query}"
-            self.send_response(HTTPStatus.FOUND)
-            self.send_header("Location", location)
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-            return
-
         if request_path == "/jobs":
             html = _build_jobs_list_html(
                 app_version=self.server.app_version,
