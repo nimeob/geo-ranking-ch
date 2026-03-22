@@ -31,3 +31,18 @@
 - Initial Commit (superseded by follow-up): `6a5c437`
 - Follow-up (Blocker-Fix, BL-31-konform): *(pending commit in this worktree at log time)*
 - PR: #1430 `UI: fix /gui/jobs deep-link by aliasing to canonical /jobs routes` (wird auf neue `/jobs`-Smoke-Strategie aktualisiert)
+
+## 07:46–07:58 CET — ROI-Härtung: Auth+Analyze Live-Smoke deckt jetzt Jobs-Deep-Link-Matrix breiter ab
+- Neuer clean Branch: `chore/auth-analyze-smoke-extend-jobs-routes` (Basis `origin/main` @ `9539031`).
+- Workflow `.github/workflows/gui-dev-live-auth-analyze-smoke.yml` erweitert:
+  - zusätzliche Matrix-Pfade: `/jobs` und `/gui/jobs/demo-job`
+  - bestehende Pfade `/gui`, `/gui/history`, `/gui/jobs` bleiben erhalten
+  - Ergebnis: bessere Abdeckung für kanonische + Legacy-Detail-Deep-Links im echten Login→Analyze-Flow.
+- Tests/Doku angepasst:
+  - `tests/test_gui_dev_live_auth_analyze_smoke_workflow.py`
+  - `docs/testing/GUI_DEV_LIVE_AUTH_ANALYZE_SMOKE.md`
+- Lokal validiert:
+  - `.../.venv/bin/python -m pytest -q tests/test_gui_dev_live_auth_analyze_smoke_workflow.py tests/test_gui_dev_live_auth_analyze_smoke_docs.py tests/test_validate_gui_live_auth_analyze_secrets_script.py` → **9 passed**.
+- Live-DEV UI Sanity (ohne Secrets) durchgeführt via Login-Start-Bundle:
+  - `scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name 20260322T0746Z-dev --output-dir artifacts/nightworker` → **PASS** für `/gui`, `/gui/history`, `/jobs`, `/gui/jobs`, `/gui/jobs/demo-job`.
+- Browser-Tool-Status weiter blockiert (`browser start` timeout; Gateway-Config-Fehler `ANTHROPIC_MODEL_ALIASES`), daher UI-Verifikation weiterhin robust über Live-Smoke-Skripte.
