@@ -189,11 +189,8 @@ def test_deploy_workflow_wires_database_reachability_gate_inputs():
 def _assert_login_contract_smoke_coverage(*, text: str, env_name: str, workflow_name: str) -> None:
     required = [
         "Smoke-Test UI login start redirects to IdP authorize (",
-        '--next "/gui"',
-        '--next "/gui/history"',
-        '--next "/jobs"',
-        '--next "/gui/jobs"',
-        '--next "/gui/jobs/demo-job"',
+        "scripts/smoke/run_login_start_smoke_bundle.sh",
+        f'--env-name "{env_name}"',
         f"artifacts/{env_name}-login-start-smoke.json",
         f"artifacts/{env_name}-login-start-smoke-gui-history.json",
         f"artifacts/{env_name}-login-start-smoke-jobs.json",
@@ -202,11 +199,6 @@ def _assert_login_contract_smoke_coverage(*, text: str, env_name: str, workflow_
         f"Upload login-start smoke artifacts ({env_name})",
         "actions/upload-artifact@v6",
         f"{env_name}-login-start-smoke-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}",
-        "LOGIN_GUI_RC",
-        "LOGIN_HISTORY_RC",
-        "LOGIN_JOBS_RC",
-        "LOGIN_GUI_JOBS_LEGACY_RC",
-        "LOGIN_GUI_JOBS_LEGACY_DETAIL_RC",
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
