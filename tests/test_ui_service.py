@@ -28,6 +28,7 @@ def _http(url: str, *, timeout: float = 10.0, follow_redirects: bool = True):
     if follow_redirects:
         opener = request.build_opener()
     else:
+
         class _NoRedirect(request.HTTPRedirectHandler):
             def redirect_request(self, req, fp, code, msg, hdrs, newurl):
                 return None
@@ -102,7 +103,10 @@ class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
                 "http%3A%2F%2F127.0.0.1%3A"
                 f"{self.server.api_port}%2Fauth%2Flogin",
             )
-            self.send_header("Set-Cookie", "__Host-session=deleted; Max-Age=0; Path=/; HttpOnly; SameSite=Lax")
+            self.send_header(
+                "Set-Cookie",
+                "__Host-session=deleted; Max-Age=0; Path=/; HttpOnly; SameSite=Lax",
+            )
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", "0")
             self.end_headers()
@@ -119,7 +123,9 @@ class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/debug/trace":
-            payload = json.dumps({"ok": True, "events": [{"kind": "demo"}]}).encode("utf-8")
+            payload = json.dumps({"ok": True, "events": [{"kind": "demo"}]}).encode(
+                "utf-8"
+            )
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
@@ -145,7 +151,11 @@ class _UpstreamAuthStubHandler(BaseHTTPRequestHandler):
     def do_POST(self):  # noqa: N802 - stdlib callback
         parsed = urlparse(self.path)
         content_length = int(self.headers.get("Content-Length", "0") or "0")
-        raw_body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else ""
+        raw_body = (
+            self.rfile.read(content_length).decode("utf-8")
+            if content_length > 0
+            else ""
+        )
         self._log_request(parsed, body=raw_body)
 
         if parsed.path == "/analyze":
@@ -177,10 +187,14 @@ class TestUiService(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.upstream_port = _free_port()
-        cls.upstream_server = ThreadingHTTPServer(("127.0.0.1", cls.upstream_port), _UpstreamAuthStubHandler)
+        cls.upstream_server = ThreadingHTTPServer(
+            ("127.0.0.1", cls.upstream_port), _UpstreamAuthStubHandler
+        )
         cls.upstream_server.request_log = []
         cls.upstream_server.api_port = cls.upstream_port
-        cls.upstream_thread = threading.Thread(target=cls.upstream_server.serve_forever, daemon=True)
+        cls.upstream_thread = threading.Thread(
+            target=cls.upstream_server.serve_forever, daemon=True
+        )
         cls.upstream_thread.start()
 
         cls.api_base_url = f"http://127.0.0.1:{cls.upstream_port}"
@@ -251,10 +265,14 @@ class TestUiService(unittest.TestCase):
         self.assertIn("Version ui-test-v1", body)
         self.assertIn('fetch("/analyze"', body)
         self.assertIn('const TRACE_DEBUG_ENDPOINT = "/debug/trace";', body)
-        self.assertIn('function projectTraceEvent(rawEvent, index)', body)
-        self.assertIn('function normalizeTraceEvents(rawEvents)', body)
-        self.assertIn('function buildTraceDetailPayload(rawPayload, projectedEvents)', body)
-        self.assertIn('const projectedResponse = buildTraceDetailPayload(parsed, events);', body)
+        self.assertIn("function projectTraceEvent(rawEvent, index)", body)
+        self.assertIn("function normalizeTraceEvents(rawEvents)", body)
+        self.assertIn(
+            "function buildTraceDetailPayload(rawPayload, projectedEvents)", body
+        )
+        self.assertIn(
+            "const projectedResponse = buildTraceDetailPayload(parsed, events);", body
+        )
         self.assertIn('const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";', body)
         self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";', body)
         self.assertIn('const AUTH_LOGIN_ENDPOINT = "/login";', body)
@@ -271,7 +289,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn("Async Job", body)
         self.assertIn("job-123", body)
         self.assertIn('const JOBS_ENDPOINT_BASE = "/analyze/jobs";', body)
-        self.assertNotIn(f'{self.api_base_url}/analyze/jobs', body)
+        self.assertNotIn(f"{self.api_base_url}/analyze/jobs", body)
 
     def test_jobs_list_page_renders_and_targets_same_origin_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/jobs")
@@ -282,14 +300,37 @@ class TestUiService(unittest.TestCase):
         self.assertIn('id="jobs-q"', body)
         self.assertIn('id="jobs-add-id"', body)
         self.assertIn('const JOBS_ENDPOINT_BASE = "/analyze/jobs";', body)
-        self.assertNotIn(f'{self.api_base_url}/analyze/jobs', body)
+        self.assertNotIn(f"{self.api_base_url}/analyze/jobs", body)
         self.assertIn("jobs_status", body)
         self.assertIn("jobs_q", body)
-        self.assertIn('url.searchParams.get("jobs_status") || url.searchParams.get("status")', body)
-        self.assertIn('url.searchParams.get("jobs_q") || url.searchParams.get("q")', body)
+        self.assertIn(
+            'url.searchParams.get("jobs_status") || url.searchParams.get("status")',
+            body,
+        )
+        self.assertIn(
+            'url.searchParams.get("jobs_q") || url.searchParams.get("q")', body
+        )
         self.assertIn('<option value="succeeded">succeeded</option>', body)
         self.assertIn("function canonicalJobStatus", body)
         self.assertIn('normalized === "completed" || normalized === "success"', body)
+
+    def test_legacy_gui_jobs_redirects_to_jobs_list(self):
+        status, body, headers = _http(
+            f"{self.base_url}/gui/jobs?jobs_status=running",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, HTTPStatus.FOUND)
+        self.assertEqual(body, "")
+        self.assertEqual(headers.get("location"), "/jobs?jobs_status=running")
+
+    def test_legacy_gui_jobs_permalink_redirects_to_jobs_permalink(self):
+        status, body, headers = _http(
+            f"{self.base_url}/gui/jobs/job-123?view=full",
+            follow_redirects=False,
+        )
+        self.assertEqual(status, HTTPStatus.FOUND)
+        self.assertEqual(body, "")
+        self.assertEqual(headers.get("location"), "/jobs/job-123?view=full")
 
     def test_history_page_renders_and_targets_same_origin_api_endpoints(self):
         status, body, headers = _http(f"{self.base_url}/history")
@@ -297,7 +338,7 @@ class TestUiService(unittest.TestCase):
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn("Historische Abfragen", body)
         self.assertIn('const ANALYZE_HISTORY_ENDPOINT = "/analyze/history"', body)
-        self.assertNotIn(f'{self.api_base_url}/analyze/history', body)
+        self.assertNotIn(f"{self.api_base_url}/analyze/history", body)
         self.assertIn('const AUTH_LOGIN_ENDPOINT = "/login"', body)
         self.assertIn('credentials: "include"', body)
         self.assertIn("/results/", body)
@@ -309,9 +350,12 @@ class TestUiService(unittest.TestCase):
         self.assertIn("history_q", body)
         self.assertIn("history_page", body)
         self.assertIn("history_limit", body)
-        self.assertIn('function applyClientFilters(rows)', body)
-        self.assertIn('function buildHistoryRequestUrl()', body)
-        self.assertIn('const offset = Math.max(0, (historyState.page - 1) * historyState.limit);', body)
+        self.assertIn("function applyClientFilters(rows)", body)
+        self.assertIn("function buildHistoryRequestUrl()", body)
+        self.assertIn(
+            "const offset = Math.max(0, (historyState.page - 1) * historyState.limit);",
+            body,
+        )
 
     def test_result_permalink_page_renders_and_contains_tabs(self):
         status, body, headers = _http(f"{self.base_url}/results/res-123")
@@ -357,13 +401,16 @@ class TestUiService(unittest.TestCase):
         self.assertIn('<div id="tab-sources" class="tab-panel" role="tabpanel"', body)
         self.assertIn('<div id="tab-derived" class="tab-panel" role="tabpanel"', body)
         self.assertIn('<div id="tab-raw" class="tab-panel" role="tabpanel"', body)
-        self.assertIn('id="tab-location" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-location" tabindex="0" hidden', body)
+        self.assertIn(
+            'id="tab-location" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-location" tabindex="0" hidden',
+            body,
+        )
 
         # Accessibility-Basics für Tabs.
         self.assertIn('role="tablist" aria-label="Resultat-Tabs"', body)
         self.assertIn('role="tab" data-tab="overview" aria-selected="true"', body)
         self.assertIn('aria-controls="tab-overview"', body)
-        self.assertIn('function onTabKeyDown(event)', body)
+        self.assertIn("function onTabKeyDown(event)", body)
         self.assertIn('if (key === "ArrowRight")', body)
         self.assertIn('if (key === "ArrowLeft")', body)
         self.assertIn('if (key === "Home")', body)
@@ -371,21 +418,27 @@ class TestUiService(unittest.TestCase):
 
         # Result-Permalink muss same-origin bleiben (Cookie-/CORS-sicher).
         self.assertIn('const RESULTS_ENDPOINT_BASE = "/analyze/results";', body)
-        self.assertNotIn(f'{self.api_base_url}/analyze/results', body)
+        self.assertNotIn(f"{self.api_base_url}/analyze/results", body)
 
         # Robustheit: uneinheitliche / optionale Daten dürfen nicht crashen.
-        self.assertIn('function asObject(value)', body)
+        self.assertIn("function asObject(value)", body)
         self.assertIn('function formatFallback(value, fallback = "—")', body)
-        self.assertIn('function normalizeGroupedResult(groupedResult)', body)
-        self.assertIn('function renderSafe(renderer, targetEl, groupedResult, fallbackLabel)', body)
-        self.assertIn('Leere Datenbereiche werden robust abgefedert.', body)
+        self.assertIn("function normalizeGroupedResult(groupedResult)", body)
+        self.assertIn(
+            "function renderSafe(renderer, targetEl, groupedResult, fallbackLabel)",
+            body,
+        )
+        self.assertIn("Leere Datenbereiche werden robust abgefedert.", body)
 
         # Regression guard: latest-view result loading retries transient 404/not_found before failing hard.
-        self.assertIn('const RESULT_LOAD_MAX_RETRIES = 8;', body)
-        self.assertIn('const RESULT_LOAD_RETRY_DELAY_MS = 1500;', body)
-        self.assertIn('function isTransientResultNotFound(response, parsed)', body)
-        self.assertIn('const maxRetries = normalizedViewMode() === "latest" ? RESULT_LOAD_MAX_RETRIES : 0;', body)
-        self.assertIn('setStatus(`retrying(${nextAttempt}/${maxRetries})`);', body)
+        self.assertIn("const RESULT_LOAD_MAX_RETRIES = 8;", body)
+        self.assertIn("const RESULT_LOAD_RETRY_DELAY_MS = 1500;", body)
+        self.assertIn("function isTransientResultNotFound(response, parsed)", body)
+        self.assertIn(
+            'const maxRetries = normalizedViewMode() === "latest" ? RESULT_LOAD_MAX_RETRIES : 0;',
+            body,
+        )
+        self.assertIn("setStatus(`retrying(${nextAttempt}/${maxRetries})`);", body)
 
     def test_invalid_job_id_returns_not_found_payload(self):
         status, body, _ = _http(f"{self.base_url}/jobs/!!!")
@@ -424,12 +477,16 @@ class TestUiService(unittest.TestCase):
         self.assertIn("bff-state=state-123", headers.get("set-cookie", ""))
 
         auth_login_calls = [
-            entry for entry in self.upstream_server.request_log if entry.get("path") == "/auth/login"
+            entry
+            for entry in self.upstream_server.request_log
+            if entry.get("path") == "/auth/login"
         ]
         self.assertTrue(auth_login_calls)
         self.assertEqual(str(auth_login_calls[-1].get("proxy_marker") or ""), "1")
 
-    def test_login_start_flow_redirects_back_to_ui_mask_when_upstream_blocks_direct_login(self):
+    def test_login_start_flow_redirects_back_to_ui_mask_when_upstream_blocks_direct_login(
+        self,
+    ):
         self.upstream_server.request_log.clear()
 
         status, _, headers = _http(
@@ -437,9 +494,13 @@ class TestUiService(unittest.TestCase):
             follow_redirects=False,
         )
         self.assertEqual(status, 302)
-        self.assertEqual(headers.get("location"), "/login?next=%2Fblocked&reason=login_unavailable")
+        self.assertEqual(
+            headers.get("location"), "/login?next=%2Fblocked&reason=login_unavailable"
+        )
 
-        status, body, headers = _http(f"{self.base_url}{headers.get('location')}", follow_redirects=False)
+        status, body, headers = _http(
+            f"{self.base_url}{headers.get('location')}", follow_redirects=False
+        )
         self.assertEqual(status, 200)
         self.assertIn("text/html", headers.get("content-type", ""))
         self.assertIn('id="login-username"', body)
@@ -483,7 +544,11 @@ class TestUiService(unittest.TestCase):
             f"{self.base_url}/analyze",
             data=payload,
             method="POST",
-            headers={"Content-Type": "application/json", "Accept": "application/json", "Cookie": "demo=1"},
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Cookie": "demo=1",
+            },
         )
         with request.urlopen(req, timeout=10) as resp:
             body = resp.read().decode("utf-8")
@@ -494,7 +559,11 @@ class TestUiService(unittest.TestCase):
         self.assertTrue(response_payload.get("ok"))
         self.assertEqual(response_payload.get("request_id"), "req-ui-proxy-test")
 
-        analyze_calls = [entry for entry in self.upstream_server.request_log if entry.get("path") == "/analyze"]
+        analyze_calls = [
+            entry
+            for entry in self.upstream_server.request_log
+            if entry.get("path") == "/analyze"
+        ]
         self.assertTrue(analyze_calls)
         self.assertEqual(analyze_calls[-1].get("method"), "POST")
         self.assertIn("Bahnhofstrasse", str(analyze_calls[-1].get("body") or ""))
@@ -508,7 +577,11 @@ class TestUiService(unittest.TestCase):
         payload = json.loads(body)
         self.assertTrue(payload.get("ok"))
 
-        trace_calls = [entry for entry in self.upstream_server.request_log if entry.get("path") == "/debug/trace"]
+        trace_calls = [
+            entry
+            for entry in self.upstream_server.request_log
+            if entry.get("path") == "/debug/trace"
+        ]
         self.assertTrue(trace_calls)
         self.assertEqual(trace_calls[-1].get("method"), "GET")
 
@@ -527,7 +600,9 @@ class TestUiService(unittest.TestCase):
         self.assertIn("Max-Age=0", str(headers.get("set-cookie") or ""))
 
         auth_logout_calls = [
-            entry for entry in self.upstream_server.request_log if entry.get("path") == "/auth/logout"
+            entry
+            for entry in self.upstream_server.request_log
+            if entry.get("path") == "/auth/logout"
         ]
         self.assertTrue(auth_logout_calls)
         self.assertEqual(str(auth_logout_calls[-1].get("proxy_marker") or ""), "1")
@@ -538,64 +613,114 @@ class TestUiService(unittest.TestCase):
         """GET /gui: kein Bearer-Token-Input, keine Authorization-Header-Injektion, Session-UX-Texte vorhanden."""
         status, body, _ = _http(f"{self.base_url}/gui")
         self.assertEqual(status, 200)
-        self.assertNotIn('id="api-token"', body, "/gui darf kein manuelles Token-Input mehr enthalten")
-        self.assertNotIn('headers["Authorization"]', body, "/gui darf keinen Browser-Authorization-Header setzen")
-        self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
-        self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
-        self.assertIn('Login-Status ungültig oder abgelaufen — bitte Anmeldung neu starten.', body)
-        self.assertIn('Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.', body)
-        self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
-        self.assertIn('function isSessionRecoveryRequired(statusCode, errorCode)', body)
-        self.assertIn('function resolveAuthRecoveryReason(statusCode, errorCode)', body)
+        self.assertNotIn(
+            'id="api-token"',
+            body,
+            "/gui darf kein manuelles Token-Input mehr enthalten",
+        )
+        self.assertNotIn(
+            'headers["Authorization"]',
+            body,
+            "/gui darf keinen Browser-Authorization-Header setzen",
+        )
+        self.assertIn(
+            "Session ungültig oder abgelaufen — bitte erneut einloggen.", body
+        )
+        self.assertIn(
+            "Session konnte nicht erneuert werden — bitte erneut einloggen.", body
+        )
+        self.assertIn(
+            "Login-Status ungültig oder abgelaufen — bitte Anmeldung neu starten.", body
+        )
+        self.assertIn(
+            "Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.", body
+        )
+        self.assertIn("Zugriff verweigert — bitte Berechtigungen/Session prüfen.", body)
+        self.assertIn("function isSessionRecoveryRequired(statusCode, errorCode)", body)
+        self.assertIn("function resolveAuthRecoveryReason(statusCode, errorCode)", body)
         self.assertIn('"invalid_state"', body)
-        self.assertIn('function resolveAuthFailure(statusCode, errorCode, fallbackMessage)', body)
-        self.assertIn('if (normalizedStatus === 401 || normalizedStatus === 403)', body)
+        self.assertIn(
+            "function resolveAuthFailure(statusCode, errorCode, fallbackMessage)", body
+        )
+        self.assertIn("if (normalizedStatus === 401 || normalizedStatus === 403)", body)
         self.assertIn('"403": "session_expired"', body)
-        self.assertIn('const ANALYZE_DRAFT_STORAGE_KEY = "geo-ranking-ui-analyze-draft-v1";', body)
-        self.assertIn('function updateSessionExpiryWarning(payload)', body)
-        self.assertIn('session_expires_at', body)
+        self.assertIn(
+            'const ANALYZE_DRAFT_STORAGE_KEY = "geo-ranking-ui-analyze-draft-v1";', body
+        )
+        self.assertIn("function updateSessionExpiryWarning(payload)", body)
+        self.assertIn("session_expires_at", body)
         self.assertIn('id="session-expiry-warning"', body)
         self.assertIn('params.set("reason", normalizedReason);', body)
-        self.assertIn('refresh_grant_error', body)
-        self.assertIn('window.location.assign(loginUrl);', body)
+        self.assertIn("refresh_grant_error", body)
+        self.assertIn("window.location.assign(loginUrl);", body)
 
     def test_history_page_uses_session_flow_without_token_storage(self):
         """GET /history: kein Token-Input/-Storage, 401/403 UX verweist auf Session/Login."""
         status, body, _ = _http(f"{self.base_url}/history")
         self.assertEqual(status, 200)
-        self.assertNotIn('id="api-token"', body, "/history darf kein manuelles Token-Input mehr enthalten")
-        self.assertNotIn('geo-ranking-ui-api-token', body, "/history darf keinen Access-Token-Storage-Key enthalten")
-        self.assertNotIn('headers["Authorization"]', body, "/history darf keinen Browser-Authorization-Header setzen")
+        self.assertNotIn(
+            'id="api-token"',
+            body,
+            "/history darf kein manuelles Token-Input mehr enthalten",
+        )
+        self.assertNotIn(
+            "geo-ranking-ui-api-token",
+            body,
+            "/history darf keinen Access-Token-Storage-Key enthalten",
+        )
+        self.assertNotIn(
+            'headers["Authorization"]',
+            body,
+            "/history darf keinen Browser-Authorization-Header setzen",
+        )
         self.assertIn('headers["X-Request-Id"] = normalizedRequestId;', body)
         self.assertIn('headers["X-Correlation-Id"] = normalizedRequestId;', body)
-        self.assertIn('Session ungültig oder abgelaufen — bitte erneut einloggen.', body)
-        self.assertIn('Session konnte nicht erneuert werden — bitte erneut einloggen.', body)
-        self.assertIn('Login-Status ungültig oder abgelaufen — bitte Anmeldung neu starten.', body)
-        self.assertIn('Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.', body)
-        self.assertIn('Zugriff verweigert — bitte Berechtigungen/Session prüfen.', body)
-        self.assertIn('function isSessionRecoveryRequired(statusCode, errorCode)', body)
-        self.assertIn('function resolveAuthRecoveryReason(statusCode, errorCode)', body)
+        self.assertIn(
+            "Session ungültig oder abgelaufen — bitte erneut einloggen.", body
+        )
+        self.assertIn(
+            "Session konnte nicht erneuert werden — bitte erneut einloggen.", body
+        )
+        self.assertIn(
+            "Login-Status ungültig oder abgelaufen — bitte Anmeldung neu starten.", body
+        )
+        self.assertIn(
+            "Anmeldung abgebrochen oder verweigert — bitte erneut einloggen.", body
+        )
+        self.assertIn("Zugriff verweigert — bitte Berechtigungen/Session prüfen.", body)
+        self.assertIn("function isSessionRecoveryRequired(statusCode, errorCode)", body)
+        self.assertIn("function resolveAuthRecoveryReason(statusCode, errorCode)", body)
         self.assertIn('"invalid_state"', body)
-        self.assertIn('function resolveAuthFailure(statusCode, errorCode, fallbackMessage)', body)
-        self.assertIn('if (normalizedStatus === 401 || normalizedStatus === 403)', body)
+        self.assertIn(
+            "function resolveAuthFailure(statusCode, errorCode, fallbackMessage)", body
+        )
+        self.assertIn("if (normalizedStatus === 401 || normalizedStatus === 403)", body)
         self.assertIn('"403": "session_expired"', body)
         self.assertIn('window.location.hash || ""', body)
         self.assertIn('params.set("reason", normalizedReason);', body)
-        self.assertIn('refresh_grant_error', body)
-        self.assertIn('window.location.assign(loginUrl);', body)
-        self.assertIn('function canonicalHistoryStatus(value)', body)
-        self.assertIn('function applyClientFilters(rows)', body)
-        self.assertIn('function renderPageMeta(filteredCount)', body)
+        self.assertIn("refresh_grant_error", body)
+        self.assertIn("window.location.assign(loginUrl);", body)
+        self.assertIn("function canonicalHistoryStatus(value)", body)
+        self.assertIn("function applyClientFilters(rows)", body)
+        self.assertIn("function renderPageMeta(filteredCount)", body)
 
     def test_results_page_uses_session_auth_and_login_recovery(self):
         """GET /results/<id>: kein Token-Input, same-origin Session-Flow und Login-Recovery bei 401."""
         status, body, _ = _http(f"{self.base_url}/results/result-xyz")
         self.assertEqual(status, 200)
-        self.assertNotIn('id="api-token"', body, "/results darf kein Token-Input #api-token haben")
-        self.assertNotIn('Bitte Bearer-Token setzen', body, "/results darf keinen Bearer-Hinweis zeigen")
+        self.assertNotIn(
+            'id="api-token"', body, "/results darf kein Token-Input #api-token haben"
+        )
+        self.assertNotIn(
+            "Bitte Bearer-Token setzen",
+            body,
+            "/results darf keinen Bearer-Hinweis zeigen",
+        )
         self.assertIn('credentials: "include"', body)
-        self.assertIn('window.setTimeout(() => redirectToLogin("session_expired"), 250);', body)
-        self.assertIn('return `/auth/login?', body)
+        self.assertIn(
+            'window.setTimeout(() => redirectToLogin("session_expired"), 250);', body
+        )
+        self.assertIn("return `/auth/login?", body)
         self.assertIn('headers["X-Request-Id"] = normalizedRequestId;', body)
         self.assertIn('headers["X-Correlation-Id"] = normalizedRequestId;', body)
 
@@ -603,11 +728,19 @@ class TestUiService(unittest.TestCase):
         """GET /jobs/<id>: kein Token-Input, same-origin Session-Flow und Login-Recovery bei 401."""
         status, body, _ = _http(f"{self.base_url}/jobs/job-xyz")
         self.assertEqual(status, 200)
-        self.assertNotIn('id="api-token"', body, "/jobs/<id> darf kein Token-Input #api-token haben")
-        self.assertNotIn('Bitte Bearer-Token setzen', body, "/jobs/<id> darf keinen Bearer-Hinweis zeigen")
+        self.assertNotIn(
+            'id="api-token"', body, "/jobs/<id> darf kein Token-Input #api-token haben"
+        )
+        self.assertNotIn(
+            "Bitte Bearer-Token setzen",
+            body,
+            "/jobs/<id> darf keinen Bearer-Hinweis zeigen",
+        )
         self.assertIn('credentials: "include"', body)
-        self.assertIn('window.setTimeout(() => redirectToLogin("session_expired"), 250);', body)
-        self.assertIn('return `/auth/login?', body)
+        self.assertIn(
+            'window.setTimeout(() => redirectToLogin("session_expired"), 250);', body
+        )
+        self.assertIn("return `/auth/login?", body)
 
 
 if __name__ == "__main__":

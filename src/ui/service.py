@@ -50,7 +50,9 @@ def _parse_positive_int_env(name: str, default: int) -> int:
     return max(1, parsed)
 
 
-_UI_API_PROXY_TIMEOUT_SECONDS = _parse_positive_int_env("UI_API_PROXY_TIMEOUT_SECONDS", 35)
+_UI_API_PROXY_TIMEOUT_SECONDS = _parse_positive_int_env(
+    "UI_API_PROXY_TIMEOUT_SECONDS", 35
+)
 
 _RESULT_PAGE_TEMPLATE = """<!doctype html>
 <html lang="de">
@@ -1413,7 +1415,9 @@ def _build_gui_html(*, app_version: str, api_base_url: str) -> str:
     return html
 
 
-def _build_result_permalink_html(*, app_version: str, api_base_url: str, result_id: str) -> str:
+def _build_result_permalink_html(
+    *, app_version: str, api_base_url: str, result_id: str
+) -> str:
     """Rendert eine Result-Page mit Tabs.
 
     Tabs:
@@ -1436,7 +1440,9 @@ def _build_result_permalink_html(*, app_version: str, api_base_url: str, result_
     )
 
 
-def _build_job_permalink_html(*, app_version: str, api_base_url: str, job_id: str) -> str:
+def _build_job_permalink_html(
+    *, app_version: str, api_base_url: str, job_id: str
+) -> str:
     """Rendert eine minimale Job-Page (Status + Notifications).
 
     Die Page pollt die Job- und Notification-Endpunkte und zeigt bei terminalen
@@ -1533,7 +1539,9 @@ def _build_login_entry_html(*, app_version: str, next_path: str, reason: str) ->
         }
     )
     start_href = f"/login?{start_query}"
-    reason_text = _LOGIN_REASON_MESSAGES.get(normalized_reason, _LOGIN_REASON_MESSAGES["manual_login"])
+    reason_text = _LOGIN_REASON_MESSAGES.get(
+        normalized_reason, _LOGIN_REASON_MESSAGES["manual_login"]
+    )
 
     return f"""<!doctype html>
 <html lang=\"de\">
@@ -1708,13 +1716,17 @@ class _UiHandler(BaseHTTPRequestHandler):
             parsed_target = urlsplit(target_uri)
             normalized_target_path = (parsed_target.path or "").rstrip("/") or "/"
             target_is_api_host = bool(
-                normalized_base_url
-                and target_uri.startswith(f"{normalized_base_url}/")
+                normalized_base_url and target_uri.startswith(f"{normalized_base_url}/")
             )
-            target_is_auth_login_path = normalized_target_path in {"/auth/login", "/login"}
+            target_is_auth_login_path = normalized_target_path in {
+                "/auth/login",
+                "/login",
+            }
 
             if target_is_api_host or target_is_auth_login_path:
-                value = urlunsplit((normalized_scheme, normalized_host, "/login", "", ""))
+                value = urlunsplit(
+                    (normalized_scheme, normalized_host, "/login", "", "")
+                )
                 changed = True
 
             updated_pairs.append((key, value))
@@ -1743,7 +1755,9 @@ class _UiHandler(BaseHTTPRequestHandler):
     ) -> bool:
         """Proxied ``/auth/*`` calls to API while keeping browser URL on UI host."""
 
-        target_url = self._build_api_target_url(request_path=request_path, raw_query=raw_query)
+        target_url = self._build_api_target_url(
+            request_path=request_path, raw_query=raw_query
+        )
         if not target_url:
             return False
 
@@ -1759,9 +1773,18 @@ class _UiHandler(BaseHTTPRequestHandler):
         # requests come through the UI proxy hop.
         upstream_headers[_UI_AUTH_PROXY_HEADER_NAME] = _UI_AUTH_PROXY_HEADER_VALUE
 
-        forwarded_proto = str(self.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip().lower()
-        request_scheme = forwarded_proto if forwarded_proto in {"http", "https"} else "http"
-        forwarded_host = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        forwarded_proto = (
+            str(self.headers.get("X-Forwarded-Proto", "") or "")
+            .split(",", 1)[0]
+            .strip()
+            .lower()
+        )
+        request_scheme = (
+            forwarded_proto if forwarded_proto in {"http", "https"} else "http"
+        )
+        forwarded_host = (
+            str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        )
         request_host = forwarded_host or str(self.headers.get("Host", "") or "").strip()
         if request_host:
             upstream_headers["X-Forwarded-Host"] = request_host
@@ -1789,17 +1812,28 @@ class _UiHandler(BaseHTTPRequestHandler):
             return True
 
         body = upstream_resp.read()
-        upstream_status = int(getattr(upstream_resp, "status", 0) or upstream_resp.getcode())
+        upstream_status = int(
+            getattr(upstream_resp, "status", 0) or upstream_resp.getcode()
+        )
         upstream_content_type = str(upstream_resp.headers.get("Content-Type", "") or "")
-        upstream_error_code = _extract_upstream_error_code(body=body, content_type=upstream_content_type)
+        upstream_error_code = _extract_upstream_error_code(
+            body=body, content_type=upstream_content_type
+        )
 
-        if request_path == "/auth/login" and upstream_status in {401, 403, 500, 502, 503} and upstream_error_code in {
-            "external_direct_login_disabled",
-            "bff_oidc_disabled",
-            "bff_oidc_config_error",
-            "bff_login_error",
-        }:
-            location = _build_login_retry_location(next_path=login_next_path, reason=login_error_reason)
+        if (
+            request_path == "/auth/login"
+            and upstream_status in {401, 403, 500, 502, 503}
+            and upstream_error_code
+            in {
+                "external_direct_login_disabled",
+                "bff_oidc_disabled",
+                "bff_oidc_config_error",
+                "bff_login_error",
+            }
+        ):
+            location = _build_login_retry_location(
+                next_path=login_next_path, reason=login_error_reason
+            )
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", location)
             self.send_header("Cache-Control", "no-store")
@@ -1842,7 +1876,9 @@ class _UiHandler(BaseHTTPRequestHandler):
     def _proxy_api_request(self, *, request_path: str, raw_query: str) -> bool:
         """Proxy same-origin API calls (e.g. /analyze, /debug/trace) to UI_API_BASE_URL."""
 
-        target_url = self._build_api_target_url(request_path=request_path, raw_query=raw_query)
+        target_url = self._build_api_target_url(
+            request_path=request_path, raw_query=raw_query
+        )
         if not target_url:
             return False
 
@@ -1852,38 +1888,68 @@ class _UiHandler(BaseHTTPRequestHandler):
             if header_value:
                 upstream_headers[header_name] = header_value
 
-        forwarded_proto = str(self.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip().lower()
-        request_scheme = forwarded_proto if forwarded_proto in {"http", "https"} else "http"
-        forwarded_host = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        forwarded_proto = (
+            str(self.headers.get("X-Forwarded-Proto", "") or "")
+            .split(",", 1)[0]
+            .strip()
+            .lower()
+        )
+        request_scheme = (
+            forwarded_proto if forwarded_proto in {"http", "https"} else "http"
+        )
+        forwarded_host = (
+            str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        )
         request_host = forwarded_host or str(self.headers.get("Host", "") or "").strip()
         if request_host:
             upstream_headers["X-Forwarded-Host"] = request_host
             upstream_headers["X-Forwarded-Proto"] = request_scheme
 
-        content_length_header = str(self.headers.get("Content-Length", "") or "").strip()
-        content_length = int(content_length_header) if content_length_header.isdigit() else 0
+        content_length_header = str(
+            self.headers.get("Content-Length", "") or ""
+        ).strip()
+        content_length = (
+            int(content_length_header) if content_length_header.isdigit() else 0
+        )
         request_body = self.rfile.read(content_length) if content_length > 0 else None
 
-        req = urllib_request.Request(target_url, data=request_body, method=self.command, headers=upstream_headers)
+        req = urllib_request.Request(
+            target_url, data=request_body, method=self.command, headers=upstream_headers
+        )
         try:
-            upstream_resp = urllib_request.urlopen(req, timeout=_UI_API_PROXY_TIMEOUT_SECONDS)
+            upstream_resp = urllib_request.urlopen(
+                req, timeout=_UI_API_PROXY_TIMEOUT_SECONDS
+            )
         except urllib_error.HTTPError as exc:
             upstream_resp = exc
         except urllib_error.URLError as exc:
             reason = getattr(exc, "reason", None)
-            is_timeout = isinstance(reason, TimeoutError | socket.timeout) or "timed out" in str(reason or "").lower()
+            is_timeout = (
+                isinstance(reason, TimeoutError | socket.timeout)
+                or "timed out" in str(reason or "").lower()
+            )
             self._send_json(
                 {
                     "ok": False,
-                    "error": "upstream_timeout" if is_timeout else "upstream_unavailable",
-                    "message": "api upstream timeout" if is_timeout else "api upstream unavailable",
+                    "error": (
+                        "upstream_timeout" if is_timeout else "upstream_unavailable"
+                    ),
+                    "message": (
+                        "api upstream timeout"
+                        if is_timeout
+                        else "api upstream unavailable"
+                    ),
                 },
-                status=HTTPStatus.GATEWAY_TIMEOUT if is_timeout else HTTPStatus.BAD_GATEWAY,
+                status=(
+                    HTTPStatus.GATEWAY_TIMEOUT if is_timeout else HTTPStatus.BAD_GATEWAY
+                ),
             )
             return True
 
         body = upstream_resp.read()
-        upstream_status = int(getattr(upstream_resp, "status", 0) or upstream_resp.getcode())
+        upstream_status = int(
+            getattr(upstream_resp, "status", 0) or upstream_resp.getcode()
+        )
 
         self.send_response(upstream_status)
 
@@ -1924,8 +1990,12 @@ class _UiHandler(BaseHTTPRequestHandler):
 
         if request_path == "/login":
             login_query = parse_qs(parsed.query, keep_blank_values=False)
-            next_path = _normalize_login_next_path((login_query.get("next") or ["/gui"])[0])
-            reason = _normalize_login_reason((login_query.get("reason") or ["manual_login"])[0])
+            next_path = _normalize_login_next_path(
+                (login_query.get("next") or ["/gui"])[0]
+            )
+            reason = _normalize_login_reason(
+                (login_query.get("reason") or ["manual_login"])[0]
+            )
             explicit_start = str((login_query.get("start") or [""])[0]).strip().lower()
             start_login = explicit_start in {"1", "true", "yes"}
             # UX default: do not show an intermediate local login card for normal reasons.
@@ -1962,7 +2032,9 @@ class _UiHandler(BaseHTTPRequestHandler):
             return
 
         if request_path.startswith("/auth/"):
-            if self._proxy_auth_request(request_path=request_path, raw_query=parsed.query):
+            if self._proxy_auth_request(
+                request_path=request_path, raw_query=parsed.query
+            ):
                 return
             self._send_json(
                 {
@@ -1975,7 +2047,9 @@ class _UiHandler(BaseHTTPRequestHandler):
             return
 
         if _is_api_proxy_path(request_path):
-            if self._proxy_api_request(request_path=request_path, raw_query=parsed.query):
+            if self._proxy_api_request(
+                request_path=request_path, raw_query=parsed.query
+            ):
                 return
             self._send_json(
                 {
@@ -2004,6 +2078,29 @@ class _UiHandler(BaseHTTPRequestHandler):
                 api_base_url=self.server.ui_api_base_url,
             )
             self._send_html(html)
+            return
+
+        if request_path == "/gui/jobs":
+            location = "/jobs"
+            if parsed.query:
+                location = f"{location}?{parsed.query}"
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header("Location", location)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
+        if request_path.startswith("/gui/jobs/"):
+            legacy_suffix = request_path.removeprefix("/gui/jobs")
+            location = f"/jobs{legacy_suffix}"
+            if parsed.query:
+                location = f"{location}?{parsed.query}"
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header("Location", location)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
             return
 
         if request_path == "/jobs":
@@ -2113,7 +2210,9 @@ class _UiHandler(BaseHTTPRequestHandler):
         request_path = _normalize_path(parsed.path)
 
         if _is_api_proxy_path(request_path):
-            if self._proxy_api_request(request_path=request_path, raw_query=parsed.query):
+            if self._proxy_api_request(
+                request_path=request_path, raw_query=parsed.query
+            ):
                 return
             self._send_json(
                 {
@@ -2139,7 +2238,14 @@ class _UiHandler(BaseHTTPRequestHandler):
 
 
 class _UiHttpServer(ThreadingHTTPServer):
-    def __init__(self, server_address, request_handler_class, *, app_version: str, ui_api_base_url: str):
+    def __init__(
+        self,
+        server_address,
+        request_handler_class,
+        *,
+        app_version: str,
+        ui_api_base_url: str,
+    ):
         super().__init__(server_address, request_handler_class)
         self.app_version = app_version
         self.ui_api_base_url = ui_api_base_url
