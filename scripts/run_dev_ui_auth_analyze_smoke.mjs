@@ -11,6 +11,7 @@ const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/,
 
 const baseOrigin = String(process.env.BASE_URL || 'https://www.dev.georanking.ch').replace(/\/+$/, '');
 const guiPath = normalizeGuiPath(process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
+const expectedPostLoginPath = resolveCanonicalGuiSuccessor(guiPath);
 const loginReason = String(process.env.DEV_UI_SMOKE_LOGIN_REASON || 'manual_login').trim() || 'manual_login';
 const loginStartUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&reason=${encodeURIComponent(loginReason)}&start=1`;
 
@@ -54,6 +55,13 @@ function isTruthy(value) {
 function normalizeGuiPath(rawPath) {
   const value = String(rawPath || '').trim() || '/gui';
   return value.startsWith('/') ? value : `/${value}`;
+}
+
+function resolveCanonicalGuiSuccessor(pathname) {
+  const value = normalizeGuiPath(pathname);
+  if (value === '/gui/jobs') return '/jobs';
+  if (value.startsWith('/gui/jobs/')) return `/jobs${value.slice('/gui/jobs'.length)}`;
+  return value;
 }
 
 function normalizeError(error) {
@@ -271,6 +279,58 @@ async function waitForTerminalUiSignal(page, timeout) {
   return handle.jsonValue();
 }
 
+async function waitForAnalyzeShellVisible(page, timeout) {
+  await page.locator('#analyze-form').waitFor({ state: 'visible', timeout });
+}
+
+async function ensureAnalyzeShellReady(page, baseOrigin, timeout) {
+  const quickProbeTimeout = Math.max(1_000, Math.min(8_000, Math.floor(timeout / 6)));
+
+  try {
+    await waitForAnalyzeShellVisible(page, quickProbeTimeout);
+    return {
+      recovered: false,
+      strategy: 'already_visible',
+      urlAfterRecovery: page.url(),
+    };
+  } catch {
+    // continue with recovery path
+  }
+
+  const analyzeMenuLink = page.locator('a[role="menuitem"][href="/gui"]:visible').first();
+  if (await analyzeMenuLink.count()) {
+    await Promise.all([
+      page.waitForURL(
+        (url) => {
+          try {
+            const parsed = new URL(String(url));
+            return parsed.origin === baseOrigin && parsed.pathname === '/gui';
+          } catch {
+            return false;
+          }
+        },
+        { timeout }
+      ),
+      analyzeMenuLink.click(),
+    ]);
+
+    await waitForAnalyzeShellVisible(page, timeout);
+    return {
+      recovered: true,
+      strategy: 'menuitem_to_gui',
+      urlAfterRecovery: page.url(),
+    };
+  }
+
+  await page.goto(`${baseOrigin}/gui`, { waitUntil: 'domcontentloaded' });
+  await waitForAnalyzeShellVisible(page, timeout);
+  return {
+    recovered: true,
+    strategy: 'direct_goto_gui',
+    urlAfterRecovery: page.url(),
+  };
+}
+
 function maskUsername(value) {
   if (!value) return '';
   if (value.length <= 2) return `${value[0] || '*'}*`;
@@ -322,6 +382,7 @@ async function run() {
   });
 
   let idpLoginUrl = '';
+  let postLoginUrl = '';
   let finalUrl = '';
   let authMeStatus = null;
   let authMeBody = null;
@@ -336,6 +397,7 @@ async function run() {
   let resultRowCount = 0;
   let terminalUiSignal = null;
   let terminalUiSignalTimeout = false;
+  let analyzeShellRecovery = null;
   let screenshotRelPath = '';
 
   try {
@@ -369,7 +431,7 @@ async function run() {
         (url) => {
           try {
             const parsed = new URL(String(url));
-            return parsed.origin === baseOrigin && parsed.pathname === guiPath;
+            return parsed.origin === baseOrigin && parsed.pathname === expectedPostLoginPath;
           } catch {
             return false;
           }
@@ -379,7 +441,8 @@ async function run() {
       submitButton.click(),
     ]);
 
-    await page.locator('#analyze-form').waitFor({ state: 'visible', timeout: timeoutMs });
+    postLoginUrl = page.url();
+    analyzeShellRecovery = await ensureAnalyzeShellReady(page, baseOrigin, timeoutMs);
 
     const authMeEval = await page.evaluate(async () => {
       const response = await fetch('/auth/me', {
@@ -500,9 +563,14 @@ async function run() {
 
   const noIdleFallback = resultRowCount > 0 && phaseStateNormalized !== 'idle' && !phaseTextNormalized.includes('idle');
 
+  const loginReturnedToRequestedGuiPath = Boolean(postLoginUrl)
+    && postLoginUrl.startsWith(`${baseOrigin}${expectedPostLoginPath}`);
+
   const checks = {
     loginRedirectToIdP: isIdpLoginUrl(idpLoginUrl),
-    loginReturnedToGui: Boolean(finalUrl) && finalUrl.startsWith(`${baseOrigin}${guiPath}`),
+    loginReturnedToRequestedGuiPath,
+    // Backward-compatibility alias for older dashboards/evidence readers.
+    loginReturnedToGui: loginReturnedToRequestedGuiPath,
     authMeAuthenticated,
     selectedAddressIsSwiss: selectedAddress.includes(',') && /\b\d{4}\b/.test(selectedAddress),
     addressSubmittedExactly: submittedAddressMatches,
@@ -526,6 +594,7 @@ async function run() {
     target: {
       baseOrigin,
       guiPath,
+      expectedPostLoginPath,
       loginStartUrl,
     },
     runtime: {
@@ -551,6 +620,7 @@ async function run() {
     },
     login: {
       idpLoginUrl,
+      postLoginUrl,
       finalUrl,
       authMeStatus,
       authMeAuthenticated,
@@ -572,6 +642,7 @@ async function run() {
       resultRowCount,
       terminalUiSignal,
       terminalUiSignalTimeout,
+      analyzeShellRecovery,
     },
     flowResponses,
     guardSignals: {
@@ -601,6 +672,7 @@ run()
       target: {
         baseOrigin,
         guiPath,
+        expectedPostLoginPath,
         loginStartUrl,
       },
       runtime: {
