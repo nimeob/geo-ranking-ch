@@ -39,7 +39,9 @@ jobs:
         run: node scripts/run_dev_ui_auth_analyze_smoke.mjs
 
       - name: Upload smoke artifacts
+        id: upload_dev_auth_analyze_artifacts
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v6
         with:
           name: gui-dev-live-auth-analyze-smoke-artifacts
@@ -48,3 +50,16 @@ jobs:
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
             reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
           if-no-files-found: warn
+          overwrite: true
+
+      - name: Retry upload smoke artifacts
+        if: always() && steps.upload_dev_auth_analyze_artifacts.outcome == 'failure'
+        uses: actions/upload-artifact@v6
+        with:
+          name: gui-dev-live-auth-analyze-smoke-artifacts
+          path: |
+            reports/evidence/dev-ui-auth-analyze-smoke-*.json
+            reports/evidence/dev-ui-auth-analyze-smoke-*.png
+            reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
+          if-no-files-found: warn
+          overwrite: true

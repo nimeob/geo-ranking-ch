@@ -75,11 +75,23 @@ jobs:
           cp /tmp/gui-webkit-service.log artifacts/gui-webkit-smoke/ || true
 
       - name: Upload native WebKit smoke artifact
+        id: upload_webkit_smoke_artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v6
         with:
           name: gui-webkit-smoke-artifacts
           path: artifacts/gui-webkit-smoke
           if-no-files-found: error
+          overwrite: true
+
+      - name: Retry upload native WebKit smoke artifact
+        if: always() && steps.upload_webkit_smoke_artifact.outcome == 'failure'
+        uses: actions/upload-artifact@v6
+        with:
+          name: gui-webkit-smoke-artifacts
+          path: artifacts/gui-webkit-smoke
+          if-no-files-found: error
+          overwrite: true
 
       - name: Stop local GUI service
         if: always()

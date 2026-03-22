@@ -44,10 +44,23 @@ jobs:
         run: node scripts/run_dev_ui_live_full_regression.mjs
 
       - name: Upload full-regression artifacts
+        id: upload_dev_full_regression_artifacts
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v6
         with:
           name: gui-dev-live-full-regression-artifacts
           path: |
             artifacts/dev-ui-full/latest/**
           if-no-files-found: warn
+          overwrite: true
+
+      - name: Retry upload full-regression artifacts
+        if: always() && steps.upload_dev_full_regression_artifacts.outcome == 'failure'
+        uses: actions/upload-artifact@v6
+        with:
+          name: gui-dev-live-full-regression-artifacts
+          path: |
+            artifacts/dev-ui-full/latest/**
+          if-no-files-found: warn
+          overwrite: true
