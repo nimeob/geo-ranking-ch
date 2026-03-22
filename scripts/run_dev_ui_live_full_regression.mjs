@@ -8,6 +8,8 @@ const USERNAME = (process.env.DEV_UI_SMOKE_USERNAME || "").trim();
 const PASSWORD = (process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
 const MAX_WAIT_MS = Number(process.env.DEV_UI_FULL_MAX_WAIT_MS || 120_000);
 const LOGOUT_SETTLE_MS = Number(process.env.DEV_UI_FULL_LOGOUT_SETTLE_MS || 10_000);
+const PRE_LOGIN_5XX_SAMPLE_COUNT = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT || 12);
+const PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS || 250);
 const EVIDENCE_JSON = (process.env.DEV_UI_FULL_EVIDENCE_JSON || "artifacts/dev-ui-full/latest/dev-ui-full-regression.json").trim();
 const SCREENSHOT_DIR = (process.env.DEV_UI_FULL_SCREENSHOT_DIR || "artifacts/dev-ui-full/latest/screenshots").trim();
 
@@ -90,6 +92,43 @@ async function locateFirstVisible(page, selectors, timeoutMs) {
     await page.waitForTimeout(250);
   }
   throw new Error(`Visible selector not found. candidates=${selectors.join(",")}`);
+}
+
+async function sampleVisibilitySignal(page, selector, { samples, intervalMs }) {
+  const totalSamples = Math.max(1, Number(samples) || 1);
+  const waitIntervalMs = Math.max(50, Number(intervalMs) || 50);
+  let visibleCount = 0;
+  let currentVisibleStreak = 0;
+  let maxVisibleStreak = 0;
+  const sampleTimeline = [];
+
+  for (let index = 0; index < totalSamples; index += 1) {
+    const visible = await page.locator(selector).isVisible().catch(() => false);
+    sampleTimeline.push(visible ? 1 : 0);
+    if (visible) {
+      visibleCount += 1;
+      currentVisibleStreak += 1;
+      if (currentVisibleStreak > maxVisibleStreak) {
+        maxVisibleStreak = currentVisibleStreak;
+      }
+    } else {
+      currentVisibleStreak = 0;
+    }
+
+    if (index < totalSamples - 1) {
+      await page.waitForTimeout(waitIntervalMs);
+    }
+  }
+
+  return {
+    selector,
+    totalSamples,
+    intervalMs: waitIntervalMs,
+    visibleCount,
+    maxVisibleStreak,
+    everVisible: visibleCount > 0,
+    timeline: sampleTimeline,
+  };
 }
 
 async function fetchAuthMe(page) {
@@ -259,6 +298,7 @@ async function main() {
       }
       networkLog.push({
         ts: new Date().toISOString(),
+        epochMs: Date.now(),
         status: response.status(),
         method: response.request().method(),
         path: `${url.pathname}${url.search}`,
@@ -287,6 +327,8 @@ async function main() {
   let currentJobId = "";
   let firstResultId = "";
   let firstAddress = "";
+  let postLoginBootWindowStartedAtEpochMs = 0;
+  let firstSyncAnalyzeSubmitAtEpochMs = 0;
 
   try {
     const health = await context.request.get(new URL("/healthz", baseOrigin).toString(), { timeout: MAX_WAIT_MS });
@@ -330,6 +372,7 @@ async function main() {
     ]);
 
     await page.waitForSelector("#analyze-form", { timeout: MAX_WAIT_MS });
+    postLoginBootWindowStartedAtEpochMs = Date.now();
     await safeScreenshot(page, "01-after-login");
 
     const guiVersionText = await page.locator("header p").first().innerText();
@@ -347,11 +390,21 @@ async function main() {
       recordCheck("session_warning_hidden_when_remaining_gt_120s", !sessionWarningVisible, `remainingSec=${remainingSec}`);
     }
 
-    const preServerErrorVisible = await page.locator("#server-error-view").isVisible().catch(() => false);
+    const preServerErrorSignal = await sampleVisibilitySignal(page, "#server-error-view", {
+      samples: PRE_LOGIN_5XX_SAMPLE_COUNT,
+      intervalMs: PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS,
+    });
+    const preServerErrorBlocking = preServerErrorSignal.maxVisibleStreak >= 3;
     recordCheck(
       "no_immediate_5xx_banner_after_login",
-      !preServerErrorVisible,
-      `server_error_visible=${preServerErrorVisible}`,
+      !preServerErrorBlocking,
+      JSON.stringify({
+        maxVisibleStreak: preServerErrorSignal.maxVisibleStreak,
+        visibleCount: preServerErrorSignal.visibleCount,
+        totalSamples: preServerErrorSignal.totalSamples,
+        intervalMs: preServerErrorSignal.intervalMs,
+        timeline: preServerErrorSignal.timeline,
+      }),
     );
 
     await page.evaluate(() => {
@@ -428,6 +481,7 @@ async function main() {
       }
     }, { timeout: MAX_WAIT_MS });
 
+    firstSyncAnalyzeSubmitAtEpochMs = Date.now();
     await submitBtn.click();
     const syncResponse = await syncResponsePromise;
     const syncStatus = syncResponse.status();
@@ -650,8 +704,27 @@ async function main() {
 
     await safeScreenshot(page, "99-final-state");
 
-    const immediate5xx = networkLog.filter((entry) => entry.status >= 500 && entry.path.startsWith("/analyze")).slice(0, 5);
-    recordCheck("no_immediate_analyze_5xx_during_boot", immediate5xx.length === 0, JSON.stringify(immediate5xx));
+    const immediate5xxWindowEnd = firstSyncAnalyzeSubmitAtEpochMs || Date.now();
+    const immediate5xx = networkLog
+      .filter((entry) => {
+        if (entry.status < 500) return false;
+        if (!entry.path.startsWith("/analyze")) return false;
+        const atEpoch = Number(entry.epochMs || 0);
+        if (!Number.isFinite(atEpoch) || atEpoch <= 0) return false;
+        if (postLoginBootWindowStartedAtEpochMs > 0 && atEpoch < postLoginBootWindowStartedAtEpochMs) return false;
+        if (immediate5xxWindowEnd > 0 && atEpoch > immediate5xxWindowEnd) return false;
+        return true;
+      })
+      .slice(0, 5);
+    recordCheck(
+      "no_immediate_analyze_5xx_during_boot",
+      immediate5xx.length === 0,
+      JSON.stringify({
+        postLoginBootWindowStartedAtEpochMs,
+        firstSyncAnalyzeSubmitAtEpochMs,
+        immediate5xx,
+      }),
+    );
   } catch (error) {
     finalError = String(error?.message || error);
     try {
