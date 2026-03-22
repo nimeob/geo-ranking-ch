@@ -192,13 +192,13 @@ def test_deploy_workflow_smokes_login_contract_for_gui_history_and_jobs_routes()
 
     text = workflow.read_text(encoding="utf-8")
     required = [
-        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /gui/jobs)",
+        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs)",
         '--next "/gui"',
         '--next "/gui/history"',
-        '--next "/gui/jobs"',
+        '--next "/jobs"',
         "artifacts/dev-login-start-smoke.json",
         "artifacts/dev-login-start-smoke-gui-history.json",
-        "artifacts/dev-login-start-smoke-gui-jobs.json",
+        "artifacts/dev-login-start-smoke-jobs.json",
         "Upload login-start smoke artifacts (dev)",
         "actions/upload-artifact@v6",
         "dev-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}",
@@ -217,13 +217,13 @@ def test_deploy_staging_workflow_smokes_login_contract_for_gui_history_and_jobs_
 
     text = workflow.read_text(encoding="utf-8")
     required = [
-        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /gui/jobs)",
+        "Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs)",
         '--next "/gui"',
         '--next "/gui/history"',
-        '--next "/gui/jobs"',
+        '--next "/jobs"',
         "artifacts/staging-login-start-smoke.json",
         "artifacts/staging-login-start-smoke-gui-history.json",
-        "artifacts/staging-login-start-smoke-gui-jobs.json",
+        "artifacts/staging-login-start-smoke-jobs.json",
         "Upload login-start smoke artifacts (staging)",
         "actions/upload-artifact@v6",
         "staging-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}",
