@@ -11,33 +11,8 @@ jobs:
   live-ui-auth-analyze:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        include:
-          - gui_path: /gui
-            path_slug: gui
-            path_ordinal: 1
-          - gui_path: /gui/history
-            path_slug: gui-history
-            path_ordinal: 2
-          - gui_path: /gui/jobs
-            path_slug: gui-jobs
-            path_ordinal: 3
-          - gui_path: /jobs
-            path_slug: jobs
-            path_ordinal: 4
-          - gui_path: /gui/jobs/demo-job
-            path_slug: gui-jobs-demo-job
-            path_ordinal: 5
-          - gui_path: /jobs/demo-job
-            path_slug: jobs-demo-job
-            path_ordinal: 6
     env:
       BASE_URL: https://www.dev.georanking.ch
-      DEV_UI_SMOKE_GUI_PATH: ${{ matrix.gui_path }}
-      DEV_UI_SMOKE_RUN_ID: ${{ github.run_number }}-${{ github.run_attempt }}-${{ matrix.path_ordinal }}
       DEV_UI_SMOKE_USERNAME: ${{ secrets.DEV_UI_SMOKE_USERNAME }}
       DEV_UI_SMOKE_PASSWORD: ${{ secrets.DEV_UI_SMOKE_PASSWORD }}
 
@@ -59,8 +34,8 @@ jobs:
       - name: Install Playwright Chromium + system deps
         run: npx playwright install --with-deps chromium
 
-      - name: Run DEV live UI auth+analyze smoke (${{ matrix.gui_path }})
-        run: node scripts/run_dev_ui_auth_analyze_smoke.mjs
+      - name: Run DEV live UI auth+analyze smoke (all routes)
+        run: ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh
 
       - name: Upload smoke artifacts
         id: upload_dev_auth_analyze_artifacts
@@ -68,7 +43,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v6
         with:
-          name: gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}
+          name: gui-dev-live-auth-analyze-smoke-artifacts
           path: |
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
@@ -80,7 +55,7 @@ jobs:
         if: always() && steps.upload_dev_auth_analyze_artifacts.outcome == 'failure'
         uses: actions/upload-artifact@v6
         with:
-          name: gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}
+          name: gui-dev-live-auth-analyze-smoke-artifacts
           path: |
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
