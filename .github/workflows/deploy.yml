@@ -221,17 +221,49 @@ jobs:
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
           API_TASK_DEF_ARN: ${{ steps.taskdefs.outputs.api_task_def_arn }}
+          ECS_STABILITY_TIMEOUT_SECONDS: ${{ vars.ECS_STABILITY_TIMEOUT_SECONDS }}
         run: |
           set -euo pipefail
+
+          wait_for_service_stability() {
+            local service_name="$1"
+            local timeout_seconds="${ECS_STABILITY_TIMEOUT_SECONDS:-900}"
+
+            set +e
+            timeout "${timeout_seconds}" aws ecs wait services-stable \
+              --cluster "$ECS_CLUSTER" \
+              --services "$service_name"
+            local wait_rc=$?
+            set -e
+
+            if [[ "$wait_rc" -eq 0 ]]; then
+              return 0
+            fi
+
+            if [[ "$wait_rc" -eq 124 ]]; then
+              echo "::error::ECS wait timed out after ${timeout_seconds}s for service '${service_name}'."
+            else
+              echo "::error::ECS wait failed for service '${service_name}' (exit ${wait_rc})."
+            fi
+
+            echo "::group::ECS service diagnostics (${service_name})"
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$service_name" \
+              --query 'services[0].{status:status,desiredCount:desiredCount,runningCount:runningCount,pendingCount:pendingCount,taskDefinition:taskDefinition,deployments:deployments[].{status:status,rolloutState:rolloutState,rolloutStateReason:rolloutStateReason,taskDefinition:taskDefinition,desiredCount:desiredCount,pendingCount:pendingCount,runningCount:runningCount,failedTasks:failedTasks},events:events[0:10].[createdAt,message]}' \
+              --output json || true
+            echo "::endgroup::"
+
+            return "$wait_rc"
+          }
+
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_API_SERVICE" \
             --task-definition "$API_TASK_DEF_ARN" \
             --force-new-deployment
 
-          aws ecs wait services-stable \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_API_SERVICE"
+          wait_for_service_stability "$ECS_API_SERVICE"
 
       - name: Smoke-Test API /health
         env:
@@ -257,17 +289,49 @@ jobs:
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_UI_SERVICE: ${{ vars.ECS_UI_SERVICE }}
           UI_TASK_DEF_ARN: ${{ steps.taskdefs.outputs.ui_task_def_arn }}
+          ECS_STABILITY_TIMEOUT_SECONDS: ${{ vars.ECS_STABILITY_TIMEOUT_SECONDS }}
         run: |
           set -euo pipefail
+
+          wait_for_service_stability() {
+            local service_name="$1"
+            local timeout_seconds="${ECS_STABILITY_TIMEOUT_SECONDS:-900}"
+
+            set +e
+            timeout "${timeout_seconds}" aws ecs wait services-stable \
+              --cluster "$ECS_CLUSTER" \
+              --services "$service_name"
+            local wait_rc=$?
+            set -e
+
+            if [[ "$wait_rc" -eq 0 ]]; then
+              return 0
+            fi
+
+            if [[ "$wait_rc" -eq 124 ]]; then
+              echo "::error::ECS wait timed out after ${timeout_seconds}s for service '${service_name}'."
+            else
+              echo "::error::ECS wait failed for service '${service_name}' (exit ${wait_rc})."
+            fi
+
+            echo "::group::ECS service diagnostics (${service_name})"
+            aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$service_name" \
+              --query 'services[0].{status:status,desiredCount:desiredCount,runningCount:runningCount,pendingCount:pendingCount,taskDefinition:taskDefinition,deployments:deployments[].{status:status,rolloutState:rolloutState,rolloutStateReason:rolloutStateReason,taskDefinition:taskDefinition,desiredCount:desiredCount,pendingCount:pendingCount,runningCount:runningCount,failedTasks:failedTasks},events:events[0:10].[createdAt,message]}' \
+              --output json || true
+            echo "::endgroup::"
+
+            return "$wait_rc"
+          }
+
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_UI_SERVICE" \
             --task-definition "$UI_TASK_DEF_ARN" \
             --force-new-deployment
 
-          aws ecs wait services-stable \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_UI_SERVICE"
+          wait_for_service_stability "$ECS_UI_SERVICE"
 
       - name: Smoke-Test UI /healthz
         env:
