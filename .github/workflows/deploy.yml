@@ -303,7 +303,7 @@ jobs:
             exit "$RECONCILE_RC"
           fi
 
-      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs)
+      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs + legacy /gui/jobs*)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
@@ -342,10 +342,30 @@ jobs:
             --retry-delay 5 \
             --output-json artifacts/dev-login-start-smoke-jobs.json
           LOGIN_JOBS_RC=$?
+
+          python3 scripts/smoke/check_ui_login_start.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --next "/gui/jobs" \
+            --reason "manual_login" \
+            --timeout 20 \
+            --max-attempts 8 \
+            --retry-delay 5 \
+            --output-json artifacts/dev-login-start-smoke-gui-jobs-legacy.json
+          LOGIN_GUI_JOBS_LEGACY_RC=$?
+
+          python3 scripts/smoke/check_ui_login_start.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --next "/gui/jobs/demo-job" \
+            --reason "manual_login" \
+            --timeout 20 \
+            --max-attempts 8 \
+            --retry-delay 5 \
+            --output-json artifacts/dev-login-start-smoke-gui-jobs-legacy-detail.json
+          LOGIN_GUI_JOBS_LEGACY_DETAIL_RC=$?
           set -e
 
-          if [ "$LOGIN_GUI_RC" -ne 0 ] || [ "$LOGIN_HISTORY_RC" -ne 0 ] || [ "$LOGIN_JOBS_RC" -ne 0 ]; then
-            echo "::error::UI login-start smoke failed (gui_rc=${LOGIN_GUI_RC}, gui_history_rc=${LOGIN_HISTORY_RC}, jobs_rc=${LOGIN_JOBS_RC}). See artifacts/dev-login-start-smoke*.json"
+          if [ "$LOGIN_GUI_RC" -ne 0 ] || [ "$LOGIN_HISTORY_RC" -ne 0 ] || [ "$LOGIN_JOBS_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_LEGACY_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_LEGACY_DETAIL_RC" -ne 0 ]; then
+            echo "::error::UI login-start smoke failed (gui_rc=${LOGIN_GUI_RC}, gui_history_rc=${LOGIN_HISTORY_RC}, jobs_rc=${LOGIN_JOBS_RC}, gui_jobs_legacy_rc=${LOGIN_GUI_JOBS_LEGACY_RC}, gui_jobs_legacy_detail_rc=${LOGIN_GUI_JOBS_LEGACY_DETAIL_RC}). See artifacts/dev-login-start-smoke*.json"
             exit 1
           fi
 
@@ -359,6 +379,8 @@ jobs:
             artifacts/dev-login-start-smoke.json
             artifacts/dev-login-start-smoke-gui-history.json
             artifacts/dev-login-start-smoke-jobs.json
+            artifacts/dev-login-start-smoke-gui-jobs-legacy.json
+            artifacts/dev-login-start-smoke-gui-jobs-legacy-detail.json
 
       - name: Deployment summary
         run: |
