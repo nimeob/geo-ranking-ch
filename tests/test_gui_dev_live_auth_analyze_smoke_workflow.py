@@ -15,6 +15,8 @@ def test_workflow_runs_deeplink_matrix_serially_with_route_specific_artifacts() 
     assert "gui_path: /gui" in content
     assert "gui_path: /gui/history" in content
     assert "gui_path: /gui/jobs" in content
+    assert "gui_path: /jobs" in content
+    assert "gui_path: /gui/jobs/demo-job" in content
     assert "DEV_UI_SMOKE_GUI_PATH: ${{ matrix.gui_path }}" in content
     assert (
         "DEV_UI_SMOKE_RUN_ID: ${{ github.run_number }}-${{ github.run_attempt }}-${{ matrix.path_ordinal }}"
