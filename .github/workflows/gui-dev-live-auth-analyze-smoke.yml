@@ -31,6 +31,9 @@ jobs:
           - gui_path: /gui/jobs/demo-job
             path_slug: gui-jobs-demo-job
             path_ordinal: 5
+          - gui_path: /jobs/demo-job
+            path_slug: jobs-demo-job
+            path_ordinal: 6
     env:
       BASE_URL: https://www.dev.georanking.ch
       DEV_UI_SMOKE_GUI_PATH: ${{ matrix.gui_path }}
