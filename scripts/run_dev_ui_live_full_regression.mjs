@@ -214,6 +214,15 @@ function hasAsyncResponseShape(payload) {
   );
 }
 
+async function waitForActiveResultTab(page, tabKey, timeoutMs) {
+  await page.waitForFunction((targetTab) => {
+    const btn = document.querySelector(`.tab-btn[data-tab="${targetTab}"]`);
+    const panel = document.getElementById(`tab-${targetTab}`);
+    if (!btn || !panel) return false;
+    return String(btn.getAttribute("aria-selected") || "") === "true" && panel.hidden === false;
+  }, tabKey, { timeout: timeoutMs });
+}
+
 function isBlockingJobsConsoleError(message) {
   const text = String(message || "").toLowerCase();
   if (!text) return false;
@@ -456,6 +465,22 @@ async function main() {
     await page.click('.tab-btn[data-tab="raw"]');
     await page.click('.tab-btn[data-tab="overview"]');
     recordCheck("result_tabs_clickable", true, "overview/sources/derived/raw clicked");
+
+    const overviewTabButton = page.locator('.tab-btn[data-tab="overview"]').first();
+    const locationTabButton = page.locator('.tab-btn[data-tab="location"]').first();
+    const rawTabButton = page.locator('.tab-btn[data-tab="raw"]').first();
+    await overviewTabButton.focus();
+    await overviewTabButton.press("ArrowRight");
+    await waitForActiveResultTab(page, "location", MAX_WAIT_MS);
+    await locationTabButton.press("End");
+    await waitForActiveResultTab(page, "raw", MAX_WAIT_MS);
+    await rawTabButton.press("Home");
+    await waitForActiveResultTab(page, "overview", MAX_WAIT_MS);
+    recordCheck(
+      "result_tabs_keyboard_navigation",
+      true,
+      "ArrowRight->location, End->raw, Home->overview"
+    );
 
     await page.click("#burger-btn");
     const resultBurgerLinks = await page.locator('#burger-menu a[role="menuitem"]').allTextContents();
