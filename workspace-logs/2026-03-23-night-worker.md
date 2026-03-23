@@ -74,3 +74,19 @@
 ## Nächste Schritte
 - Commit + Push des Preflight-Hardening-Branches.
 - PR öffnen und CI grünziehen; danach Merge auf `main` für robustere UI-Full-Regression-Operator-UX.
+
+## 06:45–06:52 CET — ROI: Route-Set Runner CLI contract + blocker fallback guidance
+- Kontext: manueller Aufruf mit Parametern (`--base-url`, `--output-dir`, `--headless`) wurde bisher stillschweigend ignoriert; bei fehlenden Secrets blieb nur ein harter Abort ohne direkten Fallback-Pfad.
+- Umsetzung auf Branch `night/worker-20260323-0645`:
+  - `scripts/smoke/run_gui_live_auth_analyze_route_set.sh`
+    - echte CLI-Optionen ergänzt (`--base-url`, `--output-dir`, `--timeout-ms`, `--address-file`, `--login-reason`, `--run-id-base`, `--headless/--headful`, `--help`)
+    - unbekannte Optionen liefern jetzt klaren Fehler + Usage (kein stilles Ignorieren mehr)
+    - bei Secret-Blocker now actionable Hint auf `run_login_start_smoke_bundle.sh` inkl. `--base-url`/`--env-name`
+  - `scripts/run_dev_ui_auth_analyze_smoke.mjs`
+    - optionaler Evidence-Ordner via `DEV_UI_SMOKE_EVIDENCE_DIR` (CLI: `--output-dir`)
+  - Tests erweitert (`tests/test_run_gui_live_auth_analyze_route_set_preflight.py`) und Docs aktualisiert (`docs/testing/GUI_DEV_LIVE_AUTH_ANALYZE_SMOKE.md`)
+- Verifikation:
+  - `pytest -q tests/test_run_gui_live_auth_analyze_route_set_preflight.py tests/test_gui_dev_live_auth_analyze_smoke_docs.py tests/test_gui_dev_live_auth_analyze_smoke_workflow.py tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py` → **16 passed**
+  - Runtime: `run_gui_live_auth_analyze_route_set.sh ... --headless` ohne Secrets erzeugt Blocker-Evidence + neuen Login-Start-Hint
+  - Runtime fallback: `run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev ...` über alle 9 Routen grün (302→IdP)
+- UI-Browser-Blocker bleibt extern: `browser start` timeout; `openclaw gateway status` weiterhin mit Config-Fehler `Cannot access 'ANTHROPIC_MODEL_ALIASES' before initialization`. Deshalb weiter API/Smoke-basiertes UI-Monitoring ohne Leerlauf.
