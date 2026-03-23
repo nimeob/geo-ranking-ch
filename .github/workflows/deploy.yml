@@ -368,6 +368,26 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke-Test UI canonical-host redirect (/login?start=1 on alias host)
+        env:
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+          UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}
+          UI_CANONICAL_HOSTS: ${{ vars.UI_CANONICAL_HOSTS }}
+        run: |
+          set -euo pipefail
+          [ -n "${SERVICE_APP_BASE_URL:-}" ]
+
+          python3 scripts/smoke/check_ui_canonical_redirect.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
+            --canonical-hosts "${UI_CANONICAL_HOSTS:-}" \
+            --next "/gui" \
+            --reason "manual_login" \
+            --timeout 20 \
+            --max-attempts 8 \
+            --retry-delay 5 \
+            --output-json artifacts/dev-canonical-host-redirect-smoke.json
+
       - name: Reconcile DEV ALB listener login-entry rules
         env:
           DEV_ALB_NAME: ${{ vars.DEV_ALB_NAME }}
@@ -414,6 +434,7 @@ jobs:
             artifacts/dev-login-start-smoke-results-detail.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy-detail.json
+            artifacts/dev-canonical-host-redirect-smoke.json
 
       - name: Deployment summary
         run: |
