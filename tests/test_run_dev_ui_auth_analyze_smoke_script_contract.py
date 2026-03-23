@@ -64,6 +64,17 @@ def test_script_uses_dynamic_playwright_import_with_actionable_hint() -> None:
     assert "npx playwright install --with-deps chromium" in content
 
 
+def test_script_emits_actionable_console_summary_markers() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert "function emitSmokeSummary(payload, evidencePath)" in content
+    assert "[dev-ui-auth-analyze-smoke] PASS" in content
+    assert "[dev-ui-auth-analyze-smoke] FAIL" in content
+    assert "[dev-ui-auth-analyze-smoke] ERROR" in content
+    assert "failed_checks=" in content
+    assert "evidence=" in content
+
+
 def test_missing_credentials_emit_json_evidence_even_without_playwright(
     tmp_path: Path,
 ) -> None:
@@ -94,6 +105,11 @@ def test_missing_credentials_emit_json_evidence_even_without_playwright(
     assert payload["ok"] is False
     assert payload["error"]["name"] == "Error"
     assert "Fehlende Credentials" in payload["error"]["message"]
+
+    # Console contract: failures should surface actionable one-line diagnostics in stderr.
+    assert "[dev-ui-auth-analyze-smoke] ERROR" in result.stderr
+    assert "evidence=" in result.stderr
+    assert "Fehlende_Credentials" in result.stderr
 
 
 def test_run_id_is_sanitized_in_evidence_filename(tmp_path: Path) -> None:

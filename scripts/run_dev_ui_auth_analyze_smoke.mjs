@@ -406,6 +406,63 @@ async function writeEvidence(payload) {
   return outJson;
 }
 
+function collectFailedChecks(checks) {
+  if (!checks || typeof checks !== 'object') return [];
+  return Object.entries(checks)
+    .filter(([, value]) => value !== true)
+    .map(([name]) => name);
+}
+
+function toSummaryToken(value) {
+  const normalized = String(value ?? '').trim();
+  return normalized === '' ? '-' : normalized.replace(/\s+/g, '_').slice(0, 200);
+}
+
+function emitSmokeSummary(payload, evidencePath) {
+  const evidenceRelPath = evidencePath ? path.relative(repoRoot, evidencePath) : '-';
+  const guiPathToken = toSummaryToken(payload?.target?.guiPath);
+  const runMarkerToken = toSummaryToken(payload?.runtime?.runMarker);
+
+  if (payload?.ok === true) {
+    const analyzeStatus = toSummaryToken(payload?.analyze?.responseStatus);
+    const resultsCount = toSummaryToken(payload?.uiState?.resultRowCount);
+    const terminalSignal = toSummaryToken(payload?.uiState?.terminalUiSignal?.reason);
+    console.log(
+      `[dev-ui-auth-analyze-smoke] PASS gui_path=${guiPathToken} run_marker=${runMarkerToken}`
+      + ` analyze_status=${analyzeStatus} results=${resultsCount} terminal_signal=${terminalSignal}`
+      + ` evidence=${evidenceRelPath}`
+    );
+    return;
+  }
+
+  if (payload?.error) {
+    const errorName = toSummaryToken(payload.error.name);
+    const errorMessage = toSummaryToken(payload.error.message);
+    console.error(
+      `[dev-ui-auth-analyze-smoke] ERROR gui_path=${guiPathToken} run_marker=${runMarkerToken}`
+      + ` error=${errorName}:${errorMessage} evidence=${evidenceRelPath}`
+    );
+    return;
+  }
+
+  const failedChecks = collectFailedChecks(payload?.checks);
+  const failedChecksToken = failedChecks.length ? failedChecks.join(',') : '-';
+  const analyzeStatus = toSummaryToken(payload?.analyze?.responseStatus);
+  const phaseState = toSummaryToken(payload?.uiState?.phaseState);
+  const terminalSignal = toSummaryToken(payload?.uiState?.terminalUiSignal?.reason);
+  const guardSignals = Array.isArray(payload?.guardSignals?.sessionExpiredSignals)
+    ? payload.guardSignals.sessionExpiredSignals.join(',')
+    : '';
+  const guardSignalsToken = guardSignals ? toSummaryToken(guardSignals) : '-';
+
+  console.error(
+    `[dev-ui-auth-analyze-smoke] FAIL gui_path=${guiPathToken} run_marker=${runMarkerToken}`
+    + ` failed_checks=${failedChecksToken} analyze_status=${analyzeStatus}`
+    + ` phase=${phaseState} terminal_signal=${terminalSignal}`
+    + ` guard_signals=${guardSignalsToken} evidence=${evidenceRelPath}`
+  );
+}
+
 async function run() {
   const startedAtUtc = new Date().toISOString();
 
@@ -709,7 +766,8 @@ async function run() {
     ok,
   };
 
-  await writeEvidence(payload);
+  const evidencePath = await writeEvidence(payload);
+  emitSmokeSummary(payload, evidencePath);
   return ok;
 }
 
@@ -746,6 +804,7 @@ run()
       ok: false,
     };
 
-    await writeEvidence(payload);
+    const evidencePath = await writeEvidence(payload);
+    emitSmokeSummary(payload, evidencePath);
     process.exit(1);
   });
