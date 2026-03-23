@@ -14,7 +14,8 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 - Script: `scripts/run_dev_ui_auth_analyze_smoke.mjs`
 - Preflight (Secrets + Blocker-Evidence): `scripts/smoke/validate_gui_live_auth_analyze_secrets.sh`
 - Address-Pool: `scripts/smoke/ch_live_addresses.txt`
-- Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt `/gui`, `/gui/history`, `/gui/jobs`, `/jobs`, `/jobs?source=smoke`, `/gui/jobs/demo-job`, `/jobs/demo-job`, `/results/demo-result` seriell in **einem** Workflow-Job aus und startet mit einem integrierten Secrets-Preflight, damit lokale/manual Runs bei fehlenden Credentials sofort und eindeutig abbrechen)
+- Shared Route-Matrix: `scripts/smoke/gui_smoke_routes.sh` (Single Source of Truth für kanonische + Legacy-Login-Pfade und Artifact-Suffix-Mapping)
+- Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt den gemeinsamen Route-Satz seriell in **einem** Workflow-Job aus und startet mit einem integrierten Secrets-Preflight, damit lokale/manual Runs bei fehlenden Credentials sofort und eindeutig abbrechen)
 - Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml`
 - Artifact: `gui-dev-live-auth-analyze-smoke-artifacts`
 
@@ -54,7 +55,7 @@ DEV_UI_SMOKE_PASSWORD="<password>" \
 ```
 
 Optional:
-- `DEV_UI_SMOKE_GUI_PATH=/gui` (oder `/gui/history`, `/gui/jobs`, `/jobs?source=smoke`, `/jobs/demo-job`, `/results/demo-result`, ...)
+- `DEV_UI_SMOKE_GUI_PATH=/gui` (oder jede Route aus `scripts/smoke/gui_smoke_routes.sh`, z. B. `/gui/history`, `/gui/jobs`, `/jobs?source=smoke`, `/jobs/demo-job`, `/results/demo-result`)
 - `DEV_UI_SMOKE_ADDRESS_FILE=/abs/path/to/addresses.txt`
 - `DEV_UI_SMOKE_TIMEOUT_MS=90000`
 - `DEV_UI_SMOKE_HEADFUL=1`
