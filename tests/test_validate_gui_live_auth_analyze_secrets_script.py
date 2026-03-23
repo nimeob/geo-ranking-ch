@@ -40,6 +40,10 @@ def test_preflight_writes_blocker_evidence_when_secrets_are_missing(tmp_path: Pa
     assert payload["required"] == ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"]
     assert payload["missing"] == ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"]
     assert payload["next_step"].startswith("Set both repository secrets")
+    fallback = payload["fallback_login_start_smoke"]
+    assert fallback["base_url"] == "https://www.dev.georanking.ch"
+    assert fallback["env_name"] == "dev"
+    assert "run_login_start_smoke_bundle.sh" in fallback["command"]
 
 
 def test_preflight_reports_exactly_which_secret_is_missing(tmp_path: Path) -> None:
@@ -114,6 +118,27 @@ def test_preflight_supports_custom_blocker_target_and_workflow_name(tmp_path: Pa
     assert payload["run_id"] == "12-2"
     assert payload["workflow"] == "gui-dev-live-full-regression"
     assert payload["next_step"] == "Set both repository secrets and re-run gui-dev-live-full-regression workflow."
+    assert payload["fallback_login_start_smoke"]["env_name"] == "dev"
+
+
+def test_preflight_uses_staging_fallback_hint_when_base_url_contains_staging(tmp_path: Path) -> None:
+    proc = _run(
+        tmp_path,
+        {
+            "GITHUB_RUN_ID": "555",
+            "DEV_UI_BASE_URL": "https://www.staging.georanking.ch",
+        },
+    )
+
+    assert proc.returncode == 1
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-555-1.json"
+    assert blocked_file.exists()
+
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    fallback = payload["fallback_login_start_smoke"]
+    assert fallback["base_url"] == "https://www.staging.georanking.ch"
+    assert fallback["env_name"] == "staging"
+    assert fallback["command"].endswith("--env-name staging")
 
 
 def test_workflow_uses_preflight_script_and_uploads_blocker_artifact() -> None:

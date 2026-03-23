@@ -115,3 +115,5 @@ def test_missing_credentials_emit_evidence_even_before_browser_boot(tmp_path: Pa
 
     assert "[dev-ui-full-regression] FAILED: Missing DEV_UI_SMOKE_USERNAME" in result.stderr
     assert "[dev-ui-full-regression] Evidence:" in result.stderr
+    assert "[dev-ui-full-regression] HINT: Falls Live-Credentials fehlen" in result.stderr
+    assert "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev" in result.stderr
