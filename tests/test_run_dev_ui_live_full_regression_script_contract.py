@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 from pathlib import Path
 
 
@@ -51,3 +54,64 @@ def test_check_details_encode_observed_visibility_state() -> None:
     assert "submit_visible=${submitVisible}" in content
     assert "server_error_visible_after_analyze=${serverErrorAfterAnalyze}" in content
     assert "error_box_visible_after_analyze=${errorBoxAfterAnalyze}" in content
+
+
+def test_script_uses_dynamic_playwright_import_with_actionable_hint() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'import { chromium } from "playwright";' not in content
+    assert "async function loadChromium()" in content
+    assert 'await import("playwright")' in content
+    assert "npx playwright install --with-deps chromium" in content
+
+
+def test_help_flag_prints_usage_without_env_or_playwright(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--help"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Usage: node scripts/run_dev_ui_live_full_regression.mjs" in result.stdout
+    assert "DEV_UI_BASE_URL" in result.stdout
+    assert "DEV_UI_SMOKE_USERNAME" in result.stdout
+    assert "DEV_UI_SMOKE_PASSWORD" in result.stdout
+    assert result.stderr == ""
+
+
+def test_missing_credentials_emit_evidence_even_before_browser_boot(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract.json"
+    env["DEV_UI_FULL_EVIDENCE_JSON"] = str(evidence_path)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert evidence_path.exists(), f"expected evidence file, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["error"] == "Missing DEV_UI_SMOKE_USERNAME"
+    assert payload["checks"] == []
+
+    assert "[dev-ui-full-regression] FAILED: Missing DEV_UI_SMOKE_USERNAME" in result.stderr
+    assert "[dev-ui-full-regression] Evidence:" in result.stderr

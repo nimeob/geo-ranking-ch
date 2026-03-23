@@ -55,3 +55,22 @@
 - Ich habe `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` auf dieselbe Shared-Route-Matrix migriert und den ordinalen Run-ID-Mechanismus unverändert gelassen.
 - Ich habe die Vertrags-/Workflow-Tests auf das Shared-Route-Setup angepasst (`tests/test_run_login_start_smoke_bundle_script_contract.py`, `tests/test_gui_dev_live_auth_analyze_smoke_workflow.py`) und alle betroffenen Tests grün verifiziert.
 - Ich habe den DEV-Login-Start-Bundle-Livecheck gegen `https://www.dev.georanking.ch` über alle neun Routen erfolgreich erneut durchlaufen lassen.
+
+## 06:00–06:08 CET — ROI: Full-Regression-Preflight stabilisiert (UI-nah)
+- Problem identifiziert: `scripts/run_dev_ui_live_full_regression.mjs --help` crashte sofort mit `ERR_MODULE_NOT_FOUND` (top-level `playwright` import), bevor Preflight/Guidance greift. Das bremst lokale Nacht-Worker-Runs in clean Worktrees ohne Node-Setup.
+- Umsetzung auf Branch `fix/ui-full-regression-preflight-contract-20260323`:
+  - Playwright-Laden auf **dynamischen Import** umgestellt (`loadChromium()`), inkl. klarer Install-Hinweise (`npm ci` + `npx playwright install --with-deps chromium`).
+  - `--help`/`-h` Contract ergänzt (Usage + required/optional ENV), damit schnelle CLI-Preflight-Checks ohne Secrets/Playwright möglich sind.
+  - Required-ENV-Validierung (`DEV_UI_BASE_URL`, `DEV_UI_SMOKE_USERNAME`, `DEV_UI_SMOKE_PASSWORD`) in main-Flow gezogen; Fehler landen jetzt zuverlässig im Evidence-JSON statt unstrukturiertem Stacktrace.
+  - Safe-Cleanup gehärtet: `context/browser` werden nur geschlossen, wenn initialisiert.
+- Tests/Verifikation:
+  - erweitert: `tests/test_run_dev_ui_live_full_regression_script_contract.py`
+    - dynamic import + actionable hint
+    - `--help` exits 0 ohne ENV/Playwright
+    - missing credentials erzeugt Evidence-JSON vor Browser-Boot
+  - `pytest -q tests/test_run_dev_ui_live_full_regression_script_contract.py tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py tests/test_check_ui_login_start.py` → **38 passed**.
+  - Live-Contract-Check: `scripts/smoke/check_ui_login_start.py --base-url https://www.dev.georanking.ch --next /gui --reason night_worker_probe ...` → **ok=true** (302 auf IdP authorize).
+
+## Nächste Schritte
+- Commit + Push des Preflight-Hardening-Branches.
+- PR öffnen und CI grünziehen; danach Merge auf `main` für robustere UI-Full-Regression-Operator-UX.

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import { chromium } from "playwright";
 
 const UI_BASE_URL = (process.env.DEV_UI_BASE_URL || "").trim();
 const USERNAME = (process.env.DEV_UI_SMOKE_USERNAME || "").trim();
@@ -12,6 +11,35 @@ const PRE_LOGIN_5XX_SAMPLE_COUNT = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_
 const PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS || 250);
 const EVIDENCE_JSON = (process.env.DEV_UI_FULL_EVIDENCE_JSON || "artifacts/dev-ui-full/latest/dev-ui-full-regression.json").trim();
 const SCREENSHOT_DIR = (process.env.DEV_UI_FULL_SCREENSHOT_DIR || "artifacts/dev-ui-full/latest/screenshots").trim();
+
+function shouldShowHelp(argv) {
+  return argv.includes("--help") || argv.includes("-h");
+}
+
+function printHelp() {
+  const lines = [
+    "Usage: node scripts/run_dev_ui_live_full_regression.mjs",
+    "",
+    "Required env vars:",
+    "  DEV_UI_BASE_URL",
+    "  DEV_UI_SMOKE_USERNAME",
+    "  DEV_UI_SMOKE_PASSWORD",
+    "",
+    "Optional env vars:",
+    "  DEV_UI_FULL_MAX_WAIT_MS",
+    "  DEV_UI_FULL_LOGOUT_SETTLE_MS",
+    "  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT",
+    "  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS",
+    "  DEV_UI_FULL_EVIDENCE_JSON",
+    "  DEV_UI_FULL_SCREENSHOT_DIR",
+  ];
+  process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+if (shouldShowHelp(process.argv.slice(2))) {
+  printHelp();
+  process.exit(0);
+}
 
 const ADDRESS_POOL = [
   "Bahnhofstrasse 1, 8001 Zürich",
@@ -25,15 +53,59 @@ function fail(message) {
   throw new Error(message);
 }
 
-if (!UI_BASE_URL) fail("Missing DEV_UI_BASE_URL");
-if (!USERNAME) fail("Missing DEV_UI_SMOKE_USERNAME");
-if (!PASSWORD) fail("Missing DEV_UI_SMOKE_PASSWORD");
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack || "",
+    };
+  }
 
-const base = new URL(UI_BASE_URL);
-const baseOrigin = base.origin;
-const guiPath = base.pathname.endsWith("/") ? `${base.pathname}gui` : `${base.pathname}/gui`;
-const guiUrl = new URL(guiPath, baseOrigin).toString();
-const loginStart = new URL(`/login?next=${encodeURIComponent(guiPath)}&reason=dev_ui_full_regression&start=1`, baseOrigin).toString();
+  return {
+    name: "Error",
+    message: String(error || "unknown error"),
+    stack: "",
+  };
+}
+
+async function loadChromium() {
+  try {
+    const playwrightModule = await import("playwright");
+    const chromium = playwrightModule?.chromium;
+    if (!chromium) {
+      throw new Error("chromium export missing");
+    }
+    return chromium;
+  } catch (error) {
+    const normalized = normalizeError(error);
+    throw new Error(
+      `Playwright Chromium nicht verfügbar. Installiere die Node-Abhängigkeiten mit \`npm ci\` `
+      + `und anschließend Browser-Binaries via \`npx playwright install --with-deps chromium\`. `
+      + `Ursache: ${normalized.name}: ${normalized.message}`
+    );
+  }
+}
+
+function validateRequiredEnv() {
+  if (!UI_BASE_URL) fail("Missing DEV_UI_BASE_URL");
+  if (!USERNAME) fail("Missing DEV_UI_SMOKE_USERNAME");
+  if (!PASSWORD) fail("Missing DEV_UI_SMOKE_PASSWORD");
+}
+
+let base = null;
+let baseOrigin = "";
+let guiPath = "";
+let guiUrl = "";
+let loginStart = "";
+
+function initializeTargetUrls() {
+  base = new URL(UI_BASE_URL);
+  baseOrigin = base.origin;
+  guiPath = base.pathname.endsWith("/") ? `${base.pathname}gui` : `${base.pathname}/gui`;
+  guiUrl = new URL(guiPath, baseOrigin).toString();
+  loginStart = new URL(`/login?next=${encodeURIComponent(guiPath)}&reason=dev_ui_full_regression&start=1`, baseOrigin).toString();
+}
 
 const checks = [];
 const consoleErrors = [];
@@ -273,55 +345,9 @@ function isBlockingJobsConsoleError(message) {
 
 async function main() {
   const startedAt = new Date().toISOString();
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-  });
-  const page = await context.newPage();
-
-  page.on("console", (msg) => {
-    if (msg.type() === "error") {
-      consoleErrors.push(msg.text());
-    }
-  });
-  page.on("pageerror", (err) => {
-    pageErrors.push(String(err?.message || err));
-  });
-  page.on("response", async (response) => {
-    try {
-      const url = new URL(response.url());
-      if (!url.origin.endsWith(base.hostname)) return;
-      if (!url.pathname.startsWith("/analyze") && !url.pathname.startsWith("/auth") && !url.pathname.startsWith("/debug/trace")) return;
-      let bodySnippet = "";
-      if (response.status() >= 500) {
-        bodySnippet = String(await response.text().catch(() => "")).slice(0, 800);
-      }
-      networkLog.push({
-        ts: new Date().toISOString(),
-        epochMs: Date.now(),
-        status: response.status(),
-        method: response.request().method(),
-        path: `${url.pathname}${url.search}`,
-        bodySnippet,
-      });
-    } catch {
-      // ignore parse errors
-    }
-  });
-  page.on("requestfailed", (request) => {
-    try {
-      const url = request.url();
-      if (!url.includes("/analyze/jobs")) return;
-      requestFailures.push({
-        ts: new Date().toISOString(),
-        url,
-        method: request.method(),
-        failureText: String(request.failure()?.errorText || ""),
-      });
-    } catch {
-      // ignore parse errors
-    }
-  });
+  let browser = null;
+  let context = null;
+  let page = null;
 
   let finalError = null;
   let currentJobId = "";
@@ -331,6 +357,60 @@ async function main() {
   let firstSyncAnalyzeSubmitAtEpochMs = 0;
 
   try {
+    validateRequiredEnv();
+    initializeTargetUrls();
+    const chromium = await loadChromium();
+
+    browser = await chromium.launch({ headless: true });
+    context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    page = await context.newPage();
+
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+    page.on("pageerror", (err) => {
+      pageErrors.push(String(err?.message || err));
+    });
+    page.on("response", async (response) => {
+      try {
+        const url = new URL(response.url());
+        if (!url.origin.endsWith(base.hostname)) return;
+        if (!url.pathname.startsWith("/analyze") && !url.pathname.startsWith("/auth") && !url.pathname.startsWith("/debug/trace")) return;
+        let bodySnippet = "";
+        if (response.status() >= 500) {
+          bodySnippet = String(await response.text().catch(() => "")).slice(0, 800);
+        }
+        networkLog.push({
+          ts: new Date().toISOString(),
+          epochMs: Date.now(),
+          status: response.status(),
+          method: response.request().method(),
+          path: `${url.pathname}${url.search}`,
+          bodySnippet,
+        });
+      } catch {
+        // ignore parse errors
+      }
+    });
+    page.on("requestfailed", (request) => {
+      try {
+        const url = request.url();
+        if (!url.includes("/analyze/jobs")) return;
+        requestFailures.push({
+          ts: new Date().toISOString(),
+          url,
+          method: request.method(),
+          failureText: String(request.failure()?.errorText || ""),
+        });
+      } catch {
+        // ignore parse errors
+      }
+    });
+
     const health = await context.request.get(new URL("/healthz", baseOrigin).toString(), { timeout: MAX_WAIT_MS });
     const healthJson = await health.json();
     recordCheck("healthz.status_200", health.status() === 200, `status=${health.status()}`);
@@ -727,14 +807,20 @@ async function main() {
     );
   } catch (error) {
     finalError = String(error?.message || error);
-    try {
-      await safeScreenshot(page, "error");
-    } catch {
-      // ignore
+    if (page) {
+      try {
+        await safeScreenshot(page, "error");
+      } catch {
+        // ignore
+      }
     }
   } finally {
-    await context.close();
-    await browser.close();
+    if (context) {
+      await context.close().catch(() => {});
+    }
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
   }
 
   const finishedAt = new Date().toISOString();
