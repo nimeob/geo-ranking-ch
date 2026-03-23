@@ -37,59 +37,46 @@ login_reason_override=""
 run_id_base_override=""
 headful_override=""
 
+require_option_value() {
+  local option_name="$1"
+  local option_value="${2:-}"
+
+  if [[ -z "${option_value}" || "${option_value}" == --* ]]; then
+    echo "ERROR: Missing value for ${option_name}" >&2
+    usage >&2
+    exit 2
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --base-url)
-      [[ $# -ge 2 ]] || {
-        echo "ERROR: Missing value for --base-url" >&2
-        usage >&2
-        exit 2
-      }
+      require_option_value "--base-url" "${2:-}"
       base_url_override="$2"
       shift 2
       ;;
     --output-dir)
-      [[ $# -ge 2 ]] || {
-        echo "ERROR: Missing value for --output-dir" >&2
-        usage >&2
-        exit 2
-      }
+      require_option_value "--output-dir" "${2:-}"
       output_dir_override="$2"
       shift 2
       ;;
     --timeout-ms)
-      [[ $# -ge 2 ]] || {
-        echo "ERROR: Missing value for --timeout-ms" >&2
-        usage >&2
-        exit 2
-      }
+      require_option_value "--timeout-ms" "${2:-}"
       timeout_ms_override="$2"
       shift 2
       ;;
     --address-file)
-      [[ $# -ge 2 ]] || {
-        echo "ERROR: Missing value for --address-file" >&2
-        usage >&2
-        exit 2
-      }
+      require_option_value "--address-file" "${2:-}"
       address_file_override="$2"
       shift 2
       ;;
     --login-reason)
-      [[ $# -ge 2 ]] || {
-        echo "ERROR: Missing value for --login-reason" >&2
-        usage >&2
-        exit 2
-      }
+      require_option_value "--login-reason" "${2:-}"
       login_reason_override="$2"
       shift 2
       ;;
     --run-id-base)
-      [[ $# -ge 2 ]] || {
-        echo "ERROR: Missing value for --run-id-base" >&2
-        usage >&2
-        exit 2
-      }
+      require_option_value "--run-id-base" "${2:-}"
       run_id_base_override="$2"
       shift 2
       ;;

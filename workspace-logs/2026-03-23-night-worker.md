@@ -104,3 +104,20 @@
   - Live-Retest gegen DEV: `run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev ...` → **alle 9 Routen grün** (302 auf IdP authorize)
 - UI-Monitoring:
   - `browser open` auf `https://www.dev.georanking.ch` weiterhin blockiert (`gateway timeout`); daher UI-Verifikation erneut über Live-Smoke/API weitergeführt (kein Idle trotz Browser-Blocker).
+
+## 07:45–07:58 CET — ROI: Route-Set CLI-Parsing gegen Flag-as-Value gehärtet
+- Beobachtung: `run_gui_live_auth_analyze_route_set.sh` akzeptierte bisher bei Wert-Optionen (`--base-url`, `--output-dir`, `--timeout-ms`, `--address-file`, `--login-reason`, `--run-id-base`) ein nachfolgendes Flag (`--headless`) fälschlich als Wert.
+  - Folge: irreführende Fehlbilder (späterer Preflight-Blocker statt sofortiger CLI-Fehler).
+- Umsetzung auf Branch `night/worker-20260323-0745`:
+  - `scripts/smoke/run_gui_live_auth_analyze_route_set.sh`
+    - neue Guard-Funktion `require_option_value` eingeführt
+    - Guard prüft jetzt für alle Wert-Optionen: Wert muss vorhanden sein **und** darf nicht mit `--` beginnen
+    - bei Verstoß konsistent: `ERROR: Missing value for <flag>` + Usage + Exit-Code `2`
+  - `tests/test_run_gui_live_auth_analyze_route_set_preflight.py`
+    - parametrisierter Runtime-Contract-Test ergänzt: jede Wert-Option mit `--headless` als Folgetoken wird sauber mit Exit `2` abgewiesen
+- Verifikation:
+  - `pytest -q tests/test_run_gui_live_auth_analyze_route_set_preflight.py` → **9 passed**
+  - `pytest -q tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py tests/test_gui_dev_live_auth_analyze_smoke_workflow.py tests/test_gui_dev_live_auth_analyze_smoke_docs.py` → **13 passed**
+- Live-DEV-UI Smoke (Fallback ohne Browser-Tool) gegen `https://www.dev.georanking.ch` erneut ausgeführt:
+  - `scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name 20260323T0745Z-dev --output-dir artifacts/nightworker`
+  - Ergebnis: **PASS** für alle 9 Login-Start-Routen (302 → `auth.dev.georanking.ch`)

@@ -5,6 +5,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "smoke" / "run_gui_live_auth_analyze_route_set.sh"
@@ -60,6 +62,39 @@ def test_route_set_runner_rejects_unknown_cli_option_before_preflight(tmp_path: 
 
     assert proc.returncode == 2
     assert "Unknown option" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+@pytest.mark.parametrize(
+    ("missing_option", "next_flag"),
+    [
+        ("--base-url", "--headless"),
+        ("--output-dir", "--headless"),
+        ("--timeout-ms", "--headless"),
+        ("--address-file", "--headless"),
+        ("--login-reason", "--headless"),
+        ("--run-id-base", "--headless"),
+    ],
+)
+def test_route_set_runner_rejects_missing_option_value_when_next_token_is_flag(
+    tmp_path: Path,
+    missing_option: str,
+    next_flag: str,
+) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(tmp_path / "blocked")
+
+    proc = subprocess.run(
+        [str(SCRIPT), missing_option, next_flag],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert f"Missing value for {missing_option}" in proc.stderr
     assert "Usage:" in proc.stderr
 
 
