@@ -18,6 +18,7 @@ def test_route_set_runner_fails_fast_on_missing_secrets_without_route_fanout(
     env = os.environ.copy()
     env.pop("DEV_UI_SMOKE_USERNAME", None)
     env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env.pop("GITHUB_RUN_NUMBER", None)
     env["GITHUB_RUN_ID"] = "98765"
     env["GITHUB_RUN_ATTEMPT"] = "4"
     env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
