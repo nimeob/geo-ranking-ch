@@ -219,6 +219,23 @@ def _assert_login_contract_smoke_coverage(
     ), f"{workflow_name} fehlt Login-Contract-Smoke-Coverage: {missing}"
 
 
+def _assert_canonical_host_smoke_coverage(
+    *, text: str, env_name: str, workflow_name: str
+) -> None:
+    required = [
+        "Smoke-Test UI canonical-host redirect (/login?start=1 on alias host)",
+        "python3 scripts/smoke/check_ui_canonical_redirect.py",
+        "UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}",
+        "UI_CANONICAL_HOSTS: ${{ vars.UI_CANONICAL_HOSTS }}",
+        f"artifacts/{env_name}-canonical-host-redirect-smoke.json",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"{workflow_name} fehlt Canonical-Host-Smoke-Coverage: {missing}"
+
+
 def test_deploy_workflow_smokes_login_contract_for_gui_history_jobs_and_legacy_routes():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
@@ -235,6 +252,26 @@ def test_deploy_staging_workflow_smokes_login_contract_for_gui_history_jobs_and_
 
     text = workflow.read_text(encoding="utf-8")
     _assert_login_contract_smoke_coverage(
+        text=text, env_name="staging", workflow_name="deploy-staging.yml"
+    )
+
+
+def test_deploy_workflow_smokes_canonical_host_redirect_when_alias_hosts_are_configured():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    _assert_canonical_host_smoke_coverage(
+        text=text, env_name="dev", workflow_name="deploy.yml"
+    )
+
+
+def test_deploy_staging_workflow_smokes_canonical_host_redirect_when_alias_hosts_are_configured():
+    workflow = Path(".github/workflows/deploy-staging.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    _assert_canonical_host_smoke_coverage(
         text=text, env_name="staging", workflow_name="deploy-staging.yml"
     )
 

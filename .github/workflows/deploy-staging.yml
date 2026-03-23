@@ -491,6 +491,29 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke-Test UI canonical-host redirect (/login?start=1 on alias host)
+        env:
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+          UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}
+          UI_CANONICAL_HOSTS: ${{ vars.UI_CANONICAL_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SERVICE_APP_BASE_URL:-}" ]; then
+            echo "::error::Missing SERVICE_APP_BASE_URL for UI canonical-host smoke"
+            exit 1
+          fi
+
+          python3 scripts/smoke/check_ui_canonical_redirect.py \
+            --base-url "${SERVICE_APP_BASE_URL}" \
+            --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
+            --canonical-hosts "${UI_CANONICAL_HOSTS:-}" \
+            --next "/gui" \
+            --reason "manual_login" \
+            --timeout 20 \
+            --max-attempts 8 \
+            --retry-delay 5 \
+            --output-json artifacts/staging-canonical-host-redirect-smoke.json
+
       - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs + /jobs/:id + /results/:id + legacy /gui/jobs*)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
@@ -520,6 +543,7 @@ jobs:
             artifacts/staging-login-start-smoke-results-detail.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy-detail.json
+            artifacts/staging-canonical-host-redirect-smoke.json
 
       - name: Optional strict split smoke (API + UI routing)
         env:
