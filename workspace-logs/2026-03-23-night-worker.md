@@ -90,3 +90,17 @@
   - Runtime: `run_gui_live_auth_analyze_route_set.sh ... --headless` ohne Secrets erzeugt Blocker-Evidence + neuen Login-Start-Hint
   - Runtime fallback: `run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev ...` über alle 9 Routen grün (302→IdP)
 - UI-Browser-Blocker bleibt extern: `browser start` timeout; `openclaw gateway status` weiterhin mit Config-Fehler `Cannot access 'ANTHROPIC_MODEL_ALIASES' before initialization`. Deshalb weiter API/Smoke-basiertes UI-Monitoring ohne Leerlauf.
+
+## 07:20–07:33 CET — ROI: CLI-Fehlerbild im Login-Start-Bundle entstört
+- Beobachtung: `scripts/smoke/run_login_start_smoke_bundle.sh --base-url` (ohne Wert) terminierte zuvor mit Exit-Code `1` **ohne** Fehltext/Usage (Bash-`shift`-Abort). Das kostet Zeit bei manuellen Deploy-/Smoke-Runs und erschwert schnelle Fehlerdiagnose.
+- Umsetzung auf Branch `night/worker-20260323-0720`:
+  - `scripts/smoke/run_login_start_smoke_bundle.sh`
+    - neue Guard-Funktion `require_option_value` für alle Flags mit Pflichtwert (`--base-url`, `--env-name`, `--output-dir`, `--reason`, `--timeout`, `--max-attempts`, `--retry-delay`)
+    - bei fehlendem Wert jetzt konsistent: `::error::Missing value for <flag>` + Usage + Exit-Code `2`
+  - `tests/test_run_login_start_smoke_bundle_script_contract.py`
+    - zwei Runtime-Regressionstests ergänzt (fehlender Wert bei `--base-url` und `--timeout`)
+- Verifikation:
+  - `pytest -q tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_run_gui_live_auth_analyze_route_set_preflight.py tests/test_check_ui_login_start.py` → **31 passed**
+  - Live-Retest gegen DEV: `run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev ...` → **alle 9 Routen grün** (302 auf IdP authorize)
+- UI-Monitoring:
+  - `browser open` auf `https://www.dev.georanking.ch` weiterhin blockiert (`gateway timeout`); daher UI-Verifikation erneut über Live-Smoke/API weitergeführt (kein Idle trotz Browser-Blocker).

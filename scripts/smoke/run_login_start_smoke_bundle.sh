@@ -27,34 +27,52 @@ Options:
 EOF
 }
 
+require_option_value() {
+  local option_name="$1"
+  local option_value="${2:-}"
+
+  if [ -z "${option_value}" ] || [[ "${option_value}" == --* ]]; then
+    echo "::error::Missing value for ${option_name}" >&2
+    usage >&2
+    exit 2
+  fi
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --base-url)
-      BASE_URL="${2:-}"
+      require_option_value "--base-url" "${2:-}"
+      BASE_URL="$2"
       shift 2
       ;;
     --env-name)
-      ENV_NAME="${2:-}"
+      require_option_value "--env-name" "${2:-}"
+      ENV_NAME="$2"
       shift 2
       ;;
     --output-dir)
-      OUTPUT_DIR="${2:-}"
+      require_option_value "--output-dir" "${2:-}"
+      OUTPUT_DIR="$2"
       shift 2
       ;;
     --reason)
-      REASON="${2:-}"
+      require_option_value "--reason" "${2:-}"
+      REASON="$2"
       shift 2
       ;;
     --timeout)
-      TIMEOUT_SECONDS="${2:-}"
+      require_option_value "--timeout" "${2:-}"
+      TIMEOUT_SECONDS="$2"
       shift 2
       ;;
     --max-attempts)
-      MAX_ATTEMPTS="${2:-}"
+      require_option_value "--max-attempts" "${2:-}"
+      MAX_ATTEMPTS="$2"
       shift 2
       ;;
     --retry-delay)
-      RETRY_DELAY_SECONDS="${2:-}"
+      require_option_value "--retry-delay" "${2:-}"
+      RETRY_DELAY_SECONDS="$2"
       shift 2
       ;;
     -h|--help)

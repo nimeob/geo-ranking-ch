@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
 
 
@@ -46,3 +48,33 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     assert "--env-name" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
+
+
+def test_login_start_bundle_rejects_missing_option_value_for_base_url() -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), "--base-url"],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --base-url" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_login_start_bundle_rejects_missing_option_value_for_timeout() -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), "--base-url", "https://www.dev.georanking.ch", "--env-name", "dev", "--timeout"],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --timeout" in proc.stderr
+    assert "Usage:" in proc.stderr
