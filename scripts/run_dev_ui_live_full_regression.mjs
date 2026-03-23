@@ -53,6 +53,24 @@ function fail(message) {
   throw new Error(message);
 }
 
+function inferFallbackEnvName(baseUrl) {
+  const normalized = String(baseUrl || "").toLowerCase();
+  if (normalized.includes("staging")) {
+    return "staging";
+  }
+  return "dev";
+}
+
+function buildLoginStartFallbackCommand(baseUrl) {
+  const normalizedBaseUrl = String(baseUrl || "").trim();
+  if (!normalizedBaseUrl) {
+    return "";
+  }
+
+  const envName = inferFallbackEnvName(normalizedBaseUrl);
+  return `./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${normalizedBaseUrl} --env-name ${envName}`;
+}
+
 function normalizeError(error) {
   if (error instanceof Error) {
     return {
@@ -91,6 +109,27 @@ function validateRequiredEnv() {
   if (!UI_BASE_URL) fail("Missing DEV_UI_BASE_URL");
   if (!USERNAME) fail("Missing DEV_UI_SMOKE_USERNAME");
   if (!PASSWORD) fail("Missing DEV_UI_SMOKE_PASSWORD");
+}
+
+function emitFailureHints(finalError) {
+  const errorText = String(finalError || "");
+  if (!/^Missing DEV_UI_(BASE_URL|SMOKE_USERNAME|SMOKE_PASSWORD)$/.test(errorText)) {
+    return;
+  }
+
+  if (errorText === "Missing DEV_UI_BASE_URL") {
+    console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL (z. B. https://www.dev.georanking.ch) und starte erneut.");
+    return;
+  }
+
+  const fallbackCommand = buildLoginStartFallbackCommand(UI_BASE_URL);
+  if (!fallbackCommand) {
+    console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL und starte erneut.");
+    return;
+  }
+
+  console.error("[dev-ui-full-regression] HINT: Falls Live-Credentials fehlen, nutze Login-Start-Smoke als Fallback:");
+  console.error(`[dev-ui-full-regression] HINT: ${fallbackCommand}`);
 }
 
 let base = null;
@@ -848,6 +887,7 @@ async function main() {
   if (finalError) {
     console.error(`[dev-ui-full-regression] FAILED: ${finalError}`);
     console.error(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON}`);
+    emitFailureHints(finalError);
     process.exit(1);
   }
 
