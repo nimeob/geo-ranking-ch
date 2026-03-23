@@ -3,7 +3,9 @@ from pathlib import Path
 
 def test_deploy_version_trace_runbook_contains_required_checklist():
     doc = Path("docs/testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md")
-    assert doc.exists(), "Runbook fehlt: docs/testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md"
+    assert (
+        doc.exists()
+    ), "Runbook fehlt: docs/testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md"
 
     text = doc.read_text(encoding="utf-8")
     required = [
@@ -100,7 +102,9 @@ def test_deploy_workflow_validates_required_env_keys_before_rollout():
     missing = [snippet for snippet in required if snippet not in text]
     assert not missing, f"deploy.yml fehlt ENV-Preflight-Guardrail: {missing}"
 
-    assert text.index("Validate required deploy environment keys (vars + secrets)") < text.index(
+    assert text.index(
+        "Validate required deploy environment keys (vars + secrets)"
+    ) < text.index(
         "Configure AWS credentials (OIDC)"
     ), "ENV-Preflight muss vor dem AWS-Deploy beginnen."
 
@@ -135,7 +139,9 @@ def test_deployment_aws_doc_mentions_container_resolution_guardrail():
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
-    assert not missing, f"DEPLOYMENT_AWS.md fehlt Container-Auflösungs-Hinweis: {missing}"
+    assert (
+        not missing
+    ), f"DEPLOYMENT_AWS.md fehlt Container-Auflösungs-Hinweis: {missing}"
 
 
 def test_deployment_aws_doc_lists_required_deploy_auth_secret_preflight():
@@ -150,7 +156,9 @@ def test_deployment_aws_doc_lists_required_deploy_auth_secret_preflight():
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
-    assert not missing, f"DEPLOYMENT_AWS.md fehlt Pflicht-Secret-Dokumentation: {missing}"
+    assert (
+        not missing
+    ), f"DEPLOYMENT_AWS.md fehlt Pflicht-Secret-Dokumentation: {missing}"
 
 
 def test_deploy_workflow_uses_deploy_gate_runner_with_rollback_snapshot():
@@ -186,7 +194,9 @@ def test_deploy_workflow_wires_database_reachability_gate_inputs():
     assert not missing, f"deploy.yml fehlt Health-Gate-Verdrahtung: {missing}"
 
 
-def _assert_login_contract_smoke_coverage(*, text: str, env_name: str, workflow_name: str) -> None:
+def _assert_login_contract_smoke_coverage(
+    *, text: str, env_name: str, workflow_name: str
+) -> None:
     required = [
         "Smoke-Test UI login start redirects to IdP authorize (",
         "scripts/smoke/run_login_start_smoke_bundle.sh",
@@ -194,6 +204,7 @@ def _assert_login_contract_smoke_coverage(*, text: str, env_name: str, workflow_
         f"artifacts/{env_name}-login-start-smoke.json",
         f"artifacts/{env_name}-login-start-smoke-gui-history.json",
         f"artifacts/{env_name}-login-start-smoke-jobs.json",
+        f"artifacts/{env_name}-login-start-smoke-jobs-detail.json",
         f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy.json",
         f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy-detail.json",
         f"Upload login-start smoke artifacts ({env_name})",
@@ -202,7 +213,9 @@ def _assert_login_contract_smoke_coverage(*, text: str, env_name: str, workflow_
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
-    assert not missing, f"{workflow_name} fehlt Login-Contract-Smoke-Coverage: {missing}"
+    assert (
+        not missing
+    ), f"{workflow_name} fehlt Login-Contract-Smoke-Coverage: {missing}"
 
 
 def test_deploy_workflow_smokes_login_contract_for_gui_history_jobs_and_legacy_routes():
@@ -210,7 +223,9 @@ def test_deploy_workflow_smokes_login_contract_for_gui_history_jobs_and_legacy_r
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
 
     text = workflow.read_text(encoding="utf-8")
-    _assert_login_contract_smoke_coverage(text=text, env_name="dev", workflow_name="deploy.yml")
+    _assert_login_contract_smoke_coverage(
+        text=text, env_name="dev", workflow_name="deploy.yml"
+    )
 
 
 def test_deploy_staging_workflow_smokes_login_contract_for_gui_history_jobs_and_legacy_routes():
@@ -218,7 +233,9 @@ def test_deploy_staging_workflow_smokes_login_contract_for_gui_history_jobs_and_
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
 
     text = workflow.read_text(encoding="utf-8")
-    _assert_login_contract_smoke_coverage(text=text, env_name="staging", workflow_name="deploy-staging.yml")
+    _assert_login_contract_smoke_coverage(
+        text=text, env_name="staging", workflow_name="deploy-staging.yml"
+    )
 
 
 def test_deployment_aws_doc_mentions_deploy_gate_rollback_required_marker():
@@ -251,4 +268,6 @@ def test_deployment_aws_doc_mentions_database_reachability_gate():
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
-    assert not missing, f"DEPLOYMENT_AWS.md fehlt DB-Reachability-Gate-Dokumentation: {missing}"
+    assert (
+        not missing
+    ), f"DEPLOYMENT_AWS.md fehlt DB-Reachability-Gate-Dokumentation: {missing}"
