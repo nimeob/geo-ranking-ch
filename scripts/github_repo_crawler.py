@@ -11,7 +11,10 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GHA = str(REPO_ROOT / "scripts" / "gha")
 
-EVIDENCE_RE = re.compile(r"\b(commit|pr\s*#|#\d+|pytest|test[s]?|merged|fixes)\b", re.IGNORECASE)
+EVIDENCE_RE = re.compile(
+    r"(?:#\d+\b|/pull/\d+\b|/commit/[0-9a-f]{7,40}\b|\b(?:commit|pytest|test[s]?|merged|fix|fixes|fixed|close|closes|closed|pr)\b)",
+    re.IGNORECASE,
+)
 TODO_TOKEN_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b", re.IGNORECASE)
 TODO_PREFIX_CONTEXT_RE = re.compile(
     r"^\s*(?:(?:#|//|/\*|<!--)\s*)?(?:[-*]\s+)?(?:\[[ xX]\]\s+)?(TODO|FIXME|HACK|XXX)\b",
