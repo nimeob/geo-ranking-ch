@@ -954,3 +954,22 @@ class TestFetchClosedIssuesBatch(unittest.TestCase):
 
         self.assertEqual(findings, [])
         mock_reopen.assert_not_called()
+
+    def test_audit_closed_issues_treats_plain_issue_hash_reference_as_evidence(self):
+        node = self._make_gql_node(
+            number=11,
+            body="## DoD\n- [ ] Follow-up docs",
+            comments=["Fix: #1464\nRedeploy verified."],
+            prs=[],
+            labels=["status:todo"],
+        )
+        response = self._make_gql_response([node], has_previous=False)
+
+        with patch.object(crawler, "run", return_value=response):
+            with patch.object(crawler, "reopen_issue") as mock_reopen:
+                findings = crawler.audit_closed_issues(dry_run=True)
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["type"], "issue_closure_consistency")
+        self.assertEqual(findings[0]["severity"], "medium")
+        mock_reopen.assert_not_called()
