@@ -33,7 +33,9 @@ class _StubHandler(BaseHTTPRequestHandler):
         return
 
     def _resolve_route(self) -> object:
-        return self.routes.get(self.path, self.routes.get(self.path.split("?", 1)[0], (404, "")))
+        return self.routes.get(
+            self.path, self.routes.get(self.path.split("?", 1)[0], (404, ""))
+        )
 
     def do_GET(self):  # noqa: N802
         route = self._resolve_route()
@@ -94,10 +96,82 @@ def test_check_login_entry_passes_for_html_with_start_link():
     assert result.reason == "ok"
 
 
+def test_check_login_entry_passes_for_html_with_query_encoded_next_path():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fjobs%3Fcity%3DZ%C3%BCrich%26sort%3Dscore&reason=manual_login": {
+            "status": 200,
+            "body": '<a href="/login?next=%2Fjobs%3Fcity%3DZ%C3%BCrich%26sort%3Dscore&amp;reason=manual_login&amp;start=1">Weiter</a>',
+        },
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(
+            base_url=stub.base_url, next_path="/jobs?city=Zürich&sort=score"
+        )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
+def test_check_login_entry_fails_when_html_start_link_has_wrong_next_path():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": {
+            "status": 200,
+            "body": '<a href="/login?next=%2Fhistory&amp;reason=manual_login&amp;start=1">Jetzt anmelden</a>',
+        },
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "entry_start_link_next_mismatch"
+
+
+def test_check_login_entry_fails_when_html_start_link_has_wrong_reason():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": {
+            "status": 200,
+            "body": '<a href="/login?next=%2Fgui&amp;reason=manual_login_typo&amp;start=1">Jetzt anmelden</a>',
+        },
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "entry_start_link_reason_mismatch"
+
+
+def test_check_login_entry_prefers_valid_start_link_when_multiple_links_exist():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": {
+            "status": 200,
+            "body": (
+                '<a href="/login?next=%2Fhistory&amp;reason=manual_login&amp;start=1">Falsch</a>'
+                '<a href="/login?next=%2Fgui&amp;reason=manual_login&amp;start=1">Richtig</a>'
+            ),
+        },
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
 def test_check_login_entry_passes_for_authorize_redirect():
     module = _load_module()
     _StubHandler.routes = {
-        "/login?next=%2Fgui&reason=manual_login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+        "/login?next=%2Fgui&reason=manual_login": (
+            302,
+            "https://idp.example.test/oauth2/authorize?state=abc",
+        ),
     }
 
     with _StubServer() as stub:
@@ -110,7 +184,10 @@ def test_check_login_entry_passes_for_authorize_redirect():
 def test_check_login_entry_passes_for_http_307_auth_login_redirect():
     module = _load_module()
     _StubHandler.routes = {
-        "/login?next=%2Fgui&reason=manual_login": (307, "/auth/login?next=%2Fgui&reason=manual_login"),
+        "/login?next=%2Fgui&reason=manual_login": (
+            307,
+            "/auth/login?next=%2Fgui&reason=manual_login",
+        ),
     }
 
     with _StubServer() as stub:
@@ -123,7 +200,10 @@ def test_check_login_entry_passes_for_http_307_auth_login_redirect():
 def test_check_login_entry_passes_for_auth_login_redirect():
     module = _load_module()
     _StubHandler.routes = {
-        "/login?next=%2Fgui&reason=manual_login": (302, "/auth/login?next=%2Fgui&reason=manual_login"),
+        "/login?next=%2Fgui&reason=manual_login": (
+            302,
+            "/auth/login?next=%2Fgui&reason=manual_login",
+        ),
     }
 
     with _StubServer() as stub:
@@ -133,7 +213,9 @@ def test_check_login_entry_passes_for_auth_login_redirect():
     assert result.reason == "ok_redirect"
 
 
-def test_main_fails_with_entry_phase_when_login_entry_redirect_target_is_invalid(capsys):
+def test_main_fails_with_entry_phase_when_login_entry_redirect_target_is_invalid(
+    capsys,
+):
     module = _load_module()
     _StubHandler.routes = {
         "/login?next=%2Fgui&reason=manual_login": (302, "/gui"),
@@ -156,7 +238,9 @@ def test_main_accepts_json_out_alias_and_writes_result(tmp_path, capsys):
     output_path = tmp_path / "login-start.json"
 
     with _StubServer() as stub:
-        exit_code = module.main(["--base-url", stub.base_url, "--json-out", str(output_path)])
+        exit_code = module.main(
+            ["--base-url", stub.base_url, "--json-out", str(output_path)]
+        )
 
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out.strip())
@@ -251,7 +335,10 @@ def test_check_login_start_fails_when_auth_login_redirect_misses_required_reason
 def test_check_login_entry_fails_for_auth_login_redirect_without_expected_next_query():
     module = _load_module()
     _StubHandler.routes = {
-        "/login?next=%2Fgui&reason=manual_login": (302, "/auth/login?next=%2Fhistory&reason=manual_login"),
+        "/login?next=%2Fgui&reason=manual_login": (
+            302,
+            "/auth/login?next=%2Fhistory&reason=manual_login",
+        ),
     }
 
     with _StubServer() as stub:
@@ -353,7 +440,9 @@ def test_check_login_start_raises_when_retries_exhausted(monkeypatch):
         def open(self, req, timeout):  # noqa: ARG002
             raise TimeoutError("timed out")
 
-    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: _AlwaysFailingOpener())
+    monkeypatch.setattr(
+        module, "build_opener", lambda *_args, **_kwargs: _AlwaysFailingOpener()
+    )
 
     with pytest.raises(RuntimeError, match="request_failed_after_retries"):
         module.check_login_start(
@@ -382,7 +471,9 @@ def test_check_login_start_retries_transient_http_429_with_retry_after(monkeypat
         def open(self, req, timeout):  # noqa: ARG002
             self.calls += 1
             if self.calls == 1:
-                raise HTTPError(req.full_url, 429, "Too Many Requests", {"Retry-After": "0"}, None)
+                raise HTTPError(
+                    req.full_url, 429, "Too Many Requests", {"Retry-After": "0"}, None
+                )
             return _FakeResponse("https://idp.example.test/oauth2/authorize?state=abc")
 
     opener = _FlakyRateLimitOpener()
@@ -399,7 +490,9 @@ def test_check_login_start_retries_transient_http_429_with_retry_after(monkeypat
     assert opener.calls == 2
 
 
-def test_check_login_start_retries_transient_http_429_with_stale_retry_after_uses_default_delay(monkeypatch):
+def test_check_login_start_retries_transient_http_429_with_stale_retry_after_uses_default_delay(
+    monkeypatch,
+):
     module = _load_module()
 
     class _FakeResponse:
@@ -430,7 +523,9 @@ def test_check_login_start_retries_transient_http_429_with_stale_retry_after_use
     sleep_calls: list[float] = []
     opener = _FlakyRateLimitOpener()
     monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: opener)
-    monkeypatch.setattr(module.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+    monkeypatch.setattr(
+        module.time, "sleep", lambda seconds: sleep_calls.append(seconds)
+    )
 
     result = module.check_login_start(
         base_url="https://www.dev.georanking.ch",
