@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlencode, urljoin, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -209,6 +209,21 @@ def _is_auth_login_redirect(location: str) -> bool:
     return urlparse(location).path.rstrip("/").lower() == "/auth/login"
 
 
+def _validate_auth_login_redirect_query(*, location: str, next_path: str, reason: str, phase: str) -> tuple[bool, str]:
+    parsed = urlparse(location)
+    query = parse_qs(parsed.query, keep_blank_values=True)
+
+    next_value = str((query.get("next") or [""])[0])
+    if next_value != str(next_path):
+        return False, f"{phase}_auth_login_redirect_next_mismatch"
+
+    reason_value = str((query.get("reason") or [""])[0])
+    if reason_value != str(reason):
+        return False, f"{phase}_auth_login_redirect_reason_mismatch"
+
+    return True, "ok"
+
+
 def _is_login_unavailable_redirect(location: str) -> bool:
     return "reason=login_unavailable" in location.lower()
 
@@ -252,7 +267,33 @@ def check_login_entry(
                 reason="entry_redirected_login_unavailable",
             )
 
-        if _is_authorize_redirect(probe.location) or _is_auth_login_redirect(probe.location):
+        if _is_authorize_redirect(probe.location):
+            return LoginEntryCheckResult(
+                ok=True,
+                status_code=probe.status_code,
+                location=probe.location,
+                request_url=request_url,
+                content_type=probe.content_type,
+                reason="ok_redirect",
+            )
+
+        if _is_auth_login_redirect(probe.location):
+            auth_login_query_ok, auth_login_query_reason = _validate_auth_login_redirect_query(
+                location=probe.location,
+                next_path=next_path,
+                reason=reason,
+                phase="entry",
+            )
+            if not auth_login_query_ok:
+                return LoginEntryCheckResult(
+                    ok=False,
+                    status_code=probe.status_code,
+                    location=probe.location,
+                    request_url=request_url,
+                    content_type=probe.content_type,
+                    reason=auth_login_query_reason,
+                )
+
             return LoginEntryCheckResult(
                 ok=True,
                 status_code=probe.status_code,
@@ -373,6 +414,21 @@ def check_login_start(
             location=first_location,
             request_url=request_url,
             reason="location_is_not_authorize_or_auth_login_redirect",
+        )
+
+    auth_login_query_ok, auth_login_query_reason = _validate_auth_login_redirect_query(
+        location=first_location,
+        next_path=next_path,
+        reason=reason,
+        phase="start",
+    )
+    if not auth_login_query_ok:
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=first_status,
+            location=first_location,
+            request_url=request_url,
+            reason=auth_login_query_reason,
         )
 
     second_request_url = urljoin(request_url, first_location)

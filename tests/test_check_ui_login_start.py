@@ -234,7 +234,7 @@ def test_check_login_start_fails_for_non_redirect_status():
     assert result.reason == "unexpected_start_status_200"
 
 
-def test_check_login_start_fails_when_auth_login_hop_does_not_reach_authorize():
+def test_check_login_start_fails_when_auth_login_redirect_misses_required_reason_query():
     module = _load_module()
     _StubHandler.routes = {
         "/login": (302, "/auth/login?next=%2Fgui"),
@@ -245,7 +245,33 @@ def test_check_login_start_fails_when_auth_login_hop_does_not_reach_authorize():
         result = module.check_login_start(base_url=stub.base_url)
 
     assert result.ok is False
-    assert result.reason == "auth_login_hop_non_authorize_redirect"
+    assert result.reason == "start_auth_login_redirect_reason_mismatch"
+
+
+def test_check_login_entry_fails_for_auth_login_redirect_without_expected_next_query():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": (302, "/auth/login?next=%2Fhistory&reason=manual_login"),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "entry_auth_login_redirect_next_mismatch"
+
+
+def test_check_login_start_fails_for_auth_login_redirect_without_expected_reason_query():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "/auth/login?next=%2Fgui&reason=manual_login_typo"),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_start(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "start_auth_login_redirect_reason_mismatch"
 
 
 def test_check_login_start_retries_transient_request_error(monkeypatch):
