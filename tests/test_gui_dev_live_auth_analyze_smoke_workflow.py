@@ -5,7 +5,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "gui-dev-live-auth-analyze-smoke.yml"
-ROUTE_SET_SCRIPT = REPO_ROOT / "scripts" / "smoke" / "run_gui_live_auth_analyze_route_set.sh"
+ROUTE_SET_SCRIPT = (
+    REPO_ROOT / "scripts" / "smoke" / "run_gui_live_auth_analyze_route_set.sh"
+)
 
 
 def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> None:
@@ -15,16 +17,22 @@ def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> Non
     assert "Run DEV live UI auth+analyze smoke (all routes)" in content
     assert "run: ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh" in content
     assert "gui-dev-live-auth-analyze-smoke-artifacts" in content
-    assert "gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}" not in content
+    assert (
+        "gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}"
+        not in content
+    )
 
 
-def test_route_set_script_covers_all_required_gui_paths_and_route_specific_run_ids() -> None:
+def test_route_set_script_covers_all_required_gui_paths_and_route_specific_run_ids() -> (
+    None
+):
     content = ROUTE_SET_SCRIPT.read_text(encoding="utf-8")
 
     assert '"/gui"' in content
     assert '"/gui/history"' in content
     assert '"/gui/jobs"' in content
     assert '"/jobs"' in content
+    assert '"/jobs?source=smoke"' in content
     assert '"/gui/jobs/demo-job"' in content
     assert '"/jobs/demo-job"' in content
     assert '"/results/demo-result"' in content
