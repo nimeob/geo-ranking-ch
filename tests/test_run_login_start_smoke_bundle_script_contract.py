@@ -14,17 +14,21 @@ def test_login_start_bundle_script_covers_canonical_and_legacy_routes() -> None:
         'run_probe "/gui"',
         'run_probe "/gui/history"',
         'run_probe "/jobs"',
+        'run_probe "/jobs/demo-job"',
         'run_probe "/gui/jobs"',
         'run_probe "/gui/jobs/demo-job"',
-        'LOGIN_GUI_RC',
-        'LOGIN_HISTORY_RC',
-        'LOGIN_JOBS_RC',
-        'LOGIN_GUI_JOBS_LEGACY_RC',
-        'LOGIN_GUI_JOBS_LEGACY_DETAIL_RC',
+        "LOGIN_GUI_RC",
+        "LOGIN_HISTORY_RC",
+        "LOGIN_JOBS_RC",
+        "LOGIN_JOBS_DETAIL_RC",
+        "LOGIN_GUI_JOBS_LEGACY_RC",
+        "LOGIN_GUI_JOBS_LEGACY_DETAIL_RC",
     ]
 
     missing = [snippet for snippet in required if snippet not in content]
-    assert not missing, f"run_login_start_smoke_bundle.sh fehlt Smoke-Contract-Snippets: {missing}"
+    assert (
+        not missing
+    ), f"run_login_start_smoke_bundle.sh fehlt Smoke-Contract-Snippets: {missing}"
 
 
 def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:

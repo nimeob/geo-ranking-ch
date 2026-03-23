@@ -468,7 +468,7 @@ jobs:
             exit 1
           fi
 
-      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs + legacy /gui/jobs*)
+      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs + /jobs/:id + legacy /gui/jobs*)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
@@ -493,6 +493,7 @@ jobs:
             artifacts/staging-login-start-smoke.json
             artifacts/staging-login-start-smoke-gui-history.json
             artifacts/staging-login-start-smoke-jobs.json
+            artifacts/staging-login-start-smoke-jobs-detail.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy-detail.json
 
