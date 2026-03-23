@@ -42,3 +42,9 @@
   - regression: `pytest -q tests/test_gui_dev_live_auth_analyze_smoke_workflow.py tests/test_validate_gui_live_auth_analyze_secrets_script.py tests/test_run_gui_live_auth_analyze_route_set_preflight.py` → **9 passed**
 - **Docs:** `docs/testing/GUI_DEV_LIVE_AUTH_ANALYZE_SMOKE.md` ergänzt (integrierter Preflight + lokaler Route-Set-Run).
 - **Runtime check:** `./scripts/smoke/run_gui_live_auth_analyze_route_set.sh` ohne Secrets bricht jetzt sofort mit einem Blocker-Artifact ab (kein 8x Fehlfanout).
+
+## 04:24 CET — Blocker-Auflösung nach Merge #1462
+- **Blocker aktiv gelöst:** Main-Deploy `Deploy to AWS (ECS dev) #23420000720` failte im Unit-Test.
+- **Root cause:** neuer Test `test_run_gui_live_auth_analyze_route_set_preflight.py` war CI-instabil, weil `GITHUB_RUN_NUMBER` in GitHub Actions den erwarteten Dateinamen überschreibt.
+- **Fix:** im Test-Setup `GITHUB_RUN_NUMBER` explizit entfernt (`env.pop("GITHUB_RUN_NUMBER", None)`), damit deterministisch `GITHUB_RUN_ID` genutzt wird.
+- **Verification:** `pytest -q tests/test_run_gui_live_auth_analyze_route_set_preflight.py tests/test_gui_dev_live_auth_analyze_smoke_workflow.py tests/test_validate_gui_live_auth_analyze_secrets_script.py` → **9 passed**.
