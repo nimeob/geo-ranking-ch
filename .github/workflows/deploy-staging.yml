@@ -132,6 +132,8 @@ jobs:
           TRACE_DEBUG_MAX_EVENTS: ${{ vars.TRACE_DEBUG_MAX_EVENTS }}
           TRACE_DEBUG_CW_LOG_GROUP: ${{ vars.TRACE_DEBUG_CW_LOG_GROUP }}
           TRACE_DEBUG_CW_LOG_STREAM_PREFIX: ${{ vars.TRACE_DEBUG_CW_LOG_STREAM_PREFIX }}
+          UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}
+          UI_CANONICAL_HOSTS: ${{ vars.UI_CANONICAL_HOSTS }}
         run: |
           set -euo pipefail
 
@@ -140,6 +142,8 @@ jobs:
             local container="$2"
             local image="$3"
             local outvar="$4"
+            local canonical_origin="$5"
+            local canonical_hosts="$6"
 
             local app_version="${GITHUB_SHA::7}"
             local git_sha="${GITHUB_SHA}"
@@ -191,7 +195,9 @@ jobs:
               --arg TRACE_LOOKBACK "$trace_lookback" \
               --arg TRACE_MAX_EVENTS "$trace_max_events" \
               --arg TRACE_CW_LOG_GROUP "$trace_cw_log_group" \
-              --arg TRACE_CW_LOG_STREAM_PREFIX "$trace_cw_log_stream_prefix" '
+              --arg TRACE_CW_LOG_STREAM_PREFIX "$trace_cw_log_stream_prefix" \
+              --arg UI_CANONICAL_ORIGIN "$canonical_origin" \
+              --arg UI_CANONICAL_HOSTS "$canonical_hosts" '
               del(
                 .taskDefinitionArn,
                 .revision,
@@ -208,7 +214,18 @@ jobs:
                         .image = $IMAGE
                         | .environment = (
                             (.environment // [])
-                            | map(select(.name != "APP_VERSION" and .name != "GIT_SHA" and .name != "TRACE_DEBUG_ENABLED" and .name != "TRACE_DEBUG_LOOKBACK_SECONDS" and .name != "TRACE_DEBUG_MAX_EVENTS" and .name != "TRACE_DEBUG_CW_LOG_GROUP" and .name != "TRACE_DEBUG_CW_LOG_STREAM_PREFIX" and .name != "TRACE_DEBUG_LOG_PATH"))
+                            | map(select(
+                                .name != "APP_VERSION"
+                                and .name != "GIT_SHA"
+                                and .name != "TRACE_DEBUG_ENABLED"
+                                and .name != "TRACE_DEBUG_LOOKBACK_SECONDS"
+                                and .name != "TRACE_DEBUG_MAX_EVENTS"
+                                and .name != "TRACE_DEBUG_CW_LOG_GROUP"
+                                and .name != "TRACE_DEBUG_CW_LOG_STREAM_PREFIX"
+                                and .name != "TRACE_DEBUG_LOG_PATH"
+                                and .name != "UI_CANONICAL_ORIGIN"
+                                and .name != "UI_CANONICAL_HOSTS"
+                              ))
                             + [
                                 {"name": "APP_VERSION", "value": $APP_VERSION},
                                 {"name": "GIT_SHA", "value": $GIT_SHA}
@@ -219,6 +236,12 @@ jobs:
                                 {"name": "TRACE_DEBUG_MAX_EVENTS", "value": $TRACE_MAX_EVENTS},
                                 {"name": "TRACE_DEBUG_CW_LOG_GROUP", "value": $TRACE_CW_LOG_GROUP},
                                 {"name": "TRACE_DEBUG_CW_LOG_STREAM_PREFIX", "value": $TRACE_CW_LOG_STREAM_PREFIX}
+                              ] else [] end)
+                            + (if $IS_API == "false" and ($UI_CANONICAL_ORIGIN | length) > 0 then [
+                                {"name": "UI_CANONICAL_ORIGIN", "value": $UI_CANONICAL_ORIGIN}
+                              ] else [] end)
+                            + (if $IS_API == "false" and ($UI_CANONICAL_HOSTS | length) > 0 then [
+                                {"name": "UI_CANONICAL_HOSTS", "value": $UI_CANONICAL_HOSTS}
                               ] else [] end)
                           )
                       else
@@ -244,8 +267,8 @@ jobs:
             echo "${outvar}=${new_taskdef_arn}" >> "$GITHUB_OUTPUT"
           }
 
-          register_taskdef "$ECS_API_SERVICE" "$ECS_API_CONTAINER_NAME" "$API_IMAGE_URI" "api_task_def_arn"
-          register_taskdef "$ECS_UI_SERVICE" "$ECS_UI_CONTAINER_NAME" "$UI_IMAGE_URI" "ui_task_def_arn"
+          register_taskdef "$ECS_API_SERVICE" "$ECS_API_CONTAINER_NAME" "$API_IMAGE_URI" "api_task_def_arn" "" ""
+          register_taskdef "$ECS_UI_SERVICE" "$ECS_UI_CONTAINER_NAME" "$UI_IMAGE_URI" "ui_task_def_arn" "${UI_CANONICAL_ORIGIN:-}" "${UI_CANONICAL_HOSTS:-}"
 
       - name: Deploy API service and wait for stability
         env:
