@@ -54,8 +54,21 @@ DEV_UI_SMOKE_PASSWORD="<password>" \
 ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh
 ```
 
+CLI-Overrides (optional, äquivalent zu ENVs):
+```bash
+./scripts/smoke/run_gui_live_auth_analyze_route_set.sh \
+  --base-url https://www.dev.georanking.ch \
+  --run-id-base manual-$(date +%s) \
+  --timeout-ms 90000 \
+  --headless \
+  --output-dir artifacts/dev-ui-live-smoke
+```
+
+Wenn Live-Credentials fehlen, bricht der Runner nach dem Preflight absichtlich ab und gibt einen Fallback-Hinweis für Login-Start-Coverage aus (`run_login_start_smoke_bundle.sh`).
+
 Optional:
-- `DEV_UI_SMOKE_GUI_PATH=/gui` (oder jede Route aus `scripts/smoke/gui_smoke_routes.sh`, z. B. `/gui/history`, `/gui/jobs`, `/jobs?source=smoke`, `/jobs/demo-job`, `/results/demo-result`)
-- `DEV_UI_SMOKE_ADDRESS_FILE=/abs/path/to/addresses.txt`
-- `DEV_UI_SMOKE_TIMEOUT_MS=90000`
-- `DEV_UI_SMOKE_HEADFUL=1`
+- `DEV_UI_SMOKE_ADDRESS_FILE=/abs/path/to/addresses.txt` oder `--address-file ...`
+- `DEV_UI_SMOKE_TIMEOUT_MS=90000` oder `--timeout-ms 90000`
+- `DEV_UI_SMOKE_HEADFUL=1` oder `--headful`
+- `DEV_UI_SMOKE_LOGIN_REASON=manual_login` oder `--login-reason manual_login`
+- `DEV_UI_SMOKE_EVIDENCE_DIR=artifacts/dev-ui-live-smoke` oder `--output-dir ...`

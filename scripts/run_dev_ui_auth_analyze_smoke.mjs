@@ -5,7 +5,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const repoRoot = process.cwd();
-const outDir = path.join(repoRoot, 'reports', 'evidence');
+const configuredOutDir = String(process.env.DEV_UI_SMOKE_EVIDENCE_DIR || '').trim();
+const outDir = configuredOutDir
+  ? path.resolve(repoRoot, configuredOutDir)
+  : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
 const baseOrigin = String(process.env.BASE_URL || 'https://www.dev.georanking.ch').replace(/\/+$/, '');
