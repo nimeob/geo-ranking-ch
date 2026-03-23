@@ -39,8 +39,18 @@ def test_script_tracks_post_login_target_path_and_keeps_legacy_check_alias() -> 
         in content
     )
     assert "function resolveCanonicalGuiSuccessor(pathname)" in content
-    assert "if (value === '/gui/jobs') return '/jobs';" in content
+    assert (
+        "const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);"
+        in content
+    )
+    assert "function parseRelativeUrl(rawPath)" in content
+    assert (
+        "if (target.pathname === '/gui/jobs') return `/jobs${target.search}`;"
+        in content
+    )
+    assert "function isExpectedPostLoginUrl(value)" in content
     assert "const loginReturnedToRequestedGuiPath =" in content
+    assert "(url) => isExpectedPostLoginUrl(url)" in content
     assert "loginReturnedToRequestedGuiPath," in content
     assert "loginReturnedToGui: loginReturnedToRequestedGuiPath" in content
 

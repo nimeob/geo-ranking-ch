@@ -11,6 +11,7 @@ const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/,
 const baseOrigin = String(process.env.BASE_URL || 'https://www.dev.georanking.ch').replace(/\/+$/, '');
 const guiPath = normalizeGuiPath(process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
 const expectedPostLoginPath = resolveCanonicalGuiSuccessor(guiPath);
+const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);
 const loginReason = String(process.env.DEV_UI_SMOKE_LOGIN_REASON || 'manual_login').trim() || 'manual_login';
 const loginStartUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&reason=${encodeURIComponent(loginReason)}&start=1`;
 
@@ -57,11 +58,41 @@ function normalizeGuiPath(rawPath) {
   return value.startsWith('/') ? value : `/${value}`;
 }
 
+function parseRelativeUrl(rawPath) {
+  const normalized = normalizeGuiPath(rawPath);
+  try {
+    const parsed = new URL(normalized, 'https://example.invalid');
+    return {
+      pathname: parsed.pathname,
+      search: parsed.search,
+    };
+  } catch {
+    return {
+      pathname: normalized,
+      search: '',
+    };
+  }
+}
+
 function resolveCanonicalGuiSuccessor(pathname) {
-  const value = normalizeGuiPath(pathname);
-  if (value === '/gui/jobs') return '/jobs';
-  if (value.startsWith('/gui/jobs/')) return `/jobs${value.slice('/gui/jobs'.length)}`;
-  return value;
+  const target = parseRelativeUrl(pathname);
+  if (target.pathname === '/gui/jobs') return `/jobs${target.search}`;
+  if (target.pathname.startsWith('/gui/jobs/')) {
+    return `/jobs${target.pathname.slice('/gui/jobs'.length)}${target.search}`;
+  }
+  return `${target.pathname}${target.search}`;
+}
+
+function isExpectedPostLoginUrl(value) {
+  try {
+    const parsed = new URL(String(value || ''));
+    if (parsed.origin !== baseOrigin) return false;
+    if (parsed.pathname !== expectedPostLoginTarget.pathname) return false;
+    if (!expectedPostLoginTarget.search) return true;
+    return parsed.search === expectedPostLoginTarget.search;
+  } catch {
+    return false;
+  }
 }
 
 function sanitizeFileToken(value) {
@@ -459,14 +490,7 @@ async function run() {
 
     await Promise.all([
       page.waitForURL(
-        (url) => {
-          try {
-            const parsed = new URL(String(url));
-            return parsed.origin === baseOrigin && parsed.pathname === expectedPostLoginPath;
-          } catch {
-            return false;
-          }
-        },
+        (url) => isExpectedPostLoginUrl(url),
         { timeout: timeoutMs }
       ),
       submitButton.click(),
@@ -594,8 +618,7 @@ async function run() {
 
   const noIdleFallback = resultRowCount > 0 && phaseStateNormalized !== 'idle' && !phaseTextNormalized.includes('idle');
 
-  const loginReturnedToRequestedGuiPath = Boolean(postLoginUrl)
-    && postLoginUrl.startsWith(`${baseOrigin}${expectedPostLoginPath}`);
+  const loginReturnedToRequestedGuiPath = isExpectedPostLoginUrl(postLoginUrl);
 
   const checks = {
     loginRedirectToIdP: isIdpLoginUrl(idpLoginUrl),

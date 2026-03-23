@@ -24,6 +24,7 @@ routes=(
   "/gui/history"
   "/gui/jobs"
   "/jobs"
+  "/jobs?source=smoke"
   "/gui/jobs/demo-job"
   "/jobs/demo-job"
   "/results/demo-result"
