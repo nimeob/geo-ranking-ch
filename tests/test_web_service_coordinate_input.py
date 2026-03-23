@@ -5,6 +5,7 @@ from src import web_service
 from src.web_service import (
     _attach_coordinate_resolution_context,
     _extract_query_and_coordinate_context,
+    _resolve_query_from_coordinates,
 )
 
 
@@ -160,6 +161,45 @@ class TestWebServiceCoordinateInput(unittest.TestCase):
                     _extract_query_and_coordinate_context({"coordinates": coordinates})
 
                 self.assertIn(expected_error, str(ctx.exception))
+
+    def test_coordinate_resolution_uses_expanded_identify_fallback(self):
+        with mock.patch.object(web_service, "_wgs84_to_lv95", return_value=(2600000.0, 1200000.0)), mock.patch.object(
+            web_service,
+            "_identify_gwr_candidates",
+            side_effect=[
+                [],
+                [
+                    {
+                        "street": "Bahnhofstrasse 1",
+                        "postal_code": "9000",
+                        "city": "St. Gallen",
+                        "lv95_e": 2600200.0,
+                        "lv95_n": 1200000.0,
+                        "feature_id": "f-1",
+                    }
+                ],
+            ],
+        ) as identify:
+            query, resolved = _resolve_query_from_coordinates(lat=47.42, lon=9.37)
+
+        self.assertEqual(query, "Bahnhofstrasse 1, 9000 St. Gallen")
+        self.assertEqual(resolved.get("fallback", {}).get("strategy"), "expanded_gwr_identify")
+        self.assertEqual(identify.call_count, 2)
+        first_call = identify.call_args_list[0].kwargs
+        second_call = identify.call_args_list[1].kwargs
+        self.assertEqual(first_call.get("identify_tolerance_m"), web_service._COORDINATE_IDENTIFY_TOLERANCE_M)
+        self.assertEqual(second_call.get("identify_tolerance_m"), web_service._COORDINATE_FALLBACK_IDENTIFY_RADII_M[0])
+
+    def test_coordinate_resolution_returns_actionable_error_when_no_candidates(self):
+        with mock.patch.object(web_service, "_wgs84_to_lv95", return_value=(2600000.0, 1200000.0)), mock.patch.object(
+            web_service,
+            "_identify_gwr_candidates",
+            side_effect=[[], [], []],
+        ):
+            with self.assertRaises(ValueError) as ctx:
+                _resolve_query_from_coordinates(lat=47.42, lon=9.37)
+
+        self.assertIn("no identify match up to", str(ctx.exception))
 
     def test_attach_coordinate_resolution_context_is_additive(self):
         report = {

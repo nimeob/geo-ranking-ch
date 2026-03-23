@@ -396,7 +396,9 @@ _CH_WGS84_BOUNDS = {
 }
 _COORDINATE_SNAP_TOLERANCE_DEG = 0.02
 _COORDINATE_IDENTIFY_TOLERANCE_M = 180.0
+_COORDINATE_FALLBACK_IDENTIFY_RADII_M = (300.0, 500.0)
 _COORDINATE_MAX_SNAP_DISTANCE_M = 120.0
+_COORDINATE_MAX_FALLBACK_DISTANCE_M = 380.0
 
 _PREFERENCE_ENUMS = {
     "lifestyle_density": {"rural", "suburban", "urban"},
@@ -1716,11 +1718,16 @@ def _identify_gwr_candidates(
     lat: float,
     lon: float,
     timeout_seconds: float,
+    identify_tolerance_m: float = _COORDINATE_IDENTIFY_TOLERANCE_M,
+    pixel_tolerance: int = 10,
     upstream_log_emitter: Callable[..., None] | None = None,
 ) -> list[dict[str, Any]]:
+    identify_tolerance_m = max(float(identify_tolerance_m), 50.0)
+    pixel_tolerance = max(1, int(pixel_tolerance))
+
     cos_lat = max(math.cos(math.radians(lat)), 0.2)
-    margin_lat = max(_COORDINATE_IDENTIFY_TOLERANCE_M / 111320.0, 0.0015)
-    margin_lon = max(_COORDINATE_IDENTIFY_TOLERANCE_M / (111320.0 * cos_lat), 0.0015)
+    margin_lat = max(identify_tolerance_m / 111320.0, 0.0015)
+    margin_lon = max(identify_tolerance_m / (111320.0 * cos_lat), 0.0015)
 
     params = {
         "geometry": f"{lon:.8f},{lat:.8f}",
@@ -1730,7 +1737,7 @@ def _identify_gwr_candidates(
             f"{lon-margin_lon:.8f},{lat-margin_lat:.8f},"
             f"{lon+margin_lon:.8f},{lat+margin_lat:.8f}"
         ),
-        "tolerance": "10",
+        "tolerance": str(pixel_tolerance),
         "layers": "all:ch.bfs.gebaeude_wohnungs_register",
         "sr": "4326",
         "lang": "de",
@@ -1805,39 +1812,62 @@ def _resolve_query_from_coordinates(
         timeout_seconds=timeout_seconds,
         upstream_log_emitter=upstream_log_emitter,
     )
-    candidates = _identify_gwr_candidates(
-        lat=lat,
-        lon=lon,
-        timeout_seconds=timeout_seconds,
-        upstream_log_emitter=upstream_log_emitter,
-    )
 
-    if not candidates:
-        raise ValueError("coordinates could not be resolved to a Swiss building candidate")
+    search_plan: list[tuple[float, int]] = [(_COORDINATE_IDENTIFY_TOLERANCE_M, 10)]
+    search_plan.extend((float(radius_m), 14) for radius_m in _COORDINATE_FALLBACK_IDENTIFY_RADII_M)
 
-    ranked: list[tuple[float, dict[str, Any]]] = []
-    for candidate in candidates:
-        c_e = candidate.get("lv95_e")
-        c_n = candidate.get("lv95_n")
-        if isinstance(c_e, (int, float)) and isinstance(c_n, (int, float)):
-            distance_m = math.hypot(float(c_e) - click_lv95_e, float(c_n) - click_lv95_n)
-        else:
-            distance_m = float("inf")
-        ranked.append((distance_m, candidate))
+    ranked: list[tuple[float, dict[str, Any], float]] = []
+    fallback_used = False
+    fallback_radius_m: float | None = None
 
-    ranked.sort(key=lambda row: row[0])
-    best_distance_m, best = ranked[0]
+    for index, (identify_radius_m, pixel_tolerance) in enumerate(search_plan):
+        candidates = _identify_gwr_candidates(
+            lat=lat,
+            lon=lon,
+            timeout_seconds=timeout_seconds,
+            identify_tolerance_m=identify_radius_m,
+            pixel_tolerance=pixel_tolerance,
+            upstream_log_emitter=upstream_log_emitter,
+        )
+        if not candidates:
+            continue
 
-    if math.isfinite(best_distance_m) and best_distance_m > _COORDINATE_MAX_SNAP_DISTANCE_M:
+        ranked = []
+        for candidate in candidates:
+            c_e = candidate.get("lv95_e")
+            c_n = candidate.get("lv95_n")
+            if isinstance(c_e, (int, float)) and isinstance(c_n, (int, float)):
+                distance_m = math.hypot(float(c_e) - click_lv95_e, float(c_n) - click_lv95_n)
+            else:
+                distance_m = float("inf")
+            ranked.append((distance_m, candidate, identify_radius_m))
+
+        ranked.sort(key=lambda row: row[0])
+        fallback_used = index > 0
+        fallback_radius_m = identify_radius_m if fallback_used else None
+        break
+
+    if not ranked:
+        max_radius = int(max(_COORDINATE_FALLBACK_IDENTIFY_RADII_M, default=_COORDINATE_IDENTIFY_TOLERANCE_M))
         raise ValueError(
-            "no building candidate found within "
-            f"{int(_COORDINATE_MAX_SNAP_DISTANCE_M)}m of the clicked coordinates"
+            "coordinates could not be resolved to a Swiss building candidate "
+            f"(no identify match up to {max_radius}m search radius)"
+        )
+
+    best_distance_m, best, identify_radius_used_m = ranked[0]
+    max_allowed_distance = (
+        _COORDINATE_MAX_FALLBACK_DISTANCE_M if fallback_used else _COORDINATE_MAX_SNAP_DISTANCE_M
+    )
+    if math.isfinite(best_distance_m) and best_distance_m > max_allowed_distance:
+        raise ValueError(
+            "no plausible building candidate found near the clicked coordinates "
+            f"(closest={round(best_distance_m, 1)}m, allowed<={int(max_allowed_distance)}m)"
         )
 
     city_part = str(best.get("city") or "").strip()
     resolved_query = f"{best['street']}, {best['postal_code']} {city_part}".strip()
 
-    return resolved_query, {
+    resolved_context: dict[str, Any] = {
         "provider": "ch.bfs.gebaeude_wohnungs_register",
         "feature_id": best.get("feature_id"),
         "distance_m": None if not math.isfinite(best_distance_m) else round(best_distance_m, 2),
@@ -1846,7 +1876,16 @@ def _resolve_query_from_coordinates(
             "lat": round(lat, 6),
             "lon": round(lon, 6),
         },
+        "identify_radius_m": round(float(identify_radius_used_m), 1),
     }
+    if fallback_used:
+        resolved_context["fallback"] = {
+            "strategy": "expanded_gwr_identify",
+            "identify_radius_m": round(float(fallback_radius_m or identify_radius_used_m), 1),
+            "max_snap_distance_m": int(_COORDINATE_MAX_FALLBACK_DISTANCE_M),
+        }
+
+    return resolved_query, resolved_context
 
 
 def _extract_query_and_coordinate_context(
