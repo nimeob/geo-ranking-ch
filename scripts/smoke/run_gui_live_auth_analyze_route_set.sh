@@ -19,6 +19,15 @@ if [[ -z "${base_run_id}" ]]; then
   fi
 fi
 
+if ! (
+  cd "${REPO_ROOT}"
+  DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
+    ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
+); then
+  echo "ERROR: live-auth route-set preflight failed; aborting route fan-out." >&2
+  exit 1
+fi
+
 routes=(
   "/gui"
   "/gui/history"

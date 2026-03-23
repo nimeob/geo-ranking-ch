@@ -14,7 +14,7 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 - Script: `scripts/run_dev_ui_auth_analyze_smoke.mjs`
 - Preflight (Secrets + Blocker-Evidence): `scripts/smoke/validate_gui_live_auth_analyze_secrets.sh`
 - Address-Pool: `scripts/smoke/ch_live_addresses.txt`
-- Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt `/gui`, `/gui/history`, `/gui/jobs`, `/jobs`, `/jobs?source=smoke`, `/gui/jobs/demo-job`, `/jobs/demo-job`, `/results/demo-result` seriell in **einem** Workflow-Job aus)
+- Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt `/gui`, `/gui/history`, `/gui/jobs`, `/jobs`, `/jobs?source=smoke`, `/gui/jobs/demo-job`, `/jobs/demo-job`, `/results/demo-result` seriell in **einem** Workflow-Job aus und startet mit einem integrierten Secrets-Preflight, damit lokale/manual Runs bei fehlenden Credentials sofort und eindeutig abbrechen)
 - Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml`
 - Artifact: `gui-dev-live-auth-analyze-smoke-artifacts`
 
@@ -43,6 +43,14 @@ DEV_UI_SMOKE_USERNAME="<username>" \
 DEV_UI_SMOKE_PASSWORD="<password>" \
 DEV_UI_SMOKE_RUN_ID="$(date +%s)" \
 node scripts/run_dev_ui_auth_analyze_smoke.mjs
+```
+
+Für den vollständigen Route-Satz lokal/manuell:
+```bash
+BASE_URL="https://www.dev.georanking.ch" \
+DEV_UI_SMOKE_USERNAME="<username>" \
+DEV_UI_SMOKE_PASSWORD="<password>" \
+./scripts/smoke/run_gui_live_auth_analyze_route_set.sh
 ```
 
 Optional:
