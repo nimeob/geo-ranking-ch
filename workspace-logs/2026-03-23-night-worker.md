@@ -30,3 +30,15 @@
 ## Nächste Schritte
 - Commit + Push auf Branch `chore/deploy-login-smoke-canonical-detail`
 - PR öffnen, CI grün verifizieren, mergen und anschliessend Deploy+Live-Retest auf `main` bestätigen.
+
+## 04:15 CET — Route-set Smoke Runner hardening (ROI)
+- **Started:** manueller DEV-Route-Set-Run zeigte 8x Fehlerspam bei fehlenden Live-Credentials (`DEV_UI_SMOKE_USERNAME/PASSWORD`), obwohl das eigentliche Problem nur fehlende Secrets war.
+- **Implemented:** `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` um integrierten Preflight erweitert:
+  - einmaliger Aufruf von `scripts/smoke/validate_gui_live_auth_analyze_secrets.sh`
+  - Übergabe stabiler `DEV_UI_SMOKE_RUN_ID` (`base_run_id`)
+  - fail-fast mit klarer Meldung, **kein** Route-Fanout bei Secret-Blocker
+- **Tests:**
+  - neu: `tests/test_run_gui_live_auth_analyze_route_set_preflight.py`
+  - regression: `pytest -q tests/test_gui_dev_live_auth_analyze_smoke_workflow.py tests/test_validate_gui_live_auth_analyze_secrets_script.py tests/test_run_gui_live_auth_analyze_route_set_preflight.py` → **9 passed**
+- **Docs:** `docs/testing/GUI_DEV_LIVE_AUTH_ANALYZE_SMOKE.md` ergänzt (integrierter Preflight + lokaler Route-Set-Run).
+- **Runtime check:** `./scripts/smoke/run_gui_live_auth_analyze_route_set.sh` ohne Secrets bricht jetzt sofort mit einem Blocker-Artifact ab (kein 8x Fehlfanout).
