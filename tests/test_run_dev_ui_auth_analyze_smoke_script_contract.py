@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 from pathlib import Path
 
 
@@ -35,3 +38,38 @@ def test_script_tracks_post_login_target_path_and_keeps_legacy_check_alias() -> 
     assert "const loginReturnedToRequestedGuiPath =" in content
     assert "loginReturnedToRequestedGuiPath," in content
     assert "loginReturnedToGui: loginReturnedToRequestedGuiPath" in content
+
+
+def test_script_uses_dynamic_playwright_import_with_actionable_hint() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert "import { chromium } from 'playwright';" not in content
+    assert "async function loadChromium()" in content
+    assert "await import('playwright')" in content
+    assert "npx playwright install --with-deps chromium" in content
+
+
+def test_missing_credentials_emit_json_evidence_even_without_playwright(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-missing-creds"
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted((tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json"))
+    assert evidence_files, f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["error"]["name"] == "Error"
+    assert "Fehlende Credentials" in payload["error"]["message"]

@@ -3,7 +3,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { chromium } from 'playwright';
 
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
@@ -34,6 +33,7 @@ const runMarker =
   || (githubRunNumber ? `${githubRunNumber}-${githubRunAttempt}` : '')
   || (githubRunId ? `${githubRunId}-${githubRunAttempt}` : '')
   || stamp;
+const artifactRunToken = sanitizeFileToken(runMarker) || 'run';
 
 const addressFile = process.env.DEV_UI_SMOKE_ADDRESS_FILE
   ? path.resolve(repoRoot, String(process.env.DEV_UI_SMOKE_ADDRESS_FILE))
@@ -62,6 +62,36 @@ function resolveCanonicalGuiSuccessor(pathname) {
   if (value === '/gui/jobs') return '/jobs';
   if (value.startsWith('/gui/jobs/')) return `/jobs${value.slice('/gui/jobs'.length)}`;
   return value;
+}
+
+function sanitizeFileToken(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+}
+
+function buildArtifactPath(extension) {
+  return path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}-${artifactRunToken}.${extension}`);
+}
+
+async function loadChromium() {
+  try {
+    const playwrightModule = await import('playwright');
+    const chromium = playwrightModule?.chromium;
+    if (!chromium) {
+      throw new Error('chromium export missing');
+    }
+    return chromium;
+  } catch (error) {
+    const normalized = normalizeError(error);
+    throw new Error(
+      `Playwright Chromium nicht verfügbar. Installiere die Node-Abhängigkeiten mit \`npm ci\` `
+      + `und anschließend Browser-Binaries via \`npx playwright install --with-deps chromium\`. `
+      + `Ursache: ${normalized.name}: ${normalized.message}`
+    );
+  }
 }
 
 function normalizeError(error) {
@@ -339,7 +369,7 @@ function maskUsername(value) {
 
 async function writeEvidence(payload) {
   await fs.mkdir(outDir, { recursive: true });
-  const outJson = path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}.json`);
+  const outJson = buildArtifactPath('json');
   await fs.writeFile(outJson, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
   console.log(path.relative(repoRoot, outJson));
   return outJson;
@@ -358,6 +388,7 @@ async function run() {
   const addressIndex = selectAddressIndex(addressPool.length, runMarker);
   const selectedAddress = addressPool[addressIndex];
 
+  const chromium = await loadChromium();
   const browser = await chromium.launch({ headless });
   const context = await browser.newContext({
     locale: 'de-CH',
@@ -510,14 +541,14 @@ async function run() {
     finalUrl = page.url();
 
     await fs.mkdir(outDir, { recursive: true });
-    const screenshotPath = path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}.png`);
+    const screenshotPath = buildArtifactPath('png');
     await page.screenshot({ path: screenshotPath, fullPage: true });
     screenshotRelPath = path.relative(repoRoot, screenshotPath);
   } finally {
     if (!screenshotRelPath) {
       try {
         await fs.mkdir(outDir, { recursive: true });
-        const fallbackScreenshotPath = path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}.png`);
+        const fallbackScreenshotPath = buildArtifactPath('png');
         await page.screenshot({ path: fallbackScreenshotPath, fullPage: true });
         screenshotRelPath = path.relative(repoRoot, fallbackScreenshotPath);
       } catch {
