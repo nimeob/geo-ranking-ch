@@ -33,8 +33,8 @@ def test_route_set_runner_fails_fast_on_missing_secrets_without_route_fanout(
     )
 
     assert proc.returncode == 1
-    assert "route 1/8" not in proc.stdout
-    assert "route 1/8" not in proc.stderr
+    assert "route 1/" not in proc.stdout
+    assert "route 1/" not in proc.stderr
 
     blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-98765-4.json"
     assert blocked_file.exists()

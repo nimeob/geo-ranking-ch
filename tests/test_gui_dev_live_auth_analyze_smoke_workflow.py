@@ -31,6 +31,7 @@ def test_route_set_script_covers_all_required_gui_paths_and_route_specific_run_i
     assert '"/gui"' in content
     assert '"/gui/history"' in content
     assert '"/gui/jobs"' in content
+    assert '"/gui/jobs?source=smoke"' in content
     assert '"/jobs"' in content
     assert '"/jobs?source=smoke"' in content
     assert '"/gui/jobs/demo-job"' in content
