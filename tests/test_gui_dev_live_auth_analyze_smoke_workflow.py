@@ -27,6 +27,7 @@ def test_route_set_script_covers_all_required_gui_paths_and_route_specific_run_i
     assert '"/jobs"' in content
     assert '"/gui/jobs/demo-job"' in content
     assert '"/jobs/demo-job"' in content
+    assert '"/results/demo-result"' in content
     assert 'DEV_UI_SMOKE_GUI_PATH="${route}"' in content
     assert 'DEV_UI_SMOKE_RUN_ID="${run_id}"' in content
     assert 'run_id="${base_run_id}-${ordinal}"' in content

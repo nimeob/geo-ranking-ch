@@ -26,6 +26,7 @@ routes=(
   "/jobs"
   "/gui/jobs/demo-job"
   "/jobs/demo-job"
+  "/results/demo-result"
 )
 
 failures=0
