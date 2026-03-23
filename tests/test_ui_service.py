@@ -743,5 +743,91 @@ class TestUiService(unittest.TestCase):
         self.assertIn("return `/auth/login?", body)
 
 
+class UiCanonicalConfigTests(unittest.TestCase):
+    def test_resolve_canonical_host_config_with_aliases(self):
+        from src.ui import service as ui_service
+
+        old_origin = os.environ.get("UI_CANONICAL_ORIGIN")
+        old_hosts = os.environ.get("UI_CANONICAL_HOSTS")
+        try:
+            os.environ["UI_CANONICAL_ORIGIN"] = "https://www.dev.georanking.ch"
+            os.environ["UI_CANONICAL_HOSTS"] = "www.dev.geo-ranking.ch, www.dev.georanking.ch"
+            scheme, host, hosts = ui_service._resolve_canonical_host_config()
+            self.assertEqual(scheme, "https")
+            self.assertEqual(host, "www.dev.georanking.ch")
+            self.assertIn("www.dev.georanking.ch", hosts)
+            self.assertIn("www.dev.geo-ranking.ch", hosts)
+        finally:
+            if old_origin is None:
+                os.environ.pop("UI_CANONICAL_ORIGIN", None)
+            else:
+                os.environ["UI_CANONICAL_ORIGIN"] = old_origin
+            if old_hosts is None:
+                os.environ.pop("UI_CANONICAL_HOSTS", None)
+            else:
+                os.environ["UI_CANONICAL_HOSTS"] = old_hosts
+
+
+class UiCanonicalRedirectTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.port = _free_port()
+        cls.base_url = f"http://127.0.0.1:{cls.port}"
+
+        env = os.environ.copy()
+        env.update(
+            {
+                "HOST": "127.0.0.1",
+                "PORT": str(cls.port),
+                "APP_VERSION": "ui-test-canonical",
+                "UI_API_BASE_URL": "",
+                "UI_CANONICAL_ORIGIN": "https://www.dev.georanking.ch",
+                "UI_CANONICAL_HOSTS": "127.0.0.1",
+                "PYTHONPATH": str(REPO_ROOT),
+            }
+        )
+
+        cls.proc = subprocess.Popen(
+            [sys.executable, "-m", "src.ui_service"],
+            cwd=str(REPO_ROOT),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        deadline = time.time() + 12
+        while time.time() < deadline:
+            try:
+                status, _, _ = _http(f"{cls.base_url}/healthz")
+                if status == 200:
+                    return
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+        raise RuntimeError("ui_service canonical redirect fixture nicht erreichbar")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        try:
+            cls.proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            cls.proc.kill()
+
+    def test_gui_redirects_to_canonical_origin_for_alias_host(self):
+        status, _, headers = _http(f"{self.base_url}/gui?probe=1", follow_redirects=False)
+        self.assertEqual(status, HTTPStatus.TEMPORARY_REDIRECT)
+        self.assertEqual(headers.get("location"), "https://www.dev.georanking.ch/gui?probe=1")
+
+    def test_healthz_is_not_redirected_even_with_alias_host(self):
+        status, body, headers = _http(f"{self.base_url}/healthz", follow_redirects=False)
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn("application/json", headers.get("content-type", ""))
+        payload = json.loads(body)
+        self.assertTrue(payload.get("ok"))
+
+
 if __name__ == "__main__":
     unittest.main()

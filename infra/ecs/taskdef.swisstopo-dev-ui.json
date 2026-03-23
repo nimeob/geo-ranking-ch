@@ -26,6 +26,14 @@
         {
           "name": "UI_API_BASE_URL",
           "value": "https://api.__DOMAIN__"
+        },
+        {
+          "name": "UI_CANONICAL_ORIGIN",
+          "value": "https://www.__DOMAIN__"
+        },
+        {
+          "name": "UI_CANONICAL_HOSTS",
+          "value": "www.__DOMAIN__,www.dev.geo-ranking.ch"
         }
       ],
       "healthCheck": {

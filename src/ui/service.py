@@ -54,6 +54,32 @@ _UI_API_PROXY_TIMEOUT_SECONDS = _parse_positive_int_env(
     "UI_API_PROXY_TIMEOUT_SECONDS", 35
 )
 
+
+def _normalize_host(value: str) -> str:
+    return str(value or "").split(",", 1)[0].strip().split(":", 1)[0].lower()
+
+
+def _resolve_canonical_host_config() -> tuple[str, str, set[str]]:
+    raw_origin = str(os.getenv("UI_CANONICAL_ORIGIN", "") or "").strip()
+    if not raw_origin:
+        return "", "", set()
+
+    parsed = urlsplit(raw_origin)
+    scheme = str(parsed.scheme or "").strip().lower()
+    host = _normalize_host(parsed.netloc)
+    if scheme not in {"http", "https"} or not host:
+        return "", "", set()
+
+    hosts: set[str] = {host}
+    configured_hosts = str(os.getenv("UI_CANONICAL_HOSTS", "") or "").strip()
+    for item in configured_hosts.split(","):
+        normalized = _normalize_host(item)
+        if normalized:
+            hosts.add(normalized)
+
+    return scheme, host, hosts
+
+
 _RESULT_PAGE_TEMPLATE = """<!doctype html>
 <html lang="de">
   <head>
@@ -1976,8 +2002,40 @@ class _UiHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         return True
 
+    def _maybe_redirect_to_canonical_host(self, parsed_path) -> bool:
+        canonical_scheme = str(getattr(self.server, "ui_canonical_scheme", "") or "").strip().lower()
+        canonical_host = str(getattr(self.server, "ui_canonical_host", "") or "").strip().lower()
+        canonical_hosts = set(getattr(self.server, "ui_canonical_hosts", set()) or set())
+        if not canonical_scheme or not canonical_host or not canonical_hosts:
+            return False
+
+        request_host = _normalize_host(str(self.headers.get("Host", "") or ""))
+        if not request_host or request_host == canonical_host or request_host not in canonical_hosts:
+            return False
+
+        if str(parsed_path.path or "").strip() == "/healthz":
+            return False
+
+        location = urlunsplit(
+            (
+                canonical_scheme,
+                canonical_host,
+                parsed_path.path or "/",
+                parsed_path.query,
+                "",
+            )
+        )
+        self.send_response(HTTPStatus.TEMPORARY_REDIRECT)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return True
+
     def do_GET(self) -> None:  # noqa: N802 - stdlib callback name
         parsed = urlparse(self.path)
+        if self._maybe_redirect_to_canonical_host(parsed):
+            return
         request_path = _normalize_path(parsed.path)
 
         if request_path in {"/", "/gui"}:
@@ -2245,10 +2303,16 @@ class _UiHttpServer(ThreadingHTTPServer):
         *,
         app_version: str,
         ui_api_base_url: str,
+        ui_canonical_scheme: str,
+        ui_canonical_host: str,
+        ui_canonical_hosts: set[str],
     ):
         super().__init__(server_address, request_handler_class)
         self.app_version = app_version
         self.ui_api_base_url = ui_api_base_url
+        self.ui_canonical_scheme = ui_canonical_scheme
+        self.ui_canonical_host = ui_canonical_host
+        self.ui_canonical_hosts = set(ui_canonical_hosts)
 
 
 def main() -> None:
@@ -2256,17 +2320,22 @@ def main() -> None:
     port = int(os.getenv("PORT", "8080"))
     app_version = os.getenv("APP_VERSION", "dev")
     ui_api_base_url = os.getenv("UI_API_BASE_URL", "").strip()
+    canonical_scheme, canonical_host, canonical_hosts = _resolve_canonical_host_config()
 
     httpd = _UiHttpServer(
         (host, port),
         _UiHandler,
         app_version=app_version,
         ui_api_base_url=ui_api_base_url,
+        ui_canonical_scheme=canonical_scheme,
+        ui_canonical_host=canonical_host,
+        ui_canonical_hosts=canonical_hosts,
     )
     print(
         f"[geo-ranking-ch-ui] serving on http://{host}:{port} "
         f"(version={app_version}, api_base_url={ui_api_base_url or '/analyze (relative)'}, "
-        f"proxy_timeout_s={_UI_API_PROXY_TIMEOUT_SECONDS})"
+        f"proxy_timeout_s={_UI_API_PROXY_TIMEOUT_SECONDS}, canonical_host={canonical_host or '-'}, "
+        f"canonical_aliases={','.join(sorted(canonical_hosts)) or '-'})"
     )
     httpd.serve_forever()
 
