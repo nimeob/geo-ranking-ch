@@ -48,3 +48,10 @@
 - **Root cause:** neuer Test `test_run_gui_live_auth_analyze_route_set_preflight.py` war CI-instabil, weil `GITHUB_RUN_NUMBER` in GitHub Actions den erwarteten Dateinamen überschreibt.
 - **Fix:** im Test-Setup `GITHUB_RUN_NUMBER` explizit entfernt (`env.pop("GITHUB_RUN_NUMBER", None)`), damit deterministisch `GITHUB_RUN_ID` genutzt wird.
 - **Verification:** `pytest -q tests/test_run_gui_live_auth_analyze_route_set_preflight.py tests/test_gui_dev_live_auth_analyze_smoke_workflow.py tests/test_validate_gui_live_auth_analyze_secrets_script.py` → **9 passed**.
+
+## 05:16–05:26 CET — ROI: gemeinsame Route-Matrix für Login-Smokes entkoppelt
+- Ich habe mit `scripts/smoke/gui_smoke_routes.sh` eine gemeinsame Route-Matrix + Artifact-Suffix-Mapping eingeführt, damit Deploy-Login-Smoke und Live-Auth-Route-Set nie mehr auseinanderlaufen.
+- Ich habe `scripts/smoke/run_login_start_smoke_bundle.sh` auf einen Loop über `GUI_SMOKE_ROUTES` umgestellt und die bisherigen Artifact-Namen vollständig kompatibel beibehalten.
+- Ich habe `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` auf dieselbe Shared-Route-Matrix migriert und den ordinalen Run-ID-Mechanismus unverändert gelassen.
+- Ich habe die Vertrags-/Workflow-Tests auf das Shared-Route-Setup angepasst (`tests/test_run_login_start_smoke_bundle_script_contract.py`, `tests/test_gui_dev_live_auth_analyze_smoke_workflow.py`) und alle betroffenen Tests grün verifiziert.
+- Ich habe den DEV-Login-Start-Bundle-Livecheck gegen `https://www.dev.georanking.ch` über alle neun Routen erfolgreich erneut durchlaufen lassen.

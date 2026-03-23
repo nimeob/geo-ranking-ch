@@ -8,6 +8,9 @@ REASON="manual_login"
 TIMEOUT_SECONDS="20"
 MAX_ATTEMPTS="8"
 RETRY_DELAY_SECONDS="5"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/smoke/gui_smoke_routes.sh
+source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
 
 usage() {
   cat <<'EOF'
@@ -78,6 +81,11 @@ if [ -z "$ENV_NAME" ]; then
   exit 2
 fi
 
+if (( ${#GUI_SMOKE_ROUTES[@]} == 0 )); then
+  echo "::error::GUI_SMOKE_ROUTES is empty" >&2
+  exit 2
+fi
+
 mkdir -p "$OUTPUT_DIR"
 
 run_probe() {
@@ -94,47 +102,31 @@ run_probe() {
     --output-json "$output_json"
 }
 
-LOGIN_GUI_RC=0
-LOGIN_HISTORY_RC=0
-LOGIN_JOBS_RC=0
-LOGIN_JOBS_QUERY_RC=0
-LOGIN_JOBS_DETAIL_RC=0
-LOGIN_RESULTS_DETAIL_RC=0
-LOGIN_GUI_JOBS_LEGACY_RC=0
-LOGIN_GUI_JOBS_QUERY_LEGACY_RC=0
-LOGIN_GUI_JOBS_LEGACY_DETAIL_RC=0
+declare -a failed_routes=()
 
+declare -A route_rc=()
 set +e
-run_probe "/gui" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke.json"
-LOGIN_GUI_RC=$?
+for route in "${GUI_SMOKE_ROUTES[@]}"; do
+  suffix="$(gui_login_start_artifact_suffix_for_route "$route")" || {
+    echo "::error::No artifact suffix mapping for route=${route}" >&2
+    exit 2
+  }
 
-run_probe "/gui/history" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-gui-history.json"
-LOGIN_HISTORY_RC=$?
-
-run_probe "/jobs" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-jobs.json"
-LOGIN_JOBS_RC=$?
-
-run_probe "/jobs?source=smoke" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-jobs-query.json"
-LOGIN_JOBS_QUERY_RC=$?
-
-run_probe "/jobs/demo-job" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-jobs-detail.json"
-LOGIN_JOBS_DETAIL_RC=$?
-
-run_probe "/results/demo-result" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-results-detail.json"
-LOGIN_RESULTS_DETAIL_RC=$?
-
-run_probe "/gui/jobs" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-gui-jobs-legacy.json"
-LOGIN_GUI_JOBS_LEGACY_RC=$?
-
-run_probe "/gui/jobs?source=smoke" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-gui-jobs-legacy-query.json"
-LOGIN_GUI_JOBS_QUERY_LEGACY_RC=$?
-
-run_probe "/gui/jobs/demo-job" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-gui-jobs-legacy-detail.json"
-LOGIN_GUI_JOBS_LEGACY_DETAIL_RC=$?
+  output_json="${OUTPUT_DIR}/${ENV_NAME}-${suffix}.json"
+  run_probe "$route" "$output_json"
+  route_rc["$route"]=$?
+done
 set -e
 
-if [ "$LOGIN_GUI_RC" -ne 0 ] || [ "$LOGIN_HISTORY_RC" -ne 0 ] || [ "$LOGIN_JOBS_RC" -ne 0 ] || [ "$LOGIN_JOBS_QUERY_RC" -ne 0 ] || [ "$LOGIN_JOBS_DETAIL_RC" -ne 0 ] || [ "$LOGIN_RESULTS_DETAIL_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_LEGACY_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_QUERY_LEGACY_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_LEGACY_DETAIL_RC" -ne 0 ]; then
-  echo "::error::UI login-start smoke failed (gui_rc=${LOGIN_GUI_RC}, gui_history_rc=${LOGIN_HISTORY_RC}, jobs_rc=${LOGIN_JOBS_RC}, jobs_query_rc=${LOGIN_JOBS_QUERY_RC}, jobs_detail_rc=${LOGIN_JOBS_DETAIL_RC}, results_detail_rc=${LOGIN_RESULTS_DETAIL_RC}, gui_jobs_legacy_rc=${LOGIN_GUI_JOBS_LEGACY_RC}, gui_jobs_legacy_query_rc=${LOGIN_GUI_JOBS_QUERY_LEGACY_RC}, gui_jobs_legacy_detail_rc=${LOGIN_GUI_JOBS_LEGACY_DETAIL_RC}). See ${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke*.json"
+for route in "${GUI_SMOKE_ROUTES[@]}"; do
+  rc="${route_rc[$route]:-1}"
+  if [ "$rc" -ne 0 ]; then
+    failed_routes+=("${route} (rc=${rc})")
+  fi
+done
+
+if (( ${#failed_routes[@]} > 0 )); then
+  echo "::error::UI login-start smoke failed for ${#failed_routes[@]} route(s): ${failed_routes[*]}. See ${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke*.json"
   exit 1
 fi
 

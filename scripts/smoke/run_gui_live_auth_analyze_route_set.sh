@@ -2,6 +2,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/smoke/gui_smoke_routes.sh
+source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "ERROR: node command not found" >&2
@@ -28,25 +30,18 @@ if ! (
   exit 1
 fi
 
-routes=(
-  "/gui"
-  "/gui/history"
-  "/gui/jobs"
-  "/gui/jobs?source=smoke"
-  "/jobs"
-  "/jobs?source=smoke"
-  "/gui/jobs/demo-job"
-  "/jobs/demo-job"
-  "/results/demo-result"
-)
+if (( ${#GUI_SMOKE_ROUTES[@]} == 0 )); then
+  echo "ERROR: GUI_SMOKE_ROUTES ist leer" >&2
+  exit 2
+fi
 
 failures=0
-for idx in "${!routes[@]}"; do
+for idx in "${!GUI_SMOKE_ROUTES[@]}"; do
   ordinal="$((idx + 1))"
-  route="${routes[$idx]}"
+  route="${GUI_SMOKE_ROUTES[$idx]}"
   run_id="${base_run_id}-${ordinal}"
 
-  echo "[gui-dev-live-auth-analyze-smoke] route ${ordinal}/${#routes[@]}: ${route} (run_id=${run_id})"
+  echo "[gui-dev-live-auth-analyze-smoke] route ${ordinal}/${#GUI_SMOKE_ROUTES[@]}: ${route} (run_id=${run_id})"
 
   if (
     cd "${REPO_ROOT}"
