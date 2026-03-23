@@ -19,6 +19,7 @@ import json
 import sys
 import time
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -79,7 +80,9 @@ def _is_redirect_status(status_code: int) -> bool:
     return int(status_code) in _REDIRECT_HTTP_STATUSES
 
 
-def _resolve_retry_delay(*, retry_after_header: str, default_delay_seconds: float) -> float:
+def _resolve_retry_delay(
+    *, retry_after_header: str, default_delay_seconds: float
+) -> float:
     fallback_delay = max(0.0, float(default_delay_seconds))
     candidate = retry_after_header.strip()
     if not candidate:
@@ -209,7 +212,71 @@ def _is_auth_login_redirect(location: str) -> bool:
     return urlparse(location).path.rstrip("/").lower() == "/auth/login"
 
 
-def _validate_auth_login_redirect_query(*, location: str, next_path: str, reason: str, phase: str) -> tuple[bool, str]:
+class _AnchorHrefCollector(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() != "a":
+            return
+        for attr_name, attr_value in attrs:
+            if attr_name.lower() == "href" and attr_value is not None:
+                href = str(attr_value).strip()
+                if href:
+                    self.hrefs.append(href)
+                return
+
+
+def _validate_entry_start_link_query(
+    *, body_preview: str, next_path: str, reason: str
+) -> tuple[bool, str]:
+    collector = _AnchorHrefCollector()
+    collector.feed(body_preview)
+    collector.close()
+
+    has_start_link = False
+    has_matching_next = False
+
+    for href in collector.hrefs:
+        parsed = urlparse(href)
+        normalized_path = parsed.path.rstrip("/").lower()
+        if normalized_path and normalized_path != "/login":
+            continue
+
+        query = parse_qs(parsed.query, keep_blank_values=True)
+        start_value = str((query.get("start") or [""])[0])
+        if start_value != "1":
+            continue
+
+        has_start_link = True
+
+        next_value = str((query.get("next") or [""])[0])
+        if next_value != str(next_path):
+            continue
+
+        has_matching_next = True
+
+        reason_value = str((query.get("reason") or [""])[0])
+        if reason_value != str(reason):
+            continue
+
+        return True, "ok"
+
+    if not has_start_link:
+        if "start=1" in body_preview.lower():
+            return True, "ok"
+        return False, "entry_missing_start_link"
+
+    if not has_matching_next:
+        return False, "entry_start_link_next_mismatch"
+
+    return False, "entry_start_link_reason_mismatch"
+
+
+def _validate_auth_login_redirect_query(
+    *, location: str, next_path: str, reason: str, phase: str
+) -> tuple[bool, str]:
     parsed = urlparse(location)
     query = parse_qs(parsed.query, keep_blank_values=True)
 
@@ -278,11 +345,13 @@ def check_login_entry(
             )
 
         if _is_auth_login_redirect(probe.location):
-            auth_login_query_ok, auth_login_query_reason = _validate_auth_login_redirect_query(
-                location=probe.location,
-                next_path=next_path,
-                reason=reason,
-                phase="entry",
+            auth_login_query_ok, auth_login_query_reason = (
+                _validate_auth_login_redirect_query(
+                    location=probe.location,
+                    next_path=next_path,
+                    reason=reason,
+                    phase="entry",
+                )
             )
             if not auth_login_query_ok:
                 return LoginEntryCheckResult(
@@ -333,15 +402,19 @@ def check_login_entry(
             reason="entry_content_type_not_html",
         )
 
-    body_preview = probe.body_preview.lower()
-    if "start=1" not in body_preview:
+    entry_start_ok, entry_start_reason = _validate_entry_start_link_query(
+        body_preview=probe.body_preview,
+        next_path=next_path,
+        reason=reason,
+    )
+    if not entry_start_ok:
         return LoginEntryCheckResult(
             ok=False,
             status_code=probe.status_code,
             location=probe.location,
             request_url=request_url,
             content_type=probe.content_type,
-            reason="entry_missing_start_link",
+            reason=entry_start_reason,
         )
 
     return LoginEntryCheckResult(
@@ -485,13 +558,43 @@ def check_login_start(
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Smoke-check UI-owned login entry + login-start redirect contract")
-    parser.add_argument("--base-url", required=True, help="UI base URL, e.g. https://www.dev.georanking.ch")
-    parser.add_argument("--next", default="/gui", dest="next_path", help="next path for login start (default: /gui)")
-    parser.add_argument("--reason", default="manual_login", help="login reason query value (default: manual_login)")
-    parser.add_argument("--timeout", type=float, default=15.0, help="HTTP timeout per attempt in seconds (default: 15)")
-    parser.add_argument("--max-attempts", type=int, default=3, help="Max HTTP attempts per hop on transient request errors (default: 3)")
-    parser.add_argument("--retry-delay", type=float, default=2.0, help="Delay between retries in seconds (default: 2.0)")
+    parser = argparse.ArgumentParser(
+        description="Smoke-check UI-owned login entry + login-start redirect contract"
+    )
+    parser.add_argument(
+        "--base-url",
+        required=True,
+        help="UI base URL, e.g. https://www.dev.georanking.ch",
+    )
+    parser.add_argument(
+        "--next",
+        default="/gui",
+        dest="next_path",
+        help="next path for login start (default: /gui)",
+    )
+    parser.add_argument(
+        "--reason",
+        default="manual_login",
+        help="login reason query value (default: manual_login)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="HTTP timeout per attempt in seconds (default: 15)",
+    )
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=3,
+        help="Max HTTP attempts per hop on transient request errors (default: 3)",
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=2.0,
+        help="Delay between retries in seconds (default: 2.0)",
+    )
     parser.add_argument(
         "--output-json",
         "--json-out",
@@ -504,7 +607,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def _write_result(path: str, payload: dict[str, object]) -> None:
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    out.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
