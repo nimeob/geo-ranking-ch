@@ -205,6 +205,7 @@ def _assert_login_contract_smoke_coverage(
         f"artifacts/{env_name}-login-start-smoke-gui-history.json",
         f"artifacts/{env_name}-login-start-smoke-jobs.json",
         f"artifacts/{env_name}-login-start-smoke-jobs-detail.json",
+        f"artifacts/{env_name}-login-start-smoke-results-detail.json",
         f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy.json",
         f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy-detail.json",
         f"Upload login-start smoke artifacts ({env_name})",

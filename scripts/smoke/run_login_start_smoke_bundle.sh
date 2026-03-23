@@ -98,6 +98,7 @@ LOGIN_GUI_RC=0
 LOGIN_HISTORY_RC=0
 LOGIN_JOBS_RC=0
 LOGIN_JOBS_DETAIL_RC=0
+LOGIN_RESULTS_DETAIL_RC=0
 LOGIN_GUI_JOBS_LEGACY_RC=0
 LOGIN_GUI_JOBS_LEGACY_DETAIL_RC=0
 
@@ -114,6 +115,9 @@ LOGIN_JOBS_RC=$?
 run_probe "/jobs/demo-job" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-jobs-detail.json"
 LOGIN_JOBS_DETAIL_RC=$?
 
+run_probe "/results/demo-result" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-results-detail.json"
+LOGIN_RESULTS_DETAIL_RC=$?
+
 run_probe "/gui/jobs" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-gui-jobs-legacy.json"
 LOGIN_GUI_JOBS_LEGACY_RC=$?
 
@@ -121,8 +125,8 @@ run_probe "/gui/jobs/demo-job" "${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-gui-
 LOGIN_GUI_JOBS_LEGACY_DETAIL_RC=$?
 set -e
 
-if [ "$LOGIN_GUI_RC" -ne 0 ] || [ "$LOGIN_HISTORY_RC" -ne 0 ] || [ "$LOGIN_JOBS_RC" -ne 0 ] || [ "$LOGIN_JOBS_DETAIL_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_LEGACY_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_LEGACY_DETAIL_RC" -ne 0 ]; then
-  echo "::error::UI login-start smoke failed (gui_rc=${LOGIN_GUI_RC}, gui_history_rc=${LOGIN_HISTORY_RC}, jobs_rc=${LOGIN_JOBS_RC}, jobs_detail_rc=${LOGIN_JOBS_DETAIL_RC}, gui_jobs_legacy_rc=${LOGIN_GUI_JOBS_LEGACY_RC}, gui_jobs_legacy_detail_rc=${LOGIN_GUI_JOBS_LEGACY_DETAIL_RC}). See ${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke*.json"
+if [ "$LOGIN_GUI_RC" -ne 0 ] || [ "$LOGIN_HISTORY_RC" -ne 0 ] || [ "$LOGIN_JOBS_RC" -ne 0 ] || [ "$LOGIN_JOBS_DETAIL_RC" -ne 0 ] || [ "$LOGIN_RESULTS_DETAIL_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_LEGACY_RC" -ne 0 ] || [ "$LOGIN_GUI_JOBS_LEGACY_DETAIL_RC" -ne 0 ]; then
+  echo "::error::UI login-start smoke failed (gui_rc=${LOGIN_GUI_RC}, gui_history_rc=${LOGIN_HISTORY_RC}, jobs_rc=${LOGIN_JOBS_RC}, jobs_detail_rc=${LOGIN_JOBS_DETAIL_RC}, results_detail_rc=${LOGIN_RESULTS_DETAIL_RC}, gui_jobs_legacy_rc=${LOGIN_GUI_JOBS_LEGACY_RC}, gui_jobs_legacy_detail_rc=${LOGIN_GUI_JOBS_LEGACY_DETAIL_RC}). See ${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke*.json"
   exit 1
 fi
 
