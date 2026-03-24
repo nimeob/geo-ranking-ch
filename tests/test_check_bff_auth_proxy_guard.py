@@ -57,6 +57,10 @@ def test_check_auth_proxy_guard_passes_for_trusted_and_fail_closed_paths(monkeyp
     assert result.ok is True
     assert result.reason == "ok"
     assert result.trusted_forwarded_host == "www.dev.georanking.ch"
+    assert sorted(result.expected_authorize_hosts) == [
+        "auth.dev.georanking.ch",
+        "www.dev.georanking.ch",
+    ]
     assert len(result.checks) == 6
     assert all(bool(item.get("ok")) for item in result.checks)
 
@@ -88,6 +92,72 @@ def test_check_auth_proxy_guard_fails_when_trusted_login_no_longer_redirects(mon
     failed = [item for item in result.checks if not bool(item.get("ok"))]
     assert failed
     assert failed[0]["name"] == "login_trusted"
+
+
+def test_check_auth_proxy_guard_fails_when_trusted_redirect_host_is_not_allowed(monkeypatch):
+    module = _load_module()
+
+    def _wrong_host_probe(**kwargs):
+        request_url = kwargs["request_url"]
+        headers = kwargs["headers"]
+        if "/auth/login" in request_url and headers.get("X-Forwarded-Host") == "www.dev.georanking.ch":
+            return module._HttpProbeResult(
+                status_code=302,
+                location="https://evil.example.test/oauth2/authorize?client_id=abc",
+                body_text="",
+            )
+        return _happy_probe(module, **kwargs)
+
+    monkeypatch.setattr(module, "_send_request_probe", _wrong_host_probe)
+
+    result = module.check_auth_proxy_guard(
+        api_base_url="https://api.dev.georanking.ch",
+        ui_base_url="https://www.dev.georanking.ch",
+        trusted_forwarded_host="",
+        untrusted_forwarded_host="evil.example.test",
+        timeout_seconds=3,
+        max_attempts=1,
+        retry_delay_seconds=0,
+    )
+
+    assert result.ok is False
+    assert result.reason == "failed_login_trusted"
+    failed = [item for item in result.checks if not bool(item.get("ok"))]
+    assert failed
+    assert failed[0]["name"] == "login_trusted"
+    assert failed[0]["reason"] == "authorize_redirect_host_not_allowed"
+
+
+def test_check_auth_proxy_guard_accepts_custom_authorize_host_override(monkeypatch):
+    module = _load_module()
+
+    def _custom_host_probe(**kwargs):
+        request_url = kwargs["request_url"]
+        headers = kwargs["headers"]
+        if "/auth/login" in request_url and headers.get("X-Forwarded-Host") == "www.dev.georanking.ch":
+            return module._HttpProbeResult(
+                status_code=302,
+                location="https://idp.partner.example/oidc/authorize?client_id=abc",
+                body_text="",
+            )
+        return _happy_probe(module, **kwargs)
+
+    monkeypatch.setattr(module, "_send_request_probe", _custom_host_probe)
+
+    result = module.check_auth_proxy_guard(
+        api_base_url="https://api.dev.georanking.ch",
+        ui_base_url="https://www.dev.georanking.ch",
+        trusted_forwarded_host="",
+        untrusted_forwarded_host="evil.example.test",
+        timeout_seconds=3,
+        max_attempts=1,
+        retry_delay_seconds=0,
+        expected_authorize_host="idp.partner.example",
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert result.expected_authorize_hosts == ["idp.partner.example"]
 
 
 def test_check_auth_proxy_guard_adds_hint_when_api_origin_matches_ui_and_untrusted_redirects_to_login(monkeypatch):
@@ -161,6 +231,7 @@ def test_main_writes_json_out_alias(tmp_path, monkeypatch, capsys):
     written = json.loads(output_path.read_text(encoding="utf-8"))
     assert written["ok"] is True
     assert written["trusted_forwarded_host"] == "www.dev.georanking.ch"
+    assert "auth.dev.georanking.ch" in written["expected_authorize_hosts"]
 
 
 def test_main_returns_invalid_argument_exit_code_when_hosts_collapse(monkeypatch, capsys):
