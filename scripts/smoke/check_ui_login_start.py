@@ -200,12 +200,10 @@ def _send_request(
 
 def _is_authorize_redirect(location: str) -> bool:
     parsed_location = urlparse(location)
-    authorize_hint = (
-        f"{parsed_location.path}?{parsed_location.query}"
-        if parsed_location.query
-        else parsed_location.path
-    )
-    return "authorize" in authorize_hint.lower()
+    # Contract: redirect target must actually route to an authorize endpoint.
+    # Keep matching flexible across IdP path variants (/oauth2/authorize, /oidc/authorize, ...)
+    # but do not accept unrelated paths that only mention "authorize" in query params.
+    return "authorize" in parsed_location.path.lower()
 
 
 def _is_auth_login_redirect(location: str) -> bool:

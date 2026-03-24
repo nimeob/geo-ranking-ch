@@ -76,3 +76,15 @@
 - Zusatz-UI-Verifikation: login-start bundle + canonical redirect smoke gegen `https://www.dev.georanking.ch` erneut grün.
 - Push: `night/worker-20260324-0246` @ `8332928`.
 - PR: #1483 "Deploy smoke: add auth-proxy forwarded-host guard coverage".
+
+## 03:49 CET — Live-Deploy-Verifikation + Browser-Blocker aktiv abgefangen
+- Laufenden Scheduled Deploy-Run `23470675695` (main, Deploy to AWS dev) bis Abschluss überwacht; Ergebnis **grün** inkl. Login-Start- und Auth-Proxy-Smokes.
+- Browser-UI-Tool blieb blockiert (Gateway-Start timeout / `openclaw gateway restart` Config-Fehler), daher gezielt auf CLI-smokes gewechselt statt auf blindes Warten.
+
+## 03:58 CET — Login-start Smoke gegen Query-Only "authorize" gehärtet
+- ROI-Entscheidung: False-Positive-Lücke im Smoke-Parser geschlossen (`check_ui_login_start.py` akzeptierte bisher auch Redirects, die "authorize" nur im Query trugen).
+- Umsetzung: `_is_authorize_redirect` prüft jetzt nur noch den Redirect-**Pfad**; Tests in `tests/test_check_ui_login_start.py` für Entry+Start ergänzt.
+
+## 04:02 CET — Re-Tests + Live-Verifikation DEV
+- Lokal erfolgreich: `pytest -q tests/test_check_ui_login_start.py` (25 passed) sowie Contract-Suite `tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_run_deploy_smoke.py` (11 passed).
+- Live DEV erneut geprüft: `run_login_start_smoke_bundle.sh` und `check_bff_auth_proxy_guard.py` gegen `www.dev.georanking.ch`/`api.dev.georanking.ch` beide **ok**; Artefakte unter `artifacts/nightly-20260324-024611-after-authz-path-fix/`.
