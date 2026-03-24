@@ -197,6 +197,44 @@ def test_check_login_entry_rejects_non_authorize_path_even_when_query_mentions_a
     assert result.reason == "entry_redirect_non_login_target"
 
 
+def test_check_login_entry_rejects_authorize_redirect_when_expected_host_mismatches():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": (
+            302,
+            "https://idp.example.test/oauth2/authorize?state=abc",
+        ),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(
+            base_url=stub.base_url,
+            allowed_authorize_hosts={"auth.dev.georanking.ch"},
+        )
+
+    assert result.ok is False
+    assert result.reason == "entry_redirect_non_login_target"
+
+
+def test_check_login_entry_accepts_authorize_redirect_when_expected_host_matches():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": (
+            302,
+            "https://auth.dev.georanking.ch/oauth2/authorize?state=abc",
+        ),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(
+            base_url=stub.base_url,
+            allowed_authorize_hosts={"auth.dev.georanking.ch", "www.dev.georanking.ch"},
+        )
+
+    assert result.ok is True
+    assert result.reason == "ok_redirect"
+
+
 def test_check_login_entry_passes_for_http_307_auth_login_redirect():
     module = _load_module()
     _StubHandler.routes = {
@@ -267,6 +305,32 @@ def test_main_accepts_json_out_alias_and_writes_result(tmp_path, capsys):
     assert file_payload["phase"] == "start"
 
 
+def test_main_enforces_expected_authorize_host_allow_list(capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+    }
+
+    with _StubServer() as stub:
+        exit_code = module.main(
+            [
+                "--base-url",
+                stub.base_url,
+                "--expected-authorize-host",
+                "auth.dev.georanking.ch,www.dev.georanking.ch",
+            ]
+        )
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "entry_redirect_non_login_target"
+    assert payload["request"]["expected_authorize_host"] == [
+        "auth.dev.georanking.ch",
+        "www.dev.georanking.ch",
+    ]
+
+
 def test_check_login_start_passes_for_authorize_redirect():
     module = _load_module()
     _StubHandler.routes = {
@@ -291,6 +355,38 @@ def test_check_login_start_rejects_non_authorize_path_even_when_query_mentions_a
 
     assert result.ok is False
     assert result.reason == "location_is_not_authorize_or_auth_login_redirect"
+
+
+def test_check_login_start_rejects_authorize_redirect_when_expected_host_mismatches():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_start(
+            base_url=stub.base_url,
+            allowed_authorize_hosts={"auth.dev.georanking.ch"},
+        )
+
+    assert result.ok is False
+    assert result.reason == "location_is_not_authorize_or_auth_login_redirect"
+
+
+def test_check_login_start_accepts_authorize_redirect_when_expected_host_matches():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://auth.dev.georanking.ch/oauth2/authorize?state=abc"),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_start(
+            base_url=stub.base_url,
+            allowed_authorize_hosts={"auth.dev.georanking.ch", "www.dev.georanking.ch"},
+        )
+
+    assert result.ok is True
+    assert result.reason == "ok"
 
 
 def test_check_login_start_passes_for_ui_auth_login_hop_then_authorize_redirect():

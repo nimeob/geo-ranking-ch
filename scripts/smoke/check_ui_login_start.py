@@ -198,12 +198,40 @@ def _send_request(
     return probe.status_code, probe.location
 
 
-def _is_authorize_redirect(location: str) -> bool:
+def _normalize_host_token(raw_host: str) -> str:
+    return raw_host.strip().strip("[]").lower()
+
+
+def _parse_allowed_authorize_hosts(raw_hosts: str | None) -> set[str]:
+    if not raw_hosts:
+        return set()
+    hosts: set[str] = set()
+    for token in raw_hosts.split(","):
+        normalized = _normalize_host_token(token)
+        if normalized:
+            hosts.add(normalized)
+    return hosts
+
+
+def _is_authorize_redirect(
+    location: str, *, allowed_authorize_hosts: set[str] | None = None
+) -> bool:
     parsed_location = urlparse(location)
     # Contract: redirect target must actually route to an authorize endpoint.
     # Keep matching flexible across IdP path variants (/oauth2/authorize, /oidc/authorize, ...)
     # but do not accept unrelated paths that only mention "authorize" in query params.
-    return "authorize" in parsed_location.path.lower()
+    if "authorize" not in parsed_location.path.lower():
+        return False
+
+    # Relative redirects (e.g. /oauth2/authorize) stay valid.
+    if not parsed_location.netloc:
+        return True
+
+    if not allowed_authorize_hosts:
+        return True
+
+    observed_host = _normalize_host_token(parsed_location.hostname or "")
+    return observed_host in allowed_authorize_hosts
 
 
 def _is_auth_login_redirect(location: str) -> bool:
@@ -301,6 +329,7 @@ def check_login_entry(
     timeout_seconds: float = 15.0,
     max_attempts: int = 3,
     retry_delay_seconds: float = 2.0,
+    allowed_authorize_hosts: set[str] | None = None,
 ) -> LoginEntryCheckResult:
     request_url = _build_entry_request_url(base_url, next_path=next_path, reason=reason)
     probe = _send_request_probe(
@@ -332,7 +361,9 @@ def check_login_entry(
                 reason="entry_redirected_login_unavailable",
             )
 
-        if _is_authorize_redirect(probe.location):
+        if _is_authorize_redirect(
+            probe.location, allowed_authorize_hosts=allowed_authorize_hosts
+        ):
             return LoginEntryCheckResult(
                 ok=True,
                 status_code=probe.status_code,
@@ -433,6 +464,7 @@ def check_login_start(
     timeout_seconds: float = 15.0,
     max_attempts: int = 3,
     retry_delay_seconds: float = 2.0,
+    allowed_authorize_hosts: set[str] | None = None,
 ) -> LoginStartCheckResult:
     request_url = _build_start_request_url(base_url, next_path=next_path, reason=reason)
 
@@ -469,7 +501,9 @@ def check_login_start(
             reason="login_unavailable_fallback",
         )
 
-    if _is_authorize_redirect(first_location):
+    if _is_authorize_redirect(
+        first_location, allowed_authorize_hosts=allowed_authorize_hosts
+    ):
         return LoginStartCheckResult(
             ok=True,
             status_code=first_status,
@@ -537,7 +571,9 @@ def check_login_start(
             reason="auth_login_hop_login_unavailable_fallback",
         )
 
-    if not _is_authorize_redirect(second_location):
+    if not _is_authorize_redirect(
+        second_location, allowed_authorize_hosts=allowed_authorize_hosts
+    ):
         return LoginStartCheckResult(
             ok=False,
             status_code=second_status,
@@ -599,6 +635,13 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         dest="output_json",
         help="Optional output path for machine-readable result",
     )
+    parser.add_argument(
+        "--expected-authorize-host",
+        help=(
+            "Optional comma-separated allow-list for absolute authorize redirect hosts "
+            "(e.g. auth.dev.georanking.ch,www.dev.georanking.ch)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -613,6 +656,10 @@ def _write_result(path: str, payload: dict[str, object]) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
+    allowed_authorize_hosts = _parse_allowed_authorize_hosts(
+        args.expected_authorize_host
+    )
+
     request_meta = {
         "base_url": args.base_url,
         "next": args.next_path,
@@ -620,6 +667,7 @@ def main(argv: list[str] | None = None) -> int:
         "timeout": args.timeout,
         "max_attempts": args.max_attempts,
         "retry_delay": args.retry_delay,
+        "expected_authorize_host": sorted(allowed_authorize_hosts),
     }
 
     try:
@@ -630,6 +678,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=args.timeout,
             max_attempts=args.max_attempts,
             retry_delay_seconds=args.retry_delay,
+            allowed_authorize_hosts=allowed_authorize_hosts,
         )
         if not entry_result.ok:
             payload = {
@@ -654,6 +703,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=args.timeout,
             max_attempts=args.max_attempts,
             retry_delay_seconds=args.retry_delay,
+            allowed_authorize_hosts=allowed_authorize_hosts,
         )
     except Exception as exc:  # noqa: BLE001
         payload = {

@@ -8,6 +8,7 @@ REASON="manual_login"
 TIMEOUT_SECONDS="20"
 MAX_ATTEMPTS="8"
 RETRY_DELAY_SECONDS="5"
+EXPECTED_AUTHORIZE_HOST=""
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/smoke/gui_smoke_routes.sh
 source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
@@ -24,6 +25,8 @@ Options:
   --timeout <seconds>           Request-Timeout je Probe (default: 20)
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
   --retry-delay <seconds>       Delay zwischen Retries (default: 5)
+  --expected-authorize-host <h> Erwarteter Host für absolute authorize-Redirects
+                                (optional; default: auth.<base-host> + <base-host>)
 EOF
 }
 
@@ -75,6 +78,11 @@ while [ "$#" -gt 0 ]; do
       RETRY_DELAY_SECONDS="$2"
       shift 2
       ;;
+    --expected-authorize-host)
+      require_option_value "--expected-authorize-host" "${2:-}"
+      EXPECTED_AUTHORIZE_HOST="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -99,6 +107,33 @@ if [ -z "$ENV_NAME" ]; then
   exit 2
 fi
 
+if [ -z "$EXPECTED_AUTHORIZE_HOST" ]; then
+  EXPECTED_AUTHORIZE_HOST="$(python3 - "$BASE_URL" <<'PY'
+from urllib.parse import urlparse
+import sys
+
+base_url = sys.argv[1].strip()
+host = (urlparse(base_url).hostname or "").strip().lower()
+if not host:
+    raise SystemExit("")
+
+allow_hosts = []
+if host.startswith("www.") and len(host) > 4:
+    allow_hosts.append(f"auth.{host[4:]}")
+allow_hosts.append(host)
+
+seen = set()
+ordered = []
+for candidate in allow_hosts:
+    if candidate and candidate not in seen:
+        ordered.append(candidate)
+        seen.add(candidate)
+
+print(",".join(ordered))
+PY
+)"
+fi
+
 if (( ${#GUI_SMOKE_ROUTES[@]} == 0 )); then
   echo "::error::GUI_SMOKE_ROUTES is empty" >&2
   exit 2
@@ -117,6 +152,7 @@ run_probe() {
     --timeout "$TIMEOUT_SECONDS" \
     --max-attempts "$MAX_ATTEMPTS" \
     --retry-delay "$RETRY_DELAY_SECONDS" \
+    --expected-authorize-host "$EXPECTED_AUTHORIZE_HOST" \
     --output-json "$output_json"
 }
 
@@ -148,4 +184,4 @@ if (( ${#failed_routes[@]} > 0 )); then
   exit 1
 fi
 
-echo "UI login-start smoke bundle passed for env='${ENV_NAME}' (base_url=${BASE_URL})"
+echo "UI login-start smoke bundle passed for env='${ENV_NAME}' (base_url=${BASE_URL}, expected_authorize_host=${EXPECTED_AUTHORIZE_HOST})"
