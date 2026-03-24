@@ -73,6 +73,7 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
                 "BFF_OIDC_ISSUER": "https://issuer.example.test/pool",
                 "BFF_OIDC_CLIENT_ID": "test-client-id",
                 "BFF_OIDC_REDIRECT_URI": f"{cls.base_url}/auth/callback",
+                "UI_AUTH_PROXY_TRUSTED_HOSTS": "127.0.0.1,www.dev.georanking.ch",
             }
         )
 
@@ -157,6 +158,27 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertEqual(payload.get("error"), "external_direct_login_disabled")
         dep = payload.get("deprecation") or {}
         self.assertEqual(dep.get("successor"), "/login")
+
+    def test_auth_login_route_rejects_proxy_marker_with_untrusted_forwarded_host(self):
+        status, body, _ = _http_get(
+            f"{self.base_url}/auth/login?next=%2Fgui",
+            follow_redirects=False,
+            headers=_ui_proxy_headers({"X-Forwarded-Host": "evil.example.test"}),
+        )
+        self.assertEqual(status, 403)
+        payload = json.loads(body)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "external_direct_login_disabled")
+
+    def test_auth_login_route_accepts_trusted_forwarded_host_with_port(self):
+        status, _, headers = _http_get(
+            f"{self.base_url}/auth/login?next=%2Fgui",
+            follow_redirects=False,
+            headers=_ui_proxy_headers({"X-Forwarded-Host": "www.dev.georanking.ch:443"}),
+        )
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+        self.assertIn("/oauth2/authorize", str(headers.get("location") or ""))
 
     def test_auth_login_route_redirects_to_ui_entry_when_ui_host_hits_api_without_proxy_marker(self):
         status, _, headers = _http_get(

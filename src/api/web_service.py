@@ -627,6 +627,58 @@ def _is_external_direct_login_path(request_path: str) -> bool:
     return normalized in _EXTERNAL_DIRECT_LOGIN_BLOCKED_PATHS
 
 
+def _normalize_trusted_host(raw_value: str) -> str:
+    value = str(raw_value or "").strip()
+    if not value:
+        return ""
+
+    if "://" in value:
+        parsed = urlsplit(value)
+    else:
+        parsed = urlsplit(f"//{value}")
+
+    candidate = parsed.netloc or parsed.path
+    return _extract_host_without_port(candidate).strip().lower()
+
+
+def _resolve_ui_auth_proxy_trusted_hosts() -> set[str]:
+    hosts: set[str] = set()
+
+    configured = str(os.getenv("UI_AUTH_PROXY_TRUSTED_HOSTS", "") or "").strip()
+    for item in configured.split(","):
+        normalized = _normalize_trusted_host(item)
+        if normalized:
+            hosts.add(normalized)
+
+    redirect_host = _resolve_bff_redirect_host()
+    if redirect_host:
+        hosts.add(redirect_host)
+
+    for env_name in ("SERVICE_APP_BASE_URL", "APP_BASE_URL", "BFF_OIDC_POST_LOGOUT_REDIRECT_URI"):
+        normalized = _normalize_trusted_host(os.getenv(env_name, ""))
+        if normalized:
+            hosts.add(normalized)
+
+    for origin in _resolve_cors_allow_origins():
+        normalized = _normalize_trusted_host(origin)
+        if normalized:
+            hosts.add(normalized)
+
+    return hosts
+
+
+def _is_ui_auth_proxy_forwarded_host_trusted(headers: Any) -> bool:
+    forwarded_host = str(headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+    normalized_host = _normalize_trusted_host(forwarded_host)
+    if not normalized_host:
+        return False
+
+    trusted_hosts = _resolve_ui_auth_proxy_trusted_hosts()
+    if not trusted_hosts:
+        return True
+    return normalized_host in trusted_hosts
+
+
 def _is_ui_auth_proxy_request(headers: Any) -> bool:
     """Return True when auth traffic is routed through the UI proxy hop.
 
@@ -639,7 +691,7 @@ def _is_ui_auth_proxy_request(headers: Any) -> bool:
         return False
 
     forwarded_host = str(headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
-    return bool(forwarded_host)
+    return bool(_normalize_trusted_host(forwarded_host))
 
 
 def _is_protected_gui_route(request_path: str) -> bool:
@@ -4285,10 +4337,30 @@ class Handler(BaseHTTPRequestHandler):
             # --- BFF OIDC: /auth/login, /auth/callback, /auth/logout (when BFF is enabled) ---
             if request_path in ("/auth/login", "/auth/callback", "/auth/logout") and is_bff_oidc_enabled():
                 if not _is_ui_auth_proxy_request(self.headers):
+                    marker_present = (
+                        str(self.headers.get(_UI_AUTH_PROXY_HEADER_NAME, "") or "").strip().lower()
+                        == _UI_AUTH_PROXY_HEADER_VALUE.lower()
+                    )
+                    if marker_present and request_path in {"/auth/login", "/auth/logout"}:
+                        self._send_external_direct_login_disabled(
+                            request_id=request_id,
+                            request_path=request_path,
+                            method="GET",
+                        )
+                        return
+
                     if self._should_redirect_unproxied_auth_login_to_ui_entry(request_path=request_path):
                         self._redirect_unproxied_auth_login_to_ui_entry(request_id=request_id)
                         return
 
+                    self._send_external_direct_login_disabled(
+                        request_id=request_id,
+                        request_path=request_path,
+                        method="GET",
+                    )
+                    return
+
+                if request_path in {"/auth/login", "/auth/logout"} and not _is_ui_auth_proxy_forwarded_host_trusted(self.headers):
                     self._send_external_direct_login_disabled(
                         request_id=request_id,
                         request_path=request_path,
