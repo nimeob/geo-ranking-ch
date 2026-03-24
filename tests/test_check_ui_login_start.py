@@ -662,3 +662,71 @@ def test_check_login_start_retries_transient_http_429_with_stale_retry_after_use
     assert result.reason == "ok"
     assert opener.calls == 2
     assert sleep_calls == [1.25]
+
+
+def test_check_login_start_caps_retry_after_sleep_to_max_retry_delay(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 302
+
+        def __init__(self, location: str) -> None:
+            self.headers = {"Location": location}
+
+        def getcode(self) -> int:
+            return self.status
+
+    class _FlakyRateLimitOpener:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def open(self, req, timeout):  # noqa: ARG002
+            self.calls += 1
+            if self.calls == 1:
+                raise HTTPError(
+                    req.full_url,
+                    429,
+                    "Too Many Requests",
+                    {"Retry-After": "120"},
+                    None,
+                )
+            return _FakeResponse("https://idp.example.test/oauth2/authorize?state=abc")
+
+    sleep_calls: list[float] = []
+    opener = _FlakyRateLimitOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: opener)
+    monkeypatch.setattr(
+        module.time, "sleep", lambda seconds: sleep_calls.append(seconds)
+    )
+
+    result = module.check_login_start(
+        base_url="https://www.dev.georanking.ch",
+        max_attempts=2,
+        retry_delay_seconds=1.25,
+        max_retry_delay_seconds=3.0,
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert opener.calls == 2
+    assert sleep_calls == [3.0]
+
+
+def test_main_includes_max_retry_delay_in_request_meta(capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": {
+            "status": 200,
+            "body": "<html><body>keine start links</body></html>",
+        },
+    }
+
+    with _StubServer() as stub:
+        exit_code = module.main(
+            ["--base-url", stub.base_url, "--max-retry-delay", "4.5"]
+        )
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["phase"] == "entry"
+    assert payload["request"]["max_retry_delay"] == 4.5
