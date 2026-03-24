@@ -260,6 +260,60 @@ def test_send_request_probe_honors_retry_after_header(monkeypatch):
     assert sleep_calls == [7.0]
 
 
+def test_send_request_probe_caps_retry_after_to_max_retry_delay(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 307
+
+        def __init__(self):
+            self.headers = {
+                "Location": "https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1"
+            }
+
+        def getcode(self):
+            return self.status
+
+        def close(self):
+            return None
+
+    class _FakeOpener:
+        def __init__(self):
+            self.calls = 0
+
+        def open(self, req, timeout):
+            self.calls += 1
+            if self.calls == 1:
+                raise HTTPError(
+                    req.full_url,
+                    429,
+                    "Too Many Requests",
+                    hdrs={"Retry-After": "120"},
+                    fp=None,
+                )
+            return _FakeResponse()
+
+    fake_opener = _FakeOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: fake_opener)
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        module.time, "sleep", lambda seconds: sleep_calls.append(seconds)
+    )
+
+    result = module._send_request_probe(
+        request_url="https://www.dev.geo-ranking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        timeout_seconds=5.0,
+        max_attempts=2,
+        retry_delay_seconds=2.0,
+        max_retry_delay_seconds=3.5,
+    )
+
+    assert result.status_code == 307
+    assert fake_opener.calls == 2
+    assert sleep_calls == [3.5]
+
+
 def test_send_request_probe_falls_back_to_default_retry_delay(monkeypatch):
     module = _load_module()
 
