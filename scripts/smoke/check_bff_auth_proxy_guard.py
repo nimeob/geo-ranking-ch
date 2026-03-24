@@ -13,6 +13,8 @@ import json
 import sys
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlparse
@@ -91,6 +93,33 @@ def _is_redirect_status(status_code: int) -> bool:
     return int(status_code) in _REDIRECT_HTTP_STATUSES
 
 
+def _resolve_retry_delay(
+    *, retry_after_header: str, default_delay_seconds: float
+) -> float:
+    fallback_delay = max(0.0, float(default_delay_seconds))
+    candidate = str(retry_after_header or "").strip()
+    if not candidate:
+        return fallback_delay
+
+    try:
+        return max(0.0, float(candidate))
+    except ValueError:
+        pass
+
+    try:
+        retry_at = parsedate_to_datetime(candidate)
+    except (TypeError, ValueError):
+        return fallback_delay
+
+    if retry_at.tzinfo is None:
+        retry_at = retry_at.replace(tzinfo=timezone.utc)
+
+    delta_seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+    if delta_seconds <= 0:
+        return fallback_delay
+    return delta_seconds
+
+
 def _send_request_probe(
     *,
     request_url: str,
@@ -122,12 +151,19 @@ def _send_request_probe(
         except HTTPError as exc:
             try:
                 status = int(getattr(exc, "status", 0) or exc.getcode())
-                location = str((exc.headers or {}).get("Location") or "").strip()
+                headers = exc.headers or {}
+                location = str(headers.get("Location") or "").strip()
+                retry_after_header = str(headers.get("Retry-After") or "").strip()
                 body_text = exc.read(1500).decode("utf-8", errors="replace")
             finally:
                 exc.close()
             if status in _TRANSIENT_HTTP_STATUSES and attempt < attempts:
-                time.sleep(max(0.0, retry_delay_seconds))
+                time.sleep(
+                    _resolve_retry_delay(
+                        retry_after_header=retry_after_header,
+                        default_delay_seconds=retry_delay_seconds,
+                    )
+                )
                 continue
             return _HttpProbeResult(status_code=status, location=location, body_text=body_text)
         except Exception as exc:  # noqa: BLE001
