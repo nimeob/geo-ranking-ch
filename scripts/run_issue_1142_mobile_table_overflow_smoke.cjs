@@ -96,6 +96,25 @@ function startStaticServer(directory, port) {
   return child;
 }
 
+function renderGuiHtmlAtGitRef(repoRoot, gitRef, { quiet = false } = {}) {
+  return execFileSync('python3', ['-c', [
+    'import importlib.util, subprocess, tempfile, pathlib, sys',
+    'ref=sys.argv[1]',
+    'src=subprocess.check_output(["git","show",f"{ref}:src/shared/gui_mvp.py"], text=True)',
+    'p=pathlib.Path(tempfile.gettempdir())/f"issue_1142_gui_mvp_{ref.replace("/", "_").replace("~", "_")}.py"',
+    'p.write_text(src, encoding="utf-8")',
+    'spec=importlib.util.spec_from_file_location("gui_mvp_ref", str(p))',
+    'mod=importlib.util.module_from_spec(spec)',
+    'spec.loader.exec_module(mod)',
+    'print(mod.render_gui_mvp_html(app_version="dev"))',
+  ].join(';'), gitRef], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: 20 * 1024 * 1024,
+    stdio: quiet ? ['ignore', 'pipe', 'ignore'] : ['ignore', 'pipe', 'pipe'],
+  });
+}
+
 async function main() {
   const repoRoot = process.cwd();
   const outDir = path.join(repoRoot, 'reports', 'evidence');
@@ -107,20 +126,17 @@ async function main() {
     maxBuffer: 20 * 1024 * 1024,
   });
 
-  const baselineHtml = execFileSync('python3', ['-c', [
-    'import importlib.util, re, subprocess, tempfile, pathlib',
-    'src=subprocess.check_output(["git","show","HEAD:src/shared/gui_mvp.py"], text=True)',
-    'p=pathlib.Path(tempfile.gettempdir())/"issue_1142_gui_mvp_before.py"',
-    'p.write_text(src, encoding="utf-8")',
-    'spec=importlib.util.spec_from_file_location("gui_mvp_before", str(p))',
-    'mod=importlib.util.module_from_spec(spec)',
-    'spec.loader.exec_module(mod)',
-    'print(mod.render_gui_mvp_html(app_version="dev"))',
-  ].join(';')], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024,
-  });
+  const baselineRefRequested = process.env.ISSUE_1142_BASELINE_REF || 'HEAD~1';
+  let baselineRefResolved = baselineRefRequested;
+  let baselineFallbackUsed = false;
+  let baselineHtml;
+  try {
+    baselineHtml = renderGuiHtmlAtGitRef(repoRoot, baselineRefRequested, { quiet: true });
+  } catch (_error) {
+    baselineRefResolved = 'HEAD';
+    baselineFallbackUsed = true;
+    baselineHtml = renderGuiHtmlAtGitRef(repoRoot, baselineRefResolved);
+  }
 
   const baselineCss = extractStyleBlock(baselineHtml);
   const currentCss = extractStyleBlock(currentHtml);
@@ -144,53 +160,87 @@ async function main() {
   ];
 
   const metrics = {};
-  for (const target of targets) {
-    const page = await context.newPage();
-    await page.goto(`http://127.0.0.1:${port}/${target.file}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(250);
+  try {
+    for (const target of targets) {
+      const page = await context.newPage();
+      await page.goto(`http://127.0.0.1:${port}/${target.file}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(250);
 
-    metrics[target.key] = await page.evaluate(() => {
-      const shell = document.getElementById('results-table-shell');
-      const table = document.querySelector('.results-table');
-      const doc = document.scrollingElement || document.documentElement;
-      const viewportWidth = window.innerWidth;
-      const actions = Array.from(document.querySelectorAll('.results-row-actions .copy-btn, .results-row-actions .trace-link-btn')).map((el) => {
-        const rect = el.getBoundingClientRect();
+      metrics[target.key] = await page.evaluate(() => {
+        const shell = document.getElementById('results-table-shell');
+        const table = document.querySelector('.results-table');
+        const doc = document.scrollingElement || document.documentElement;
+        const viewportWidth = window.innerWidth;
+        const actions = Array.from(document.querySelectorAll('.results-row-actions .copy-btn, .results-row-actions .trace-link-btn')).map((el) => {
+          const rect = el.getBoundingClientRect();
+          return {
+            text: String(el.textContent || '').trim(),
+            left: Number(rect.left.toFixed(2)),
+            right: Number(rect.right.toFixed(2)),
+            visible: rect.left >= 0 && rect.right <= viewportWidth,
+          };
+        });
         return {
-          text: String(el.textContent || '').trim(),
-          left: Number(rect.left.toFixed(2)),
-          right: Number(rect.right.toFixed(2)),
-          visible: rect.left >= 0 && rect.right <= viewportWidth,
+          viewportWidth,
+          mq390: window.matchMedia('(max-width: 390px)').matches,
+          doc: { scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth },
+          shell: {
+            scrollWidth: shell ? shell.scrollWidth : null,
+            clientWidth: shell ? shell.clientWidth : null,
+          },
+          table: {
+            scrollWidth: table ? table.scrollWidth : null,
+            clientWidth: table ? table.clientWidth : null,
+          },
+          allActionsVisible: actions.every((entry) => entry.visible),
+          actions,
         };
       });
-      return {
-        viewportWidth,
-        mq390: window.matchMedia('(max-width: 390px)').matches,
-        doc: { scrollWidth: doc.scrollWidth, clientWidth: doc.clientWidth },
-        shell: {
-          scrollWidth: shell ? shell.scrollWidth : null,
-          clientWidth: shell ? shell.clientWidth : null,
-        },
-        table: {
-          scrollWidth: table ? table.scrollWidth : null,
-          clientWidth: table ? table.clientWidth : null,
-        },
-        allActionsVisible: actions.every((entry) => entry.visible),
-        actions,
-      };
-    });
 
-    await page.screenshot({ path: target.screenshot, fullPage: true });
-    await page.close();
+      await page.screenshot({ path: target.screenshot, fullPage: true });
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+    server.kill('SIGTERM');
   }
 
-  await browser.close();
-  server.kill('SIGTERM');
+  const noHorizontalOverflow = (entry) => {
+    if (!entry) return false;
+    const scrollWidth = Number(entry.scrollWidth);
+    const clientWidth = Number(entry.clientWidth);
+    if (!Number.isFinite(scrollWidth) || !Number.isFinite(clientWidth)) {
+      return false;
+    }
+    return scrollWidth <= clientWidth;
+  };
+
+  const assertions = {
+    afterMq390Matches: Boolean(metrics.after?.mq390),
+    afterDocNoOverflow: noHorizontalOverflow(metrics.after?.doc),
+    afterShellNoOverflow: noHorizontalOverflow(metrics.after?.shell),
+    afterTableNoOverflow: noHorizontalOverflow(metrics.after?.table),
+    afterActionsVisible: Boolean(metrics.after?.allActionsVisible),
+  };
+
+  const payload = {
+    baselineRefRequested,
+    baselineRefResolved,
+    baselineFallbackUsed,
+    baselineEqualsCurrent: baselineCss === currentCss,
+    before: metrics.before ?? null,
+    after: metrics.after ?? null,
+    assertions,
+    ok: Object.values(assertions).every(Boolean),
+  };
 
   const jsonPath = path.join(outDir, 'issue-1142-mobile-overflow-evidence.json');
-  await fs.writeFile(jsonPath, `${JSON.stringify(metrics, null, 2)}\n`, 'utf8');
+  await fs.writeFile(jsonPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 
   console.log(jsonPath);
+  if (!payload.ok) {
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {
