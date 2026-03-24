@@ -55,6 +55,7 @@ class _ProbeOutcome:
     expected_status: int | None
     expected_redirect: bool
     forwarded_host: str
+    hint: str = ""
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,7 @@ class AuthProxyGuardSmokeResult:
     trusted_forwarded_host: str
     untrusted_forwarded_host: str
     checks: list[dict[str, object]]
+    hint: str = ""
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -91,6 +93,10 @@ def _normalize_host(raw_value: str) -> str:
 
 def _is_redirect_status(status_code: int) -> bool:
     return int(status_code) in _REDIRECT_HTTP_STATUSES
+
+
+def _is_login_unavailable_redirect(location: str) -> bool:
+    return "reason=login_unavailable" in str(location or "").lower()
 
 
 def _resolve_retry_delay(
@@ -277,6 +283,23 @@ def _evaluate_probe(*, spec: _ProbeSpec, probe: _HttpProbeResult) -> _ProbeOutco
 
     expected_status = int(spec.expect_status or 0)
     if probe.status_code != expected_status:
+        if (
+            expected_status == 403
+            and _is_redirect_status(probe.status_code)
+            and _is_login_unavailable_redirect(probe.location)
+        ):
+            return _ProbeOutcome(
+                name=spec.name,
+                ok=False,
+                reason="unexpected_login_unavailable_redirect",
+                status_code=probe.status_code,
+                location=probe.location,
+                expected_status=expected_status,
+                expected_redirect=spec.expect_redirect,
+                forwarded_host=spec.forwarded_host,
+                hint="api_base_url_likely_points_to_ui_origin",
+            )
+
         return _ProbeOutcome(
             name=spec.name,
             ok=False,
@@ -361,11 +384,22 @@ def check_auth_proxy_guard(
                 "expected_status": outcome.expected_status,
                 "expected_redirect": outcome.expected_redirect,
                 "forwarded_host": outcome.forwarded_host,
+                "hint": outcome.hint,
             }
         )
 
     failed = [check for check in checks if not bool(check.get("ok"))]
     reason = "ok" if not failed else f"failed_{failed[0].get('name', 'unknown')}"
+
+    hint = ""
+    if failed:
+        first_failed_reason = str(failed[0].get("reason") or "").strip().lower()
+        if (
+            first_failed_reason == "unexpected_login_unavailable_redirect"
+            and normalized_ui_origin
+            and normalized_api_origin == normalized_ui_origin
+        ):
+            hint = "api_base_url_equals_ui_base_url_use_api_origin"
 
     return AuthProxyGuardSmokeResult(
         ok=not failed,
@@ -375,12 +409,20 @@ def check_auth_proxy_guard(
         trusted_forwarded_host=trusted_host,
         untrusted_forwarded_host=untrusted_host,
         checks=checks,
+        hint=hint,
     )
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Smoke-check BFF auth-proxy forwarded-host guard")
-    parser.add_argument("--api-base-url", required=True, help="API origin, e.g. https://api.dev.georanking.ch")
+    parser.add_argument(
+        "--api-base-url",
+        required=True,
+        help=(
+            "API origin (BFF), e.g. https://api.dev.georanking.ch. "
+            "Do not point this to the UI origin."
+        ),
+    )
     parser.add_argument(
         "--ui-base-url",
         default="",
@@ -432,6 +474,7 @@ def main(argv: list[str] | None = None) -> int:
             "ui_base_url": args.ui_base_url,
             "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
+            "hint": "",
         }
         print(json.dumps(payload, ensure_ascii=False))
         return 2
@@ -443,6 +486,7 @@ def main(argv: list[str] | None = None) -> int:
             "ui_base_url": args.ui_base_url,
             "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
+            "hint": "",
         }
         print(json.dumps(payload, ensure_ascii=False))
         return 1
