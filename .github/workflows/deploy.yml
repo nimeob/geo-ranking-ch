@@ -420,6 +420,20 @@ jobs:
             --env-name "dev" \
             --output-dir "artifacts"
 
+      - name: Smoke-Test API auth proxy forwarded-host guard (/auth/login|logout|callback)
+        env:
+          SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "${SERVICE_API_BASE_URL:-}" ]
+          [ -n "${SERVICE_APP_BASE_URL:-}" ]
+
+          python3 scripts/smoke/check_bff_auth_proxy_guard.py \
+            --api-base-url "${SERVICE_API_BASE_URL}" \
+            --ui-base-url "${SERVICE_APP_BASE_URL}" \
+            --output-json artifacts/dev-auth-proxy-guard-smoke.json
+
       - name: Upload login-start smoke artifacts (dev)
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
@@ -435,6 +449,7 @@ jobs:
             artifacts/dev-login-start-smoke-gui-jobs-legacy.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy-detail.json
             artifacts/dev-canonical-host-redirect-smoke.json
+            artifacts/dev-auth-proxy-guard-smoke.json
 
       - name: Deployment summary
         run: |

@@ -65,3 +65,14 @@
   - `pytest -q tests/test_web_service_phase1_auth.py tests/test_web_service_oidc_loader.py tests/test_ui_service.py` → **32 passed**
 - UI-Beobachtung/Blocker:
   - Browser-Tool weiterhin nicht nutzbar (Gateway timeout). Aktiv versucht zu entstören via `openclaw gateway status/restart`; CLI meldet Runtime-/Config-Anomalie, RPC probe zwar `ok`, Browser-Control aber weiter timeout. Daher weiterhin CLI-smokes als Fallback.
+
+## 2026-03-24 02:58 CET — Auth-Proxy Guard Smoke hardening (ROI: deploy regression coverage)
+- Entscheidung: statt weiterer UI-Flicker-Suche ein messbares Deploy-Gate ergänzt, das die zuletzt gefixten `X-Forwarded-Host`-Guards auf `/auth/login|logout|callback` live absichert.
+- Neue Smoke-Check-Implementierung: `scripts/smoke/check_bff_auth_proxy_guard.py` (trusted login-redirect + untrusted/chain fail-closed Assertions).
+- CI-Verdrahtung erweitert in `deploy.yml` und `deploy-staging.yml`; Artifact ergänzt: `*-auth-proxy-guard-smoke.json`.
+- Tests ergänzt/aktualisiert: `tests/test_check_bff_auth_proxy_guard.py`, `tests/test_deploy_version_trace_docs.py`.
+- Verifikation lokal: `pytest -q tests/test_check_bff_auth_proxy_guard.py tests/test_deploy_version_trace_docs.py` → 23 passed.
+- Live-dev Probe: `check_bff_auth_proxy_guard.py --api-base-url https://api.dev.georanking.ch --ui-base-url https://www.dev.georanking.ch` → ok (alle 6 Checks grün).
+- Zusatz-UI-Verifikation: login-start bundle + canonical redirect smoke gegen `https://www.dev.georanking.ch` erneut grün.
+- Push: `night/worker-20260324-0246` @ `8332928`.
+- PR: #1483 "Deploy smoke: add auth-proxy forwarded-host guard coverage".

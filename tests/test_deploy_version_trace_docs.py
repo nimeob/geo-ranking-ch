@@ -236,6 +236,23 @@ def _assert_canonical_host_smoke_coverage(
     ), f"{workflow_name} fehlt Canonical-Host-Smoke-Coverage: {missing}"
 
 
+def _assert_auth_proxy_guard_smoke_coverage(
+    *, text: str, env_name: str, workflow_name: str
+) -> None:
+    required = [
+        "Smoke-Test API auth proxy forwarded-host guard (/auth/login|logout|callback)",
+        "python3 scripts/smoke/check_bff_auth_proxy_guard.py",
+        "SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}",
+        "SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}",
+        f"artifacts/{env_name}-auth-proxy-guard-smoke.json",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"{workflow_name} fehlt Auth-Proxy-Guard-Smoke-Coverage: {missing}"
+
+
 def test_deploy_workflow_smokes_login_contract_for_gui_history_jobs_and_legacy_routes():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
@@ -272,6 +289,26 @@ def test_deploy_staging_workflow_smokes_canonical_host_redirect_when_alias_hosts
 
     text = workflow.read_text(encoding="utf-8")
     _assert_canonical_host_smoke_coverage(
+        text=text, env_name="staging", workflow_name="deploy-staging.yml"
+    )
+
+
+def test_deploy_workflow_smokes_auth_proxy_guard_for_login_logout_and_callback_paths():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    _assert_auth_proxy_guard_smoke_coverage(
+        text=text, env_name="dev", workflow_name="deploy.yml"
+    )
+
+
+def test_deploy_staging_workflow_smokes_auth_proxy_guard_for_login_logout_and_callback_paths():
+    workflow = Path(".github/workflows/deploy-staging.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    _assert_auth_proxy_guard_smoke_coverage(
         text=text, env_name="staging", workflow_name="deploy-staging.yml"
     )
 

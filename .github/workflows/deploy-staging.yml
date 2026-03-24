@@ -529,6 +529,22 @@ jobs:
             --env-name "staging" \
             --output-dir "artifacts"
 
+      - name: Smoke-Test API auth proxy forwarded-host guard (/auth/login|logout|callback)
+        env:
+          SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}
+          SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SERVICE_API_BASE_URL:-}" ] || [ -z "${SERVICE_APP_BASE_URL:-}" ]; then
+            echo "::error::Missing SERVICE_API_BASE_URL/SERVICE_APP_BASE_URL for auth-proxy guard smoke"
+            exit 1
+          fi
+
+          python3 scripts/smoke/check_bff_auth_proxy_guard.py \
+            --api-base-url "${SERVICE_API_BASE_URL}" \
+            --ui-base-url "${SERVICE_APP_BASE_URL}" \
+            --output-json artifacts/staging-auth-proxy-guard-smoke.json
+
       - name: Upload login-start smoke artifacts (staging)
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
@@ -544,6 +560,7 @@ jobs:
             artifacts/staging-login-start-smoke-gui-jobs-legacy.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy-detail.json
             artifacts/staging-canonical-host-redirect-smoke.json
+            artifacts/staging-auth-proxy-guard-smoke.json
 
       - name: Optional strict split smoke (API + UI routing)
         env:
