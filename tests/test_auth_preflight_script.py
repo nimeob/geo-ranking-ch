@@ -40,6 +40,10 @@ class _TokenHandler(BaseHTTPRequestHandler):
     expected_client_id = ""
     expected_client_secret = ""
     token_value = ""
+    transient_failures_before_success = 0
+    transient_failure_status = 503
+    retry_after_header = ""
+    _state_lock = threading.Lock()
 
     def do_POST(self) -> None:  # noqa: N802
         raw_body = self.rfile.read(int(self.headers.get("content-length", "0"))).decode("utf-8")
@@ -60,6 +64,17 @@ class _TokenHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"error": "invalid_client"}).encode("utf-8"))
             return
 
+        with self._state_lock:
+            if self.transient_failures_before_success > 0:
+                self.__class__.transient_failures_before_success -= 1
+                self.send_response(int(self.transient_failure_status))
+                self.send_header("Content-Type", "application/json")
+                if self.retry_after_header:
+                    self.send_header("Retry-After", str(self.retry_after_header))
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "temporarily_unavailable"}).encode("utf-8"))
+                return
+
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -78,7 +93,16 @@ class _TokenHandler(BaseHTTPRequestHandler):
 
 
 class _TokenServer:
-    def __init__(self, *, client_id: str, client_secret: str, token_value: str) -> None:
+    def __init__(
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        token_value: str,
+        transient_failures_before_success: int = 0,
+        transient_failure_status: int = 503,
+        retry_after_header: str = "",
+    ) -> None:
         handler_cls = type(
             "TokenHandler",
             (_TokenHandler,),
@@ -86,6 +110,9 @@ class _TokenServer:
                 "expected_client_id": client_id,
                 "expected_client_secret": client_secret,
                 "token_value": token_value,
+                "transient_failures_before_success": int(transient_failures_before_success),
+                "transient_failure_status": int(transient_failure_status),
+                "retry_after_header": str(retry_after_header),
             },
         )
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), handler_cls)
@@ -158,6 +185,36 @@ def test_auth_preflight_supports_client_secret_file() -> None:
         assert payload["SMOKE_BEARER_TOKEN"] == "token-from-file"
 
 
+def test_auth_preflight_retries_transient_oidc_errors_before_success() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_file = Path(tmpdir) / "auth.env"
+
+        with _TokenServer(
+            client_id="deploy-smoke-client",
+            client_secret="topsecret",
+            token_value="retried-token",
+            transient_failures_before_success=1,
+            transient_failure_status=503,
+            retry_after_header="0",
+        ) as oidc:
+            proc = _run(
+                {
+                    "SMOKE_AUTH_MODE": "oidc_client_credentials",
+                    "OIDC_TOKEN_URL": oidc.token_url,
+                    "OIDC_CLIENT_ID": "deploy-smoke-client",
+                    "OIDC_CLIENT_SECRET": "topsecret",
+                    "OIDC_MAX_ATTEMPTS": "3",
+                    "OIDC_RETRY_DELAY_SECONDS": "0.01",
+                    "OIDC_MAX_RETRY_DELAY_SECONDS": "0.05",
+                    "SMOKE_AUTH_OUTPUT_FILE": str(output_file),
+                }
+            )
+
+        assert proc.returncode == 0, proc.stdout + "\n" + proc.stderr
+        payload = _read_env_file(output_file)
+        assert payload["SMOKE_BEARER_TOKEN"] == "retried-token"
+
+
 def test_auth_preflight_none_mode_writes_empty_token() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_file = Path(tmpdir) / "auth.env"
@@ -186,3 +243,18 @@ def test_auth_preflight_fails_fast_when_required_env_is_missing() -> None:
     assert proc.returncode == 42
     assert "auth-preflight-failed" in proc.stderr
     assert "OIDC_TOKEN_URL fehlt" in proc.stderr
+
+
+def test_auth_preflight_rejects_invalid_retry_configuration() -> None:
+    proc = _run(
+        {
+            "SMOKE_AUTH_MODE": "oidc_client_credentials",
+            "OIDC_TOKEN_URL": "https://auth.dev.georanking.ch/oauth/token",
+            "OIDC_CLIENT_ID": "deploy-smoke-client",
+            "OIDC_CLIENT_SECRET": "topsecret",
+            "OIDC_MAX_ATTEMPTS": "0",
+        }
+    )
+
+    assert proc.returncode == 42
+    assert "OIDC_MAX_ATTEMPTS" in proc.stderr
