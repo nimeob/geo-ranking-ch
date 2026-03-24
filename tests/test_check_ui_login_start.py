@@ -401,6 +401,43 @@ def test_main_enforces_expected_authorize_host_allow_list(capsys):
     ]
 
 
+def test_parse_allowed_authorize_hosts_normalizes_urls_ports_and_ipv6_literals():
+    module = _load_module()
+
+    hosts = module._parse_allowed_authorize_hosts(
+        " https://AUTH.dev.georanking.ch/oauth2/authorize ,"
+        "www.dev.georanking.ch:443,[2001:db8::1]:8443 "
+    )
+
+    assert hosts == {
+        "auth.dev.georanking.ch",
+        "www.dev.georanking.ch",
+        "2001:db8::1",
+    }
+
+
+def test_main_accepts_expected_authorize_host_values_with_urls_and_ports(capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://auth.dev.georanking.ch/oauth2/authorize?state=abc"),
+    }
+
+    with _StubServer() as stub:
+        exit_code = module.main(
+            [
+                "--base-url",
+                stub.base_url,
+                "--expected-authorize-host",
+                "https://auth.dev.georanking.ch:443/oauth2/authorize,www.dev.georanking.ch:443",
+            ]
+        )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["phase"] == "start"
+
+
 def test_check_login_start_passes_for_authorize_redirect():
     module = _load_module()
     _StubHandler.routes = {

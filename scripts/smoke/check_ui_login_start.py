@@ -209,7 +209,16 @@ def _send_request(
 
 
 def _normalize_host_token(raw_host: str) -> str:
-    return raw_host.strip().strip("[]").lower()
+    candidate = str(raw_host or "").strip()
+    if not candidate:
+        return ""
+
+    parsed = urlparse(candidate if "://" in candidate else f"//{candidate}")
+    host = str(parsed.hostname or "").strip().lower()
+    if host:
+        return host
+
+    return candidate.strip("[]").lower()
 
 
 def _parse_allowed_authorize_hosts(raw_hosts: str | None) -> set[str]:
@@ -800,7 +809,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         "--expected-authorize-host",
         help=(
             "Optional comma-separated allow-list for absolute authorize redirect hosts "
-            "(e.g. auth.dev.georanking.ch,www.dev.georanking.ch)."
+            "(accepts hostnames, host:port, or full URLs; e.g. "
+            "auth.dev.georanking.ch,www.dev.georanking.ch)."
         ),
     )
     return parser.parse_args(argv)
