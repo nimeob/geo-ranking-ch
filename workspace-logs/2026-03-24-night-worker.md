@@ -74,3 +74,5 @@
 - Verifikation lokal: `pytest -q tests/test_check_bff_auth_proxy_guard.py tests/test_deploy_version_trace_docs.py` → 23 passed.
 - Live-dev Probe: `check_bff_auth_proxy_guard.py --api-base-url https://api.dev.georanking.ch --ui-base-url https://www.dev.georanking.ch` → ok (alle 6 Checks grün).
 - Zusatz-UI-Verifikation: login-start bundle + canonical redirect smoke gegen `https://www.dev.georanking.ch` erneut grün.
+- Push: `night/worker-20260324-0246` @ `8332928`.
+- PR: #1483 "Deploy smoke: add auth-proxy forwarded-host guard coverage".
