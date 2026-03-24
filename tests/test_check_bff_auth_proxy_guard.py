@@ -88,6 +88,52 @@ def test_check_auth_proxy_guard_fails_when_trusted_login_no_longer_redirects(mon
     assert failed[0]["name"] == "login_trusted"
 
 
+def test_check_auth_proxy_guard_adds_hint_when_api_origin_matches_ui_and_untrusted_redirects_to_login(monkeypatch):
+    module = _load_module()
+
+    def _ui_origin_probe(**kwargs):
+        request_url = kwargs["request_url"]
+        headers = kwargs["headers"]
+        forwarded_host = headers.get("X-Forwarded-Host", "")
+
+        if "/auth/login" in request_url and forwarded_host == "www.dev.georanking.ch":
+            return module._HttpProbeResult(
+                status_code=302,
+                location="https://auth.dev.georanking.ch/oauth2/authorize?client_id=abc",
+                body_text="",
+            )
+
+        if "/auth/" in request_url:
+            return module._HttpProbeResult(
+                status_code=302,
+                location="/login?next=%2Fgui&reason=login_unavailable",
+                body_text="",
+            )
+
+        raise AssertionError(f"unexpected probe request_url={request_url!r}")
+
+    monkeypatch.setattr(module, "_send_request_probe", _ui_origin_probe)
+
+    result = module.check_auth_proxy_guard(
+        api_base_url="https://www.dev.georanking.ch",
+        ui_base_url="https://www.dev.georanking.ch",
+        trusted_forwarded_host="",
+        untrusted_forwarded_host="evil.example.test",
+        timeout_seconds=3,
+        max_attempts=1,
+        retry_delay_seconds=0,
+    )
+
+    assert result.ok is False
+    assert result.reason == "failed_login_untrusted"
+    assert result.hint == "api_base_url_equals_ui_base_url_use_api_origin"
+
+    failed = [item for item in result.checks if not bool(item.get("ok"))]
+    assert failed
+    assert failed[0]["reason"] == "unexpected_login_unavailable_redirect"
+    assert failed[0]["hint"] == "api_base_url_likely_points_to_ui_origin"
+
+
 def test_main_writes_json_out_alias(tmp_path, monkeypatch, capsys):
     module = _load_module()
     monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
