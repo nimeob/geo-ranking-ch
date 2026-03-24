@@ -56,7 +56,13 @@ _UI_API_PROXY_TIMEOUT_SECONDS = _parse_positive_int_env(
 
 
 def _normalize_host(value: str) -> str:
-    return str(value or "").split(",", 1)[0].strip().split(":", 1)[0].lower()
+    raw_value = str(value or "").split(",", 1)[0].strip()
+    if not raw_value:
+        return ""
+
+    parsed = urlsplit(raw_value if "://" in raw_value else f"//{raw_value}")
+    host = str(parsed.hostname or "").strip().lower()
+    return host
 
 
 def _resolve_canonical_host_config() -> tuple[str, str, set[str]]:
