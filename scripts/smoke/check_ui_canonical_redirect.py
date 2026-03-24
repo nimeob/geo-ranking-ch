@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -137,6 +136,7 @@ def check_canonical_redirect(
     base_url: str,
     canonical_origin: str,
     canonical_hosts: str,
+    alias_host: str = "",
     next_path: str = "/gui",
     reason: str = "manual_login",
     timeout_seconds: float = 15.0,
@@ -150,13 +150,24 @@ def check_canonical_redirect(
         else normalized_base_origin
     )
 
-    alias_host = ""
+    selected_alias_host = ""
     expected_location = ""
     request_url = ""
 
-    configured_hosts = _parse_canonical_hosts(canonical_hosts)
     canonical_host = _normalize_host(normalized_canonical_origin)
-    alias_candidates = [host for host in configured_hosts if host and host != canonical_host]
+
+    alias_candidates: list[str] = []
+    normalized_alias_override = _normalize_host(alias_host)
+    if alias_host.strip():
+        if not normalized_alias_override:
+            raise ValueError(f"invalid_alias_host:{alias_host}")
+        if normalized_alias_override != canonical_host:
+            alias_candidates.append(normalized_alias_override)
+    else:
+        configured_hosts = _parse_canonical_hosts(canonical_hosts)
+        alias_candidates = [
+            host for host in configured_hosts if host and host != canonical_host
+        ]
 
     if not alias_candidates:
         return CanonicalRedirectCheckResult(
@@ -168,12 +179,12 @@ def check_canonical_redirect(
             location="",
             expected_location=expected_location,
             canonical_origin=normalized_canonical_origin,
-            alias_host=alias_host,
+            alias_host=selected_alias_host,
         )
 
-    alias_host = alias_candidates[0]
+    selected_alias_host = alias_candidates[0]
     request_url = _build_alias_request_url(
-        alias_host=alias_host,
+        alias_host=selected_alias_host,
         canonical_origin=normalized_canonical_origin,
         next_path=next_path,
         reason=reason,
@@ -198,7 +209,7 @@ def check_canonical_redirect(
             location=probe.location,
             expected_location=expected_location,
             canonical_origin=normalized_canonical_origin,
-            alias_host=alias_host,
+            alias_host=selected_alias_host,
         )
 
     resolved_location = urljoin(request_url, probe.location)
@@ -212,7 +223,7 @@ def check_canonical_redirect(
             location=probe.location,
             expected_location=expected_location,
             canonical_origin=normalized_canonical_origin,
-            alias_host=alias_host,
+            alias_host=selected_alias_host,
         )
 
     return CanonicalRedirectCheckResult(
@@ -224,7 +235,7 @@ def check_canonical_redirect(
         location=probe.location,
         expected_location=expected_location,
         canonical_origin=normalized_canonical_origin,
-        alias_host=alias_host,
+        alias_host=selected_alias_host,
     )
 
 
@@ -242,6 +253,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--canonical-hosts",
         default="",
         help="Comma-separated canonical host list from UI_CANONICAL_HOSTS",
+    )
+    parser.add_argument(
+        "--alias-host",
+        default="",
+        help="Optional explicit alias host override for the redirect probe",
     )
     parser.add_argument(
         "--next",
@@ -280,6 +296,7 @@ def main(argv: list[str] | None = None) -> int:
             base_url=args.base_url,
             canonical_origin=args.canonical_origin,
             canonical_hosts=args.canonical_hosts,
+            alias_host=args.alias_host,
             next_path=args.next_path,
             reason=args.reason,
             timeout_seconds=float(args.timeout),
@@ -295,6 +312,7 @@ def main(argv: list[str] | None = None) -> int:
             "base_url": args.base_url,
             "canonical_origin": args.canonical_origin,
             "canonical_hosts": args.canonical_hosts,
+            "alias_host": args.alias_host,
             "next": args.next_path,
             "reason_input": args.reason,
         }
