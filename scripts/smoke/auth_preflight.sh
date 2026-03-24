@@ -61,6 +61,101 @@ PY
   fi
 }
 
+validate_int_ge() {
+  local value="$1"
+  local field_name="$2"
+  local min_value="$3"
+  if ! python3 - "$value" "$min_value" <<'PY'
+import sys
+
+raw = sys.argv[1]
+minimum = int(sys.argv[2])
+if not raw.isdigit():
+    raise SystemExit(1)
+parsed = int(raw)
+if parsed < minimum:
+    raise SystemExit(1)
+PY
+  then
+    fail_preflight "${field_name} muss ein Integer >= ${min_value} sein."
+  fi
+}
+
+validate_float_ge() {
+  local value="$1"
+  local field_name="$2"
+  local min_value="$3"
+  if ! python3 - "$value" "$min_value" <<'PY'
+import math
+import sys
+
+parsed = float(sys.argv[1])
+minimum = float(sys.argv[2])
+if not math.isfinite(parsed) or parsed < minimum:
+    raise SystemExit(1)
+PY
+  then
+    fail_preflight "${field_name} muss eine finite Zahl >= ${min_value} sein."
+  fi
+}
+
+resolve_retry_delay_seconds() {
+  local headers_file="$1"
+  local default_delay_seconds="$2"
+  local max_retry_delay_seconds="$3"
+
+  python3 - "$headers_file" "$default_delay_seconds" "$max_retry_delay_seconds" <<'PY'
+from __future__ import annotations
+
+import math
+import sys
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from pathlib import Path
+
+headers_file = Path(sys.argv[1])
+default_delay = float(sys.argv[2])
+max_delay = float(sys.argv[3])
+
+if not math.isfinite(default_delay) or default_delay < 0:
+    default_delay = 0.0
+if not math.isfinite(max_delay) or max_delay < 0:
+    max_delay = 0.0
+
+def cap(value: float) -> float:
+    return min(max(0.0, value), max_delay)
+
+fallback = cap(default_delay)
+raw = ""
+for line in headers_file.read_text(encoding="utf-8", errors="replace").splitlines():
+    if line.lower().startswith("retry-after:"):
+        raw = line.split(":", 1)[1].strip()
+        break
+
+if not raw:
+    print(fallback)
+    raise SystemExit(0)
+
+try:
+    print(cap(float(raw)))
+    raise SystemExit(0)
+except ValueError:
+    pass
+
+try:
+    retry_at = parsedate_to_datetime(raw)
+except (TypeError, ValueError):
+    print(fallback)
+    raise SystemExit(0)
+
+if retry_at.tzinfo is None:
+    retry_at = retry_at.replace(tzinfo=timezone.utc)
+
+delta = (retry_at - datetime.now(timezone.utc)).total_seconds()
+print(cap(delta if delta > 0 else fallback))
+PY
+}
+
 resolve_output_file() {
   local raw="${SMOKE_AUTH_OUTPUT_FILE:-}"
   local normalized=""
@@ -136,6 +231,18 @@ OIDC_CLIENT_SECRET_FILE="$(trim "${OIDC_CLIENT_SECRET_FILE:-}")"
 OIDC_SCOPE="$(trim "${OIDC_SCOPE:-}")"
 OIDC_AUDIENCE="$(trim "${OIDC_AUDIENCE:-}")"
 
+OIDC_MAX_ATTEMPTS="$(trim "${OIDC_MAX_ATTEMPTS:-3}")"
+OIDC_RETRY_DELAY_SECONDS="$(trim "${OIDC_RETRY_DELAY_SECONDS:-1}")"
+OIDC_MAX_RETRY_DELAY_SECONDS="$(trim "${OIDC_MAX_RETRY_DELAY_SECONDS:-10}")"
+OIDC_CONNECT_TIMEOUT_SECONDS="$(trim "${OIDC_CONNECT_TIMEOUT_SECONDS:-5}")"
+OIDC_MAX_TIME_SECONDS="$(trim "${OIDC_MAX_TIME_SECONDS:-20}")"
+
+validate_int_ge "${OIDC_MAX_ATTEMPTS}" "OIDC_MAX_ATTEMPTS" 1
+validate_float_ge "${OIDC_RETRY_DELAY_SECONDS}" "OIDC_RETRY_DELAY_SECONDS" 0
+validate_float_ge "${OIDC_MAX_RETRY_DELAY_SECONDS}" "OIDC_MAX_RETRY_DELAY_SECONDS" 0
+validate_float_ge "${OIDC_CONNECT_TIMEOUT_SECONDS}" "OIDC_CONNECT_TIMEOUT_SECONDS" 0.001
+validate_float_ge "${OIDC_MAX_TIME_SECONDS}" "OIDC_MAX_TIME_SECONDS" 0.001
+
 if [[ -z "${OIDC_TOKEN_URL}" ]]; then
   fail_preflight "OIDC_TOKEN_URL fehlt für SMOKE_AUTH_MODE=oidc_client_credentials."
 fi
@@ -182,31 +289,75 @@ if [[ -n "${OIDC_AUDIENCE}" ]]; then
 fi
 
 TMP_BODY="$(mktemp)"
-trap 'rm -f "${TMP_BODY}"' EXIT
+TMP_HEADERS="$(mktemp)"
+trap 'rm -f "${TMP_BODY}" "${TMP_HEADERS}"' EXIT
 
-CURL_ARGS=(
-  -sS
-  -X POST "${OIDC_TOKEN_URL}"
-  -H "Content-Type: application/x-www-form-urlencoded"
-  --data-urlencode "grant_type=client_credentials"
-  --data-urlencode "client_id=${OIDC_CLIENT_ID}"
-  --data-urlencode "client_secret=${OIDC_CLIENT_SECRET}"
-  -o "${TMP_BODY}"
-  -w "%{http_code}"
-)
+build_curl_args() {
+  local body_file="$1"
+  local headers_file="$2"
 
-if [[ -n "${OIDC_SCOPE}" ]]; then
-  CURL_ARGS+=(--data-urlencode "scope=${OIDC_SCOPE}")
-fi
+  CURL_ARGS=(
+    -sS
+    --connect-timeout "${OIDC_CONNECT_TIMEOUT_SECONDS}"
+    --max-time "${OIDC_MAX_TIME_SECONDS}"
+    -X POST "${OIDC_TOKEN_URL}"
+    -H "Content-Type: application/x-www-form-urlencoded"
+    --data-urlencode "grant_type=client_credentials"
+    --data-urlencode "client_id=${OIDC_CLIENT_ID}"
+    --data-urlencode "client_secret=${OIDC_CLIENT_SECRET}"
+    -D "${headers_file}"
+    -o "${body_file}"
+    -w "%{http_code}"
+  )
 
-if [[ -n "${OIDC_AUDIENCE}" ]]; then
-  CURL_ARGS+=(--data-urlencode "audience=${OIDC_AUDIENCE}")
-fi
+  if [[ -n "${OIDC_SCOPE}" ]]; then
+    CURL_ARGS+=(--data-urlencode "scope=${OIDC_SCOPE}")
+  fi
 
-set +e
-HTTP_CODE="$(curl "${CURL_ARGS[@]}")"
-CURL_EXIT=$?
-set -e
+  if [[ -n "${OIDC_AUDIENCE}" ]]; then
+    CURL_ARGS+=(--data-urlencode "audience=${OIDC_AUDIENCE}")
+  fi
+}
+
+HTTP_CODE=""
+CURL_EXIT=0
+TRANSIENT_STATUS_REGEX='^(408|429|500|502|503|504)$'
+
+for ((attempt=1; attempt<=OIDC_MAX_ATTEMPTS; attempt++)); do
+  : > "${TMP_BODY}"
+  : > "${TMP_HEADERS}"
+  build_curl_args "${TMP_BODY}" "${TMP_HEADERS}"
+
+  set +e
+  HTTP_CODE="$(curl "${CURL_ARGS[@]}")"
+  CURL_EXIT=$?
+  set -e
+
+  if [[ "${CURL_EXIT}" -eq 0 ]]; then
+    if ! [[ "${HTTP_CODE}" =~ ^[0-9]{3}$ ]]; then
+      fail_preflight "Ungültiger HTTP-Status vom OIDC-Token-Endpoint (${HTTP_CODE})."
+    fi
+
+    if [[ "${HTTP_CODE}" -ge 200 && "${HTTP_CODE}" -lt 300 ]]; then
+      break
+    fi
+
+    if [[ "${HTTP_CODE}" =~ ${TRANSIENT_STATUS_REGEX} && "${attempt}" -lt "${OIDC_MAX_ATTEMPTS}" ]]; then
+      sleep "$(resolve_retry_delay_seconds "${TMP_HEADERS}" "${OIDC_RETRY_DELAY_SECONDS}" "${OIDC_MAX_RETRY_DELAY_SECONDS}")"
+      continue
+    fi
+
+    RESPONSE_PREVIEW="$(head -c 300 "${TMP_BODY}" || true)"
+    fail_preflight "OIDC-Token-Endpoint antwortete mit HTTP ${HTTP_CODE}. Body-Preview: ${RESPONSE_PREVIEW}"
+  fi
+
+  if [[ "${attempt}" -lt "${OIDC_MAX_ATTEMPTS}" ]]; then
+    sleep "${OIDC_RETRY_DELAY_SECONDS}"
+    continue
+  fi
+
+  fail_preflight "Token-Request zu OIDC_TOKEN_URL fehlgeschlagen (curl exit=${CURL_EXIT})."
+done
 
 if [[ "${CURL_EXIT}" -ne 0 ]]; then
   fail_preflight "Token-Request zu OIDC_TOKEN_URL fehlgeschlagen (curl exit=${CURL_EXIT})."
