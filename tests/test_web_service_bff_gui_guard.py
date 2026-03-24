@@ -239,6 +239,17 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertIsInstance(payload.get("request_id"), str)
         self.assertTrue(str(payload.get("request_id")).strip())
 
+    def test_auth_callback_route_rejects_proxy_marker_with_untrusted_forwarded_host(self):
+        status, body, _ = _http_get(
+            f"{self.base_url}/auth/callback?code=fake-code&state=fake-state",
+            follow_redirects=False,
+            headers=_ui_proxy_headers({"X-Forwarded-Host": "evil.example.test"}),
+        )
+        self.assertEqual(status, 403)
+        payload = json.loads(body)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "external_direct_login_disabled")
+
     def test_auth_callback_error_renders_single_relogin_page_without_redirect_loop(self):
         status, body, headers = _http_get(
             f"{self.base_url}/auth/callback?code=fake-code&state=fake-state",
@@ -246,7 +257,8 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
             headers=_ui_proxy_headers(
                 {
                     "Host": "callback-mismatch.local",
-                    "X-Forwarded-Host": "callback-mismatch.local",
+                    "X-Forwarded-Host": "127.0.0.1",
+                    "X-Forwarded-Proto": "https",
                 }
             ),
         )
@@ -263,7 +275,8 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         # Redirect diagnostics remain visible for reproducible debugging.
         self.assertIn('&quot;host&quot;: &quot;127.0.0.1&quot;', body)
         self.assertIn('&quot;path&quot;: &quot;/auth/callback&quot;', body)
-        self.assertIn('&quot;host&quot;: &quot;callback-mismatch.local&quot;', body)
+        self.assertIn('&quot;scheme&quot;: &quot;http&quot;', body)
+        self.assertIn('&quot;scheme&quot;: &quot;https&quot;', body)
 
     def test_callback_state_mismatch_clears_cookie_and_shows_relogin_cta(self):
         login_status, _, login_headers = _http_get(
