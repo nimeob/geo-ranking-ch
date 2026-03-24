@@ -14,4 +14,10 @@
   - Retry-Loop für transiente OIDC-Fehler (408/429/500/502/503/504)
   - `Retry-After`-Header wird ausgewertet (Delta-Sekunden oder HTTP-Date)
 - Tests erweitert und lokal grün:
-  - `pytest -q tests/test_auth_preflight_script.py` → **6 passed**
+  - `pytest -q tests/test_auth_preflight_script.py tests/test_run_login_start_smoke_bundle_script_contract.py` → **11 passed**
+
+## 2026-03-25 00:29 CET — Push/PR
+- Branch `night/worker-20260325-0015` nach GitHub gepusht.
+- PR erstellt: **#1498**  
+  https://github.com/nimeob/geo-ranking-ch/pull/1498
+- CI-Checks gestartet (`dev-smoke-required`, `gui-webkit-smoke`).
