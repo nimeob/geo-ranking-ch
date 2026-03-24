@@ -4,6 +4,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from urllib.error import HTTPError
 
 
 MODULE_PATH = Path("scripts/smoke/check_bff_auth_proxy_guard.py")
@@ -133,3 +134,109 @@ def test_main_returns_invalid_argument_exit_code_when_hosts_collapse(monkeypatch
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["ok"] is False
     assert payload["reason"].startswith("invalid_arguments:")
+
+
+def test_send_request_probe_honors_retry_after_header(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 302
+
+        def __init__(self):
+            self.headers = {"Location": "https://auth.dev.georanking.ch/oauth2/authorize"}
+
+        def getcode(self):
+            return self.status
+
+        def read(self, _max_bytes):
+            return b""
+
+        def close(self):
+            return None
+
+    class _FakeOpener:
+        def __init__(self):
+            self.calls = 0
+
+        def open(self, req, timeout):
+            self.calls += 1
+            if self.calls == 1:
+                raise HTTPError(
+                    req.full_url,
+                    429,
+                    "Too Many Requests",
+                    hdrs={"Retry-After": "7"},
+                    fp=None,
+                )
+            return _FakeResponse()
+
+    fake_opener = _FakeOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: fake_opener)
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(module.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    result = module._send_request_probe(
+        request_url="https://api.dev.georanking.ch/auth/login?next=%2Fgui",
+        headers={"X-Geo-Auth-Proxy": "1"},
+        timeout_seconds=5.0,
+        max_attempts=2,
+        retry_delay_seconds=2.0,
+    )
+
+    assert result.status_code == 302
+    assert fake_opener.calls == 2
+    assert sleep_calls == [7.0]
+
+
+def test_send_request_probe_falls_back_to_default_retry_delay(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 403
+
+        def __init__(self):
+            self.headers = {"Location": ""}
+
+        def getcode(self):
+            return self.status
+
+        def read(self, _max_bytes):
+            return b'{"error":"external_direct_login_disabled"}'
+
+        def close(self):
+            return None
+
+    class _FakeOpener:
+        def __init__(self):
+            self.calls = 0
+
+        def open(self, req, timeout):
+            self.calls += 1
+            if self.calls == 1:
+                raise HTTPError(
+                    req.full_url,
+                    503,
+                    "Service Unavailable",
+                    hdrs={"Retry-After": "not-a-number"},
+                    fp=None,
+                )
+            return _FakeResponse()
+
+    fake_opener = _FakeOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: fake_opener)
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(module.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    result = module._send_request_probe(
+        request_url="https://api.dev.georanking.ch/auth/login?next=%2Fgui",
+        headers={"X-Geo-Auth-Proxy": "1"},
+        timeout_seconds=5.0,
+        max_attempts=2,
+        retry_delay_seconds=2.5,
+    )
+
+    assert result.status_code == 403
+    assert fake_opener.calls == 2
+    assert sleep_calls == [2.5]
