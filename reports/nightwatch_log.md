@@ -21,3 +21,8 @@
 - PR erstellt: **#1498**  
   https://github.com/nimeob/geo-ranking-ch/pull/1498
 - CI-Checks gestartet (`dev-smoke-required`, `gui-webkit-smoke`).
+
+## 2026-03-25 00:31 CET — CI-Resultat
+- PR #1498 Checks abgeschlossen: **grün**
+  - `dev-smoke-required` ✅
+  - `gui-webkit-smoke` ✅
