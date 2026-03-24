@@ -88,3 +88,18 @@
 ## 04:02 CET — Re-Tests + Live-Verifikation DEV
 - Lokal erfolgreich: `pytest -q tests/test_check_ui_login_start.py` (25 passed) sowie Contract-Suite `tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_run_deploy_smoke.py` (11 passed).
 - Live DEV erneut geprüft: `run_login_start_smoke_bundle.sh` und `check_bff_auth_proxy_guard.py` gegen `www.dev.georanking.ch`/`api.dev.georanking.ch` beide **ok**; Artefakte unter `artifacts/nightly-20260324-024611-after-authz-path-fix/`.
+
+## 07:05 CET — Retry-After HTTP-date Regression-Gap geschlossen (ROI)
+- Fokus: letzte Smoke-Hardening-Welle auf **Regression-Schutz** erweitert, damit `Retry-After` im RFC-Date-Format nicht unbemerkt kaputtgeht.
+- Ergänzt in Tests:
+  - `tests/test_check_ui_canonical_redirect.py`
+    - HTTP-date `Retry-After` wird geparst und durch `--max-retry-delay` gecappt.
+    - Stale HTTP-date fällt auf Default-Retry-Delay zurück.
+  - `tests/test_check_bff_auth_proxy_guard.py`
+    - gleiche zwei Fälle (cap + stale fallback) für Auth-Proxy-Guard-Smoke.
+- Verifikation lokal:
+  - `/data/.openclaw/workspace/geo-ranking-ch/.venv/bin/pytest -q tests/test_check_ui_canonical_redirect.py tests/test_check_bff_auth_proxy_guard.py` → **23 passed**.
+- Live-DEV Re-Checks (UI-/BFF-nah) durchgeführt:
+  - `check_ui_canonical_redirect.py` gegen `www.dev.georanking.ch`/Alias → **ok=true, status=307**.
+  - `check_bff_auth_proxy_guard.py` gegen `api.dev.georanking.ch` + UI-Origin → **ok=true** (alle 6 Checks grün).
+  - Artefakte: `artifacts/nightly-20260324T060411Z/`.
