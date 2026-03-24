@@ -35,10 +35,10 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
 def test_login_start_bundle_script_uses_shared_route_helper_and_probe_loop() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
-    assert "source \"${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh\"" in content
+    assert 'source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"' in content
     assert "GUI_SMOKE_ROUTES" in content
     assert "gui_login_start_artifact_suffix_for_route" in content
-    assert "run_probe \"$route\" \"$output_json\"" in content
+    assert 'run_probe "$route" "$output_json"' in content
 
 
 def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
@@ -46,6 +46,7 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
 
     assert "--base-url" in content
     assert "--env-name" in content
+    assert "--expected-authorize-host" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
 
@@ -67,7 +68,14 @@ def test_login_start_bundle_rejects_missing_option_value_for_base_url() -> None:
 
 def test_login_start_bundle_rejects_missing_option_value_for_timeout() -> None:
     proc = subprocess.run(
-        [str(SCRIPT), "--base-url", "https://www.dev.georanking.ch", "--env-name", "dev", "--timeout"],
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--timeout",
+        ],
         cwd=str(REPO_ROOT),
         env=os.environ.copy(),
         capture_output=True,
