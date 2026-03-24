@@ -56,8 +56,23 @@ def _normalize_origin(origin: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
+def _normalize_host(value: str) -> str:
+    raw_value = str(value or "").split(",", 1)[0].strip()
+    if not raw_value:
+        return ""
+    parsed = urlparse(raw_value if "://" in raw_value else f"//{raw_value}")
+    return str(parsed.hostname or "").strip().lower()
+
+
 def _parse_canonical_hosts(raw_hosts: str) -> list[str]:
-    return [item.strip().lower() for item in raw_hosts.split(",") if item.strip()]
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in str(raw_hosts or "").split(","):
+        host = _normalize_host(item)
+        if host and host not in seen:
+            seen.add(host)
+            normalized.append(host)
+    return normalized
 
 
 def _is_redirect_status(status_code: int) -> bool:
@@ -140,7 +155,7 @@ def check_canonical_redirect(
     request_url = ""
 
     configured_hosts = _parse_canonical_hosts(canonical_hosts)
-    canonical_host = urlparse(normalized_canonical_origin).netloc.lower()
+    canonical_host = _normalize_host(normalized_canonical_origin)
     alias_candidates = [host for host in configured_hosts if host and host != canonical_host]
 
     if not alias_candidates:

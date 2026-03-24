@@ -30,3 +30,23 @@
 - Live-Skriptcheck DEV:
   - `python3 scripts/smoke/check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch --canonical-origin https://www.dev.georanking.ch --canonical-hosts 'www.dev.geo-ranking.ch,www.dev.georanking.ch'`
   - Ergebnis: `{"ok": true, "reason": "ok", "status_code": 307, ...}`.
+
+## 01:12 CET — Canonical-host Parser-Hardening + Live-Recheck
+- ROI-Strang fortgeführt: Parser-Hardening für Canonical-Host-Konfiguration, damit `UI_CANONICAL_HOSTS` robust bleibt, auch wenn Einträge versehentlich als volle Origins/mit Port gesetzt werden.
+- Änderungen umgesetzt:
+  - `src/ui/service.py`
+    - `_normalize_host(...)` nutzt jetzt URL-Parsing statt `split(':', 1)`.
+    - Ergebnis: Host-Normalisierung funktioniert für `host:port` **und** `https://host[:port]` korrekt.
+  - `scripts/smoke/check_ui_canonical_redirect.py`
+    - neue Host-Normalisierung für `--canonical-hosts` (Origin-/Port-Inputs werden korrekt auf Host reduziert).
+    - Canonical-Host-Vergleich nutzt dieselbe robuste Normalisierung.
+  - Tests erweitert:
+    - `tests/test_ui_service.py::UiCanonicalConfigTests`
+    - `tests/test_check_ui_canonical_redirect.py`
+- Verifikation lokal:
+  - `.venv/bin/python -m pytest -q tests/test_check_ui_canonical_redirect.py tests/test_ui_service.py::UiCanonicalConfigTests` → **9 passed**.
+  - `python3 -m compileall -q src/ui/service.py scripts/smoke/check_ui_canonical_redirect.py` → **ok**.
+- Live-UI-Checks DEV (CLI, da Browser-Gateway weiter timeout):
+  - `python3 scripts/smoke/check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch --canonical-origin https://www.dev.georanking.ch --canonical-hosts 'www.dev.geo-ranking.ch,www.dev.georanking.ch' --next '/results/demo-result' --reason 'night_worker_probe'` → **ok=true, status_code=307**.
+  - `https://www.dev.geo-ranking.ch/healthz` → **200** (kein Redirect, wie erwartet).
+  - `https://www.dev.geo-ranking.ch/results/demo-result?from=night-worker` → **307** auf `https://www.dev.georanking.ch/...`.

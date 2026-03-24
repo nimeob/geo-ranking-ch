@@ -767,6 +767,32 @@ class UiCanonicalConfigTests(unittest.TestCase):
             else:
                 os.environ["UI_CANONICAL_HOSTS"] = old_hosts
 
+    def test_resolve_canonical_host_config_normalizes_origin_style_host_entries(self):
+        from src.ui import service as ui_service
+
+        old_origin = os.environ.get("UI_CANONICAL_ORIGIN")
+        old_hosts = os.environ.get("UI_CANONICAL_HOSTS")
+        try:
+            os.environ["UI_CANONICAL_ORIGIN"] = "https://www.dev.georanking.ch"
+            os.environ["UI_CANONICAL_HOSTS"] = (
+                "https://www.dev.geo-ranking.ch, https://www.dev.georanking.ch:443"
+            )
+            scheme, host, hosts = ui_service._resolve_canonical_host_config()
+            self.assertEqual(scheme, "https")
+            self.assertEqual(host, "www.dev.georanking.ch")
+            self.assertIn("www.dev.georanking.ch", hosts)
+            self.assertIn("www.dev.geo-ranking.ch", hosts)
+            self.assertNotIn("https", hosts)
+        finally:
+            if old_origin is None:
+                os.environ.pop("UI_CANONICAL_ORIGIN", None)
+            else:
+                os.environ["UI_CANONICAL_ORIGIN"] = old_origin
+            if old_hosts is None:
+                os.environ.pop("UI_CANONICAL_HOSTS", None)
+            else:
+                os.environ["UI_CANONICAL_HOSTS"] = old_hosts
+
 
 class UiCanonicalRedirectTests(unittest.TestCase):
     @classmethod
