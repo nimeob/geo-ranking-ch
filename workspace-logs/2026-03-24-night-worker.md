@@ -121,3 +121,23 @@
   - `python3 scripts/smoke/check_ui_login_start.py --base-url https://www.dev.geo-ranking.ch --expected-authorize-host auth.dev.georanking.ch,www.dev.georanking.ch --next /gui` → **ok=true** (vorher fail).
   - `python3 scripts/smoke/check_ui_login_start.py --base-url https://www.dev.georanking.ch --expected-authorize-host auth.dev.georanking.ch,www.dev.georanking.ch --next /gui` → **ok=true**.
   - Artefakte: `artifacts/nightworker/20260324T0740Z-dev-login-alias-after-fix.json`, `artifacts/nightworker/20260324T0741Z-dev-login-main-after-fix.json`.
+
+## 07:53 CET — Multi-hop/Loop-Hardening für Login-Start-Smoke + Live-Recheck
+- ROI-Fokus: `check_ui_login_start.py` war nach dem letzten Fix auf **genau einen** kanonischen `/login`-Hop begrenzt. Bei mehrstufigen Canonical-Ketten (z. B. Host+Schema/Edge-Hops) drohten erneut False-Negatives.
+- Umsetzung (Branch `night/worker-20260324-0745`):
+  - `scripts/smoke/check_ui_login_start.py`
+    - neue Helper-Logik `_follow_same_login_redirects(...)`.
+    - folgt bis zu 4 legitimen `/login`-Weiterleitungen mit identischem `next/reason` (bzw. `start=1` für Start-Phase).
+    - erkennt Redirect-Loops fail-closed mit klaren Gründen:
+      - `entry_same_login_redirect_loop_detected`
+      - `start_same_login_redirect_loop_detected`
+    - erkennt Hop-Limit-Überschreitung explizit (`*_hop_limit_exceeded`).
+  - `tests/test_check_ui_login_start.py`
+    - neue Regressionstests für 2-Hop-Cases (Entry+Start) und Loop-Erkennung (Entry+Start).
+- Verifikation lokal:
+  - `/data/.openclaw/workspace/geo-ranking-ch/.venv/bin/python -m pytest -q tests/test_check_ui_login_start.py` → **38 passed**.
+  - `/data/.openclaw/workspace/geo-ranking-ch/.venv/bin/python -m pytest -q tests/test_deploy_version_trace_docs.py tests/test_gui_dev_live_auth_analyze_smoke_docs.py` → **21 passed**.
+- Live-DEV Re-Check (UI einbezogen):
+  - `python scripts/smoke/check_ui_login_start.py --base-url https://www.dev.georanking.ch --next /gui` → **ok=true**.
+  - `python scripts/smoke/check_ui_login_start.py --base-url https://www.dev.georanking.ch --next /gui/history` → **ok=true**.
+  - Artefakte: `artifacts/nightworker/20260324T065141Z-dev-login-start-smoke-gui.json`, `...-gui-history.json`.

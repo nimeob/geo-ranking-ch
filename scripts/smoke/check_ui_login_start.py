@@ -8,7 +8,8 @@ Verifies both contracts:
 2) ``/login?next=...&reason=...&start=1`` reaches an IdP authorize redirect.
 
 The redirect chain may be either:
-- direct redirect to authorize, or
+- direct redirect to authorize,
+- one or more canonical ``/login`` hops before continuing, or
 - UI-owned intermediate hop via ``/auth/login`` followed by authorize.
 """
 
@@ -74,6 +75,7 @@ def _build_start_request_url(base_url: str, *, next_path: str, reason: str) -> s
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
 _REDIRECT_HTTP_STATUSES = frozenset({301, 302, 303, 307, 308})
+_MAX_SAME_LOGIN_REDIRECT_HOPS = 4
 
 
 def _is_redirect_status(status_code: int) -> bool:
@@ -353,6 +355,73 @@ def _is_login_unavailable_redirect(location: str) -> bool:
     return "reason=login_unavailable" in location.lower()
 
 
+def _follow_same_login_redirects(
+    *,
+    phase: str,
+    request_url: str,
+    probe: _HttpProbeResult,
+    next_path: str,
+    reason: str,
+    require_start: bool,
+    timeout_seconds: float,
+    max_attempts: int,
+    retry_delay_seconds: float,
+    max_retry_delay_seconds: float,
+) -> tuple[str, _HttpProbeResult, str | None]:
+    current_request_url = request_url
+    current_probe = probe
+    visited_request_urls = {current_request_url}
+
+    for _ in range(_MAX_SAME_LOGIN_REDIRECT_HOPS):
+        if not (
+            _is_redirect_status(current_probe.status_code)
+            and current_probe.location
+            and _is_same_login_entry_redirect(
+                location=current_probe.location,
+                next_path=next_path,
+                reason=reason,
+                require_start=require_start,
+            )
+        ):
+            return current_request_url, current_probe, None
+
+        candidate_request_url = urljoin(current_request_url, current_probe.location)
+        if candidate_request_url in visited_request_urls:
+            return (
+                current_request_url,
+                current_probe,
+                f"{phase}_same_login_redirect_loop_detected",
+            )
+        visited_request_urls.add(candidate_request_url)
+        current_request_url = candidate_request_url
+        current_probe = _send_request_probe(
+            request_url=current_request_url,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            max_retry_delay_seconds=max_retry_delay_seconds,
+            read_body_preview=(phase == "entry"),
+        )
+
+    if (
+        _is_redirect_status(current_probe.status_code)
+        and current_probe.location
+        and _is_same_login_entry_redirect(
+            location=current_probe.location,
+            next_path=next_path,
+            reason=reason,
+            require_start=require_start,
+        )
+    ):
+        return (
+            current_request_url,
+            current_probe,
+            f"{phase}_same_login_redirect_hop_limit_exceeded",
+        )
+
+    return current_request_url, current_probe, None
+
+
 def check_login_entry(
     *,
     base_url: str,
@@ -375,27 +444,27 @@ def check_login_entry(
         read_body_preview=True,
     )
 
-    if (
-        _is_redirect_status(probe.status_code)
-        and probe.location
-        and _is_same_login_entry_redirect(
+    probe_request_url, probe, redirect_follow_error = _follow_same_login_redirects(
+        phase="entry",
+        request_url=probe_request_url,
+        probe=probe,
+        next_path=next_path,
+        reason=reason,
+        require_start=False,
+        timeout_seconds=timeout_seconds,
+        max_attempts=max_attempts,
+        retry_delay_seconds=retry_delay_seconds,
+        max_retry_delay_seconds=max_retry_delay_seconds,
+    )
+    if redirect_follow_error:
+        return LoginEntryCheckResult(
+            ok=False,
+            status_code=probe.status_code,
             location=probe.location,
-            next_path=next_path,
-            reason=reason,
-            require_start=False,
+            request_url=probe_request_url,
+            content_type=probe.content_type,
+            reason=redirect_follow_error,
         )
-    ):
-        candidate_request_url = urljoin(probe_request_url, probe.location)
-        if candidate_request_url != probe_request_url:
-            probe_request_url = candidate_request_url
-            probe = _send_request_probe(
-                request_url=probe_request_url,
-                timeout_seconds=timeout_seconds,
-                max_attempts=max_attempts,
-                retry_delay_seconds=retry_delay_seconds,
-                max_retry_delay_seconds=max_retry_delay_seconds,
-                read_body_preview=True,
-            )
 
     if _is_redirect_status(probe.status_code):
         if not probe.location:
@@ -527,34 +596,37 @@ def check_login_start(
     request_url = _build_start_request_url(base_url, next_path=next_path, reason=reason)
     current_request_url = request_url
 
-    first_status, first_location = _send_request(
+    first_probe = _send_request_probe(
         request_url=current_request_url,
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
         max_retry_delay_seconds=max_retry_delay_seconds,
+        read_body_preview=False,
     )
 
-    if (
-        _is_redirect_status(first_status)
-        and first_location
-        and _is_same_login_entry_redirect(
+    current_request_url, first_probe, redirect_follow_error = _follow_same_login_redirects(
+        phase="start",
+        request_url=current_request_url,
+        probe=first_probe,
+        next_path=next_path,
+        reason=reason,
+        require_start=True,
+        timeout_seconds=timeout_seconds,
+        max_attempts=max_attempts,
+        retry_delay_seconds=retry_delay_seconds,
+        max_retry_delay_seconds=max_retry_delay_seconds,
+    )
+    first_status = first_probe.status_code
+    first_location = first_probe.location
+    if redirect_follow_error:
+        return LoginStartCheckResult(
+            ok=False,
+            status_code=first_status,
             location=first_location,
-            next_path=next_path,
-            reason=reason,
-            require_start=True,
+            request_url=current_request_url,
+            reason=redirect_follow_error,
         )
-    ):
-        candidate_request_url = urljoin(current_request_url, first_location)
-        if candidate_request_url != current_request_url:
-            current_request_url = candidate_request_url
-            first_status, first_location = _send_request(
-                request_url=current_request_url,
-                timeout_seconds=timeout_seconds,
-                max_attempts=max_attempts,
-                retry_delay_seconds=retry_delay_seconds,
-                max_retry_delay_seconds=max_retry_delay_seconds,
-            )
 
     if not _is_redirect_status(first_status):
         return LoginStartCheckResult(
