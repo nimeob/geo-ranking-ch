@@ -667,16 +667,33 @@ def _resolve_ui_auth_proxy_trusted_hosts() -> set[str]:
     return hosts
 
 
+def _normalized_forwarded_hosts(headers: Any) -> list[str]:
+    raw_forwarded_host = str(headers.get("X-Forwarded-Host", "") or "")
+    raw_segments = [segment.strip() for segment in raw_forwarded_host.split(",")]
+    if not raw_segments:
+        return []
+    if any(not segment for segment in raw_segments):
+        return []
+
+    normalized_hosts: list[str] = []
+    for segment in raw_segments:
+        normalized = _normalize_trusted_host(segment)
+        if not normalized:
+            return []
+        normalized_hosts.append(normalized)
+
+    return normalized_hosts
+
+
 def _is_ui_auth_proxy_forwarded_host_trusted(headers: Any) -> bool:
-    forwarded_host = str(headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
-    normalized_host = _normalize_trusted_host(forwarded_host)
-    if not normalized_host:
+    normalized_hosts = _normalized_forwarded_hosts(headers)
+    if not normalized_hosts:
         return False
 
     trusted_hosts = _resolve_ui_auth_proxy_trusted_hosts()
     if not trusted_hosts:
         return True
-    return normalized_host in trusted_hosts
+    return all(host in trusted_hosts for host in normalized_hosts)
 
 
 def _is_ui_auth_proxy_request(headers: Any) -> bool:

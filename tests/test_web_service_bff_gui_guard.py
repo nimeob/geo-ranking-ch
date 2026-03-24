@@ -170,6 +170,19 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         self.assertFalse(payload.get("ok"))
         self.assertEqual(payload.get("error"), "external_direct_login_disabled")
 
+    def test_auth_login_route_rejects_forwarded_host_chain_with_untrusted_hop(self):
+        status, body, _ = _http_get(
+            f"{self.base_url}/auth/login?next=%2Fgui",
+            follow_redirects=False,
+            headers=_ui_proxy_headers(
+                {"X-Forwarded-Host": "www.dev.georanking.ch,evil.example.test"}
+            ),
+        )
+        self.assertEqual(status, 403)
+        payload = json.loads(body)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "external_direct_login_disabled")
+
     def test_auth_login_route_accepts_trusted_forwarded_host_with_port(self):
         status, _, headers = _http_get(
             f"{self.base_url}/auth/login?next=%2Fgui",
@@ -295,6 +308,19 @@ class TestWebServiceBffGuiGuard(unittest.TestCase):
         )
         self.assertEqual(status, 302)
         self.assertEqual(headers.get("location"), "/auth/login?next=%2Fgui%2Fhistory%3Flimit%3D5")
+
+    def test_logout_endpoint_rejects_forwarded_host_chain_with_untrusted_hop(self):
+        status, body, _ = _http_get(
+            f"{self.base_url}/auth/logout",
+            follow_redirects=False,
+            headers=_ui_proxy_headers(
+                {"X-Forwarded-Host": "www.dev.georanking.ch,evil.example.test"}
+            ),
+        )
+        self.assertEqual(status, 403)
+        payload = json.loads(body)
+        self.assertFalse(payload.get("ok"))
+        self.assertEqual(payload.get("error"), "external_direct_login_disabled")
 
     def test_logout_endpoint_clears_cookie_and_redirects_to_idp_with_defined_return_path(self):
         status, _, headers = _http_get(
