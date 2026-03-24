@@ -45,4 +45,6 @@ Viewport: `390x844` (Playwright, Chromium)
 node ./scripts/run_issue_1142_mobile_table_overflow_smoke.cjs
 ```
 
-> Hinweis: Die Smoke nutzt `playwright-core` + lokales Chromium und schreibt Before/After-Screenshots sowie JSON-Metriken nach `reports/evidence/`.
+> Hinweis: Die Smoke nutzt `playwright-core` + lokales Chromium, schreibt Before/After-Screenshots + JSON-Evidence nach `reports/evidence/` und endet mit Exit-Code `1`, sobald die **After**-Assertions (kein Overflow + Actions sichtbar) verletzt sind.
+>
+> Optional: `ISSUE_1142_BASELINE_REF=<git-ref>` überschreibt den Vergleichsstand (`HEAD~1` per Default, Fallback auf `HEAD`).
