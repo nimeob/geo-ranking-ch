@@ -26,7 +26,8 @@ Options:
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
   --retry-delay <seconds>       Delay zwischen Retries (default: 5)
   --expected-authorize-host <h> Erwarteter Host für absolute authorize-Redirects
-                                (optional; default: auth.<base-host> + <base-host>)
+                                (hostname, host:port oder URL; optional;
+                                 default: auth.<base-host> + <base-host>)
 EOF
 }
 
