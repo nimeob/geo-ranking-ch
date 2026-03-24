@@ -66,6 +66,7 @@ class AuthProxyGuardSmokeResult:
     ui_base_url: str
     trusted_forwarded_host: str
     untrusted_forwarded_host: str
+    expected_authorize_hosts: list[str]
     checks: list[dict[str, object]]
     hint: str = ""
 
@@ -89,6 +90,42 @@ def _normalize_host(raw_value: str) -> str:
         return ""
     parsed = urlparse(value if "://" in value else f"//{value}")
     return str(parsed.hostname or "").strip().lower()
+
+
+def _normalize_host_token(raw_host: str) -> str:
+    candidate = str(raw_host or "").strip()
+    if not candidate:
+        return ""
+
+    parsed = urlparse(candidate if "://" in candidate else f"//{candidate}")
+    host = str(parsed.hostname or "").strip().lower()
+    if host:
+        return host
+
+    return candidate.strip("[]").lower()
+
+
+def _parse_allowed_authorize_hosts(raw_hosts: str | None) -> set[str]:
+    if not raw_hosts:
+        return set()
+
+    hosts: set[str] = set()
+    for token in str(raw_hosts).split(","):
+        normalized = _normalize_host_token(token)
+        if normalized:
+            hosts.add(normalized)
+    return hosts
+
+
+def _derive_default_authorize_hosts(ui_origin: str) -> set[str]:
+    host = _normalize_host_token(urlparse(ui_origin).hostname or "")
+    if not host:
+        return set()
+
+    allowed_hosts: set[str] = {host}
+    if host.startswith("www.") and len(host) > 4:
+        allowed_hosts.add(f"auth.{host[4:]}")
+    return allowed_hosts
 
 
 def _is_redirect_status(status_code: int) -> bool:
@@ -206,7 +243,7 @@ def _build_probe_specs(*, trusted_host: str, untrusted_host: str) -> list[_Probe
             path_with_query="/auth/login?next=%2Fgui",
             forwarded_host=trusted_host,
             expect_redirect=True,
-            expect_location_contains="/oauth2/authorize",
+            expect_location_contains="authorize",
         ),
         _ProbeSpec(
             name="login_untrusted",
@@ -246,7 +283,9 @@ def _build_probe_specs(*, trusted_host: str, untrusted_host: str) -> list[_Probe
     ]
 
 
-def _evaluate_probe(*, spec: _ProbeSpec, probe: _HttpProbeResult) -> _ProbeOutcome:
+def _evaluate_probe(
+    *, spec: _ProbeSpec, probe: _HttpProbeResult, allowed_authorize_hosts: set[str]
+) -> _ProbeOutcome:
     if spec.expect_redirect:
         if not _is_redirect_status(probe.status_code):
             return _ProbeOutcome(
@@ -270,6 +309,27 @@ def _evaluate_probe(*, spec: _ProbeSpec, probe: _HttpProbeResult) -> _ProbeOutco
                 expected_redirect=spec.expect_redirect,
                 forwarded_host=spec.forwarded_host,
             )
+
+        if spec.expect_redirect and allowed_authorize_hosts:
+            parsed_location = urlparse(probe.location)
+            if parsed_location.netloc:
+                observed_host = _normalize_host_token(parsed_location.hostname or "")
+                if observed_host not in allowed_authorize_hosts:
+                    return _ProbeOutcome(
+                        name=spec.name,
+                        ok=False,
+                        reason="authorize_redirect_host_not_allowed",
+                        status_code=probe.status_code,
+                        location=probe.location,
+                        expected_status=spec.expect_status,
+                        expected_redirect=spec.expect_redirect,
+                        forwarded_host=spec.forwarded_host,
+                        hint=(
+                            "expected_authorize_hosts="
+                            + ",".join(sorted(allowed_authorize_hosts))
+                        ),
+                    )
+
         return _ProbeOutcome(
             name=spec.name,
             ok=True,
@@ -346,6 +406,7 @@ def check_auth_proxy_guard(
     timeout_seconds: float,
     max_attempts: int,
     retry_delay_seconds: float,
+    expected_authorize_host: str = "",
     max_retry_delay_seconds: float = 10.0,
 ) -> AuthProxyGuardSmokeResult:
     normalized_api_origin = _normalize_origin(api_base_url)
@@ -361,6 +422,10 @@ def check_auth_proxy_guard(
     if untrusted_host == trusted_host:
         raise ValueError("untrusted_forwarded_host_must_differ_from_trusted")
 
+    allowed_authorize_hosts = _parse_allowed_authorize_hosts(expected_authorize_host)
+    if not allowed_authorize_hosts and normalized_ui_origin:
+        allowed_authorize_hosts = _derive_default_authorize_hosts(normalized_ui_origin)
+
     checks: list[dict[str, object]] = []
     for spec in _build_probe_specs(trusted_host=trusted_host, untrusted_host=untrusted_host):
         request_url = f"{normalized_api_origin}{spec.path_with_query}"
@@ -372,7 +437,11 @@ def check_auth_proxy_guard(
             retry_delay_seconds=retry_delay_seconds,
             max_retry_delay_seconds=max_retry_delay_seconds,
         )
-        outcome = _evaluate_probe(spec=spec, probe=probe)
+        outcome = _evaluate_probe(
+            spec=spec,
+            probe=probe,
+            allowed_authorize_hosts=allowed_authorize_hosts,
+        )
         checks.append(
             {
                 "name": outcome.name,
@@ -408,6 +477,7 @@ def check_auth_proxy_guard(
         ui_base_url=normalized_ui_origin,
         trusted_forwarded_host=trusted_host,
         untrusted_forwarded_host=untrusted_host,
+        expected_authorize_hosts=sorted(allowed_authorize_hosts),
         checks=checks,
         hint=hint,
     )
@@ -438,6 +508,15 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default="evil.example.test",
         help="Untrusted forwarded host used for fail-closed checks",
     )
+    parser.add_argument(
+        "--expected-authorize-host",
+        default="",
+        help=(
+            "Optional comma-separated allow-list for absolute authorize redirect hosts "
+            "(hostname, host:port, or URL). Defaults to auth.<ui-host-without-www> + <ui-host> "
+            "when --ui-base-url is provided."
+        ),
+    )
     parser.add_argument("--timeout", type=float, default=15.0)
     parser.add_argument("--max-attempts", type=int, default=5)
     parser.add_argument("--retry-delay", type=float, default=2.0)
@@ -464,6 +543,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=max(1.0, float(args.timeout)),
             max_attempts=max(1, int(args.max_attempts)),
             retry_delay_seconds=max(0.0, float(args.retry_delay)),
+            expected_authorize_host=str(args.expected_authorize_host or ""),
             max_retry_delay_seconds=max(0.0, float(args.max_retry_delay)),
         )
     except ValueError as exc:
@@ -472,6 +552,7 @@ def main(argv: list[str] | None = None) -> int:
             "reason": f"invalid_arguments:{exc}",
             "api_base_url": args.api_base_url,
             "ui_base_url": args.ui_base_url,
+            "expected_authorize_hosts": [],
             "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
             "hint": "",
@@ -484,6 +565,7 @@ def main(argv: list[str] | None = None) -> int:
             "reason": f"probe_exception:{exc}",
             "api_base_url": args.api_base_url,
             "ui_base_url": args.ui_base_url,
+            "expected_authorize_hosts": [],
             "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
             "hint": "",

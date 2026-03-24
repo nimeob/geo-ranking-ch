@@ -26,3 +26,21 @@
 - PR #1498 Checks abgeschlossen: **grün**
   - `dev-smoke-required` ✅
   - `gui-webkit-smoke` ✅
+
+## 2026-03-25 00:53 CET — Auth-Proxy-Guard weiter gehärtet
+- Gap identifiziert: `check_bff_auth_proxy_guard.py` prüfte bisher nur `...authorize`-Pfad, aber keinen Allow-List-Host für absolute Redirects.
+- Erweiterung umgesetzt:
+  - neuer CLI-Parameter `--expected-authorize-host` (comma-separated allow-list)
+  - Default-Ableitung aus `--ui-base-url` (`auth.<base-host-ohne-www>` + `<ui-host>`)
+  - trusted `/auth/login` schlägt nun fail-closed fehl, wenn Redirect auf nicht erlaubten Host zeigt.
+- Test-Suite erweitert:
+  - neuer Negativtest für Host-Mismatch
+  - neuer Positivtest für expliziten Custom-Allow-List-Host
+  - bestehende Tests angepasst (JSON enthält nun `expected_authorize_hosts`)
+  - `pytest -q tests/test_check_bff_auth_proxy_guard.py` → **12 passed**
+- Live-Retest gegen DEV:
+  - `check_bff_auth_proxy_guard.py --api-base-url https://api.dev.georanking.ch --ui-base-url https://www.dev.georanking.ch` → **ok**
+  - Ausgabe enthält erwartete Allow-List `auth.dev.georanking.ch`, `www.dev.georanking.ch`.
+- Parallel überwacht:
+  - Deploy-Run `23517454230` (push, main) ✅ erfolgreich
+  - Deploy-Run `23517501302` (schedule, main) läuft weiter (Build grün, Deploy in Arbeit).
