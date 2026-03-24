@@ -181,6 +181,22 @@ def test_check_login_entry_passes_for_authorize_redirect():
     assert result.reason == "ok_redirect"
 
 
+def test_check_login_entry_rejects_non_authorize_path_even_when_query_mentions_authorize():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": (
+            302,
+            "https://idp.example.test/login?next=%2Foauth2%2Fauthorize",
+        ),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "entry_redirect_non_login_target"
+
+
 def test_check_login_entry_passes_for_http_307_auth_login_redirect():
     module = _load_module()
     _StubHandler.routes = {
@@ -262,6 +278,19 @@ def test_check_login_start_passes_for_authorize_redirect():
 
     assert result.ok is True
     assert result.reason == "ok"
+
+
+def test_check_login_start_rejects_non_authorize_path_even_when_query_mentions_authorize():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://idp.example.test/login?next=%2Foauth2%2Fauthorize"),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_start(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "location_is_not_authorize_or_auth_login_redirect"
 
 
 def test_check_login_start_passes_for_ui_auth_login_hop_then_authorize_redirect():
