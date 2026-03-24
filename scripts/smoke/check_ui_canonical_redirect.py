@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlencode, urljoin, urlparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
@@ -158,7 +158,9 @@ def _send_request_probe(
             last_error = exc
             if attempt >= attempts:
                 break
-            time.sleep(min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds)))
+            time.sleep(
+                min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds))
+            )
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
@@ -171,6 +173,24 @@ def _build_alias_request_url(
     canonical = urlparse(canonical_origin)
     query = urlencode({"next": next_path, "reason": reason, "start": "1"})
     return f"{canonical.scheme}://{alias_host}/login?{query}"
+
+
+def _query_items(query: str) -> list[tuple[str, str]]:
+    return sorted(parse_qsl(query, keep_blank_values=True))
+
+
+def _canonical_redirect_target_matches(*, observed: str, expected: str) -> bool:
+    observed_parts = urlparse(observed)
+    expected_parts = urlparse(expected)
+
+    if observed_parts.scheme.lower() != expected_parts.scheme.lower():
+        return False
+    if observed_parts.netloc.lower() != expected_parts.netloc.lower():
+        return False
+    if observed_parts.path != expected_parts.path:
+        return False
+
+    return _query_items(observed_parts.query) == _query_items(expected_parts.query)
 
 
 def check_canonical_redirect(
@@ -257,7 +277,10 @@ def check_canonical_redirect(
         )
 
     resolved_location = urljoin(request_url, probe.location)
-    if resolved_location != expected_location:
+    if not _canonical_redirect_target_matches(
+        observed=resolved_location,
+        expected=expected_location,
+    ):
         return CanonicalRedirectCheckResult(
             ok=False,
             skipped=False,
