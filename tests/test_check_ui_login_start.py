@@ -267,6 +267,27 @@ def test_check_login_entry_passes_for_auth_login_redirect():
     assert result.reason == "ok_redirect"
 
 
+def test_check_login_entry_passes_for_single_canonical_login_hop_before_auth_login_redirect():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": (
+            307,
+            "/login?next=%2Fgui&reason=manual_login&canonical=1",
+        ),
+        "/login?next=%2Fgui&reason=manual_login&canonical=1": (
+            302,
+            "/auth/login?next=%2Fgui&reason=manual_login",
+        ),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is True
+    assert result.reason == "ok_redirect"
+    assert "canonical=1" in result.request_url
+
+
 def test_main_fails_with_entry_phase_when_login_entry_redirect_target_is_invalid(
     capsys,
 ):
@@ -415,6 +436,27 @@ def test_check_login_start_passes_for_http_307_then_http_303_redirect_chain():
 
     assert result.ok is True
     assert result.reason == "ok"
+
+
+def test_check_login_start_passes_for_single_canonical_login_hop_then_authorize_redirect():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login&start=1": (
+            307,
+            "/login?next=%2Fgui&reason=manual_login&start=1&canonical=1",
+        ),
+        "/login?next=%2Fgui&reason=manual_login&start=1&canonical=1": (
+            302,
+            "https://idp.example.test/oauth2/authorize?state=abc",
+        ),
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_start(base_url=stub.base_url)
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert "canonical=1" in result.request_url
 
 
 def test_check_login_start_fails_for_login_unavailable_fallback():

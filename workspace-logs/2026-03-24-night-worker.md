@@ -103,3 +103,21 @@
   - `check_ui_canonical_redirect.py` gegen `www.dev.georanking.ch`/Alias → **ok=true, status=307**.
   - `check_bff_auth_proxy_guard.py` gegen `api.dev.georanking.ch` + UI-Origin → **ok=true** (alle 6 Checks grün).
   - Artefakte: `artifacts/nightly-20260324T060411Z/`.
+
+## 07:40 CET — Login-start Smoke für Canonical-Host-Hop robust gemacht (ROI)
+- Beobachteter Blocker reproduziert: `check_ui_login_start.py` schlug für Alias-Entrypoint `https://www.dev.geo-ranking.ch` fehl (`entry_redirect_non_login_target`), weil der erste Hop legitimer `307` auf den kanonischen Host (`www.dev.georanking.ch`) war.
+- Umsetzung (Branch `fix/login-smoke-canonical-host-hop`):
+  - `scripts/smoke/check_ui_login_start.py`
+    - neue Erkennung `_is_same_login_entry_redirect(...)` für legitime `/login`-Weiterleitungen mit identischem `next/reason` (optional `start=1`).
+    - `check_login_entry(...)` folgt genau einem solchen Canonical-Hop und validiert danach wie bisher (`/auth/login` oder `authorize`).
+    - `check_login_start(...)` folgt ebenfalls einem legitimen Canonical-Hop für `start=1`, bevor der auth/login/authorize-Vertrag geprüft wird.
+    - Diagnostik (`request_url`) zeigt den tatsächlich geprüften finalen Hop.
+  - `tests/test_check_ui_login_start.py`
+    - neue Regressionstests für Entry- und Start-Phase mit vorgeschaltetem Canonical-Hop.
+- Verifikation lokal:
+  - `/data/.openclaw/workspace/geo-ranking-ch/.venv/bin/python -m pytest -q tests/test_check_ui_login_start.py` → **34 passed**.
+  - `python3 -m compileall -q scripts/smoke/check_ui_login_start.py` → **ok**.
+- Live-DEV Re-Tests:
+  - `python3 scripts/smoke/check_ui_login_start.py --base-url https://www.dev.geo-ranking.ch --expected-authorize-host auth.dev.georanking.ch,www.dev.georanking.ch --next /gui` → **ok=true** (vorher fail).
+  - `python3 scripts/smoke/check_ui_login_start.py --base-url https://www.dev.georanking.ch --expected-authorize-host auth.dev.georanking.ch,www.dev.georanking.ch --next /gui` → **ok=true**.
+  - Artefakte: `artifacts/nightworker/20260324T0740Z-dev-login-alias-after-fix.json`, `artifacts/nightworker/20260324T0741Z-dev-login-main-after-fix.json`.

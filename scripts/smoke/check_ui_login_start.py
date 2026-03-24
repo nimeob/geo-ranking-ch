@@ -325,6 +325,30 @@ def _validate_auth_login_redirect_query(
     return True, "ok"
 
 
+def _is_same_login_entry_redirect(
+    *, location: str, next_path: str, reason: str, require_start: bool
+) -> bool:
+    parsed = urlparse(location)
+    if parsed.path.rstrip("/").lower() != "/login":
+        return False
+
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    next_value = str((query.get("next") or [""])[0])
+    if next_value != str(next_path):
+        return False
+
+    reason_value = str((query.get("reason") or [""])[0])
+    if reason_value != str(reason):
+        return False
+
+    if require_start:
+        start_value = str((query.get("start") or [""])[0])
+        if start_value != "1":
+            return False
+
+    return True
+
+
 def _is_login_unavailable_redirect(location: str) -> bool:
     return "reason=login_unavailable" in location.lower()
 
@@ -341,8 +365,9 @@ def check_login_entry(
     allowed_authorize_hosts: set[str] | None = None,
 ) -> LoginEntryCheckResult:
     request_url = _build_entry_request_url(base_url, next_path=next_path, reason=reason)
+    probe_request_url = request_url
     probe = _send_request_probe(
-        request_url=request_url,
+        request_url=probe_request_url,
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
@@ -350,13 +375,35 @@ def check_login_entry(
         read_body_preview=True,
     )
 
+    if (
+        _is_redirect_status(probe.status_code)
+        and probe.location
+        and _is_same_login_entry_redirect(
+            location=probe.location,
+            next_path=next_path,
+            reason=reason,
+            require_start=False,
+        )
+    ):
+        candidate_request_url = urljoin(probe_request_url, probe.location)
+        if candidate_request_url != probe_request_url:
+            probe_request_url = candidate_request_url
+            probe = _send_request_probe(
+                request_url=probe_request_url,
+                timeout_seconds=timeout_seconds,
+                max_attempts=max_attempts,
+                retry_delay_seconds=retry_delay_seconds,
+                max_retry_delay_seconds=max_retry_delay_seconds,
+                read_body_preview=True,
+            )
+
     if _is_redirect_status(probe.status_code):
         if not probe.location:
             return LoginEntryCheckResult(
                 ok=False,
                 status_code=probe.status_code,
                 location=probe.location,
-                request_url=request_url,
+                request_url=probe_request_url,
                 content_type=probe.content_type,
                 reason="entry_redirect_missing_location_header",
             )
@@ -366,7 +413,7 @@ def check_login_entry(
                 ok=False,
                 status_code=probe.status_code,
                 location=probe.location,
-                request_url=request_url,
+                request_url=probe_request_url,
                 content_type=probe.content_type,
                 reason="entry_redirected_login_unavailable",
             )
@@ -378,7 +425,7 @@ def check_login_entry(
                 ok=True,
                 status_code=probe.status_code,
                 location=probe.location,
-                request_url=request_url,
+                request_url=probe_request_url,
                 content_type=probe.content_type,
                 reason="ok_redirect",
             )
@@ -397,7 +444,7 @@ def check_login_entry(
                     ok=False,
                     status_code=probe.status_code,
                     location=probe.location,
-                    request_url=request_url,
+                    request_url=probe_request_url,
                     content_type=probe.content_type,
                     reason=auth_login_query_reason,
                 )
@@ -406,7 +453,7 @@ def check_login_entry(
                 ok=True,
                 status_code=probe.status_code,
                 location=probe.location,
-                request_url=request_url,
+                request_url=probe_request_url,
                 content_type=probe.content_type,
                 reason="ok_redirect",
             )
@@ -415,7 +462,7 @@ def check_login_entry(
             ok=False,
             status_code=probe.status_code,
             location=probe.location,
-            request_url=request_url,
+            request_url=probe_request_url,
             content_type=probe.content_type,
             reason="entry_redirect_non_login_target",
         )
@@ -425,7 +472,7 @@ def check_login_entry(
             ok=False,
             status_code=probe.status_code,
             location=probe.location,
-            request_url=request_url,
+            request_url=probe_request_url,
             content_type=probe.content_type,
             reason=f"unexpected_entry_status_{probe.status_code}",
         )
@@ -436,7 +483,7 @@ def check_login_entry(
             ok=False,
             status_code=probe.status_code,
             location=probe.location,
-            request_url=request_url,
+            request_url=probe_request_url,
             content_type=probe.content_type,
             reason="entry_content_type_not_html",
         )
@@ -451,7 +498,7 @@ def check_login_entry(
             ok=False,
             status_code=probe.status_code,
             location=probe.location,
-            request_url=request_url,
+            request_url=probe_request_url,
             content_type=probe.content_type,
             reason=entry_start_reason,
         )
@@ -460,7 +507,7 @@ def check_login_entry(
         ok=True,
         status_code=probe.status_code,
         location=probe.location,
-        request_url=request_url,
+        request_url=probe_request_url,
         content_type=probe.content_type,
         reason="ok",
     )
@@ -478,20 +525,43 @@ def check_login_start(
     allowed_authorize_hosts: set[str] | None = None,
 ) -> LoginStartCheckResult:
     request_url = _build_start_request_url(base_url, next_path=next_path, reason=reason)
+    current_request_url = request_url
 
     first_status, first_location = _send_request(
-        request_url=request_url,
+        request_url=current_request_url,
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
         max_retry_delay_seconds=max_retry_delay_seconds,
     )
+
+    if (
+        _is_redirect_status(first_status)
+        and first_location
+        and _is_same_login_entry_redirect(
+            location=first_location,
+            next_path=next_path,
+            reason=reason,
+            require_start=True,
+        )
+    ):
+        candidate_request_url = urljoin(current_request_url, first_location)
+        if candidate_request_url != current_request_url:
+            current_request_url = candidate_request_url
+            first_status, first_location = _send_request(
+                request_url=current_request_url,
+                timeout_seconds=timeout_seconds,
+                max_attempts=max_attempts,
+                retry_delay_seconds=retry_delay_seconds,
+                max_retry_delay_seconds=max_retry_delay_seconds,
+            )
+
     if not _is_redirect_status(first_status):
         return LoginStartCheckResult(
             ok=False,
             status_code=first_status,
             location=first_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason=f"unexpected_start_status_{first_status}",
         )
 
@@ -500,7 +570,7 @@ def check_login_start(
             ok=False,
             status_code=first_status,
             location=first_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason="missing_location_header",
         )
 
@@ -509,7 +579,7 @@ def check_login_start(
             ok=False,
             status_code=first_status,
             location=first_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason="login_unavailable_fallback",
         )
 
@@ -520,7 +590,7 @@ def check_login_start(
             ok=True,
             status_code=first_status,
             location=first_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason="ok",
         )
 
@@ -529,7 +599,7 @@ def check_login_start(
             ok=False,
             status_code=first_status,
             location=first_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason="location_is_not_authorize_or_auth_login_redirect",
         )
 
@@ -544,11 +614,11 @@ def check_login_start(
             ok=False,
             status_code=first_status,
             location=first_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason=auth_login_query_reason,
         )
 
-    second_request_url = urljoin(request_url, first_location)
+    second_request_url = urljoin(current_request_url, first_location)
     second_status, second_location = _send_request(
         request_url=second_request_url,
         timeout_seconds=timeout_seconds,
@@ -562,7 +632,7 @@ def check_login_start(
             ok=False,
             status_code=second_status,
             location=second_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason=f"auth_login_hop_unexpected_status_{second_status}",
         )
 
@@ -571,7 +641,7 @@ def check_login_start(
             ok=False,
             status_code=second_status,
             location=second_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason="auth_login_hop_missing_location_header",
         )
 
@@ -580,7 +650,7 @@ def check_login_start(
             ok=False,
             status_code=second_status,
             location=second_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason="auth_login_hop_login_unavailable_fallback",
         )
 
@@ -591,7 +661,7 @@ def check_login_start(
             ok=False,
             status_code=second_status,
             location=second_location,
-            request_url=request_url,
+            request_url=current_request_url,
             reason="auth_login_hop_non_authorize_redirect",
         )
 
@@ -599,7 +669,7 @@ def check_login_start(
         ok=True,
         status_code=second_status,
         location=second_location,
-        request_url=request_url,
+        request_url=current_request_url,
         reason="ok",
     )
 
