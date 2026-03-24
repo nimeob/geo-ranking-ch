@@ -46,6 +46,27 @@ def test_check_canonical_redirect_succeeds_for_absolute_location(monkeypatch):
     assert result.alias_host == "www.dev.geo-ranking.ch"
 
 
+def test_check_canonical_redirect_accepts_equivalent_query_parameter_order(monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?start=1&reason=manual_login&next=%2Fgui",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_canonical_redirect(
+        base_url="https://www.dev.georanking.ch",
+        canonical_origin="https://www.dev.georanking.ch",
+        canonical_hosts="www.dev.geo-ranking.ch, www.dev.georanking.ch",
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
 def test_check_canonical_redirect_normalizes_origin_style_alias_hosts(monkeypatch):
     module = _load_module()
 
@@ -478,4 +499,3 @@ def test_send_request_probe_uses_default_retry_delay_for_stale_http_date(monkeyp
     assert result.status_code == 307
     assert fake_opener.calls == 2
     assert sleep_calls == [2.25]
-
