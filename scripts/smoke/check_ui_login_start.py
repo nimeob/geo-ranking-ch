@@ -81,15 +81,19 @@ def _is_redirect_status(status_code: int) -> bool:
 
 
 def _resolve_retry_delay(
-    *, retry_after_header: str, default_delay_seconds: float
+    *,
+    retry_after_header: str,
+    default_delay_seconds: float,
+    max_retry_delay_seconds: float,
 ) -> float:
-    fallback_delay = max(0.0, float(default_delay_seconds))
+    retry_cap = max(0.0, float(max_retry_delay_seconds))
+    fallback_delay = min(max(0.0, float(default_delay_seconds)), retry_cap)
     candidate = retry_after_header.strip()
     if not candidate:
         return fallback_delay
 
     try:
-        return max(0.0, float(candidate))
+        return min(max(0.0, float(candidate)), retry_cap)
     except ValueError:
         pass
 
@@ -104,7 +108,7 @@ def _resolve_retry_delay(
     delta_seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
     if delta_seconds <= 0:
         return fallback_delay
-    return delta_seconds
+    return min(delta_seconds, retry_cap)
 
 
 def _send_request_probe(
@@ -113,6 +117,7 @@ def _send_request_probe(
     timeout_seconds: float,
     max_attempts: int,
     retry_delay_seconds: float,
+    max_retry_delay_seconds: float,
     read_body_preview: bool = False,
 ) -> _HttpProbeResult:
     req = Request(request_url, method="GET")
@@ -161,6 +166,7 @@ def _send_request_probe(
                     _resolve_retry_delay(
                         retry_after_header=retry_after_header,
                         default_delay_seconds=retry_delay_seconds,
+                        max_retry_delay_seconds=max_retry_delay_seconds,
                     )
                 )
                 continue
@@ -174,7 +180,7 @@ def _send_request_probe(
             last_error = exc
             if attempt >= attempts:
                 break
-            time.sleep(max(0.0, retry_delay_seconds))
+            time.sleep(min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds)))
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
@@ -187,12 +193,14 @@ def _send_request(
     timeout_seconds: float,
     max_attempts: int,
     retry_delay_seconds: float,
+    max_retry_delay_seconds: float,
 ) -> tuple[int, str]:
     probe = _send_request_probe(
         request_url=request_url,
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
+        max_retry_delay_seconds=max_retry_delay_seconds,
         read_body_preview=False,
     )
     return probe.status_code, probe.location
@@ -329,6 +337,7 @@ def check_login_entry(
     timeout_seconds: float = 15.0,
     max_attempts: int = 3,
     retry_delay_seconds: float = 2.0,
+    max_retry_delay_seconds: float = 10.0,
     allowed_authorize_hosts: set[str] | None = None,
 ) -> LoginEntryCheckResult:
     request_url = _build_entry_request_url(base_url, next_path=next_path, reason=reason)
@@ -337,6 +346,7 @@ def check_login_entry(
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
+        max_retry_delay_seconds=max_retry_delay_seconds,
         read_body_preview=True,
     )
 
@@ -464,6 +474,7 @@ def check_login_start(
     timeout_seconds: float = 15.0,
     max_attempts: int = 3,
     retry_delay_seconds: float = 2.0,
+    max_retry_delay_seconds: float = 10.0,
     allowed_authorize_hosts: set[str] | None = None,
 ) -> LoginStartCheckResult:
     request_url = _build_start_request_url(base_url, next_path=next_path, reason=reason)
@@ -473,6 +484,7 @@ def check_login_start(
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
+        max_retry_delay_seconds=max_retry_delay_seconds,
     )
     if not _is_redirect_status(first_status):
         return LoginStartCheckResult(
@@ -542,6 +554,7 @@ def check_login_start(
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
+        max_retry_delay_seconds=max_retry_delay_seconds,
     )
 
     if not _is_redirect_status(second_status):
@@ -630,6 +643,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Delay between retries in seconds (default: 2.0)",
     )
     parser.add_argument(
+        "--max-retry-delay",
+        type=float,
+        default=10.0,
+        help="Upper bound for effective retry sleep per attempt in seconds (default: 10.0)",
+    )
+    parser.add_argument(
         "--output-json",
         "--json-out",
         dest="output_json",
@@ -667,6 +686,7 @@ def main(argv: list[str] | None = None) -> int:
         "timeout": args.timeout,
         "max_attempts": args.max_attempts,
         "retry_delay": args.retry_delay,
+        "max_retry_delay": args.max_retry_delay,
         "expected_authorize_host": sorted(allowed_authorize_hosts),
     }
 
@@ -678,6 +698,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=args.timeout,
             max_attempts=args.max_attempts,
             retry_delay_seconds=args.retry_delay,
+            max_retry_delay_seconds=args.max_retry_delay,
             allowed_authorize_hosts=allowed_authorize_hosts,
         )
         if not entry_result.ok:
@@ -703,6 +724,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=args.timeout,
             max_attempts=args.max_attempts,
             retry_delay_seconds=args.retry_delay,
+            max_retry_delay_seconds=args.max_retry_delay,
             allowed_authorize_hosts=allowed_authorize_hosts,
         )
     except Exception as exc:  # noqa: BLE001
