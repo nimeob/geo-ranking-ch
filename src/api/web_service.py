@@ -4377,7 +4377,7 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
-                if request_path in {"/auth/login", "/auth/logout"} and not _is_ui_auth_proxy_forwarded_host_trusted(self.headers):
+                if request_path in {"/auth/login", "/auth/logout", "/auth/callback"} and not _is_ui_auth_proxy_forwarded_host_trusted(self.headers):
                     self._send_external_direct_login_disabled(
                         request_id=request_id,
                         request_path=request_path,

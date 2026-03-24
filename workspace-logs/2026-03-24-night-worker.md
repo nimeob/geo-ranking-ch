@@ -50,3 +50,18 @@
   - `python3 scripts/smoke/check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch --canonical-origin https://www.dev.georanking.ch --canonical-hosts 'www.dev.geo-ranking.ch,www.dev.georanking.ch' --next '/results/demo-result' --reason 'night_worker_probe'` → **ok=true, status_code=307**.
   - `https://www.dev.geo-ranking.ch/healthz` → **200** (kein Redirect, wie erwartet).
   - `https://www.dev.geo-ranking.ch/results/demo-result?from=night-worker` → **307** auf `https://www.dev.georanking.ch/...`.
+
+## 02:15–02:22 CET — BFF-Guard Hardening: Callback ebenfalls Host-trusted fail-closed
+- Security-Gap geschlossen: `/auth/callback` wurde bisher mit Proxy-Marker akzeptiert, auch wenn `X-Forwarded-Host` untrusted war (Login/Logout waren bereits geschützt).
+- Änderung:
+  - `src/api/web_service.py`
+    - Trust-Guard auf **alle drei** BFF-Routen erweitert: `/auth/login`, `/auth/logout`, `/auth/callback`.
+- Tests erweitert/angepasst:
+  - `tests/test_web_service_bff_gui_guard.py`
+    - neuer Regressionstest: callback + untrusted forwarded host ⇒ `403 external_direct_login_disabled`.
+    - bestehender Callback-Error-Test auf trusted host + scheme mismatch umgestellt (Diagnostik bleibt sichtbar, ohne den neuen Trust-Guard zu umgehen).
+- Verifikation:
+  - `pytest -q tests/test_web_service_bff_gui_guard.py` → **18 passed**
+  - `pytest -q tests/test_web_service_phase1_auth.py tests/test_web_service_oidc_loader.py tests/test_ui_service.py` → **32 passed**
+- UI-Beobachtung/Blocker:
+  - Browser-Tool weiterhin nicht nutzbar (Gateway timeout). Aktiv versucht zu entstören via `openclaw gateway status/restart`; CLI meldet Runtime-/Config-Anomalie, RPC probe zwar `ok`, Browser-Control aber weiter timeout. Daher weiterhin CLI-smokes als Fallback.
