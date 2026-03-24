@@ -94,15 +94,19 @@ def _is_redirect_status(status_code: int) -> bool:
 
 
 def _resolve_retry_delay(
-    *, retry_after_header: str, default_delay_seconds: float
+    *,
+    retry_after_header: str,
+    default_delay_seconds: float,
+    max_retry_delay_seconds: float,
 ) -> float:
-    fallback_delay = max(0.0, float(default_delay_seconds))
+    retry_cap = max(0.0, float(max_retry_delay_seconds))
+    fallback_delay = min(max(0.0, float(default_delay_seconds)), retry_cap)
     candidate = str(retry_after_header or "").strip()
     if not candidate:
         return fallback_delay
 
     try:
-        return max(0.0, float(candidate))
+        return min(max(0.0, float(candidate)), retry_cap)
     except ValueError:
         pass
 
@@ -117,7 +121,7 @@ def _resolve_retry_delay(
     delta_seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
     if delta_seconds <= 0:
         return fallback_delay
-    return delta_seconds
+    return min(delta_seconds, retry_cap)
 
 
 def _send_request_probe(
@@ -127,6 +131,7 @@ def _send_request_probe(
     timeout_seconds: float,
     max_attempts: int,
     retry_delay_seconds: float,
+    max_retry_delay_seconds: float = 10.0,
 ) -> _HttpProbeResult:
     opener = build_opener(_NoRedirect)
     attempts = max(1, int(max_attempts))
@@ -162,6 +167,7 @@ def _send_request_probe(
                     _resolve_retry_delay(
                         retry_after_header=retry_after_header,
                         default_delay_seconds=retry_delay_seconds,
+                        max_retry_delay_seconds=max_retry_delay_seconds,
                     )
                 )
                 continue
@@ -170,7 +176,7 @@ def _send_request_probe(
             last_error = exc
             if attempt >= attempts:
                 break
-            time.sleep(max(0.0, retry_delay_seconds))
+            time.sleep(min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds)))
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
@@ -317,6 +323,7 @@ def check_auth_proxy_guard(
     timeout_seconds: float,
     max_attempts: int,
     retry_delay_seconds: float,
+    max_retry_delay_seconds: float = 10.0,
 ) -> AuthProxyGuardSmokeResult:
     normalized_api_origin = _normalize_origin(api_base_url)
     normalized_ui_origin = _normalize_origin(ui_base_url) if str(ui_base_url or "").strip() else ""
@@ -340,6 +347,7 @@ def check_auth_proxy_guard(
             timeout_seconds=timeout_seconds,
             max_attempts=max_attempts,
             retry_delay_seconds=retry_delay_seconds,
+            max_retry_delay_seconds=max_retry_delay_seconds,
         )
         outcome = _evaluate_probe(spec=spec, probe=probe)
         checks.append(
@@ -391,6 +399,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=15.0)
     parser.add_argument("--max-attempts", type=int, default=5)
     parser.add_argument("--retry-delay", type=float, default=2.0)
+    parser.add_argument(
+        "--max-retry-delay",
+        type=float,
+        default=10.0,
+        help="Cap for effective retry sleep in seconds (default: 10.0)",
+    )
     parser.add_argument("--output-json", default="", help="Optional JSON output path")
     parser.add_argument("--json-out", default="", help="Alias for --output-json")
     return parser.parse_args(argv)
@@ -408,6 +422,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=max(1.0, float(args.timeout)),
             max_attempts=max(1, int(args.max_attempts)),
             retry_delay_seconds=max(0.0, float(args.retry_delay)),
+            max_retry_delay_seconds=max(0.0, float(args.max_retry_delay)),
         )
     except ValueError as exc:
         payload = {
@@ -415,6 +430,7 @@ def main(argv: list[str] | None = None) -> int:
             "reason": f"invalid_arguments:{exc}",
             "api_base_url": args.api_base_url,
             "ui_base_url": args.ui_base_url,
+            "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
         }
         print(json.dumps(payload, ensure_ascii=False))
@@ -425,6 +441,7 @@ def main(argv: list[str] | None = None) -> int:
             "reason": f"probe_exception:{exc}",
             "api_base_url": args.api_base_url,
             "ui_base_url": args.ui_base_url,
+            "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
         }
         print(json.dumps(payload, ensure_ascii=False))

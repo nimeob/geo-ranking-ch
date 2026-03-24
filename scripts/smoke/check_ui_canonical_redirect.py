@@ -81,15 +81,19 @@ def _is_redirect_status(status_code: int) -> bool:
 
 
 def _resolve_retry_delay(
-    *, retry_after_header: str, default_delay_seconds: float
+    *,
+    retry_after_header: str,
+    default_delay_seconds: float,
+    max_retry_delay_seconds: float,
 ) -> float:
-    fallback_delay = max(0.0, float(default_delay_seconds))
+    retry_cap = max(0.0, float(max_retry_delay_seconds))
+    fallback_delay = min(max(0.0, float(default_delay_seconds)), retry_cap)
     candidate = str(retry_after_header or "").strip()
     if not candidate:
         return fallback_delay
 
     try:
-        return max(0.0, float(candidate))
+        return min(max(0.0, float(candidate)), retry_cap)
     except ValueError:
         pass
 
@@ -104,7 +108,7 @@ def _resolve_retry_delay(
     delta_seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
     if delta_seconds <= 0:
         return fallback_delay
-    return delta_seconds
+    return min(delta_seconds, retry_cap)
 
 
 def _send_request_probe(
@@ -113,6 +117,7 @@ def _send_request_probe(
     timeout_seconds: float,
     max_attempts: int,
     retry_delay_seconds: float,
+    max_retry_delay_seconds: float = 10.0,
 ) -> _HttpProbeResult:
     req = Request(request_url, method="GET")
     opener = build_opener(_NoRedirect)
@@ -144,6 +149,7 @@ def _send_request_probe(
                     _resolve_retry_delay(
                         retry_after_header=retry_after_header,
                         default_delay_seconds=retry_delay_seconds,
+                        max_retry_delay_seconds=max_retry_delay_seconds,
                     )
                 )
                 continue
@@ -152,7 +158,7 @@ def _send_request_probe(
             last_error = exc
             if attempt >= attempts:
                 break
-            time.sleep(max(0.0, retry_delay_seconds))
+            time.sleep(min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds)))
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
@@ -178,6 +184,7 @@ def check_canonical_redirect(
     timeout_seconds: float = 15.0,
     max_attempts: int = 3,
     retry_delay_seconds: float = 2.0,
+    max_retry_delay_seconds: float = 10.0,
 ) -> CanonicalRedirectCheckResult:
     normalized_base_origin = _normalize_origin(base_url)
     normalized_canonical_origin = (
@@ -233,6 +240,7 @@ def check_canonical_redirect(
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
+        max_retry_delay_seconds=max_retry_delay_seconds,
     )
 
     if not _is_redirect_status(probe.status_code):
@@ -310,6 +318,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-attempts", type=int, default=8)
     parser.add_argument("--retry-delay", type=float, default=5.0)
     parser.add_argument(
+        "--max-retry-delay",
+        type=float,
+        default=10.0,
+        help="Cap for effective retry sleep in seconds (default: 10.0)",
+    )
+    parser.add_argument(
         "--output-json",
         default="",
         help="Optional JSON output file path",
@@ -338,6 +352,7 @@ def main(argv: list[str] | None = None) -> int:
             timeout_seconds=float(args.timeout),
             max_attempts=int(args.max_attempts),
             retry_delay_seconds=float(args.retry_delay),
+            max_retry_delay_seconds=float(args.max_retry_delay),
         )
     except Exception as exc:  # noqa: BLE001
         payload = {
@@ -351,6 +366,7 @@ def main(argv: list[str] | None = None) -> int:
             "alias_host": args.alias_host,
             "next": args.next_path,
             "reason_input": args.reason,
+            "max_retry_delay": float(args.max_retry_delay),
         }
         if output_json:
             output_path = Path(output_json)
