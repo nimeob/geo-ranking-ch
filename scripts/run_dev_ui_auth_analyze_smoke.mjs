@@ -38,6 +38,8 @@ const runMarker =
   || (githubRunId ? `${githubRunId}-${githubRunAttempt}` : '')
   || stamp;
 const artifactRunToken = sanitizeFileToken(runMarker) || 'run';
+const stampToken = sanitizeFileToken(stamp);
+const appendRunTokenToArtifactName = Boolean(artifactRunToken && artifactRunToken !== stampToken);
 
 const addressFile = process.env.DEV_UI_SMOKE_ADDRESS_FILE
   ? path.resolve(repoRoot, String(process.env.DEV_UI_SMOKE_ADDRESS_FILE))
@@ -107,7 +109,8 @@ function sanitizeFileToken(value) {
 }
 
 function buildArtifactPath(extension) {
-  return path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}-${artifactRunToken}.${extension}`);
+  const runSuffix = appendRunTokenToArtifactName ? `-${artifactRunToken}` : '';
+  return path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}${runSuffix}.${extension}`);
 }
 
 async function loadChromium() {
