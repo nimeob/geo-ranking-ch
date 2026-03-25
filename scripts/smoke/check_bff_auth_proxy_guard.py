@@ -105,6 +105,17 @@ def _normalize_host_token(raw_host: str) -> str:
     return candidate.strip("[]").lower()
 
 
+def _expand_geo_host_variants(host: str) -> set[str]:
+    normalized = str(host or "").strip().lower()
+    if not normalized:
+        return set()
+
+    variants = {normalized}
+    if "geo-ranking" in normalized:
+        variants.add(normalized.replace("geo-ranking", "georanking"))
+    return variants
+
+
 def _parse_allowed_authorize_hosts(raw_hosts: str | None) -> set[str]:
     if not raw_hosts:
         return set()
@@ -112,8 +123,9 @@ def _parse_allowed_authorize_hosts(raw_hosts: str | None) -> set[str]:
     hosts: set[str] = set()
     for token in str(raw_hosts).split(","):
         normalized = _normalize_host_token(token)
-        if normalized:
-            hosts.add(normalized)
+        if not normalized:
+            continue
+        hosts.update(_expand_geo_host_variants(normalized))
     return hosts
 
 
@@ -122,9 +134,13 @@ def _derive_default_authorize_hosts(ui_origin: str) -> set[str]:
     if not host:
         return set()
 
-    allowed_hosts: set[str] = {host}
+    seed_hosts: set[str] = {host}
     if host.startswith("www.") and len(host) > 4:
-        allowed_hosts.add(f"auth.{host[4:]}")
+        seed_hosts.add(f"auth.{host[4:]}")
+
+    allowed_hosts: set[str] = set()
+    for seed in seed_hosts:
+        allowed_hosts.update(_expand_geo_host_variants(seed))
     return allowed_hosts
 
 
