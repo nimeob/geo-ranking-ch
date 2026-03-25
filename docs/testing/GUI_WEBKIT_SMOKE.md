@@ -60,6 +60,8 @@ Hinweis: Der Smoke beendet sich früh mit klarer Fehlermeldung, wenn die GUI kur
 
 Wenn native WebKit auf dem Runner nicht verfügbar ist und der Smoke auf Chromium fallbackt, wird für den Pinch-Teil zusätzlich ein CDP-Gesture-Fallback (`Input.synthesizePinchGesture`) genutzt. Die Methode ist im JSON-Nachweis unter `checks.mapInteraction.pinch.method` inkl. `fallbackAttempted/fallbackUsed` sichtbar.
 
+Für CI-Läufe mit **verpflichtendem** nativen WebKit kann `REQUIRE_NATIVE_WEBKIT=1` gesetzt werden. In diesem Modus schlägt der Smoke sofort fehl, sobald WebKit nicht startet (kein stilles Chromium-Passing).
+
 Output:
 - JSON Evidence: `reports/evidence/issue-986-webkit-smoke-<timestamp>.json`
 - Screenshot: `reports/evidence/issue-986-webkit-ios-<timestamp>.png`
@@ -71,5 +73,5 @@ Der Workflow:
 1. installiert Python- und Node-Abhängigkeiten,
 2. startet den lokalen GUI-Service,
 3. installiert WebKit inkl. System-Dependencies,
-4. führt `scripts/run_issue_986_webkit_smoke.mjs` aus,
+4. führt `scripts/run_issue_986_webkit_smoke.mjs` mit `REQUIRE_NATIVE_WEBKIT=1` aus,
 5. publiziert ein CI-Artifact `gui-webkit-smoke-artifacts` (JSON + Screenshot + Service-Log).
