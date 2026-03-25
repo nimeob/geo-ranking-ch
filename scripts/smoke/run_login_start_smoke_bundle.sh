@@ -120,8 +120,13 @@ if not host:
 
 allow_hosts = []
 if host.startswith("www.") and len(host) > 4:
-    allow_hosts.append(f"auth.{host[4:]}")
-allow_hosts.append(host)
+    bare_host = host[4:]
+    allow_hosts.append(f"auth.{bare_host}")
+    allow_hosts.append(host)
+    allow_hosts.append(bare_host)
+else:
+    allow_hosts.append(f"auth.{host}")
+    allow_hosts.append(host)
 
 seen = set()
 ordered = []
