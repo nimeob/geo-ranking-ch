@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { chromium, devices, webkit } from 'playwright';
 
 const ISSUE_NUMBER = 986;
 const PARENT_ISSUE = 975;
@@ -17,6 +16,23 @@ function parseBooleanEnv(name) {
 }
 
 const requireNativeWebkit = parseBooleanEnv('REQUIRE_NATIVE_WEBKIT');
+
+async function loadPlaywrightBindings() {
+  try {
+    const playwright = await import('playwright');
+    return {
+      chromium: playwright.chromium,
+      webkit: playwright.webkit,
+      devices: playwright.devices,
+    };
+  } catch (error) {
+    const normalized = normalizeError(error);
+    const installHint = 'npm ci && npx playwright install --with-deps webkit';
+    throw new Error(
+      `Playwright dependency fehlt oder ist nicht ladbar. reason=${compactMessage(normalized.message, 220)}. hint=${installHint}`
+    );
+  }
+}
 
 function isAuthRedirectUrl(url) {
   try {
@@ -144,7 +160,7 @@ function compactMessage(message, maxLength = 260) {
   return `${normalized.slice(0, maxLength)}…`;
 }
 
-async function launchPreferredBrowser({ requireNativeWebkit }) {
+async function launchPreferredBrowser({ requireNativeWebkit, chromium, webkit }) {
   const installHint = 'npx playwright install --with-deps webkit';
 
   try {
@@ -367,7 +383,8 @@ async function panMap(page) {
 
 async function run() {
   const startedAtUtc = new Date().toISOString();
-  const launch = await launchPreferredBrowser({ requireNativeWebkit });
+  const { chromium, webkit, devices } = await loadPlaywrightBindings();
+  const launch = await launchPreferredBrowser({ requireNativeWebkit, chromium, webkit });
   const browser = launch.browser;
 
   const limitations = Array.isArray(launch.limitations) ? [...launch.limitations] : [];
