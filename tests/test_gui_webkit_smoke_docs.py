@@ -20,6 +20,7 @@ class TestGuiWebkitSmokeDocs(unittest.TestCase):
             "gui-webkit-smoke.yml",
             "gui-webkit-smoke-artifacts",
             "issue-986-webkit-smoke-",
+            "REQUIRE_NATIVE_WEBKIT=1",
         ]
         for marker in required_markers:
             self.assertIn(marker, content)

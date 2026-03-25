@@ -50,6 +50,8 @@ jobs:
           curl -fsS "http://127.0.0.1:8877/healthz" >/dev/null
 
       - name: Run native WebKit smoke
+        env:
+          REQUIRE_NATIVE_WEBKIT: "1"
         run: |
           BASE_URL="http://127.0.0.1:8877/gui" npm run smoke:gui:webkit | tee /tmp/issue-986-webkit-output.txt
 

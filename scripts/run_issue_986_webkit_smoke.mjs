@@ -11,6 +11,13 @@ const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || 
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
+function parseBooleanEnv(name) {
+  const value = String(process.env[name] || '').trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+}
+
+const requireNativeWebkit = parseBooleanEnv('REQUIRE_NATIVE_WEBKIT');
+
 function isAuthRedirectUrl(url) {
   try {
     const parsed = new URL(url);
@@ -101,7 +108,7 @@ function normalizeError(error) {
   };
 }
 
-async function launchPreferredBrowser() {
+async function launchPreferredBrowser({ requireNativeWebkit }) {
   try {
     return {
       browser: await webkit.launch({ headless: true }),
@@ -109,8 +116,14 @@ async function launchPreferredBrowser() {
       limitations: [],
     };
   } catch (error) {
-    const fallback = await chromium.launch({ headless: true });
     const normalized = normalizeError(error);
+    if (requireNativeWebkit) {
+      throw new Error(
+        `Native Playwright WebKit ist verpflichtend, konnte aber nicht gestartet werden. reason=${normalized.message}`
+      );
+    }
+
+    const fallback = await chromium.launch({ headless: true });
     return {
       browser: fallback,
       runtimeBrowser: 'playwright-chromium-fallback',
@@ -301,7 +314,7 @@ async function panMap(page) {
 
 async function run() {
   const startedAtUtc = new Date().toISOString();
-  const launch = await launchPreferredBrowser();
+  const launch = await launchPreferredBrowser({ requireNativeWebkit });
   const browser = launch.browser;
 
   const limitations = Array.isArray(launch.limitations) ? [...launch.limitations] : [];
@@ -404,6 +417,8 @@ async function run() {
     runtime: {
       browser: launch.runtimeBrowser,
       requestedBrowser: 'playwright-webkit',
+      requireNativeWebkit,
+      nativeWebkitActive: launch.runtimeBrowser === 'playwright-webkit',
       device: 'iPhone 13',
       headless: true,
     },
@@ -440,6 +455,8 @@ run()
       runtime: {
         browser: 'unknown',
         requestedBrowser: 'playwright-webkit',
+        requireNativeWebkit,
+        nativeWebkitActive: false,
         device: 'iPhone 13',
         headless: true,
       },
