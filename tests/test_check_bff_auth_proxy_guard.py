@@ -40,6 +40,25 @@ def _happy_probe(module, *, request_url: str, headers: dict[str, str], **kwargs)
     raise AssertionError(f"unexpected probe request_url={request_url!r}")
 
 
+def _happy_probe_geo_ranking_alias(module, *, request_url: str, headers: dict[str, str], **kwargs):
+    _ = kwargs
+    if "/auth/login" in request_url and headers.get("X-Forwarded-Host") == "www.dev.geo-ranking.ch":
+        return module._HttpProbeResult(
+            status_code=302,
+            location="https://auth.dev.georanking.ch/oauth2/authorize?client_id=abc",
+            body_text="",
+        )
+
+    if "/auth/" in request_url:
+        return module._HttpProbeResult(
+            status_code=403,
+            location="",
+            body_text='{"error":"external_direct_login_disabled"}',
+        )
+
+    raise AssertionError(f"unexpected probe request_url={request_url!r}")
+
+
 def test_check_auth_proxy_guard_passes_for_trusted_and_fail_closed_paths(monkeypatch):
     module = _load_module()
     monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
@@ -57,12 +76,35 @@ def test_check_auth_proxy_guard_passes_for_trusted_and_fail_closed_paths(monkeyp
     assert result.ok is True
     assert result.reason == "ok"
     assert result.trusted_forwarded_host == "www.dev.georanking.ch"
-    assert sorted(result.expected_authorize_hosts) == [
-        "auth.dev.georanking.ch",
-        "www.dev.georanking.ch",
-    ]
+    assert "auth.dev.georanking.ch" in result.expected_authorize_hosts
+    assert "www.dev.georanking.ch" in result.expected_authorize_hosts
     assert len(result.checks) == 6
     assert all(bool(item.get("ok")) for item in result.checks)
+
+
+def test_check_auth_proxy_guard_accepts_geo_ranking_alias_default_authorize_hosts(monkeypatch):
+    module = _load_module()
+    monkeypatch.setattr(
+        module,
+        "_send_request_probe",
+        lambda **kwargs: _happy_probe_geo_ranking_alias(module, **kwargs),
+    )
+
+    result = module.check_auth_proxy_guard(
+        api_base_url="https://api.dev.georanking.ch",
+        ui_base_url="https://www.dev.geo-ranking.ch",
+        trusted_forwarded_host="",
+        untrusted_forwarded_host="evil.example.test",
+        timeout_seconds=3,
+        max_attempts=1,
+        retry_delay_seconds=0,
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert result.trusted_forwarded_host == "www.dev.geo-ranking.ch"
+    assert "auth.dev.georanking.ch" in result.expected_authorize_hosts
+    assert "auth.dev.geo-ranking.ch" in result.expected_authorize_hosts
 
 
 def test_check_auth_proxy_guard_fails_when_trusted_login_no_longer_redirects(monkeypatch):

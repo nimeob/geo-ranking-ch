@@ -55,6 +55,22 @@
   - `run_login_start_smoke_bundle.sh` gegen Canonical (`www.dev.georanking.ch`) → **passed** (keine Regression).
   - `check_bff_auth_proxy_guard.py --ui-base-url https://www.dev.geo-ranking.ch` → **ok=true**.
 
+## Statusupdate 02:40 CET – Auth-Proxy-Guard Smoke Alias-Fix
+- Beobachtung: `scripts/smoke/check_bff_auth_proxy_guard.py` scheiterte mit Default-Parametern für `--ui-base-url https://www.dev.geo-ranking.ch`, obwohl DEV korrekt auf `auth.dev.georanking.ch` redirectet.
+- Ursache: Default-Allowlist für Authorize-Hosts berücksichtigte nur den direkten UI-Host (`auth.dev.geo-ranking.ch`), nicht die georanking/geo-ranking Alias-Variante.
+- Umsetzung:
+  - `scripts/smoke/check_bff_auth_proxy_guard.py`
+    - Default-Hostableitung auf geo-ranking/georanking-Varianten erweitert.
+    - CLI-Hilfetext entsprechend präzisiert.
+  - `tests/test_check_bff_auth_proxy_guard.py`
+    - Neuer Test für Alias-Fall (`www.dev.geo-ranking.ch` -> Redirect auf `auth.dev.georanking.ch`).
+    - Erwartungs-Assertions auf robuste Inklusionsprüfung aktualisiert.
+- Verifikation:
+  - Lokal: `pytest -q tests/test_check_bff_auth_proxy_guard.py tests/test_check_ui_login_start.py` → `53 passed`.
+  - Live DEV:
+    - `check_bff_auth_proxy_guard.py --ui-base-url https://www.dev.geo-ranking.ch` (ohne explizites `--expected-authorize-host`) → PASS.
+    - Canonical Host (`https://www.dev.georanking.ch`) weiterhin PASS.
+
 ## Offene Blocker / Nächster Schritt
 - Blocker offen: Browser-Tool weiterhin instabil (`context canceled`), trotz Gateway-Checks.
 - Nächster Schritt nach Push: PR öffnen + Merge anstoßen; danach optional Deploy-/Nightly-Recheck verfolgen.
