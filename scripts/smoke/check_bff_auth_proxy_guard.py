@@ -113,7 +113,9 @@ def _expand_geo_host_variants(host: str) -> set[str]:
     variants = {normalized}
     if "geo-ranking" in normalized:
         variants.add(normalized.replace("geo-ranking", "georanking"))
-    return variants
+    if "georanking" in normalized:
+        variants.add(normalized.replace("georanking", "geo-ranking"))
+    return {candidate for candidate in variants if candidate}
 
 
 def _parse_allowed_authorize_hosts(raw_hosts: str | None) -> set[str]:
@@ -137,11 +139,13 @@ def _derive_default_authorize_hosts(ui_origin: str) -> set[str]:
     seed_hosts: set[str] = {host}
     if host.startswith("www.") and len(host) > 4:
         seed_hosts.add(f"auth.{host[4:]}")
+    else:
+        seed_hosts.add(f"auth.{host}")
 
     allowed_hosts: set[str] = set()
     for seed in seed_hosts:
         allowed_hosts.update(_expand_geo_host_variants(seed))
-    return allowed_hosts
+    return {candidate for candidate in allowed_hosts if candidate}
 
 
 def _is_redirect_status(status_code: int) -> bool:
@@ -530,7 +534,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help=(
             "Optional comma-separated allow-list for absolute authorize redirect hosts "
             "(hostname, host:port, or URL). Defaults to auth.<ui-host-without-www> + <ui-host> "
-            "when --ui-base-url is provided."
+            "and auto-adds geo-ranking/georanking host variants when --ui-base-url is provided."
         ),
     )
     parser.add_argument("--timeout", type=float, default=15.0)
