@@ -118,8 +118,9 @@ def _send_request_probe(
     max_attempts: int,
     retry_delay_seconds: float,
     max_retry_delay_seconds: float = 10.0,
+    headers: dict[str, str] | None = None,
 ) -> _HttpProbeResult:
-    req = Request(request_url, method="GET")
+    req = Request(request_url, method="GET", headers=headers or {})
     opener = build_opener(_NoRedirect)
 
     attempts = max(1, int(max_attempts))
@@ -173,6 +174,23 @@ def _build_alias_request_url(
     canonical = urlparse(canonical_origin)
     query = urlencode({"next": next_path, "reason": reason, "start": "1"})
     return f"{canonical.scheme}://{alias_host}/login?{query}"
+
+
+def _build_alias_host_header_probe(
+    *, canonical_origin: str, next_path: str, reason: str
+) -> str:
+    canonical = urlparse(canonical_origin)
+    query = urlencode({"next": next_path, "reason": reason, "start": "1"})
+    return f"{canonical.scheme}://{canonical.netloc}/login?{query}"
+
+
+def _looks_like_tls_verification_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    if "certificate verify failed" in text:
+        return True
+    if "ssl:" in text and "certificate" in text:
+        return True
+    return False
 
 
 def _query_items(query: str) -> list[tuple[str, str]]:
@@ -255,13 +273,39 @@ def check_canonical_redirect(
 
     expected_location = f"{normalized_canonical_origin}/login?{urlencode({'next': next_path, 'reason': reason, 'start': '1'})}"
 
-    probe = _send_request_probe(
-        request_url=request_url,
-        timeout_seconds=timeout_seconds,
-        max_attempts=max_attempts,
-        retry_delay_seconds=retry_delay_seconds,
-        max_retry_delay_seconds=max_retry_delay_seconds,
-    )
+    try:
+        probe = _send_request_probe(
+            request_url=request_url,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            max_retry_delay_seconds=max_retry_delay_seconds,
+        )
+    except RuntimeError as exc:
+        canonical_scheme = urlparse(normalized_canonical_origin).scheme.lower()
+        if not (
+            canonical_scheme == "https"
+            and selected_alias_host
+            and selected_alias_host != canonical_host
+            and _looks_like_tls_verification_error(exc)
+        ):
+            raise
+
+        probe = _send_request_probe(
+            request_url=_build_alias_host_header_probe(
+                canonical_origin=normalized_canonical_origin,
+                next_path=next_path,
+                reason=reason,
+            ),
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            max_retry_delay_seconds=max_retry_delay_seconds,
+            headers={
+                "Host": selected_alias_host,
+                "X-Forwarded-Host": selected_alias_host,
+            },
+        )
 
     if not _is_redirect_status(probe.status_code):
         return CanonicalRedirectCheckResult(

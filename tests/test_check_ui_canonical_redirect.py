@@ -115,6 +115,72 @@ def test_check_canonical_redirect_supports_alias_host_override(monkeypatch):
     assert result.alias_host == "www.dev.geo-ranking.ch"
 
 
+def test_check_canonical_redirect_falls_back_to_host_header_on_tls_verify_errors(
+    monkeypatch,
+):
+    module = _load_module()
+
+    calls: list[dict] = []
+
+    def _fake_probe(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise RuntimeError(
+                "request_failed_after_retries(attempts=2, timeout_seconds=5.0): "
+                "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed>"
+            )
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_canonical_redirect(
+        base_url="https://www.dev.georanking.ch",
+        canonical_origin="https://www.dev.georanking.ch",
+        canonical_hosts="",
+        alias_host="www.dev.geo-ranking.ch",
+        max_attempts=2,
+    )
+
+    assert result.ok is True
+    assert len(calls) == 2
+    assert calls[0]["request_url"].startswith("https://www.dev.geo-ranking.ch/login?")
+    assert calls[1]["request_url"].startswith("https://www.dev.georanking.ch/login?")
+    assert calls[1]["headers"] == {
+        "Host": "www.dev.geo-ranking.ch",
+        "X-Forwarded-Host": "www.dev.geo-ranking.ch",
+    }
+
+
+def test_check_canonical_redirect_does_not_fallback_for_non_tls_errors(monkeypatch):
+    module = _load_module()
+
+    calls: list[dict] = []
+
+    def _fake_probe(**kwargs):
+        calls.append(kwargs)
+        raise RuntimeError("request_failed_after_retries(attempts=2): network down")
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    try:
+        module.check_canonical_redirect(
+            base_url="https://www.dev.georanking.ch",
+            canonical_origin="https://www.dev.georanking.ch",
+            canonical_hosts="",
+            alias_host="www.dev.geo-ranking.ch",
+            max_attempts=2,
+        )
+    except RuntimeError as exc:
+        assert "network down" in str(exc)
+    else:
+        raise AssertionError("expected RuntimeError")
+
+    assert len(calls) == 1
+
+
 def test_check_canonical_redirect_fails_for_relative_location_that_keeps_alias_host(
     monkeypatch,
 ):
