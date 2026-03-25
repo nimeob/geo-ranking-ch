@@ -26,6 +26,9 @@ jobs:
       - name: Install dev dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Validate GitHub workflow YAML syntax
+        run: python3 ./scripts/ci/validate_workflow_yaml.py
+
       - name: Run required dev smoke gate (PR profile + retry policy)
         run: |
           python3 ./scripts/run_dev_smoke_required_with_retry.py \
