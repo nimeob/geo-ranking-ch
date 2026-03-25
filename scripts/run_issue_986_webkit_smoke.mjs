@@ -108,29 +108,82 @@ function normalizeError(error) {
   };
 }
 
+function extractMissingWebkitLibraries(message) {
+  const lines = String(message || '').split(/\r?\n/);
+  const libraries = [];
+  let inMissingLibrariesSection = false;
+
+  for (const line of lines) {
+    if (!inMissingLibrariesSection) {
+      if (/Missing libraries:/i.test(line)) {
+        inMissingLibrariesSection = true;
+      }
+      continue;
+    }
+
+    if (/^[\s║]*╚/.test(line)) {
+      break;
+    }
+
+    const matches = line.match(/lib[^\s║]+/g) || [];
+    for (const lib of matches) {
+      if (!libraries.includes(lib)) {
+        libraries.push(lib);
+      }
+    }
+  }
+
+  return libraries;
+}
+
+function compactMessage(message, maxLength = 260) {
+  const normalized = String(message || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength)}…`;
+}
+
 async function launchPreferredBrowser({ requireNativeWebkit }) {
+  const installHint = 'npx playwright install --with-deps webkit';
+
   try {
     return {
       browser: await webkit.launch({ headless: true }),
       runtimeBrowser: 'playwright-webkit',
       limitations: [],
+      webkitMissingLibraries: [],
+      webkitInstallHint: installHint,
     };
   } catch (error) {
     const normalized = normalizeError(error);
+    const webkitMissingLibraries = extractMissingWebkitLibraries(normalized.message);
+
     if (requireNativeWebkit) {
+      const reason =
+        webkitMissingLibraries.length > 0
+          ? `fehlende WebKit-Libraries: ${webkitMissingLibraries.join(', ')}`
+          : compactMessage(normalized.message, 360);
       throw new Error(
-        `Native Playwright WebKit ist verpflichtend, konnte aber nicht gestartet werden. reason=${normalized.message}`
+        `Native Playwright WebKit ist verpflichtend, konnte aber nicht gestartet werden. reason=${reason}. hint=${installHint}`
       );
     }
 
     const fallback = await chromium.launch({ headless: true });
+    const reason =
+      webkitMissingLibraries.length > 0
+        ? `fehlende WebKit-Libraries (${webkitMissingLibraries.length}): ${webkitMissingLibraries.slice(0, 8).join(', ')}${webkitMissingLibraries.length > 8 ? ', …' : ''}`
+        : compactMessage(normalized.message, 240);
+
     return {
       browser: fallback,
       runtimeBrowser: 'playwright-chromium-fallback',
       limitations: [
-        `Native Playwright WebKit konnte auf diesem Runner nicht gestartet werden (fallback auf Chromium/iPhone-Profil). reason=${normalized.message}`,
+        `Native Playwright WebKit konnte auf diesem Runner nicht gestartet werden (fallback auf Chromium/iPhone-Profil). reason=${reason}. hint=${installHint}`,
       ],
       webkitLaunchError: normalized,
+      webkitMissingLibraries,
+      webkitInstallHint: installHint,
     };
   }
 }
@@ -419,6 +472,8 @@ async function run() {
       requestedBrowser: 'playwright-webkit',
       requireNativeWebkit,
       nativeWebkitActive: launch.runtimeBrowser === 'playwright-webkit',
+      webkitMissingLibraries: Array.isArray(launch.webkitMissingLibraries) ? launch.webkitMissingLibraries : [],
+      webkitInstallHint: launch.webkitInstallHint || 'npx playwright install --with-deps webkit',
       device: 'iPhone 13',
       headless: true,
     },
@@ -457,6 +512,8 @@ run()
         requestedBrowser: 'playwright-webkit',
         requireNativeWebkit,
         nativeWebkitActive: false,
+        webkitMissingLibraries: [],
+        webkitInstallHint: 'npx playwright install --with-deps webkit',
         device: 'iPhone 13',
         headless: true,
       },
