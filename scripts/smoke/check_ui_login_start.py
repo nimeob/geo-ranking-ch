@@ -72,6 +72,7 @@ def _build_start_request_url(base_url: str, *, next_path: str, reason: str) -> s
 
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
+_CANONICAL_REDIRECT_STATUSES = frozenset({307, 308})
 
 
 def _resolve_retry_delay(*, retry_after_header: str, default_delay_seconds: float) -> float:
@@ -206,6 +207,52 @@ def _is_login_unavailable_redirect(location: str) -> bool:
     return "reason=login_unavailable" in location.lower()
 
 
+def _looks_like_canonical_host_redirect(*, request_url: str, location: str) -> bool:
+    if not location:
+        return False
+
+    source = urlparse(request_url)
+    target = urlparse(urljoin(request_url, location))
+
+    if (target.scheme, target.netloc) == (source.scheme, source.netloc):
+        return False
+
+    return (target.path or "/") == (source.path or "/") and (target.query or "") == (source.query or "")
+
+
+def _probe_with_optional_canonical_redirect(
+    *,
+    request_url: str,
+    timeout_seconds: float,
+    max_attempts: int,
+    retry_delay_seconds: float,
+    read_body_preview: bool,
+) -> tuple[_HttpProbeResult, str]:
+    probe = _send_request_probe(
+        request_url=request_url,
+        timeout_seconds=timeout_seconds,
+        max_attempts=max_attempts,
+        retry_delay_seconds=retry_delay_seconds,
+        read_body_preview=read_body_preview,
+    )
+
+    if probe.status_code not in _CANONICAL_REDIRECT_STATUSES:
+        return probe, request_url
+
+    if not _looks_like_canonical_host_redirect(request_url=request_url, location=probe.location):
+        return probe, request_url
+
+    canonical_request_url = urljoin(request_url, probe.location)
+    canonical_probe = _send_request_probe(
+        request_url=canonical_request_url,
+        timeout_seconds=timeout_seconds,
+        max_attempts=max_attempts,
+        retry_delay_seconds=retry_delay_seconds,
+        read_body_preview=read_body_preview,
+    )
+    return canonical_probe, canonical_request_url
+
+
 def check_login_entry(
     *,
     base_url: str,
@@ -216,7 +263,7 @@ def check_login_entry(
     retry_delay_seconds: float = 2.0,
 ) -> LoginEntryCheckResult:
     request_url = _build_entry_request_url(base_url, next_path=next_path, reason=reason)
-    probe = _send_request_probe(
+    probe, _ = _probe_with_optional_canonical_redirect(
         request_url=request_url,
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
@@ -317,12 +364,16 @@ def check_login_start(
 ) -> LoginStartCheckResult:
     request_url = _build_start_request_url(base_url, next_path=next_path, reason=reason)
 
-    first_status, first_location = _send_request(
+    first_probe, effective_request_url = _probe_with_optional_canonical_redirect(
         request_url=request_url,
         timeout_seconds=timeout_seconds,
         max_attempts=max_attempts,
         retry_delay_seconds=retry_delay_seconds,
+        read_body_preview=False,
     )
+    first_status = first_probe.status_code
+    first_location = first_probe.location
+
     if first_status != 302:
         return LoginStartCheckResult(
             ok=False,
@@ -368,7 +419,7 @@ def check_login_start(
             reason="location_is_not_authorize_or_auth_login_redirect",
         )
 
-    second_request_url = urljoin(request_url, first_location)
+    second_request_url = urljoin(effective_request_url, first_location)
     second_status, second_location = _send_request(
         request_url=second_request_url,
         timeout_seconds=timeout_seconds,

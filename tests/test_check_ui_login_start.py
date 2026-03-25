@@ -120,6 +120,35 @@ def test_check_login_entry_passes_for_auth_login_redirect():
     assert result.reason == "ok_redirect"
 
 
+def test_check_login_entry_accepts_single_canonical_host_redirect(monkeypatch):
+    module = _load_module()
+    calls: list[str] = []
+
+    def _fake_probe(*, request_url, timeout_seconds, max_attempts, retry_delay_seconds, read_body_preview):  # noqa: ARG001
+        calls.append(request_url)
+        if len(calls) == 1:
+            return module._HttpProbeResult(
+                status_code=307,
+                location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login",
+                content_type="",
+                body_preview="",
+            )
+        return module._HttpProbeResult(
+            status_code=302,
+            location="https://idp.example.test/oauth2/authorize?state=abc",
+            content_type="",
+            body_preview="",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_login_entry(base_url="https://www.dev.geo-ranking.ch")
+
+    assert result.ok is True
+    assert result.reason == "ok_redirect"
+    assert len(calls) == 2
+
+
 def test_main_fails_with_entry_phase_when_login_entry_redirect_target_is_invalid(capsys):
     module = _load_module()
     _StubHandler.routes = {
@@ -146,6 +175,35 @@ def test_check_login_start_passes_for_authorize_redirect():
 
     assert result.ok is True
     assert result.reason == "ok"
+
+
+def test_check_login_start_accepts_single_canonical_host_redirect(monkeypatch):
+    module = _load_module()
+    calls: list[str] = []
+
+    def _fake_probe(*, request_url, timeout_seconds, max_attempts, retry_delay_seconds, read_body_preview):  # noqa: ARG001
+        calls.append(request_url)
+        if len(calls) == 1:
+            return module._HttpProbeResult(
+                status_code=307,
+                location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+                content_type="",
+                body_preview="",
+            )
+        return module._HttpProbeResult(
+            status_code=302,
+            location="https://idp.example.test/oauth2/authorize?state=abc",
+            content_type="",
+            body_preview="",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_login_start(base_url="https://www.dev.geo-ranking.ch")
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert len(calls) == 2
 
 
 def test_check_login_start_passes_for_ui_auth_login_hop_then_authorize_redirect():
