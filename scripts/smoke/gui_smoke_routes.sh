@@ -4,6 +4,7 @@
 GUI_SMOKE_ROUTES=(
   "/gui"
   "/gui/history"
+  "/history"
   "/jobs"
   "/jobs?source=smoke"
   "/jobs/demo-job"
@@ -22,6 +23,9 @@ gui_login_start_artifact_suffix_for_route() {
       ;;
     "/gui/history")
       echo "login-start-smoke-gui-history"
+      ;;
+    "/history")
+      echo "login-start-smoke-history-legacy"
       ;;
     "/jobs")
       echo "login-start-smoke-jobs"

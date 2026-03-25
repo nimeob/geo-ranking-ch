@@ -14,7 +14,7 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 - Script: `scripts/run_dev_ui_auth_analyze_smoke.mjs`
 - Preflight (Secrets + Blocker-Evidence): `scripts/smoke/validate_gui_live_auth_analyze_secrets.sh`
 - Address-Pool: `scripts/smoke/ch_live_addresses.txt`
-- Shared Route-Matrix: `scripts/smoke/gui_smoke_routes.sh` (Single Source of Truth für kanonische + Legacy-Login-Pfade und Artifact-Suffix-Mapping)
+- Shared Route-Matrix: `scripts/smoke/gui_smoke_routes.sh` (Single Source of Truth für kanonische + Legacy-Login-Pfade inkl. Legacy-`/history` und Artifact-Suffix-Mapping)
 - Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt den gemeinsamen Route-Satz seriell in **einem** Workflow-Job aus und startet mit einem integrierten Secrets-Preflight, damit lokale/manual Runs bei fehlenden Credentials sofort und eindeutig abbrechen)
 - Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml`
 - Artifact: `gui-dev-live-auth-analyze-smoke-artifacts`

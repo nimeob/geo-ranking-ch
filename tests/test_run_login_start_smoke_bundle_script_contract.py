@@ -16,6 +16,7 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
     required_routes = [
         '"/gui"',
         '"/gui/history"',
+        '"/history"',
         '"/jobs"',
         '"/jobs?source=smoke"',
         '"/jobs/demo-job"',
@@ -29,6 +30,7 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
     assert not missing, f"gui_smoke_routes.sh fehlt Routen-Snippets: {missing}"
 
     assert "gui_login_start_artifact_suffix_for_route" in content
+    assert "login-start-smoke-history-legacy" in content
     assert "login-start-smoke-results-detail" in content
 
 
