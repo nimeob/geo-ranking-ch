@@ -9,6 +9,6 @@
     "smoke:gui:dev-live-auth-analyze": "node scripts/run_dev_ui_auth_analyze_smoke.mjs"
   },
   "devDependencies": {
-    "playwright": "1.52.0"
+    "playwright": "1.58.2"
   }
 }
