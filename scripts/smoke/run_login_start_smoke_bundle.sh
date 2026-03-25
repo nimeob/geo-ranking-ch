@@ -113,20 +113,32 @@ if [ -z "$EXPECTED_AUTHORIZE_HOST" ]; then
 from urllib.parse import urlparse
 import sys
 
+
+def expand_geo_host_variants(host: str) -> list[str]:
+    variants = [host]
+    if "geo-ranking" in host:
+        variants.append(host.replace("geo-ranking", "georanking"))
+    return variants
+
+
 base_url = sys.argv[1].strip()
 host = (urlparse(base_url).hostname or "").strip().lower()
 if not host:
     raise SystemExit("")
 
-allow_hosts = []
+seed_hosts = []
 if host.startswith("www.") and len(host) > 4:
     bare_host = host[4:]
-    allow_hosts.append(f"auth.{bare_host}")
-    allow_hosts.append(host)
-    allow_hosts.append(bare_host)
+    seed_hosts.append(f"auth.{bare_host}")
+    seed_hosts.append(host)
+    seed_hosts.append(bare_host)
 else:
-    allow_hosts.append(f"auth.{host}")
-    allow_hosts.append(host)
+    seed_hosts.append(f"auth.{host}")
+    seed_hosts.append(host)
+
+allow_hosts = []
+for seed in seed_hosts:
+    allow_hosts.extend(expand_geo_host_variants(seed))
 
 seen = set()
 ordered = []

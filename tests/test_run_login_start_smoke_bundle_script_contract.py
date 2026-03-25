@@ -56,9 +56,11 @@ def test_login_start_bundle_defaults_include_auth_host_for_non_www_base_urls() -
 
     required_snippets = [
         'if host.startswith("www.") and len(host) > 4:',
-        'allow_hosts.append(f"auth.{bare_host}")',
-        'allow_hosts.append(f"auth.{host}")',
-        "allow_hosts.append(host)",
+        'seed_hosts.append(f"auth.{bare_host}")',
+        'seed_hosts.append(f"auth.{host}")',
+        "seed_hosts.append(host)",
+        "expand_geo_host_variants",
+        'host.replace("geo-ranking", "georanking")',
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in content]

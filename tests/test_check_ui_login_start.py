@@ -438,6 +438,36 @@ def test_main_accepts_expected_authorize_host_values_with_urls_and_ports(capsys)
     assert payload["phase"] == "start"
 
 
+def test_parse_allowed_authorize_hosts_expands_geo_ranking_alias_to_georanking():
+    module = _load_module()
+
+    hosts = module._parse_allowed_authorize_hosts("auth.dev.geo-ranking.ch")
+
+    assert hosts == {"auth.dev.geo-ranking.ch", "auth.dev.georanking.ch"}
+
+
+def test_main_accepts_geo_ranking_authorize_host_alias_for_georanking_redirect(capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://auth.dev.georanking.ch/oauth2/authorize?state=abc"),
+    }
+
+    with _StubServer() as stub:
+        exit_code = module.main(
+            [
+                "--base-url",
+                stub.base_url,
+                "--expected-authorize-host",
+                "auth.dev.geo-ranking.ch",
+            ]
+        )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["phase"] == "start"
+
+
 def test_check_login_start_passes_for_authorize_redirect():
     module = _load_module()
     _StubHandler.routes = {

@@ -160,6 +160,27 @@ def test_check_auth_proxy_guard_accepts_custom_authorize_host_override(monkeypat
     assert result.expected_authorize_hosts == ["idp.partner.example"]
 
 
+def test_check_auth_proxy_guard_accepts_geo_ranking_alias_authorize_host_override(monkeypatch):
+    module = _load_module()
+    monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
+
+    result = module.check_auth_proxy_guard(
+        api_base_url="https://api.dev.georanking.ch",
+        ui_base_url="https://www.dev.georanking.ch",
+        trusted_forwarded_host="",
+        untrusted_forwarded_host="evil.example.test",
+        timeout_seconds=3,
+        max_attempts=1,
+        retry_delay_seconds=0,
+        expected_authorize_host="auth.dev.geo-ranking.ch",
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert "auth.dev.georanking.ch" in result.expected_authorize_hosts
+    assert "auth.dev.geo-ranking.ch" in result.expected_authorize_hosts
+
+
 def test_check_auth_proxy_guard_adds_hint_when_api_origin_matches_ui_and_untrusted_redirects_to_login(monkeypatch):
     module = _load_module()
 
