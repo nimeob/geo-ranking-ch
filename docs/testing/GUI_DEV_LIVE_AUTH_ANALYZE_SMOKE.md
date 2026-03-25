@@ -20,8 +20,9 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 - Artifact: `gui-dev-live-auth-analyze-smoke-artifacts`
 
 Das Script erzeugt JSON-Evidence + Screenshot:
-- `reports/evidence/dev-ui-auth-analyze-smoke-<timestamp>.json`
-- `reports/evidence/dev-ui-auth-analyze-smoke-<timestamp>.png`
+- Standard (lokal ohne expliziten Run-Token): `reports/evidence/dev-ui-auth-analyze-smoke-<timestamp>.json`
+- Standard (lokal ohne expliziten Run-Token): `reports/evidence/dev-ui-auth-analyze-smoke-<timestamp>.png`
+- Mit Run-Marker (z. B. CI-Run oder `DEV_UI_SMOKE_RUN_ID`): `...-<timestamp>-<run_marker>.json|png`
 
 Der UI-Contract wartet auf ein **terminales UI-Signal** (Phase `success`/`error`, sichtbare Error-Box oder gerenderte Result-Zeilen), statt starr nur auf einen einzigen Locator (`#phase-pill[data-phase="success"]`). Damit bleiben echte Produktfehler sichtbar, aber false negatives durch zu enge Locator-Waits werden reduziert.
 

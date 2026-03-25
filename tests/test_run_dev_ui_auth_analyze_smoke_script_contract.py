@@ -112,6 +112,43 @@ def test_missing_credentials_emit_json_evidence_even_without_playwright(
     assert "Fehlende_Credentials" in result.stderr
 
 
+def test_default_timestamp_run_marker_does_not_duplicate_filename_token(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env.pop("DEV_UI_SMOKE_RUN_ID", None)
+    env.pop("GITHUB_RUN_NUMBER", None)
+    env.pop("GITHUB_RUN_ATTEMPT", None)
+    env.pop("GITHUB_RUN_ID", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    evidence_stem = evidence_files[-1].stem
+    body = evidence_stem.removeprefix("dev-ui-auth-analyze-smoke-")
+
+    # Default run marker (=timestamp) should not be duplicated in the artifact filename.
+    assert "-" not in body, evidence_stem
+
+
+
 def test_run_id_is_sanitized_in_evidence_filename(tmp_path: Path) -> None:
     env = os.environ.copy()
     env.pop("DEV_UI_SMOKE_USERNAME", None)
