@@ -21,6 +21,8 @@ class TestGuiWebkitSmokeDocs(unittest.TestCase):
             "gui-webkit-smoke-artifacts",
             "issue-986-webkit-smoke-",
             "REQUIRE_NATIVE_WEBKIT=1",
+            "runtime.webkitMissingLibraries",
+            "runtime.webkitInstallHint",
         ]
         for marker in required_markers:
             self.assertIn(marker, content)

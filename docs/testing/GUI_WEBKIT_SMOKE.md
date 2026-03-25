@@ -66,6 +66,11 @@ Output:
 - JSON Evidence: `reports/evidence/issue-986-webkit-smoke-<timestamp>.json`
 - Screenshot: `reports/evidence/issue-986-webkit-ios-<timestamp>.png`
 
+Bei Chromium-Fallback enthält der JSON-Nachweis zusätzlich strukturierte Dependency-Hinweise:
+- `runtime.webkitMissingLibraries`: deduplizierte Liste der fehlenden `lib*.so`-Abhängigkeiten (aus dem Playwright-Launchfehler extrahiert)
+- `runtime.webkitInstallHint`: empfohlener Install-Befehl (`npx playwright install --with-deps webkit`)
+- `limitations[]`: kompakte Zusammenfassung (kein unlesbarer Voll-Stacktrace)
+
 ## CI-Integration / Artifact
 Workflow: `.github/workflows/gui-webkit-smoke.yml`
 
