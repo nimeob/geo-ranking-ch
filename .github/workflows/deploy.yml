@@ -430,49 +430,49 @@ jobs:
           [ -n "${SERVICE_APP_BASE_URL:-}" ]
 
           ALIAS_BASE_URL=$(python3 - <<'PY'
-from urllib.parse import urlparse
-import os
+          from urllib.parse import urlparse
+          import os
 
-service_app_base_url = (os.getenv("SERVICE_APP_BASE_URL") or "").strip()
-canonical_origin = (os.getenv("UI_CANONICAL_ORIGIN") or "").strip()
-canonical_hosts_raw = (os.getenv("UI_CANONICAL_HOSTS") or "").strip()
+          service_app_base_url = (os.getenv("SERVICE_APP_BASE_URL") or "").strip()
+          canonical_origin = (os.getenv("UI_CANONICAL_ORIGIN") or "").strip()
+          canonical_hosts_raw = (os.getenv("UI_CANONICAL_HOSTS") or "").strip()
 
-base_parsed = urlparse(service_app_base_url)
-canonical_parsed = urlparse(canonical_origin) if canonical_origin else base_parsed
+          base_parsed = urlparse(service_app_base_url)
+          canonical_parsed = urlparse(canonical_origin) if canonical_origin else base_parsed
 
-canonical_host = (canonical_parsed.hostname or "").strip().lower()
-scheme = canonical_parsed.scheme or base_parsed.scheme or "https"
+          canonical_host = (canonical_parsed.hostname or "").strip().lower()
+          scheme = canonical_parsed.scheme or base_parsed.scheme or "https"
 
-candidates = []
-for part in canonical_hosts_raw.split(","):
-    host = part.strip().lower()
-    if host:
-        candidates.append(host)
+          candidates = []
+          for part in canonical_hosts_raw.split(","):
+              host = part.strip().lower()
+              if host:
+                  candidates.append(host)
 
-if canonical_host and canonical_host not in candidates:
-    candidates.insert(0, canonical_host)
+          if canonical_host and canonical_host not in candidates:
+              candidates.insert(0, canonical_host)
 
-# Präferiere explizit den dev.geo-ranking.ch-Alias, falls vorhanden.
-alias_host = ""
-for candidate in candidates:
-    if candidate == canonical_host:
-        continue
-    if "geo-ranking" in candidate:
-        alias_host = candidate
-        break
+          # Prefer the explicit dev.geo-ranking.ch alias, when configured.
+          alias_host = ""
+          for candidate in candidates:
+              if candidate == canonical_host:
+                  continue
+              if "geo-ranking" in candidate:
+                  alias_host = candidate
+                  break
 
-if not alias_host:
-    for candidate in candidates:
-        if candidate != canonical_host:
-            alias_host = candidate
-            break
+          if not alias_host:
+              for candidate in candidates:
+                  if candidate != canonical_host:
+                      alias_host = candidate
+                      break
 
-if not alias_host:
-    raise SystemExit(0)
+          if not alias_host:
+              raise SystemExit(0)
 
-print(f"{scheme}://{alias_host}")
-PY
-)
+          print(f"{scheme}://{alias_host}")
+          PY
+          )
 
           if [ -z "${ALIAS_BASE_URL:-}" ]; then
             echo "::notice::No alias host configured in UI_CANONICAL_HOSTS; skipping alias route-matrix smoke."
