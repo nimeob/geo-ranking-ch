@@ -32,3 +32,19 @@ def test_webkit_smoke_script_emits_structured_runtime_dependency_hints() -> None
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"Runtime-Hints fehlen im Script: {missing}"
+
+
+def test_webkit_smoke_script_handles_missing_playwright_dependency_with_actionable_hint() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    required_snippets = [
+        "async function loadPlaywrightBindings()",
+        "await import('playwright')",
+        "Playwright dependency fehlt oder ist nicht ladbar",
+        "npm ci && npx playwright install --with-deps webkit",
+        "const { chromium, webkit, devices } = await loadPlaywrightBindings();",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, f"Playwright-Missing-Dependency-Hints fehlen im Script: {missing}"
+    assert "import { chromium, devices, webkit } from 'playwright';" not in content
