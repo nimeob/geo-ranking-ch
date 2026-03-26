@@ -115,6 +115,30 @@ def test_check_canonical_redirect_supports_alias_host_override(monkeypatch):
     assert result.alias_host == "www.dev.geo-ranking.ch"
 
 
+def test_check_canonical_redirect_infers_geo_alias_when_hosts_not_provided(monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        request_url = kwargs.get("request_url", "")
+        assert request_url.startswith("https://www.dev.geo-ranking.ch/login?")
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_canonical_redirect(
+        base_url="https://www.dev.georanking.ch",
+        canonical_origin="https://www.dev.georanking.ch",
+        canonical_hosts="",
+    )
+
+    assert result.ok is True
+    assert result.skipped is False
+    assert result.alias_host == "www.dev.geo-ranking.ch"
+
+
 def test_check_canonical_redirect_falls_back_to_host_header_on_tls_verify_errors(
     monkeypatch,
 ):
@@ -214,9 +238,9 @@ def test_check_canonical_redirect_skips_when_no_alias_hosts(monkeypatch):
     monkeypatch.setattr(module, "_send_request_probe", _unexpected_probe)
 
     result = module.check_canonical_redirect(
-        base_url="https://www.dev.georanking.ch",
-        canonical_origin="https://www.dev.georanking.ch",
-        canonical_hosts="www.dev.georanking.ch",
+        base_url="https://www.example.com",
+        canonical_origin="https://www.example.com",
+        canonical_hosts="www.example.com",
     )
 
     assert result.ok is True

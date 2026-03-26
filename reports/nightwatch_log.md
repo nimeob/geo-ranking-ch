@@ -44,3 +44,22 @@
 - Parallel überwacht:
   - Deploy-Run `23517454230` (push, main) ✅ erfolgreich
   - Deploy-Run `23517501302` (schedule, main) läuft weiter (Build grün, Deploy in Arbeit).
+
+## 2026-03-26 02:22 CET — Canonical-Redirect-Smoke ohne Env-Abhängigkeit gehärtet
+- ROI-Fokus: Die Canonical-Host-Smoke (`check_ui_canonical_redirect.py`) war faktisch abhängig von gesetztem `UI_CANONICAL_HOSTS`. Ohne diese Variable wurde der Check als `skipped_no_alias_hosts` beendet (Signalverlust trotz vorhandener `geo-ranking` ↔ `georanking` Alias-Konvention).
+- Umsetzung:
+  - `scripts/smoke/check_ui_canonical_redirect.py` erweitert um automatische Alias-Inferenz aus `canonical_origin`:
+    - `geo-ranking` → `georanking`
+    - `georanking` → `geo-ranking`
+  - Fallback greift nur, wenn weder `--alias-host` noch `--canonical-hosts` einen Alias liefern.
+  - CLI-Hilfe für `--canonical-hosts` präzisiert (Alias-Inferenz dokumentiert).
+- Tests:
+  - `tests/test_check_ui_canonical_redirect.py` um Inferenz-Regression erweitert.
+  - Skip-Regression auf neutralen Host (`www.example.com`) umgestellt, damit die neue Inferenz nicht versehentlich als Regression zählt.
+  - Lokal grün:
+    - `pytest -q tests/test_check_ui_canonical_redirect.py` → **17 passed**
+    - `pytest -q tests/test_check_ui_login_start.py tests/test_check_ui_canonical_redirect.py` → **59 passed**
+- Live-Verifikation (DEV UI):
+  - `python3 scripts/smoke/check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch` → **ok**, nicht mehr `skipped`, Alias automatisch `www.dev.geo-ranking.ch`.
+- Blocker/Entscheidung:
+  - Browser-Tool war heute Nacht im Runner nicht verfügbar (`browser.open` timeout / Gateway-Hinweis). Deshalb UI-Verifikation über Live-HTTP-Smokes fortgeführt statt GUI-Interaktion zu blockieren.
