@@ -408,7 +408,7 @@ jobs:
             exit "$RECONCILE_RC"
           fi
 
-      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + legacy /history + /jobs + /jobs/:id + /results/:id + legacy /gui/jobs*)
+      - name: Smoke-Test UI login start redirects to IdP authorize (/ + /gui + /gui/history + legacy /history + /jobs + /jobs/:id + /results/:id + legacy /gui/jobs*)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
@@ -467,6 +467,7 @@ jobs:
           name: dev-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
+            artifacts/dev-login-start-smoke-root.json
             artifacts/dev-login-start-smoke.json
             artifacts/dev-login-start-smoke-gui-history.json
             artifacts/dev-login-start-smoke-history-legacy.json
@@ -477,6 +478,7 @@ jobs:
             artifacts/dev-login-start-smoke-gui-jobs-legacy.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy-query.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy-detail.json
+            artifacts/dev-alias-login-start-smoke-root.json
             artifacts/dev-alias-login-start-smoke.json
             artifacts/dev-alias-login-start-smoke-gui-history.json
             artifacts/dev-alias-login-start-smoke-history-legacy.json

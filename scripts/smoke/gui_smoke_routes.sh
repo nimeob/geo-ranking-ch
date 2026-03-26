@@ -2,6 +2,7 @@
 # Shared route matrix for UI login-start + live auth/analyze smoke checks.
 
 GUI_SMOKE_ROUTES=(
+  "/"
   "/gui"
   "/gui/history"
   "/history"
@@ -18,6 +19,9 @@ gui_login_start_artifact_suffix_for_route() {
   local route="${1:-}"
 
   case "${route}" in
+    "/")
+      echo "login-start-smoke-root"
+      ;;
     "/gui")
       echo "login-start-smoke"
       ;;

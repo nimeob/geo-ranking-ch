@@ -514,7 +514,7 @@ jobs:
             --retry-delay 5 \
             --output-json artifacts/staging-canonical-host-redirect-smoke.json
 
-      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + legacy /history + /jobs + /jobs/:id + /results/:id + legacy /gui/jobs*)
+      - name: Smoke-Test UI login start redirects to IdP authorize (/ + /gui + /gui/history + legacy /history + /jobs + /jobs/:id + /results/:id + legacy /gui/jobs*)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
@@ -552,6 +552,7 @@ jobs:
           name: staging-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
+            artifacts/staging-login-start-smoke-root.json
             artifacts/staging-login-start-smoke.json
             artifacts/staging-login-start-smoke-gui-history.json
             artifacts/staging-login-start-smoke-history-legacy.json
