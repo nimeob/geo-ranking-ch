@@ -32,7 +32,9 @@ def test_route_set_script_uses_shared_route_helper_and_route_specific_run_ids() 
     assert 'DEV_UI_SMOKE_GUI_PATH="${route}"' in content
     assert 'DEV_UI_SMOKE_RUN_ID="${run_id}"' in content
     assert 'run_id="${base_run_id}-${ordinal}"' in content
-
+    assert "--fallback-login-start-on-preflight-fail" in content
+    assert "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL" in content
+    assert "run_login_start_smoke_bundle.sh" in content
 
 
 def test_shared_route_helper_contains_required_gui_paths() -> None:

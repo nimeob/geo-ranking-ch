@@ -14,6 +14,10 @@ Options:
   --address-file <path>   Adressliste für Analyze-Smoke (default: scripts/smoke/ch_live_addresses.txt)
   --login-reason <text>   reason-Parameter für /login (default: manual_login)
   --run-id-base <token>   Basis für DEV_UI_SMOKE_RUN_ID je Route
+  --fallback-login-start-on-preflight-fail
+                           Führt bei fehlenden Live-Secrets automatisch
+                           den Login-Start-Bundle-Smoke als Fallback aus
+                           (degraded mode statt harter Abbruch)
   --headless              Erzwingt headless mode
   --headful               Erzwingt headful mode
   -h, --help              Diese Hilfe anzeigen
@@ -36,6 +40,7 @@ address_file_override=""
 login_reason_override=""
 run_id_base_override=""
 headful_override=""
+fallback_login_start_on_preflight_fail="${DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL:-0}"
 
 require_option_value() {
   local option_name="$1"
@@ -79,6 +84,10 @@ while [[ $# -gt 0 ]]; do
       require_option_value "--run-id-base" "${2:-}"
       run_id_base_override="$2"
       shift 2
+      ;;
+    --fallback-login-start-on-preflight-fail)
+      fallback_login_start_on_preflight_fail="1"
+      shift
       ;;
     --headless)
       headful_override="0"
@@ -131,6 +140,15 @@ if [[ -z "${base_run_id}" ]]; then
   fi
 fi
 
+case "${fallback_login_start_on_preflight_fail,,}" in
+  1|true|yes|on)
+    fallback_login_start_on_preflight_fail="1"
+    ;;
+  *)
+    fallback_login_start_on_preflight_fail="0"
+    ;;
+esac
+
 if ! (
   cd "${REPO_ROOT}"
   DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
@@ -141,9 +159,40 @@ if ! (
   if [[ "${fallback_base_url}" == *"staging"* ]]; then
     fallback_env_name="staging"
   fi
+
+  if [[ "${fallback_login_start_on_preflight_fail}" == "1" ]]; then
+    echo "WARN: live-auth route-set preflight failed; running login-start fallback (degraded mode)." >&2
+
+    fallback_cmd=(
+      ./scripts/smoke/run_login_start_smoke_bundle.sh
+      --base-url "${fallback_base_url}"
+      --env-name "${fallback_env_name}"
+    )
+
+    if [[ -n "${output_dir_override}" ]]; then
+      fallback_cmd+=(--output-dir "${output_dir_override}")
+    fi
+    if [[ -n "${login_reason_override}" ]]; then
+      fallback_cmd+=(--reason "${login_reason_override}")
+    fi
+
+    if (
+      cd "${REPO_ROOT}"
+      "${fallback_cmd[@]}"
+    ); then
+      echo "WARN: login-start fallback passed; live-auth route fan-out skipped." >&2
+      exit 0
+    fi
+
+    echo "ERROR: login-start fallback failed after live-auth preflight failure." >&2
+    exit 1
+  fi
+
   echo "ERROR: live-auth route-set preflight failed; aborting route fan-out." >&2
   echo "HINT: If live credentials are unavailable, run login-start coverage instead:" >&2
   echo "  ./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name}" >&2
+  echo "HINT: Or opt into automatic fallback for this run:" >&2
+  echo "  ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh --fallback-login-start-on-preflight-fail" >&2
   exit 1
 fi
 
