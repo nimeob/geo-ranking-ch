@@ -201,6 +201,7 @@ def _assert_login_contract_smoke_coverage(
         "Smoke-Test UI login start redirects to IdP authorize (",
         "scripts/smoke/run_login_start_smoke_bundle.sh",
         f'--env-name "{env_name}"',
+        f"artifacts/{env_name}-login-start-smoke-root.json",
         f"artifacts/{env_name}-login-start-smoke.json",
         f"artifacts/{env_name}-login-start-smoke-gui-history.json",
         f"artifacts/{env_name}-login-start-smoke-history-legacy.json",

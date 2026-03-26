@@ -38,6 +38,7 @@ def test_route_set_script_uses_shared_route_helper_and_route_specific_run_ids() 
 def test_shared_route_helper_contains_required_gui_paths() -> None:
     content = ROUTE_HELPER.read_text(encoding="utf-8")
 
+    assert '"/"' in content
     assert '"/gui"' in content
     assert '"/gui/history"' in content
     assert '"/history"' in content
