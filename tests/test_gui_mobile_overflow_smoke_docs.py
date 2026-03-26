@@ -20,6 +20,8 @@ class TestGuiMobileOverflowSmokeDocs(unittest.TestCase):
             "issue-1039-mobile-overflow-",
             "issue-1039-desktop-regression-",
             "Desktop-Regressionscheck",
+            "BASE_URL_PROBE_TIMEOUT_MS",
+            "runError.kind=base_url_unreachable",
         ]
         for marker in required_markers:
             self.assertIn(marker, content)

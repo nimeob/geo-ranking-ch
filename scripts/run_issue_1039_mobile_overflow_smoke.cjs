@@ -2,14 +2,41 @@
 
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { chromium } = require('playwright');
 
 const issueNumber = 1039;
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
+const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+class PlaywrightDependencyError extends Error {
+  constructor(message, { installHint, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'PlaywrightDependencyError';
+    this.installHint = installHint || 'npm ci && npx playwright install --with-deps chromium';
+    this.missingDependency = 'playwright';
+  }
+}
+
+class BaseUrlReachabilityError extends Error {
+  constructor(message, { targetUrl, reasonCode, hint, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'BaseUrlReachabilityError';
+    this.targetUrl = targetUrl || '';
+    this.reasonCode = reasonCode || 'unreachable';
+    this.hint = hint || '';
+  }
+}
+
+function compactMessage(message, maxLength = 320) {
+  const normalized = String(message || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength)}…`;
+}
 
 function normalizeError(error) {
   if (error instanceof Error) {
@@ -25,6 +52,102 @@ function normalizeError(error) {
     message: String(error || 'unknown error'),
     stack: '',
   };
+}
+
+function isLocalHost(hostname) {
+  const host = String(hostname || '').trim().toLowerCase();
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
+
+function classifyConnectivityReason(error) {
+  const message = String(error?.message || '');
+  const causeCode = String(error?.cause?.code || '');
+  const causeName = String(error?.cause?.name || '');
+  const raw = `${message} ${causeCode} ${causeName}`.toLowerCase();
+
+  if (raw.includes('econnrefused') || raw.includes('err_connection_refused')) return 'connection_refused';
+  if (raw.includes('enotfound') || raw.includes('name_not_resolved') || raw.includes('err_name_not_resolved')) {
+    return 'dns_not_found';
+  }
+  if (raw.includes('etimedout') || raw.includes('aborted') || raw.includes('timeout')) return 'timeout';
+  if (raw.includes('econnreset') || raw.includes('err_connection_reset')) return 'connection_reset';
+  return 'unreachable';
+}
+
+function buildBaseUrlReachabilityHint(targetUrl, reasonCode) {
+  let parsed;
+  try {
+    parsed = new URL(targetUrl);
+  } catch (_error) {
+    return 'BASE_URL ist ungültig. Bitte vollständige URL inkl. Schema prüfen (z. B. http://127.0.0.1:8877/gui oder https://www.dev.georanking.ch/gui).';
+  }
+
+  if (isLocalHost(parsed.hostname)) {
+    return [
+      `Lokalen GUI-Server starten (Default): HOST=127.0.0.1 PORT=${parsed.port || '8877'} APP_VERSION=dev python3 -m src.web_service`,
+      `Danach Smoke erneut ausführen: BASE_URL=\"${targetUrl}\" node scripts/run_issue_1039_mobile_overflow_smoke.cjs`,
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  return [
+    `Ziel-URL nicht erreichbar: ${targetUrl}`,
+    'Prüfe DNS/TLS/Ingress und ob /gui ohne Auth-Block erreichbar ist.',
+    `reason=${reasonCode}`,
+  ].join(' | ');
+}
+
+async function assertBaseUrlReachable(targetUrl, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(200, timeoutMs));
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { Accept: 'text/html,*/*;q=0.8' },
+    });
+
+    return {
+      ok: true,
+      status: response.status,
+      finalUrl: String(response.url || targetUrl),
+    };
+  } catch (error) {
+    const reasonCode = classifyConnectivityReason(error);
+    const hint = buildBaseUrlReachabilityHint(targetUrl, reasonCode);
+    throw new BaseUrlReachabilityError(
+      `BASE_URL nicht erreichbar (${reasonCode}): ${targetUrl}. reason=${compactMessage(error?.message || error, 240)}`,
+      { targetUrl, reasonCode, hint, cause: error }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isPlaywrightDependencyError(error) {
+  return error instanceof PlaywrightDependencyError || String(error?.name || '') === 'PlaywrightDependencyError';
+}
+
+function loadPlaywrightChromium() {
+  for (const moduleName of ['playwright', 'playwright-core']) {
+    try {
+      // eslint-disable-next-line import/no-dynamic-require, global-require
+      const playwright = require(moduleName);
+      if (playwright && playwright.chromium) {
+        return playwright.chromium;
+      }
+    } catch (_error) {
+      // continue
+    }
+  }
+
+  const installHint = 'npm ci && npx playwright install --with-deps chromium';
+  throw new PlaywrightDependencyError(
+    `Playwright dependency fehlt oder ist nicht ladbar. hint=${installHint}`,
+    { installHint }
+  );
 }
 
 function isAuthRedirectUrl(url) {
@@ -208,12 +331,51 @@ async function captureDesktopEvidence(browser) {
   };
 }
 
+function normalizeRunError(error) {
+  const normalized = normalizeError(error);
+  const payload = {
+    ...normalized,
+    kind: 'script_error',
+    hint: '',
+  };
+
+  if (error instanceof BaseUrlReachabilityError) {
+    payload.kind = 'base_url_unreachable';
+    payload.hint = error.hint || '';
+    payload.targetUrl = error.targetUrl || baseUrl;
+    payload.reasonCode = error.reasonCode || 'unreachable';
+    return payload;
+  }
+
+  if (isPlaywrightDependencyError(error)) {
+    payload.kind = 'playwright_dependency_missing';
+    payload.hint = error.installHint || 'npm ci && npx playwright install --with-deps chromium';
+    return payload;
+  }
+
+  const messageLower = String(payload.message || '').toLowerCase();
+  if (
+    messageLower.includes('err_connection_refused') ||
+    messageLower.includes('econnrefused') ||
+    messageLower.includes('net::err_connection_refused')
+  ) {
+    payload.kind = 'base_url_unreachable';
+    payload.reasonCode = 'connection_refused';
+    payload.hint = buildBaseUrlReachabilityHint(baseUrl, 'connection_refused');
+  }
+
+  return payload;
+}
+
 async function main() {
   const startedAtUtc = new Date().toISOString();
   let browser = null;
   let payload = null;
 
   try {
+    const preflight = await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
+
+    const chromium = loadPlaywrightChromium();
     browser = await chromium.launch({ headless: true });
 
     const mobile = await captureMobileEvidence(browser);
@@ -222,6 +384,14 @@ async function main() {
     payload = {
       issue: issueNumber,
       targetUrl: baseUrl,
+      runtime: {
+        playwrightDependencyMissing: false,
+        playwrightInstallHint: 'npm ci && npx playwright install --with-deps chromium',
+        baseUrlReachable: true,
+        baseUrlProbeTimeoutMs,
+        baseUrlProbeStatus: preflight.status,
+        baseUrlProbeFinalUrl: preflight.finalUrl,
+      },
       checks: {
         mobileNoHorizontalScroll: {
           ...mobile.metrics.pageWidth,
@@ -255,12 +425,22 @@ async function main() {
         desktop.metrics.pageWidth.matches,
     };
   } catch (error) {
+    const normalizedRunError = normalizeRunError(error);
     payload = {
       issue: issueNumber,
       targetUrl: baseUrl,
+      runtime: {
+        playwrightDependencyMissing: normalizedRunError.kind === 'playwright_dependency_missing',
+        playwrightInstallHint:
+          normalizedRunError.kind === 'playwright_dependency_missing'
+            ? normalizedRunError.hint || 'npm ci && npx playwright install --with-deps chromium'
+            : 'npm ci && npx playwright install --with-deps chromium',
+        baseUrlReachable: normalizedRunError.kind !== 'base_url_unreachable',
+        baseUrlProbeTimeoutMs,
+      },
       checks: {},
       snapshots: {},
-      runError: normalizeError(error),
+      runError: normalizedRunError,
       ok: false,
     };
   } finally {
@@ -274,7 +454,7 @@ async function main() {
 
   await fs.mkdir(outDir, { recursive: true });
   const outJson = path.join(outDir, `issue-${issueNumber}-mobile-overflow-smoke-${stamp}.json`);
-  await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  await fs.writeFile(outJson, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 
   console.log(path.relative(repoRoot, outJson));
   if (!payload.ok) {
@@ -284,19 +464,29 @@ async function main() {
 
 main().catch(async (error) => {
   const outJson = path.join(outDir, `issue-${issueNumber}-mobile-overflow-smoke-${stamp}.json`);
+  const normalizedRunError = normalizeRunError(error);
   const payload = {
     issue: issueNumber,
     targetUrl: baseUrl,
+    runtime: {
+      playwrightDependencyMissing: normalizedRunError.kind === 'playwright_dependency_missing',
+      playwrightInstallHint:
+        normalizedRunError.kind === 'playwright_dependency_missing'
+          ? normalizedRunError.hint || 'npm ci && npx playwright install --with-deps chromium'
+          : 'npm ci && npx playwright install --with-deps chromium',
+      baseUrlReachable: normalizedRunError.kind !== 'base_url_unreachable',
+      baseUrlProbeTimeoutMs,
+    },
     startedAtUtc: new Date().toISOString(),
     finishedAtUtc: new Date().toISOString(),
     checks: {},
     snapshots: {},
-    runError: normalizeError(error),
+    runError: normalizedRunError,
     ok: false,
   };
 
   await fs.mkdir(outDir, { recursive: true });
-  await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  await fs.writeFile(outJson, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
   console.log(path.relative(repoRoot, outJson));
   process.exit(1);
 });
