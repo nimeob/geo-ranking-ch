@@ -65,6 +65,42 @@ def test_handles_canonical_hosts_with_urls_and_ports():
     assert alias_url == "https://www.dev.geo-ranking.ch"
 
 
+def test_prefers_tls_valid_alias_when_hostname_check_is_required():
+    module = _load_module()
+    probed: list[str] = []
+
+    def _validator(host: str, timeout_seconds: float) -> bool:
+        assert timeout_seconds == 2.5
+        probed.append(host)
+        return host == "www.dev.geo-ranking.ch"
+
+    alias_url = module.infer_geo_alias_base_url(
+        service_app_base_url="https://www.dev.georanking.ch",
+        canonical_origin="https://www.dev.georanking.ch",
+        canonical_hosts="dev.geo-ranking.ch,www.dev.geo-ranking.ch",
+        require_tls_hostname_match=True,
+        probe_timeout_seconds=2.5,
+        tls_hostname_validator=_validator,
+    )
+
+    assert alias_url == "https://www.dev.geo-ranking.ch"
+    assert probed == ["dev.geo-ranking.ch", "www.dev.geo-ranking.ch"]
+
+
+def test_returns_empty_when_all_aliases_fail_tls_hostname_check():
+    module = _load_module()
+
+    alias_url = module.infer_geo_alias_base_url(
+        service_app_base_url="https://www.dev.georanking.ch",
+        canonical_origin="https://www.dev.georanking.ch",
+        canonical_hosts="dev.geo-ranking.ch,dev.georanking.ch",
+        require_tls_hostname_match=True,
+        tls_hostname_validator=lambda host, timeout_seconds: False,
+    )
+
+    assert alias_url == ""
+
+
 def test_returns_empty_when_no_alias_can_be_derived():
     module = _load_module()
 

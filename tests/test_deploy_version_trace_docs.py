@@ -296,6 +296,23 @@ def test_deploy_staging_workflow_smokes_canonical_host_redirect_when_alias_hosts
     )
 
 
+def test_deploy_workflow_requires_tls_valid_alias_for_login_route_matrix_smoke():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "scripts/smoke/infer_geo_alias_base_url.py",
+        "--require-tls-hostname-match",
+        "No TLS-valid alias host could be inferred",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"deploy.yml fehlt TLS-validierter Alias-Guard für route-matrix smoke: {missing}"
+
+
 def test_deploy_workflow_smokes_auth_proxy_guard_for_login_logout_and_callback_paths():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"

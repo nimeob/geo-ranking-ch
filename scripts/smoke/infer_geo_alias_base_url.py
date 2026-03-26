@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Infer an alias base URL for geo-ranking/georanking host smoke probes.
 
-This helper is intentionally side-effect free and prints an empty string when no
-usable alias host can be derived.
+This helper is intentionally side-effect free by default and prints an empty
+string when no usable alias host can be derived.
 """
 
 from __future__ import annotations
 
 import argparse
+import socket
+import ssl
+import sys
+from collections.abc import Callable
 from urllib.parse import urlparse
 
 
@@ -50,11 +54,31 @@ def _parse_canonical_hosts(raw_hosts: str) -> list[str]:
     return ordered
 
 
+def _tls_hostname_matches_certificate(host: str, timeout_seconds: float = 5.0) -> bool:
+    normalized_host = _normalize_host(host)
+    if not normalized_host:
+        return False
+
+    context = ssl.create_default_context()
+    with socket.create_connection((normalized_host, 443), timeout=timeout_seconds) as conn:
+        with context.wrap_socket(conn, server_hostname=normalized_host):
+            return True
+
+
+def _prioritize_alias_candidates(candidates: list[str]) -> list[str]:
+    preferred = [candidate for candidate in candidates if "geo-ranking" in candidate]
+    fallback = [candidate for candidate in candidates if "geo-ranking" not in candidate]
+    return preferred + fallback
+
+
 def infer_geo_alias_base_url(
     *,
     service_app_base_url: str,
     canonical_origin: str = "",
     canonical_hosts: str = "",
+    require_tls_hostname_match: bool = False,
+    probe_timeout_seconds: float = 5.0,
+    tls_hostname_validator: Callable[[str, float], bool] | None = None,
 ) -> str:
     parsed_base = urlparse(str(service_app_base_url or "").strip())
     if not parsed_base.scheme or not parsed_base.netloc:
@@ -89,19 +113,29 @@ def infer_geo_alias_base_url(
             alias_candidates.append(inferred)
             seen_alias.add(inferred)
 
-    selected_alias = ""
-    for candidate in alias_candidates:
-        if "geo-ranking" in candidate:
-            selected_alias = candidate
-            break
-
-    if not selected_alias and alias_candidates:
-        selected_alias = alias_candidates[0]
-
-    if not selected_alias:
+    if not alias_candidates:
         return ""
 
-    return f"{scheme}://{selected_alias}"
+    validator = tls_hostname_validator or _tls_hostname_matches_certificate
+    for candidate in _prioritize_alias_candidates(alias_candidates):
+        if require_tls_hostname_match and scheme == "https":
+            try:
+                if not validator(candidate, probe_timeout_seconds):
+                    print(
+                        f"[infer-geo-alias] skip alias '{candidate}': tls_hostname_mismatch",
+                        file=sys.stderr,
+                    )
+                    continue
+            except Exception as exc:  # pragma: no cover - defensive for CI/runtime
+                print(
+                    f"[infer-geo-alias] skip alias '{candidate}': tls_probe_failed ({exc})",
+                    file=sys.stderr,
+                )
+                continue
+
+        return f"{scheme}://{candidate}"
+
+    return ""
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -111,6 +145,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--service-app-base-url", required=True)
     parser.add_argument("--canonical-origin", default="")
     parser.add_argument("--canonical-hosts", default="")
+    parser.add_argument(
+        "--require-tls-hostname-match",
+        action="store_true",
+        help="Require selected HTTPS alias host to pass TLS hostname validation",
+    )
+    parser.add_argument(
+        "--probe-timeout",
+        type=float,
+        default=5.0,
+        help="TLS probe timeout in seconds when --require-tls-hostname-match is set",
+    )
     return parser
 
 
@@ -120,6 +165,8 @@ def main(argv: list[str] | None = None) -> int:
         service_app_base_url=args.service_app_base_url,
         canonical_origin=args.canonical_origin,
         canonical_hosts=args.canonical_hosts,
+        require_tls_hostname_match=bool(args.require_tls_hostname_match),
+        probe_timeout_seconds=float(args.probe_timeout),
     )
     print(alias_base_url)
     return 0

@@ -432,10 +432,12 @@ jobs:
           ALIAS_BASE_URL="$(python3 scripts/smoke/infer_geo_alias_base_url.py \
             --service-app-base-url "${SERVICE_APP_BASE_URL}" \
             --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
-            --canonical-hosts "${UI_CANONICAL_HOSTS:-}")"
+            --canonical-hosts "${UI_CANONICAL_HOSTS:-}" \
+            --require-tls-hostname-match \
+            --probe-timeout 5)"
 
           if [ -z "${ALIAS_BASE_URL:-}" ]; then
-            echo "::notice::No alias host could be inferred from SERVICE_APP_BASE_URL/UI_CANONICAL_*; skipping alias route-matrix smoke."
+            echo "::notice::No TLS-valid alias host could be inferred from SERVICE_APP_BASE_URL/UI_CANONICAL_*; skipping alias route-matrix smoke."
             exit 0
           fi
 
