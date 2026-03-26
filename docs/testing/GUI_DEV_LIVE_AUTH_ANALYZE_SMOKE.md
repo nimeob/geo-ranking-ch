@@ -15,7 +15,7 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 - Preflight (Secrets + Blocker-Evidence): `scripts/smoke/validate_gui_live_auth_analyze_secrets.sh`
 - Address-Pool: `scripts/smoke/ch_live_addresses.txt`
 - Shared Route-Matrix: `scripts/smoke/gui_smoke_routes.sh` (Single Source of Truth für kanonische + Legacy-Login-Pfade inkl. Legacy-`/history` und Artifact-Suffix-Mapping)
-- Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt den gemeinsamen Route-Satz seriell in **einem** Workflow-Job aus und startet mit einem integrierten Secrets-Preflight, damit lokale/manual Runs bei fehlenden Credentials sofort und eindeutig abbrechen)
+- Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt den gemeinsamen Route-Satz seriell in **einem** Workflow-Job aus und startet mit einem integrierten Secrets-Preflight; Standard bleibt harter Abbruch bei fehlenden Credentials, optional mit degradierter Login-Start-Fallback-Coverage)
 - Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml`
 - Artifact: `gui-dev-live-auth-analyze-smoke-artifacts`
 
@@ -65,7 +65,15 @@ CLI-Overrides (optional, äquivalent zu ENVs):
   --output-dir artifacts/dev-ui-live-smoke
 ```
 
-Wenn Live-Credentials fehlen, bricht der Runner nach dem Preflight absichtlich ab und gibt einen Fallback-Hinweis für Login-Start-Coverage aus (`run_login_start_smoke_bundle.sh`).
+Wenn Live-Credentials fehlen, bricht der Runner nach dem Preflight standardmäßig absichtlich ab und gibt einen Fallback-Hinweis für Login-Start-Coverage aus (`run_login_start_smoke_bundle.sh`).
+
+Optional kann für lokale Nachtläufe ein degradierter Fallback aktiviert werden:
+```bash
+./scripts/smoke/run_gui_live_auth_analyze_route_set.sh \
+  --base-url https://www.dev.georanking.ch \
+  --fallback-login-start-on-preflight-fail
+```
+Dann wird bei fehlenden Secrets automatisch `run_login_start_smoke_bundle.sh` ausgeführt (statt hard fail), und der Lauf endet nur dann rot, wenn auch der Fallback fehlschlägt.
 
 Optional:
 - `DEV_UI_SMOKE_ADDRESS_FILE=/abs/path/to/addresses.txt` oder `--address-file ...`
@@ -73,3 +81,4 @@ Optional:
 - `DEV_UI_SMOKE_HEADFUL=1` oder `--headful`
 - `DEV_UI_SMOKE_LOGIN_REASON=manual_login` oder `--login-reason manual_login`
 - `DEV_UI_SMOKE_EVIDENCE_DIR=artifacts/dev-ui-live-smoke` oder `--output-dir ...`
+- `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1` oder `--fallback-login-start-on-preflight-fail`
