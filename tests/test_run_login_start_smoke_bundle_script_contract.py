@@ -31,6 +31,8 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
 
     assert "gui_login_start_artifact_suffix_for_route" in content
     assert "login-start-smoke-history-legacy" in content
+    assert "login-start-smoke-jobs-query" in content
+    assert "login-start-smoke-gui-jobs-legacy-query" in content
     assert "login-start-smoke-results-detail" in content
 
 
