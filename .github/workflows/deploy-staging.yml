@@ -556,9 +556,11 @@ jobs:
             artifacts/staging-login-start-smoke-gui-history.json
             artifacts/staging-login-start-smoke-history-legacy.json
             artifacts/staging-login-start-smoke-jobs.json
+            artifacts/staging-login-start-smoke-jobs-query.json
             artifacts/staging-login-start-smoke-jobs-detail.json
             artifacts/staging-login-start-smoke-results-detail.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy.json
+            artifacts/staging-login-start-smoke-gui-jobs-legacy-query.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy-detail.json
             artifacts/staging-canonical-host-redirect-smoke.json
             artifacts/staging-auth-proxy-guard-smoke.json

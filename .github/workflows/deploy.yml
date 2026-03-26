@@ -469,17 +469,21 @@ jobs:
             artifacts/dev-login-start-smoke-gui-history.json
             artifacts/dev-login-start-smoke-history-legacy.json
             artifacts/dev-login-start-smoke-jobs.json
+            artifacts/dev-login-start-smoke-jobs-query.json
             artifacts/dev-login-start-smoke-jobs-detail.json
             artifacts/dev-login-start-smoke-results-detail.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy.json
+            artifacts/dev-login-start-smoke-gui-jobs-legacy-query.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy-detail.json
             artifacts/dev-alias-login-start-smoke.json
             artifacts/dev-alias-login-start-smoke-gui-history.json
             artifacts/dev-alias-login-start-smoke-history-legacy.json
             artifacts/dev-alias-login-start-smoke-jobs.json
+            artifacts/dev-alias-login-start-smoke-jobs-query.json
             artifacts/dev-alias-login-start-smoke-jobs-detail.json
             artifacts/dev-alias-login-start-smoke-results-detail.json
             artifacts/dev-alias-login-start-smoke-gui-jobs-legacy.json
+            artifacts/dev-alias-login-start-smoke-gui-jobs-legacy-query.json
             artifacts/dev-alias-login-start-smoke-gui-jobs-legacy-detail.json
             artifacts/dev-canonical-host-redirect-smoke.json
             artifacts/dev-auth-proxy-guard-smoke.json
