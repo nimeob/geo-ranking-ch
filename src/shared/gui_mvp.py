@@ -1396,6 +1396,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         sessionExpiresInSeconds: 0,
         warningShownForExpiryMs: 0,
       };
+      let historyPanelFetchSupported = true;
 
       const formEl = document.getElementById("analyze-form");
       const queryEl = document.getElementById("query");
@@ -1870,6 +1871,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
       async function loadHistory() {
         if (!historyShell) return;
+        if (!historyPanelFetchSupported) {
+          renderHistoryItems([]);
+          return;
+        }
+
         const isAuthenticated = await refreshAuthSession({ force: false });
         if (!isAuthenticated && authState.authCheckSupported) {
           // Keep GUI shell usable for anonymous sessions; history is optional.
@@ -1910,6 +1916,15 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             // A 401 here must NOT trigger global session recovery (redirect loop), because
             // /analyze/history may be served by a different backend path during migration.
             if (response.status === 401) {
+              const deprecationScope = data && data.deprecation && data.deprecation.scope
+                ? String(data.deprecation.scope)
+                : "";
+              const responseMessage = data && data.message ? String(data.message) : "";
+              const missingBearerToken = responseMessage.toLowerCase().includes("missing or invalid bearer token");
+              const frontFacingDeprecated = deprecationScope === "history-front-facing";
+              if (missingBearerToken || frontFacingDeprecated) {
+                historyPanelFetchSupported = false;
+              }
               renderHistoryItems([]);
               return;
             }
