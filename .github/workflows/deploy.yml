@@ -429,53 +429,13 @@ jobs:
           set -euo pipefail
           [ -n "${SERVICE_APP_BASE_URL:-}" ]
 
-          ALIAS_BASE_URL=$(python3 - <<'PY'
-          from urllib.parse import urlparse
-          import os
-
-          service_app_base_url = (os.getenv("SERVICE_APP_BASE_URL") or "").strip()
-          canonical_origin = (os.getenv("UI_CANONICAL_ORIGIN") or "").strip()
-          canonical_hosts_raw = (os.getenv("UI_CANONICAL_HOSTS") or "").strip()
-
-          base_parsed = urlparse(service_app_base_url)
-          canonical_parsed = urlparse(canonical_origin) if canonical_origin else base_parsed
-
-          canonical_host = (canonical_parsed.hostname or "").strip().lower()
-          scheme = canonical_parsed.scheme or base_parsed.scheme or "https"
-
-          candidates = []
-          for part in canonical_hosts_raw.split(","):
-              host = part.strip().lower()
-              if host:
-                  candidates.append(host)
-
-          if canonical_host and canonical_host not in candidates:
-              candidates.insert(0, canonical_host)
-
-          # Prefer the explicit dev.geo-ranking.ch alias, when configured.
-          alias_host = ""
-          for candidate in candidates:
-              if candidate == canonical_host:
-                  continue
-              if "geo-ranking" in candidate:
-                  alias_host = candidate
-                  break
-
-          if not alias_host:
-              for candidate in candidates:
-                  if candidate != canonical_host:
-                      alias_host = candidate
-                      break
-
-          if not alias_host:
-              raise SystemExit(0)
-
-          print(f"{scheme}://{alias_host}")
-          PY
-          )
+          ALIAS_BASE_URL="$(python3 scripts/smoke/infer_geo_alias_base_url.py \
+            --service-app-base-url "${SERVICE_APP_BASE_URL}" \
+            --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
+            --canonical-hosts "${UI_CANONICAL_HOSTS:-}")"
 
           if [ -z "${ALIAS_BASE_URL:-}" ]; then
-            echo "::notice::No alias host configured in UI_CANONICAL_HOSTS; skipping alias route-matrix smoke."
+            echo "::notice::No alias host could be inferred from SERVICE_APP_BASE_URL/UI_CANONICAL_*; skipping alias route-matrix smoke."
             exit 0
           fi
 
