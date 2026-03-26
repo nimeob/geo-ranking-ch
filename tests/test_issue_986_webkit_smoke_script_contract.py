@@ -38,11 +38,16 @@ def test_webkit_smoke_script_handles_missing_playwright_dependency_with_actionab
     content = SCRIPT.read_text(encoding="utf-8")
 
     required_snippets = [
+        "class PlaywrightDependencyError extends Error",
         "async function loadPlaywrightBindings()",
         "await import('playwright')",
         "Playwright dependency fehlt oder ist nicht ladbar",
         "npm ci && npx playwright install --with-deps webkit",
         "const { chromium, webkit, devices } = await loadPlaywrightBindings();",
+        "playwrightDependencyMissing: false",
+        "browser: playwrightDependencyMissing ? 'playwright-dependency-missing' : 'unknown'",
+        "limitations: playwrightDependencyMissing",
+        "Playwright dependency fehlt. hint=${playwrightInstallHint}",
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in content]

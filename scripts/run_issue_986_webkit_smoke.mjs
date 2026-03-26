@@ -17,6 +17,19 @@ function parseBooleanEnv(name) {
 
 const requireNativeWebkit = parseBooleanEnv('REQUIRE_NATIVE_WEBKIT');
 
+class PlaywrightDependencyError extends Error {
+  constructor(message, { installHint, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'PlaywrightDependencyError';
+    this.installHint = installHint || 'npm ci && npx playwright install --with-deps webkit';
+    this.missingDependency = 'playwright';
+  }
+}
+
+function isPlaywrightDependencyError(error) {
+  return error instanceof PlaywrightDependencyError || String(error?.name || '') === 'PlaywrightDependencyError';
+}
+
 async function loadPlaywrightBindings() {
   try {
     const playwright = await import('playwright');
@@ -28,8 +41,9 @@ async function loadPlaywrightBindings() {
   } catch (error) {
     const normalized = normalizeError(error);
     const installHint = 'npm ci && npx playwright install --with-deps webkit';
-    throw new Error(
-      `Playwright dependency fehlt oder ist nicht ladbar. reason=${compactMessage(normalized.message, 220)}. hint=${installHint}`
+    throw new PlaywrightDependencyError(
+      `Playwright dependency fehlt oder ist nicht ladbar. reason=${compactMessage(normalized.message, 220)}. hint=${installHint}`,
+      { installHint, cause: error }
     );
   }
 }
@@ -489,6 +503,8 @@ async function run() {
       requestedBrowser: 'playwright-webkit',
       requireNativeWebkit,
       nativeWebkitActive: launch.runtimeBrowser === 'playwright-webkit',
+      playwrightDependencyMissing: false,
+      playwrightInstallHint: 'npm ci && npx playwright install --with-deps webkit',
       webkitMissingLibraries: Array.isArray(launch.webkitMissingLibraries) ? launch.webkitMissingLibraries : [],
       webkitInstallHint: launch.webkitInstallHint || 'npx playwright install --with-deps webkit',
       device: 'iPhone 13',
@@ -518,6 +534,11 @@ run()
   })
   .catch(async (error) => {
     const finishedAtUtc = new Date().toISOString();
+    const playwrightDependencyMissing = isPlaywrightDependencyError(error);
+    const playwrightInstallHint = playwrightDependencyMissing
+      ? String(error?.installHint || 'npm ci && npx playwright install --with-deps webkit')
+      : 'npm ci && npx playwright install --with-deps webkit';
+
     const payload = {
       issue: ISSUE_NUMBER,
       parentIssue: PARENT_ISSUE,
@@ -525,16 +546,20 @@ run()
       finishedAtUtc,
       targetUrl: baseUrl,
       runtime: {
-        browser: 'unknown',
+        browser: playwrightDependencyMissing ? 'playwright-dependency-missing' : 'unknown',
         requestedBrowser: 'playwright-webkit',
         requireNativeWebkit,
         nativeWebkitActive: false,
+        playwrightDependencyMissing,
+        playwrightInstallHint,
         webkitMissingLibraries: [],
         webkitInstallHint: 'npx playwright install --with-deps webkit',
         device: 'iPhone 13',
         headless: true,
       },
-      limitations: [],
+      limitations: playwrightDependencyMissing
+        ? [`Playwright dependency fehlt. hint=${playwrightInstallHint}`]
+        : [],
       checks: {},
       artifacts: {},
       webkitLaunchError: null,
