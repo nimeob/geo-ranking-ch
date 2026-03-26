@@ -382,6 +382,17 @@ function isBlockingJobsConsoleError(message) {
   return touchesJobs && (isCors || isNetworkFail);
 }
 
+function normalizeHostname(value) {
+  return String(value || "").trim().toLowerCase().replace(/\.+$/, "");
+}
+
+function isSameHostname(urlObj, expectedHostname) {
+  if (!urlObj || typeof urlObj.hostname !== "string") {
+    return false;
+  }
+  return normalizeHostname(urlObj.hostname) === normalizeHostname(expectedHostname);
+}
+
 async function main() {
   const startedAt = new Date().toISOString();
   let browser = null;
@@ -417,7 +428,7 @@ async function main() {
     page.on("response", async (response) => {
       try {
         const url = new URL(response.url());
-        if (!url.origin.endsWith(base.hostname)) return;
+        if (!isSameHostname(url, base.hostname)) return;
         if (!url.pathname.startsWith("/analyze") && !url.pathname.startsWith("/auth") && !url.pathname.startsWith("/debug/trace")) return;
         let bodySnippet = "";
         if (response.status() >= 500) {
