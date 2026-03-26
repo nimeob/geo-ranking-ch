@@ -76,6 +76,26 @@ def _parse_canonical_hosts(raw_hosts: str) -> list[str]:
     return normalized
 
 
+def _expand_geo_host_aliases(host: str) -> list[str]:
+    normalized_host = str(host or "").strip().lower()
+    if not normalized_host:
+        return []
+
+    candidates: list[str] = []
+    if "geo-ranking" in normalized_host:
+        candidates.append(normalized_host.replace("geo-ranking", "georanking"))
+    if "georanking" in normalized_host:
+        candidates.append(normalized_host.replace("georanking", "geo-ranking"))
+
+    aliases: list[str] = []
+    seen: set[str] = {normalized_host}
+    for candidate in candidates:
+        if candidate and candidate not in seen:
+            aliases.append(candidate)
+            seen.add(candidate)
+    return aliases
+
+
 def _is_redirect_status(status_code: int) -> bool:
     return int(status_code) in _REDIRECT_HTTP_STATUSES
 
@@ -250,6 +270,9 @@ def check_canonical_redirect(
             host for host in configured_hosts if host and host != canonical_host
         ]
 
+        if not alias_candidates:
+            alias_candidates = _expand_geo_host_aliases(canonical_host)
+
     if not alias_candidates:
         return CanonicalRedirectCheckResult(
             ok=True,
@@ -363,7 +386,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--canonical-hosts",
         default="",
-        help="Comma-separated canonical host list from UI_CANONICAL_HOSTS",
+        help=(
+            "Comma-separated canonical host list from UI_CANONICAL_HOSTS "
+            "(optional; geo-ranking/georanking alias inferred from canonical origin when omitted)"
+        ),
     )
     parser.add_argument(
         "--alias-host",
