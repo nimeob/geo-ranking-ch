@@ -1182,6 +1182,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
+      const HISTORY_AUTH_MIGRATION_NOTICE = "Historische Abfragen sind in dieser Umgebung aktuell noch nicht über die GUI-Session verfügbar.";
       const AUTH_LOGIN_ENDPOINT = "__AUTH_LOGIN_ENDPOINT__";
       const AUTH_LOGOUT_ENDPOINT = "__AUTH_LOGOUT_ENDPOINT__";
       const AUTH_ME_ENDPOINT = "__AUTH_ME_ENDPOINT__";
@@ -1399,6 +1400,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         nextUnauthenticatedPollAtMs: 0,
       };
       let historyPanelFetchSupported = true;
+      let historyPanelFetchCompatibilityNotice = "";
 
       const formEl = document.getElementById("analyze-form");
       const queryEl = document.getElementById("query");
@@ -1899,17 +1901,28 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         historyShell.innerHTML = rows.join("\\n");
       }
 
+      function renderHistoryCompatibilityNotice(message) {
+        if (!historyShell) return;
+        const copy = String(message || "").trim() || "Historische Abfragen sind aktuell nicht verfügbar.";
+        historyShell.innerHTML = `<div class="placeholder">${escapeHtml(copy)}</div>`;
+      }
+
       async function loadHistory() {
         if (!historyShell) return;
-        if (!historyPanelFetchSupported) {
-          renderHistoryItems([]);
-          return;
-        }
 
         const isAuthenticated = await refreshAuthSession({ force: false });
         if (!isAuthenticated && authState.authCheckSupported) {
           // Keep GUI shell usable for anonymous sessions; history is optional.
           // Login redirect is reserved for protected user actions (analyze, result drill-down, etc.).
+          renderHistoryItems([]);
+          return;
+        }
+
+        if (!historyPanelFetchSupported) {
+          if (historyPanelFetchCompatibilityNotice) {
+            renderHistoryCompatibilityNotice(historyPanelFetchCompatibilityNotice);
+            return;
+          }
           renderHistoryItems([]);
           return;
         }
@@ -1954,6 +1967,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
               const frontFacingDeprecated = deprecationScope === "history-front-facing";
               if (missingBearerToken || frontFacingDeprecated) {
                 historyPanelFetchSupported = false;
+                historyPanelFetchCompatibilityNotice = HISTORY_AUTH_MIGRATION_NOTICE;
+                renderHistoryCompatibilityNotice(historyPanelFetchCompatibilityNotice);
+                return;
               }
               renderHistoryItems([]);
               return;
@@ -1971,6 +1987,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             }
             throw new Error(authFailure.errorMessage);
           }
+          historyPanelFetchCompatibilityNotice = "";
           renderHistoryItems(data.history);
         } catch (error) {
           historyShell.innerHTML = `<div class="error">Historie konnte nicht geladen werden: ${escapeHtml(
