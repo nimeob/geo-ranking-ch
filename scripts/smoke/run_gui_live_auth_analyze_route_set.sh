@@ -149,6 +149,9 @@ case "${fallback_login_start_on_preflight_fail,,}" in
     ;;
 esac
 
+fallback_output_dir="${output_dir_override:-${DEV_UI_SMOKE_EVIDENCE_DIR:-${DEV_UI_SMOKE_BLOCKER_DIR:-reports/evidence}}}"
+fallback_login_reason="${login_reason_override:-${DEV_UI_SMOKE_LOGIN_REASON:-manual_login}}"
+
 if ! (
   cd "${REPO_ROOT}"
   DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
@@ -167,14 +170,9 @@ if ! (
       ./scripts/smoke/run_login_start_smoke_bundle.sh
       --base-url "${fallback_base_url}"
       --env-name "${fallback_env_name}"
+      --output-dir "${fallback_output_dir}"
+      --reason "${fallback_login_reason}"
     )
-
-    if [[ -n "${output_dir_override}" ]]; then
-      fallback_cmd+=(--output-dir "${output_dir_override}")
-    fi
-    if [[ -n "${login_reason_override}" ]]; then
-      fallback_cmd+=(--reason "${login_reason_override}")
-    fi
 
     if (
       cd "${REPO_ROOT}"
