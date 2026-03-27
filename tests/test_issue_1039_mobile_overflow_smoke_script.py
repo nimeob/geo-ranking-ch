@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -15,31 +16,60 @@ class TestIssue1039MobileOverflowSmokeScript(unittest.TestCase):
         env["BASE_URL"] = "http://127.0.0.1:9/gui"
         env["BASE_URL_PROBE_TIMEOUT_MS"] = "1200"
 
-        result = subprocess.run(
-            ["node", str(SCRIPT_PATH)],
-            cwd=REPO_ROOT,
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=45,
-        )
+        with tempfile.TemporaryDirectory(
+            prefix="issue1039-smoke-"
+        ) as temp_evidence_dir:
+            env["ISSUE_1039_EVIDENCE_DIR"] = temp_evidence_dir
 
-        self.assertNotEqual(result.returncode, 0, msg=result.stdout + "\n" + result.stderr)
-        output_lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-        self.assertTrue(output_lines, msg=f"script stdout leer; stderr={result.stderr}")
+            result = subprocess.run(
+                ["node", str(SCRIPT_PATH)],
+                cwd=REPO_ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=45,
+            )
 
-        evidence_rel_path = output_lines[-1]
-        evidence_path = REPO_ROOT / evidence_rel_path
-        self.assertTrue(evidence_path.is_file(), msg=f"Evidence fehlt: {evidence_rel_path}")
+            self.assertNotEqual(
+                result.returncode, 0, msg=result.stdout + "\n" + result.stderr
+            )
+            output_lines = [
+                line.strip() for line in result.stdout.splitlines() if line.strip()
+            ]
+            self.assertTrue(
+                output_lines, msg=f"script stdout leer; stderr={result.stderr}"
+            )
 
-        payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+            evidence_rel_path = output_lines[-1]
+            evidence_path = (REPO_ROOT / evidence_rel_path).resolve()
+            self.assertTrue(
+                evidence_path.is_file(), msg=f"Evidence fehlt: {evidence_rel_path}"
+            )
+            self.assertIn(
+                temp_evidence_dir,
+                str(evidence_path),
+                msg=(
+                    "Script sollte im Test-Override-Verzeichnis schreiben, "
+                    f"bekam aber: {evidence_path}"
+                ),
+            )
+
+            payload = json.loads(evidence_path.read_text(encoding="utf-8"))
 
         self.assertFalse(payload.get("ok"))
-        self.assertEqual(payload.get("runError", {}).get("kind"), "base_url_unreachable")
+        self.assertEqual(
+            payload.get("runError", {}).get("kind"), "base_url_unreachable"
+        )
         self.assertIn(
             payload.get("runError", {}).get("reasonCode"),
-            {"connection_refused", "timeout", "unreachable", "connection_reset", "dns_not_found"},
+            {
+                "connection_refused",
+                "timeout",
+                "unreachable",
+                "connection_reset",
+                "dns_not_found",
+            },
         )
 
         hint = payload.get("runError", {}).get("hint", "")

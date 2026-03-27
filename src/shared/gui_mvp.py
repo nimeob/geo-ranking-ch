@@ -1958,7 +1958,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             // History is a best-effort, non-critical panel.
             // A 401 here must NOT trigger global session recovery (redirect loop), because
             // /analyze/history may be served by a different backend path during migration.
-            if (response.status === 401) {
+            // Some frontdoors/proxies may surface the same bearer/deprecation signal as 403.
+            if (response.status === 401 || response.status === 403) {
               const deprecationScope = data && data.deprecation && data.deprecation.scope
                 ? String(data.deprecation.scope)
                 : "";
@@ -1971,8 +1972,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
                 renderHistoryCompatibilityNotice(historyPanelFetchCompatibilityNotice);
                 return;
               }
-              renderHistoryItems([]);
-              return;
+              if (response.status === 401) {
+                renderHistoryItems([]);
+                return;
+              }
             }
 
             const errCode = data && data.error ? String(data.error) : `http_${response.status}`;
@@ -6065,7 +6068,9 @@ def render_gui_mvp_html(
 
     safe_version = escape(app_version or "dev")
     safe_login_endpoint = escape(str(auth_login_endpoint or "/auth/login"), quote=True)
-    safe_logout_endpoint = escape(str(auth_logout_endpoint or "/auth/logout"), quote=True)
+    safe_logout_endpoint = escape(
+        str(auth_logout_endpoint or "/auth/logout"), quote=True
+    )
     safe_me_endpoint = escape(str(auth_me_endpoint or "/auth/me"), quote=True)
 
     html = _GUI_MVP_HTML_TEMPLATE.replace("__APP_VERSION__", safe_version)

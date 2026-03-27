@@ -8,7 +8,10 @@ const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const repoRoot = process.cwd();
-const outDir = path.join(repoRoot, 'reports', 'evidence');
+const evidenceDirEnv = String(process.env.ISSUE_1039_EVIDENCE_DIR || '').trim();
+const outDir = evidenceDirEnv
+  ? (path.isAbsolute(evidenceDirEnv) ? evidenceDirEnv : path.join(repoRoot, evidenceDirEnv))
+  : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
 class PlaywrightDependencyError extends Error {
