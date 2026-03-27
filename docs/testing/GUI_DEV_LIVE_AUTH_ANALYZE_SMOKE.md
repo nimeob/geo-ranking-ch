@@ -47,6 +47,15 @@ DEV_UI_SMOKE_RUN_ID="$(date +%s)" \
 node scripts/run_dev_ui_auth_analyze_smoke.mjs
 ```
 
+Wenn lokal **keine Live-Credentials** verfügbar sind, kann derselbe Script-Lauf optional in einen Login-Start-Fallback wechseln (degraded mode statt harter Abbruch):
+```bash
+BASE_URL="https://www.dev.georanking.ch" \
+DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1 \
+DEV_UI_SMOKE_RUN_ID="$(date +%s)-fallback" \
+node scripts/run_dev_ui_auth_analyze_smoke.mjs
+```
+Dann werden `/login?...&start=1` und der Entry-Pfad `/login?...` per HTTP-Redirect auf den IdP geprüft; echte Analyze-Coverage wird dabei bewusst **nicht** simuliert.
+
 Für den vollständigen Route-Satz lokal/manuell:
 ```bash
 BASE_URL="https://www.dev.georanking.ch" \
@@ -82,3 +91,4 @@ Optional:
 - `DEV_UI_SMOKE_LOGIN_REASON=manual_login` oder `--login-reason manual_login`
 - `DEV_UI_SMOKE_EVIDENCE_DIR=artifacts/dev-ui-live-smoke` oder `--output-dir ...`
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1` oder `--fallback-login-start-on-preflight-fail`
+- `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1` (nur Single-Route-Script; nutzt Login-Start-Fallback statt hard fail)

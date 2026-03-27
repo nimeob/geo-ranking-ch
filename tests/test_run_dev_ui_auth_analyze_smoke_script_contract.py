@@ -3,11 +3,51 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "run_dev_ui_auth_analyze_smoke.mjs"
+
+
+class _LoginFallbackHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802
+        if not self.path.startswith("/login"):
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        self.send_response(302)
+        self.send_header(
+            "Location",
+            "http://auth.local.test/oauth2/authorize?response_type=code&client_id=contract",
+        )
+        self.end_headers()
+
+    def log_message(self, *_args, **_kwargs) -> None:
+        return
+
+
+class _LoginFallbackServer:
+    def __init__(self) -> None:
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), _LoginFallbackHandler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    @property
+    def base_url(self) -> str:
+        host, port = self.server.server_address
+        return f"http://{host}:{port}"
+
+    def __enter__(self) -> "_LoginFallbackServer":
+        self.thread.start()
+        return self
+
+    def __exit__(self, *_args) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
 
 
 def test_wait_for_function_uses_options_as_third_argument() -> None:
@@ -110,6 +150,48 @@ def test_missing_credentials_emit_json_evidence_even_without_playwright(
     assert "[dev-ui-auth-analyze-smoke] ERROR" in result.stderr
     assert "evidence=" in result.stderr
     assert "Fehlende_Credentials" in result.stderr
+    assert "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1" in result.stderr
+
+
+def test_missing_credentials_can_use_login_start_fallback_when_enabled(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback"
+    env["DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS"] = "1"
+
+    with _LoginFallbackServer() as server:
+        env["BASE_URL"] = server.base_url
+        result = subprocess.run(
+            ["node", str(SCRIPT)],
+            cwd=tmp_path,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    assert result.returncode == 0
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files, (
+        f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["degradedMode"]["active"] is True
+    assert payload["degradedMode"]["reason"] == "missing_live_credentials"
+    assert payload["checks"]["startRedirectToAuthAuthorize"] is True
+    assert payload["checks"]["entryRedirectToAuthAuthorize"] is True
+    assert payload["runtime"]["browser"] == "none-login-start-fallback"
+
+    assert "[dev-ui-auth-analyze-smoke] PASS" in result.stdout
+    assert "mode=login_start_fallback" in result.stdout
 
 
 def test_default_timestamp_run_marker_does_not_duplicate_filename_token(
