@@ -141,11 +141,37 @@ jobs:
           rm -f .dockerignore
           export DOCKER_BUILDKIT=0
 
-          docker build --no-cache -t "${API_IMAGE_URI}" .
-          docker push "${API_IMAGE_URI}"
+          retry_cmd() {
+            local max_attempts="$1"
+            shift
+            local sleep_seconds="$1"
+            shift
 
-          docker build --no-cache -f Dockerfile.ui --build-arg APP_VERSION="${IMAGE_TAG}" -t "${UI_IMAGE_URI}" .
-          docker push "${UI_IMAGE_URI}"
+            local attempt=1
+            while true; do
+              if "$@"; then
+                return 0
+              fi
+              local rc=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::Command failed after ${attempt} attempts (rc=${rc}): $*"
+                return "$rc"
+              fi
+              echo "::warning::Attempt ${attempt}/${max_attempts} failed (rc=${rc}); retrying in ${sleep_seconds}s: $*"
+              sleep "$sleep_seconds"
+              attempt=$((attempt + 1))
+              sleep_seconds=$((sleep_seconds * 2))
+            done
+          }
+
+          BASE_IMAGE="public.ecr.aws/docker/library/python:3.12-slim"
+          retry_cmd 5 20 docker pull "${BASE_IMAGE}"
+
+          retry_cmd 3 30 docker build --no-cache --pull=false -t "${API_IMAGE_URI}" .
+          retry_cmd 3 20 docker push "${API_IMAGE_URI}"
+
+          retry_cmd 3 30 docker build --no-cache --pull=false -f Dockerfile.ui --build-arg APP_VERSION="${IMAGE_TAG}" -t "${UI_IMAGE_URI}" .
+          retry_cmd 3 20 docker push "${UI_IMAGE_URI}"
 
           echo "api_image_uri=${API_IMAGE_URI}" >> "$GITHUB_OUTPUT"
           echo "ui_image_uri=${UI_IMAGE_URI}" >> "$GITHUB_OUTPUT"
