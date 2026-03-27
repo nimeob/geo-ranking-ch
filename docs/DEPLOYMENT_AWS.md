@@ -227,6 +227,7 @@ BL-31.2 legt die technische Basis für ein eigenes UI-Artefakt fest:
 
 - API-Runtime-Entrypoint (kanonisch): `python -m src.api.web_service` (Legacy: `src.web_service`)
 - UI-Dockerfile: [`Dockerfile.ui`](../Dockerfile.ui)
+- Basis-Image (API + UI): `public.ecr.aws/docker/library/python:3.12-slim` (vermeidet Docker-Hub-Throttling im GitHub-Hosted-CI)
 - UI-Runtime-Entrypoint: `python -m src.ui.service` (kanonisch; Legacy-Wrapper `src.ui_service` bleibt lokal kompatibel)
 - ECS-Task-Template: [`infra/ecs/taskdef.swisstopo-dev-ui.json`](../infra/ecs/taskdef.swisstopo-dev-ui.json)
 - Ziel-ECR-Repository: **`swisstopo-dev-ui`**
