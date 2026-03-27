@@ -3,13 +3,39 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "smoke" / "run_gui_live_auth_analyze_route_set.sh"
+
+
+class _LoginStartStubHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        if parsed.path != "/login":
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        query = parse_qs(parsed.query, keep_blank_values=True)
+        reason = query.get("reason", [""])[0]
+        location = (
+            "https://auth.127.0.0.1/oauth2/authorize"
+            f"?response_type=code&client_id=stub-client&state=stub&reason={reason}"
+        )
+
+        self.send_response(302)
+        self.send_header("Location", location)
+        self.end_headers()
+
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A003
+        return
 
 
 def test_route_set_runner_fails_fast_on_missing_secrets_without_route_fanout(
@@ -127,3 +153,54 @@ def test_route_set_runner_prints_login_start_hint_on_secret_blocker(tmp_path: Pa
 
     blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint.json"
     assert blocked_file.exists()
+
+
+def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(tmp_path: Path) -> None:
+    blocker_dir = tmp_path / "blocked"
+    evidence_dir = tmp_path / "evidence"
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _LoginStartStubHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+    env["DEV_UI_SMOKE_EVIDENCE_DIR"] = str(evidence_dir)
+    env["DEV_UI_SMOKE_LOGIN_REASON"] = "env_reason_contract"
+
+    try:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                base_url,
+                "--run-id-base",
+                "manual-fallback-env",
+                "--fallback-login-start-on-preflight-fail",
+            ],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert proc.returncode == 0
+    assert "login-start fallback passed" in proc.stderr
+
+    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-fallback-env.json"
+    assert blocked_file.exists()
+
+    fallback_artifact = evidence_dir / "dev-login-start-smoke-root.json"
+    assert fallback_artifact.exists()
+
+    payload = json.loads(fallback_artifact.read_text(encoding="utf-8"))
+    assert "reason=env_reason_contract" in str(payload.get("request_url", ""))
