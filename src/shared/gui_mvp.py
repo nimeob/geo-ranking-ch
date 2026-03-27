@@ -1711,6 +1711,29 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         }, AUTH_SESSION_POLL_INTERVAL_MS);
       }
 
+      function isDocumentHidden() {
+        if (typeof document === "undefined") {
+          return false;
+        }
+        if (typeof document.visibilityState === "string") {
+          return document.visibilityState === "hidden";
+        }
+        return document.hidden === true;
+      }
+
+      function scheduleAuthVisibilityRefresh() {
+        if (typeof document === "undefined" || !document.addEventListener) {
+          return;
+        }
+        document.addEventListener("visibilitychange", () => {
+          if (isDocumentHidden()) {
+            return;
+          }
+          const forceRefresh = authState.authenticated !== true;
+          void refreshAuthSession({ force: forceRefresh });
+        });
+      }
+
       function readStoredJobIds() {
         if (typeof window === "undefined" || !window.localStorage) {
           return [];
@@ -4732,6 +4755,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           return authState.authenticated === true;
         }
 
+        if (!force && authState.authenticated === false && isDocumentHidden()) {
+          updateAuthEntryPoints();
+          return false;
+        }
+
         if (
           !force
           && authState.authenticated === false
@@ -5963,6 +5991,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       restoreAnalyzeDraft();
       void refreshAuthSession({ force: false });
       scheduleAuthSessionPolling();
+      scheduleAuthVisibilityRefresh();
 
       emitUiEvent("ui.session.start", {
         direction: "internal",
