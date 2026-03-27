@@ -1099,7 +1099,7 @@ Detail-Runbooks:
 
 ## Environment Variables Reference
 
-Übersicht aller via `os.getenv()` genutzten Env-Flags (zentrale Referenz für Consistency-Checks).
+Übersicht operativ relevanter Runtime-Env-Flags (zentrale Referenz für Consistency-Checks).
 Detail-Doku ist jeweils in den verlinkten Quellen zu finden.
 
 | Variable | Default | Beschreibung |
@@ -1112,7 +1112,20 @@ Detail-Doku ist jeweils in den verlinkten Quellen zu finden.
 | `ASYNC_DB_URL` | — | PostgreSQL-DSN für Job-Store (explizite Variante). Fallback: `DATABASE_URL`. Aktiv wenn `ASYNC_STORE_BACKEND=db`. Detail: [`docs/ops/async_db_cutover.md`](ops/async_db_cutover.md) |
 | `ASYNC_STORE_BACKEND` | `file` | Job-Store-Backend: `file` (default, in-memory/file) oder `db` (PostgreSQL via `ASYNC_DB_URL`/`DATABASE_URL`) |
 | `ASYNC_WORKER_STAGE_DELAY_MS` | `150` | Künstliche Stage-Pause (ms) im Async-Worker; nur für Debugging/Testing (`src/api/async_worker_runtime.py`) |
+| `BFF_OIDC_CLIENT_ID` | — | OIDC App-Client-ID für BFF Login/Refresh (`src/api/bff_oidc.py`, `src/api/bff_token_delegation.py`). Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |
+| `BFF_OIDC_CLIENT_SECRET` | `` | Optionales OIDC Client-Secret (leer für public PKCE-Clients). Sicher als Secret injizieren, nie im Klartext committen. Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |
+| `BFF_OIDC_ISSUER` | — | OIDC Issuer (Cognito User Pool URL), aktiviert den BFF-OIDC-Flow (`src/api/bff_oidc.py`). Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |
 | `BFF_OIDC_REDIRECT_URI` | — | OIDC-Callback-URL; muss exakt mit dem Cognito App-Client übereinstimmen. Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |
+| `BFF_OIDC_TOKEN_ENDPOINT` | `{BFF_OIDC_ISSUER}/oauth2/token` | Optionaler Override für das Token-Endpoint (Refresh + Code-Exchange). Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |
+| `BFF_OIDC_LOGOUT_ENDPOINT` | `{BFF_OIDC_ISSUER}/logout` | Optionaler Override für das IdP-Logout-Endpoint (`src/api/bff_token_delegation.py`). |
+| `BFF_OIDC_POST_LOGOUT_REDIRECT_URI` | auto (aus `BFF_OIDC_REDIRECT_URI`) | Optionales Ziel nach IdP-Logout; ohne expliziten Wert wird aus `.../auth/callback` deterministisch `.../login` abgeleitet. |
+| `BFF_OIDC_SCOPES` | `openid email profile` | Space-separierte OIDC Scopes für den BFF Auth-Code-Flow (`src/api/bff_oidc.py`). |
+| `BFF_OIDC_NEXT_PARAM_ALLOW_SAME_ORIGIN` | `1` | Erlaubt sichere relative `?next=`-Redirects im Login-Flow (`0` deaktiviert). |
+| `BFF_API_CALL_TIMEOUT_SECONDS` | `10` | Timeout (s) für delegierte BFF-API-Calls (`src/api/bff_token_delegation.py`). |
+| `BFF_ME_RENEW_WINDOW_SECONDS` | `300` | Window (s), innerhalb dessen `/auth/me` die Session TTL proaktiv erneuert (`src/api/bff_token_delegation.py`). |
+| `BFF_SESSION_COOKIE_NAME` | `__Host-session` | Name des BFF-Session-Cookies (`src/api/bff_session.py`). |
+| `BFF_SESSION_SECURE_COOKIE` | `1` | Secure-Flag für Session-Cookie (`0` nur für lokale HTTP-Entwicklung). |
+| `BFF_SESSION_TTL_SECONDS` | `3600` | Session-Lebensdauer (s) im in-process Session-Store (`src/api/bff_session.py`). |
 | `DATABASE_URL` | — | PostgreSQL-DSN für RDS-Zugriff (ECS-Secret); Fallback wenn `ASYNC_DB_URL` nicht gesetzt. Detail: [`docs/ops/async_db_cutover.md`](ops/async_db_cutover.md) |
 | `DB_HOST` | — | RDS-Hostname (Pattern C: Komponenten-Vars, wenn `ASYNC_DB_URL` und `DATABASE_URL` nicht gesetzt) |
 | `DB_NAME` | `swisstopo` | DB-Name (Pattern C: Komponenten-Vars, Fallback-Default `swisstopo`) |
@@ -1122,7 +1135,14 @@ Detail-Doku ist jeweils in den verlinkten Quellen zu finden.
 | `DICTIONARY_VERSION` | `2026-02-27` | Versionstag des globalen Adress-Dictionaries (`src/api/web_service.py`) |
 | `ENABLE_E2E_FAULT_INJECTION` | `0` | Aktiviert Fault-Injection-Pfade im Async-Worker (`1`=ein); nur für E2E-Tests/Debug |
 | `GIT_SHA` | `unknown` | Git-Commit-SHA; via ECS-Task-ENV oder Build-Arg gesetzt, erscheint in `/healthz`-Response |
-| `OIDC_CLOCK_SKEW_SECONDS` | `60` | Toleranz (s) für JWT-Zeitstempel-Prüfung (nbf/exp). Detail: `src/api/oidc_jwt.py` |
+| `OIDC_AUDIENCE` | — | Legacy-Alias für `OIDC_JWT_AUDIENCE`; wird nur verwendet, wenn `OIDC_JWT_AUDIENCE` nicht gesetzt ist (`src/api/web_service_oidc_loader.py`). |
+| `OIDC_CLOCK_SKEW_SECONDS` | `60` | Toleranz (s) für JWT-Zeitstempel-Prüfung (nbf/exp) im OIDC-Guard (`src/api/web_service_oidc_loader.py`). |
+| `OIDC_ISSUER` | — | Legacy-Alias für `OIDC_JWT_ISSUER`; wird nur verwendet, wenn `OIDC_JWT_ISSUER` nicht gesetzt ist (`src/api/web_service_oidc_loader.py`). |
+| `OIDC_JWKS_TIMEOUT_SECONDS` | `5` | Timeout (s) für den HTTP-Download der JWKS-Datei (`src/api/web_service_oidc_loader.py`). |
+| `OIDC_JWKS_TTL_SECONDS` | `300` | Cache-TTL (s) für JWKS-Keys im OIDC-Guard (`src/api/web_service_oidc_loader.py`). |
+| `OIDC_JWKS_URL` | — | Aktiviert den OIDC-Guard (RS256) und definiert die JWKS-URL (`src/api/web_service_oidc_loader.py`). |
+| `OIDC_JWT_AUDIENCE` | — | Erwarteter `aud`/`client_id`-Claim für Bearer-Tokens (`src/api/web_service_oidc_loader.py`). |
+| `OIDC_JWT_ISSUER` | — | Erwarteter `iss`-Claim für Bearer-Tokens (`src/api/web_service_oidc_loader.py`). |
 | `TLS_REDIRECT_HOST` | `` | Optionaler Host-Override für TLS-Redirect-Middleware (`src/api/web_service.py`) |
 | `UI_API_BASE_URL` | — | Absolute API-Basis für UI-Auth-Proxy (z. B. `https://api.dev.georanking.ch`); Pflicht wenn UI-Auth-Proxy aktiv |
 | `UI_AUTH_PROXY_TRUSTED_HOSTS` | `` | Optionale Allowlist für `X-Forwarded-Host` im UI-Auth-Proxy (`src/api/web_service.py`). Komma-separierte Hosts/URLs; zusätzlich werden Redirect-/App-/CORS-Hosts automatisch berücksichtigt. |
