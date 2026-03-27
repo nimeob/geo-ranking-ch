@@ -1125,3 +1125,6 @@ Detail-Doku ist jeweils in den verlinkten Quellen zu finden.
 | `OIDC_CLOCK_SKEW_SECONDS` | `60` | Toleranz (s) für JWT-Zeitstempel-Prüfung (nbf/exp). Detail: `src/api/oidc_jwt.py` |
 | `TLS_REDIRECT_HOST` | `` | Optionaler Host-Override für TLS-Redirect-Middleware (`src/api/web_service.py`) |
 | `UI_API_BASE_URL` | — | Absolute API-Basis für UI-Auth-Proxy (z. B. `https://api.dev.georanking.ch`); Pflicht wenn UI-Auth-Proxy aktiv |
+| `UI_AUTH_PROXY_TRUSTED_HOSTS` | `` | Optionale Allowlist für `X-Forwarded-Host` im UI-Auth-Proxy (`src/api/web_service.py`). Komma-separierte Hosts/URLs; zusätzlich werden Redirect-/App-/CORS-Hosts automatisch berücksichtigt. |
+| `UI_CANONICAL_HOSTS` | `` | Zusätzliche Alias-Hosts für Canonical-Redirects im UI-Service (`src/ui/service.py`), komma-separiert; wird mit dem Host aus `UI_CANONICAL_ORIGIN` zusammengeführt. |
+| `UI_CANONICAL_ORIGIN` | `` | Canonical Origin (`http(s)://host`) für UI-Hostnormalisierung/Redirects (`src/ui/service.py`). Bei ungültigem Wert wird fail-closed kein Canonical-Redirect erzwungen. |
