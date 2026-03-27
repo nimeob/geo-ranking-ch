@@ -148,6 +148,25 @@ def _derive_default_authorize_hosts(ui_origin: str) -> set[str]:
     return {candidate for candidate in allowed_hosts if candidate}
 
 
+def _derive_default_api_origin(ui_origin: str) -> str:
+    normalized_ui = _normalize_origin(ui_origin)
+    parsed = urlparse(normalized_ui)
+
+    ui_host = _normalize_host_token(parsed.hostname or "")
+    if not ui_host:
+        raise ValueError("invalid_ui_base_url")
+
+    host_without_www = ui_host[4:] if ui_host.startswith("www.") and len(ui_host) > 4 else ui_host
+    api_host = host_without_www if host_without_www.startswith("api.") else f"api.{host_without_www}"
+
+    # Für geo-ranking/georanking-Aliase standardmäßig den canonical georanking Host nutzen,
+    # weil dieser in DEV zuverlässig als API-Origin verfügbar ist.
+    if "geo-ranking" in api_host:
+        api_host = api_host.replace("geo-ranking", "georanking")
+
+    return f"{parsed.scheme}://{api_host}"
+
+
 def _is_redirect_status(status_code: int) -> bool:
     return int(status_code) in _REDIRECT_HTTP_STATUSES
 
@@ -507,16 +526,20 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Smoke-check BFF auth-proxy forwarded-host guard")
     parser.add_argument(
         "--api-base-url",
-        required=True,
+        default="",
         help=(
             "API origin (BFF), e.g. https://api.dev.georanking.ch. "
-            "Do not point this to the UI origin."
+            "When omitted, inferred from --ui-base-url as api.<ui-host-without-www> "
+            "(with geo-ranking -> georanking canonicalization)."
         ),
     )
     parser.add_argument(
         "--ui-base-url",
         default="",
-        help="UI origin used to infer trusted forwarded host when --trusted-forwarded-host is omitted",
+        help=(
+            "UI origin used to infer trusted forwarded host when --trusted-forwarded-host is omitted "
+            "and to derive --api-base-url when it is not provided"
+        ),
     )
     parser.add_argument(
         "--trusted-forwarded-host",
@@ -554,10 +577,44 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
+    requested_ui_base_url = str(args.ui_base_url or "").strip()
+    requested_api_base_url = str(args.api_base_url or "").strip()
+
+    effective_api_base_url = requested_api_base_url
+    if not effective_api_base_url:
+        if not requested_ui_base_url:
+            payload = {
+                "ok": False,
+                "reason": "invalid_arguments:api_base_url_or_ui_base_url_required",
+                "api_base_url": requested_api_base_url,
+                "ui_base_url": requested_ui_base_url,
+                "expected_authorize_hosts": [],
+                "max_retry_delay": float(args.max_retry_delay),
+                "checks": [],
+                "hint": "",
+            }
+            print(json.dumps(payload, ensure_ascii=False))
+            return 2
+        try:
+            effective_api_base_url = _derive_default_api_origin(requested_ui_base_url)
+        except ValueError as exc:
+            payload = {
+                "ok": False,
+                "reason": f"invalid_arguments:{exc}",
+                "api_base_url": requested_api_base_url,
+                "ui_base_url": requested_ui_base_url,
+                "expected_authorize_hosts": [],
+                "max_retry_delay": float(args.max_retry_delay),
+                "checks": [],
+                "hint": "",
+            }
+            print(json.dumps(payload, ensure_ascii=False))
+            return 2
+
     try:
         result = check_auth_proxy_guard(
-            api_base_url=args.api_base_url,
-            ui_base_url=args.ui_base_url,
+            api_base_url=effective_api_base_url,
+            ui_base_url=requested_ui_base_url,
             trusted_forwarded_host=args.trusted_forwarded_host,
             untrusted_forwarded_host=args.untrusted_forwarded_host,
             timeout_seconds=max(1.0, float(args.timeout)),
@@ -570,8 +627,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = {
             "ok": False,
             "reason": f"invalid_arguments:{exc}",
-            "api_base_url": args.api_base_url,
-            "ui_base_url": args.ui_base_url,
+            "api_base_url": effective_api_base_url,
+            "ui_base_url": requested_ui_base_url,
             "expected_authorize_hosts": [],
             "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
@@ -583,8 +640,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = {
             "ok": False,
             "reason": f"probe_exception:{exc}",
-            "api_base_url": args.api_base_url,
-            "ui_base_url": args.ui_base_url,
+            "api_base_url": effective_api_base_url,
+            "ui_base_url": requested_ui_base_url,
             "expected_authorize_hosts": [],
             "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
