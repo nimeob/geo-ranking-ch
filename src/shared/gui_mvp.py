@@ -1478,6 +1478,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       let requestIdFeedbackResetHandle = null;
       let authRecoveryRedirectScheduled = false;
       let authSessionPollHandle = null;
+      let authSessionRefreshInFlight = null;
 
       function utcTimestamp() {
         return new Date().toISOString();
@@ -1706,6 +1707,9 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           return;
         }
         authSessionPollHandle = window.setInterval(() => {
+          if (isDocumentHidden()) {
+            return;
+          }
           const forceRefresh = authState.authenticated === true;
           void refreshAuthSession({ force: forceRefresh });
         }, AUTH_SESSION_POLL_INTERVAL_MS);
@@ -4770,89 +4774,104 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           return false;
         }
 
-        const headers = {
-          "Accept": "application/json",
-          "X-Session-Id": uiSessionId,
-        };
+        if (authSessionRefreshInFlight) {
+          return authSessionRefreshInFlight;
+        }
 
-        const authFetch = await fetchWithTimeoutAndSafeRetry(
-          AUTH_ME_ENDPOINT,
-          {
-            method: "GET",
-            headers,
-            credentials: "include",
-          },
-          {
-            timeoutMs: DEV_CLIENT_REQUEST_POLICY.requestTimeoutMs,
-            maxRetries: DEV_CLIENT_REQUEST_POLICY.maxRetryBudget,
-            retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
+        const refreshTask = (async () => {
+          const headers = {
+            "Accept": "application/json",
+            "X-Session-Id": uiSessionId,
+          };
+
+          const authFetch = await fetchWithTimeoutAndSafeRetry(
+            AUTH_ME_ENDPOINT,
+            {
+              method: "GET",
+              headers,
+              credentials: "include",
+            },
+            {
+              timeoutMs: DEV_CLIENT_REQUEST_POLICY.requestTimeoutMs,
+              maxRetries: DEV_CLIENT_REQUEST_POLICY.maxRetryBudget,
+              retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
+            }
+          );
+
+          if (!authFetch.ok || !authFetch.response) {
+            const failureSummary = summarizeDevRequestFailure(authFetch);
+            const authRequestId = normalizeTraceRequestId(authFetch.requestId || "");
+            emitUiEvent("ui.auth.session_check.end", {
+              level: "warn",
+              direction: "api->ui",
+              status: failureSummary.finalReason,
+              route: AUTH_ME_ENDPOINT,
+              method: "GET",
+              requestId: authRequestId,
+              final_reason: failureSummary.finalReason,
+              attempt_count: failureSummary.attemptCount,
+              retry_count: failureSummary.retryCount,
+              timeout_ms: failureSummary.timeoutMs,
+            });
+            updateAuthEntryPoints();
+            return authState.authenticated === true;
           }
-        );
 
-        if (!authFetch.ok || !authFetch.response) {
-          const failureSummary = summarizeDevRequestFailure(authFetch);
-          const authRequestId = normalizeTraceRequestId(authFetch.requestId || "");
-          emitUiEvent("ui.auth.session_check.end", {
-            level: "warn",
-            direction: "api->ui",
-            status: failureSummary.finalReason,
-            route: AUTH_ME_ENDPOINT,
-            method: "GET",
-            requestId: authRequestId,
-            final_reason: failureSummary.finalReason,
-            attempt_count: failureSummary.attemptCount,
-            retry_count: failureSummary.retryCount,
-            timeout_ms: failureSummary.timeoutMs,
-          });
+          const response = authFetch.response;
+
+          if (response.status === 404 || response.status === 405) {
+            setAuthState(authState.authenticated === true, {
+              userClaims: authState.userClaims,
+              authCheckSupported: false,
+              sessionExpiresAtMs: 0,
+              sessionExpiresInSeconds: 0,
+            });
+            return authState.authenticated === true;
+          }
+
+          let payload = null;
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = null;
+          }
+
+          if (response.ok && payload && payload.ok === true) {
+            const sessionExpiresAtMs = parseSessionExpiryMs(payload.session_expires_at);
+            const sessionExpiresInSeconds = parseSessionExpiryInSeconds(payload.session_expires_in_seconds);
+            setAuthState(true, {
+              userClaims: payload.user_claims || {},
+              authCheckSupported: true,
+              sessionExpiresAtMs,
+              sessionExpiresInSeconds,
+            });
+            updateSessionExpiryWarning(payload);
+            return true;
+          }
+
+          if (response.status === 401) {
+            setAuthState(false, {
+              userClaims: {},
+              authCheckSupported: true,
+              sessionExpiresAtMs: 0,
+              sessionExpiresInSeconds: 0,
+            });
+            authState.nextUnauthenticatedPollAtMs = Date.now() + AUTH_UNAUTHENTICATED_BACKGROUND_POLL_COOLDOWN_MS;
+            return false;
+          }
+
           updateAuthEntryPoints();
           return authState.authenticated === true;
-        }
+        })();
 
-        const response = authFetch.response;
-
-        if (response.status === 404 || response.status === 405) {
-          setAuthState(authState.authenticated === true, {
-            userClaims: authState.userClaims,
-            authCheckSupported: false,
-            sessionExpiresAtMs: 0,
-            sessionExpiresInSeconds: 0,
-          });
-          return authState.authenticated === true;
-        }
-
-        let payload = null;
+        authSessionRefreshInFlight = refreshTask;
         try {
-          payload = await response.json();
-        } catch (error) {
-          payload = null;
+          return await refreshTask;
+        } finally {
+          if (authSessionRefreshInFlight === refreshTask) {
+            authSessionRefreshInFlight = null;
+          }
         }
-
-        if (response.ok && payload && payload.ok === true) {
-          const sessionExpiresAtMs = parseSessionExpiryMs(payload.session_expires_at);
-          const sessionExpiresInSeconds = parseSessionExpiryInSeconds(payload.session_expires_in_seconds);
-          setAuthState(true, {
-            userClaims: payload.user_claims || {},
-            authCheckSupported: true,
-            sessionExpiresAtMs,
-            sessionExpiresInSeconds,
-          });
-          updateSessionExpiryWarning(payload);
-          return true;
-        }
-
-        if (response.status === 401) {
-          setAuthState(false, {
-            userClaims: {},
-            authCheckSupported: true,
-            sessionExpiresAtMs: 0,
-            sessionExpiresInSeconds: 0,
-          });
-          authState.nextUnauthenticatedPollAtMs = Date.now() + AUTH_UNAUTHENTICATED_BACKGROUND_POLL_COOLDOWN_MS;
-          return false;
-        }
-
-        updateAuthEntryPoints();
-        return authState.authenticated === true;
       }
 
       async function ensureAuthenticatedForAction({ trigger = "auth_guard", requestId = "" } = {}) {
