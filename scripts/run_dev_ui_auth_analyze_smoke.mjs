@@ -20,6 +20,9 @@ const loginStartUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&r
 
 const username = String(process.env.DEV_UI_SMOKE_USERNAME || '').trim();
 const password = String(process.env.DEV_UI_SMOKE_PASSWORD || '');
+const allowLoginStartFallbackOnMissingCredentials = isTruthy(
+  process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
+);
 
 const explicitRunMarker = String(process.env.DEV_UI_SMOKE_RUN_ID || '').trim();
 const githubRunNumber = String(process.env.GITHUB_RUN_NUMBER || '').trim();
@@ -220,6 +223,121 @@ function isAnalyzeRequestUrl(value) {
   } catch {
     return false;
   }
+}
+
+function isAuthAuthorizeUrl(value) {
+  try {
+    const parsed = new URL(String(value || ''));
+    const host = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+
+    if (!host.includes('auth.')) {
+      return false;
+    }
+
+    if (pathname === '/oauth2/authorize' || pathname.endsWith('/oauth2/authorize')) {
+      return true;
+    }
+
+    if (pathname === '/login' || pathname.endsWith('/login')) {
+      return parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function buildLoginStartFallbackHint() {
+  const envName = baseOrigin.toLowerCase().includes('staging') ? 'staging' : 'dev';
+  return [
+    `BASE_URL="${baseOrigin}" \\`,
+    `./scripts/smoke/run_login_start_smoke_bundle.sh --base-url "$BASE_URL" --env-name ${envName}`,
+  ].join('\n');
+}
+
+async function probeLoginRedirect(url) {
+  const response = await fetch(url, {
+    method: 'GET',
+    redirect: 'manual',
+    headers: {
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    },
+  });
+
+  const location = String(response.headers.get('location') || '').trim();
+  const status = response.status;
+  let absoluteLocation = '';
+
+  if (location) {
+    try {
+      absoluteLocation = new URL(location, baseOrigin).toString();
+    } catch {
+      absoluteLocation = '';
+    }
+  }
+
+  return {
+    ok: status >= 300 && status < 400 && Boolean(absoluteLocation) && isAuthAuthorizeUrl(absoluteLocation),
+    requestUrl: url,
+    status,
+    location: absoluteLocation,
+  };
+}
+
+async function runLoginStartFallbackProbe(startedAtUtc) {
+  const entryUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&reason=${encodeURIComponent(loginReason)}`;
+
+  const startProbe = await probeLoginRedirect(loginStartUrl);
+  const entryProbe = await probeLoginRedirect(entryUrl);
+
+  const checks = {
+    fallbackEnabled: true,
+    startRedirectToAuthAuthorize: startProbe.ok,
+    entryRedirectToAuthAuthorize: entryProbe.ok,
+  };
+
+  const ok = Object.values(checks).every((value) => value === true);
+
+  const payload = {
+    startedAtUtc,
+    finishedAtUtc: new Date().toISOString(),
+    target: {
+      baseOrigin,
+      guiPath,
+      expectedPostLoginPath,
+      loginStartUrl,
+    },
+    runtime: {
+      browser: 'none-login-start-fallback',
+      headless,
+      timeoutMs,
+      runMarker,
+      runMarkerSource,
+      githubRunNumber,
+      githubRunAttempt,
+      githubRunId,
+    },
+    credentials: {
+      usernameMasked: maskUsername(username),
+    },
+    degradedMode: {
+      active: true,
+      reason: 'missing_live_credentials',
+      envFlag: 'DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS',
+    },
+    loginStartFallback: {
+      startProbe,
+      entryProbe,
+    },
+    checks,
+    ok,
+  };
+
+  const evidencePath = await writeEvidence(payload);
+  emitSmokeSummary(payload, evidencePath);
+  return ok;
 }
 
 function analyzePayloadCompleteness(payload) {
@@ -433,9 +551,10 @@ function emitSmokeSummary(payload, evidencePath) {
     const analyzeStatus = toSummaryToken(payload?.analyze?.responseStatus);
     const resultsCount = toSummaryToken(payload?.uiState?.resultRowCount);
     const terminalSignal = toSummaryToken(payload?.uiState?.terminalUiSignal?.reason);
+    const modeToken = payload?.degradedMode?.active ? 'mode=login_start_fallback' : 'mode=live_auth_analyze';
     console.log(
       `[dev-ui-auth-analyze-smoke] PASS gui_path=${guiPathToken} run_marker=${runMarkerToken}`
-      + ` analyze_status=${analyzeStatus} results=${resultsCount} terminal_signal=${terminalSignal}`
+      + ` ${modeToken} analyze_status=${analyzeStatus} results=${resultsCount} terminal_signal=${terminalSignal}`
       + ` evidence=${evidenceRelPath}`
     );
     return;
@@ -473,8 +592,15 @@ async function run() {
   const startedAtUtc = new Date().toISOString();
 
   if (!username || !password) {
+    if (allowLoginStartFallbackOnMissingCredentials) {
+      return runLoginStartFallbackProbe(startedAtUtc);
+    }
+
+    const fallbackHint = buildLoginStartFallbackHint();
     throw new Error(
-      'Fehlende Credentials: DEV_UI_SMOKE_USERNAME und DEV_UI_SMOKE_PASSWORD sind für echten Live-Login erforderlich.'
+      'Fehlende Credentials: DEV_UI_SMOKE_USERNAME und DEV_UI_SMOKE_PASSWORD sind für echten Live-Login erforderlich. '
+      + 'Optionaler degraded Fallback: setze DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1 oder führe aus:\n'
+      + fallbackHint
     );
   }
 
