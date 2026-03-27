@@ -297,6 +297,54 @@ def test_main_writes_json_out_alias(tmp_path, monkeypatch, capsys):
     assert "auth.dev.georanking.ch" in written["expected_authorize_hosts"]
 
 
+def test_derive_default_api_origin_from_ui_base_url():
+    module = _load_module()
+
+    assert module._derive_default_api_origin("https://www.dev.georanking.ch") == "https://api.dev.georanking.ch"
+    assert module._derive_default_api_origin("https://www.dev.geo-ranking.ch") == "https://api.dev.georanking.ch"
+    assert module._derive_default_api_origin("https://api.dev.georanking.ch") == "https://api.dev.georanking.ch"
+
+
+def test_main_derives_api_base_url_when_only_ui_base_url_is_provided(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
+
+    exit_code = module.main(["--ui-base-url", "https://www.dev.georanking.ch", "--max-attempts", "1"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["api_base_url"] == "https://api.dev.georanking.ch"
+
+
+def test_main_derives_canonical_api_host_for_geo_ranking_ui_alias(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(
+        module,
+        "_send_request_probe",
+        lambda **kwargs: _happy_probe_geo_ranking_alias(module, **kwargs),
+    )
+
+    exit_code = module.main(["--ui-base-url", "https://www.dev.geo-ranking.ch", "--max-attempts", "1"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["api_base_url"] == "https://api.dev.georanking.ch"
+    assert payload["trusted_forwarded_host"] == "www.dev.geo-ranking.ch"
+
+
+def test_main_returns_invalid_arguments_when_api_and_ui_base_url_are_missing(capsys):
+    module = _load_module()
+
+    exit_code = module.main(["--ui-base-url", ""])
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "invalid_arguments:api_base_url_or_ui_base_url_required"
+
+
 def test_main_returns_invalid_argument_exit_code_when_hosts_collapse(monkeypatch, capsys):
     module = _load_module()
     monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
