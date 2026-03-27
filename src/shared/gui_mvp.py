@@ -1178,6 +1178,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const ANALYZE_DRAFT_STORAGE_KEY = "geo-ranking-ui-analyze-draft-v1";
       const SESSION_EXPIRY_WARNING_LEAD_MS = 120000;
       const AUTH_SESSION_POLL_INTERVAL_MS = 60000;
+      const AUTH_UNAUTHENTICATED_BACKGROUND_POLL_COOLDOWN_MS = 300000;
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
@@ -1395,6 +1396,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         sessionExpiresAtMs: 0,
         sessionExpiresInSeconds: 0,
         warningShownForExpiryMs: 0,
+        nextUnauthenticatedPollAtMs: 0,
       };
       let historyPanelFetchSupported = true;
 
@@ -1704,7 +1706,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           return;
         }
         authSessionPollHandle = window.setInterval(() => {
-          void refreshAuthSession({ force: true });
+          const forceRefresh = authState.authenticated === true;
+          void refreshAuthSession({ force: forceRefresh });
         }, AUTH_SESSION_POLL_INTERVAL_MS);
       }
 
@@ -4705,6 +4708,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           authState.sessionExpiresInSeconds = 0;
           authState.warningShownForExpiryMs = 0;
           hideSessionExpiryWarning();
+        } else {
+          authState.nextUnauthenticatedPollAtMs = 0;
         }
 
         updateAuthEntryPoints();
@@ -4725,6 +4730,16 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
 
         if (!force && authCheckIsFresh() && authState.authenticated !== null) {
           return authState.authenticated === true;
+        }
+
+        if (
+          !force
+          && authState.authenticated === false
+          && Number.isFinite(Number(authState.nextUnauthenticatedPollAtMs))
+          && Number(authState.nextUnauthenticatedPollAtMs) > Date.now()
+        ) {
+          updateAuthEntryPoints();
+          return false;
         }
 
         const headers = {
@@ -4804,6 +4819,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             sessionExpiresAtMs: 0,
             sessionExpiresInSeconds: 0,
           });
+          authState.nextUnauthenticatedPollAtMs = Date.now() + AUTH_UNAUTHENTICATED_BACKGROUND_POLL_COOLDOWN_MS;
           return false;
         }
 
