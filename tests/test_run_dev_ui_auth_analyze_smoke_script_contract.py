@@ -318,7 +318,9 @@ def test_missing_credentials_payload_includes_default_origin_alias_allowlist(
     payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
     assert payload["target"]["baseOrigin"] == "https://www.dev.georanking.ch"
     assert sorted(payload["target"]["allowedOrigins"]) == [
+        "https://dev.geo-ranking.ch",
         "https://dev.georanking.ch",
+        "https://www.dev.geo-ranking.ch",
         "https://www.dev.georanking.ch",
     ]
 
@@ -355,9 +357,14 @@ def test_missing_credentials_payload_normalizes_allowed_origin_overrides(
 
     payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
     assert sorted(payload["target"]["allowedOrigins"]) == [
+        "https://dev.geo-ranking.ch",
         "https://dev.georanking.ch",
+        "https://preview.dev.geo-ranking.ch",
         "https://preview.dev.georanking.ch",
+        "https://www.dev.geo-ranking.ch",
         "https://www.dev.georanking.ch",
+        "https://www.preview.dev.geo-ranking.ch",
+        "https://www.preview.dev.georanking.ch",
     ]
 
 
@@ -369,6 +376,7 @@ def test_missing_credentials_can_use_login_start_fallback_when_enabled(
     env.pop("DEV_UI_SMOKE_PASSWORD", None)
     env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback"
     env["DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS"] = "1"
+    env["DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS"] = "auth.local.test"
 
     with _LoginFallbackServer() as server:
         env["BASE_URL"] = server.base_url
@@ -415,6 +423,7 @@ def test_missing_credentials_can_use_login_start_fallback_via_cli_flag(
     env.pop("DEV_UI_SMOKE_USERNAME", None)
     env.pop("DEV_UI_SMOKE_PASSWORD", None)
     env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback-cli"
+    env["DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS"] = "auth.local.test"
 
     with _LoginFallbackServer() as server:
         env["BASE_URL"] = server.base_url
@@ -457,6 +466,7 @@ def test_login_start_fallback_tolerates_auth_login_then_canonical_login_hop(
     env.pop("DEV_UI_SMOKE_PASSWORD", None)
     env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback-canonical-hop"
     env["DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS"] = "1"
+    env["DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS"] = "auth.local.test"
 
     with _LoginFallbackServer(handler=_LoginFallbackAuthThenCanonicalHandler) as server:
         env["BASE_URL"] = server.base_url
@@ -499,6 +509,7 @@ def test_login_start_fallback_fails_when_redirect_uri_does_not_match_base_origin
     env.pop("DEV_UI_SMOKE_PASSWORD", None)
     env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback-bad-redirect-uri"
     env["DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS"] = "1"
+    env["DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS"] = "auth.local.test"
 
     with _LoginFallbackServer(handler=_LoginFallbackBadRedirectUriHandler) as server:
         env["BASE_URL"] = server.base_url
