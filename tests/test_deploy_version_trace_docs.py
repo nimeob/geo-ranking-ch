@@ -210,6 +210,7 @@ def _assert_login_contract_smoke_coverage(
         f"artifacts/{env_name}-login-start-smoke-jobs-detail.json",
         f"artifacts/{env_name}-login-start-smoke-results-detail.json",
         f"artifacts/{env_name}-login-start-smoke-results-detail-query.json",
+        f"artifacts/{env_name}-login-start-smoke-gui-results-legacy-detail.json",
         f"artifacts/{env_name}-login-start-smoke-gui-results-legacy-detail-query.json",
         f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy.json",
         f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy-query.json",

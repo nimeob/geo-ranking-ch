@@ -561,6 +561,7 @@ jobs:
             artifacts/staging-login-start-smoke-jobs-detail.json
             artifacts/staging-login-start-smoke-results-detail.json
             artifacts/staging-login-start-smoke-results-detail-query.json
+            artifacts/staging-login-start-smoke-gui-results-legacy-detail.json
             artifacts/staging-login-start-smoke-gui-results-legacy-detail-query.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy.json
             artifacts/staging-login-start-smoke-gui-jobs-legacy-query.json
