@@ -434,7 +434,7 @@ jobs:
             exit "$RECONCILE_RC"
           fi
 
-      - name: Smoke-Test UI login start redirects to IdP authorize (/ + /gui + /gui/history + legacy /history + /jobs + /jobs/:id + /results/:id + legacy /gui/jobs*)
+      - name: Smoke-Test UI login start redirects to IdP authorize (/ + /gui + /gui/history + legacy /history + /jobs + /jobs/:id + /results/:id + legacy /gui/results/:id + legacy /gui/jobs*)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
