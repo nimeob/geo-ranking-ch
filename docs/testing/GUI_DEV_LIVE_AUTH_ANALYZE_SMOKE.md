@@ -56,6 +56,13 @@ node scripts/run_dev_ui_auth_analyze_smoke.mjs
 ```
 Dann werden `/login?...&start=1` und der Entry-Pfad `/login?...` per HTTP-Redirect auf den IdP geprüft; echte Analyze-Coverage wird dabei bewusst **nicht** simuliert.
 
+CLI-Hinweise für das Single-Route-Script:
+```bash
+node scripts/run_dev_ui_auth_analyze_smoke.mjs --help
+node scripts/run_dev_ui_auth_analyze_smoke.mjs --fallback-login-start
+```
+`--fallback-login-start` ist äquivalent zu `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1`.
+
 Für den vollständigen Route-Satz lokal/manuell:
 ```bash
 BASE_URL="https://www.dev.georanking.ch" \

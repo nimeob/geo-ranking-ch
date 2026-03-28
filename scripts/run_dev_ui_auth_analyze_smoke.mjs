@@ -4,6 +4,17 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+const cli = parseCliArgs(process.argv.slice(2));
+if (cli.mode === 'help') {
+  printUsage(process.stdout);
+  process.exit(0);
+}
+if (cli.mode === 'error') {
+  console.error(`[dev-ui-auth-analyze-smoke] ERROR unknown_cli_args=${cli.unknownArgs.join(',')}`);
+  printUsage(process.stderr);
+  process.exit(2);
+}
+
 const repoRoot = process.cwd();
 const configuredOutDir = String(process.env.DEV_UI_SMOKE_EVIDENCE_DIR || '').trim();
 const outDir = configuredOutDir
@@ -20,7 +31,7 @@ const loginStartUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&r
 
 const username = String(process.env.DEV_UI_SMOKE_USERNAME || '').trim();
 const password = String(process.env.DEV_UI_SMOKE_PASSWORD || '');
-const allowLoginStartFallbackOnMissingCredentials = isTruthy(
+const allowLoginStartFallbackOnMissingCredentials = cli.forceLoginStartFallback || isTruthy(
   process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
 );
 
@@ -50,6 +61,66 @@ const addressFile = process.env.DEV_UI_SMOKE_ADDRESS_FILE
 
 const timeoutMs = parsePositiveInt(process.env.DEV_UI_SMOKE_TIMEOUT_MS, 60_000);
 const headless = !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
+
+function parseCliArgs(args) {
+  let helpRequested = false;
+  let forceLoginStartFallback = false;
+  const unknownArgs = [];
+
+  for (const arg of args) {
+    if (arg === '--help' || arg === '-h') {
+      helpRequested = true;
+      continue;
+    }
+    if (
+      arg === '--fallback-login-start-on-missing-creds'
+      || arg === '--fallback-login-start'
+    ) {
+      forceLoginStartFallback = true;
+      continue;
+    }
+    unknownArgs.push(arg);
+  }
+
+  if (helpRequested) {
+    return {
+      mode: 'help',
+      forceLoginStartFallback,
+      unknownArgs: [],
+    };
+  }
+
+  if (unknownArgs.length > 0) {
+    return {
+      mode: 'error',
+      forceLoginStartFallback,
+      unknownArgs,
+    };
+  }
+
+  return {
+    mode: 'run',
+    forceLoginStartFallback,
+    unknownArgs: [],
+  };
+}
+
+function printUsage(stream) {
+  stream.write(
+    [
+      'Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]',
+      '',
+      'Options:',
+      '  -h, --help                                   Show this help and exit.',
+      '  --fallback-login-start                       Force login-start fallback mode when credentials are missing.',
+      '  --fallback-login-start-on-missing-creds      Alias for --fallback-login-start.',
+      '',
+      'Environment:',
+      '  DEV_UI_SMOKE_USERNAME / DEV_UI_SMOKE_PASSWORD           Required for full live login + analyze smoke.',
+      '  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Enable degraded login-start fallback without credentials.',
+    ].join('\n') + '\n'
+  );
+}
 
 function parsePositiveInt(raw, fallback) {
   const value = Number.parseInt(String(raw || ''), 10);
