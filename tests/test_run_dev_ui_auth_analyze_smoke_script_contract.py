@@ -6,6 +6,7 @@ import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import quote
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +14,17 @@ SCRIPT = REPO_ROOT / "scripts" / "run_dev_ui_auth_analyze_smoke.mjs"
 
 
 class _LoginFallbackHandler(BaseHTTPRequestHandler):
+    def _build_redirect_uri(self) -> str:
+        host = str(self.headers.get("host") or "127.0.0.1")
+        return f"http://{host}/auth/callback"
+
+    def _build_authorize_location(self) -> str:
+        redirect_uri = quote(self._build_redirect_uri(), safe="")
+        return (
+            "http://auth.local.test/oauth2/authorize?"
+            f"response_type=code&client_id=contract&redirect_uri={redirect_uri}"
+        )
+
     def do_GET(self) -> None:  # noqa: N802
         if not self.path.startswith("/login"):
             self.send_response(404)
@@ -20,19 +32,22 @@ class _LoginFallbackHandler(BaseHTTPRequestHandler):
             return
 
         self.send_response(302)
-        self.send_header(
-            "Location",
-            "http://auth.local.test/oauth2/authorize?response_type=code&client_id=contract",
-        )
+        self.send_header("Location", self._build_authorize_location())
         self.end_headers()
 
     def log_message(self, *_args, **_kwargs) -> None:
         return
 
 
+class _LoginFallbackBadRedirectUriHandler(_LoginFallbackHandler):
+    def _build_redirect_uri(self) -> str:
+        return "https://evil.example/auth/callback"
+
+
 class _LoginFallbackServer:
-    def __init__(self) -> None:
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), _LoginFallbackHandler)
+    def __init__(self, handler: type[BaseHTTPRequestHandler] | None = None) -> None:
+        handler_cls = handler or _LoginFallbackHandler
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler_cls)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
     @property
@@ -93,6 +108,10 @@ def test_script_tracks_post_login_target_path_and_keeps_legacy_check_alias() -> 
     assert "(url) => isExpectedPostLoginUrl(url)" in content
     assert "loginReturnedToRequestedGuiPath," in content
     assert "loginReturnedToGui: loginReturnedToRequestedGuiPath" in content
+    assert "function isExpectedAuthCallbackRedirect(value)" in content
+    assert "function parseAuthAuthorizeRedirect(value)" in content
+    assert "startRedirectUriMatchesAuthCallback" in content
+    assert "entryRedirectUriMatchesAuthCallback" in content
 
 
 def test_script_uses_dynamic_playwright_import_with_actionable_hint() -> None:
@@ -236,6 +255,12 @@ def test_missing_credentials_can_use_login_start_fallback_when_enabled(
     assert payload["degradedMode"]["reason"] == "missing_live_credentials"
     assert payload["checks"]["startRedirectToAuthAuthorize"] is True
     assert payload["checks"]["entryRedirectToAuthAuthorize"] is True
+    assert payload["checks"]["startRedirectResponseTypeCode"] is True
+    assert payload["checks"]["entryRedirectResponseTypeCode"] is True
+    assert payload["checks"]["startRedirectClientIdPresent"] is True
+    assert payload["checks"]["entryRedirectClientIdPresent"] is True
+    assert payload["checks"]["startRedirectUriMatchesAuthCallback"] is True
+    assert payload["checks"]["entryRedirectUriMatchesAuthCallback"] is True
     assert payload["runtime"]["browser"] == "none-login-start-fallback"
 
     assert "[dev-ui-auth-analyze-smoke] PASS" in result.stdout
@@ -275,9 +300,56 @@ def test_missing_credentials_can_use_login_start_fallback_via_cli_flag(
     assert payload["degradedMode"]["active"] is True
     assert payload["degradedMode"]["reason"] == "missing_live_credentials"
     assert payload["checks"]["entryRedirectToAuthAuthorize"] is True
+    assert payload["checks"]["entryRedirectResponseTypeCode"] is True
+    assert payload["checks"]["entryRedirectClientIdPresent"] is True
+    assert payload["checks"]["entryRedirectUriMatchesAuthCallback"] is True
 
     assert "[dev-ui-auth-analyze-smoke] PASS" in result.stdout
     assert "mode=login_start_fallback" in result.stdout
+
+
+def test_login_start_fallback_fails_when_redirect_uri_does_not_match_base_origin(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback-bad-redirect-uri"
+    env["DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS"] = "1"
+
+    with _LoginFallbackServer(handler=_LoginFallbackBadRedirectUriHandler) as server:
+        env["BASE_URL"] = server.base_url
+        result = subprocess.run(
+            ["node", str(SCRIPT)],
+            cwd=tmp_path,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["checks"]["startRedirectToAuthAuthorize"] is False
+    assert payload["checks"]["entryRedirectToAuthAuthorize"] is False
+    assert payload["checks"]["startRedirectResponseTypeCode"] is True
+    assert payload["checks"]["entryRedirectResponseTypeCode"] is True
+    assert payload["checks"]["startRedirectClientIdPresent"] is True
+    assert payload["checks"]["entryRedirectClientIdPresent"] is True
+    assert payload["checks"]["startRedirectUriMatchesAuthCallback"] is False
+    assert payload["checks"]["entryRedirectUriMatchesAuthCallback"] is False
+
+    assert "[dev-ui-auth-analyze-smoke] FAIL" in result.stderr
+    assert "startRedirectUriMatchesAuthCallback" in result.stderr
 
 
 def test_default_timestamp_run_marker_does_not_duplicate_filename_token(
