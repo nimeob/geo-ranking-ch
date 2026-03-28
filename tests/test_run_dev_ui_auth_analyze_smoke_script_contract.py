@@ -115,6 +115,54 @@ def test_script_emits_actionable_console_summary_markers() -> None:
     assert "evidence=" in content
 
 
+def test_help_flag_exits_zero_without_emitting_evidence(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--help"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs" in result.stdout
+    assert "--fallback-login-start" in result.stdout
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files == []
+
+
+def test_unknown_cli_argument_exits_with_usage_and_no_evidence(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--unknown-flag"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert "unknown_cli_args=--unknown-flag" in result.stderr
+    assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs" in result.stderr
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files == []
+
+
 def test_missing_credentials_emit_json_evidence_even_without_playwright(
     tmp_path: Path,
 ) -> None:
@@ -178,9 +226,9 @@ def test_missing_credentials_can_use_login_start_fallback_when_enabled(
     evidence_files = sorted(
         (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
     )
-    assert evidence_files, (
-        f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
-    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
 
     payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
     assert payload["ok"] is True
@@ -189,6 +237,44 @@ def test_missing_credentials_can_use_login_start_fallback_when_enabled(
     assert payload["checks"]["startRedirectToAuthAuthorize"] is True
     assert payload["checks"]["entryRedirectToAuthAuthorize"] is True
     assert payload["runtime"]["browser"] == "none-login-start-fallback"
+
+    assert "[dev-ui-auth-analyze-smoke] PASS" in result.stdout
+    assert "mode=login_start_fallback" in result.stdout
+
+
+def test_missing_credentials_can_use_login_start_fallback_via_cli_flag(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback-cli"
+
+    with _LoginFallbackServer() as server:
+        env["BASE_URL"] = server.base_url
+        result = subprocess.run(
+            ["node", str(SCRIPT), "--fallback-login-start"],
+            cwd=tmp_path,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    assert result.returncode == 0
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["degradedMode"]["active"] is True
+    assert payload["degradedMode"]["reason"] == "missing_live_credentials"
+    assert payload["checks"]["entryRedirectToAuthAuthorize"] is True
 
     assert "[dev-ui-auth-analyze-smoke] PASS" in result.stdout
     assert "mode=login_start_fallback" in result.stdout
@@ -228,7 +314,6 @@ def test_default_timestamp_run_marker_does_not_duplicate_filename_token(
 
     # Default run marker (=timestamp) should not be duplicated in the artifact filename.
     assert "-" not in body, evidence_stem
-
 
 
 def test_run_id_is_sanitized_in_evidence_filename(tmp_path: Path) -> None:
