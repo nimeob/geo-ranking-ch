@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 const UI_BASE_URL = (process.env.DEV_UI_BASE_URL || "").trim();
 const USERNAME = (process.env.DEV_UI_SMOKE_USERNAME || "").trim();
@@ -11,6 +12,9 @@ const PRE_LOGIN_5XX_SAMPLE_COUNT = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_
 const PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS || 250);
 const EVIDENCE_JSON = (process.env.DEV_UI_FULL_EVIDENCE_JSON || "artifacts/dev-ui-full/latest/dev-ui-full-regression.json").trim();
 const SCREENSHOT_DIR = (process.env.DEV_UI_FULL_SCREENSHOT_DIR || "artifacts/dev-ui-full/latest/screenshots").trim();
+const LOGIN_START_FALLBACK_ON_MISSING_CREDS = ["1", "true", "yes", "on"].includes(
+  String(process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS || "").trim().toLowerCase()
+);
 
 function shouldShowHelp(argv) {
   return argv.includes("--help") || argv.includes("-h");
@@ -32,6 +36,7 @@ function printHelp() {
     "  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS",
     "  DEV_UI_FULL_EVIDENCE_JSON",
     "  DEV_UI_FULL_SCREENSHOT_DIR",
+    "  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Optional degraded mode when credentials are unavailable",
   ];
   process.stdout.write(`${lines.join("\n")}\n`);
 }
@@ -71,6 +76,38 @@ function buildLoginStartFallbackCommand(baseUrl) {
   return `./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${normalizedBaseUrl} --env-name ${envName}`;
 }
 
+function tailLines(text, maxLines = 12, maxChars = 8000) {
+  const normalized = String(text || "");
+  if (!normalized) return "";
+  const lines = normalized.split(/\r?\n/).filter((line) => line.length > 0);
+  const tail = lines.length <= maxLines ? lines.join("\n") : lines.slice(lines.length - maxLines).join("\n");
+  if (tail.length <= maxChars) {
+    return tail;
+  }
+  return tail.slice(tail.length - maxChars);
+}
+
+function runLoginStartFallbackBundle(baseUrl) {
+  const normalizedBaseUrl = String(baseUrl || "").trim();
+  const envName = inferFallbackEnvName(normalizedBaseUrl);
+  const args = ["--base-url", normalizedBaseUrl, "--env-name", envName];
+
+  const result = spawnSync("./scripts/smoke/run_login_start_smoke_bundle.sh", args, {
+    encoding: "utf8",
+    env: process.env,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+
+  return {
+    command: `./scripts/smoke/run_login_start_smoke_bundle.sh ${args.join(" ")}`,
+    ok: result.status === 0 && !result.error,
+    exitCode: Number.isFinite(result.status) ? result.status : -1,
+    stdout: String(result.stdout || ""),
+    stderr: String(result.stderr || ""),
+    spawnError: result.error ? String(result.error?.message || result.error) : "",
+  };
+}
+
 function normalizeError(error) {
   if (error instanceof Error) {
     return {
@@ -105,10 +142,12 @@ async function loadChromium() {
   }
 }
 
-function validateRequiredEnv() {
+function validateRequiredEnv({ allowMissingCredentials = false } = {}) {
   if (!UI_BASE_URL) fail("Missing DEV_UI_BASE_URL");
-  if (!USERNAME) fail("Missing DEV_UI_SMOKE_USERNAME");
-  if (!PASSWORD) fail("Missing DEV_UI_SMOKE_PASSWORD");
+  if (!allowMissingCredentials) {
+    if (!USERNAME) fail("Missing DEV_UI_SMOKE_USERNAME");
+    if (!PASSWORD) fail("Missing DEV_UI_SMOKE_PASSWORD");
+  }
 }
 
 function emitFailureHints(finalError) {
@@ -405,17 +444,41 @@ async function main() {
   let firstAddress = "";
   let postLoginBootWindowStartedAtEpochMs = 0;
   let firstSyncAnalyzeSubmitAtEpochMs = 0;
+  let degradedMode = null;
 
   try {
-    validateRequiredEnv();
+    const missingCredentials = !USERNAME || !PASSWORD;
+    const allowMissingCredentials = LOGIN_START_FALLBACK_ON_MISSING_CREDS && missingCredentials;
+    validateRequiredEnv({ allowMissingCredentials });
     initializeTargetUrls();
-    const chromium = await loadChromium();
 
-    browser = await chromium.launch({ headless: true });
-    context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
-    });
-    page = await context.newPage();
+    if (allowMissingCredentials) {
+      const fallbackResult = runLoginStartFallbackBundle(UI_BASE_URL);
+      degradedMode = {
+        active: true,
+        reason: "missing_live_credentials",
+        envFlag: "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
+        fallbackEnabled: true,
+        fallbackCommand: fallbackResult.command,
+        fallbackExitCode: fallbackResult.exitCode,
+        fallbackSpawnError: fallbackResult.spawnError,
+        fallbackStdoutTail: tailLines(fallbackResult.stdout),
+        fallbackStderrTail: tailLines(fallbackResult.stderr),
+      };
+
+      recordCheck(
+        "fallback.login_start_smoke_bundle_exit_0",
+        fallbackResult.ok,
+        `exit=${fallbackResult.exitCode} spawn_error=${fallbackResult.spawnError || "none"}`,
+      );
+    } else {
+      const chromium = await loadChromium();
+
+      browser = await chromium.launch({ headless: true });
+      context = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+      });
+      page = await context.newPage();
 
     page.on("console", (msg) => {
       if (msg.type() === "error") {
@@ -855,6 +918,7 @@ async function main() {
         immediate5xx,
       }),
     );
+    }
   } catch (error) {
     finalError = String(error?.message || error);
     if (page) {
@@ -889,6 +953,7 @@ async function main() {
     pageErrors,
     networkLog,
     requestFailures,
+    degradedMode,
     error: finalError,
   };
 
@@ -902,7 +967,11 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`[dev-ui-full-regression] PASSED with ${checks.length} checks`);
+  if (degradedMode?.active) {
+    console.log(`[dev-ui-full-regression] PASSED (degraded mode) with ${checks.length} checks`);
+  } else {
+    console.log(`[dev-ui-full-regression] PASSED with ${checks.length} checks`);
+  }
   console.log(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON}`);
 }
 
