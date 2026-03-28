@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -123,6 +124,12 @@ class _LoginFallbackServer:
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=2)
+
+
+def _reserve_unused_local_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
 
 
 def test_wait_for_function_uses_options_as_third_argument() -> None:
@@ -544,6 +551,56 @@ def test_login_start_fallback_fails_when_redirect_uri_does_not_match_base_origin
 
     assert "[dev-ui-auth-analyze-smoke] FAIL" in result.stderr
     assert "startRedirectUriMatchesAuthCallback" in result.stderr
+
+
+def test_login_start_fallback_records_connection_failure_as_contract_fail(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback-connection-failure"
+    env["DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS"] = "1"
+
+    unused_port = _reserve_unused_local_port()
+    env["BASE_URL"] = f"http://127.0.0.1:{unused_port}"
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert "error" not in payload
+
+    start_probe = payload["loginStartFallback"]["startProbe"]
+    entry_probe = payload["loginStartFallback"]["entryProbe"]
+
+    assert start_probe["ok"] is False
+    assert entry_probe["ok"] is False
+    assert start_probe["reason"].startswith("request_failed_connection_")
+    assert entry_probe["reason"].startswith("request_failed_connection_")
+    assert start_probe["requestError"]["reason"] == start_probe["reason"]
+    assert entry_probe["requestError"]["reason"] == entry_probe["reason"]
+    assert payload["checks"]["startRedirectToAuthAuthorize"] is False
+    assert payload["checks"]["entryRedirectToAuthAuthorize"] is False
+
+    assert "[dev-ui-auth-analyze-smoke] FAIL" in result.stderr
+    assert "start_reason=request_failed_connection_" in result.stderr
 
 
 def test_default_timestamp_run_marker_does_not_duplicate_filename_token(
