@@ -26,6 +26,13 @@ const baseOrigin = normalizeOrigin(process.env.BASE_URL || 'https://www.dev.geor
   || 'https://www.dev.georanking.ch';
 const allowedOriginOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_ORIGINS || '').trim();
 const allowedOrigins = resolveAllowedOrigins(baseOrigin, allowedOriginOverrides);
+const allowedAuthorizeHostOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS || '').trim();
+const allowedAuthorizeHosts = resolveAllowedAuthorizeHosts(
+  baseOrigin,
+  allowedOrigins,
+  allowedAuthorizeHostOverrides
+);
+const allowedAuthorizeHostSet = new Set(allowedAuthorizeHosts);
 const guiPath = normalizeGuiPath(process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
 const expectedPostLoginPath = resolveCanonicalGuiSuccessor(guiPath);
 const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);
@@ -120,7 +127,8 @@ function printUsage(stream) {
       '',
       'Environment:',
       '  BASE_URL                                                Optional base origin (default: https://www.dev.georanking.ch).',
-      '  DEV_UI_SMOKE_ALLOWED_ORIGINS                            Optional comma-separated origin allowlist for post-login host hops.',
+      '  DEV_UI_SMOKE_ALLOWED_ORIGINS                            Optional comma-separated origin allowlist for post-login + callback host hops.',
+      '  DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS                    Optional comma-separated host/URL allowlist for absolute authorize redirects.',
       '  DEV_UI_SMOKE_USERNAME / DEV_UI_SMOKE_PASSWORD           Required for full live login + analyze smoke.',
       '  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Enable degraded login-start fallback without credentials.',
     ].join('\n') + '\n'
@@ -164,35 +172,81 @@ function isIpLiteralHostname(hostname) {
   return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
 }
 
+function expandGeoHostVariants(hostname) {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  if (!normalized) return [];
+
+  const variants = new Set([normalized]);
+  if (normalized.includes('geo-ranking')) {
+    variants.add(normalized.replaceAll('geo-ranking', 'georanking'));
+  }
+  if (normalized.includes('georanking')) {
+    variants.add(normalized.replaceAll('georanking', 'geo-ranking'));
+  }
+
+  return Array.from(variants);
+}
+
+function expandHostnameAliases(hostname) {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  if (!normalized) return [];
+
+  const aliases = new Set();
+  const canToggleWww = normalized.includes('.') && !isIpLiteralHostname(normalized) && normalized !== 'localhost';
+
+  const addWithGeoVariants = (candidate) => {
+    for (const variant of expandGeoHostVariants(candidate)) {
+      aliases.add(variant);
+    }
+  };
+
+  addWithGeoVariants(normalized);
+
+  if (canToggleWww) {
+    if (normalized.startsWith('www.') && normalized.length > 4) {
+      addWithGeoVariants(normalized.slice(4));
+    } else {
+      addWithGeoVariants(`www.${normalized}`);
+    }
+  }
+
+  return Array.from(aliases);
+}
+
+function normalizeHostToken(rawHost) {
+  const candidate = String(rawHost || '').trim();
+  if (!candidate) return '';
+
+  try {
+    const parsed = new URL(candidate.includes('://') ? candidate : `https://${candidate}`);
+    const hostname = String(parsed.hostname || '').trim().toLowerCase();
+    return hostname;
+  } catch {
+    return candidate.replace(/^\[|\]$/g, '').toLowerCase();
+  }
+}
+
 function resolveAllowedOrigins(primaryOrigin, rawOverrides) {
   const allowed = new Set();
 
   const addOrigin = (value) => {
     const normalized = normalizeOrigin(value);
-    if (normalized) {
+    if (!normalized) return;
+
+    try {
+      const parsed = new URL(normalized);
+      const protocol = parsed.protocol;
+      const portSegment = parsed.port ? `:${parsed.port}` : '';
+
+      for (const hostVariant of expandHostnameAliases(parsed.hostname)) {
+        allowed.add(`${protocol}//${hostVariant}${portSegment}`);
+      }
+    } catch {
       allowed.add(normalized);
     }
   };
 
   addOrigin(primaryOrigin);
-
-  const normalizedPrimary = normalizeOrigin(primaryOrigin);
-  if (normalizedPrimary) {
-    try {
-      const parsedPrimary = new URL(normalizedPrimary);
-      const hostname = parsedPrimary.hostname;
-      const protocol = parsedPrimary.protocol;
-      const portSegment = parsedPrimary.port ? `:${parsedPrimary.port}` : '';
-
-      if (hostname.startsWith('www.')) {
-        addOrigin(`${protocol}//${hostname.slice(4)}${portSegment}`);
-      } else if (hostname.includes('.') && !isIpLiteralHostname(hostname) && hostname !== 'localhost') {
-        addOrigin(`${protocol}//www.${hostname}${portSegment}`);
-      }
-    } catch {
-      // ignore alias derivation errors
-    }
-  }
 
   const overrides = String(rawOverrides || '')
     .split(',')
@@ -203,6 +257,47 @@ function resolveAllowedOrigins(primaryOrigin, rawOverrides) {
   }
 
   return Array.from(allowed);
+}
+
+function resolveAllowedAuthorizeHosts(primaryOrigin, originAllowlist, rawOverrides) {
+  const allowedHosts = new Set();
+
+  const addHostSeeds = (hostToken) => {
+    const normalizedHost = normalizeHostToken(hostToken);
+    if (!normalizedHost) return;
+
+    if (normalizedHost.startsWith('auth.') && normalizedHost.length > 5) {
+      allowedHosts.add(normalizedHost);
+      addHostSeeds(normalizedHost.slice(5));
+      return;
+    }
+
+    const seedHosts = normalizedHost.startsWith('www.') && normalizedHost.length > 4
+      ? [normalizedHost, normalizedHost.slice(4)]
+      : [normalizedHost];
+
+    for (const seedHost of seedHosts) {
+      for (const hostVariant of expandGeoHostVariants(seedHost)) {
+        allowedHosts.add(hostVariant);
+        allowedHosts.add(`auth.${hostVariant}`);
+      }
+    }
+  };
+
+  addHostSeeds(primaryOrigin);
+  for (const origin of originAllowlist || []) {
+    addHostSeeds(origin);
+  }
+
+  const overrides = String(rawOverrides || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  for (const override of overrides) {
+    addHostSeeds(override);
+  }
+
+  return Array.from(allowedHosts);
 }
 
 function isAllowedOrigin(value) {
@@ -382,11 +477,9 @@ function isAnalyzeRequestUrl(value) {
 }
 
 function isExpectedAuthCallbackRedirect(value) {
-  const expectedOrigin = new URL(baseOrigin).origin;
-
   try {
     const parsed = new URL(String(value || ''), baseOrigin);
-    return parsed.origin === expectedOrigin && parsed.pathname === '/auth/callback';
+    return isAllowedOrigin(parsed.origin) && parsed.pathname === '/auth/callback';
   } catch {
     return false;
   }
@@ -398,6 +491,8 @@ function parseAuthAuthorizeRedirect(value) {
     responseTypeCode: false,
     clientIdPresent: false,
     redirectUriMatchesAuthCallback: false,
+    authorizeHostAllowed: false,
+    authorizeHost: '',
   };
 
   try {
@@ -405,7 +500,9 @@ function parseAuthAuthorizeRedirect(value) {
     const host = parsed.hostname.toLowerCase();
     const pathname = parsed.pathname.toLowerCase();
 
-    if (!host.includes('auth.')) {
+    result.authorizeHost = host;
+    result.authorizeHostAllowed = allowedAuthorizeHostSet.has(host);
+    if (!result.authorizeHostAllowed) {
       return result;
     }
 
@@ -448,6 +545,7 @@ function isAuthorizeContractSatisfied(contract) {
   return Boolean(
     contract
       && contract.isAuthAuthorizeUrl
+      && contract.authorizeHostAllowed
       && contract.responseTypeCode
       && contract.clientIdPresent
       && contract.redirectUriMatchesAuthCallback
@@ -628,6 +726,8 @@ async function runLoginStartFallbackProbe(startedAtUtc) {
     fallbackEnabled: true,
     startRedirectToAuthAuthorize: startProbe.ok,
     entryRedirectToAuthAuthorize: entryProbe.ok,
+    startRedirectAuthorizeHostAllowed: Boolean(startProbe?.authorizeContract?.authorizeHostAllowed),
+    entryRedirectAuthorizeHostAllowed: Boolean(entryProbe?.authorizeContract?.authorizeHostAllowed),
     startRedirectResponseTypeCode: Boolean(startProbe?.authorizeContract?.responseTypeCode),
     entryRedirectResponseTypeCode: Boolean(entryProbe?.authorizeContract?.responseTypeCode),
     startRedirectClientIdPresent: Boolean(startProbe?.authorizeContract?.clientIdPresent),
@@ -644,6 +744,7 @@ async function runLoginStartFallbackProbe(startedAtUtc) {
     target: {
       baseOrigin,
       allowedOrigins,
+      allowedAuthorizeHosts,
       guiPath,
       expectedPostLoginPath,
       loginStartUrl,
@@ -1176,6 +1277,7 @@ async function run() {
     target: {
       baseOrigin,
       allowedOrigins,
+      allowedAuthorizeHosts,
       guiPath,
       expectedPostLoginPath,
       loginStartUrl,
@@ -1256,6 +1358,7 @@ run()
       target: {
         baseOrigin,
         allowedOrigins,
+        allowedAuthorizeHosts,
         guiPath,
         expectedPostLoginPath,
         loginStartUrl,
