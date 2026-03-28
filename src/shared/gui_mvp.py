@@ -4869,7 +4869,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             return true;
           }
 
-          if (response.status === 401) {
+          if (response.status === 401 || response.status === 403) {
             setAuthState(false, {
               userClaims: {},
               authCheckSupported: true,
