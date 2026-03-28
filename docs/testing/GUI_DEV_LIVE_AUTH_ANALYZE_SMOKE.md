@@ -47,6 +47,8 @@ DEV_UI_SMOKE_RUN_ID="$(date +%s)" \
 node scripts/run_dev_ui_auth_analyze_smoke.mjs
 ```
 
+Hinweis: `https://dev.georanking.ch` (ohne `www`) ist für diesen Smoke kein unterstützter DEV-UI-Origin mehr (TLS-Zertifikat abgelaufen). Falls gesetzt, kanonisiert das Script intern auf `https://www.dev.georanking.ch`.
+
 Wenn lokal **keine Live-Credentials** verfügbar sind, kann derselbe Script-Lauf optional in einen Login-Start-Fallback wechseln (degraded mode statt harter Abbruch):
 ```bash
 BASE_URL="https://www.dev.georanking.ch" \

@@ -22,8 +22,9 @@ const outDir = configuredOutDir
   : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
-const baseOrigin = normalizeOrigin(process.env.BASE_URL || 'https://www.dev.georanking.ch')
-  || 'https://www.dev.georanking.ch';
+const baseOrigin = normalizeOrigin(
+  canonicalizeLegacyDevUiOrigin(process.env.BASE_URL || 'https://www.dev.georanking.ch')
+) || 'https://www.dev.georanking.ch';
 const allowedOriginOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_ORIGINS || '').trim();
 const allowedOrigins = resolveAllowedOrigins(baseOrigin, allowedOriginOverrides);
 const allowedAuthorizeHostOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS || '').trim();
@@ -168,6 +169,28 @@ function normalizeOrigin(rawOrigin) {
   }
 }
 
+function isUnsupportedLegacyDevUiHostname(hostname) {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  return normalized === 'dev.georanking.ch' || normalized === 'dev.geo-ranking.ch';
+}
+
+function canonicalizeLegacyDevUiOrigin(rawOrigin) {
+  const candidate = String(rawOrigin || '').trim();
+  if (!candidate) return candidate;
+
+  try {
+    const parsed = new URL(candidate);
+    if (!isUnsupportedLegacyDevUiHostname(parsed.hostname)) {
+      return candidate;
+    }
+
+    parsed.hostname = `www.${parsed.hostname}`;
+    return parsed.toString();
+  } catch {
+    return candidate;
+  }
+}
+
 function isIpLiteralHostname(hostname) {
   return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
 }
@@ -196,6 +219,9 @@ function expandHostnameAliases(hostname) {
 
   const addWithGeoVariants = (candidate) => {
     for (const variant of expandGeoHostVariants(candidate)) {
+      if (isUnsupportedLegacyDevUiHostname(variant)) {
+        continue;
+      }
       aliases.add(variant);
     }
   };
@@ -278,7 +304,9 @@ function resolveAllowedAuthorizeHosts(primaryOrigin, originAllowlist, rawOverrid
 
     for (const seedHost of seedHosts) {
       for (const hostVariant of expandGeoHostVariants(seedHost)) {
-        allowedHosts.add(hostVariant);
+        if (!isUnsupportedLegacyDevUiHostname(hostVariant)) {
+          allowedHosts.add(hostVariant);
+        }
         allowedHosts.add(`auth.${hostVariant}`);
       }
     }
