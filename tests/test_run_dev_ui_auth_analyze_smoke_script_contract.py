@@ -100,10 +100,18 @@ def test_script_tracks_post_login_target_path_and_keeps_legacy_check_alias() -> 
     )
     assert "function parseRelativeUrl(rawPath)" in content
     assert (
+        "const allowedOriginOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_ORIGINS || '').trim();"
+        in content
+    )
+    assert "const allowedOrigins = resolveAllowedOrigins(baseOrigin, allowedOriginOverrides);" in content
+    assert "function resolveAllowedOrigins(primaryOrigin, rawOverrides)" in content
+    assert "function isAllowedOrigin(value)" in content
+    assert (
         "if (target.pathname === '/gui/jobs') return `/jobs${target.search}`;"
         in content
     )
     assert "function isExpectedPostLoginUrl(value)" in content
+    assert "if (!isAllowedOrigin(parsed.origin)) return false;" in content
     assert "const loginReturnedToRequestedGuiPath =" in content
     assert "(url) => isExpectedPostLoginUrl(url)" in content
     assert "loginReturnedToRequestedGuiPath," in content
@@ -218,6 +226,79 @@ def test_missing_credentials_emit_json_evidence_even_without_playwright(
     assert "evidence=" in result.stderr
     assert "Fehlende_Credentials" in result.stderr
     assert "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1" in result.stderr
+
+
+def test_missing_credentials_payload_includes_default_origin_alias_allowlist(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-origin-alias-default"
+    env["BASE_URL"] = "https://www.dev.georanking.ch/"
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["target"]["baseOrigin"] == "https://www.dev.georanking.ch"
+    assert sorted(payload["target"]["allowedOrigins"]) == [
+        "https://dev.georanking.ch",
+        "https://www.dev.georanking.ch",
+    ]
+
+
+def test_missing_credentials_payload_normalizes_allowed_origin_overrides(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-origin-overrides"
+    env["BASE_URL"] = "https://dev.georanking.ch"
+    env["DEV_UI_SMOKE_ALLOWED_ORIGINS"] = (
+        "https://preview.dev.georanking.ch, https://dev.georanking.ch:443, not-a-url"
+    )
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert sorted(payload["target"]["allowedOrigins"]) == [
+        "https://dev.georanking.ch",
+        "https://preview.dev.georanking.ch",
+        "https://www.dev.georanking.ch",
+    ]
 
 
 def test_missing_credentials_can_use_login_start_fallback_when_enabled(
