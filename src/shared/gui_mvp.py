@@ -4818,7 +4818,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             }
           );
 
-          if (!authFetch.ok || !authFetch.response) {
+          if (!authFetch.response) {
             const failureSummary = summarizeDevRequestFailure(authFetch);
             const authRequestId = normalizeTraceRequestId(authFetch.requestId || "");
             emitUiEvent("ui.auth.session_check.end", {

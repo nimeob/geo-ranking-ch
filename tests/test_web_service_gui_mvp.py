@@ -167,6 +167,8 @@ class TestWebServiceGuiMvp(unittest.TestCase):
         self.assertIn('renderHistoryCompatibilityNotice(historyPanelFetchCompatibilityNotice);', body)
         self.assertIn('const AUTH_ME_ENDPOINT = "/auth/me";', body)
         self.assertIn('function refreshAuthSession({ force = false } = {})', body)
+        self.assertIn('if (!authFetch.response) {', body)
+        self.assertNotIn('if (!authFetch.ok || !authFetch.response) {', body)
         self.assertIn('if (!isAuthenticated && authState.authCheckSupported) {', body)
         self.assertIn('Keep GUI shell usable for anonymous sessions; history is optional.', body)
         self.assertNotIn('scheduleReLoginRedirect(401, "no_session_cookie", "");', body)
