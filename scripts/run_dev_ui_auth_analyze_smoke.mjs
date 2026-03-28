@@ -438,8 +438,40 @@ function buildLoginStartFallbackHint() {
   ].join('\n');
 }
 
-async function probeLoginRedirect(url) {
-  const response = await fetch(url, {
+const MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS = 6;
+
+function isRedirectStatus(status) {
+  return Number.isFinite(status) && status >= 300 && status < 400;
+}
+
+function isAuthorizeContractSatisfied(contract) {
+  return Boolean(
+    contract
+      && contract.isAuthAuthorizeUrl
+      && contract.responseTypeCode
+      && contract.clientIdPresent
+      && contract.redirectUriMatchesAuthCallback
+  );
+}
+
+function normalizePathname(value) {
+  const raw = String(value || '').trim() || '/';
+  if (raw === '/') return '/';
+  return raw.replace(/\/+$/, '') || '/';
+}
+
+function isIntermediateLoginRedirectUrl(value) {
+  try {
+    const parsed = new URL(String(value || ''));
+    const pathname = normalizePathname(parsed.pathname.toLowerCase());
+    return pathname === '/login' || pathname === '/auth/login';
+  } catch {
+    return false;
+  }
+}
+
+async function fetchSingleRedirectProbe(requestUrl) {
+  const response = await fetch(requestUrl, {
     method: 'GET',
     redirect: 'manual',
     headers: {
@@ -453,26 +485,136 @@ async function probeLoginRedirect(url) {
 
   if (location) {
     try {
-      absoluteLocation = new URL(location, baseOrigin).toString();
+      absoluteLocation = new URL(location, requestUrl).toString();
     } catch {
       absoluteLocation = '';
     }
   }
 
   const authorizeContract = parseAuthAuthorizeRedirect(absoluteLocation);
-
   return {
-    ok: status >= 300
-      && status < 400
-      && Boolean(absoluteLocation)
-      && authorizeContract.isAuthAuthorizeUrl
-      && authorizeContract.responseTypeCode
-      && authorizeContract.clientIdPresent
-      && authorizeContract.redirectUriMatchesAuthCallback,
-    requestUrl: url,
+    requestUrl,
     status,
     location: absoluteLocation,
     authorizeContract,
+  };
+}
+
+async function probeLoginRedirect(url) {
+  const redirectChain = [];
+  const visited = new Set([String(url)]);
+  let currentRequestUrl = String(url);
+
+  for (let hop = 0; hop <= MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS; hop += 1) {
+    const probe = await fetchSingleRedirectProbe(currentRequestUrl);
+    redirectChain.push({
+      requestUrl: probe.requestUrl,
+      status: probe.status,
+      location: probe.location,
+    });
+
+    if (
+      isRedirectStatus(probe.status)
+      && probe.location
+      && isAuthorizeContractSatisfied(probe.authorizeContract)
+    ) {
+      return {
+        ok: true,
+        reason: 'ok',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (!isRedirectStatus(probe.status)) {
+      return {
+        ok: false,
+        reason: `unexpected_status_${probe.status}`,
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (!probe.location) {
+      return {
+        ok: false,
+        reason: 'missing_location_header',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (!isIntermediateLoginRedirectUrl(probe.location)) {
+      return {
+        ok: false,
+        reason: 'non_login_redirect_target',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (hop >= MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS) {
+      return {
+        ok: false,
+        reason: 'redirect_hop_limit_exceeded',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (visited.has(probe.location)) {
+      return {
+        ok: false,
+        reason: 'redirect_loop_detected',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    visited.add(probe.location);
+    currentRequestUrl = probe.location;
+  }
+
+  return {
+    ok: false,
+    reason: 'redirect_hop_limit_exceeded',
+    requestUrl: String(url),
+    finalRequestUrl: currentRequestUrl,
+    status: 0,
+    location: '',
+    authorizeContract: parseAuthAuthorizeRedirect(''),
+    redirectHopCount: MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS,
+    redirectChain,
   };
 }
 

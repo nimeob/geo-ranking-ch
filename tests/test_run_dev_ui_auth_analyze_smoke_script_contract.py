@@ -6,7 +6,7 @@ import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +42,66 @@ class _LoginFallbackHandler(BaseHTTPRequestHandler):
 class _LoginFallbackBadRedirectUriHandler(_LoginFallbackHandler):
     def _build_redirect_uri(self) -> str:
         return "https://evil.example/auth/callback"
+
+
+class _LoginFallbackAuthThenCanonicalHandler(_LoginFallbackHandler):
+    def _extract_next_reason(self) -> tuple[str, str]:
+        parsed = urlparse(self.path)
+        query = parse_qs(parsed.query, keep_blank_values=True)
+        next_path = str((query.get("next") or ["/gui"])[0])
+        reason = str((query.get("reason") or ["manual_login"])[0])
+        return next_path, reason
+
+    def _build_auth_login_location(self, *, next_path: str, reason: str) -> str:
+        return "/auth/login?" + urlencode({"next": next_path, "reason": reason})
+
+    def _build_canonical_login_location(self, *, next_path: str, reason: str) -> str:
+        return "/login?" + urlencode(
+            {
+                "next": next_path,
+                "reason": reason,
+                "start": "1",
+                "canonical": "1",
+            }
+        )
+
+    def do_GET(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        if path == "/auth/login":
+            next_path, reason = self._extract_next_reason()
+            self.send_response(302)
+            self.send_header(
+                "Location",
+                self._build_canonical_login_location(
+                    next_path=next_path,
+                    reason=reason,
+                ),
+            )
+            self.end_headers()
+            return
+
+        if path == "/login":
+            next_path, reason = self._extract_next_reason()
+            query = parse_qs(parsed.query, keep_blank_values=True)
+            canonical_value = str((query.get("canonical") or [""])[0])
+            if canonical_value == "1":
+                self.send_response(302)
+                self.send_header("Location", self._build_authorize_location())
+                self.end_headers()
+                return
+
+            self.send_response(302)
+            self.send_header(
+                "Location",
+                self._build_auth_login_location(next_path=next_path, reason=reason),
+            )
+            self.end_headers()
+            return
+
+        self.send_response(404)
+        self.end_headers()
 
 
 class _LoginFallbackServer:
@@ -387,6 +447,48 @@ def test_missing_credentials_can_use_login_start_fallback_via_cli_flag(
 
     assert "[dev-ui-auth-analyze-smoke] PASS" in result.stdout
     assert "mode=login_start_fallback" in result.stdout
+
+
+def test_login_start_fallback_tolerates_auth_login_then_canonical_login_hop(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback-canonical-hop"
+    env["DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS"] = "1"
+
+    with _LoginFallbackServer(handler=_LoginFallbackAuthThenCanonicalHandler) as server:
+        env["BASE_URL"] = server.base_url
+        result = subprocess.run(
+            ["node", str(SCRIPT)],
+            cwd=tmp_path,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    assert result.returncode == 0
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["checks"]["startRedirectToAuthAuthorize"] is True
+    assert payload["checks"]["entryRedirectToAuthAuthorize"] is True
+
+    start_probe = payload["loginStartFallback"]["startProbe"]
+    entry_probe = payload["loginStartFallback"]["entryProbe"]
+    assert start_probe["redirectHopCount"] >= 2
+    assert entry_probe["redirectHopCount"] >= 2
+    assert any("/auth/login" in hop["location"] for hop in start_probe["redirectChain"])
+    assert any("canonical=1" in hop["location"] for hop in entry_probe["redirectChain"])
 
 
 def test_login_start_fallback_fails_when_redirect_uri_does_not_match_base_origin(
