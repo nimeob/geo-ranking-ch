@@ -296,27 +296,52 @@ function isAnalyzeRequestUrl(value) {
   }
 }
 
-function isAuthAuthorizeUrl(value) {
+function isExpectedAuthCallbackRedirect(value) {
+  const expectedOrigin = new URL(baseOrigin).origin;
+
+  try {
+    const parsed = new URL(String(value || ''), baseOrigin);
+    return parsed.origin === expectedOrigin && parsed.pathname === '/auth/callback';
+  } catch {
+    return false;
+  }
+}
+
+function parseAuthAuthorizeRedirect(value) {
+  const result = {
+    isAuthAuthorizeUrl: false,
+    responseTypeCode: false,
+    clientIdPresent: false,
+    redirectUriMatchesAuthCallback: false,
+  };
+
   try {
     const parsed = new URL(String(value || ''));
     const host = parsed.hostname.toLowerCase();
     const pathname = parsed.pathname.toLowerCase();
 
     if (!host.includes('auth.')) {
-      return false;
+      return result;
     }
 
+    const responseType = String(parsed.searchParams.get('response_type') || '').trim().toLowerCase();
+    result.responseTypeCode = responseType === 'code';
+    result.clientIdPresent = String(parsed.searchParams.get('client_id') || '').trim().length > 0;
+    result.redirectUriMatchesAuthCallback = isExpectedAuthCallbackRedirect(parsed.searchParams.get('redirect_uri'));
+
     if (pathname === '/oauth2/authorize' || pathname.endsWith('/oauth2/authorize')) {
-      return true;
+      result.isAuthAuthorizeUrl = true;
+      return result;
     }
 
     if (pathname === '/login' || pathname.endsWith('/login')) {
-      return parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+      result.isAuthAuthorizeUrl = parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+      return result;
     }
 
-    return false;
+    return result;
   } catch {
-    return false;
+    return result;
   }
 }
 
@@ -349,11 +374,20 @@ async function probeLoginRedirect(url) {
     }
   }
 
+  const authorizeContract = parseAuthAuthorizeRedirect(absoluteLocation);
+
   return {
-    ok: status >= 300 && status < 400 && Boolean(absoluteLocation) && isAuthAuthorizeUrl(absoluteLocation),
+    ok: status >= 300
+      && status < 400
+      && Boolean(absoluteLocation)
+      && authorizeContract.isAuthAuthorizeUrl
+      && authorizeContract.responseTypeCode
+      && authorizeContract.clientIdPresent
+      && authorizeContract.redirectUriMatchesAuthCallback,
     requestUrl: url,
     status,
     location: absoluteLocation,
+    authorizeContract,
   };
 }
 
@@ -367,6 +401,12 @@ async function runLoginStartFallbackProbe(startedAtUtc) {
     fallbackEnabled: true,
     startRedirectToAuthAuthorize: startProbe.ok,
     entryRedirectToAuthAuthorize: entryProbe.ok,
+    startRedirectResponseTypeCode: Boolean(startProbe?.authorizeContract?.responseTypeCode),
+    entryRedirectResponseTypeCode: Boolean(entryProbe?.authorizeContract?.responseTypeCode),
+    startRedirectClientIdPresent: Boolean(startProbe?.authorizeContract?.clientIdPresent),
+    entryRedirectClientIdPresent: Boolean(entryProbe?.authorizeContract?.clientIdPresent),
+    startRedirectUriMatchesAuthCallback: Boolean(startProbe?.authorizeContract?.redirectUriMatchesAuthCallback),
+    entryRedirectUriMatchesAuthCallback: Boolean(entryProbe?.authorizeContract?.redirectUriMatchesAuthCallback),
   };
 
   const ok = Object.values(checks).every((value) => value === true);
