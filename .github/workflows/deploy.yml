@@ -502,6 +502,7 @@ jobs:
             artifacts/dev-login-start-smoke-jobs-detail.json
             artifacts/dev-login-start-smoke-results-detail.json
             artifacts/dev-login-start-smoke-results-detail-query.json
+            artifacts/dev-login-start-smoke-gui-results-legacy-detail.json
             artifacts/dev-login-start-smoke-gui-results-legacy-detail-query.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy.json
             artifacts/dev-login-start-smoke-gui-jobs-legacy-query.json
@@ -515,6 +516,7 @@ jobs:
             artifacts/dev-alias-login-start-smoke-jobs-detail.json
             artifacts/dev-alias-login-start-smoke-results-detail.json
             artifacts/dev-alias-login-start-smoke-results-detail-query.json
+            artifacts/dev-alias-login-start-smoke-gui-results-legacy-detail.json
             artifacts/dev-alias-login-start-smoke-gui-results-legacy-detail-query.json
             artifacts/dev-alias-login-start-smoke-gui-jobs-legacy.json
             artifacts/dev-alias-login-start-smoke-gui-jobs-legacy-query.json
