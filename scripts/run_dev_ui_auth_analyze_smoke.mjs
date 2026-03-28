@@ -22,7 +22,10 @@ const outDir = configuredOutDir
   : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
-const baseOrigin = String(process.env.BASE_URL || 'https://www.dev.georanking.ch').replace(/\/+$/, '');
+const baseOrigin = normalizeOrigin(process.env.BASE_URL || 'https://www.dev.georanking.ch')
+  || 'https://www.dev.georanking.ch';
+const allowedOriginOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_ORIGINS || '').trim();
+const allowedOrigins = resolveAllowedOrigins(baseOrigin, allowedOriginOverrides);
 const guiPath = normalizeGuiPath(process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
 const expectedPostLoginPath = resolveCanonicalGuiSuccessor(guiPath);
 const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);
@@ -116,6 +119,8 @@ function printUsage(stream) {
       '  --fallback-login-start-on-missing-creds      Alias for --fallback-login-start.',
       '',
       'Environment:',
+      '  BASE_URL                                                Optional base origin (default: https://www.dev.georanking.ch).',
+      '  DEV_UI_SMOKE_ALLOWED_ORIGINS                            Optional comma-separated origin allowlist for post-login host hops.',
       '  DEV_UI_SMOKE_USERNAME / DEV_UI_SMOKE_PASSWORD           Required for full live login + analyze smoke.',
       '  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Enable degraded login-start fallback without credentials.',
     ].join('\n') + '\n'
@@ -132,22 +137,102 @@ function isTruthy(value) {
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
+function normalizeOrigin(rawOrigin) {
+  try {
+    const parsed = new URL(String(rawOrigin || '').trim());
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') {
+      return '';
+    }
+
+    const hostname = String(parsed.hostname || '').trim().toLowerCase();
+    if (!hostname) {
+      return '';
+    }
+
+    const port = String(parsed.port || '').trim();
+    const isDefaultPort = (protocol === 'https:' && (port === '' || port === '443'))
+      || (protocol === 'http:' && (port === '' || port === '80'));
+    const portSegment = isDefaultPort ? '' : `:${port}`;
+    return `${protocol}//${hostname}${portSegment}`;
+  } catch {
+    return '';
+  }
+}
+
+function isIpLiteralHostname(hostname) {
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
+function resolveAllowedOrigins(primaryOrigin, rawOverrides) {
+  const allowed = new Set();
+
+  const addOrigin = (value) => {
+    const normalized = normalizeOrigin(value);
+    if (normalized) {
+      allowed.add(normalized);
+    }
+  };
+
+  addOrigin(primaryOrigin);
+
+  const normalizedPrimary = normalizeOrigin(primaryOrigin);
+  if (normalizedPrimary) {
+    try {
+      const parsedPrimary = new URL(normalizedPrimary);
+      const hostname = parsedPrimary.hostname;
+      const protocol = parsedPrimary.protocol;
+      const portSegment = parsedPrimary.port ? `:${parsedPrimary.port}` : '';
+
+      if (hostname.startsWith('www.')) {
+        addOrigin(`${protocol}//${hostname.slice(4)}${portSegment}`);
+      } else if (hostname.includes('.') && !isIpLiteralHostname(hostname) && hostname !== 'localhost') {
+        addOrigin(`${protocol}//www.${hostname}${portSegment}`);
+      }
+    } catch {
+      // ignore alias derivation errors
+    }
+  }
+
+  const overrides = String(rawOverrides || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  for (const override of overrides) {
+    addOrigin(override);
+  }
+
+  return Array.from(allowed);
+}
+
+function isAllowedOrigin(value) {
+  const normalized = normalizeOrigin(value);
+  if (!normalized) {
+    return false;
+  }
+  return allowedOrigins.includes(normalized);
+}
+
 function normalizeGuiPath(rawPath) {
   const value = String(rawPath || '').trim() || '/gui';
   return value.startsWith('/') ? value : `/${value}`;
 }
 
 function parseRelativeUrl(rawPath) {
-  const normalized = normalizeGuiPath(rawPath);
+  const input = String(rawPath || '').trim() || '/gui';
   try {
-    const parsed = new URL(normalized, 'https://example.invalid');
+    const parsed = new URL(input, 'https://example.invalid');
+    const normalizedPathname = parsed.pathname.startsWith('/')
+      ? parsed.pathname
+      : `/${parsed.pathname}`;
     return {
-      pathname: parsed.pathname,
+      pathname: normalizedPathname,
       search: parsed.search,
     };
   } catch {
+    const normalizedFallback = normalizeGuiPath(input);
     return {
-      pathname: normalized,
+      pathname: normalizedFallback,
       search: '',
     };
   }
@@ -165,7 +250,7 @@ function resolveCanonicalGuiSuccessor(pathname) {
 function isExpectedPostLoginUrl(value) {
   try {
     const parsed = new URL(String(value || ''));
-    if (parsed.origin !== baseOrigin) return false;
+    if (!isAllowedOrigin(parsed.origin)) return false;
     if (parsed.pathname !== expectedPostLoginTarget.pathname) return false;
     if (!expectedPostLoginTarget.search) return true;
     return parsed.search === expectedPostLoginTarget.search;
@@ -416,6 +501,7 @@ async function runLoginStartFallbackProbe(startedAtUtc) {
     finishedAtUtc: new Date().toISOString(),
     target: {
       baseOrigin,
+      allowedOrigins,
       guiPath,
       expectedPostLoginPath,
       loginStartUrl,
@@ -600,7 +686,7 @@ async function ensureAnalyzeShellReady(page, baseOrigin, timeout) {
         (url) => {
           try {
             const parsed = new URL(String(url));
-            return parsed.origin === baseOrigin && parsed.pathname === '/gui';
+            return isAllowedOrigin(parsed.origin) && parsed.pathname === '/gui';
           } catch {
             return false;
           }
@@ -947,6 +1033,7 @@ async function run() {
     finishedAtUtc: new Date().toISOString(),
     target: {
       baseOrigin,
+      allowedOrigins,
       guiPath,
       expectedPostLoginPath,
       loginStartUrl,
@@ -1026,6 +1113,7 @@ run()
       finishedAtUtc: new Date().toISOString(),
       target: {
         baseOrigin,
+        allowedOrigins,
         guiPath,
         expectedPostLoginPath,
         loginStartUrl,
