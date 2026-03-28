@@ -568,34 +568,108 @@ function isIntermediateLoginRedirectUrl(value) {
   }
 }
 
-async function fetchSingleRedirectProbe(requestUrl) {
-  const response = await fetch(requestUrl, {
-    method: 'GET',
-    redirect: 'manual',
-    headers: {
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    },
-  });
+function classifyFetchRequestFailure(error) {
+  const causeCode = String(error?.cause?.code || '').trim().toUpperCase();
+  const errorCode = String(error?.code || '').trim().toUpperCase();
+  const message = String(error?.message || '').trim().toLowerCase();
+  const causeMessage = String(error?.cause?.message || '').trim().toLowerCase();
 
-  const location = String(response.headers.get('location') || '').trim();
-  const status = response.status;
-  let absoluteLocation = '';
+  const tlsCodes = new Set([
+    'CERT_HAS_EXPIRED',
+    'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+    'DEPTH_ZERO_SELF_SIGNED_CERT',
+    'SELF_SIGNED_CERT_IN_CHAIN',
+    'ERR_TLS_CERT_ALTNAME_INVALID',
+    'CERT_SIGNATURE_FAILURE',
+    'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  ]);
+  const dnsCodes = new Set(['ENOTFOUND', 'EAI_AGAIN']);
+  const timeoutCodes = new Set(['ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT']);
+  const connectionCodes = new Set(['ECONNREFUSED', 'ECONNRESET', 'EHOSTUNREACH', 'ENETUNREACH']);
 
-  if (location) {
-    try {
-      absoluteLocation = new URL(location, requestUrl).toString();
-    } catch {
-      absoluteLocation = '';
-    }
+  const candidateCodes = [causeCode, errorCode].filter(Boolean);
+
+  const normalizeSuffix = (value, fallback) => {
+    const cleaned = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    return cleaned || fallback;
+  };
+
+  const hasTlsMessage = [message, causeMessage].some((entry) => entry.includes('certificate') || entry.includes('tls'));
+
+  if (candidateCodes.some((code) => tlsCodes.has(code)) || hasTlsMessage) {
+    const suffix = normalizeSuffix(causeCode || errorCode || causeMessage, 'tls');
+    return `request_failed_tls_${suffix}`;
+  }
+  if (candidateCodes.some((code) => dnsCodes.has(code))) {
+    const suffix = normalizeSuffix(causeCode || errorCode, 'dns');
+    return `request_failed_dns_${suffix}`;
+  }
+  if (candidateCodes.some((code) => timeoutCodes.has(code))) {
+    const suffix = normalizeSuffix(causeCode || errorCode, 'timeout');
+    return `request_failed_timeout_${suffix}`;
+  }
+  if (candidateCodes.some((code) => connectionCodes.has(code))) {
+    const suffix = normalizeSuffix(causeCode || errorCode, 'connection');
+    return `request_failed_connection_${suffix}`;
   }
 
-  const authorizeContract = parseAuthAuthorizeRedirect(absoluteLocation);
-  return {
-    requestUrl,
-    status,
-    location: absoluteLocation,
-    authorizeContract,
-  };
+  if (message.includes('fetch failed') || causeMessage.includes('fetch failed')) {
+    return 'request_failed_fetch';
+  }
+
+  return 'request_failed_unknown';
+}
+
+async function fetchSingleRedirectProbe(requestUrl) {
+  try {
+    const response = await fetch(requestUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+
+    const location = String(response.headers.get('location') || '').trim();
+    const status = response.status;
+    let absoluteLocation = '';
+
+    if (location) {
+      try {
+        absoluteLocation = new URL(location, requestUrl).toString();
+      } catch {
+        absoluteLocation = '';
+      }
+    }
+
+    const authorizeContract = parseAuthAuthorizeRedirect(absoluteLocation);
+    return {
+      requestUrl,
+      status,
+      location: absoluteLocation,
+      authorizeContract,
+      requestError: null,
+    };
+  } catch (error) {
+    const normalizedError = normalizeError(error);
+    const causeCode = String(error?.cause?.code || '').trim();
+    const reason = classifyFetchRequestFailure(error);
+    return {
+      requestUrl,
+      status: 0,
+      location: '',
+      authorizeContract: parseAuthAuthorizeRedirect(''),
+      requestError: {
+        ...normalizedError,
+        code: causeCode,
+        reason,
+      },
+    };
+  }
 }
 
 async function probeLoginRedirect(url) {
@@ -609,7 +683,23 @@ async function probeLoginRedirect(url) {
       requestUrl: probe.requestUrl,
       status: probe.status,
       location: probe.location,
+      requestError: probe.requestError,
     });
+
+    if (probe.requestError) {
+      return {
+        ok: false,
+        reason: probe.requestError.reason || 'request_failed_unknown',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        requestError: probe.requestError,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
 
     if (
       isRedirectStatus(probe.status)
@@ -624,6 +714,7 @@ async function probeLoginRedirect(url) {
         status: probe.status,
         location: probe.location,
         authorizeContract: probe.authorizeContract,
+        requestError: null,
         redirectHopCount: hop,
         redirectChain,
       };
@@ -638,6 +729,7 @@ async function probeLoginRedirect(url) {
         status: probe.status,
         location: probe.location,
         authorizeContract: probe.authorizeContract,
+        requestError: null,
         redirectHopCount: hop,
         redirectChain,
       };
@@ -652,6 +744,7 @@ async function probeLoginRedirect(url) {
         status: probe.status,
         location: probe.location,
         authorizeContract: probe.authorizeContract,
+        requestError: null,
         redirectHopCount: hop,
         redirectChain,
       };
@@ -666,6 +759,7 @@ async function probeLoginRedirect(url) {
         status: probe.status,
         location: probe.location,
         authorizeContract: probe.authorizeContract,
+        requestError: null,
         redirectHopCount: hop,
         redirectChain,
       };
@@ -680,6 +774,7 @@ async function probeLoginRedirect(url) {
         status: probe.status,
         location: probe.location,
         authorizeContract: probe.authorizeContract,
+        requestError: null,
         redirectHopCount: hop,
         redirectChain,
       };
@@ -694,6 +789,7 @@ async function probeLoginRedirect(url) {
         status: probe.status,
         location: probe.location,
         authorizeContract: probe.authorizeContract,
+        requestError: null,
         redirectHopCount: hop,
         redirectChain,
       };
@@ -711,6 +807,7 @@ async function probeLoginRedirect(url) {
     status: 0,
     location: '',
     authorizeContract: parseAuthAuthorizeRedirect(''),
+    requestError: null,
     redirectHopCount: MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS,
     redirectChain,
   };
@@ -1019,11 +1116,14 @@ function emitSmokeSummary(payload, evidencePath) {
     ? payload.guardSignals.sessionExpiredSignals.join(',')
     : '';
   const guardSignalsToken = guardSignals ? toSummaryToken(guardSignals) : '-';
+  const startProbeReason = toSummaryToken(payload?.loginStartFallback?.startProbe?.reason);
+  const entryProbeReason = toSummaryToken(payload?.loginStartFallback?.entryProbe?.reason);
 
   console.error(
     `[dev-ui-auth-analyze-smoke] FAIL gui_path=${guiPathToken} run_marker=${runMarkerToken}`
     + ` failed_checks=${failedChecksToken} analyze_status=${analyzeStatus}`
     + ` phase=${phaseState} terminal_signal=${terminalSignal}`
+    + ` start_reason=${startProbeReason} entry_reason=${entryProbeReason}`
     + ` guard_signals=${guardSignalsToken} evidence=${evidenceRelPath}`
   );
 }
