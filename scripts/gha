@@ -1,4 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-GH_TOKEN="$($SCRIPT_DIR/gh_app_token.sh)" exec gh "$@"
+
+declare -a args
+args=("$@")
+
+# `gh auth status` exits non-zero when stale hosts.yml entries exist, even if GH_TOKEN
+# auth is healthy. In our GH App token flow we care about the active GH_TOKEN account.
+if [[ ${#args[@]} -ge 2 && "${args[0]}" == "auth" && "${args[1]}" == "status" ]]; then
+  has_active_flag=false
+  for arg in "${args[@]}"; do
+    if [[ "$arg" == "--active" ]]; then
+      has_active_flag=true
+      break
+    fi
+  done
+  if [[ "$has_active_flag" == false ]]; then
+    args+=("--active")
+  fi
+fi
+
+GH_TOKEN="$($SCRIPT_DIR/gh_app_token.sh)" exec gh "${args[@]}"
