@@ -43,6 +43,7 @@ def test_shared_route_helper_contains_required_gui_paths() -> None:
     assert '"/"' in content
     assert '"/gui"' in content
     assert '"/gui/history"' in content
+    assert '"/gui?view=trace&request_id=req-smoke"' in content
     assert '"/history"' in content
     assert '"/gui/jobs"' in content
     assert '"/gui/jobs?source=smoke"' in content
