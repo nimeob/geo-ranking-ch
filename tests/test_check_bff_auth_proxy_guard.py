@@ -366,6 +366,44 @@ def test_main_returns_invalid_argument_exit_code_when_hosts_collapse(monkeypatch
     assert payload["reason"].startswith("invalid_arguments:")
 
 
+def test_main_classifies_timeout_probe_exceptions(monkeypatch, capsys):
+    module = _load_module()
+
+    def _boom(**kwargs):
+        _ = kwargs
+        raise TimeoutError("timed out while connecting")
+
+    monkeypatch.setattr(module, "check_auth_proxy_guard", _boom)
+
+    exit_code = module.main(["--api-base-url", "https://api.dev.georanking.ch"])
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "request_failed_timeout_timed_out"
+    assert "timed out" in payload["error"]
+
+
+def test_main_classifies_dns_probe_exceptions(monkeypatch, capsys):
+    module = _load_module()
+
+    def _boom(**kwargs):
+        _ = kwargs
+        raise RuntimeError(
+            "request_failed_after_retries(attempts=5, timeout_seconds=15.0): "
+            "<urlopen error [Errno -2] Name or service not known>"
+        )
+
+    monkeypatch.setattr(module, "check_auth_proxy_guard", _boom)
+
+    exit_code = module.main(["--api-base-url", "https://api.dev.georanking.ch"])
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "request_failed_dns_resolution"
+
+
 def test_send_request_probe_honors_retry_after_header(monkeypatch):
     module = _load_module()
 
