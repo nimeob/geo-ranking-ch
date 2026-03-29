@@ -320,6 +320,44 @@ def test_main_writes_json_out_alias(tmp_path, capsys, monkeypatch):
     assert written["alias_host"] == "www.dev.geo-ranking.ch"
 
 
+def test_main_classifies_timeout_request_failures(monkeypatch, capsys):
+    module = _load_module()
+
+    def _boom(**kwargs):
+        _ = kwargs
+        raise TimeoutError("timed out while connecting")
+
+    monkeypatch.setattr(module, "check_canonical_redirect", _boom)
+
+    exit_code = module.main(["--base-url", "https://www.dev.georanking.ch"])
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "request_failed_timeout_timed_out"
+    assert "timed out" in payload["error"]
+
+
+def test_main_classifies_tls_cert_expired_request_failures(monkeypatch, capsys):
+    module = _load_module()
+
+    def _boom(**kwargs):
+        _ = kwargs
+        raise RuntimeError(
+            "request_failed_after_retries(attempts=3, timeout_seconds=20.0): "
+            "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired>"
+        )
+
+    monkeypatch.setattr(module, "check_canonical_redirect", _boom)
+
+    exit_code = module.main(["--base-url", "https://www.dev.georanking.ch"])
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "request_failed_tls_cert_has_expired"
+
+
 def test_send_request_probe_honors_retry_after_header(monkeypatch):
     module = _load_module()
 
