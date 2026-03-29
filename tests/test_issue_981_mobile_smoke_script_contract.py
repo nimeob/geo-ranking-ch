@@ -17,9 +17,15 @@ def test_issue_981_mobile_smoke_has_base_url_reachability_preflight() -> None:
         "function buildBaseUrlReachabilityHint(targetUrl, reasonCode)",
         "async function assertBaseUrlReachable(targetUrl, timeoutMs)",
         "await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);",
+        "tls_cert_has_expired",
+        "tls_hostname_mismatch",
+        "tls_untrusted_ca",
+        "TLS-Zertifikat ist abgelaufen",
         "BASE_URL nicht erreichbar",
         "hint=${hint}",
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
-    assert not missing, f"run_issue_981_mobile_smoke.mjs fehlt Preflight-Snippets: {missing}"
+    assert (
+        not missing
+    ), f"run_issue_981_mobile_smoke.mjs fehlt Preflight-Snippets: {missing}"
