@@ -22,8 +22,10 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
         '"/jobs"',
         '"/jobs?source=smoke"',
         '"/jobs/demo-job"',
+        '"/results"',
         '"/results/demo-result"',
         '"/results/demo-result?tab=raw&source=smoke"',
+        '"/gui/results"',
         '"/gui/results/demo-result"',
         '"/gui/results/demo-result?tab=raw&source=smoke"',
         '"/gui/jobs"',
@@ -40,8 +42,10 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
     assert "login-start-smoke-history-legacy" in content
     assert "login-start-smoke-jobs-query" in content
     assert "login-start-smoke-gui-jobs-legacy-query" in content
+    assert "login-start-smoke-results" in content
     assert "login-start-smoke-results-detail" in content
     assert "login-start-smoke-results-detail-query" in content
+    assert "login-start-smoke-gui-results-legacy" in content
     assert "login-start-smoke-gui-results-legacy-detail" in content
     assert "login-start-smoke-gui-results-legacy-detail-query" in content
 

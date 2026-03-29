@@ -51,7 +51,9 @@ def test_shared_route_helper_contains_required_gui_paths() -> None:
     assert '"/jobs?source=smoke"' in content
     assert '"/gui/jobs/demo-job"' in content
     assert '"/jobs/demo-job"' in content
+    assert '"/results"' in content
     assert '"/results/demo-result"' in content
+    assert '"/gui/results"' in content
     assert '"/results/demo-result?tab=raw&source=smoke"' in content
     assert '"/gui/results/demo-result"' in content
     assert '"/gui/results/demo-result?tab=raw&source=smoke"' in content
