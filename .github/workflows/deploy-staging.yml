@@ -555,6 +555,7 @@ jobs:
             artifacts/staging-login-start-smoke-root.json
             artifacts/staging-login-start-smoke.json
             artifacts/staging-login-start-smoke-gui-history.json
+            artifacts/staging-login-start-smoke-gui-trace-view.json
             artifacts/staging-login-start-smoke-history-legacy.json
             artifacts/staging-login-start-smoke-jobs.json
             artifacts/staging-login-start-smoke-jobs-query.json
