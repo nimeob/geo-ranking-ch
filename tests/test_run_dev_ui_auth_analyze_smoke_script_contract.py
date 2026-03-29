@@ -325,8 +325,6 @@ def test_missing_credentials_payload_includes_default_origin_alias_allowlist(
     payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
     assert payload["target"]["baseOrigin"] == "https://www.dev.georanking.ch"
     assert sorted(payload["target"]["allowedOrigins"]) == [
-        "https://dev.geo-ranking.ch",
-        "https://dev.georanking.ch",
         "https://www.dev.geo-ranking.ch",
         "https://www.dev.georanking.ch",
     ]
@@ -363,9 +361,8 @@ def test_missing_credentials_payload_normalizes_allowed_origin_overrides(
     ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
 
     payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["target"]["baseOrigin"] == "https://www.dev.georanking.ch"
     assert sorted(payload["target"]["allowedOrigins"]) == [
-        "https://dev.geo-ranking.ch",
-        "https://dev.georanking.ch",
         "https://preview.dev.geo-ranking.ch",
         "https://preview.dev.georanking.ch",
         "https://www.dev.geo-ranking.ch",
@@ -373,6 +370,9 @@ def test_missing_credentials_payload_normalizes_allowed_origin_overrides(
         "https://www.preview.dev.geo-ranking.ch",
         "https://www.preview.dev.georanking.ch",
     ]
+    assert "dev.georanking.ch" not in payload["target"]["allowedAuthorizeHosts"]
+    assert "dev.geo-ranking.ch" not in payload["target"]["allowedAuthorizeHosts"]
+    assert "auth.dev.georanking.ch" in payload["target"]["allowedAuthorizeHosts"]
 
 
 def test_missing_credentials_can_use_login_start_fallback_when_enabled(
