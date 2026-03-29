@@ -6,9 +6,126 @@ import path from 'node:path';
 const issueNumber = 1016;
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
+const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+class BaseUrlReachabilityError extends Error {
+  constructor(message, { targetUrl, reasonCode, hint, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'BaseUrlReachabilityError';
+    this.targetUrl = targetUrl || '';
+    this.reasonCode = reasonCode || 'unreachable';
+    this.hint = hint || '';
+  }
+}
+
+function compactMessage(message, maxLength = 320) {
+  const normalized = String(message || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength)}…`;
+}
+
+function normalizeError(error) {
+  const hint = typeof error?.hint === 'string' ? error.hint : '';
+  const reasonCode = typeof error?.reasonCode === 'string' ? error.reasonCode : '';
+  const targetUrl = typeof error?.targetUrl === 'string' ? error.targetUrl : '';
+
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack || '',
+      ...(hint ? { hint } : {}),
+      ...(reasonCode ? { reasonCode } : {}),
+      ...(targetUrl ? { targetUrl } : {}),
+    };
+  }
+
+  return {
+    name: 'Error',
+    message: String(error || 'unknown error'),
+    stack: '',
+    ...(hint ? { hint } : {}),
+    ...(reasonCode ? { reasonCode } : {}),
+    ...(targetUrl ? { targetUrl } : {}),
+  };
+}
+
+function isLocalHost(hostname) {
+  const host = String(hostname || '').trim().toLowerCase();
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
+
+function classifyConnectivityReason(error) {
+  const message = String(error?.message || '');
+  const causeCode = String(error?.cause?.code || '');
+  const causeName = String(error?.cause?.name || '');
+  const raw = `${message} ${causeCode} ${causeName}`.toLowerCase();
+
+  if (raw.includes('econnrefused') || raw.includes('err_connection_refused')) return 'connection_refused';
+  if (raw.includes('enotfound') || raw.includes('name_not_resolved') || raw.includes('err_name_not_resolved')) {
+    return 'dns_not_found';
+  }
+  if (raw.includes('etimedout') || raw.includes('aborted') || raw.includes('timeout')) return 'timeout';
+  if (raw.includes('econnreset') || raw.includes('err_connection_reset')) return 'connection_reset';
+  return 'unreachable';
+}
+
+function buildBaseUrlReachabilityHint(targetUrl, reasonCode) {
+  let parsed;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    return 'BASE_URL ist ungültig. Bitte vollständige URL inkl. Schema prüfen (z. B. http://127.0.0.1:8877/gui oder https://www.dev.georanking.ch/gui).';
+  }
+
+  if (isLocalHost(parsed.hostname)) {
+    return [
+      `Lokalen GUI-Server starten (Default): HOST=127.0.0.1 PORT=${parsed.port || '8877'} APP_VERSION=dev python3 -m src.web_service`,
+      `Danach Smoke erneut ausführen: BASE_URL=\"${targetUrl}\" node scripts/run_issue_1016_mobile_ux_smoke.mjs`,
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  return [
+    `Ziel-URL nicht erreichbar: ${targetUrl}`,
+    'Prüfe DNS/TLS/Ingress und ob /gui ohne Auth-Block erreichbar ist.',
+    `reason=${reasonCode}`,
+  ].join(' | ');
+}
+
+async function assertBaseUrlReachable(targetUrl, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(200, timeoutMs));
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { Accept: 'text/html,*/*;q=0.8' },
+    });
+
+    return {
+      ok: true,
+      status: response.status,
+      finalUrl: String(response.url || targetUrl),
+    };
+  } catch (error) {
+    const reasonCode = classifyConnectivityReason(error);
+    const hint = buildBaseUrlReachabilityHint(targetUrl, reasonCode);
+    throw new BaseUrlReachabilityError(
+      `BASE_URL nicht erreichbar (${reasonCode}): ${targetUrl}. reason=${compactMessage(error?.message || error, 240)}. hint=${hint}`,
+      { targetUrl, reasonCode, hint, cause: error }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function isAuthRedirectUrl(url) {
   try {
@@ -235,49 +352,104 @@ async function runPinchSmoke(page) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    userAgent:
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-    isMobile: true,
-    hasTouch: true,
-    locale: 'de-CH',
-  });
+  const startedAtUtc = new Date().toISOString();
+  let browser = null;
+  let context = null;
+  let screenshotPath = '';
+  let burger = null;
+  let pinch = null;
+  let runError = null;
 
-  const page = await openStableGuiPage(context);
+  try {
+    await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
 
-  const burger = await runBurgerSmoke(page);
-  const pinch = await runPinchSmoke(page);
+    browser = await chromium.launch({ headless: true });
+    context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      isMobile: true,
+      hasTouch: true,
+      locale: 'de-CH',
+    });
 
-  await fs.mkdir(outDir, { recursive: true });
-  const screenshotPath = path.join(outDir, `issue-${issueNumber}-mobile-ux-${stamp}.png`);
-  await page.screenshot({ path: screenshotPath, fullPage: true });
+    const page = await openStableGuiPage(context);
 
-  await context.close();
-  await browser.close();
+    burger = await runBurgerSmoke(page);
+    pinch = await runPinchSmoke(page);
+
+    await fs.mkdir(outDir, { recursive: true });
+    screenshotPath = path.join(outDir, `issue-${issueNumber}-mobile-ux-${stamp}.png`);
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+  } catch (error) {
+    runError = normalizeError(error);
+  } finally {
+    if (context) {
+      await context.close();
+    }
+    if (browser) {
+      await browser.close();
+    }
+  }
+
+  const checks =
+    runError === null
+      ? {
+          burgerMenuUx: burger,
+          pinchZoomSmoothness: pinch,
+        }
+      : {
+          bootstrap: {
+            stage: 'openStableGuiPage',
+            error: runError.message,
+            passed: false,
+          },
+        };
+
+  const ok = runError === null && burger?.passed === true && pinch?.passed === true;
+  const finishedAtUtc = new Date().toISOString();
 
   const payload = {
     issue: issueNumber,
+    startedAtUtc,
+    finishedAtUtc,
     targetUrl: baseUrl,
-    checks: {
-      burgerMenuUx: burger,
-      pinchZoomSmoothness: pinch,
-    },
-    artifacts: {
-      screenshot: path.relative(repoRoot, screenshotPath),
-    },
-    ok: burger.passed && pinch.passed,
+    baseUrlProbeTimeoutMs,
+    checks,
+    artifacts: screenshotPath
+      ? {
+          screenshot: path.relative(repoRoot, screenshotPath),
+        }
+      : {},
+    runError,
+    ok,
   };
 
   const outJson = path.join(outDir, `issue-${issueNumber}-mobile-ux-smoke-${stamp}.json`);
+  await fs.mkdir(outDir, { recursive: true });
   await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
 
   console.log(path.relative(repoRoot, outJson));
-  if (!payload.ok) process.exit(1);
+  if (!ok) process.exit(1);
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch(async (error) => {
+  const finishedAtUtc = new Date().toISOString();
+  const payload = {
+    issue: issueNumber,
+    startedAtUtc: finishedAtUtc,
+    finishedAtUtc,
+    targetUrl: baseUrl,
+    baseUrlProbeTimeoutMs,
+    checks: {},
+    artifacts: {},
+    runError: normalizeError(error),
+    ok: false,
+  };
+
+  await fs.mkdir(outDir, { recursive: true });
+  const outJson = path.join(outDir, `issue-${issueNumber}-mobile-ux-smoke-${stamp}.json`);
+  await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  console.log(path.relative(repoRoot, outJson));
   process.exit(1);
 });
