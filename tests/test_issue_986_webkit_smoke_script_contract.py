@@ -53,3 +53,20 @@ def test_webkit_smoke_script_handles_missing_playwright_dependency_with_actionab
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"Playwright-Missing-Dependency-Hints fehlen im Script: {missing}"
     assert "import { chromium, devices, webkit } from 'playwright';" not in content
+
+
+def test_webkit_smoke_script_has_base_url_reachability_preflight() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    required_snippets = [
+        "BASE_URL_PROBE_TIMEOUT_MS",
+        "class BaseUrlReachabilityError extends Error",
+        "function buildBaseUrlReachabilityHint(targetUrl, reasonCode)",
+        "async function assertBaseUrlReachable(targetUrl, timeoutMs)",
+        "await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);",
+        "BASE_URL nicht erreichbar",
+        "hint=${hint}",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, f"BASE_URL-Preflight fehlt im WebKit-Smoke-Script: {missing}"

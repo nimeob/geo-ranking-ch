@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
+const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -28,18 +29,118 @@ const devices = [
   },
 ];
 
+class BaseUrlReachabilityError extends Error {
+  constructor(message, { targetUrl, reasonCode, hint, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'BaseUrlReachabilityError';
+    this.targetUrl = targetUrl || '';
+    this.reasonCode = reasonCode || 'unreachable';
+    this.hint = hint || '';
+  }
+}
+
+function compactMessage(message, maxLength = 320) {
+  const normalized = String(message || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength)}…`;
+}
+
+function isLocalHost(hostname) {
+  const host = String(hostname || '').trim().toLowerCase();
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
+
+function classifyConnectivityReason(error) {
+  const message = String(error?.message || '');
+  const causeCode = String(error?.cause?.code || '');
+  const causeName = String(error?.cause?.name || '');
+  const raw = `${message} ${causeCode} ${causeName}`.toLowerCase();
+
+  if (raw.includes('econnrefused') || raw.includes('err_connection_refused')) return 'connection_refused';
+  if (raw.includes('enotfound') || raw.includes('name_not_resolved') || raw.includes('err_name_not_resolved')) {
+    return 'dns_not_found';
+  }
+  if (raw.includes('etimedout') || raw.includes('aborted') || raw.includes('timeout')) return 'timeout';
+  if (raw.includes('econnreset') || raw.includes('err_connection_reset')) return 'connection_reset';
+  return 'unreachable';
+}
+
+function buildBaseUrlReachabilityHint(targetUrl, reasonCode) {
+  let parsed;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    return 'BASE_URL ist ungültig. Bitte vollständige URL inkl. Schema prüfen (z. B. http://127.0.0.1:8877/gui oder https://www.dev.georanking.ch/gui).';
+  }
+
+  if (isLocalHost(parsed.hostname)) {
+    return [
+      `Lokalen GUI-Server starten (Default): HOST=127.0.0.1 PORT=${parsed.port || '8877'} APP_VERSION=dev python3 -m src.web_service`,
+      `Danach Smoke erneut ausführen: BASE_URL=\"${targetUrl}\" node scripts/run_issue_981_mobile_smoke.mjs`,
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  return [
+    `Ziel-URL nicht erreichbar: ${targetUrl}`,
+    'Prüfe DNS/TLS/Ingress und ob /gui ohne Auth-Block erreichbar ist.',
+    `reason=${reasonCode}`,
+  ].join(' | ');
+}
+
+async function assertBaseUrlReachable(targetUrl, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(200, timeoutMs));
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { Accept: 'text/html,*/*;q=0.8' },
+    });
+
+    return {
+      ok: true,
+      status: response.status,
+      finalUrl: String(response.url || targetUrl),
+    };
+  } catch (error) {
+    const reasonCode = classifyConnectivityReason(error);
+    const hint = buildBaseUrlReachabilityHint(targetUrl, reasonCode);
+    throw new BaseUrlReachabilityError(
+      `BASE_URL nicht erreichbar (${reasonCode}): ${targetUrl}. reason=${compactMessage(error?.message || error, 240)}. hint=${hint}`,
+      { targetUrl, reasonCode, hint, cause: error }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function normalizeError(error) {
+  const hint = typeof error?.hint === 'string' ? error.hint : '';
+  const reasonCode = typeof error?.reasonCode === 'string' ? error.reasonCode : '';
+  const targetUrl = typeof error?.targetUrl === 'string' ? error.targetUrl : '';
+
   if (error instanceof Error) {
     return {
       name: error.name,
       message: error.message,
       stack: error.stack || '',
+      ...(hint ? { hint } : {}),
+      ...(reasonCode ? { reasonCode } : {}),
+      ...(targetUrl ? { targetUrl } : {}),
     };
   }
   return {
     name: 'Error',
     message: String(error || 'unknown error'),
     stack: '',
+    ...(hint ? { hint } : {}),
+    ...(reasonCode ? { reasonCode } : {}),
+    ...(targetUrl ? { targetUrl } : {}),
   };
 }
 
@@ -492,6 +593,7 @@ async function main() {
 
   let browser = null;
   try {
+    await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
     browser = await chromium.launch({ headless: true });
 
     for (const device of devices) {
@@ -521,6 +623,7 @@ async function main() {
     startedAtUtc,
     finishedAtUtc,
     targetUrl: baseUrl,
+    baseUrlProbeTimeoutMs,
     limitations: [
       'Native Playwright WebKit (Safari engine) konnte auf diesem Runner wegen fehlender System-Libraries nicht gestartet werden; iOS-Check daher als iPhone-Profil-Simulator auf Chromium durchgeführt.',
     ],
@@ -545,6 +648,7 @@ main().catch(async (error) => {
     startedAtUtc: finishedAtUtc,
     finishedAtUtc,
     targetUrl: baseUrl,
+    baseUrlProbeTimeoutMs,
     checks: [],
     fatalErrors: [normalizeError(error)],
     ok: false,
