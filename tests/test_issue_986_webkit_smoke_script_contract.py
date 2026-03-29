@@ -34,7 +34,9 @@ def test_webkit_smoke_script_emits_structured_runtime_dependency_hints() -> None
     assert not missing, f"Runtime-Hints fehlen im Script: {missing}"
 
 
-def test_webkit_smoke_script_handles_missing_playwright_dependency_with_actionable_hint() -> None:
+def test_webkit_smoke_script_handles_missing_playwright_dependency_with_actionable_hint() -> (
+    None
+):
     content = SCRIPT.read_text(encoding="utf-8")
 
     required_snippets = [
@@ -51,7 +53,9 @@ def test_webkit_smoke_script_handles_missing_playwright_dependency_with_actionab
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
-    assert not missing, f"Playwright-Missing-Dependency-Hints fehlen im Script: {missing}"
+    assert (
+        not missing
+    ), f"Playwright-Missing-Dependency-Hints fehlen im Script: {missing}"
     assert "import { chromium, devices, webkit } from 'playwright';" not in content
 
 
@@ -61,9 +65,14 @@ def test_webkit_smoke_script_has_base_url_reachability_preflight() -> None:
     required_snippets = [
         "BASE_URL_PROBE_TIMEOUT_MS",
         "class BaseUrlReachabilityError extends Error",
+        "function classifyConnectivityReason(error)",
         "function buildBaseUrlReachabilityHint(targetUrl, reasonCode)",
         "async function assertBaseUrlReachable(targetUrl, timeoutMs)",
         "await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);",
+        "tls_cert_has_expired",
+        "tls_hostname_mismatch",
+        "tls_untrusted_ca",
+        "TLS-Zertifikat ist abgelaufen",
         "BASE_URL nicht erreichbar",
         "hint=${hint}",
     ]

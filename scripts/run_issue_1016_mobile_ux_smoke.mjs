@@ -65,6 +65,23 @@ function classifyConnectivityReason(error) {
   const causeCode = String(error?.cause?.code || '');
   const causeName = String(error?.cause?.name || '');
   const raw = `${message} ${causeCode} ${causeName}`.toLowerCase();
+  const upper = `${causeCode} ${causeName}`.toUpperCase();
+
+  if (upper.includes('CERT_HAS_EXPIRED') || raw.includes('certificate has expired')) return 'tls_cert_has_expired';
+  if (upper.includes('ERR_TLS_CERT_ALTNAME_INVALID') || raw.includes('hostname/ip does not match certificate')) {
+    return 'tls_hostname_mismatch';
+  }
+  if (
+    upper.includes('DEPTH_ZERO_SELF_SIGNED_CERT')
+    || upper.includes('SELF_SIGNED_CERT_IN_CHAIN')
+    || upper.includes('UNABLE_TO_VERIFY_LEAF_SIGNATURE')
+    || upper.includes('UNABLE_TO_GET_ISSUER_CERT_LOCALLY')
+    || raw.includes('self signed certificate')
+    || raw.includes('unable to verify the first certificate')
+  ) {
+    return 'tls_untrusted_ca';
+  }
+  if (raw.includes('tls') || raw.includes('certificate')) return 'tls_handshake_failed';
 
   if (raw.includes('econnrefused') || raw.includes('err_connection_refused')) return 'connection_refused';
   if (raw.includes('enotfound') || raw.includes('name_not_resolved') || raw.includes('err_name_not_resolved')) {
@@ -87,6 +104,30 @@ function buildBaseUrlReachabilityHint(targetUrl, reasonCode) {
     return [
       `Lokalen GUI-Server starten (Default): HOST=127.0.0.1 PORT=${parsed.port || '8877'} APP_VERSION=dev python3 -m src.web_service`,
       `Danach Smoke erneut ausführen: BASE_URL=\"${targetUrl}\" node scripts/run_issue_1016_mobile_ux_smoke.mjs`,
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_cert_has_expired') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Zertifikat ist abgelaufen. Zertifikat erneuern und Deploy/LB-Listener neu laden.',
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_hostname_mismatch') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Hostname-Mismatch. SAN/CN des Zertifikats gegen die Base-URL prüfen.',
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_untrusted_ca' || reasonCode === 'tls_handshake_failed') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Verifikation fehlgeschlagen. Trust-Chain/CA-Bundle und Frontdoor-Zertifikat prüfen.',
       `reason=${reasonCode}`,
     ].join(' | ');
   }
