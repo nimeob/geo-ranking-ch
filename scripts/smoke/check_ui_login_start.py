@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import socket
 import sys
 import time
 from dataclasses import dataclass
@@ -113,6 +115,107 @@ def _resolve_retry_delay(
     return min(delta_seconds, retry_cap)
 
 
+def _iter_exception_chain(exc: Exception) -> list[Exception]:
+    errors: list[Exception] = []
+    seen: set[int] = set()
+    current: Exception | None = exc
+
+    while current is not None and id(current) not in seen:
+        errors.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+
+    return errors
+
+
+def _normalize_reason_suffix(value: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower())
+    cleaned = cleaned.strip("_")
+    return cleaned or fallback
+
+
+def _classify_request_failure(exc: Exception) -> str:
+    errors = _iter_exception_chain(exc)
+    messages = [str(item or "") for item in errors]
+    combined_message = " ".join(messages).lower()
+
+    if any(isinstance(item, (TimeoutError, socket.timeout)) for item in errors) or "timed out" in combined_message:
+        return "request_failed_timeout_timed_out"
+
+    if any(isinstance(item, socket.gaierror) for item in errors) or any(
+        token in combined_message
+        for token in (
+            "name or service not known",
+            "temporary failure in name resolution",
+            "nodename nor servname provided",
+            "getaddrinfo failed",
+            "enotfound",
+            "eai_again",
+        )
+    ):
+        return "request_failed_dns_resolution"
+
+    if any(
+        isinstance(item, (ConnectionRefusedError, ConnectionResetError, ConnectionAbortedError, BrokenPipeError))
+        for item in errors
+    ):
+        connection_suffix = _normalize_reason_suffix(type(errors[0]).__name__, "connection")
+        return f"request_failed_connection_{connection_suffix}"
+
+    if any(
+        token in combined_message
+        for token in (
+            "connection refused",
+            "connection reset",
+            "connection aborted",
+            "host is down",
+            "no route to host",
+            "network is unreachable",
+            "econnrefused",
+            "econnreset",
+            "ehostunreach",
+            "enetunreach",
+        )
+    ):
+        if "connection refused" in combined_message or "econnrefused" in combined_message:
+            return "request_failed_connection_refused"
+        if "connection reset" in combined_message or "econnreset" in combined_message:
+            return "request_failed_connection_reset"
+        if "host is down" in combined_message or "no route to host" in combined_message:
+            return "request_failed_connection_host_unreachable"
+        if "network is unreachable" in combined_message or "enetunreach" in combined_message:
+            return "request_failed_connection_network_unreachable"
+        return "request_failed_connection_error"
+
+    if any(
+        token in combined_message
+        for token in (
+            "certificate",
+            "cert_has_expired",
+            "certificateverifyfailed",
+            "certificate verify failed",
+            "self signed",
+            "x509",
+            "ssl",
+            "tls",
+            "hostname mismatch",
+            "doesn't match",
+            "unable to get local issuer certificate",
+        )
+    ):
+        if "certificate has expired" in combined_message or "cert_has_expired" in combined_message:
+            return "request_failed_tls_cert_has_expired"
+        if "self signed" in combined_message:
+            return "request_failed_tls_self_signed_cert"
+        if "unable to get local issuer certificate" in combined_message:
+            return "request_failed_tls_untrusted_issuer"
+        if "hostname mismatch" in combined_message or "doesn't match" in combined_message:
+            return "request_failed_tls_hostname_mismatch"
+        return "request_failed_tls_error"
+
+    return "request_failed"
+
+
 def _send_request_probe(
     *,
     request_url: str,
@@ -186,7 +289,7 @@ def _send_request_probe(
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
-    )
+    ) from last_error
 
 
 def _send_request(
@@ -895,7 +998,7 @@ def main(argv: list[str] | None = None) -> int:
         payload = {
             "ok": False,
             "phase": "request",
-            "reason": "request_failed",
+            "reason": _classify_request_failure(exc),
             "error": str(exc),
             "request": request_meta,
         }

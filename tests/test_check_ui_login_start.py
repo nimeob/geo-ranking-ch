@@ -937,3 +937,45 @@ def test_main_includes_max_retry_delay_in_request_meta(capsys):
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["phase"] == "entry"
     assert payload["request"]["max_retry_delay"] == 4.5
+
+
+def test_classify_request_failure_detects_tls_cert_expired():
+    module = _load_module()
+
+    error = RuntimeError(
+        "request_failed_after_retries(attempts=2, timeout_seconds=5.0): "
+        "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired>"
+    )
+
+    reason = module._classify_request_failure(error)
+
+    assert reason == "request_failed_tls_cert_has_expired"
+
+
+def test_classify_request_failure_prefers_timeout_over_tls_keywords():
+    module = _load_module()
+
+    error = TimeoutError("TLS handshake timed out while connecting")
+
+    reason = module._classify_request_failure(error)
+
+    assert reason == "request_failed_timeout_timed_out"
+
+
+def test_main_emits_classified_request_failure_reason(monkeypatch, capsys):
+    module = _load_module()
+
+    def _raise_request_failure(**_kwargs):
+        raise RuntimeError(
+            "request_failed_after_retries(attempts=2, timeout_seconds=5.0): "
+            "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired>"
+        )
+
+    monkeypatch.setattr(module, "check_login_entry", _raise_request_failure)
+
+    exit_code = module.main(["--base-url", "https://www.dev.georanking.ch"])
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["phase"] == "request"
+    assert payload["reason"] == "request_failed_tls_cert_has_expired"
