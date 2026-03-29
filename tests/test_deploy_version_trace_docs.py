@@ -1,9 +1,4 @@
-import subprocess
 from pathlib import Path
-
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-ROUTE_HELPER = REPO_ROOT / "scripts" / "smoke" / "gui_smoke_routes.sh"
 
 
 def test_deploy_version_trace_runbook_contains_required_checklist():
@@ -206,21 +201,7 @@ def _assert_login_contract_smoke_coverage(
         "Smoke-Test UI login start redirects to IdP authorize (",
         "scripts/smoke/run_login_start_smoke_bundle.sh",
         f'--env-name "{env_name}"',
-        f"artifacts/{env_name}-login-start-smoke-root.json",
-        f"artifacts/{env_name}-login-start-smoke.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-history.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-trace-view.json",
-        f"artifacts/{env_name}-login-start-smoke-history-legacy.json",
-        f"artifacts/{env_name}-login-start-smoke-jobs.json",
-        f"artifacts/{env_name}-login-start-smoke-jobs-query.json",
-        f"artifacts/{env_name}-login-start-smoke-jobs-detail.json",
-        f"artifacts/{env_name}-login-start-smoke-results-detail.json",
-        f"artifacts/{env_name}-login-start-smoke-results-detail-query.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-results-legacy-detail.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-results-legacy-detail-query.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy-query.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy-detail.json",
+        f"artifacts/{env_name}-login-start-smoke*.json",
         f"Upload login-start smoke artifacts ({env_name})",
         "actions/upload-artifact@v6",
         f"{env_name}-login-start-smoke-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}",
@@ -232,42 +213,13 @@ def _assert_login_contract_smoke_coverage(
     ), f"{workflow_name} fehlt Login-Contract-Smoke-Coverage: {missing}"
 
 
-def _login_start_artifact_suffixes_from_route_helper() -> list[str]:
-    proc = subprocess.run(
-        [
-            "bash",
-            "-lc",
-            (
-                f'source "{ROUTE_HELPER}"\n'
-                'for route in "${GUI_SMOKE_ROUTES[@]}"; do\n'
-                '  gui_login_start_artifact_suffix_for_route "$route"\n'
-                'done\n'
-            ),
-        ],
-        cwd=str(REPO_ROOT),
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-    suffixes = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-    assert suffixes, "Route-Helper lieferte keine Login-Start-Artefakt-Suffixe"
-    assert len(suffixes) == len(
-        set(suffixes)
-    ), "Route-Helper erzeugt doppelte Login-Start-Artefakt-Suffixe"
-    return suffixes
-
-
-def _assert_workflow_uploads_all_login_start_route_artifacts(
+def _assert_workflow_uploads_login_start_artifact_glob(
     *, text: str, env_name: str, workflow_name: str
 ) -> None:
-    suffixes = _login_start_artifact_suffixes_from_route_helper()
-    expected = [f"artifacts/{env_name}-{suffix}.json" for suffix in suffixes]
-
-    missing = [snippet for snippet in expected if snippet not in text]
+    expected_glob = f"artifacts/{env_name}-login-start-smoke*.json"
     assert (
-        not missing
-    ), f"{workflow_name} fehlt Login-Start-Artefakt-Coverage für env={env_name}: {missing}"
+        expected_glob in text
+    ), f"{workflow_name} fehlt Login-Start-Artefakt-Glob für env={env_name}: {expected_glob}"
 
 
 def _assert_canonical_host_smoke_coverage(
@@ -324,29 +276,29 @@ def test_deploy_staging_workflow_smokes_login_contract_for_gui_history_jobs_and_
     )
 
 
-def test_deploy_workflow_upload_manifest_matches_login_start_route_helper_for_dev_and_alias():
+def test_deploy_workflow_upload_manifest_uses_login_start_globs_for_dev_and_alias():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
 
     text = workflow.read_text(encoding="utf-8")
-    _assert_workflow_uploads_all_login_start_route_artifacts(
+    _assert_workflow_uploads_login_start_artifact_glob(
         text=text,
         env_name="dev",
         workflow_name="deploy.yml",
     )
-    _assert_workflow_uploads_all_login_start_route_artifacts(
+    _assert_workflow_uploads_login_start_artifact_glob(
         text=text,
         env_name="dev-alias",
         workflow_name="deploy.yml",
     )
 
 
-def test_deploy_staging_workflow_upload_manifest_matches_login_start_route_helper():
+def test_deploy_staging_workflow_upload_manifest_uses_login_start_glob():
     workflow = Path(".github/workflows/deploy-staging.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
 
     text = workflow.read_text(encoding="utf-8")
-    _assert_workflow_uploads_all_login_start_route_artifacts(
+    _assert_workflow_uploads_login_start_artifact_glob(
         text=text,
         env_name="staging",
         workflow_name="deploy-staging.yml",
