@@ -141,8 +141,8 @@ def test_preflight_uses_staging_fallback_hint_when_base_url_contains_staging(tmp
     assert fallback["command"].endswith("--env-name staging")
 
 
-def test_workflow_uses_preflight_script_and_uploads_blocker_artifact() -> None:
+def test_workflow_runs_route_set_and_uploads_blocker_artifact() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
-    assert "run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh" in content
     assert "dev-ui-auth-analyze-smoke-blocked-*.json" in content
-    assert "run: ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh" in content
+    assert "./scripts/smoke/run_gui_live_auth_analyze_route_set.sh" in content
+    assert "fallback_login_start_on_preflight_fail" in content
