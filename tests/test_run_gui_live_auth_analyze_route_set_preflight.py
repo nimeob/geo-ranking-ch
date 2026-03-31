@@ -73,7 +73,9 @@ def test_route_set_runner_fails_fast_on_missing_secrets_without_route_fanout(
     assert payload["missing"] == ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"]
 
 
-def test_route_set_runner_rejects_unknown_cli_option_before_preflight(tmp_path: Path) -> None:
+def test_route_set_runner_rejects_unknown_cli_option_before_preflight(
+    tmp_path: Path,
+) -> None:
     env = os.environ.copy()
     env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(tmp_path / "blocked")
 
@@ -100,6 +102,7 @@ def test_route_set_runner_rejects_unknown_cli_option_before_preflight(tmp_path: 
         ("--address-file", "--headless"),
         ("--login-reason", "--headless"),
         ("--run-id-base", "--headless"),
+        ("--routes", "--headless"),
     ],
 )
 def test_route_set_runner_rejects_missing_option_value_when_next_token_is_flag(
@@ -124,7 +127,9 @@ def test_route_set_runner_rejects_missing_option_value_when_next_token_is_flag(
     assert "Usage:" in proc.stderr
 
 
-def test_route_set_runner_prints_login_start_hint_on_secret_blocker(tmp_path: Path) -> None:
+def test_route_set_runner_prints_login_start_hint_on_secret_blocker(
+    tmp_path: Path,
+) -> None:
     blocker_dir = tmp_path / "blocked"
 
     env = os.environ.copy()
@@ -149,13 +154,18 @@ def test_route_set_runner_prints_login_start_hint_on_secret_blocker(tmp_path: Pa
     )
 
     assert proc.returncode == 1
-    assert "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev" in proc.stderr
+    assert (
+        "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev"
+        in proc.stderr
+    )
 
     blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint.json"
     assert blocked_file.exists()
 
 
-def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(tmp_path: Path) -> None:
+def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
+    tmp_path: Path,
+) -> None:
     blocker_dir = tmp_path / "blocked"
     evidence_dir = tmp_path / "evidence"
 
@@ -196,7 +206,9 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(tmp_path: Pa
     assert proc.returncode == 0
     assert "login-start fallback passed" in proc.stderr
 
-    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-fallback-env.json"
+    blocked_file = (
+        blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-fallback-env.json"
+    )
     assert blocked_file.exists()
 
     fallback_artifact = evidence_dir / "dev-login-start-smoke-root.json"
@@ -204,3 +216,73 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(tmp_path: Pa
 
     payload = json.loads(fallback_artifact.read_text(encoding="utf-8"))
     assert "reason=env_reason_contract" in str(payload.get("request_url", ""))
+
+
+def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
+    tmp_path: Path,
+) -> None:
+    node_bin_dir = tmp_path / "bin"
+    node_bin_dir.mkdir(parents=True, exist_ok=True)
+    route_log = tmp_path / "route-runs.log"
+
+    fake_node = node_bin_dir / "node"
+    fake_node.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        'echo "${DEV_UI_SMOKE_GUI_PATH}|${DEV_UI_SMOKE_RUN_ID}|$*" >> "${ROUTE_LOG_FILE}"\n',
+        encoding="utf-8",
+    )
+    fake_node.chmod(0o755)
+
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
+    env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
+    env["PATH"] = f"{node_bin_dir}:{env.get('PATH', '')}"
+    env["ROUTE_LOG_FILE"] = str(route_log)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--run-id-base",
+            "manual-route-subset",
+            "--routes",
+            "/gui,/jobs?source=smoke",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0
+    assert "route 1/2: /gui (run_id=manual-route-subset-1)" in proc.stdout
+    assert "route 2/2: /jobs?source=smoke (run_id=manual-route-subset-2)" in proc.stdout
+
+    rows = [
+        line.strip()
+        for line in route_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(rows) == 2
+    assert rows[0].split("|", 2)[:2] == ["/gui", "manual-route-subset-1"]
+    assert rows[1].split("|", 2)[:2] == ["/jobs?source=smoke", "manual-route-subset-2"]
+
+
+def test_route_set_runner_rejects_invalid_route_token(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
+    env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
+
+    proc = subprocess.run(
+        [str(SCRIPT), "--routes", "gui,/jobs"],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Invalid route token: gui" in proc.stderr
+    assert "routes must start with '/'" in proc.stderr

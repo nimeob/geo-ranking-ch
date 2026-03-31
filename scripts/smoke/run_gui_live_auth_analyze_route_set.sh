@@ -14,6 +14,7 @@ Options:
   --address-file <path>   Adressliste für Analyze-Smoke (default: scripts/smoke/ch_live_addresses.txt)
   --login-reason <text>   reason-Parameter für /login (default: manual_login)
   --run-id-base <token>   Basis für DEV_UI_SMOKE_RUN_ID je Route
+  --routes <csv>          Komma-separierte Route-Liste (überschreibt GUI_SMOKE_ROUTES)
   --fallback-login-start-on-preflight-fail
                            Führt bei fehlenden Live-Secrets automatisch
                            den Login-Start-Bundle-Smoke als Fallback aus
@@ -39,8 +40,52 @@ timeout_ms_override=""
 address_file_override=""
 login_reason_override=""
 run_id_base_override=""
+routes_override=""
 headful_override=""
 fallback_login_start_on_preflight_fail="${DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL:-0}"
+
+trim_whitespace() {
+  local value="${1:-}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "${value}"
+}
+
+parse_route_csv() {
+  local raw_csv="${1:-}"
+
+  IFS=',' read -r -a _route_tokens <<< "${raw_csv}"
+
+  declare -A _seen_routes=()
+  _parsed_routes=()
+
+  local token=""
+  local route=""
+  for token in "${_route_tokens[@]}"; do
+    route="$(trim_whitespace "${token}")"
+    [[ -n "${route}" ]] || continue
+
+    if [[ "${route}" != /* ]]; then
+      echo "ERROR: Invalid route token: ${route} (routes must start with '/')" >&2
+      usage >&2
+      exit 2
+    fi
+
+    if [[ -z "${_seen_routes["${route}"]+x}" ]]; then
+      _parsed_routes+=("${route}")
+      _seen_routes["${route}"]=1
+    fi
+  done
+
+  if (( ${#_parsed_routes[@]} == 0 )); then
+    echo "ERROR: --routes produced an empty route list" >&2
+    usage >&2
+    exit 2
+  fi
+}
+
+declare -a _parsed_routes=()
+declare -a selected_routes=()
 
 require_option_value() {
   local option_name="$1"
@@ -83,6 +128,11 @@ while [[ $# -gt 0 ]]; do
     --run-id-base)
       require_option_value "--run-id-base" "${2:-}"
       run_id_base_override="$2"
+      shift 2
+      ;;
+    --routes)
+      require_option_value "--routes" "${2:-}"
+      routes_override="$2"
       shift 2
       ;;
     --fallback-login-start-on-preflight-fail)
@@ -199,13 +249,20 @@ if (( ${#GUI_SMOKE_ROUTES[@]} == 0 )); then
   exit 2
 fi
 
+if [[ -n "${routes_override}" ]]; then
+  parse_route_csv "${routes_override}"
+  selected_routes=("${_parsed_routes[@]}")
+else
+  selected_routes=("${GUI_SMOKE_ROUTES[@]}")
+fi
+
 failures=0
-for idx in "${!GUI_SMOKE_ROUTES[@]}"; do
+for idx in "${!selected_routes[@]}"; do
   ordinal="$((idx + 1))"
-  route="${GUI_SMOKE_ROUTES[$idx]}"
+  route="${selected_routes[$idx]}"
   run_id="${base_run_id}-${ordinal}"
 
-  echo "[gui-dev-live-auth-analyze-smoke] route ${ordinal}/${#GUI_SMOKE_ROUTES[@]}: ${route} (run_id=${run_id})"
+  echo "[gui-dev-live-auth-analyze-smoke] route ${ordinal}/${#selected_routes[@]}: ${route} (run_id=${run_id})"
 
   if (
     cd "${REPO_ROOT}"
