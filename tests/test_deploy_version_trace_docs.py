@@ -226,11 +226,11 @@ def _assert_canonical_host_smoke_coverage(
     *, text: str, env_name: str, workflow_name: str
 ) -> None:
     required = [
-        "Smoke-Test UI canonical-host redirect (/login?start=1 on alias host)",
-        "python3 scripts/smoke/check_ui_canonical_redirect.py",
+        "Smoke-Test UI canonical-host redirect route matrix (/login?start=1 on alias host)",
+        "scripts/smoke/run_canonical_redirect_smoke_bundle.sh",
         "UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}",
         "UI_CANONICAL_HOSTS: ${{ vars.UI_CANONICAL_HOSTS }}",
-        f"artifacts/{env_name}-canonical-host-redirect-smoke.json",
+        f'artifacts/{env_name}-canonical-host-redirect-smoke*.json',
     ]
 
     missing = [snippet for snippet in required if snippet not in text]

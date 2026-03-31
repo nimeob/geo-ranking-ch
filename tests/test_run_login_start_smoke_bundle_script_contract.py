@@ -37,6 +37,8 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
     assert not missing, f"gui_smoke_routes.sh fehlt Routen-Snippets: {missing}"
 
     assert "gui_login_start_artifact_suffix_for_route" in content
+    assert "gui_canonical_redirect_artifact_suffix_for_route" in content
+    assert "${login_suffix/login-start-smoke/canonical-host-redirect-smoke}" in content
     assert "login-start-smoke-root" in content
     assert "login-start-smoke-gui-trace-view" in content
     assert "login-start-smoke-history-legacy" in content
@@ -48,6 +50,7 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
     assert "login-start-smoke-gui-results-legacy" in content
     assert "login-start-smoke-gui-results-legacy-detail" in content
     assert "login-start-smoke-gui-results-legacy-detail-query" in content
+    assert "canonical-host-redirect-smoke" in content
 
 
 def test_login_start_bundle_script_uses_shared_route_helper_and_probe_loop() -> None:
