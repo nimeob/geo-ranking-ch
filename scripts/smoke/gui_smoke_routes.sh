@@ -81,3 +81,11 @@ gui_login_start_artifact_suffix_for_route() {
       ;;
   esac
 }
+
+gui_canonical_redirect_artifact_suffix_for_route() {
+  local route="${1:-}"
+  local login_suffix=""
+
+  login_suffix="$(gui_login_start_artifact_suffix_for_route "${route}")" || return 1
+  echo "${login_suffix/login-start-smoke/canonical-host-redirect-smoke}"
+}
