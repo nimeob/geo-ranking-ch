@@ -342,6 +342,14 @@ if ! (
       "${fallback_route_args[@]}"
     )
 
+    fallback_effective_cmd="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name} --output-dir ${fallback_output_dir} --reason ${fallback_login_reason}"
+    if [[ -n "${route_presets_override}" ]]; then
+      fallback_effective_cmd+=" --route-presets \"${selected_route_presets_csv}\""
+    elif [[ -n "${routes_override}" ]]; then
+      fallback_effective_cmd+=" --routes \"${selected_routes_csv}\""
+    fi
+    echo "[gui-live-smoke-preflight] fallback_login_start_smoke=${fallback_effective_cmd}" >&2
+
     if (
       cd "${REPO_ROOT}"
       "${fallback_cmd[@]}"
