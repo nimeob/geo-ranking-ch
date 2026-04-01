@@ -80,3 +80,18 @@
   - `pytest -q tests/test_run_gui_live_auth_analyze_route_set_preflight.py` → **16 passed**
   - `pytest -q tests/test_run_gui_live_auth_analyze_route_set_preflight.py tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py` → **30 passed**
 - Nächstes Paket (direkt danach): weitere ROI-Härtung der Smoke-Runner-Operatorik (Fehlermeldungen/Artefakt-Transparenz) entlang echter DEV-Checks.
+
+## 2026-04-01 05:35 CET — Unterstützte Routen bei CSV-Fehlern sichtbar gemacht
+- Folge-ROI aus Operatorik: Bei `--routes`-Fehleingaben war zwar der fehlerhafte Token sichtbar, aber nicht sofort die gültige Matrix.
+- Umsetzung in `scripts/smoke/gui_smoke_routes.sh`:
+  - neue Helper `gui_smoke_supported_routes_csv` + `gui_smoke_print_supported_routes_hint`.
+  - Bei `invalid` und `unsupported` Route-Tokens wird jetzt zusätzlich `HINT: Supported routes: ...` ausgegeben.
+- Wirkung: gilt automatisch für alle Bundle-Runner, die den Shared-Parser nutzen (`run_gui_live_auth_analyze_route_set.sh`, `run_login_start_smoke_bundle.sh`, `run_canonical_redirect_smoke_bundle.sh`).
+- Tests aktualisiert:
+  - `tests/test_run_gui_live_auth_analyze_route_set_preflight.py`
+  - `tests/test_run_login_start_smoke_bundle_script_contract.py`
+  - `tests/test_run_canonical_redirect_smoke_bundle_script_contract.py`
+  - Lokal: `pytest -q ...` (alle drei Dateien) → **30 passed**.
+- Live-Sanity:
+  - `run_gui_live_auth_analyze_route_set.sh --base-url https://www.dev.georanking.ch --routes "/gui,/jobs?source=smoke"` (ohne Secrets) zeigt jetzt fallback-Hints inkl. normalisiertem Route-Subset.
+- Nächstes Paket: weitere Smoke-UX-Härtung (präzisere Blocker-/Fallback-Evidence) falls nächtliche Runs erneute Ambiguitäten zeigen.

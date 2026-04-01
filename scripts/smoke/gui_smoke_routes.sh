@@ -43,6 +43,20 @@ gui_smoke_route_is_supported() {
   return 1
 }
 
+gui_smoke_supported_routes_csv() {
+  local IFS=','
+  printf '%s' "${GUI_SMOKE_ROUTES[*]}"
+}
+
+gui_smoke_print_supported_routes_hint() {
+  local supported_routes_csv=""
+
+  supported_routes_csv="$(gui_smoke_supported_routes_csv)"
+  if [[ -n "${supported_routes_csv}" ]]; then
+    echo "HINT: Supported routes: ${supported_routes_csv}" >&2
+  fi
+}
+
 gui_smoke_parse_route_csv() {
   local raw_csv="${1:-}"
   local token=""
@@ -68,11 +82,13 @@ gui_smoke_parse_route_csv() {
 
     if [[ "${route}" != /* ]]; then
       echo "ERROR: Invalid route token: ${route} (routes must start with '/')" >&2
+      gui_smoke_print_supported_routes_hint
       return 1
     fi
 
     if ! gui_smoke_route_is_supported "${route}"; then
       echo "ERROR: Unsupported route token: ${route}" >&2
+      gui_smoke_print_supported_routes_hint
       return 1
     fi
 

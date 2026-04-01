@@ -377,6 +377,8 @@ def test_route_set_runner_rejects_invalid_route_token(tmp_path: Path) -> None:
     assert proc.returncode == 2
     assert "Invalid route token: gui" in proc.stderr
     assert "routes must start with '/'" in proc.stderr
+    assert "HINT: Supported routes:" in proc.stderr
+    assert "/gui" in proc.stderr
 
 
 def test_route_set_runner_rejects_unsupported_route_token(tmp_path: Path) -> None:
@@ -395,3 +397,5 @@ def test_route_set_runner_rejects_unsupported_route_token(tmp_path: Path) -> Non
 
     assert proc.returncode == 2
     assert "Unsupported route token: /definitely-not-in-smoke-matrix" in proc.stderr
+    assert "HINT: Supported routes:" in proc.stderr
+    assert "/gui" in proc.stderr
