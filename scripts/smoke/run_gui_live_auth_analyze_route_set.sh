@@ -188,6 +188,11 @@ esac
 fallback_output_dir="${output_dir_override:-${DEV_UI_SMOKE_EVIDENCE_DIR:-${DEV_UI_SMOKE_BLOCKER_DIR:-reports/evidence}}}"
 fallback_login_reason="${login_reason_override:-${DEV_UI_SMOKE_LOGIN_REASON:-manual_login}}"
 
+declare -a fallback_route_args=()
+if [[ -n "${routes_override}" ]]; then
+  fallback_route_args=(--routes "${selected_routes_csv}")
+fi
+
 if ! (
   cd "${REPO_ROOT}"
   DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
@@ -208,13 +213,11 @@ if ! (
       --env-name "${fallback_env_name}"
       --output-dir "${fallback_output_dir}"
       --reason "${fallback_login_reason}"
+      "${fallback_route_args[@]}"
     )
 
     if (
       cd "${REPO_ROOT}"
-      if [[ -n "${routes_override}" ]]; then
-        fallback_cmd+=(--routes "${selected_routes_csv}")
-      fi
       "${fallback_cmd[@]}"
     ); then
       echo "WARN: login-start fallback passed; live-auth route fan-out skipped." >&2
@@ -225,11 +228,18 @@ if ! (
     exit 1
   fi
 
+  fallback_login_start_hint="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name}"
+  fallback_auto_hint="./scripts/smoke/run_gui_live_auth_analyze_route_set.sh --base-url ${fallback_base_url} --fallback-login-start-on-preflight-fail"
+  if (( ${#fallback_route_args[@]} > 0 )); then
+    fallback_login_start_hint+=" --routes ${selected_routes_csv}"
+    fallback_auto_hint+=" --routes ${selected_routes_csv}"
+  fi
+
   echo "ERROR: live-auth route-set preflight failed; aborting route fan-out." >&2
   echo "HINT: If live credentials are unavailable, run login-start coverage instead:" >&2
-  echo "  ./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name}" >&2
+  echo "  ${fallback_login_start_hint}" >&2
   echo "HINT: Or opt into automatic fallback for this run:" >&2
-  echo "  ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh --fallback-login-start-on-preflight-fail" >&2
+  echo "  ${fallback_auto_hint}" >&2
   exit 1
 fi
 

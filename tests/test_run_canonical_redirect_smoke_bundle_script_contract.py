@@ -111,4 +111,6 @@ def test_canonical_redirect_bundle_rejects_unsupported_routes_csv() -> None:
 
     assert proc.returncode == 2
     assert "Unsupported route token: /not-in-matrix" in proc.stderr
+    assert "HINT: Supported routes:" in proc.stderr
+    assert "/gui" in proc.stderr
     assert "Usage:" in proc.stderr

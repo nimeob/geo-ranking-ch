@@ -163,6 +163,48 @@ def test_route_set_runner_prints_login_start_hint_on_secret_blocker(
     assert blocked_file.exists()
 
 
+def test_route_set_runner_hint_preserves_normalized_route_subset_on_secret_blocker(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--run-id-base",
+            "manual-hint-routes",
+            "--output-dir",
+            str(blocker_dir),
+            "--routes",
+            " /gui , /jobs?source=smoke , /gui ",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert (
+        "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch "
+        "--env-name dev --routes /gui,/jobs?source=smoke"
+    ) in proc.stderr
+    assert (
+        "run_gui_live_auth_analyze_route_set.sh --base-url https://www.dev.georanking.ch "
+        "--fallback-login-start-on-preflight-fail --routes /gui,/jobs?source=smoke"
+    ) in proc.stderr
+
+    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-routes.json"
+    assert blocked_file.exists()
+
+
 def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
     tmp_path: Path,
 ) -> None:
@@ -335,6 +377,8 @@ def test_route_set_runner_rejects_invalid_route_token(tmp_path: Path) -> None:
     assert proc.returncode == 2
     assert "Invalid route token: gui" in proc.stderr
     assert "routes must start with '/'" in proc.stderr
+    assert "HINT: Supported routes:" in proc.stderr
+    assert "/gui" in proc.stderr
 
 
 def test_route_set_runner_rejects_unsupported_route_token(tmp_path: Path) -> None:
@@ -353,3 +397,5 @@ def test_route_set_runner_rejects_unsupported_route_token(tmp_path: Path) -> Non
 
     assert proc.returncode == 2
     assert "Unsupported route token: /definitely-not-in-smoke-matrix" in proc.stderr
+    assert "HINT: Supported routes:" in proc.stderr
+    assert "/gui" in proc.stderr
