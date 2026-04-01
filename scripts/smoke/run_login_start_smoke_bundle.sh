@@ -9,6 +9,7 @@ TIMEOUT_SECONDS="20"
 MAX_ATTEMPTS="8"
 RETRY_DELAY_SECONDS="5"
 EXPECTED_AUTHORIZE_HOST=""
+ROUTES_CSV=""
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/smoke/gui_smoke_routes.sh
 source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
@@ -25,6 +26,7 @@ Options:
   --timeout <seconds>           Request-Timeout je Probe (default: 20)
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
   --retry-delay <seconds>       Delay zwischen Retries (default: 5)
+  --routes <csv>                Optionale CSV-Route-Subset aus GUI_SMOKE_ROUTES
   --expected-authorize-host <h> Erwarteter Host für absolute authorize-Redirects
                                 (hostname, host:port oder URL; optional;
                                  default: auth.<base-host> + <base-host>)
@@ -77,6 +79,11 @@ while [ "$#" -gt 0 ]; do
     --retry-delay)
       require_option_value "--retry-delay" "${2:-}"
       RETRY_DELAY_SECONDS="$2"
+      shift 2
+      ;;
+    --routes)
+      require_option_value "--routes" "${2:-}"
+      ROUTES_CSV="$2"
       shift 2
       ;;
     --expected-authorize-host)
@@ -152,10 +159,17 @@ PY
 )"
 fi
 
-if (( ${#GUI_SMOKE_ROUTES[@]} == 0 )); then
-  echo "::error::GUI_SMOKE_ROUTES is empty" >&2
+if ! gui_smoke_parse_route_csv "$ROUTES_CSV"; then
+  usage >&2
   exit 2
 fi
+
+if (( ${#GUI_SMOKE_SELECTED_ROUTES[@]} == 0 )); then
+  echo "::error::Resolved route set is empty" >&2
+  exit 2
+fi
+
+selected_routes=("${GUI_SMOKE_SELECTED_ROUTES[@]}")
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -178,7 +192,7 @@ declare -a failed_routes=()
 
 declare -A route_rc=()
 set +e
-for route in "${GUI_SMOKE_ROUTES[@]}"; do
+for route in "${selected_routes[@]}"; do
   suffix="$(gui_login_start_artifact_suffix_for_route "$route")" || {
     echo "::error::No artifact suffix mapping for route=${route}" >&2
     exit 2
@@ -190,7 +204,7 @@ for route in "${GUI_SMOKE_ROUTES[@]}"; do
 done
 set -e
 
-for route in "${GUI_SMOKE_ROUTES[@]}"; do
+for route in "${selected_routes[@]}"; do
   rc="${route_rc[$route]:-1}"
   if [ "$rc" -ne 0 ]; then
     failed_routes+=("${route} (rc=${rc})")
