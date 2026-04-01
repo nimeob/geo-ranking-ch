@@ -18,6 +18,8 @@ def test_canonical_redirect_bundle_script_uses_shared_route_helper_and_probe_loo
     assert "gui_smoke_parse_route_csv" in content
     assert "check_ui_canonical_redirect.py" in content
     assert 'run_probe "$route" "$output_json"' in content
+    assert "write_bundle_summary" in content
+    assert "canonical-host-redirect-smoke-bundle-summary.json" in content
 
 
 def test_canonical_redirect_bundle_requires_base_url_and_env_name() -> None:
