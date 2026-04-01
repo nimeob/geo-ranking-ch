@@ -63,3 +63,20 @@
   - `python3 scripts/smoke/check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch` → **ok**, nicht mehr `skipped`, Alias automatisch `www.dev.geo-ranking.ch`.
 - Blocker/Entscheidung:
   - Browser-Tool war heute Nacht im Runner nicht verfügbar (`browser.open` timeout / Gateway-Hinweis). Deshalb UI-Verifikation über Live-HTTP-Smokes fortgeführt statt GUI-Interaktion zu blockieren.
+
+## 2026-04-01 05:30 CET — Route-Subset-Hints im Live-Auth-Runner gehärtet
+- Live-Verifikation gegen DEV durchgeführt:
+  - `check_ui_login_start.py --base-url https://www.dev.georanking.ch` → **ok**
+  - `check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch` → **ok**
+  - `check_bff_auth_proxy_guard.py --api-base-url https://api.dev.georanking.ch --ui-base-url https://www.dev.georanking.ch` → **ok**
+  - `run_gui_live_auth_analyze_route_set.sh --fallback-login-start-on-preflight-fail --routes "/,/gui,/jobs/demo-job"` → erwarteter **degraded fallback** (fehlende Live-Secrets), Login-Start-Bundle **ok**.
+- ROI-Gap identifiziert: Bei Preflight-Blockern verloren die CLI-Hints die explizite `--routes`-Auswahl; dadurch drohten unnötig breite Retests.
+- Umsetzung in `run_gui_live_auth_analyze_route_set.sh`:
+  - Route-Subset einmal zentral normalisiert (`fallback_route_args`) und sowohl für den echten Fallback-Run als auch für die Manual-Hints genutzt.
+  - Fehler-Hints tragen jetzt optional `--routes <normalisierte_subset_csv>` sowohl für `run_login_start_smoke_bundle.sh` als auch für den Auto-Fallback-Aufruf.
+- Regressionstest ergänzt:
+  - `tests/test_run_gui_live_auth_analyze_route_set_preflight.py` prüft jetzt, dass bei Secret-Blockern + whitespace/duplicate-CSV die Hinweise das normalisierte Subset (`/gui,/jobs?source=smoke`) enthalten.
+- Teststatus lokal:
+  - `pytest -q tests/test_run_gui_live_auth_analyze_route_set_preflight.py` → **16 passed**
+  - `pytest -q tests/test_run_gui_live_auth_analyze_route_set_preflight.py tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py` → **30 passed**
+- Nächstes Paket (direkt danach): weitere ROI-Härtung der Smoke-Runner-Operatorik (Fehlermeldungen/Artefakt-Transparenz) entlang echter DEV-Checks.
