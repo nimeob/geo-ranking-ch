@@ -146,3 +146,4 @@ def test_workflow_runs_route_set_and_uploads_blocker_artifact() -> None:
     assert "dev-ui-auth-analyze-smoke-blocked-*.json" in content
     assert "./scripts/smoke/run_gui_live_auth_analyze_route_set.sh" in content
     assert "fallback_login_start_on_preflight_fail" in content
+    assert "route_presets" in content

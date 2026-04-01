@@ -19,8 +19,10 @@ def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> Non
     assert "cmd=(./scripts/smoke/run_gui_live_auth_analyze_route_set.sh)" in content
     assert "inputs:" in content
     assert "routes:" in content
+    assert "route_presets:" in content
     assert "timeout_ms:" in content
     assert "fallback_login_start_on_preflight_fail:" in content
+    assert "inputs.routes und inputs.route_presets dürfen nicht gleichzeitig gesetzt werden" in content
     assert "gui-dev-live-auth-analyze-smoke-artifacts" in content
     assert (
         "gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}"

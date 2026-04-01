@@ -103,6 +103,7 @@ def test_route_set_runner_rejects_unknown_cli_option_before_preflight(
         ("--login-reason", "--headless"),
         ("--run-id-base", "--headless"),
         ("--routes", "--headless"),
+        ("--route-presets", "--headless"),
     ],
 )
 def test_route_set_runner_rejects_missing_option_value_when_next_token_is_flag(
@@ -240,6 +241,41 @@ def test_route_set_runner_hint_quotes_route_subset_with_query_ampersand(
     blocked_file = (
         blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-routes-query.json"
     )
+    assert blocked_file.exists()
+
+
+def test_route_set_runner_hint_preserves_normalized_route_presets_on_secret_blocker(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--run-id-base",
+            "manual-hint-presets",
+            "--output-dir",
+            str(blocker_dir),
+            "--route-presets",
+            " CORE , trace , core ",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert '--route-presets "core,trace"' in proc.stderr
+
+    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-presets.json"
     assert blocked_file.exists()
 
 
@@ -398,6 +434,62 @@ def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
     assert rows[1].split("|", 2)[:2] == ["/jobs?source=smoke", "manual-route-subset-2"]
 
 
+def test_route_set_runner_accepts_route_presets_and_uses_ordinal_run_ids(
+    tmp_path: Path,
+) -> None:
+    node_bin_dir = tmp_path / "bin"
+    node_bin_dir.mkdir(parents=True, exist_ok=True)
+    route_log = tmp_path / "route-runs.log"
+
+    fake_node = node_bin_dir / "node"
+    fake_node.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        'echo "${DEV_UI_SMOKE_GUI_PATH}|${DEV_UI_SMOKE_RUN_ID}|$*" >> "${ROUTE_LOG_FILE}"\n',
+        encoding="utf-8",
+    )
+    fake_node.chmod(0o755)
+
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
+    env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
+    env["PATH"] = f"{node_bin_dir}:{env.get('PATH', '')}"
+    env["ROUTE_LOG_FILE"] = str(route_log)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--run-id-base",
+            "manual-route-presets",
+            "--route-presets",
+            "trace,minimal",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0
+    assert "route 1/3: /gui?view=trace&request_id=req-smoke (run_id=manual-route-presets-1)" in proc.stdout
+    assert "route 2/3: / (run_id=manual-route-presets-2)" in proc.stdout
+    assert "route 3/3: /gui (run_id=manual-route-presets-3)" in proc.stdout
+
+    rows = [
+        line.strip()
+        for line in route_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(rows) == 3
+    assert rows[0].split("|", 2)[:2] == [
+        "/gui?view=trace&request_id=req-smoke",
+        "manual-route-presets-1",
+    ]
+    assert rows[1].split("|", 2)[:2] == ["/", "manual-route-presets-2"]
+    assert rows[2].split("|", 2)[:2] == ["/gui", "manual-route-presets-3"]
+
+
 def test_route_set_runner_rejects_invalid_route_token(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
@@ -437,3 +529,41 @@ def test_route_set_runner_rejects_unsupported_route_token(tmp_path: Path) -> Non
     assert "Unsupported route token: /definitely-not-in-smoke-matrix" in proc.stderr
     assert "HINT: Supported routes:" in proc.stderr
     assert "/gui" in proc.stderr
+
+
+def test_route_set_runner_rejects_unsupported_route_preset(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
+    env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
+
+    proc = subprocess.run(
+        [str(SCRIPT), "--route-presets", "unknown-preset"],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Unsupported route preset: unknown-preset" in proc.stderr
+    assert "HINT: Supported route presets:" in proc.stderr
+
+
+def test_route_set_runner_rejects_routes_and_presets_combination(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
+    env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
+
+    proc = subprocess.run(
+        [str(SCRIPT), "--routes", "/gui", "--route-presets", "core"],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" in proc.stderr
+    assert "Usage:" in proc.stderr
