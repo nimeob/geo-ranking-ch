@@ -17,6 +17,7 @@ ROUTE_PRESETS_CSV=""
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/smoke/gui_smoke_routes.sh
 source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
+SCRIPT_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 usage() {
   cat <<'EOF'
@@ -164,8 +165,80 @@ if (( ${#GUI_SMOKE_SELECTED_ROUTES[@]} == 0 )); then
 fi
 
 selected_routes=("${GUI_SMOKE_SELECTED_ROUTES[@]}")
+selected_route_presets=("${GUI_SMOKE_SELECTED_PRESETS[@]}")
 
 mkdir -p "$OUTPUT_DIR"
+
+write_bundle_summary() {
+  local status="$1"
+  local summary_path="$2"
+  local finished_at="$3"
+  local route_rows="$4"
+
+  SUMMARY_BASE_URL="$BASE_URL" \
+  SUMMARY_ENV_NAME="$ENV_NAME" \
+  SUMMARY_REASON="$REASON" \
+  SUMMARY_CANONICAL_ORIGIN="$CANONICAL_ORIGIN" \
+  SUMMARY_CANONICAL_HOSTS="$CANONICAL_HOSTS" \
+  SUMMARY_ALIAS_HOST="$ALIAS_HOST" \
+  SUMMARY_STATUS="$status" \
+  SUMMARY_STARTED_AT="$SCRIPT_STARTED_AT" \
+  SUMMARY_FINISHED_AT="$finished_at" \
+  SUMMARY_SELECTED_ROUTES="$(printf '%s\n' "${selected_routes[@]}")" \
+  SUMMARY_SELECTED_ROUTE_PRESETS="$(printf '%s\n' "${selected_route_presets[@]:-}")" \
+  SUMMARY_FAILED_ROUTES="$(printf '%s\n' "${failed_route_paths[@]:-}")" \
+  SUMMARY_ROUTE_ROWS="$route_rows" \
+  python3 - "$summary_path" <<'PY'
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+
+def _split_lines(name: str) -> list[str]:
+    return [line for line in os.environ.get(name, "").splitlines() if line]
+
+
+def _parse_route_rows(raw_rows: str) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for line in raw_rows.splitlines():
+        if not line:
+            continue
+        route, rc_raw, artifact = line.split("\t", 2)
+        rc = int(rc_raw)
+        rows.append(
+            {
+                "route": route,
+                "status": "passed" if rc == 0 else "failed",
+                "rc": rc,
+                "artifact": artifact,
+            }
+        )
+    return rows
+
+
+summary = {
+    "status": os.environ.get("SUMMARY_STATUS", "unknown"),
+    "base_url": os.environ.get("SUMMARY_BASE_URL", ""),
+    "env_name": os.environ.get("SUMMARY_ENV_NAME", ""),
+    "reason": os.environ.get("SUMMARY_REASON", ""),
+    "canonical_origin": os.environ.get("SUMMARY_CANONICAL_ORIGIN", ""),
+    "canonical_hosts": os.environ.get("SUMMARY_CANONICAL_HOSTS", ""),
+    "alias_host": os.environ.get("SUMMARY_ALIAS_HOST", ""),
+    "started_at": os.environ.get("SUMMARY_STARTED_AT", ""),
+    "finished_at": os.environ.get("SUMMARY_FINISHED_AT", ""),
+    "selected_routes": _split_lines("SUMMARY_SELECTED_ROUTES"),
+    "selected_route_presets": _split_lines("SUMMARY_SELECTED_ROUTE_PRESETS"),
+    "failed_routes": _split_lines("SUMMARY_FAILED_ROUTES"),
+    "routes": _parse_route_rows(os.environ.get("SUMMARY_ROUTE_ROWS", "")),
+}
+
+summary_path = Path(sys.argv[1])
+summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+}
 
 run_probe() {
   local route="$1"
@@ -196,8 +269,10 @@ run_probe() {
 }
 
 declare -a failed_routes=()
+declare -a failed_route_paths=()
 
 declare -A route_rc=()
+declare -A route_artifact=()
 set +e
 for route in "${selected_routes[@]}"; do
   suffix="$(gui_canonical_redirect_artifact_suffix_for_route "$route")" || {
@@ -208,6 +283,7 @@ for route in "${selected_routes[@]}"; do
   output_json="${OUTPUT_DIR}/${ENV_NAME}-${suffix}.json"
   run_probe "$route" "$output_json"
   route_rc["$route"]=$?
+  route_artifact["$route"]="$output_json"
 done
 set -e
 
@@ -215,12 +291,27 @@ for route in "${selected_routes[@]}"; do
   rc="${route_rc[$route]:-1}"
   if [ "$rc" -ne 0 ]; then
     failed_routes+=("${route} (rc=${rc})")
+    failed_route_paths+=("${route}")
   fi
 done
 
+bundle_summary_path="${OUTPUT_DIR}/${ENV_NAME}-canonical-host-redirect-smoke-bundle-summary.json"
+summary_rows=""
+for route in "${selected_routes[@]}"; do
+  rc="${route_rc[$route]:-1}"
+  artifact_path="${route_artifact[$route]:-}"
+  summary_rows+="${route}"$'\t'"${rc}"$'\t'"${artifact_path}"$'\n'
+done
+
+bundle_status="passed"
 if (( ${#failed_routes[@]} > 0 )); then
-  echo "::error::UI canonical-host redirect smoke failed for ${#failed_routes[@]} route(s): ${failed_routes[*]}. See ${OUTPUT_DIR}/${ENV_NAME}-canonical-host-redirect-smoke*.json"
+  bundle_status="failed"
+fi
+write_bundle_summary "$bundle_status" "$bundle_summary_path" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$summary_rows"
+
+if (( ${#failed_routes[@]} > 0 )); then
+  echo "::error::UI canonical-host redirect smoke failed for ${#failed_routes[@]} route(s): ${failed_routes[*]}. See ${OUTPUT_DIR}/${ENV_NAME}-canonical-host-redirect-smoke*.json and ${bundle_summary_path}"
   exit 1
 fi
 
-echo "UI canonical-host redirect smoke bundle passed for env='${ENV_NAME}' (base_url=${BASE_URL})"
+echo "UI canonical-host redirect smoke bundle passed for env='${ENV_NAME}' (base_url=${BASE_URL}, summary=${bundle_summary_path})"

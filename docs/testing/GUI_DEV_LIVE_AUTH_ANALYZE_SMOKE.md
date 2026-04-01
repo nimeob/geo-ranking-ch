@@ -105,6 +105,10 @@ Optional:
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1` oder `--fallback-login-start-on-preflight-fail`
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1` (nur Single-Route-Script; nutzt Login-Start-Fallback statt hard fail)
 
+Die Bundle-Skripte schreiben zusätzlich ein kompaktes Summary-Artefakt je Lauf:
+- Login-Start: `<output-dir>/<env>-login-start-smoke-bundle-summary.json`
+- Canonical Redirect: `<output-dir>/<env>-canonical-host-redirect-smoke-bundle-summary.json`
+
 ### Workflow-Dispatch Beispiele
 
 Gezielter Retest nur auf zwei Routen:

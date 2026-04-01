@@ -64,6 +64,8 @@ def test_login_start_bundle_script_uses_shared_route_helper_and_probe_loop() -> 
     assert "GUI_SMOKE_ROUTES" in content
     assert "gui_login_start_artifact_suffix_for_route" in content
     assert 'run_probe "$route" "$output_json"' in content
+    assert "write_bundle_summary" in content
+    assert "login-start-smoke-bundle-summary.json" in content
 
 
 def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
