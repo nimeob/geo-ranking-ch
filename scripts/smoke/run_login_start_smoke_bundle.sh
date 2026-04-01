@@ -33,7 +33,8 @@ Options:
                                 (Alternative zu --routes)
   --expected-authorize-host <h> Erwarteter Host für absolute authorize-Redirects
                                 (hostname, host:port oder URL; optional;
-                                 default: auth.<base-host> + <base-host>)
+                                 default: auth.<base-host-without-www> + <base-host>
+                                 bei www-Origins; ansonsten auth.<base-host> + <base-host>)
 EOF
 }
 
@@ -151,9 +152,10 @@ if not host:
 seed_hosts = []
 if host.startswith("www.") and len(host) > 4:
     bare_host = host[4:]
+    # Harden default allow-list: keep canonical UI host + auth host,
+    # but do not silently allow the legacy bare host variant.
     seed_hosts.append(f"auth.{bare_host}")
     seed_hosts.append(host)
-    seed_hosts.append(bare_host)
 else:
     seed_hosts.append(f"auth.{host}")
     seed_hosts.append(host)
