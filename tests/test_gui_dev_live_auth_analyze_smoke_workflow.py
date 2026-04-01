@@ -15,8 +15,12 @@ def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> Non
     content = WORKFLOW.read_text(encoding="utf-8")
 
     assert "strategy:" not in content
-    assert "Run DEV live UI auth+analyze smoke (all routes)" in content
-    assert "run: ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh" in content
+    assert "Run DEV live UI auth+analyze smoke route set" in content
+    assert "cmd=(./scripts/smoke/run_gui_live_auth_analyze_route_set.sh)" in content
+    assert "inputs:" in content
+    assert "routes:" in content
+    assert "timeout_ms:" in content
+    assert "fallback_login_start_on_preflight_fail:" in content
     assert "gui-dev-live-auth-analyze-smoke-artifacts" in content
     assert (
         "gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}"
