@@ -109,6 +109,12 @@ Die Bundle-Skripte schreiben zusätzlich ein kompaktes Summary-Artefakt je Lauf:
 - Login-Start: `<output-dir>/<env>-login-start-smoke-bundle-summary.json`
 - Canonical Redirect: `<output-dir>/<env>-canonical-host-redirect-smoke-bundle-summary.json`
 
+Der Route-Set-Runner schreibt ebenfalls ein Summary-Artefakt (für Live- und Fallback-Läufe):
+- Live/Fallback-Route-Set: `<output-dir>/<env>-ui-auth-analyze-route-set-summary.json`
+  - `mode=live_auth_analyze` bei echten Route-Fanout-Läufen
+  - `mode=fallback_login_start` bei degradierter Login-Start-Fallback-Coverage
+  - `status=blocked` bei Preflight-Abbruch ohne aktivierten Fallback
+
 ### Workflow-Dispatch Beispiele
 
 Gezielter Retest nur auf zwei Routen:
