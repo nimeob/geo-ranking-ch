@@ -33,7 +33,8 @@ Options:
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
   --retry-delay <seconds>       Delay zwischen Retries (default: 5)
   --max-retry-delay <seconds>   Cap für Retry-Sleep (default: 10)
-  --routes <csv>                Optionale CSV-Route-Subset aus GUI_SMOKE_ROUTES
+  --routes <csv>                Optionale CSV-Route-Subset/Preset aus GUI_SMOKE_ROUTES
+                                (Presets: all, core, jobs, results, legacy)
 EOF
 }
 

@@ -78,7 +78,7 @@ CLI-Overrides (optional, äquivalent zu ENVs):
 ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh \
   --base-url https://www.dev.georanking.ch \
   --run-id-base manual-$(date +%s) \
-  --routes /gui,/jobs?source=smoke \
+  --routes core,jobs \
   --timeout-ms 90000 \
   --headless \
   --output-dir artifacts/dev-ui-live-smoke
@@ -100,7 +100,7 @@ Optional:
 - `DEV_UI_SMOKE_HEADFUL=1` oder `--headful`
 - `DEV_UI_SMOKE_LOGIN_REASON=manual_login` oder `--login-reason manual_login`
 - `DEV_UI_SMOKE_EVIDENCE_DIR=artifacts/dev-ui-live-smoke` oder `--output-dir ...`
-- `--routes /gui,/jobs?source=smoke` (überschreibt den Standard-Route-Satz für gezielte Retests; im Workflow analog über `workflow_dispatch`-Input `routes`)
+- `--routes /gui,/jobs?source=smoke` oder Presets wie `--routes core,jobs` (überschreibt den Standard-Route-Satz für gezielte Retests; Presets: `all`, `core`, `jobs`, `results`, `legacy`; im Workflow analog über `workflow_dispatch`-Input `routes`)
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1` oder `--fallback-login-start-on-preflight-fail`
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1` (nur Single-Route-Script; nutzt Login-Start-Fallback statt hard fail)
 

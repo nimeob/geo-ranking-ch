@@ -26,7 +26,8 @@ Options:
   --timeout <seconds>           Request-Timeout je Probe (default: 20)
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
   --retry-delay <seconds>       Delay zwischen Retries (default: 5)
-  --routes <csv>                Optionale CSV-Route-Subset aus GUI_SMOKE_ROUTES
+  --routes <csv>                Optionale CSV-Route-Subset/Preset aus GUI_SMOKE_ROUTES
+                                (Presets: all, core, jobs, results, legacy)
   --expected-authorize-host <h> Erwarteter Host für absolute authorize-Redirects
                                 (hostname, host:port oder URL; optional;
                                  default: auth.<base-host> + <base-host>)

@@ -23,6 +23,10 @@ GUI_SMOKE_ROUTES=(
 
 GUI_SMOKE_SELECTED_ROUTES=()
 
+gui_smoke_route_preset_names() {
+  printf '%s' "all,core,jobs,results,legacy"
+}
+
 gui_smoke_trim_whitespace() {
   local value="${1:-}"
   value="${value#"${value%%[![:space:]]*}"}"
@@ -43,10 +47,75 @@ gui_smoke_route_is_supported() {
   return 1
 }
 
+gui_smoke_expand_route_token() {
+  local token="${1:-}"
+
+  case "${token}" in
+    all)
+      printf '%s\n' "${GUI_SMOKE_ROUTES[@]}"
+      return 0
+      ;;
+    core)
+      printf '%s\n' \
+        "/" \
+        "/gui" \
+        "/gui/history" \
+        "/gui?view=trace&request_id=req-smoke"
+      return 0
+      ;;
+    jobs)
+      printf '%s\n' \
+        "/jobs" \
+        "/jobs?source=smoke" \
+        "/jobs/demo-job" \
+        "/gui/jobs" \
+        "/gui/jobs?source=smoke" \
+        "/gui/jobs/demo-job"
+      return 0
+      ;;
+    results)
+      printf '%s\n' \
+        "/results" \
+        "/results/demo-result" \
+        "/results/demo-result?tab=raw&source=smoke" \
+        "/gui/results" \
+        "/gui/results/demo-result" \
+        "/gui/results/demo-result?tab=raw&source=smoke"
+      return 0
+      ;;
+    legacy)
+      printf '%s\n' \
+        "/history" \
+        "/gui/results" \
+        "/gui/results/demo-result" \
+        "/gui/results/demo-result?tab=raw&source=smoke" \
+        "/gui/jobs" \
+        "/gui/jobs?source=smoke" \
+        "/gui/jobs/demo-job"
+      return 0
+      ;;
+  esac
+
+  if [[ "${token}" != /* ]]; then
+    echo "ERROR: Invalid route token: ${token} (routes must start with '/' or match presets: $(gui_smoke_route_preset_names))" >&2
+    return 1
+  fi
+
+  if ! gui_smoke_route_is_supported "${token}"; then
+    echo "ERROR: Unsupported route token: ${token}" >&2
+    return 1
+  fi
+
+  printf '%s\n' "${token}"
+}
+
 gui_smoke_parse_route_csv() {
   local raw_csv="${1:-}"
   local token=""
   local route=""
+  local expanded_route=""
+  local expanded_output=""
+  local -a expanded_routes=()
 
   declare -A _seen_routes=()
   GUI_SMOKE_SELECTED_ROUTES=()
@@ -66,20 +135,19 @@ gui_smoke_parse_route_csv() {
     route="$(gui_smoke_trim_whitespace "${token}")"
     [[ -n "${route}" ]] || continue
 
-    if [[ "${route}" != /* ]]; then
-      echo "ERROR: Invalid route token: ${route} (routes must start with '/')" >&2
-      return 1
-    fi
+    expanded_output="$(gui_smoke_expand_route_token "${route}")" || return 1
+    mapfile -t expanded_routes <<< "${expanded_output}"
+    for expanded_route in "${expanded_routes[@]}"; do
+      if ! gui_smoke_route_is_supported "${expanded_route}"; then
+        echo "ERROR: Unsupported route token: ${expanded_route}" >&2
+        return 1
+      fi
 
-    if ! gui_smoke_route_is_supported "${route}"; then
-      echo "ERROR: Unsupported route token: ${route}" >&2
-      return 1
-    fi
-
-    if [[ -z "${_seen_routes["${route}"]+x}" ]]; then
-      GUI_SMOKE_SELECTED_ROUTES+=("${route}")
-      _seen_routes["${route}"]=1
-    fi
+      if [[ -z "${_seen_routes["${expanded_route}"]+x}" ]]; then
+        GUI_SMOKE_SELECTED_ROUTES+=("${expanded_route}")
+        _seen_routes["${expanded_route}"]=1
+      fi
+    done
   done
 
   if (( ${#GUI_SMOKE_SELECTED_ROUTES[@]} == 0 )); then

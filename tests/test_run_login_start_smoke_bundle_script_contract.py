@@ -40,6 +40,9 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
     assert "gui_canonical_redirect_artifact_suffix_for_route" in content
     assert "gui_smoke_parse_route_csv" in content
     assert "gui_smoke_route_is_supported" in content
+    assert "gui_smoke_expand_route_token" in content
+    assert "gui_smoke_route_preset_names" in content
+    assert "all,core,jobs,results,legacy" in content
     assert "${login_suffix/login-start-smoke/canonical-host-redirect-smoke}" in content
     assert "login-start-smoke-root" in content
     assert "login-start-smoke-gui-trace-view" in content
