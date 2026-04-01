@@ -39,6 +39,8 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
     assert "gui_login_start_artifact_suffix_for_route" in content
     assert "gui_canonical_redirect_artifact_suffix_for_route" in content
     assert "gui_smoke_parse_route_csv" in content
+    assert "gui_smoke_parse_route_presets_csv" in content
+    assert "gui_smoke_supported_route_presets_csv" in content
     assert "gui_smoke_route_is_supported" in content
     assert "${login_suffix/login-start-smoke/canonical-host-redirect-smoke}" in content
     assert "login-start-smoke-root" in content
@@ -70,6 +72,7 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     assert "--base-url" in content
     assert "--env-name" in content
     assert "--routes" in content
+    assert "--route-presets" in content
     assert "--expected-authorize-host" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
@@ -150,6 +153,28 @@ def test_login_start_bundle_rejects_missing_option_value_for_routes() -> None:
     assert "Usage:" in proc.stderr
 
 
+def test_login_start_bundle_rejects_missing_option_value_for_route_presets() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--route-presets",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --route-presets" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
 def test_login_start_bundle_rejects_unsupported_routes_csv() -> None:
     proc = subprocess.run(
         [
@@ -172,4 +197,53 @@ def test_login_start_bundle_rejects_unsupported_routes_csv() -> None:
     assert "Unsupported route token: /not-in-matrix" in proc.stderr
     assert "HINT: Supported routes:" in proc.stderr
     assert "/gui" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_login_start_bundle_rejects_unsupported_route_preset() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--route-presets",
+            "unknown-preset",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Unsupported route preset: unknown-preset" in proc.stderr
+    assert "HINT: Supported route presets:" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_login_start_bundle_rejects_routes_and_presets_combination() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--routes",
+            "/gui",
+            "--route-presets",
+            "core",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" in proc.stderr
     assert "Usage:" in proc.stderr

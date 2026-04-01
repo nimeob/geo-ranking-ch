@@ -28,6 +28,7 @@ def test_canonical_redirect_bundle_requires_base_url_and_env_name() -> None:
     assert "--canonical-origin" in content
     assert "--canonical-hosts" in content
     assert "--routes" in content
+    assert "--route-presets" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
 
@@ -91,6 +92,28 @@ def test_canonical_redirect_bundle_rejects_missing_option_value_for_routes() -> 
     assert "Usage:" in proc.stderr
 
 
+def test_canonical_redirect_bundle_rejects_missing_option_value_for_route_presets() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--route-presets",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --route-presets" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
 def test_canonical_redirect_bundle_rejects_unsupported_routes_csv() -> None:
     proc = subprocess.run(
         [
@@ -113,4 +136,53 @@ def test_canonical_redirect_bundle_rejects_unsupported_routes_csv() -> None:
     assert "Unsupported route token: /not-in-matrix" in proc.stderr
     assert "HINT: Supported routes:" in proc.stderr
     assert "/gui" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_canonical_redirect_bundle_rejects_unsupported_route_preset() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--route-presets",
+            "unknown-preset",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Unsupported route preset: unknown-preset" in proc.stderr
+    assert "HINT: Supported route presets:" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_canonical_redirect_bundle_rejects_routes_and_presets_combination() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--routes",
+            "/gui",
+            "--route-presets",
+            "core",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" in proc.stderr
     assert "Usage:" in proc.stderr

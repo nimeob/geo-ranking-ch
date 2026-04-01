@@ -26,6 +26,8 @@ class TestGuiDevLiveAuthAnalyzeSmokeDocs(unittest.TestCase):
             "dev-ui-auth-analyze-smoke-blocked-",
             "--fallback-login-start-on-preflight-fail",
             "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL",
+            "route_presets",
+            "--route-presets",
         ]
         for marker in required_markers:
             self.assertIn(marker, content)

@@ -10,6 +10,7 @@ MAX_ATTEMPTS="8"
 RETRY_DELAY_SECONDS="5"
 EXPECTED_AUTHORIZE_HOST=""
 ROUTES_CSV=""
+ROUTE_PRESETS_CSV=""
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/smoke/gui_smoke_routes.sh
 source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
@@ -27,6 +28,8 @@ Options:
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
   --retry-delay <seconds>       Delay zwischen Retries (default: 5)
   --routes <csv>                Optionale CSV-Route-Subset aus GUI_SMOKE_ROUTES
+  --route-presets <csv>         Optionale Presets (all,core,modern,legacy,jobs,results,trace,minimal)
+                                (Alternative zu --routes)
   --expected-authorize-host <h> Erwarteter Host für absolute authorize-Redirects
                                 (hostname, host:port oder URL; optional;
                                  default: auth.<base-host> + <base-host>)
@@ -86,6 +89,11 @@ while [ "$#" -gt 0 ]; do
       ROUTES_CSV="$2"
       shift 2
       ;;
+    --route-presets)
+      require_option_value "--route-presets" "${2:-}"
+      ROUTE_PRESETS_CSV="$2"
+      shift 2
+      ;;
     --expected-authorize-host)
       require_option_value "--expected-authorize-host" "${2:-}"
       EXPECTED_AUTHORIZE_HOST="$2"
@@ -111,6 +119,12 @@ fi
 
 if [ -z "$ENV_NAME" ]; then
   echo "::error::Missing required --env-name" >&2
+  usage >&2
+  exit 2
+fi
+
+if [[ -n "${ROUTES_CSV}" && -n "${ROUTE_PRESETS_CSV}" ]]; then
+  echo "::error::--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" >&2
   usage >&2
   exit 2
 fi
@@ -159,7 +173,12 @@ PY
 )"
 fi
 
-if ! gui_smoke_parse_route_csv "$ROUTES_CSV"; then
+if [[ -n "${ROUTE_PRESETS_CSV}" ]]; then
+  if ! gui_smoke_parse_route_presets_csv "$ROUTE_PRESETS_CSV"; then
+    usage >&2
+    exit 2
+  fi
+elif ! gui_smoke_parse_route_csv "$ROUTES_CSV"; then
   usage >&2
   exit 2
 fi

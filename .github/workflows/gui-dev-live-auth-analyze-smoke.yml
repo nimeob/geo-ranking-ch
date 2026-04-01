@@ -13,6 +13,11 @@ on:
         required: false
         default: ""
         type: string
+      route_presets:
+        description: "Optionale Route-Presets (z. B. core oder jobs,results)"
+        required: false
+        default: ""
+        type: string
       timeout_ms:
         description: "Optionales Timeout pro Route in Millisekunden"
         required: false
@@ -64,8 +69,17 @@ jobs:
           set -euo pipefail
           cmd=(./scripts/smoke/run_gui_live_auth_analyze_route_set.sh)
 
+          if [[ -n "${{ inputs.routes }}" && -n "${{ inputs.route_presets }}" ]]; then
+            echo "::error::inputs.routes und inputs.route_presets dürfen nicht gleichzeitig gesetzt werden"
+            exit 2
+          fi
+
           if [[ -n "${{ inputs.routes }}" ]]; then
             cmd+=(--routes "${{ inputs.routes }}")
+          fi
+
+          if [[ -n "${{ inputs.route_presets }}" ]]; then
+            cmd+=(--route-presets "${{ inputs.route_presets }}")
           fi
 
           if [[ -n "${{ inputs.timeout_ms }}" ]]; then

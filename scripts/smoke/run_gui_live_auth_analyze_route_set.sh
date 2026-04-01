@@ -15,6 +15,8 @@ Options:
   --login-reason <text>   reason-Parameter für /login (default: manual_login)
   --run-id-base <token>   Basis für DEV_UI_SMOKE_RUN_ID je Route
   --routes <csv>          Komma-separierte Route-Liste (überschreibt GUI_SMOKE_ROUTES)
+  --route-presets <csv>   Presets (all,core,modern,legacy,jobs,results,trace,minimal)
+                          (Alternative zu --routes)
   --fallback-login-start-on-preflight-fail
                            Führt bei fehlenden Live-Secrets automatisch
                            den Login-Start-Bundle-Smoke als Fallback aus
@@ -41,9 +43,11 @@ address_file_override=""
 login_reason_override=""
 run_id_base_override=""
 routes_override=""
+route_presets_override=""
 headful_override=""
 fallback_login_start_on_preflight_fail="${DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL:-0}"
 selected_routes_csv=""
+selected_route_presets_csv=""
 
 declare -a selected_routes=()
 
@@ -53,7 +57,20 @@ resolve_selected_routes() {
     exit 2
   fi
 
-  if [[ -n "${routes_override}" ]]; then
+  if [[ -n "${routes_override}" && -n "${route_presets_override}" ]]; then
+    echo "ERROR: --routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" >&2
+    usage >&2
+    exit 2
+  fi
+
+  if [[ -n "${route_presets_override}" ]]; then
+    if ! gui_smoke_parse_route_presets_csv "${route_presets_override}"; then
+      usage >&2
+      exit 2
+    fi
+    selected_routes=("${GUI_SMOKE_SELECTED_ROUTES[@]}")
+    selected_route_presets_csv="$(gui_smoke_selected_presets_csv)"
+  elif [[ -n "${routes_override}" ]]; then
     if ! gui_smoke_parse_route_csv "${routes_override}"; then
       usage >&2
       exit 2
@@ -117,6 +134,11 @@ while [[ $# -gt 0 ]]; do
     --routes)
       require_option_value "--routes" "${2:-}"
       routes_override="$2"
+      shift 2
+      ;;
+    --route-presets)
+      require_option_value "--route-presets" "${2:-}"
+      route_presets_override="$2"
       shift 2
       ;;
     --fallback-login-start-on-preflight-fail)
@@ -189,7 +211,9 @@ fallback_output_dir="${output_dir_override:-${DEV_UI_SMOKE_EVIDENCE_DIR:-${DEV_U
 fallback_login_reason="${login_reason_override:-${DEV_UI_SMOKE_LOGIN_REASON:-manual_login}}"
 
 declare -a fallback_route_args=()
-if [[ -n "${routes_override}" ]]; then
+if [[ -n "${route_presets_override}" ]]; then
+  fallback_route_args=(--route-presets "${selected_route_presets_csv}")
+elif [[ -n "${routes_override}" ]]; then
   fallback_route_args=(--routes "${selected_routes_csv}")
 fi
 
@@ -230,7 +254,10 @@ if ! (
 
   fallback_login_start_hint="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name}"
   fallback_auto_hint="./scripts/smoke/run_gui_live_auth_analyze_route_set.sh --base-url ${fallback_base_url} --fallback-login-start-on-preflight-fail"
-  if (( ${#fallback_route_args[@]} > 0 )); then
+  if [[ -n "${route_presets_override}" ]]; then
+    fallback_login_start_hint+=" --route-presets \"${selected_route_presets_csv}\""
+    fallback_auto_hint+=" --route-presets \"${selected_route_presets_csv}\""
+  elif (( ${#fallback_route_args[@]} > 0 )); then
     fallback_login_start_hint+=" --routes \"${selected_routes_csv}\""
     fallback_auto_hint+=" --routes \"${selected_routes_csv}\""
   fi
