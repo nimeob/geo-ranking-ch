@@ -231,8 +231,8 @@ if ! (
   fallback_login_start_hint="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name}"
   fallback_auto_hint="./scripts/smoke/run_gui_live_auth_analyze_route_set.sh --base-url ${fallback_base_url} --fallback-login-start-on-preflight-fail"
   if (( ${#fallback_route_args[@]} > 0 )); then
-    fallback_login_start_hint+=" --routes ${selected_routes_csv}"
-    fallback_auto_hint+=" --routes ${selected_routes_csv}"
+    fallback_login_start_hint+=" --routes \"${selected_routes_csv}\""
+    fallback_auto_hint+=" --routes \"${selected_routes_csv}\""
   fi
 
   echo "ERROR: live-auth route-set preflight failed; aborting route fan-out." >&2

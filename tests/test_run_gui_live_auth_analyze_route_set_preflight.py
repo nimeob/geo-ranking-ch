@@ -194,14 +194,52 @@ def test_route_set_runner_hint_preserves_normalized_route_subset_on_secret_block
     assert proc.returncode == 1
     assert (
         "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch "
-        "--env-name dev --routes /gui,/jobs?source=smoke"
+        '--env-name dev --routes "/gui,/jobs?source=smoke"'
     ) in proc.stderr
     assert (
         "run_gui_live_auth_analyze_route_set.sh --base-url https://www.dev.georanking.ch "
-        "--fallback-login-start-on-preflight-fail --routes /gui,/jobs?source=smoke"
+        '--fallback-login-start-on-preflight-fail --routes "/gui,/jobs?source=smoke"'
     ) in proc.stderr
 
     blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-routes.json"
+    assert blocked_file.exists()
+
+
+def test_route_set_runner_hint_quotes_route_subset_with_query_ampersand(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--run-id-base",
+            "manual-hint-routes-query",
+            "--output-dir",
+            str(blocker_dir),
+            "--routes",
+            " /gui?view=trace&request_id=req-smoke , /jobs ",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    expected_routes_csv = "/gui?view=trace&request_id=req-smoke,/jobs"
+    assert f'--routes "{expected_routes_csv}"' in proc.stderr
+
+    blocked_file = (
+        blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-routes-query.json"
+    )
     assert blocked_file.exists()
 
 
