@@ -15,6 +15,7 @@ def test_canonical_redirect_bundle_script_uses_shared_route_helper_and_probe_loo
     assert 'source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"' in content
     assert "GUI_SMOKE_ROUTES" in content
     assert "gui_canonical_redirect_artifact_suffix_for_route" in content
+    assert "gui_smoke_parse_route_csv" in content
     assert "check_ui_canonical_redirect.py" in content
     assert 'run_probe "$route" "$output_json"' in content
 
@@ -26,6 +27,7 @@ def test_canonical_redirect_bundle_requires_base_url_and_env_name() -> None:
     assert "--env-name" in content
     assert "--canonical-origin" in content
     assert "--canonical-hosts" in content
+    assert "--routes" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
 
@@ -64,4 +66,49 @@ def test_canonical_redirect_bundle_rejects_missing_option_value_for_timeout() ->
 
     assert proc.returncode == 2
     assert "Missing value for --timeout" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_canonical_redirect_bundle_rejects_missing_option_value_for_routes() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--routes",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --routes" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_canonical_redirect_bundle_rejects_unsupported_routes_csv() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--routes",
+            "/gui,/not-in-matrix",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Unsupported route token: /not-in-matrix" in proc.stderr
     assert "Usage:" in proc.stderr

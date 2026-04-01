@@ -21,6 +21,73 @@ GUI_SMOKE_ROUTES=(
   "/gui/jobs/demo-job"
 )
 
+GUI_SMOKE_SELECTED_ROUTES=()
+
+gui_smoke_trim_whitespace() {
+  local value="${1:-}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "${value}"
+}
+
+gui_smoke_route_is_supported() {
+  local route="${1:-}"
+  local candidate=""
+
+  for candidate in "${GUI_SMOKE_ROUTES[@]}"; do
+    if [[ "${candidate}" == "${route}" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+gui_smoke_parse_route_csv() {
+  local raw_csv="${1:-}"
+  local token=""
+  local route=""
+
+  declare -A _seen_routes=()
+  GUI_SMOKE_SELECTED_ROUTES=()
+
+  if [[ -z "${raw_csv}" ]]; then
+    if (( ${#GUI_SMOKE_ROUTES[@]} == 0 )); then
+      echo "ERROR: GUI_SMOKE_ROUTES is empty" >&2
+      return 1
+    fi
+
+    GUI_SMOKE_SELECTED_ROUTES=("${GUI_SMOKE_ROUTES[@]}")
+    return 0
+  fi
+
+  IFS=',' read -r -a _route_tokens <<< "${raw_csv}"
+  for token in "${_route_tokens[@]}"; do
+    route="$(gui_smoke_trim_whitespace "${token}")"
+    [[ -n "${route}" ]] || continue
+
+    if [[ "${route}" != /* ]]; then
+      echo "ERROR: Invalid route token: ${route} (routes must start with '/')" >&2
+      return 1
+    fi
+
+    if ! gui_smoke_route_is_supported "${route}"; then
+      echo "ERROR: Unsupported route token: ${route}" >&2
+      return 1
+    fi
+
+    if [[ -z "${_seen_routes["${route}"]+x}" ]]; then
+      GUI_SMOKE_SELECTED_ROUTES+=("${route}")
+      _seen_routes["${route}"]=1
+    fi
+  done
+
+  if (( ${#GUI_SMOKE_SELECTED_ROUTES[@]} == 0 )); then
+    echo "ERROR: --routes produced an empty route list" >&2
+    return 1
+  fi
+}
+
 gui_login_start_artifact_suffix_for_route() {
   local route="${1:-}"
 
