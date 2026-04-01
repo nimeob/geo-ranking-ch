@@ -72,6 +72,16 @@ def test_route_set_runner_fails_fast_on_missing_secrets_without_route_fanout(
     assert payload["reason"] == "missing_required_github_secrets"
     assert payload["missing"] == ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"]
 
+    summary_file = blocker_dir / "dev-ui-auth-analyze-route-set-summary.json"
+    assert summary_file.exists()
+
+    summary_payload = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary_payload["status"] == "blocked"
+    assert summary_payload["mode"] == "none"
+    assert summary_payload["preflight_status"] == "failed"
+    assert summary_payload["fallback_status"] == "not_requested"
+    assert summary_payload["run_id_base"] == "98765-4"
+
 
 def test_route_set_runner_rejects_unknown_cli_option_before_preflight(
     tmp_path: Path,
@@ -333,6 +343,19 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
     payload = json.loads(fallback_artifact.read_text(encoding="utf-8"))
     assert "reason=env_reason_contract" in str(payload.get("request_url", ""))
 
+    summary_file = evidence_dir / "dev-ui-auth-analyze-route-set-summary.json"
+    assert summary_file.exists()
+
+    summary_payload = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary_payload["status"] == "passed"
+    assert summary_payload["mode"] == "fallback_login_start"
+    assert summary_payload["preflight_status"] == "failed"
+    assert summary_payload["fallback_status"] == "passed"
+    assert summary_payload["routes"] == []
+    assert summary_payload["fallback_bundle_summary"].endswith(
+        "dev-login-start-smoke-bundle-summary.json"
+    )
+
 
 def test_route_set_runner_fallback_propagates_cli_route_subset(
     tmp_path: Path,
@@ -389,6 +412,7 @@ def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
     node_bin_dir = tmp_path / "bin"
     node_bin_dir.mkdir(parents=True, exist_ok=True)
     route_log = tmp_path / "route-runs.log"
+    evidence_dir = tmp_path / "evidence"
 
     fake_node = node_bin_dir / "node"
     fake_node.write_text(
@@ -404,6 +428,7 @@ def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
     env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
     env["PATH"] = f"{node_bin_dir}:{env.get('PATH', '')}"
     env["ROUTE_LOG_FILE"] = str(route_log)
+    env["DEV_UI_SMOKE_EVIDENCE_DIR"] = str(evidence_dir)
 
     proc = subprocess.run(
         [
@@ -432,6 +457,19 @@ def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
     assert len(rows) == 2
     assert rows[0].split("|", 2)[:2] == ["/gui", "manual-route-subset-1"]
     assert rows[1].split("|", 2)[:2] == ["/jobs?source=smoke", "manual-route-subset-2"]
+
+    summary_file = evidence_dir / "dev-ui-auth-analyze-route-set-summary.json"
+    assert summary_file.exists()
+
+    summary_payload = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary_payload["status"] == "passed"
+    assert summary_payload["mode"] == "live_auth_analyze"
+    assert summary_payload["preflight_status"] == "passed"
+    assert summary_payload["selected_routes"] == ["/gui", "/jobs?source=smoke"]
+    assert [item["run_id"] for item in summary_payload["routes"]] == [
+        "manual-route-subset-1",
+        "manual-route-subset-2",
+    ]
 
 
 def test_route_set_runner_accepts_route_presets_and_uses_ordinal_run_ids(

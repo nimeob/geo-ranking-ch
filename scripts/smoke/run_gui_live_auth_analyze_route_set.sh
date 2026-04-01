@@ -30,6 +30,7 @@ EOF
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/smoke/gui_smoke_routes.sh
 source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
+SCRIPT_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "ERROR: node command not found" >&2
@@ -86,6 +87,106 @@ resolve_selected_routes() {
   fi
 
   selected_routes_csv="$(IFS=','; echo "${selected_routes[*]}")"
+}
+
+infer_env_name_from_base_url() {
+  local base_url="${1:-}"
+
+  if [[ "${base_url}" == *"staging"* ]]; then
+    echo "staging"
+  else
+    echo "dev"
+  fi
+}
+
+write_route_set_summary() {
+  local status="$1"
+  local mode="$2"
+  local preflight_status="$3"
+  local fallback_status="$4"
+  local route_rows="$5"
+  local failed_routes_csv="$6"
+  local fallback_bundle_summary="$7"
+
+  mkdir -p "${summary_output_dir}"
+
+  SUMMARY_STATUS="${status}" \
+  SUMMARY_MODE="${mode}" \
+  SUMMARY_PREFLIGHT_STATUS="${preflight_status}" \
+  SUMMARY_FALLBACK_STATUS="${fallback_status}" \
+  SUMMARY_BASE_URL="${summary_base_url}" \
+  SUMMARY_ENV_NAME="${summary_env_name}" \
+  SUMMARY_RUN_ID_BASE="${base_run_id}" \
+  SUMMARY_STARTED_AT="${SCRIPT_STARTED_AT}" \
+  SUMMARY_FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  SUMMARY_SELECTED_ROUTES="$(printf '%s\n' "${selected_routes[@]}")" \
+  SUMMARY_SELECTED_ROUTE_PRESETS="$(printf '%s\n' "${GUI_SMOKE_SELECTED_PRESETS[@]:-}")" \
+  SUMMARY_FALLBACK_ENABLED="${fallback_login_start_on_preflight_fail}" \
+  SUMMARY_FAILED_ROUTES_CSV="${failed_routes_csv}" \
+  SUMMARY_FALLBACK_BUNDLE_SUMMARY="${fallback_bundle_summary}" \
+  SUMMARY_ROUTE_ROWS="${route_rows}" \
+  python3 - "${summary_path}" <<'PY'
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+
+def _split_lines(name: str) -> list[str]:
+    return [line for line in os.environ.get(name, "").splitlines() if line]
+
+
+def _split_csv(name: str) -> list[str]:
+    raw = os.environ.get(name, "")
+    if not raw:
+        return []
+    return [token for token in raw.split(",") if token]
+
+
+def _parse_route_rows(raw_rows: str) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for line in raw_rows.splitlines():
+        if not line:
+            continue
+        route, run_id, rc_raw = line.split("\t", 2)
+        rc = int(rc_raw)
+        rows.append(
+            {
+                "route": route,
+                "run_id": run_id,
+                "status": "passed" if rc == 0 else "failed",
+                "rc": rc,
+            }
+        )
+    return rows
+
+
+summary = {
+    "status": os.environ.get("SUMMARY_STATUS", "unknown"),
+    "mode": os.environ.get("SUMMARY_MODE", "unknown"),
+    "preflight_status": os.environ.get("SUMMARY_PREFLIGHT_STATUS", "unknown"),
+    "fallback_status": os.environ.get("SUMMARY_FALLBACK_STATUS", "unknown"),
+    "base_url": os.environ.get("SUMMARY_BASE_URL", ""),
+    "env_name": os.environ.get("SUMMARY_ENV_NAME", ""),
+    "run_id_base": os.environ.get("SUMMARY_RUN_ID_BASE", ""),
+    "started_at": os.environ.get("SUMMARY_STARTED_AT", ""),
+    "finished_at": os.environ.get("SUMMARY_FINISHED_AT", ""),
+    "selected_routes": _split_lines("SUMMARY_SELECTED_ROUTES"),
+    "selected_route_presets": _split_lines("SUMMARY_SELECTED_ROUTE_PRESETS"),
+    "fallback_login_start_on_preflight_fail": os.environ.get(
+        "SUMMARY_FALLBACK_ENABLED", "0"
+    )
+    == "1",
+    "failed_routes": _split_csv("SUMMARY_FAILED_ROUTES_CSV"),
+    "fallback_bundle_summary": os.environ.get("SUMMARY_FALLBACK_BUNDLE_SUMMARY", ""),
+    "routes": _parse_route_rows(os.environ.get("SUMMARY_ROUTE_ROWS", "")),
+}
+
+summary_path = Path(sys.argv[1])
+summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
 }
 
 require_option_value() {
@@ -209,6 +310,10 @@ esac
 
 fallback_output_dir="${output_dir_override:-${DEV_UI_SMOKE_EVIDENCE_DIR:-${DEV_UI_SMOKE_BLOCKER_DIR:-reports/evidence}}}"
 fallback_login_reason="${login_reason_override:-${DEV_UI_SMOKE_LOGIN_REASON:-manual_login}}"
+summary_output_dir="${fallback_output_dir}"
+summary_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
+summary_env_name="$(infer_env_name_from_base_url "${summary_base_url}")"
+summary_path="${summary_output_dir}/${summary_env_name}-ui-auth-analyze-route-set-summary.json"
 
 declare -a fallback_route_args=()
 if [[ -n "${route_presets_override}" ]]; then
@@ -222,11 +327,8 @@ if ! (
   DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
     ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 ); then
-  fallback_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
-  fallback_env_name="dev"
-  if [[ "${fallback_base_url}" == *"staging"* ]]; then
-    fallback_env_name="staging"
-  fi
+  fallback_base_url="${summary_base_url}"
+  fallback_env_name="${summary_env_name}"
 
   if [[ "${fallback_login_start_on_preflight_fail}" == "1" ]]; then
     echo "WARN: live-auth route-set preflight failed; running login-start fallback (degraded mode)." >&2
@@ -244,9 +346,26 @@ if ! (
       cd "${REPO_ROOT}"
       "${fallback_cmd[@]}"
     ); then
+      write_route_set_summary \
+        "passed" \
+        "fallback_login_start" \
+        "failed" \
+        "passed" \
+        "" \
+        "" \
+        "${fallback_output_dir}/${fallback_env_name}-login-start-smoke-bundle-summary.json"
       echo "WARN: login-start fallback passed; live-auth route fan-out skipped." >&2
       exit 0
     fi
+
+    write_route_set_summary \
+      "failed" \
+      "fallback_login_start" \
+      "failed" \
+      "failed" \
+      "" \
+      "" \
+      "${fallback_output_dir}/${fallback_env_name}-login-start-smoke-bundle-summary.json"
 
     echo "ERROR: login-start fallback failed after live-auth preflight failure." >&2
     exit 1
@@ -267,33 +386,62 @@ if ! (
   echo "  ${fallback_login_start_hint}" >&2
   echo "HINT: Or opt into automatic fallback for this run:" >&2
   echo "  ${fallback_auto_hint}" >&2
+  write_route_set_summary "blocked" "none" "failed" "not_requested" "" "" ""
   exit 1
 fi
 
 failures=0
+route_summary_rows=""
+failed_routes_csv=""
 for idx in "${!selected_routes[@]}"; do
   ordinal="$((idx + 1))"
   route="${selected_routes[$idx]}"
   run_id="${base_run_id}-${ordinal}"
+  route_rc=0
 
   echo "[gui-dev-live-auth-analyze-smoke] route ${ordinal}/${#selected_routes[@]}: ${route} (run_id=${run_id})"
 
   if (
     cd "${REPO_ROOT}"
-    DEV_UI_SMOKE_GUI_PATH="${route}" \
+      DEV_UI_SMOKE_GUI_PATH="${route}" \
       DEV_UI_SMOKE_RUN_ID="${run_id}" \
       node scripts/run_dev_ui_auth_analyze_smoke.mjs
   ); then
     echo "[gui-dev-live-auth-analyze-smoke] PASS ${route}"
   else
+    route_rc="$?"
     failures="$((failures + 1))"
+    if [[ -z "${failed_routes_csv}" ]]; then
+      failed_routes_csv="${route}"
+    else
+      failed_routes_csv+=",${route}"
+    fi
     echo "[gui-dev-live-auth-analyze-smoke] FAIL ${route}" >&2
   fi
+
+  route_summary_rows+="${route}"$'\t'"${run_id}"$'\t'"${route_rc}"$'\n'
 done
 
 if (( failures > 0 )); then
+  write_route_set_summary \
+    "failed" \
+    "live_auth_analyze" \
+    "passed" \
+    "not_used" \
+    "${route_summary_rows}" \
+    "${failed_routes_csv}" \
+    ""
   echo "ERROR: ${failures} route check(s) failed" >&2
   exit 1
 fi
+
+write_route_set_summary \
+  "passed" \
+  "live_auth_analyze" \
+  "passed" \
+  "not_used" \
+  "${route_summary_rows}" \
+  "" \
+  ""
 
 echo "✅ gui-dev-live-auth-analyze-smoke route set passed"
