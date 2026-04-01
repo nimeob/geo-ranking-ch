@@ -141,6 +141,48 @@ def test_preflight_uses_staging_fallback_hint_when_base_url_contains_staging(tmp
     assert fallback["command"].endswith("--env-name staging")
 
 
+def test_preflight_fallback_hint_includes_optional_bundle_args(tmp_path: Path) -> None:
+    proc = _run(
+        tmp_path,
+        {
+            "GITHUB_RUN_ID": "556",
+            "DEV_UI_SMOKE_FALLBACK_OUTPUT_DIR": "artifacts/dev-ui-smoke/manual",
+            "DEV_UI_SMOKE_FALLBACK_LOGIN_REASON": "nightly_guard",
+            "DEV_UI_SMOKE_FALLBACK_ROUTES_CSV": "/gui,/jobs?source=smoke",
+        },
+    )
+
+    assert proc.returncode == 1
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-556-1.json"
+    assert blocked_file.exists()
+
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    command = payload["fallback_login_start_smoke"]["command"]
+    assert '--routes "/gui,/jobs?source=smoke"' in command
+    assert '--output-dir "artifacts/dev-ui-smoke/manual"' in command
+    assert '--reason "nightly_guard"' in command
+
+
+def test_preflight_fallback_hint_prefers_route_presets_over_routes(tmp_path: Path) -> None:
+    proc = _run(
+        tmp_path,
+        {
+            "GITHUB_RUN_ID": "557",
+            "DEV_UI_SMOKE_FALLBACK_ROUTES_CSV": "/gui,/jobs",
+            "DEV_UI_SMOKE_FALLBACK_ROUTE_PRESETS_CSV": "core,trace",
+        },
+    )
+
+    assert proc.returncode == 1
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-557-1.json"
+    assert blocked_file.exists()
+
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    command = payload["fallback_login_start_smoke"]["command"]
+    assert '--route-presets "core,trace"' in command
+    assert "--routes" not in command
+
+
 def test_workflow_runs_route_set_and_uploads_blocker_artifact() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
     assert "dev-ui-auth-analyze-smoke-blocked-*.json" in content

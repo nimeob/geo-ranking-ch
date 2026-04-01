@@ -8,6 +8,13 @@ print(sys.argv[1].strip())
 PY
 }
 
+append_quoted_cli_arg() {
+  local flag="$1"
+  local value="$2"
+  local escaped="${value//\"/\\\"}"
+  FALLBACK_LOGIN_START_SMOKE_COMMAND+=" ${flag} \"${escaped}\""
+}
+
 RUN_ID="$(trim "${DEV_UI_SMOKE_RUN_ID:-}")"
 RUN_ATTEMPT="$(trim "${GITHUB_RUN_ATTEMPT:-1}")"
 if [[ -z "${RUN_ATTEMPT}" ]]; then
@@ -42,12 +49,31 @@ if [[ -z "${BASE_URL_RAW}" ]]; then
   BASE_URL_RAW="https://www.dev.georanking.ch"
 fi
 
+FALLBACK_OUTPUT_DIR="$(trim "${DEV_UI_SMOKE_FALLBACK_OUTPUT_DIR:-}")"
+FALLBACK_LOGIN_REASON="$(trim "${DEV_UI_SMOKE_FALLBACK_LOGIN_REASON:-}")"
+FALLBACK_ROUTES_CSV="$(trim "${DEV_UI_SMOKE_FALLBACK_ROUTES_CSV:-}")"
+FALLBACK_ROUTE_PRESETS_CSV="$(trim "${DEV_UI_SMOKE_FALLBACK_ROUTE_PRESETS_CSV:-}")"
+
 FALLBACK_ENV_NAME="dev"
 if [[ "${BASE_URL_RAW,,}" == *"staging"* ]]; then
   FALLBACK_ENV_NAME="staging"
 fi
 
 FALLBACK_LOGIN_START_SMOKE_COMMAND="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${BASE_URL_RAW} --env-name ${FALLBACK_ENV_NAME}"
+
+if [[ -n "${FALLBACK_ROUTE_PRESETS_CSV}" ]]; then
+  append_quoted_cli_arg "--route-presets" "${FALLBACK_ROUTE_PRESETS_CSV}"
+elif [[ -n "${FALLBACK_ROUTES_CSV}" ]]; then
+  append_quoted_cli_arg "--routes" "${FALLBACK_ROUTES_CSV}"
+fi
+
+if [[ -n "${FALLBACK_OUTPUT_DIR}" && "${FALLBACK_OUTPUT_DIR}" != "reports/evidence" ]]; then
+  append_quoted_cli_arg "--output-dir" "${FALLBACK_OUTPUT_DIR}"
+fi
+
+if [[ -n "${FALLBACK_LOGIN_REASON}" && "${FALLBACK_LOGIN_REASON}" != "manual_login" ]]; then
+  append_quoted_cli_arg "--reason" "${FALLBACK_LOGIN_REASON}"
+fi
 
 MISSING=()
 if [[ -z "${USERNAME}" ]]; then

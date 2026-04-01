@@ -201,6 +201,7 @@ def test_route_set_runner_hint_preserves_normalized_route_subset_on_secret_block
         "run_gui_live_auth_analyze_route_set.sh --base-url https://www.dev.georanking.ch "
         '--fallback-login-start-on-preflight-fail --routes "/gui,/jobs?source=smoke"'
     ) in proc.stderr
+    assert f'--output-dir "{blocker_dir}"' in proc.stderr
 
     blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-routes.json"
     assert blocked_file.exists()
@@ -274,6 +275,7 @@ def test_route_set_runner_hint_preserves_normalized_route_presets_on_secret_bloc
 
     assert proc.returncode == 1
     assert '--route-presets "core,trace"' in proc.stderr
+    assert f'--output-dir "{blocker_dir}"' in proc.stderr
 
     blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-presets.json"
     assert blocked_file.exists()
@@ -332,6 +334,39 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
 
     payload = json.loads(fallback_artifact.read_text(encoding="utf-8"))
     assert "reason=env_reason_contract" in str(payload.get("request_url", ""))
+
+
+def test_route_set_runner_hint_includes_custom_login_reason_on_secret_blocker(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--run-id-base",
+            "manual-hint-login-reason",
+            "--output-dir",
+            str(blocker_dir),
+            "--login-reason",
+            "nightly_hint_reason",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert '--reason "nightly_hint_reason"' in proc.stderr
+    assert '--login-reason "nightly_hint_reason"' in proc.stderr
 
 
 def test_route_set_runner_fallback_propagates_cli_route_subset(

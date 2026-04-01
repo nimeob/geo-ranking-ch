@@ -220,6 +220,10 @@ fi
 if ! (
   cd "${REPO_ROOT}"
   DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
+    DEV_UI_SMOKE_FALLBACK_OUTPUT_DIR="${fallback_output_dir}" \
+    DEV_UI_SMOKE_FALLBACK_LOGIN_REASON="${fallback_login_reason}" \
+    DEV_UI_SMOKE_FALLBACK_ROUTES_CSV="${selected_routes_csv}" \
+    DEV_UI_SMOKE_FALLBACK_ROUTE_PRESETS_CSV="${selected_route_presets_csv}" \
     ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 ); then
   fallback_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
@@ -260,6 +264,16 @@ if ! (
   elif (( ${#fallback_route_args[@]} > 0 )); then
     fallback_login_start_hint+=" --routes \"${selected_routes_csv}\""
     fallback_auto_hint+=" --routes \"${selected_routes_csv}\""
+  fi
+
+  if [[ "${fallback_output_dir}" != "reports/evidence" ]]; then
+    fallback_login_start_hint+=" --output-dir \"${fallback_output_dir}\""
+    fallback_auto_hint+=" --output-dir \"${fallback_output_dir}\""
+  fi
+
+  if [[ "${fallback_login_reason}" != "manual_login" ]]; then
+    fallback_login_start_hint+=" --reason \"${fallback_login_reason}\""
+    fallback_auto_hint+=" --login-reason \"${fallback_login_reason}\""
   fi
 
   echo "ERROR: live-auth route-set preflight failed; aborting route fan-out." >&2
