@@ -80,7 +80,7 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     assert "Missing required --env-name" in content
 
 
-def test_login_start_bundle_defaults_include_auth_host_for_non_www_base_urls() -> None:
+def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
     required_snippets = [
@@ -94,6 +94,7 @@ def test_login_start_bundle_defaults_include_auth_host_for_non_www_base_urls() -
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"Default authorize-host Herleitung fehlt Snippets: {missing}"
+    assert "seed_hosts.append(bare_host)" not in content
 
 
 def test_login_start_bundle_rejects_missing_option_value_for_base_url() -> None:
