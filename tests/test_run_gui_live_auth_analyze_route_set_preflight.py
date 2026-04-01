@@ -218,6 +218,55 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
     assert "reason=env_reason_contract" in str(payload.get("request_url", ""))
 
 
+def test_route_set_runner_fallback_propagates_cli_route_subset(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+    evidence_dir = tmp_path / "evidence"
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _LoginStartStubHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+    env["DEV_UI_SMOKE_EVIDENCE_DIR"] = str(evidence_dir)
+
+    try:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                base_url,
+                "--run-id-base",
+                "manual-fallback-routes",
+                "--fallback-login-start-on-preflight-fail",
+                "--routes",
+                "/gui,/jobs?source=smoke",
+            ],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert proc.returncode == 0
+    assert "login-start fallback passed" in proc.stderr
+
+    assert (evidence_dir / "dev-login-start-smoke.json").exists()
+    assert (evidence_dir / "dev-login-start-smoke-jobs-query.json").exists()
+    assert not (evidence_dir / "dev-login-start-smoke-root.json").exists()
+
+
 def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
     tmp_path: Path,
 ) -> None:
@@ -286,3 +335,21 @@ def test_route_set_runner_rejects_invalid_route_token(tmp_path: Path) -> None:
     assert proc.returncode == 2
     assert "Invalid route token: gui" in proc.stderr
     assert "routes must start with '/'" in proc.stderr
+
+
+def test_route_set_runner_rejects_unsupported_route_token(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
+    env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
+
+    proc = subprocess.run(
+        [str(SCRIPT), "--routes", "/definitely-not-in-smoke-matrix"],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Unsupported route token: /definitely-not-in-smoke-matrix" in proc.stderr

@@ -43,49 +43,33 @@ run_id_base_override=""
 routes_override=""
 headful_override=""
 fallback_login_start_on_preflight_fail="${DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL:-0}"
+selected_routes_csv=""
 
-trim_whitespace() {
-  local value="${1:-}"
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  printf '%s' "${value}"
-}
+declare -a selected_routes=()
 
-parse_route_csv() {
-  local raw_csv="${1:-}"
+resolve_selected_routes() {
+  if (( ${#GUI_SMOKE_ROUTES[@]} == 0 )); then
+    echo "ERROR: GUI_SMOKE_ROUTES ist leer" >&2
+    exit 2
+  fi
 
-  IFS=',' read -r -a _route_tokens <<< "${raw_csv}"
-
-  declare -A _seen_routes=()
-  _parsed_routes=()
-
-  local token=""
-  local route=""
-  for token in "${_route_tokens[@]}"; do
-    route="$(trim_whitespace "${token}")"
-    [[ -n "${route}" ]] || continue
-
-    if [[ "${route}" != /* ]]; then
-      echo "ERROR: Invalid route token: ${route} (routes must start with '/')" >&2
+  if [[ -n "${routes_override}" ]]; then
+    if ! gui_smoke_parse_route_csv "${routes_override}"; then
       usage >&2
       exit 2
     fi
+    selected_routes=("${GUI_SMOKE_SELECTED_ROUTES[@]}")
+  else
+    selected_routes=("${GUI_SMOKE_ROUTES[@]}")
+  fi
 
-    if [[ -z "${_seen_routes["${route}"]+x}" ]]; then
-      _parsed_routes+=("${route}")
-      _seen_routes["${route}"]=1
-    fi
-  done
-
-  if (( ${#_parsed_routes[@]} == 0 )); then
-    echo "ERROR: --routes produced an empty route list" >&2
-    usage >&2
+  if (( ${#selected_routes[@]} == 0 )); then
+    echo "ERROR: resolved route list is empty" >&2
     exit 2
   fi
-}
 
-declare -a _parsed_routes=()
-declare -a selected_routes=()
+  selected_routes_csv="$(IFS=','; echo "${selected_routes[*]}")"
+}
 
 require_option_value() {
   local option_name="$1"
@@ -179,6 +163,8 @@ if [[ -n "${headful_override}" ]]; then
   export DEV_UI_SMOKE_HEADFUL="${headful_override}"
 fi
 
+resolve_selected_routes
+
 base_run_id="${run_id_base_override:-${DEV_UI_SMOKE_RUN_ID_BASE:-}}"
 if [[ -z "${base_run_id}" ]]; then
   if [[ -n "${GITHUB_RUN_NUMBER:-}" ]]; then
@@ -226,6 +212,9 @@ if ! (
 
     if (
       cd "${REPO_ROOT}"
+      if [[ -n "${routes_override}" ]]; then
+        fallback_cmd+=(--routes "${selected_routes_csv}")
+      fi
       "${fallback_cmd[@]}"
     ); then
       echo "WARN: login-start fallback passed; live-auth route fan-out skipped." >&2
@@ -242,18 +231,6 @@ if ! (
   echo "HINT: Or opt into automatic fallback for this run:" >&2
   echo "  ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh --fallback-login-start-on-preflight-fail" >&2
   exit 1
-fi
-
-if (( ${#GUI_SMOKE_ROUTES[@]} == 0 )); then
-  echo "ERROR: GUI_SMOKE_ROUTES ist leer" >&2
-  exit 2
-fi
-
-if [[ -n "${routes_override}" ]]; then
-  parse_route_csv "${routes_override}"
-  selected_routes=("${_parsed_routes[@]}")
-else
-  selected_routes=("${GUI_SMOKE_ROUTES[@]}")
 fi
 
 failures=0
