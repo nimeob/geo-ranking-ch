@@ -103,10 +103,49 @@ def test_route_set_runner_rejects_unknown_cli_option_before_preflight(
     assert "Usage:" in proc.stderr
 
 
+def test_route_set_runner_accepts_ui_base_url_alias_and_reaches_preflight(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+            "--run-id-base",
+            "manual-ui-base-url-alias",
+            "--output-dir",
+            str(blocker_dir),
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert "Unknown option" not in proc.stderr
+    assert (
+        "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev"
+        in proc.stderr
+    )
+
+    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-ui-base-url-alias.json"
+    assert blocked_file.exists()
+
+
 @pytest.mark.parametrize(
     ("missing_option", "next_flag"),
     [
         ("--base-url", "--headless"),
+        ("--ui-base-url", "--headless"),
         ("--output-dir", "--headless"),
         ("--timeout-ms", "--headless"),
         ("--address-file", "--headless"),

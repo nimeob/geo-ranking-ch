@@ -9,6 +9,7 @@ Führt den gemeinsamen GUI-Route-Satz seriell aus und startet mit einem Secrets-
 
 Options:
   --base-url <url>        BASE_URL override (z. B. https://www.dev.georanking.ch)
+  --ui-base-url <url>     Alias für --base-url
   --output-dir <dir>      Evidence/Blocker-Ausgabeordner (default: reports/evidence)
   --timeout-ms <ms>       Timeout pro UI-Run (default: DEV_UI_SMOKE_TIMEOUT_MS bzw. 60000)
   --address-file <path>   Adressliste für Analyze-Smoke (default: scripts/smoke/ch_live_addresses.txt)
@@ -202,8 +203,8 @@ require_option_value() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --base-url)
-      require_option_value "--base-url" "${2:-}"
+    --base-url|--ui-base-url)
+      require_option_value "$1" "${2:-}"
       base_url_override="$2"
       shift 2
       ;;

@@ -22,6 +22,7 @@ Usage: scripts/smoke/run_login_start_smoke_bundle.sh --base-url <url> --env-name
 
 Options:
   --base-url <url>              Base URL der GUI (z. B. https://www.dev.georanking.ch)
+  --ui-base-url <url>           Alias für --base-url
   --env-name <name>             Präfix für Artefakte (z. B. dev, staging)
   --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts)
   --reason <reason>             login-start reason (default: manual_login)
@@ -51,8 +52,8 @@ require_option_value() {
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --base-url)
-      require_option_value "--base-url" "${2:-}"
+    --base-url|--ui-base-url)
+      require_option_value "$1" "${2:-}"
       BASE_URL="$2"
       shift 2
       ;;

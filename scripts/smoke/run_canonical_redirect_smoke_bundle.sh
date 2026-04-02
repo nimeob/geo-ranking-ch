@@ -25,6 +25,7 @@ Usage: scripts/smoke/run_canonical_redirect_smoke_bundle.sh --base-url <url> --e
 
 Options:
   --base-url <url>              Canonical GUI-Base-URL (z. B. https://www.dev.georanking.ch)
+  --ui-base-url <url>           Alias für --base-url
   --env-name <name>             Präfix für Artefakte (z. B. dev, staging)
   --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts)
   --canonical-origin <origin>   Optionaler Canonical-Origin Override
@@ -54,8 +55,8 @@ require_option_value() {
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --base-url)
-      require_option_value "--base-url" "${2:-}"
+    --base-url|--ui-base-url)
+      require_option_value "$1" "${2:-}"
       BASE_URL="$2"
       shift 2
       ;;
