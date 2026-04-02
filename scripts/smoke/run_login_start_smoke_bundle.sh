@@ -231,14 +231,39 @@ def _parse_route_rows(raw_rows: str) -> list[dict[str, object]]:
     for line in raw_rows.splitlines():
         if not line:
             continue
-        route, rc_raw, artifact = line.split("\t", 2)
+        parts = line.split("\t")
+        if len(parts) < 3:
+            continue
+
+        route, rc_raw, artifact = parts[0], parts[1], parts[2]
+        phase = parts[3] if len(parts) > 3 else ""
+        reason = parts[4] if len(parts) > 4 else ""
+        status_code_raw = parts[5] if len(parts) > 5 else ""
+        duration_seconds_raw = parts[6] if len(parts) > 6 else ""
         rc = int(rc_raw)
+
+        status_code: int | None
+        try:
+            status_code = int(status_code_raw)
+        except (TypeError, ValueError):
+            status_code = None
+
+        duration_seconds: int | None
+        try:
+            duration_seconds = int(duration_seconds_raw)
+        except (TypeError, ValueError):
+            duration_seconds = None
+
         rows.append(
             {
                 "route": route,
                 "status": "passed" if rc == 0 else "failed",
                 "rc": rc,
                 "artifact": artifact,
+                "phase": phase or None,
+                "reason": reason or None,
+                "status_code": status_code,
+                "duration_seconds": duration_seconds,
             }
         )
     return rows
@@ -279,11 +304,49 @@ run_probe() {
     --output-json "$output_json"
 }
 
+read_route_artifact_meta() {
+  local artifact_path="$1"
+
+  python3 - "$artifact_path" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+
+artifact_path = Path(sys.argv[1])
+if not artifact_path.is_file():
+    print("unknown\tartifact_missing\t")
+    raise SystemExit(0)
+
+try:
+    payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+except Exception:
+    print("unknown\tartifact_unreadable\t")
+    raise SystemExit(0)
+
+phase = str(payload.get("phase") or "unknown")
+reason = str(payload.get("reason") or "unknown")
+status_code = payload.get("status_code")
+
+if status_code is None and isinstance(payload.get("entry"), dict):
+    status_code = payload.get("entry", {}).get("status_code")
+
+status_code_text = "" if status_code is None else str(status_code)
+print(f"{phase}\t{reason}\t{status_code_text}")
+PY
+}
+
 declare -a failed_routes=()
 declare -a failed_route_paths=()
 
 declare -A route_rc=()
 declare -A route_artifact=()
+declare -A route_phase=()
+declare -A route_reason=()
+declare -A route_status_code=()
+declare -A route_duration_seconds=()
 set +e
 for route in "${selected_routes[@]}"; do
   suffix="$(gui_login_start_artifact_suffix_for_route "$route")" || {
@@ -292,9 +355,24 @@ for route in "${selected_routes[@]}"; do
   }
 
   output_json="${OUTPUT_DIR}/${ENV_NAME}-${suffix}.json"
+  route_started_at_epoch="$(date +%s)"
+  echo "UI login-start smoke: probing route='${route}' -> ${output_json}"
   run_probe "$route" "$output_json"
-  route_rc["$route"]=$?
+  rc=$?
+  route_finished_at_epoch="$(date +%s)"
+  route_duration="$((route_finished_at_epoch - route_started_at_epoch))"
+
+  route_rc["$route"]=$rc
   route_artifact["$route"]="$output_json"
+  route_duration_seconds["$route"]="$route_duration"
+
+  route_meta="$(read_route_artifact_meta "$output_json")"
+  IFS=$'\t' read -r route_phase_value route_reason_value route_status_code_value <<< "$route_meta"
+  route_phase["$route"]="${route_phase_value:-unknown}"
+  route_reason["$route"]="${route_reason_value:-unknown}"
+  route_status_code["$route"]="${route_status_code_value:-}"
+
+  echo "UI login-start smoke: route='${route}' rc=${rc} phase=${route_phase["$route"]} reason=${route_reason["$route"]} status_code=${route_status_code["$route"]:-n/a} duration_seconds=${route_duration}"
 done
 set -e
 
@@ -311,7 +389,11 @@ summary_rows=""
 for route in "${selected_routes[@]}"; do
   rc="${route_rc[$route]:-1}"
   artifact_path="${route_artifact[$route]:-}"
-  summary_rows+="${route}"$'\t'"${rc}"$'\t'"${artifact_path}"$'\n'
+  phase="${route_phase[$route]:-unknown}"
+  reason="${route_reason[$route]:-unknown}"
+  status_code="${route_status_code[$route]:-}"
+  duration_seconds="${route_duration_seconds[$route]:-0}"
+  summary_rows+="${route}"$'\t'"${rc}"$'\t'"${artifact_path}"$'\t'"${phase}"$'\t'"${reason}"$'\t'"${status_code}"$'\t'"${duration_seconds}"$'\n'
 done
 
 bundle_status="passed"
