@@ -19,7 +19,8 @@ CORE_FLOW_TEST_TARGET="${CORE_FLOW_TEST_TARGET:-tests.test_auth_regression_smoke
 CORE_FLOW_LOG="${OUT_DIR}/${STAMP}-core-flow-smoke.log"
 CORE_FLOW_FAILURE_EVIDENCE_DIR="${REPO_ROOT}/reports/evidence/core-flow-smoke/${STAMP}"
 CHROMIUM_BIN="${CHROMIUM_BIN:-chromium}"
-SMOKE_EXPECT_HEALTH_VERSION="${SMOKE_EXPECT_HEALTH_VERSION:-bl334-split-smoke}"
+SMOKE_UI_APP_VERSION="${APP_VERSION:-bl334-split-smoke}"
+SMOKE_EXPECT_HEALTH_VERSION="${SMOKE_EXPECT_HEALTH_VERSION:-${SMOKE_UI_APP_VERSION}}"
 
 mkdir -p "${OUT_DIR}"
 
@@ -225,7 +226,7 @@ echo "[BL-334.5] UI-only smoke (src.ui.service)"
 UI_PORT="$(find_free_port)"
 HOST="127.0.0.1" \
 PORT="${UI_PORT}" \
-APP_VERSION="bl334-split-smoke" \
+APP_VERSION="${SMOKE_UI_APP_VERSION}" \
 UI_API_BASE_URL="http://127.0.0.1:${API_PORT}" \
 PYTHONPATH="${REPO_ROOT}" \
 "${PYTHON_BIN}" -m src.ui.service >"${UI_LOG}" 2>&1 &
@@ -288,6 +289,7 @@ cat >"${OUT_JSON}" <<EOF
   "ui": {
     "entrypoint": "python -m src.ui.service",
     "healthUrl": "http://127.0.0.1:${UI_PORT}/healthz",
+    "appVersionConfigured": "${SMOKE_UI_APP_VERSION}",
     "healthVersionExpected": "${SMOKE_EXPECT_HEALTH_VERSION}",
     "healthVersionObserved": "${UI_HEALTH_VERSION}",
     "guiUrl": "http://127.0.0.1:${UI_PORT}/gui",
@@ -311,6 +313,6 @@ echo "✅ BL-334.5 split smokes passed"
 echo "- evidence: ${OUT_JSON}"
 echo "- api log:  ${API_LOG}"
 echo "- ui log:   ${UI_LOG}"
-echo "- ui health version: observed=${UI_HEALTH_VERSION}, expected=${SMOKE_EXPECT_HEALTH_VERSION}"
+echo "- ui health version: configured=${SMOKE_UI_APP_VERSION}, observed=${UI_HEALTH_VERSION}, expected=${SMOKE_EXPECT_HEALTH_VERSION}"
 echo "- core-flow log: ${CORE_FLOW_LOG}"
 echo "- core-flow duration: ${CORE_FLOW_DURATION_SECONDS}s (budget ${CORE_FLOW_SMOKE_MAX_SECONDS}s)"
