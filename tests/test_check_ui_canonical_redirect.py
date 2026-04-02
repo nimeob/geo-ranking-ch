@@ -320,6 +320,58 @@ def test_main_writes_json_out_alias(tmp_path, capsys, monkeypatch):
     assert written["alias_host"] == "www.dev.geo-ranking.ch"
 
 
+def test_main_accepts_ui_base_url_alias(capsys, monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    exit_code = module.main(
+        [
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+            "--alias-host",
+            "www.dev.geo-ranking.ch",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["request_url"].startswith("https://www.dev.geo-ranking.ch/login?")
+
+
+def test_main_accepts_json_flag_without_value(capsys, monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    exit_code = module.main(
+        [
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--alias-host",
+            "www.dev.geo-ranking.ch",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+
+
 def test_main_classifies_timeout_request_failures(monkeypatch, capsys):
     module = _load_module()
 

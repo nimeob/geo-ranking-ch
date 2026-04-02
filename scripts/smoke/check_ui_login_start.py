@@ -876,8 +876,13 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--base-url",
-        required=True,
+        default="",
         help="UI base URL, e.g. https://www.dev.georanking.ch",
+    )
+    parser.add_argument(
+        "--ui-base-url",
+        default="",
+        help="Alias for --base-url",
     )
     parser.add_argument(
         "--next",
@@ -933,6 +938,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Suppress stdout JSON payloads (artifacts via --output-json remain unchanged)",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Backward-compatible no-op alias (stdout JSON is always emitted unless --quiet)",
+    )
     return parser.parse_args(argv)
 
 
@@ -953,12 +963,32 @@ def _emit_payload(payload: dict[str, object], *, quiet: bool) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
+    base_url = str(args.base_url or "").strip()
+    ui_base_url = str(args.ui_base_url or "").strip()
+    if not base_url and not ui_base_url:
+        payload = {
+            "ok": False,
+            "phase": "request",
+            "reason": "invalid_arguments:base_url_required",
+            "request": {
+                "base_url": base_url,
+                "ui_base_url": ui_base_url,
+            },
+        }
+        _emit_payload(payload, quiet=args.quiet)
+        if args.output_json:
+            _write_result(args.output_json, payload)
+        return 2
+
+    effective_base_url = base_url or ui_base_url
+
     allowed_authorize_hosts = _parse_allowed_authorize_hosts(
         args.expected_authorize_host
     )
 
     request_meta = {
-        "base_url": args.base_url,
+        "base_url": effective_base_url,
+        "ui_base_url": ui_base_url,
         "next": args.next_path,
         "reason": args.reason,
         "timeout": args.timeout,
@@ -970,7 +1000,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         entry_result = check_login_entry(
-            base_url=args.base_url,
+            base_url=effective_base_url,
             next_path=args.next_path,
             reason=args.reason,
             timeout_seconds=args.timeout,
@@ -996,7 +1026,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         start_result = check_login_start(
-            base_url=args.base_url,
+            base_url=effective_base_url,
             next_path=args.next_path,
             reason=args.reason,
             timeout_seconds=args.timeout,
