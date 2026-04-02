@@ -67,6 +67,28 @@ def test_check_canonical_redirect_accepts_equivalent_query_parameter_order(monke
     assert result.reason == "ok"
 
 
+def test_check_canonical_redirect_accepts_default_https_port_equivalence(monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        _ = kwargs
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch:443/login?next=%2Fgui&reason=manual_login&start=1",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_canonical_redirect(
+        base_url="https://www.dev.georanking.ch",
+        canonical_origin="https://www.dev.georanking.ch",
+        canonical_hosts="www.dev.geo-ranking.ch, www.dev.georanking.ch",
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
 def test_check_canonical_redirect_normalizes_origin_style_alias_hosts(monkeypatch):
     module = _load_module()
 
