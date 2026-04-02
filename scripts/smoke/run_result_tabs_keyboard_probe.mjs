@@ -1,21 +1,52 @@
 #!/usr/bin/env node
 
+class CliUsageError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'CliUsageError';
+  }
+}
+
 function fail(message) {
   throw new Error(message);
 }
 
+function usageError(message) {
+  throw new CliUsageError(message);
+}
+
+function printUsage(stream) {
+  stream.write(
+    [
+      'Usage: node scripts/smoke/run_result_tabs_keyboard_probe.mjs --result-url <url>',
+      '',
+      'Options:',
+      '  --result-url <url>  Public /results/<id> URL that should be probed.',
+      '  -h, --help          Show this help and exit.',
+    ].join('\n') + '\n'
+  );
+}
+
 function parseArgs(argv) {
-  const args = { resultUrl: "" };
+  const args = { mode: 'run', resultUrl: '' };
   for (let i = 2; i < argv.length; i += 1) {
     const token = argv[i];
+    if (token === '-h' || token === '--help') {
+      args.mode = 'help';
+      return args;
+    }
     if (token === "--result-url") {
       args.resultUrl = String(argv[i + 1] || "").trim();
+      if (!args.resultUrl) {
+        usageError('missing value for --result-url');
+      }
       i += 1;
       continue;
     }
+    usageError(`unknown option: ${token}`);
   }
   if (!args.resultUrl) {
-    fail("missing --result-url");
+    usageError('missing --result-url');
   }
   return args;
 }
@@ -264,7 +295,13 @@ async function flush() {
 }
 
 async function main() {
-  const { resultUrl } = parseArgs(process.argv);
+  const parsed = parseArgs(process.argv);
+  if (parsed.mode === 'help') {
+    printUsage(process.stdout);
+    return;
+  }
+
+  const { resultUrl } = parsed;
   const scriptSource = await fetchResultPageScript(resultUrl);
 
   const { byId, documentStub } = createDomHarness();
@@ -342,6 +379,11 @@ async function main() {
 }
 
 main().catch((error) => {
+  if (error instanceof CliUsageError) {
+    process.stderr.write(`[result-tabs-keyboard-probe] ERROR: ${error.message}\n`);
+    printUsage(process.stderr);
+    process.exit(2);
+  }
   process.stderr.write(`[result-tabs-keyboard-probe] ${error?.stack || error}\n`);
   process.exit(1);
 });
