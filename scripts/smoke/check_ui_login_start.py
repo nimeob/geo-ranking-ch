@@ -928,6 +928,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
             "auth.dev.georanking.ch,www.dev.georanking.ch)."
         ),
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress stdout JSON payloads (artifacts via --output-json remain unchanged)",
+    )
     return parser.parse_args(argv)
 
 
@@ -937,6 +942,12 @@ def _write_result(path: str, payload: dict[str, object]) -> None:
     out.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+
+
+def _emit_payload(payload: dict[str, object], *, quiet: bool) -> None:
+    if quiet:
+        return
+    print(json.dumps(payload, ensure_ascii=False))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -979,7 +990,7 @@ def main(argv: list[str] | None = None) -> int:
                 "content_type": entry_result.content_type,
                 "request": request_meta,
             }
-            print(json.dumps(payload, ensure_ascii=False))
+            _emit_payload(payload, quiet=args.quiet)
             if args.output_json:
                 _write_result(args.output_json, payload)
             return 1
@@ -1002,7 +1013,7 @@ def main(argv: list[str] | None = None) -> int:
             "error": str(exc),
             "request": request_meta,
         }
-        print(json.dumps(payload, ensure_ascii=False))
+        _emit_payload(payload, quiet=args.quiet)
         if args.output_json:
             _write_result(args.output_json, payload)
         return 1
@@ -1023,7 +1034,7 @@ def main(argv: list[str] | None = None) -> int:
             "content_type": entry_result.content_type,
         },
     }
-    print(json.dumps(payload, ensure_ascii=False))
+    _emit_payload(payload, quiet=args.quiet)
     if args.output_json:
         _write_result(args.output_json, payload)
 

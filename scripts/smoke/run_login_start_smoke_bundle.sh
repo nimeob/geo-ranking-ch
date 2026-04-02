@@ -275,6 +275,7 @@ run_probe() {
     --max-attempts "$MAX_ATTEMPTS" \
     --retry-delay "$RETRY_DELAY_SECONDS" \
     --expected-authorize-host "$EXPECTED_AUTHORIZE_HOST" \
+    --quiet \
     --output-json "$output_json"
 }
 
