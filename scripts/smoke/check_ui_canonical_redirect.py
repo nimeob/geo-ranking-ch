@@ -320,14 +320,33 @@ def _query_items(query: str) -> list[tuple[str, str]]:
     return sorted(parse_qsl(query, keep_blank_values=True))
 
 
+def _effective_port(parts) -> int | None:
+    if parts.port is not None:
+        return int(parts.port)
+
+    scheme = parts.scheme.lower()
+    if scheme == "https":
+        return 443
+    if scheme == "http":
+        return 80
+    return None
+
+
 def _canonical_redirect_target_matches(*, observed: str, expected: str) -> bool:
     observed_parts = urlparse(observed)
     expected_parts = urlparse(expected)
 
     if observed_parts.scheme.lower() != expected_parts.scheme.lower():
         return False
-    if observed_parts.netloc.lower() != expected_parts.netloc.lower():
+
+    observed_host = (observed_parts.hostname or "").lower()
+    expected_host = (expected_parts.hostname or "").lower()
+    if observed_host != expected_host:
         return False
+
+    if _effective_port(observed_parts) != _effective_port(expected_parts):
+        return False
+
     if observed_parts.path != expected_parts.path:
         return False
 
