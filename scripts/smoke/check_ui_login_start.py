@@ -344,6 +344,15 @@ def _normalize_host_token(raw_host: str) -> str:
     if not candidate:
         return ""
 
+    bare_candidate = candidate.strip("[]").lower()
+    if ":" in bare_candidate and "://" not in candidate:
+        try:
+            ipaddress.ip_address(bare_candidate)
+        except ValueError:
+            pass
+        else:
+            return bare_candidate
+
     parsed = urlparse(candidate if "://" in candidate else f"//{candidate}")
     host = str(parsed.hostname or "").strip().lower()
     if host:
@@ -993,7 +1002,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help=(
             "Optional comma-separated allow-list for absolute authorize redirect hosts "
             "(accepts hostnames, host:port, or full URLs; e.g. "
-            "auth.dev.georanking.ch,www.dev.georanking.ch)."
+            "auth.dev.georanking.ch,www.dev.georanking.ch). Defaults to derived "
+            "auth.<base-host> + <base-host> variants for non-local origins "
+            "(localhost/IP origins keep host checks disabled)."
         ),
     )
     parser.add_argument(

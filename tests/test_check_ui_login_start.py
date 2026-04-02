@@ -566,6 +566,66 @@ def test_main_derives_default_expected_authorize_host_from_non_local_base_url(
     assert payload["request"]["expected_authorize_host_source"] == "derived_default"
 
 
+def test_main_derives_default_expected_authorize_host_from_non_www_origin(
+    monkeypatch, capsys
+):
+    module = _load_module()
+
+    captured: dict[str, set[str] | None] = {}
+
+    def _fake_entry(**kwargs):
+        captured["entry"] = kwargs.get("allowed_authorize_hosts")
+        return module.LoginEntryCheckResult(
+            ok=True,
+            status_code=302,
+            location="https://auth.dev.georanking.ch/oauth2/authorize?state=abc",
+            request_url="https://dev.geo-ranking.ch/login?next=%2Fgui&reason=manual_login",
+            content_type="",
+            reason="ok_redirect",
+        )
+
+    def _fake_start(**kwargs):
+        captured["start"] = kwargs.get("allowed_authorize_hosts")
+        return module.LoginStartCheckResult(
+            ok=True,
+            status_code=302,
+            location="https://auth.dev.georanking.ch/oauth2/authorize?state=abc",
+            request_url="https://dev.geo-ranking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+            reason="ok",
+        )
+
+    monkeypatch.setattr(module, "check_login_entry", _fake_entry)
+    monkeypatch.setattr(module, "check_login_start", _fake_start)
+
+    exit_code = module.main(["--base-url", "https://dev.geo-ranking.ch"])
+
+    assert exit_code == 0
+    expected_hosts = {
+        "auth.dev.georanking.ch",
+        "auth.dev.geo-ranking.ch",
+        "dev.georanking.ch",
+        "dev.geo-ranking.ch",
+    }
+    assert captured["entry"] == expected_hosts
+    assert captured["start"] == expected_hosts
+
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["request"]["expected_authorize_host"] == sorted(expected_hosts)
+    assert payload["request"]["expected_authorize_host_source"] == "derived_default"
+
+
+def test_derive_default_expected_authorize_host_skips_local_and_ip_origins():
+    module = _load_module()
+
+    assert module._derive_default_allowed_authorize_hosts("http://localhost:5173") == set()
+    assert (
+        module._derive_default_allowed_authorize_hosts("http://localhost.localdomain:5173")
+        == set()
+    )
+    assert module._derive_default_allowed_authorize_hosts("http://127.0.0.1:5173") == set()
+    assert module._derive_default_allowed_authorize_hosts("http://[2001:db8::1]:5173") == set()
+
+
 def test_main_accepts_geo_ranking_authorize_host_alias_for_georanking_redirect(capsys):
     module = _load_module()
     _StubHandler.routes = {
