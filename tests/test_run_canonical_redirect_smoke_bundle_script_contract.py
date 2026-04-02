@@ -26,6 +26,7 @@ def test_canonical_redirect_bundle_requires_base_url_and_env_name() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
     assert "--base-url" in content
+    assert "--ui-base-url" in content
     assert "--env-name" in content
     assert "--canonical-origin" in content
     assert "--canonical-hosts" in content
@@ -33,6 +34,24 @@ def test_canonical_redirect_bundle_requires_base_url_and_env_name() -> None:
     assert "--route-presets" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
+
+
+def test_canonical_redirect_bundle_accepts_ui_base_url_alias() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --env-name" in proc.stderr
 
 
 def test_canonical_redirect_bundle_rejects_missing_option_value_for_base_url() -> None:

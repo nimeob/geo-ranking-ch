@@ -115,12 +115,31 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
     assert "--base-url" in content
+    assert "--ui-base-url" in content
     assert "--env-name" in content
     assert "--routes" in content
     assert "--route-presets" in content
     assert "--expected-authorize-host" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
+
+
+def test_login_start_bundle_accepts_ui_base_url_alias() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --env-name" in proc.stderr
 
 
 def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host() -> None:
