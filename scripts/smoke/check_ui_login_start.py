@@ -16,6 +16,7 @@ The redirect chain may be either:
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import re
 import socket
@@ -139,7 +140,10 @@ def _classify_request_failure(exc: Exception) -> str:
     messages = [str(item or "") for item in errors]
     combined_message = " ".join(messages).lower()
 
-    if any(isinstance(item, (TimeoutError, socket.timeout)) for item in errors) or "timed out" in combined_message:
+    if (
+        any(isinstance(item, (TimeoutError, socket.timeout)) for item in errors)
+        or "timed out" in combined_message
+    ):
         return "request_failed_timeout_timed_out"
 
     if any(isinstance(item, socket.gaierror) for item in errors) or any(
@@ -156,10 +160,20 @@ def _classify_request_failure(exc: Exception) -> str:
         return "request_failed_dns_resolution"
 
     if any(
-        isinstance(item, (ConnectionRefusedError, ConnectionResetError, ConnectionAbortedError, BrokenPipeError))
+        isinstance(
+            item,
+            (
+                ConnectionRefusedError,
+                ConnectionResetError,
+                ConnectionAbortedError,
+                BrokenPipeError,
+            ),
+        )
         for item in errors
     ):
-        connection_suffix = _normalize_reason_suffix(type(errors[0]).__name__, "connection")
+        connection_suffix = _normalize_reason_suffix(
+            type(errors[0]).__name__, "connection"
+        )
         return f"request_failed_connection_{connection_suffix}"
 
     if any(
@@ -177,13 +191,19 @@ def _classify_request_failure(exc: Exception) -> str:
             "enetunreach",
         )
     ):
-        if "connection refused" in combined_message or "econnrefused" in combined_message:
+        if (
+            "connection refused" in combined_message
+            or "econnrefused" in combined_message
+        ):
             return "request_failed_connection_refused"
         if "connection reset" in combined_message or "econnreset" in combined_message:
             return "request_failed_connection_reset"
         if "host is down" in combined_message or "no route to host" in combined_message:
             return "request_failed_connection_host_unreachable"
-        if "network is unreachable" in combined_message or "enetunreach" in combined_message:
+        if (
+            "network is unreachable" in combined_message
+            or "enetunreach" in combined_message
+        ):
             return "request_failed_connection_network_unreachable"
         return "request_failed_connection_error"
 
@@ -203,13 +223,19 @@ def _classify_request_failure(exc: Exception) -> str:
             "unable to get local issuer certificate",
         )
     ):
-        if "certificate has expired" in combined_message or "cert_has_expired" in combined_message:
+        if (
+            "certificate has expired" in combined_message
+            or "cert_has_expired" in combined_message
+        ):
             return "request_failed_tls_cert_has_expired"
         if "self signed" in combined_message:
             return "request_failed_tls_self_signed_cert"
         if "unable to get local issuer certificate" in combined_message:
             return "request_failed_tls_untrusted_issuer"
-        if "hostname mismatch" in combined_message or "doesn't match" in combined_message:
+        if (
+            "hostname mismatch" in combined_message
+            or "doesn't match" in combined_message
+        ):
             return "request_failed_tls_hostname_mismatch"
         return "request_failed_tls_error"
 
@@ -285,7 +311,9 @@ def _send_request_probe(
             last_error = exc
             if attempt >= attempts:
                 break
-            time.sleep(min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds)))
+            time.sleep(
+                min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds))
+            )
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
@@ -332,6 +360,8 @@ def _expand_geo_host_variants(host: str) -> set[str]:
     variants = {normalized}
     if "geo-ranking" in normalized:
         variants.add(normalized.replace("geo-ranking", "georanking"))
+    if "georanking" in normalized:
+        variants.add(normalized.replace("georanking", "geo-ranking"))
     return variants
 
 
@@ -345,6 +375,37 @@ def _parse_allowed_authorize_hosts(raw_hosts: str | None) -> set[str]:
             continue
         hosts.update(_expand_geo_host_variants(normalized))
     return hosts
+
+
+def _derive_default_allowed_authorize_hosts(base_url: str) -> set[str]:
+    parsed = urlparse(str(base_url or "").strip())
+    host = _normalize_host_token(parsed.hostname or "")
+    if not host:
+        return set()
+
+    if host in {"localhost", "localhost.localdomain"}:
+        return set()
+
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        return set()
+
+    seed_hosts: list[str] = []
+    if host.startswith("www.") and len(host) > 4:
+        bare_host = host[4:]
+        seed_hosts.append(f"auth.{bare_host}")
+        seed_hosts.append(host)
+    else:
+        seed_hosts.append(f"auth.{host}")
+        seed_hosts.append(host)
+
+    allow_hosts: set[str] = set()
+    for seed in seed_hosts:
+        allow_hosts.update(_expand_geo_host_variants(seed))
+    return allow_hosts
 
 
 def _is_authorize_redirect(
@@ -729,17 +790,19 @@ def check_login_start(
         read_body_preview=False,
     )
 
-    current_request_url, first_probe, redirect_follow_error = _follow_same_login_redirects(
-        phase="start",
-        request_url=current_request_url,
-        probe=first_probe,
-        next_path=next_path,
-        reason=reason,
-        require_start=True,
-        timeout_seconds=timeout_seconds,
-        max_attempts=max_attempts,
-        retry_delay_seconds=retry_delay_seconds,
-        max_retry_delay_seconds=max_retry_delay_seconds,
+    current_request_url, first_probe, redirect_follow_error = (
+        _follow_same_login_redirects(
+            phase="start",
+            request_url=current_request_url,
+            probe=first_probe,
+            next_path=next_path,
+            reason=reason,
+            require_start=True,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            max_retry_delay_seconds=max_retry_delay_seconds,
+        )
     )
     first_status = first_probe.status_code
     first_location = first_probe.location
@@ -982,9 +1045,19 @@ def main(argv: list[str] | None = None) -> int:
 
     effective_base_url = base_url or ui_base_url
 
-    allowed_authorize_hosts = _parse_allowed_authorize_hosts(
+    explicit_authorize_hosts = _parse_allowed_authorize_hosts(
         args.expected_authorize_host
     )
+    if explicit_authorize_hosts:
+        allowed_authorize_hosts = explicit_authorize_hosts
+        expected_authorize_host_source = "argument"
+    else:
+        allowed_authorize_hosts = _derive_default_allowed_authorize_hosts(
+            effective_base_url
+        )
+        expected_authorize_host_source = (
+            "derived_default" if allowed_authorize_hosts else "none"
+        )
 
     request_meta = {
         "base_url": effective_base_url,
@@ -996,6 +1069,7 @@ def main(argv: list[str] | None = None) -> int:
         "retry_delay": args.retry_delay,
         "max_retry_delay": args.max_retry_delay,
         "expected_authorize_host": sorted(allowed_authorize_hosts),
+        "expected_authorize_host_source": expected_authorize_host_source,
     }
 
     try:
@@ -1055,6 +1129,7 @@ def main(argv: list[str] | None = None) -> int:
         "status_code": start_result.status_code,
         "request_url": start_result.request_url,
         "location": start_result.location,
+        "request": request_meta,
         "entry": {
             "ok": entry_result.ok,
             "reason": entry_result.reason,
