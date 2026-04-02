@@ -16,7 +16,8 @@ TIMEOUT_SECONDS="${BL337_TIMEOUT_SECONDS:-20}"
 API_EVIDENCE_JSON="${BL337_API_EVIDENCE_JSON:-}"
 UI_EVIDENCE_JSON="${BL337_UI_EVIDENCE_JSON:-}"
 AUTH_MODE="${BL337_AUTH_MODE:-auto}"
-AUTH_PREFLIGHT_SCRIPT="${BL337_AUTH_PREFLIGHT_SCRIPT:-${REPO_ROOT}/scripts/smoke/auth_preflight.sh}"
+DEFAULT_AUTH_PREFLIGHT_SCRIPT="${REPO_ROOT}/scripts/smoke/auth_preflight.sh"
+AUTH_PREFLIGHT_SCRIPT="${BL337_AUTH_PREFLIGHT_SCRIPT:-${DEFAULT_AUTH_PREFLIGHT_SCRIPT}}"
 
 case "${AUTH_MODE}" in
   auto|allow|strict)
@@ -45,11 +46,26 @@ fi
 API_AUTH_TOKEN="${BL337_API_AUTH_TOKEN:-}"
 if [[ "${AUTH_MODE}" == "auto" && -z "${API_AUTH_TOKEN}" ]]; then
   has_oidc_hint=false
+  has_oidc_secret_hint=false
+  run_auth_preflight=false
+
   if [[ -n "${OIDC_TOKEN_URL:-}" && -n "${OIDC_CLIENT_ID:-}" ]]; then
     has_oidc_hint=true
   fi
+  if [[ -n "${OIDC_CLIENT_SECRET:-}" || -n "${OIDC_CLIENT_SECRET_FILE:-}" ]]; then
+    has_oidc_secret_hint=true
+  fi
 
   if [[ "${has_oidc_hint}" == "true" ]]; then
+    run_auth_preflight=true
+
+    if [[ "${AUTH_PREFLIGHT_SCRIPT}" == "${DEFAULT_AUTH_PREFLIGHT_SCRIPT}" && "${has_oidc_secret_hint}" != "true" ]]; then
+      run_auth_preflight=false
+      echo "[BL-337.frontdoor] INFO: OIDC_TOKEN_URL/OIDC_CLIENT_ID erkannt, aber OIDC_CLIENT_SECRET(_FILE) fehlt; default auth-preflight wird übersprungen, fallback auf allow-auth-blocked."
+    fi
+  fi
+
+  if [[ "${run_auth_preflight}" == "true" ]]; then
     if [[ ! -x "${AUTH_PREFLIGHT_SCRIPT}" ]]; then
       echo "[BL-337.frontdoor] WARN: auth preflight script nicht ausführbar (${AUTH_PREFLIGHT_SCRIPT}); fallback auf allow-auth-blocked" >&2
     else
