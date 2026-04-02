@@ -127,6 +127,36 @@ def test_wrapper_auto_mode_skips_allow_auth_blocked_when_token_present(tmp_path:
     assert "--auth-token dummy-token" in api_call
 
 
+def test_wrapper_auto_mode_skips_default_preflight_when_oidc_secret_hint_missing(tmp_path: Path) -> None:
+    log_path = tmp_path / "fake-python.log"
+    fake_python = _make_fake_python(tmp_path, log_path)
+
+    proc = subprocess.run(
+        [str(SCRIPT_PATH)],
+        cwd=str(REPO_ROOT),
+        env={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHON_BIN": str(fake_python),
+            "FAKE_PYTHON_LOG": str(log_path),
+            "BL337_AUTH_MODE": "auto",
+            "OIDC_TOKEN_URL": "https://idp.example.test/oauth/token",
+            "OIDC_CLIENT_ID": "smoke-client",
+        },
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    combined = proc.stdout + proc.stderr
+    assert "OIDC_CLIENT_SECRET(_FILE) fehlt" in combined
+    assert "[auth-preflight-failed]" not in combined
+
+    lines = log_path.read_text(encoding="utf-8").splitlines()
+    api_call = next(line for line in lines if "run_bl337_api_frontdoor_e2e.py" in line)
+    assert "--allow-auth-blocked" in api_call
+    assert "--auth-token" not in api_call
+
+
 def test_wrapper_auto_mode_uses_preflight_token_when_oidc_hints_present(tmp_path: Path) -> None:
     log_path = tmp_path / "fake-python.log"
     fake_python = _make_fake_python(tmp_path, log_path)
