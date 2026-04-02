@@ -480,7 +480,16 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Smoke-check optional canonical-host redirect contract for UI /login"
     )
-    parser.add_argument("--base-url", required=True, help="Canonical GUI base URL")
+    parser.add_argument(
+        "--base-url",
+        default="",
+        help="Canonical GUI base URL",
+    )
+    parser.add_argument(
+        "--ui-base-url",
+        default="",
+        help="Alias for --base-url",
+    )
     parser.add_argument(
         "--canonical-origin",
         default="",
@@ -529,17 +538,38 @@ def _build_parser() -> argparse.ArgumentParser:
         default="",
         help="Alias for --output-json",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Backward-compatible no-op alias (stdout JSON is always emitted)",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
+    base_url = str(args.base_url or "").strip()
+    ui_base_url = str(args.ui_base_url or "").strip()
+    if not base_url and not ui_base_url:
+        payload = {
+            "ok": False,
+            "skipped": False,
+            "reason": "invalid_arguments:base_url_required",
+            "base_url": base_url,
+            "ui_base_url": ui_base_url,
+            "max_retry_delay": float(args.max_retry_delay),
+        }
+        print(json.dumps(payload, ensure_ascii=False))
+        return 2
+
+    effective_base_url = base_url or ui_base_url
+
     output_json = str(args.output_json or args.json_out or "").strip()
 
     try:
         result = check_canonical_redirect(
-            base_url=args.base_url,
+            base_url=effective_base_url,
             canonical_origin=args.canonical_origin,
             canonical_hosts=args.canonical_hosts,
             alias_host=args.alias_host,
@@ -556,7 +586,8 @@ def main(argv: list[str] | None = None) -> int:
             "skipped": False,
             "reason": _classify_request_failure(exc),
             "error": str(exc),
-            "base_url": args.base_url,
+            "base_url": effective_base_url,
+            "ui_base_url": ui_base_url,
             "canonical_origin": args.canonical_origin,
             "canonical_hosts": args.canonical_hosts,
             "alias_host": args.alias_host,

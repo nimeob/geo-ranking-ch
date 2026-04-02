@@ -674,6 +674,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--output-json", default="", help="Optional JSON output path")
     parser.add_argument("--json-out", default="", help="Alias for --output-json")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Backward-compatible no-op alias (stdout JSON is always emitted)",
+    )
     return parser.parse_args(argv)
 
 

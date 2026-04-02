@@ -375,6 +375,35 @@ def test_main_accepts_json_out_alias_and_writes_result(tmp_path, capsys):
     assert file_payload["phase"] == "start"
 
 
+def test_main_accepts_ui_base_url_alias(capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+    }
+
+    with _StubServer() as stub:
+        exit_code = module.main(["--ui-base-url", stub.base_url])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["request_url"].startswith(f"{stub.base_url}/login")
+
+
+def test_main_accepts_json_flag_without_value(capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+    }
+
+    with _StubServer() as stub:
+        exit_code = module.main(["--base-url", stub.base_url, "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+
+
 def test_main_quiet_suppresses_stdout_but_still_writes_output_json(tmp_path, capsys):
     module = _load_module()
     _StubHandler.routes = {

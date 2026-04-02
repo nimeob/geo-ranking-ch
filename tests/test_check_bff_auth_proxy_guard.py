@@ -297,6 +297,27 @@ def test_main_writes_json_out_alias(tmp_path, monkeypatch, capsys):
     assert "auth.dev.georanking.ch" in written["expected_authorize_hosts"]
 
 
+def test_main_accepts_json_flag_without_value(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
+
+    exit_code = module.main(
+        [
+            "--api-base-url",
+            "https://api.dev.georanking.ch",
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+            "--max-attempts",
+            "1",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+
+
 def test_derive_default_api_origin_from_ui_base_url():
     module = _load_module()
 
@@ -673,4 +694,3 @@ def test_send_request_probe_uses_default_retry_delay_for_stale_http_date(monkeyp
     assert result.status_code == 403
     assert fake_opener.calls == 2
     assert sleep_calls == [2.75]
-
