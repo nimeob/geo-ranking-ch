@@ -83,11 +83,28 @@ FORBIDDEN_WIP_LINT_FILES=(
   "triage_add_labels.sh"
 )
 
+LOCAL_LINT_EXCLUDE_PREFIXES=(
+  ".local/"
+  ".tmp/"
+  ".nightlock/"
+)
+
 is_forbidden_lint_file() {
   local candidate="$1"
   local forbidden
   for forbidden in "${FORBIDDEN_WIP_LINT_FILES[@]}"; do
     if [[ "${candidate}" == "${forbidden}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+is_local_lint_excluded_file() {
+  local candidate="$1"
+  local prefix
+  for prefix in "${LOCAL_LINT_EXCLUDE_PREFIXES[@]}"; do
+    if [[ "${candidate}" == "${prefix}"* ]]; then
       return 0
     fi
   done
@@ -106,6 +123,9 @@ else
       [[ -n "${file}" ]] || continue
       [[ -f "${file}" ]] || continue
       if is_forbidden_lint_file "${file}"; then
+        continue
+      fi
+      if is_local_lint_excluded_file "${file}"; then
         continue
       fi
       printf '%s\n' "${file}"
