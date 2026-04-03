@@ -112,6 +112,9 @@ def test_login_start_bundle_script_uses_shared_route_helper_and_probe_loop() -> 
     assert "write_bundle_summary" in content
     assert "read_route_artifact_meta" in content
     assert "duration_seconds" in content
+    assert "is_transport_failure_reason" in content
+    assert "request_failed_*" in content
+    assert "Aborting remaining routes (fail-fast)" in content
     assert "login-start-smoke-bundle-summary.json" in content
 
 
@@ -419,3 +422,37 @@ def test_login_start_bundle_summary_includes_route_reason_phase_status_and_durat
         assert row["status_code"] == 302
         assert isinstance(row["duration_seconds"], int)
         assert row["duration_seconds"] >= 0
+
+
+def test_login_start_bundle_fail_fast_stops_after_first_transport_error(tmp_path) -> None:
+    output_dir = tmp_path / "artifacts"
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://127.0.0.1:1",
+            "--env-name",
+            "stub-fail-fast",
+            "--output-dir",
+            str(output_dir),
+            "--routes",
+            "/gui,/jobs",
+            "--timeout",
+            "2",
+            "--max-attempts",
+            "1",
+            "--retry-delay",
+            "0",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert "UI login-start smoke: probing route='/gui'" in proc.stdout
+    assert "UI login-start smoke: probing route='/jobs'" not in proc.stdout
+    assert "Aborting remaining routes (fail-fast)" in proc.stderr

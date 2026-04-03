@@ -1159,3 +1159,92 @@ def test_main_emits_classified_request_failure_reason(monkeypatch, capsys):
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["phase"] == "request"
     assert payload["reason"] == "request_failed_tls_cert_has_expired"
+
+
+def test_send_request_probe_does_not_retry_non_retryable_tls_errors(monkeypatch):
+    module = _load_module()
+
+    class _FakeOpener:
+        def __init__(self):
+            self.calls = 0
+
+        def open(self, req, timeout):
+            _ = (req, timeout)
+            self.calls += 1
+            raise RuntimeError(
+                "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: "
+                "Hostname mismatch, certificate is not valid for 'dev.georanking.ch'. (_ssl.c:1029)>"
+            )
+
+    fake_opener = _FakeOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: fake_opener)
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        module.time, "sleep", lambda seconds: sleep_calls.append(seconds)
+    )
+
+    with pytest.raises(RuntimeError, match="request_failed_after_retries"):
+        module._send_request_probe(
+            request_url="https://dev.georanking.ch/login?next=%2Fgui&reason=manual_login",
+            timeout_seconds=5.0,
+            max_attempts=8,
+            retry_delay_seconds=5.0,
+            max_retry_delay_seconds=10.0,
+        )
+
+    assert fake_opener.calls == 1
+    assert sleep_calls == []
+
+
+def test_send_request_probe_retries_retryable_generic_errors(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 302
+
+        def __init__(self):
+            self.headers = {
+                "Location": "https://auth.dev.georanking.ch/oauth2/authorize?state=abc",
+                "Content-Type": "text/html; charset=utf-8",
+            }
+
+        def getcode(self):
+            return self.status
+
+        def read(self, _limit: int):
+            return b""
+
+        def close(self):
+            return None
+
+    class _FakeOpener:
+        def __init__(self):
+            self.calls = 0
+
+        def open(self, req, timeout):
+            _ = (req, timeout)
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("temporary socket hiccup")
+            return _FakeResponse()
+
+    fake_opener = _FakeOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: fake_opener)
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        module.time, "sleep", lambda seconds: sleep_calls.append(seconds)
+    )
+
+    result = module._send_request_probe(
+        request_url="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login",
+        timeout_seconds=5.0,
+        max_attempts=2,
+        retry_delay_seconds=1.75,
+        max_retry_delay_seconds=10.0,
+    )
+
+    assert result.status_code == 302
+    assert fake_opener.calls == 2
+    assert sleep_calls == [1.75]
