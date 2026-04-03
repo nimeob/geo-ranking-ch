@@ -254,6 +254,7 @@ run_probe() {
     "--retry-delay" "$RETRY_DELAY_SECONDS"
     "--max-retry-delay" "$MAX_RETRY_DELAY_SECONDS"
     "--output-json" "$output_json"
+    "--quiet"
   )
 
   if [ -n "$CANONICAL_ORIGIN" ]; then
@@ -267,6 +268,33 @@ run_probe() {
   fi
 
   python3 scripts/smoke/check_ui_canonical_redirect.py "${probe_args[@]}"
+}
+
+read_probe_summary_fields() {
+  local output_json="$1"
+  python3 - "$output_json" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+if not path.exists():
+    print("\t\t")
+    raise SystemExit(0)
+
+try:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("\t\t")
+    raise SystemExit(0)
+
+reason = str(payload.get("reason", ""))
+status_code = payload.get("status_code", "")
+skipped = payload.get("skipped", "")
+print(f"{reason}\t{status_code}\t{skipped}")
+PY
 }
 
 declare -a failed_routes=()
@@ -285,6 +313,14 @@ for route in "${selected_routes[@]}"; do
   run_probe "$route" "$output_json"
   route_rc["$route"]=$?
   route_artifact["$route"]="$output_json"
+
+  probe_reason=""
+  probe_status_code=""
+  probe_skipped=""
+  if [[ -f "$output_json" ]]; then
+    IFS=$'\t' read -r probe_reason probe_status_code probe_skipped < <(read_probe_summary_fields "$output_json")
+  fi
+  echo "UI canonical redirect smoke: route='${route}' rc=${route_rc["$route"]:-1} reason=${probe_reason:-unknown} status_code=${probe_status_code:-na} skipped=${probe_skipped:-na}"
 done
 set -e
 
