@@ -146,17 +146,58 @@ def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host
     content = SCRIPT.read_text(encoding="utf-8")
 
     required_snippets = [
+        "import ipaddress",
         'if host.startswith("www.") and len(host) > 4:',
         'seed_hosts.append(f"auth.{bare_host}")',
-        'seed_hosts.append(f"auth.{host}")',
         "seed_hosts.append(host)",
         "expand_geo_host_variants",
         'host.replace("geo-ranking", "georanking")',
+        'host.replace("georanking", "geo-ranking")',
+        'if host in {"localhost", "localhost.localdomain"}:',
+        "ipaddress.ip_address(host)",
     ]
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"Default authorize-host Herleitung fehlt Snippets: {missing}"
     assert "seed_hosts.append(bare_host)" not in content
+
+
+def test_login_start_bundle_derives_no_default_authorize_host_for_local_ip_origin(
+    tmp_path,
+) -> None:
+    output_dir = tmp_path / "artifacts"
+
+    with _BundleStubServer() as stub:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                stub.base_url,
+                "--env-name",
+                "stub-local",
+                "--output-dir",
+                str(output_dir),
+                "--routes",
+                "/gui",
+                "--timeout",
+                "5",
+                "--max-attempts",
+                "1",
+                "--retry-delay",
+                "0",
+            ],
+            cwd=str(REPO_ROOT),
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert proc.returncode == 0, proc.stderr
+
+    summary_path = output_dir / "stub-local-login-start-smoke-bundle-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["expected_authorize_host"] == ""
 
 
 def test_login_start_bundle_rejects_missing_option_value_for_base_url() -> None:
