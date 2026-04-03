@@ -1,15 +1,76 @@
 #!/usr/bin/env node
-import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const issueNumber = 1016;
+const scriptRelPath = 'scripts/run_issue_1016_mobile_ux_smoke.mjs';
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function buildUsage() {
+  return [
+    `Usage: node ${scriptRelPath}`,
+    '',
+    'Issue #1016 Mobile-UX-Smoke.',
+    'Prüft Burger-Menü UX + Pinch-Zoom Smoothness auf /gui.',
+    '',
+    'Options:',
+    '  -h, --help   Show this help and exit.',
+    '',
+    'Environment:',
+    `  BASE_URL=${baseUrl}`,
+    `  GUI_STABILITY_WAIT_MS=${guiStabilityWaitMs}`,
+    `  BASE_URL_PROBE_TIMEOUT_MS=${baseUrlProbeTimeoutMs}`,
+  ].join('\n');
+}
+
+function parseCliArgs(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  const unknown = [];
+  let help = false;
+
+  for (const arg of args) {
+    if (arg === '-h' || arg === '--help') {
+      help = true;
+      continue;
+    }
+    unknown.push(arg);
+  }
+
+  return { help, unknown };
+}
+
+const cli = parseCliArgs(process.argv.slice(2));
+if (cli.help) {
+  console.log(buildUsage());
+  process.exit(0);
+}
+if (cli.unknown.length > 0) {
+  console.error(`[issue-${issueNumber}-mobile-ux-smoke] unknown_cli_args=${cli.unknown.join(',')}`);
+  console.error(buildUsage());
+  process.exit(2);
+}
+
+async function loadChromium() {
+  try {
+    const playwrightModule = await import('playwright');
+    if (playwrightModule?.chromium) {
+      return playwrightModule.chromium;
+    }
+    throw new Error('chromium export missing');
+  } catch (error) {
+    const normalized = normalizeError(error);
+    throw new Error(
+      `Playwright Chromium nicht verfügbar. Installiere die Node-Abhängigkeiten mit \`npm ci\` `
+      + `und anschließend Browser-Binaries via \`npx playwright install --with-deps chromium\`. `
+      + `Ursache: ${normalized.name}: ${normalized.message}`
+    );
+  }
+}
 
 class BaseUrlReachabilityError extends Error {
   constructor(message, { targetUrl, reasonCode, hint, cause } = {}) {
@@ -404,6 +465,7 @@ async function main() {
   try {
     await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
 
+    const chromium = await loadChromium();
     browser = await chromium.launch({ headless: true });
     context = await browser.newContext({
       viewport: { width: 390, height: 844 },

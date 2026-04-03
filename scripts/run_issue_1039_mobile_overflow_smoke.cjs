@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const issueNumber = 1039;
+const scriptRelPath = 'scripts/run_issue_1039_mobile_overflow_smoke.cjs';
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
@@ -13,6 +14,51 @@ const outDir = evidenceDirEnv
   ? (path.isAbsolute(evidenceDirEnv) ? evidenceDirEnv : path.join(repoRoot, evidenceDirEnv))
   : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function buildUsage() {
+  return [
+    `Usage: node ${scriptRelPath}`,
+    '',
+    'Issue #1039 Mobile Overflow Smoke.',
+    'Prüft horizontalen Overflow + Kernfunktionen für mobile und desktop /gui.',
+    '',
+    'Options:',
+    '  -h, --help   Show this help and exit.',
+    '',
+    'Environment:',
+    `  BASE_URL=${baseUrl}`,
+    `  GUI_STABILITY_WAIT_MS=${guiStabilityWaitMs}`,
+    `  BASE_URL_PROBE_TIMEOUT_MS=${baseUrlProbeTimeoutMs}`,
+    '  ISSUE_1039_EVIDENCE_DIR=<dir>   Optional custom evidence output directory.',
+  ].join('\n');
+}
+
+function parseCliArgs(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  const unknown = [];
+  let help = false;
+
+  for (const arg of args) {
+    if (arg === '-h' || arg === '--help') {
+      help = true;
+      continue;
+    }
+    unknown.push(arg);
+  }
+
+  return { help, unknown };
+}
+
+const cli = parseCliArgs(process.argv.slice(2));
+if (cli.help) {
+  console.log(buildUsage());
+  process.exit(0);
+}
+if (cli.unknown.length > 0) {
+  console.error(`[issue-${issueNumber}-mobile-overflow-smoke] unknown_cli_args=${cli.unknown.join(',')}`);
+  console.error(buildUsage());
+  process.exit(2);
+}
 
 class PlaywrightDependencyError extends Error {
   constructor(message, { installHint, cause } = {}) {
