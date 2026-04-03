@@ -10,6 +10,7 @@ GUI_SMOKE_ROUTES=(
   "/jobs"
   "/jobs?source=smoke"
   "/jobs/demo-job"
+  "/jobs/demo-job?source=smoke"
   "/results"
   "/results/demo-result"
   "/results/demo-result?tab=raw&source=smoke"
@@ -19,6 +20,7 @@ GUI_SMOKE_ROUTES=(
   "/gui/jobs"
   "/gui/jobs?source=smoke"
   "/gui/jobs/demo-job"
+  "/gui/jobs/demo-job?source=smoke"
 )
 
 GUI_SMOKE_SELECTED_ROUTES=()
@@ -109,6 +111,7 @@ EOF
 /jobs
 /jobs?source=smoke
 /jobs/demo-job
+/jobs/demo-job?source=smoke
 /results
 /results/demo-result
 /results/demo-result?tab=raw&source=smoke
@@ -120,6 +123,7 @@ EOF
 /gui/jobs
 /gui/jobs?source=smoke
 /gui/jobs/demo-job
+/gui/jobs/demo-job?source=smoke
 /gui/results
 /gui/results/demo-result
 /gui/results/demo-result?tab=raw&source=smoke
@@ -130,9 +134,11 @@ EOF
 /jobs
 /jobs?source=smoke
 /jobs/demo-job
+/jobs/demo-job?source=smoke
 /gui/jobs
 /gui/jobs?source=smoke
 /gui/jobs/demo-job
+/gui/jobs/demo-job?source=smoke
 EOF
       ;;
     results)
@@ -302,6 +308,9 @@ gui_login_start_artifact_suffix_for_route() {
     "/jobs/demo-job")
       echo "login-start-smoke-jobs-detail"
       ;;
+    "/jobs/demo-job?source=smoke")
+      echo "login-start-smoke-jobs-detail-query"
+      ;;
     "/results")
       echo "login-start-smoke-results"
       ;;
@@ -328,6 +337,9 @@ gui_login_start_artifact_suffix_for_route() {
       ;;
     "/gui/jobs/demo-job")
       echo "login-start-smoke-gui-jobs-legacy-detail"
+      ;;
+    "/gui/jobs/demo-job?source=smoke")
+      echo "login-start-smoke-gui-jobs-legacy-detail-query"
       ;;
     *)
       return 1
