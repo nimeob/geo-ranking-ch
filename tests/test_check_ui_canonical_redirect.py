@@ -394,6 +394,38 @@ def test_main_accepts_json_flag_without_value(capsys, monkeypatch):
     assert payload["ok"] is True
 
 
+def test_main_quiet_suppresses_stdout_but_writes_json(tmp_path, capsys, monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    output_path = tmp_path / "canonical-smoke-quiet.json"
+    exit_code = module.main(
+        [
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--alias-host",
+            "www.dev.geo-ranking.ch",
+            "--quiet",
+            "--output-json",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == ""
+
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["ok"] is True
+    assert written["alias_host"] == "www.dev.geo-ranking.ch"
+
+
 def test_main_classifies_timeout_request_failures(monkeypatch, capsys):
     module = _load_module()
 

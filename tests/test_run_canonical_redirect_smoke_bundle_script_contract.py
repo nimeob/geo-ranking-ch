@@ -17,7 +17,9 @@ def test_canonical_redirect_bundle_script_uses_shared_route_helper_and_probe_loo
     assert "gui_canonical_redirect_artifact_suffix_for_route" in content
     assert "gui_smoke_parse_route_csv" in content
     assert "check_ui_canonical_redirect.py" in content
+    assert '"--quiet"' in content
     assert 'run_probe "$route" "$output_json"' in content
+    assert "UI canonical redirect smoke: route='" in content
     assert "write_bundle_summary" in content
     assert "canonical-host-redirect-smoke-bundle-summary.json" in content
 

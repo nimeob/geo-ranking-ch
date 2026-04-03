@@ -95,3 +95,21 @@
 - Live-Sanity:
   - `run_gui_live_auth_analyze_route_set.sh --base-url https://www.dev.georanking.ch --routes "/gui,/jobs?source=smoke"` (ohne Secrets) zeigt jetzt fallback-Hints inkl. normalisiertem Route-Subset.
 - Nächstes Paket: weitere Smoke-UX-Härtung (präzisere Blocker-/Fallback-Evidence) falls nächtliche Runs erneute Ambiguitäten zeigen.
+
+## 2026-04-03 07:35 CET — Canonical-Redirect-Bundle Log-Rauschen reduziert + DEV-Sanity
+- Live-Checks gegen `https://www.dev.georanking.ch` erneut ausgeführt:
+  - `run_login_start_smoke_bundle.sh --route-presets all` → **passed** (alle Entry-Routen 302→Login-Start ok)
+  - `run_canonical_redirect_smoke_bundle.sh --route-presets all` → **passed** (Alias→Canonical Redirects konsistent)
+- ROI-Gap identifiziert: Canonical-Bundle schrieb bisher pro Route die komplette JSON-Payload auf stdout (sehr laute CI/Nacht-Logs, schwieriger zu scannen).
+- Umsetzung:
+  - `check_ui_canonical_redirect.py` um `--quiet` erweitert (unterdrückt stdout-JSON, Artefakt-JSON via `--output-json` bleibt unverändert).
+  - `run_canonical_redirect_smoke_bundle.sh` nutzt `--quiet` jetzt im Probe-Loop und emittiert stattdessen kompakte Statuszeilen je Route:
+    - `route`, `rc`, `reason`, `status_code`, `skipped`.
+- Regressionen ergänzt:
+  - `tests/test_check_ui_canonical_redirect.py`: neuer Quiet-Contract (kein stdout, JSON-Datei weiterhin korrekt)
+  - `tests/test_run_canonical_redirect_smoke_bundle_script_contract.py`: prüft `--quiet`-Nutzung + kompakte Route-Statuszeilen
+- Lokale Tests:
+  - `pytest -q tests/test_check_ui_canonical_redirect.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py` → **33 passed**
+  - `pytest -q tests/test_smoke_probe_cli_usage.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py tests/test_check_ui_canonical_redirect.py` → **35 passed**
+- Live-Sanity nach Änderung:
+  - `run_canonical_redirect_smoke_bundle.sh --route-presets minimal` zeigt jetzt kurze, scannbare Route-Zeilen und bleibt **passed**.

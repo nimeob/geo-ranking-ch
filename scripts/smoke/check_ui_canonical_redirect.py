@@ -562,6 +562,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Backward-compatible no-op alias (stdout JSON is always emitted)",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress stdout JSON output (useful in bundle loops when --output-json is set)",
+    )
     return parser
 
 
@@ -579,7 +584,8 @@ def main(argv: list[str] | None = None) -> int:
             "ui_base_url": ui_base_url,
             "max_retry_delay": float(args.max_retry_delay),
         }
-        print(json.dumps(payload, ensure_ascii=False))
+        if not args.quiet:
+            print(json.dumps(payload, ensure_ascii=False))
         return 2
 
     effective_base_url = base_url or ui_base_url
@@ -621,7 +627,8 @@ def main(argv: list[str] | None = None) -> int:
                 json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
-        print(json.dumps(payload, ensure_ascii=False))
+        if not args.quiet:
+            print(json.dumps(payload, ensure_ascii=False))
         return 1
 
     payload = asdict(result)
@@ -633,7 +640,8 @@ def main(argv: list[str] | None = None) -> int:
             encoding="utf-8",
         )
 
-    print(json.dumps(payload, ensure_ascii=False))
+    if not args.quiet:
+        print(json.dumps(payload, ensure_ascii=False))
     return 0 if result.ok else 1
 
 
