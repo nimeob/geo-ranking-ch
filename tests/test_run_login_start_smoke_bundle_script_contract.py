@@ -62,6 +62,7 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
         '"/jobs"',
         '"/jobs?source=smoke"',
         '"/jobs/demo-job"',
+        '"/jobs/demo-job?source=smoke"',
         '"/results"',
         '"/results/demo-result"',
         '"/results/demo-result?tab=raw&source=smoke"',
@@ -71,6 +72,7 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
         '"/gui/jobs"',
         '"/gui/jobs?source=smoke"',
         '"/gui/jobs/demo-job"',
+        '"/gui/jobs/demo-job?source=smoke"',
     ]
 
     missing = [snippet for snippet in required_routes if snippet not in content]
@@ -87,7 +89,9 @@ def test_shared_route_helper_covers_canonical_and_legacy_routes() -> None:
     assert "login-start-smoke-gui-trace-view" in content
     assert "login-start-smoke-history-legacy" in content
     assert "login-start-smoke-jobs-query" in content
+    assert "login-start-smoke-jobs-detail-query" in content
     assert "login-start-smoke-gui-jobs-legacy-query" in content
+    assert "login-start-smoke-gui-jobs-legacy-detail-query" in content
     assert "login-start-smoke-results" in content
     assert "login-start-smoke-results-detail" in content
     assert "login-start-smoke-results-detail-query" in content
@@ -142,7 +146,9 @@ def test_login_start_bundle_accepts_ui_base_url_alias() -> None:
     assert "Missing required --env-name" in proc.stderr
 
 
-def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host() -> None:
+def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host() -> (
+    None
+):
     content = SCRIPT.read_text(encoding="utf-8")
 
     required_snippets = [
@@ -351,7 +357,10 @@ def test_login_start_bundle_rejects_routes_and_presets_combination() -> None:
     )
 
     assert proc.returncode == 2
-    assert "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" in proc.stderr
+    assert (
+        "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden"
+        in proc.stderr
+    )
     assert "Usage:" in proc.stderr
 
 
@@ -388,7 +397,9 @@ def test_login_start_bundle_summary_includes_route_reason_phase_status_and_durat
 
     assert proc.returncode == 0, proc.stderr
     assert "UI login-start smoke: probing route='/gui'" in proc.stdout
-    assert "UI login-start smoke: route='/jobs' rc=0 phase=start reason=ok" in proc.stdout
+    assert (
+        "UI login-start smoke: route='/jobs' rc=0 phase=start reason=ok" in proc.stdout
+    )
 
     summary_path = output_dir / "stub-login-start-smoke-bundle-summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))

@@ -22,7 +22,10 @@ def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> Non
     assert "route_presets:" in content
     assert "timeout_ms:" in content
     assert "fallback_login_start_on_preflight_fail:" in content
-    assert "inputs.routes und inputs.route_presets dürfen nicht gleichzeitig gesetzt werden" in content
+    assert (
+        "inputs.routes und inputs.route_presets dürfen nicht gleichzeitig gesetzt werden"
+        in content
+    )
     assert "gui-dev-live-auth-analyze-smoke-artifacts" in content
     assert (
         "gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}"
@@ -33,7 +36,7 @@ def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> Non
 def test_route_set_script_uses_shared_route_helper_and_route_specific_run_ids() -> None:
     content = ROUTE_SET_SCRIPT.read_text(encoding="utf-8")
 
-    assert "source \"${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh\"" in content
+    assert 'source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"' in content
     assert "GUI_SMOKE_ROUTES" in content
     assert 'DEV_UI_SMOKE_GUI_PATH="${route}"' in content
     assert 'DEV_UI_SMOKE_RUN_ID="${run_id}"' in content
@@ -57,6 +60,8 @@ def test_shared_route_helper_contains_required_gui_paths() -> None:
     assert '"/jobs?source=smoke"' in content
     assert '"/gui/jobs/demo-job"' in content
     assert '"/jobs/demo-job"' in content
+    assert '"/jobs/demo-job?source=smoke"' in content
+    assert '"/gui/jobs/demo-job?source=smoke"' in content
     assert '"/results"' in content
     assert '"/results/demo-result"' in content
     assert '"/gui/results"' in content
