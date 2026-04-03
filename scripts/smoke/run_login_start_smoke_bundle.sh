@@ -2,6 +2,8 @@
 set -euo pipefail
 
 BASE_URL=""
+REQUESTED_BASE_URL=""
+BASE_URL_CANONICALIZED="0"
 ENV_NAME=""
 OUTPUT_DIR="artifacts"
 REASON="manual_login"
@@ -121,6 +123,70 @@ if [ -z "$BASE_URL" ]; then
   exit 2
 fi
 
+REQUESTED_BASE_URL="$BASE_URL"
+
+canonicalized_base_url_payload="$(python3 - "$BASE_URL" <<'PY'
+from __future__ import annotations
+
+import sys
+from urllib.parse import urlsplit, urlunsplit
+
+
+LEGACY_DEV_HOSTS = {"dev.georanking.ch", "dev.geo-ranking.ch"}
+
+
+def canonicalize_legacy_dev_ui_origin(raw_base_url: str) -> tuple[str, bool]:
+    candidate = str(raw_base_url or "").strip()
+    if not candidate:
+        return "", False
+
+    try:
+        parsed = urlsplit(candidate)
+    except Exception:
+        return candidate, False
+
+    if not parsed.scheme or not parsed.netloc:
+        return candidate, False
+
+    host = str(parsed.hostname or "").strip().lower()
+    if host not in LEGACY_DEV_HOSTS:
+        return candidate, False
+
+    canonical_host = f"www.{host}"
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    port_segment = f":{parsed.port}" if parsed.port is not None else ""
+    canonical_netloc = f"{userinfo}{canonical_host}{port_segment}"
+
+    canonicalized = urlunsplit(
+        (
+            parsed.scheme,
+            canonical_netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+    return canonicalized, True
+
+
+canonicalized, changed = canonicalize_legacy_dev_ui_origin(sys.argv[1])
+print(f"{canonicalized}\t{1 if changed else 0}")
+PY
+)"
+
+IFS=$'\t' read -r canonicalized_base_url canonicalized_base_url_flag <<< "$canonicalized_base_url_payload"
+if [[ "$canonicalized_base_url_flag" == "1" ]]; then
+  BASE_URL="$canonicalized_base_url"
+  BASE_URL_CANONICALIZED="1"
+  echo "::warning::Base URL '${REQUESTED_BASE_URL}' verwendet einen nicht mehr unterstützten DEV-Origin; kanonisiere auf '${BASE_URL}'." >&2
+fi
+
 if [ -z "$ENV_NAME" ]; then
   echo "::error::Missing required --env-name" >&2
   usage >&2
@@ -226,6 +292,8 @@ write_bundle_summary() {
   local route_rows="$4"
 
   SUMMARY_BASE_URL="$BASE_URL" \
+  SUMMARY_REQUESTED_BASE_URL="$REQUESTED_BASE_URL" \
+  SUMMARY_BASE_URL_CANONICALIZED="$BASE_URL_CANONICALIZED" \
   SUMMARY_ENV_NAME="$ENV_NAME" \
   SUMMARY_REASON="$REASON" \
   SUMMARY_EXPECTED_AUTHORIZE_HOST="$EXPECTED_AUTHORIZE_HOST" \
@@ -295,6 +363,8 @@ def _parse_route_rows(raw_rows: str) -> list[dict[str, object]]:
 summary = {
     "status": os.environ.get("SUMMARY_STATUS", "unknown"),
     "base_url": os.environ.get("SUMMARY_BASE_URL", ""),
+    "requested_base_url": os.environ.get("SUMMARY_REQUESTED_BASE_URL", ""),
+    "base_url_canonicalized": os.environ.get("SUMMARY_BASE_URL_CANONICALIZED", "0") == "1",
     "env_name": os.environ.get("SUMMARY_ENV_NAME", ""),
     "reason": os.environ.get("SUMMARY_REASON", ""),
     "expected_authorize_host": os.environ.get("SUMMARY_EXPECTED_AUTHORIZE_HOST", ""),
