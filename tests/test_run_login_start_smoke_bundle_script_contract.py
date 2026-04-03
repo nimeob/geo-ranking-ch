@@ -124,6 +124,7 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     assert "--routes" in content
     assert "--route-presets" in content
     assert "--expected-authorize-host" in content
+    assert "--max-retry-delay" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
 
@@ -240,6 +241,28 @@ def test_login_start_bundle_rejects_missing_option_value_for_timeout() -> None:
 
     assert proc.returncode == 2
     assert "Missing value for --timeout" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_login_start_bundle_rejects_missing_option_value_for_max_retry_delay() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--max-retry-delay",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --max-retry-delay" in proc.stderr
     assert "Usage:" in proc.stderr
 
 
@@ -419,3 +442,41 @@ def test_login_start_bundle_summary_includes_route_reason_phase_status_and_durat
         assert row["status_code"] == 302
         assert isinstance(row["duration_seconds"], int)
         assert row["duration_seconds"] >= 0
+
+
+def test_login_start_bundle_forwards_max_retry_delay_to_probe_artifact(tmp_path) -> None:
+    output_dir = tmp_path / "artifacts"
+
+    with _BundleStubServer() as stub:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                stub.base_url,
+                "--env-name",
+                "stub-max-retry",
+                "--output-dir",
+                str(output_dir),
+                "--routes",
+                "/gui",
+                "--timeout",
+                "5",
+                "--max-attempts",
+                "1",
+                "--retry-delay",
+                "0",
+                "--max-retry-delay",
+                "3.5",
+            ],
+            cwd=str(REPO_ROOT),
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert proc.returncode == 0, proc.stderr
+
+    artifact_path = output_dir / "stub-max-retry-login-start-smoke.json"
+    payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+    assert payload["request"]["max_retry_delay"] == 3.5

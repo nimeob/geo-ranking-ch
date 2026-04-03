@@ -8,6 +8,7 @@ REASON="manual_login"
 TIMEOUT_SECONDS="20"
 MAX_ATTEMPTS="8"
 RETRY_DELAY_SECONDS="5"
+MAX_RETRY_DELAY_SECONDS="10"
 EXPECTED_AUTHORIZE_HOST=""
 ROUTES_CSV=""
 ROUTE_PRESETS_CSV=""
@@ -29,6 +30,7 @@ Options:
   --timeout <seconds>           Request-Timeout je Probe (default: 20)
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
   --retry-delay <seconds>       Delay zwischen Retries (default: 5)
+  --max-retry-delay <seconds>   Cap für Retry-Sleep je Versuch (default: 10)
   --routes <csv>                Optionale CSV-Route-Subset aus GUI_SMOKE_ROUTES
   --route-presets <csv>         Optionale Presets (all,core,modern,legacy,jobs,results,trace,minimal)
                                 (Alternative zu --routes)
@@ -86,6 +88,11 @@ while [ "$#" -gt 0 ]; do
     --retry-delay)
       require_option_value "--retry-delay" "${2:-}"
       RETRY_DELAY_SECONDS="$2"
+      shift 2
+      ;;
+    --max-retry-delay)
+      require_option_value "--max-retry-delay" "${2:-}"
+      MAX_RETRY_DELAY_SECONDS="$2"
       shift 2
       ;;
     --routes)
@@ -322,6 +329,7 @@ run_probe() {
     --timeout "$TIMEOUT_SECONDS" \
     --max-attempts "$MAX_ATTEMPTS" \
     --retry-delay "$RETRY_DELAY_SECONDS" \
+    --max-retry-delay "$MAX_RETRY_DELAY_SECONDS" \
     --expected-authorize-host "$EXPECTED_AUTHORIZE_HOST" \
     --quiet \
     --output-json "$output_json"
