@@ -71,5 +71,8 @@ runtime/
 /.nightworker/
 /.night-worker/
 /.nightlock/
+/.local/
+/.tmp/
+/.worktrees/
 /run_triangulate.sh
 .tools/
