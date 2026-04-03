@@ -116,6 +116,11 @@ def test_login_start_bundle_script_uses_shared_route_helper_and_probe_loop() -> 
     assert "request_failed_*" in content
     assert "Aborting remaining routes (fail-fast)" in content
     assert "login-start-smoke-bundle-summary.json" in content
+    assert "dev.georanking.ch" in content
+    assert "dev.geo-ranking.ch" in content
+    assert "Base URL '" in content
+    assert "base_url_canonicalized" in content
+    assert "requested_base_url" in content
 
 
 def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
@@ -147,6 +152,27 @@ def test_login_start_bundle_accepts_ui_base_url_alias() -> None:
 
     assert proc.returncode == 2
     assert "Missing required --env-name" in proc.stderr
+
+
+def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_before_validation() -> (
+    None
+):
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://dev.georanking.ch",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --env-name" in proc.stderr
+    assert "kanonisiere auf 'https://www.dev.georanking.ch'" in proc.stderr
 
 
 def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host() -> (
@@ -408,6 +434,9 @@ def test_login_start_bundle_summary_includes_route_reason_phase_status_and_durat
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
 
     assert summary["status"] == "passed"
+    assert summary["requested_base_url"] == stub.base_url
+    assert summary["base_url"] == stub.base_url
+    assert summary["base_url_canonicalized"] is False
     assert summary["selected_routes"] == ["/gui", "/jobs"]
     assert summary["failed_routes"] == []
 

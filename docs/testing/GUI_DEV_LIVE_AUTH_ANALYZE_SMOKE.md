@@ -109,6 +109,11 @@ Die Bundle-Skripte schreiben zusätzlich ein kompaktes Summary-Artefakt je Lauf:
 - Login-Start: `<output-dir>/<env>-login-start-smoke-bundle-summary.json`
 - Canonical Redirect: `<output-dir>/<env>-canonical-host-redirect-smoke-bundle-summary.json`
 
+Hinweis: `run_login_start_smoke_bundle.sh` kanonisiert den Legacy-DEV-Origin
+`https://dev.georanking.ch` (bzw. `https://dev.geo-ranking.ch`) automatisch auf
+`https://www.dev.georanking.ch` / `https://www.dev.geo-ranking.ch` und markiert
+das im Summary über `requested_base_url` + `base_url_canonicalized=true`.
+
 Der Route-Set-Runner schreibt ebenfalls ein Summary-Artefakt (für Live- und Fallback-Läufe):
 - Live/Fallback-Route-Set: `<output-dir>/<env>-ui-auth-analyze-route-set-summary.json`
   - `mode=live_auth_analyze` bei echten Route-Fanout-Läufen
