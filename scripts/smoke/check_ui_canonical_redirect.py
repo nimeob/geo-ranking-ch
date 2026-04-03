@@ -234,6 +234,21 @@ def _classify_request_failure(exc: Exception) -> str:
     return "request_failed"
 
 
+_NON_RETRYABLE_REQUEST_FAILURE_REASONS = frozenset(
+    {
+        "request_failed_tls_hostname_mismatch",
+        "request_failed_tls_cert_has_expired",
+        "request_failed_tls_self_signed_cert",
+        "request_failed_tls_untrusted_issuer",
+    }
+)
+
+
+def _is_non_retryable_request_failure(exc: Exception) -> bool:
+    reason = _classify_request_failure(exc)
+    return reason in _NON_RETRYABLE_REQUEST_FAILURE_REASONS
+
+
 def _send_request_probe(
     *,
     request_url: str,
@@ -280,6 +295,8 @@ def _send_request_probe(
             return _HttpProbeResult(status_code=status, location=location)
         except Exception as exc:  # noqa: BLE001
             last_error = exc
+            if _is_non_retryable_request_failure(exc):
+                break
             if attempt >= attempts:
                 break
             time.sleep(

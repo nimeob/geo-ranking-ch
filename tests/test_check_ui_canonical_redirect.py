@@ -733,3 +733,90 @@ def test_send_request_probe_uses_default_retry_delay_for_stale_http_date(monkeyp
     assert result.status_code == 307
     assert fake_opener.calls == 2
     assert sleep_calls == [2.25]
+
+
+def test_send_request_probe_does_not_retry_non_retryable_tls_errors(monkeypatch):
+    module = _load_module()
+
+    class _FakeOpener:
+        def __init__(self):
+            self.calls = 0
+
+        def open(self, req, timeout):
+            _ = (req, timeout)
+            self.calls += 1
+            raise RuntimeError(
+                "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: "
+                "Hostname mismatch, certificate is not valid for 'dev.georanking.ch'. (_ssl.c:1029)>"
+            )
+
+    fake_opener = _FakeOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: fake_opener)
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        module.time, "sleep", lambda seconds: sleep_calls.append(seconds)
+    )
+
+    try:
+        module._send_request_probe(
+            request_url="https://dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+            timeout_seconds=5.0,
+            max_attempts=8,
+            retry_delay_seconds=5.0,
+        )
+    except RuntimeError as exc:
+        assert "request_failed_after_retries" in str(exc)
+    else:
+        raise AssertionError("expected RuntimeError")
+
+    assert fake_opener.calls == 1
+    assert sleep_calls == []
+
+
+def test_send_request_probe_retries_retryable_generic_errors(monkeypatch):
+    module = _load_module()
+
+    class _FakeResponse:
+        status = 307
+
+        def __init__(self):
+            self.headers = {
+                "Location": "https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1"
+            }
+
+        def getcode(self):
+            return self.status
+
+        def close(self):
+            return None
+
+    class _FakeOpener:
+        def __init__(self):
+            self.calls = 0
+
+        def open(self, req, timeout):
+            _ = (req, timeout)
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("temporary socket hiccup")
+            return _FakeResponse()
+
+    fake_opener = _FakeOpener()
+    monkeypatch.setattr(module, "build_opener", lambda *_args, **_kwargs: fake_opener)
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        module.time, "sleep", lambda seconds: sleep_calls.append(seconds)
+    )
+
+    result = module._send_request_probe(
+        request_url="https://www.dev.geo-ranking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        timeout_seconds=5.0,
+        max_attempts=2,
+        retry_delay_seconds=1.75,
+    )
+
+    assert result.status_code == 307
+    assert fake_opener.calls == 2
+    assert sleep_calls == [1.75]
