@@ -35,7 +35,8 @@ Options:
   --expected-authorize-host <h> Erwarteter Host für absolute authorize-Redirects
                                 (hostname, host:port oder URL; optional;
                                  default: auth.<base-host-without-www> + <base-host>
-                                 bei www-Origins; ansonsten auth.<base-host> + <base-host>)
+                                 bei www-Origins; ansonsten auth.<base-host> + <base-host>;
+                                 localhost/IP-Origins deaktivieren Host-Checks per default)
 EOF
 }
 
@@ -134,21 +135,42 @@ fi
 
 if [ -z "$EXPECTED_AUTHORIZE_HOST" ]; then
   EXPECTED_AUTHORIZE_HOST="$(python3 - "$BASE_URL" <<'PY'
-from urllib.parse import urlparse
+from __future__ import annotations
+
+import ipaddress
 import sys
+from urllib.parse import urlparse
 
 
 def expand_geo_host_variants(host: str) -> list[str]:
     variants = [host]
     if "geo-ranking" in host:
         variants.append(host.replace("geo-ranking", "georanking"))
+    if "georanking" in host:
+        variants.append(host.replace("georanking", "geo-ranking"))
     return variants
 
 
 base_url = sys.argv[1].strip()
-host = (urlparse(base_url).hostname or "").strip().lower()
+parsed = urlparse(base_url)
+host = (parsed.hostname or "").strip().lower()
+if not host and "://" not in base_url:
+    host = (urlparse(f"//{base_url}").hostname or "").strip().lower()
 if not host:
-    raise SystemExit("")
+    print("")
+    raise SystemExit(0)
+
+if host in {"localhost", "localhost.localdomain"}:
+    print("")
+    raise SystemExit(0)
+
+try:
+    ipaddress.ip_address(host)
+except ValueError:
+    pass
+else:
+    print("")
+    raise SystemExit(0)
 
 seed_hosts = []
 if host.startswith("www.") and len(host) > 4:
