@@ -20,6 +20,9 @@ def test_canonical_redirect_bundle_script_uses_shared_route_helper_and_probe_loo
     assert '"--quiet"' in content
     assert 'run_probe "$route" "$output_json"' in content
     assert "UI canonical redirect smoke: route='" in content
+    assert "is_transport_failure_reason" in content
+    assert "request_failed_*" in content
+    assert "Aborting remaining routes (fail-fast)" in content
     assert "write_bundle_summary" in content
     assert "canonical-host-redirect-smoke-bundle-summary.json" in content
 

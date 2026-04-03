@@ -297,11 +297,19 @@ print(f"{reason}\t{status_code}\t{skipped}")
 PY
 }
 
+is_transport_failure_reason() {
+  local reason="${1:-}"
+  [[ "${reason}" == request_failed_* ]]
+}
+
 declare -a failed_routes=()
 declare -a failed_route_paths=()
 
 declare -A route_rc=()
 declare -A route_artifact=()
+fail_fast_triggered="0"
+fail_fast_route=""
+fail_fast_reason=""
 set +e
 for route in "${selected_routes[@]}"; do
   suffix="$(gui_canonical_redirect_artifact_suffix_for_route "$route")" || {
@@ -321,6 +329,17 @@ for route in "${selected_routes[@]}"; do
     IFS=$'\t' read -r probe_reason probe_status_code probe_skipped < <(read_probe_summary_fields "$output_json")
   fi
   echo "UI canonical redirect smoke: route='${route}' rc=${route_rc["$route"]:-1} reason=${probe_reason:-unknown} status_code=${probe_status_code:-na} skipped=${probe_skipped:-na}"
+
+  probe_skipped_lc="${probe_skipped,,}"
+  if [[ "${route_rc["$route"]:-1}" -ne 0 ]] \
+    && is_transport_failure_reason "${probe_reason}" \
+    && [[ "${probe_skipped_lc}" != "true" ]]; then
+    fail_fast_triggered="1"
+    fail_fast_route="${route}"
+    fail_fast_reason="${probe_reason}"
+    echo "::warning::Transport-level probe failure detected (route='${route}', reason='${probe_reason}'). Aborting remaining routes (fail-fast)." >&2
+    break
+  fi
 done
 set -e
 
@@ -347,7 +366,11 @@ fi
 write_bundle_summary "$bundle_status" "$bundle_summary_path" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$summary_rows"
 
 if (( ${#failed_routes[@]} > 0 )); then
-  echo "::error::UI canonical-host redirect smoke failed for ${#failed_routes[@]} route(s): ${failed_routes[*]}. See ${OUTPUT_DIR}/${ENV_NAME}-canonical-host-redirect-smoke*.json and ${bundle_summary_path}"
+  if [[ "${fail_fast_triggered}" == "1" ]]; then
+    echo "::error::UI canonical-host redirect smoke failed (fail-fast after route='${fail_fast_route}', reason='${fail_fast_reason}'). Check BASE_URL/CANONICAL_ORIGIN TLS host validity (tip: prefer canonical www-host). See ${OUTPUT_DIR}/${ENV_NAME}-canonical-host-redirect-smoke*.json and ${bundle_summary_path}"
+  else
+    echo "::error::UI canonical-host redirect smoke failed for ${#failed_routes[@]} route(s): ${failed_routes[*]}. See ${OUTPUT_DIR}/${ENV_NAME}-canonical-host-redirect-smoke*.json and ${bundle_summary_path}"
+  fi
   exit 1
 fi
 

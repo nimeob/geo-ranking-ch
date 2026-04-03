@@ -361,6 +361,11 @@ print(f"{phase}\t{reason}\t{status_code_text}")
 PY
 }
 
+is_transport_failure_reason() {
+  local reason="${1:-}"
+  [[ "${reason}" == request_failed_* ]]
+}
+
 declare -a failed_routes=()
 declare -a failed_route_paths=()
 
@@ -370,6 +375,9 @@ declare -A route_phase=()
 declare -A route_reason=()
 declare -A route_status_code=()
 declare -A route_duration_seconds=()
+fail_fast_triggered="0"
+fail_fast_route=""
+fail_fast_reason=""
 set +e
 for route in "${selected_routes[@]}"; do
   suffix="$(gui_login_start_artifact_suffix_for_route "$route")" || {
@@ -396,6 +404,15 @@ for route in "${selected_routes[@]}"; do
   route_status_code["$route"]="${route_status_code_value:-}"
 
   echo "UI login-start smoke: route='${route}' rc=${rc} phase=${route_phase["$route"]} reason=${route_reason["$route"]} status_code=${route_status_code["$route"]:-n/a} duration_seconds=${route_duration}"
+
+  if [[ "${rc}" -ne 0 ]] \
+    && is_transport_failure_reason "${route_reason["$route"]}"; then
+    fail_fast_triggered="1"
+    fail_fast_route="${route}"
+    fail_fast_reason="${route_reason["$route"]}"
+    echo "::warning::Transport-level probe failure detected (route='${route}', reason='${route_reason["$route"]}'). Aborting remaining routes (fail-fast)." >&2
+    break
+  fi
 done
 set -e
 
@@ -426,7 +443,11 @@ fi
 write_bundle_summary "$bundle_status" "$bundle_summary_path" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$summary_rows"
 
 if (( ${#failed_routes[@]} > 0 )); then
-  echo "::error::UI login-start smoke failed for ${#failed_routes[@]} route(s): ${failed_routes[*]}. See ${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke*.json and ${bundle_summary_path}"
+  if [[ "${fail_fast_triggered}" == "1" ]]; then
+    echo "::error::UI login-start smoke failed (fail-fast after route='${fail_fast_route}', reason='${fail_fast_reason}'). Check BASE_URL / expected auth host / TLS reachability before retrying full route matrix. See ${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke*.json and ${bundle_summary_path}"
+  else
+    echo "::error::UI login-start smoke failed for ${#failed_routes[@]} route(s): ${failed_routes[*]}. See ${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke*.json and ${bundle_summary_path}"
+  fi
   exit 1
 fi
 
