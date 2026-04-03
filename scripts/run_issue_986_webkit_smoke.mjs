@@ -4,12 +4,58 @@ import path from 'node:path';
 
 const ISSUE_NUMBER = 986;
 const PARENT_ISSUE = 975;
+const SCRIPT_REL_PATH = 'scripts/run_issue_986_webkit_smoke.mjs';
 const repoRoot = process.cwd();
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function buildUsage() {
+  return [
+    `Usage: node ${SCRIPT_REL_PATH}`,
+    '',
+    'Issue #986 WebKit Smoke.',
+    'Validiert /gui mit nativer Playwright-WebKit Engine (optional Chromium-Fallback).',
+    '',
+    'Options:',
+    '  -h, --help   Show this help and exit.',
+    '',
+    'Environment:',
+    `  BASE_URL=${baseUrl}`,
+    `  GUI_STABILITY_WAIT_MS=${guiStabilityWaitMs}`,
+    `  BASE_URL_PROBE_TIMEOUT_MS=${baseUrlProbeTimeoutMs}`,
+    '  REQUIRE_NATIVE_WEBKIT=1   Fail hard if native WebKit is unavailable.',
+  ].join('\n');
+}
+
+function parseCliArgs(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  const unknown = [];
+  let help = false;
+
+  for (const arg of args) {
+    if (arg === '-h' || arg === '--help') {
+      help = true;
+      continue;
+    }
+    unknown.push(arg);
+  }
+
+  return { help, unknown };
+}
+
+const cli = parseCliArgs(process.argv.slice(2));
+if (cli.help) {
+  console.log(buildUsage());
+  process.exit(0);
+}
+if (cli.unknown.length > 0) {
+  console.error(`[issue-${ISSUE_NUMBER}-webkit-smoke] unknown_cli_args=${cli.unknown.join(',')}`);
+  console.error(buildUsage());
+  process.exit(2);
+}
 
 function parseBooleanEnv(name) {
   const value = String(process.env[name] || '').trim().toLowerCase();

@@ -1,14 +1,76 @@
 #!/usr/bin/env node
-import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+const issueNumber = 981;
+const scriptRelPath = 'scripts/run_issue_981_mobile_smoke.mjs';
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
 const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function buildUsage() {
+  return [
+    `Usage: node ${scriptRelPath}`,
+    '',
+    'Issue #981 Mobile E2E Smoke.',
+    'Prüft iOS/Android Mobile-Map-Interaktionen + Geolocation-Fallback auf /gui.',
+    '',
+    'Options:',
+    '  -h, --help   Show this help and exit.',
+    '',
+    'Environment:',
+    `  BASE_URL=${baseUrl}`,
+    `  GUI_STABILITY_WAIT_MS=${guiStabilityWaitMs}`,
+    `  BASE_URL_PROBE_TIMEOUT_MS=${baseUrlProbeTimeoutMs}`,
+  ].join('\n');
+}
+
+function parseCliArgs(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  const unknown = [];
+  let help = false;
+
+  for (const arg of args) {
+    if (arg === '-h' || arg === '--help') {
+      help = true;
+      continue;
+    }
+    unknown.push(arg);
+  }
+
+  return { help, unknown };
+}
+
+const cli = parseCliArgs(process.argv.slice(2));
+if (cli.help) {
+  console.log(buildUsage());
+  process.exit(0);
+}
+if (cli.unknown.length > 0) {
+  console.error(`[issue-${issueNumber}-mobile-e2e-smoke] unknown_cli_args=${cli.unknown.join(',')}`);
+  console.error(buildUsage());
+  process.exit(2);
+}
+
+async function loadChromium() {
+  try {
+    const playwrightModule = await import('playwright');
+    if (playwrightModule?.chromium) {
+      return playwrightModule.chromium;
+    }
+    throw new Error('chromium export missing');
+  } catch (error) {
+    const normalized = normalizeError(error);
+    throw new Error(
+      `Playwright Chromium nicht verfügbar. Installiere die Node-Abhängigkeiten mit \`npm ci\` `
+      + `und anschließend Browser-Binaries via \`npx playwright install --with-deps chromium\`. `
+      + `Ursache: ${normalized.name}: ${normalized.message}`
+    );
+  }
+}
 
 const devices = [
   {
@@ -635,6 +697,7 @@ async function main() {
   let browser = null;
   try {
     await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
+    const chromium = await loadChromium();
     browser = await chromium.launch({ headless: true });
 
     for (const device of devices) {
@@ -659,7 +722,7 @@ async function main() {
     && checks.every((entry) => entry?.checks?.overall?.passed === true);
 
   const payload = {
-    issue: 981,
+    issue: issueNumber,
     parentIssue: 975,
     startedAtUtc,
     finishedAtUtc,
@@ -684,7 +747,7 @@ async function main() {
 main().catch(async (error) => {
   const finishedAtUtc = new Date().toISOString();
   const payload = {
-    issue: 981,
+    issue: issueNumber,
     parentIssue: 975,
     startedAtUtc: finishedAtUtc,
     finishedAtUtc,
