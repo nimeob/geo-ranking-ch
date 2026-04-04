@@ -142,24 +142,35 @@ from urllib.parse import urlsplit, urlunsplit
 LEGACY_DEV_HOSTS = {"dev.georanking.ch", "dev.geo-ranking.ch"}
 
 
-def canonicalize_legacy_dev_ui_origin(raw_base_url: str) -> tuple[str, bool]:
+def canonicalize_ui_origin(raw_base_url: str) -> tuple[str, bool, list[str]]:
     candidate = str(raw_base_url or "").strip()
     if not candidate:
-        return "", False
+        return "", False, []
 
     try:
         parsed = urlsplit(candidate)
     except Exception:
-        return candidate, False
+        return candidate, False, []
 
     if not parsed.scheme or not parsed.netloc:
-        return candidate, False
+        return candidate, False, []
 
     host = str(parsed.hostname or "").strip().lower()
-    if host not in LEGACY_DEV_HOSTS:
-        return candidate, False
+    if not host:
+        return candidate, False, []
 
-    canonical_host = f"www.{host}"
+    reasons: list[str] = []
+    canonical_host = host.rstrip(".")
+    if canonical_host != host:
+        reasons.append("trailing_dot")
+
+    if canonical_host in LEGACY_DEV_HOSTS:
+        canonical_host = f"www.{canonical_host}"
+        reasons.append("legacy_dev_non_www")
+
+    if not reasons:
+        return candidate, False, []
+
     userinfo = ""
     if parsed.username:
         userinfo = parsed.username
@@ -179,19 +190,25 @@ def canonicalize_legacy_dev_ui_origin(raw_base_url: str) -> tuple[str, bool]:
             parsed.fragment,
         )
     )
-    return canonicalized, True
+    return canonicalized, True, reasons
 
 
-canonicalized, changed = canonicalize_legacy_dev_ui_origin(sys.argv[1])
-print(f"{canonicalized}\t{1 if changed else 0}")
+canonicalized, changed, reasons = canonicalize_ui_origin(sys.argv[1])
+print(f"{canonicalized}\t{1 if changed else 0}\t{','.join(reasons)}")
 PY
 )"
 
-IFS=$'\t' read -r canonicalized_base_url canonicalized_base_url_flag <<< "$canonicalized_base_url_payload"
+IFS=$'\t' read -r canonicalized_base_url canonicalized_base_url_flag canonicalized_base_url_reasons <<< "$canonicalized_base_url_payload"
 if [[ "$canonicalized_base_url_flag" == "1" ]]; then
   BASE_URL="$canonicalized_base_url"
   BASE_URL_CANONICALIZED="1"
-  echo "::warning::Base URL '${REQUESTED_BASE_URL}' verwendet einen nicht mehr unterstützten DEV-Origin; kanonisiere auf '${BASE_URL}'." >&2
+  if [[ "$canonicalized_base_url_reasons" == "legacy_dev_non_www" ]]; then
+    echo "::warning::Base URL '${REQUESTED_BASE_URL}' verwendet einen nicht mehr unterstützten DEV-Origin; kanonisiere auf '${BASE_URL}'." >&2
+  elif [[ "$canonicalized_base_url_reasons" == "trailing_dot" ]]; then
+    echo "::warning::Base URL '${REQUESTED_BASE_URL}' enthält einen Trailing-Dot im Host; kanonisiere auf '${BASE_URL}', um TLS-Hostname-Mismatch zu vermeiden." >&2
+  else
+    echo "::warning::Base URL '${REQUESTED_BASE_URL}' wurde kanonisiert auf '${BASE_URL}' (reasons=${canonicalized_base_url_reasons})." >&2
+  fi
 fi
 
 if [ -z "$ENV_NAME" ]; then

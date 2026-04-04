@@ -176,6 +176,28 @@ def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_before_valid
     assert "kanonisiere auf 'https://www.dev.georanking.ch'" in proc.stderr
 
 
+def test_login_start_bundle_canonicalizes_trailing_dot_origin_before_validation() -> (
+    None
+):
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch.",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --env-name" in proc.stderr
+    assert "Trailing-Dot" in proc.stderr
+    assert "kanonisiere auf 'https://www.dev.georanking.ch'" in proc.stderr
+
+
 def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host() -> (
     None
 ):
