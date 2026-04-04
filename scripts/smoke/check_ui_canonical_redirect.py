@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
@@ -53,10 +53,28 @@ class _NoRedirect(HTTPRedirectHandler):
 
 def _normalize_origin(origin: str) -> str:
     candidate = origin.strip().rstrip("/")
-    parsed = urlparse(candidate)
+    parsed = urlsplit(candidate)
     if not parsed.scheme or not parsed.netloc:
         raise ValueError(f"invalid_origin:{origin}")
-    return f"{parsed.scheme}://{parsed.netloc}"
+
+    host = str(parsed.hostname or "").strip().lower().rstrip(".")
+    if not host:
+        raise ValueError(f"invalid_origin:{origin}")
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    try:
+        port = parsed.port
+    except ValueError as exc:  # invalid port
+        raise ValueError(f"invalid_origin:{origin}") from exc
+
+    port_segment = f":{port}" if port is not None else ""
+    return urlunsplit((parsed.scheme, f"{userinfo}{host}{port_segment}", "", "", ""))
 
 
 def _normalize_host(value: str) -> str:
@@ -64,7 +82,7 @@ def _normalize_host(value: str) -> str:
     if not raw_value:
         return ""
     parsed = urlparse(raw_value if "://" in raw_value else f"//{raw_value}")
-    return str(parsed.hostname or "").strip().lower()
+    return str(parsed.hostname or "").strip().lower().rstrip(".")
 
 
 def _parse_canonical_hosts(raw_hosts: str) -> list[str]:
