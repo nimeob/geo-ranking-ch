@@ -3,7 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const UI_BASE_URL = (process.env.DEV_UI_BASE_URL || "").trim();
+const LEGACY_DEV_UI_HOSTS = new Set(["dev.georanking.ch", "dev.geo-ranking.ch"]);
+
+const RAW_UI_BASE_URL = (process.env.DEV_UI_BASE_URL || "").trim();
+const UI_BASE_URL_NORMALIZATION = normalizeUiBaseUrl(RAW_UI_BASE_URL);
+const UI_BASE_URL = UI_BASE_URL_NORMALIZATION.value;
 const USERNAME = (process.env.DEV_UI_SMOKE_USERNAME || "").trim();
 const PASSWORD = (process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
 const MAX_WAIT_MS = Number(process.env.DEV_UI_FULL_MAX_WAIT_MS || 120_000);
@@ -56,6 +60,78 @@ const ADDRESS_POOL = [
 
 function fail(message) {
   throw new Error(message);
+}
+
+function normalizeUiBaseUrl(rawBaseUrl) {
+  const candidate = String(rawBaseUrl || "").trim();
+  if (!candidate) {
+    return {
+      value: "",
+      requested: "",
+      changed: false,
+      reasons: [],
+      error: "",
+    };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: "must be an absolute URL (e.g. https://www.dev.georanking.ch)",
+    };
+  }
+
+  const protocol = String(parsed.protocol || "").toLowerCase();
+  if (protocol !== "http:" && protocol !== "https:") {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: `unsupported protocol '${protocol || "(missing)"}' (expected http: or https:)`,
+    };
+  }
+
+  const reasons = [];
+  let canonicalHost = String(parsed.hostname || "").trim().toLowerCase();
+  if (!canonicalHost) {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: "hostname is missing",
+    };
+  }
+
+  const strippedTrailingDotHost = canonicalHost.replace(/\.+$/, "");
+  if (strippedTrailingDotHost !== canonicalHost) {
+    canonicalHost = strippedTrailingDotHost;
+    reasons.push("trailing_dot");
+  }
+
+  if (LEGACY_DEV_UI_HOSTS.has(canonicalHost)) {
+    canonicalHost = `www.${canonicalHost}`;
+    reasons.push("legacy_dev_non_www");
+  }
+
+  parsed.hostname = canonicalHost;
+  const normalizedPath = parsed.pathname === "/" ? "" : parsed.pathname;
+  const normalized = `${parsed.protocol}//${parsed.host}${normalizedPath}${parsed.search}${parsed.hash}`;
+
+  return {
+    value: normalized,
+    requested: candidate,
+    changed: normalized !== candidate,
+    reasons,
+    error: "",
+  };
 }
 
 function inferFallbackEnvName(baseUrl) {
@@ -144,6 +220,7 @@ async function loadChromium() {
 
 function validateRequiredEnv({ allowMissingCredentials = false } = {}) {
   if (!UI_BASE_URL) fail("Missing DEV_UI_BASE_URL");
+  if (UI_BASE_URL_NORMALIZATION.error) fail(`Invalid DEV_UI_BASE_URL: ${UI_BASE_URL_NORMALIZATION.error}`);
   if (!allowMissingCredentials) {
     if (!USERNAME) fail("Missing DEV_UI_SMOKE_USERNAME");
     if (!PASSWORD) fail("Missing DEV_UI_SMOKE_PASSWORD");
@@ -152,11 +229,12 @@ function validateRequiredEnv({ allowMissingCredentials = false } = {}) {
 
 function emitFailureHints(finalError) {
   const errorText = String(finalError || "");
-  if (!/^Missing DEV_UI_(BASE_URL|SMOKE_USERNAME|SMOKE_PASSWORD)$/.test(errorText)) {
+  if (!/^Missing DEV_UI_(BASE_URL|SMOKE_USERNAME|SMOKE_PASSWORD)$/.test(errorText)
+    && !errorText.startsWith("Invalid DEV_UI_BASE_URL:")) {
     return;
   }
 
-  if (errorText === "Missing DEV_UI_BASE_URL") {
+  if (errorText === "Missing DEV_UI_BASE_URL" || errorText.startsWith("Invalid DEV_UI_BASE_URL:")) {
     console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL (z. B. https://www.dev.georanking.ch) und starte erneut.");
     return;
   }
@@ -447,6 +525,14 @@ async function main() {
   let degradedMode = null;
 
   try {
+    if (UI_BASE_URL_NORMALIZATION.changed && UI_BASE_URL_NORMALIZATION.reasons.length > 0) {
+      console.error(
+        `[dev-ui-full-regression] INFO: Canonicalized DEV_UI_BASE_URL `
+        + `'${UI_BASE_URL_NORMALIZATION.requested}' -> '${UI_BASE_URL}' `
+        + `(reasons=${UI_BASE_URL_NORMALIZATION.reasons.join(",")}).`
+      );
+    }
+
     const missingCredentials = !USERNAME || !PASSWORD;
     const allowMissingCredentials = LOGIN_START_FALLBACK_ON_MISSING_CREDS && missingCredentials;
     validateRequiredEnv({ allowMissingCredentials });
@@ -943,6 +1029,9 @@ async function main() {
     startedAt,
     finishedAt,
     baseUrl: UI_BASE_URL,
+    requestedBaseUrl: RAW_UI_BASE_URL,
+    baseUrlCanonicalized: UI_BASE_URL_NORMALIZATION.changed,
+    baseUrlCanonicalizationReasons: UI_BASE_URL_NORMALIZATION.reasons,
     guiUrl,
     firstAddress,
     firstResultId,
