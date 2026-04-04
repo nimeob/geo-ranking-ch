@@ -450,6 +450,53 @@ def test_route_set_runner_fallback_propagates_cli_route_subset(
     assert not (evidence_dir / "dev-login-start-smoke-root.json").exists()
 
 
+def test_route_set_runner_fallback_propagates_quiet_flag(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+    evidence_dir = tmp_path / "evidence"
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _LoginStartStubHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+    env["DEV_UI_SMOKE_EVIDENCE_DIR"] = str(evidence_dir)
+
+    try:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                base_url,
+                "--run-id-base",
+                "manual-fallback-quiet",
+                "--fallback-login-start-on-preflight-fail",
+                "--quiet",
+            ],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert proc.returncode == 0
+    assert "--quiet" in proc.stderr
+    assert proc.stdout.strip() == ""
+
+    assert (evidence_dir / "dev-login-start-smoke-root.json").exists()
+
+
 def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
     tmp_path: Path,
 ) -> None:
@@ -514,6 +561,59 @@ def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
         "manual-route-subset-1",
         "manual-route-subset-2",
     ]
+
+
+def test_route_set_runner_quiet_suppresses_live_route_progress_stdout(
+    tmp_path: Path,
+) -> None:
+    node_bin_dir = tmp_path / "bin"
+    node_bin_dir.mkdir(parents=True, exist_ok=True)
+    route_log = tmp_path / "route-runs.log"
+
+    fake_node = node_bin_dir / "node"
+    fake_node.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        'echo "${DEV_UI_SMOKE_GUI_PATH}|${DEV_UI_SMOKE_RUN_ID}|$*" >> "${ROUTE_LOG_FILE}"\n',
+        encoding="utf-8",
+    )
+    fake_node.chmod(0o755)
+
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
+    env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
+    env["PATH"] = f"{node_bin_dir}:{env.get('PATH', '')}"
+    env["ROUTE_LOG_FILE"] = str(route_log)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--run-id-base",
+            "manual-route-quiet",
+            "--routes",
+            "/gui,/jobs?source=smoke",
+            "--quiet",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0
+    assert "route 1/2" not in proc.stdout
+    assert "PASS /gui" not in proc.stdout
+    assert "route set passed" not in proc.stdout
+
+    rows = [
+        line.strip()
+        for line in route_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(rows) == 2
+    assert rows[0].split("|", 2)[:2] == ["/gui", "manual-route-quiet-1"]
+    assert rows[1].split("|", 2)[:2] == ["/jobs?source=smoke", "manual-route-quiet-2"]
 
 
 def test_route_set_runner_accepts_route_presets_and_uses_ordinal_run_ids(
