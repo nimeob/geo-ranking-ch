@@ -131,6 +131,7 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     assert "--env-name" in content
     assert "--routes" in content
     assert "--route-presets" in content
+    assert "--max-retry-delay" in content
     assert "--expected-authorize-host" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
@@ -269,6 +270,28 @@ def test_login_start_bundle_rejects_missing_option_value_for_timeout() -> None:
 
     assert proc.returncode == 2
     assert "Missing value for --timeout" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_login_start_bundle_rejects_missing_option_value_for_max_retry_delay() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--max-retry-delay",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --max-retry-delay" in proc.stderr
     assert "Usage:" in proc.stderr
 
 
