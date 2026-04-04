@@ -18,6 +18,7 @@ Options:
   --routes <csv>          Komma-separierte Route-Liste (überschreibt GUI_SMOKE_ROUTES)
   --route-presets <csv>   Presets (all,core,modern,legacy,jobs,results,trace,minimal)
                           (Alternative zu --routes)
+  --quiet                 Unterdrückt Fortschritts-/Success-Logs auf stdout
   --fallback-login-start-on-preflight-fail
                            Führt bei fehlenden Live-Secrets automatisch
                            den Login-Start-Bundle-Smoke als Fallback aus
@@ -46,6 +47,7 @@ login_reason_override=""
 run_id_base_override=""
 routes_override=""
 route_presets_override=""
+quiet="0"
 headful_override=""
 fallback_login_start_on_preflight_fail="${DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL:-0}"
 selected_routes_csv=""
@@ -247,6 +249,10 @@ while [[ $# -gt 0 ]]; do
       fallback_login_start_on_preflight_fail="1"
       shift
       ;;
+    --quiet)
+      quiet="1"
+      shift
+      ;;
     --headless)
       headful_override="0"
       shift
@@ -343,11 +349,18 @@ if ! (
       "${fallback_route_args[@]}"
     )
 
+    if [[ "${quiet}" == "1" ]]; then
+      fallback_cmd+=(--quiet)
+    fi
+
     fallback_effective_cmd="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name} --output-dir ${fallback_output_dir} --reason ${fallback_login_reason}"
     if [[ -n "${route_presets_override}" ]]; then
       fallback_effective_cmd+=" --route-presets \"${selected_route_presets_csv}\""
     elif [[ -n "${routes_override}" ]]; then
       fallback_effective_cmd+=" --routes \"${selected_routes_csv}\""
+    fi
+    if [[ "${quiet}" == "1" ]]; then
+      fallback_effective_cmd+=" --quiet"
     fi
     echo "[gui-live-smoke-preflight] fallback_login_start_smoke=${fallback_effective_cmd}" >&2
 
@@ -408,7 +421,9 @@ for idx in "${!selected_routes[@]}"; do
   run_id="${base_run_id}-${ordinal}"
   route_rc=0
 
-  echo "[gui-dev-live-auth-analyze-smoke] route ${ordinal}/${#selected_routes[@]}: ${route} (run_id=${run_id})"
+  if [[ "${quiet}" != "1" ]]; then
+    echo "[gui-dev-live-auth-analyze-smoke] route ${ordinal}/${#selected_routes[@]}: ${route} (run_id=${run_id})"
+  fi
 
   if (
     cd "${REPO_ROOT}"
@@ -416,7 +431,9 @@ for idx in "${!selected_routes[@]}"; do
       DEV_UI_SMOKE_RUN_ID="${run_id}" \
       node scripts/run_dev_ui_auth_analyze_smoke.mjs
   ); then
-    echo "[gui-dev-live-auth-analyze-smoke] PASS ${route}"
+    if [[ "${quiet}" != "1" ]]; then
+      echo "[gui-dev-live-auth-analyze-smoke] PASS ${route}"
+    fi
   else
     route_rc="$?"
     failures="$((failures + 1))"
@@ -453,4 +470,6 @@ write_route_set_summary \
   "" \
   ""
 
-echo "✅ gui-dev-live-auth-analyze-smoke route set passed"
+if [[ "${quiet}" != "1" ]]; then
+  echo "✅ gui-dev-live-auth-analyze-smoke route set passed"
+fi
