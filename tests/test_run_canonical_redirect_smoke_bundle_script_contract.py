@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -212,3 +213,42 @@ def test_canonical_redirect_bundle_rejects_routes_and_presets_combination() -> N
     assert proc.returncode == 2
     assert "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" in proc.stderr
     assert "Usage:" in proc.stderr
+
+
+def test_canonical_redirect_bundle_accepts_quiet_flag_and_suppresses_progress_stdout(
+    tmp_path,
+) -> None:
+    output_dir = tmp_path / "artifacts"
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "http://127.0.0.1:9",
+            "--env-name",
+            "stub-quiet",
+            "--output-dir",
+            str(output_dir),
+            "--routes",
+            "/gui",
+            "--timeout",
+            "2",
+            "--max-attempts",
+            "1",
+            "--retry-delay",
+            "0",
+            "--quiet",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert "UI canonical redirect smoke:" not in proc.stdout
+
+    summary_path = output_dir / "stub-quiet-canonical-host-redirect-smoke-bundle-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["status"] == "passed"

@@ -14,6 +14,7 @@ RETRY_DELAY_SECONDS="5"
 MAX_RETRY_DELAY_SECONDS="10"
 ROUTES_CSV=""
 ROUTE_PRESETS_CSV=""
+QUIET="0"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/smoke/gui_smoke_routes.sh
 source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
@@ -39,6 +40,7 @@ Options:
   --routes <csv>                Optionale CSV-Route-Subset aus GUI_SMOKE_ROUTES
   --route-presets <csv>         Optionale Presets (all,core,modern,legacy,jobs,results,trace,minimal)
                                 (Alternative zu --routes)
+  --quiet                       Unterdrückt Fortschritts-/Success-Logs auf stdout
 EOF
 }
 
@@ -119,6 +121,10 @@ while [ "$#" -gt 0 ]; do
       require_option_value "--route-presets" "${2:-}"
       ROUTE_PRESETS_CSV="$2"
       shift 2
+      ;;
+    --quiet)
+      QUIET="1"
+      shift
       ;;
     -h|--help)
       usage
@@ -270,6 +276,13 @@ run_probe() {
   python3 scripts/smoke/check_ui_canonical_redirect.py "${probe_args[@]}"
 }
 
+log_info() {
+  if [[ "${QUIET}" == "1" ]]; then
+    return 0
+  fi
+  echo "$*"
+}
+
 read_probe_summary_fields() {
   local output_json="$1"
   python3 - "$output_json" <<'PY'
@@ -328,7 +341,7 @@ for route in "${selected_routes[@]}"; do
   if [[ -f "$output_json" ]]; then
     IFS=$'\t' read -r probe_reason probe_status_code probe_skipped < <(read_probe_summary_fields "$output_json")
   fi
-  echo "UI canonical redirect smoke: route='${route}' rc=${route_rc["$route"]:-1} reason=${probe_reason:-unknown} status_code=${probe_status_code:-na} skipped=${probe_skipped:-na}"
+  log_info "UI canonical redirect smoke: route='${route}' rc=${route_rc["$route"]:-1} reason=${probe_reason:-unknown} status_code=${probe_status_code:-na} skipped=${probe_skipped:-na}"
 
   probe_skipped_lc="${probe_skipped,,}"
   if [[ "${route_rc["$route"]:-1}" -ne 0 ]] \
@@ -374,4 +387,4 @@ if (( ${#failed_routes[@]} > 0 )); then
   exit 1
 fi
 
-echo "UI canonical-host redirect smoke bundle passed for env='${ENV_NAME}' (base_url=${BASE_URL}, summary=${bundle_summary_path})"
+log_info "UI canonical-host redirect smoke bundle passed for env='${ENV_NAME}' (base_url=${BASE_URL}, summary=${bundle_summary_path})"

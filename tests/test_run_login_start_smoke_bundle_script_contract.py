@@ -498,6 +498,46 @@ def test_login_start_bundle_summary_includes_route_reason_phase_status_and_durat
         assert row["duration_seconds"] >= 0
 
 
+def test_login_start_bundle_accepts_quiet_flag_and_suppresses_progress_stdout(
+    tmp_path,
+) -> None:
+    output_dir = tmp_path / "artifacts"
+
+    with _BundleStubServer() as stub:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                stub.base_url,
+                "--env-name",
+                "stub-quiet",
+                "--output-dir",
+                str(output_dir),
+                "--routes",
+                "/gui",
+                "--timeout",
+                "5",
+                "--max-attempts",
+                "1",
+                "--retry-delay",
+                "0",
+                "--quiet",
+            ],
+            cwd=str(REPO_ROOT),
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert proc.returncode == 0, proc.stderr
+    assert "UI login-start smoke:" not in proc.stdout
+
+    summary_path = output_dir / "stub-quiet-login-start-smoke-bundle-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["status"] == "passed"
+
+
 def test_login_start_bundle_fail_fast_stops_after_first_transport_error(tmp_path) -> None:
     output_dir = tmp_path / "artifacts"
 

@@ -14,6 +14,7 @@ MAX_RETRY_DELAY_SECONDS="10"
 EXPECTED_AUTHORIZE_HOST=""
 ROUTES_CSV=""
 ROUTE_PRESETS_CSV=""
+QUIET="0"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/smoke/gui_smoke_routes.sh
 source "${REPO_ROOT}/scripts/smoke/gui_smoke_routes.sh"
@@ -36,6 +37,7 @@ Options:
   --routes <csv>                Optionale CSV-Route-Subset aus GUI_SMOKE_ROUTES
   --route-presets <csv>         Optionale Presets (all,core,modern,legacy,jobs,results,trace,minimal)
                                 (Alternative zu --routes)
+  --quiet                       Unterdrückt Fortschritts-/Success-Logs auf stdout
   --expected-authorize-host <h> Erwarteter Host für absolute authorize-Redirects
                                 (hostname, host:port oder URL; optional;
                                  default: auth.<base-host-without-www> + <base-host>
@@ -106,6 +108,10 @@ while [ "$#" -gt 0 ]; do
       require_option_value "--route-presets" "${2:-}"
       ROUTE_PRESETS_CSV="$2"
       shift 2
+      ;;
+    --quiet)
+      QUIET="1"
+      shift
       ;;
     --expected-authorize-host)
       require_option_value "--expected-authorize-host" "${2:-}"
@@ -422,6 +428,13 @@ run_probe() {
     --output-json "$output_json"
 }
 
+log_info() {
+  if [[ "${QUIET}" == "1" ]]; then
+    return 0
+  fi
+  echo "$*"
+}
+
 read_route_artifact_meta() {
   local artifact_path="$1"
 
@@ -482,7 +495,7 @@ for route in "${selected_routes[@]}"; do
 
   output_json="${OUTPUT_DIR}/${ENV_NAME}-${suffix}.json"
   route_started_at_epoch="$(date +%s)"
-  echo "UI login-start smoke: probing route='${route}' -> ${output_json}"
+  log_info "UI login-start smoke: probing route='${route}' -> ${output_json}"
   run_probe "$route" "$output_json"
   rc=$?
   route_finished_at_epoch="$(date +%s)"
@@ -498,7 +511,7 @@ for route in "${selected_routes[@]}"; do
   route_reason["$route"]="${route_reason_value:-unknown}"
   route_status_code["$route"]="${route_status_code_value:-}"
 
-  echo "UI login-start smoke: route='${route}' rc=${rc} phase=${route_phase["$route"]} reason=${route_reason["$route"]} status_code=${route_status_code["$route"]:-n/a} duration_seconds=${route_duration}"
+  log_info "UI login-start smoke: route='${route}' rc=${rc} phase=${route_phase["$route"]} reason=${route_reason["$route"]} status_code=${route_status_code["$route"]:-n/a} duration_seconds=${route_duration}"
 
   if [[ "${rc}" -ne 0 ]] \
     && is_transport_failure_reason "${route_reason["$route"]}"; then
@@ -546,4 +559,4 @@ if (( ${#failed_routes[@]} > 0 )); then
   exit 1
 fi
 
-echo "UI login-start smoke bundle passed for env='${ENV_NAME}' (base_url=${BASE_URL}, expected_authorize_host=${EXPECTED_AUTHORIZE_HOST}, summary=${bundle_summary_path})"
+log_info "UI login-start smoke bundle passed for env='${ENV_NAME}' (base_url=${BASE_URL}, expected_authorize_host=${EXPECTED_AUTHORIZE_HOST}, summary=${bundle_summary_path})"
