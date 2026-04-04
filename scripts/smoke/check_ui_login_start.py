@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import parse_qs, urlencode, urljoin, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -74,6 +74,47 @@ def _build_start_request_url(base_url: str, *, next_path: str, reason: str) -> s
     normalized_base = base_url.strip().rstrip("/")
     query = urlencode({"next": next_path, "reason": reason, "start": "1"})
     return f"{normalized_base}/login?{query}"
+
+
+def _canonicalize_base_url_trailing_dot(raw_base_url: str) -> str:
+    candidate = str(raw_base_url or "").strip()
+    if not candidate:
+        return ""
+
+    try:
+        parsed = urlsplit(candidate)
+    except Exception:  # noqa: BLE001
+        return candidate
+
+    if not parsed.scheme or not parsed.netloc:
+        return candidate
+
+    host = str(parsed.hostname or "").strip().lower()
+    if not host:
+        return candidate
+
+    canonical_host = host.rstrip(".")
+    if canonical_host == host:
+        return candidate
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    port_segment = f":{parsed.port}" if parsed.port is not None else ""
+    canonical_netloc = f"{userinfo}{canonical_host}{port_segment}"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            canonical_netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
@@ -373,9 +414,9 @@ def _normalize_host_token(raw_host: str) -> str:
     parsed = urlparse(candidate if "://" in candidate else f"//{candidate}")
     host = str(parsed.hostname or "").strip().lower()
     if host:
-        return host
+        return host.rstrip(".")
 
-    return candidate.strip("[]").lower()
+    return candidate.strip("[]").lower().rstrip(".")
 
 
 def _expand_geo_host_variants(host: str) -> set[str]:
@@ -1071,7 +1112,7 @@ def main(argv: list[str] | None = None) -> int:
             _write_result(args.output_json, payload)
         return 2
 
-    effective_base_url = base_url or ui_base_url
+    effective_base_url = _canonicalize_base_url_trailing_dot(base_url or ui_base_url)
 
     explicit_authorize_hosts = _parse_allowed_authorize_hosts(
         args.expected_authorize_host
