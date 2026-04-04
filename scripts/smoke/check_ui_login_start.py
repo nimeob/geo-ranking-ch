@@ -76,6 +76,9 @@ def _build_start_request_url(base_url: str, *, next_path: str, reason: str) -> s
     return f"{normalized_base}/login?{query}"
 
 
+_LEGACY_DEV_UI_HOSTS = frozenset({"dev.georanking.ch", "dev.geo-ranking.ch"})
+
+
 def _canonicalize_base_url_trailing_dot(raw_base_url: str) -> str:
     candidate = str(raw_base_url or "").strip()
     if not candidate:
@@ -94,6 +97,9 @@ def _canonicalize_base_url_trailing_dot(raw_base_url: str) -> str:
         return candidate
 
     canonical_host = host.rstrip(".")
+    if canonical_host in _LEGACY_DEV_UI_HOSTS:
+        canonical_host = f"www.{canonical_host}"
+
     if canonical_host == host:
         return candidate
 
@@ -1150,7 +1156,8 @@ def main(argv: list[str] | None = None) -> int:
             _write_result(args.output_json, payload)
         return 2
 
-    effective_base_url = _canonicalize_base_url_trailing_dot(base_url or ui_base_url)
+    requested_base_url = str(base_url or ui_base_url).strip()
+    effective_base_url = _canonicalize_base_url_trailing_dot(requested_base_url)
 
     explicit_authorize_hosts = _parse_allowed_authorize_hosts(
         args.expected_authorize_host
@@ -1168,6 +1175,8 @@ def main(argv: list[str] | None = None) -> int:
 
     request_meta = {
         "base_url": effective_base_url,
+        "requested_base_url": requested_base_url,
+        "base_url_canonicalized": effective_base_url != requested_base_url,
         "ui_base_url": ui_base_url,
         "next": args.next_path,
         "reason": args.reason,
