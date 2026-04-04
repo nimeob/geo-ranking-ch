@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -212,3 +213,52 @@ def test_canonical_redirect_bundle_rejects_routes_and_presets_combination() -> N
     assert proc.returncode == 2
     assert "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" in proc.stderr
     assert "Usage:" in proc.stderr
+
+
+def test_canonical_redirect_bundle_fail_fast_marks_unprobed_routes_as_skipped(tmp_path) -> None:
+    output_dir = tmp_path / "artifacts"
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--alias-host",
+            "127.0.0.1",
+            "--env-name",
+            "stub-fail-fast",
+            "--output-dir",
+            str(output_dir),
+            "--routes",
+            "/gui,/jobs",
+            "--timeout",
+            "2",
+            "--max-attempts",
+            "1",
+            "--retry-delay",
+            "0",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert "UI canonical redirect smoke: route='/gui'" in proc.stdout
+    assert "UI canonical redirect smoke: route='/jobs'" not in proc.stdout
+    assert "Aborting remaining routes (fail-fast)" in proc.stderr
+
+    summary_path = output_dir / "stub-fail-fast-canonical-host-redirect-smoke-bundle-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+    assert summary["status"] == "failed"
+    assert summary["failed_routes"] == ["/gui"]
+    assert summary["skipped_routes"] == ["/jobs"]
+
+    routes = {row["route"]: row for row in summary["routes"]}
+    assert routes["/gui"]["status"] == "failed"
+    assert routes["/gui"]["rc"] == 1
+    assert routes["/jobs"]["status"] == "skipped"
+    assert routes["/jobs"]["rc"] is None

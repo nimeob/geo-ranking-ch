@@ -484,6 +484,7 @@ def test_login_start_bundle_summary_includes_route_reason_phase_status_and_durat
     assert summary["base_url_canonicalized"] is False
     assert summary["selected_routes"] == ["/gui", "/jobs"]
     assert summary["failed_routes"] == []
+    assert summary["skipped_routes"] == []
 
     routes = summary["routes"]
     assert len(routes) == 2
@@ -530,3 +531,17 @@ def test_login_start_bundle_fail_fast_stops_after_first_transport_error(tmp_path
     assert "UI login-start smoke: probing route='/gui'" in proc.stdout
     assert "UI login-start smoke: probing route='/jobs'" not in proc.stdout
     assert "Aborting remaining routes (fail-fast)" in proc.stderr
+
+    summary_path = output_dir / "stub-fail-fast-login-start-smoke-bundle-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+    assert summary["status"] == "failed"
+    assert summary["failed_routes"] == ["/gui"]
+    assert summary["skipped_routes"] == ["/jobs"]
+
+    routes = {row["route"]: row for row in summary["routes"]}
+    assert routes["/gui"]["status"] == "failed"
+    assert routes["/gui"]["rc"] == 1
+    assert routes["/jobs"]["status"] == "skipped"
+    assert routes["/jobs"]["rc"] is None
+    assert routes["/jobs"]["reason"] == "fail_fast_skipped"

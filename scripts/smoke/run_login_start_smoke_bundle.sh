@@ -327,6 +327,7 @@ write_bundle_summary() {
   SUMMARY_SELECTED_ROUTES="$(printf '%s\n' "${selected_routes[@]}")" \
   SUMMARY_SELECTED_ROUTE_PRESETS="$(printf '%s\n' "${selected_route_presets[@]:-}")" \
   SUMMARY_FAILED_ROUTES="$(printf '%s\n' "${failed_route_paths[@]:-}")" \
+  SUMMARY_SKIPPED_ROUTES="$(printf '%s\n' "${skipped_route_paths[@]:-}")" \
   SUMMARY_ROUTE_ROWS="$route_rows" \
   python3 - "$summary_path" <<'PY'
 from __future__ import annotations
@@ -355,7 +356,13 @@ def _parse_route_rows(raw_rows: str) -> list[dict[str, object]]:
         reason = parts[4] if len(parts) > 4 else ""
         status_code_raw = parts[5] if len(parts) > 5 else ""
         duration_seconds_raw = parts[6] if len(parts) > 6 else ""
-        rc = int(rc_raw)
+        status_override = (parts[7] if len(parts) > 7 else "").strip().lower()
+
+        rc: int | None
+        if rc_raw == "":
+            rc = None
+        else:
+            rc = int(rc_raw)
 
         status_code: int | None
         try:
@@ -369,10 +376,17 @@ def _parse_route_rows(raw_rows: str) -> list[dict[str, object]]:
         except (TypeError, ValueError):
             duration_seconds = None
 
+        if status_override in {"passed", "failed", "skipped"}:
+            row_status = status_override
+        elif rc is None:
+            row_status = "skipped"
+        else:
+            row_status = "passed" if rc == 0 else "failed"
+
         rows.append(
             {
                 "route": route,
-                "status": "passed" if rc == 0 else "failed",
+                "status": row_status,
                 "rc": rc,
                 "artifact": artifact,
                 "phase": phase or None,
@@ -397,6 +411,7 @@ summary = {
     "selected_routes": _split_lines("SUMMARY_SELECTED_ROUTES"),
     "selected_route_presets": _split_lines("SUMMARY_SELECTED_ROUTE_PRESETS"),
     "failed_routes": _split_lines("SUMMARY_FAILED_ROUTES"),
+    "skipped_routes": _split_lines("SUMMARY_SKIPPED_ROUTES"),
     "routes": _parse_route_rows(os.environ.get("SUMMARY_ROUTE_ROWS", "")),
 }
 
@@ -463,6 +478,7 @@ is_transport_failure_reason() {
 
 declare -a failed_routes=()
 declare -a failed_route_paths=()
+declare -a skipped_route_paths=()
 
 declare -A route_rc=()
 declare -A route_artifact=()
@@ -512,23 +528,41 @@ done
 set -e
 
 for route in "${selected_routes[@]}"; do
-  rc="${route_rc[$route]:-1}"
-  if [ "$rc" -ne 0 ]; then
-    failed_routes+=("${route} (rc=${rc})")
-    failed_route_paths+=("${route}")
+  if [[ -v "route_rc[$route]" ]]; then
+    rc="${route_rc[$route]}"
+    if [ "$rc" -ne 0 ]; then
+      failed_routes+=("${route} (rc=${rc})")
+      failed_route_paths+=("${route}")
+    fi
+  else
+    skipped_route_paths+=("${route}")
   fi
 done
 
 bundle_summary_path="${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-bundle-summary.json"
 summary_rows=""
 for route in "${selected_routes[@]}"; do
-  rc="${route_rc[$route]:-1}"
-  artifact_path="${route_artifact[$route]:-}"
-  phase="${route_phase[$route]:-unknown}"
-  reason="${route_reason[$route]:-unknown}"
-  status_code="${route_status_code[$route]:-}"
-  duration_seconds="${route_duration_seconds[$route]:-0}"
-  summary_rows+="${route}"$'\t'"${rc}"$'\t'"${artifact_path}"$'\t'"${phase}"$'\t'"${reason}"$'\t'"${status_code}"$'\t'"${duration_seconds}"$'\n'
+  if [[ -v "route_rc[$route]" ]]; then
+    rc="${route_rc[$route]}"
+    artifact_path="${route_artifact[$route]:-}"
+    phase="${route_phase[$route]:-unknown}"
+    reason="${route_reason[$route]:-unknown}"
+    status_code="${route_status_code[$route]:-}"
+    duration_seconds="${route_duration_seconds[$route]:-0}"
+    status_label="failed"
+    if [[ "${rc}" -eq 0 ]]; then
+      status_label="passed"
+    fi
+  else
+    rc=""
+    artifact_path=""
+    phase="skipped"
+    reason="fail_fast_skipped"
+    status_code=""
+    duration_seconds=""
+    status_label="skipped"
+  fi
+  summary_rows+="${route}"$'\t'"${rc}"$'\t'"${artifact_path}"$'\t'"${phase}"$'\t'"${reason}"$'\t'"${status_code}"$'\t'"${duration_seconds}"$'\t'"${status_label}"$'\n'
 done
 
 bundle_status="passed"
