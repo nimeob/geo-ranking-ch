@@ -323,7 +323,16 @@ def test_derive_default_api_origin_from_ui_base_url():
 
     assert module._derive_default_api_origin("https://www.dev.georanking.ch") == "https://api.dev.georanking.ch"
     assert module._derive_default_api_origin("https://www.dev.geo-ranking.ch") == "https://api.dev.georanking.ch"
+    assert module._derive_default_api_origin("https://dev.geo-ranking.ch") == "https://api.dev.georanking.ch"
+    assert module._derive_default_api_origin("https://dev.georanking.ch.") == "https://api.dev.georanking.ch"
     assert module._derive_default_api_origin("https://api.dev.georanking.ch") == "https://api.dev.georanking.ch"
+
+
+def test_normalize_origin_canonicalizes_legacy_dev_non_www_ui_host():
+    module = _load_module()
+
+    assert module._normalize_origin("https://dev.geo-ranking.ch") == "https://www.dev.geo-ranking.ch"
+    assert module._normalize_origin("https://dev.georanking.ch.") == "https://www.dev.georanking.ch"
 
 
 def test_main_derives_api_base_url_when_only_ui_base_url_is_provided(monkeypatch, capsys):
@@ -352,6 +361,24 @@ def test_main_derives_canonical_api_host_for_geo_ranking_ui_alias(monkeypatch, c
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["ok"] is True
     assert payload["api_base_url"] == "https://api.dev.georanking.ch"
+    assert payload["trusted_forwarded_host"] == "www.dev.geo-ranking.ch"
+
+
+def test_main_canonicalizes_legacy_dev_non_www_ui_base_url(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(
+        module,
+        "_send_request_probe",
+        lambda **kwargs: _happy_probe_geo_ranking_alias(module, **kwargs),
+    )
+
+    exit_code = module.main(["--ui-base-url", "https://dev.geo-ranking.ch", "--max-attempts", "1"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["api_base_url"] == "https://api.dev.georanking.ch"
+    assert payload["ui_base_url"] == "https://www.dev.geo-ranking.ch"
     assert payload["trusted_forwarded_host"] == "www.dev.geo-ranking.ch"
 
 

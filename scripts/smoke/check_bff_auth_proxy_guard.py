@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
@@ -27,6 +27,7 @@ _REDIRECT_HTTP_STATUSES = frozenset({301, 302, 303, 307, 308})
 _PROXY_MARKER_HEADER = "X-Geo-Auth-Proxy"
 _PROXY_MARKER_VALUE = "1"
 _EXPECTED_DISABLED_ERROR = "external_direct_login_disabled"
+_LEGACY_DEV_UI_HOSTS = frozenset({"dev.georanking.ch", "dev.geo-ranking.ch"})
 
 
 @dataclass(frozen=True)
@@ -78,8 +79,48 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _normalize_origin(raw_origin: str) -> str:
+def _canonicalize_origin(raw_origin: str) -> str:
     value = str(raw_origin or "").strip().rstrip("/")
+    if not value:
+        return ""
+
+    parsed = urlsplit(value)
+    if not parsed.scheme or not parsed.netloc:
+        return value
+
+    host = str(parsed.hostname or "").strip().lower()
+    if not host:
+        return value
+
+    canonical_host = host.rstrip(".")
+    if canonical_host in _LEGACY_DEV_UI_HOSTS:
+        canonical_host = f"www.{canonical_host}"
+
+    if canonical_host == host:
+        return value
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    port_segment = f":{parsed.port}" if parsed.port is not None else ""
+    canonical_netloc = f"{userinfo}{canonical_host}{port_segment}"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            canonical_netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
+def _normalize_origin(raw_origin: str) -> str:
+    value = _canonicalize_origin(raw_origin)
     parsed = urlparse(value)
     if not parsed.scheme or not parsed.netloc:
         raise ValueError(f"invalid_origin:{raw_origin}")
