@@ -165,6 +165,62 @@ def test_check_login_entry_prefers_valid_start_link_when_multiple_links_exist():
     assert result.reason == "ok"
 
 
+def test_check_login_entry_fails_when_html_start_link_uses_untrusted_absolute_host():
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login?next=%2Fgui&reason=manual_login": {
+            "status": 200,
+            "body": '<a href="https://evil.example.test/login?next=%2Fgui&amp;reason=manual_login&amp;start=1">Jetzt anmelden</a>',
+        },
+    }
+
+    with _StubServer() as stub:
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is False
+    assert result.reason == "entry_start_link_host_mismatch"
+
+
+def test_check_login_entry_accepts_absolute_start_link_on_same_origin():
+    module = _load_module()
+
+    with _StubServer() as stub:
+        _StubHandler.routes = {
+            "/login?next=%2Fgui&reason=manual_login": {
+                "status": 200,
+                "body": (
+                    f'<a href="{stub.base_url}/login?next=%2Fgui&amp;reason=manual_login&amp;start=1">'
+                    "Jetzt anmelden"
+                    "</a>"
+                ),
+            },
+        }
+        result = module.check_login_entry(base_url=stub.base_url)
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
+def test_same_origin_login_entry_href_rejects_scheme_or_port_mismatch():
+    module = _load_module()
+
+    request_url = "https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login"
+    assert (
+        module._is_same_origin_login_entry_href(
+            href="http://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+            request_url=request_url,
+        )
+        is False
+    )
+    assert (
+        module._is_same_origin_login_entry_href(
+            href="https://www.dev.georanking.ch:444/login?next=%2Fgui&reason=manual_login&start=1",
+            request_url=request_url,
+        )
+        is False
+    )
+
+
 def test_check_login_entry_passes_for_authorize_redirect():
     module = _load_module()
     _StubHandler.routes = {

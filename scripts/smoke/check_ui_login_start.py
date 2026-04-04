@@ -517,13 +517,14 @@ class _AnchorHrefCollector(HTMLParser):
 
 
 def _validate_entry_start_link_query(
-    *, body_preview: str, next_path: str, reason: str
+    *, body_preview: str, next_path: str, reason: str, request_url: str
 ) -> tuple[bool, str]:
     collector = _AnchorHrefCollector()
     collector.feed(body_preview)
     collector.close()
 
     has_start_link = False
+    has_matching_origin = False
     has_matching_next = False
 
     for href in collector.hrefs:
@@ -538,6 +539,11 @@ def _validate_entry_start_link_query(
             continue
 
         has_start_link = True
+
+        if not _is_same_origin_login_entry_href(href=href, request_url=request_url):
+            continue
+
+        has_matching_origin = True
 
         next_value = str((query.get("next") or [""])[0])
         if next_value != str(next_path):
@@ -556,10 +562,41 @@ def _validate_entry_start_link_query(
             return True, "ok"
         return False, "entry_missing_start_link"
 
+    if not has_matching_origin:
+        return False, "entry_start_link_host_mismatch"
+
     if not has_matching_next:
         return False, "entry_start_link_next_mismatch"
 
     return False, "entry_start_link_reason_mismatch"
+
+
+def _is_same_origin_login_entry_href(*, href: str, request_url: str) -> bool:
+    parsed_href = urlparse(href)
+
+    # Relative URLs are same-origin by definition in browser navigation.
+    if not parsed_href.netloc:
+        return True
+
+    parsed_request = urlparse(request_url)
+    request_host = _normalize_host_token(parsed_request.hostname or "")
+    href_host = _normalize_host_token(parsed_href.hostname or "")
+    if not request_host or not href_host:
+        return False
+
+    allowed_hosts = _expand_geo_host_variants(request_host)
+    if href_host not in allowed_hosts:
+        return False
+
+    request_scheme = (parsed_request.scheme or "").strip().lower()
+    href_scheme = (parsed_href.scheme or request_scheme).strip().lower()
+    if request_scheme and href_scheme and href_scheme != request_scheme:
+        return False
+
+    default_port = {"http": 80, "https": 443}
+    request_port = parsed_request.port or default_port.get(request_scheme)
+    href_port = parsed_href.port or default_port.get(href_scheme)
+    return request_port == href_port
 
 
 def _validate_auth_login_redirect_query(
@@ -813,6 +850,7 @@ def check_login_entry(
         body_preview=probe.body_preview,
         next_path=next_path,
         reason=reason,
+        request_url=probe_request_url,
     )
     if not entry_start_ok:
         return LoginEntryCheckResult(
