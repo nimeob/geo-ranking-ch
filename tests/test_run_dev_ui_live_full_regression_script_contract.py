@@ -5,6 +5,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "run_dev_ui_live_full_regression.mjs"
@@ -117,3 +119,66 @@ def test_missing_credentials_emit_evidence_even_before_browser_boot(tmp_path: Pa
     assert "[dev-ui-full-regression] Evidence:" in result.stderr
     assert "[dev-ui-full-regression] HINT: Falls Live-Credentials fehlen" in result.stderr
     assert "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev" in result.stderr
+
+
+def test_missing_credentials_hint_canonicalizes_legacy_trailing_dot_base_url(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://dev.georanking.ch."
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-canonicalized.json"
+    env["DEV_UI_FULL_EVIDENCE_JSON"] = str(evidence_path)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["baseUrl"] == "https://www.dev.georanking.ch"
+    assert payload["requestedBaseUrl"] == "https://dev.georanking.ch."
+    assert payload["baseUrlCanonicalized"] is True
+    assert set(payload["baseUrlCanonicalizationReasons"]) >= {"trailing_dot", "legacy_dev_non_www"}
+    assert "Canonicalized DEV_UI_BASE_URL 'https://dev.georanking.ch.' -> 'https://www.dev.georanking.ch'" in result.stderr
+    assert "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "base_url, expected_fragment",
+    [
+        ("dev.georanking.ch", "must be an absolute URL"),
+        ("ftp://www.dev.georanking.ch", "unsupported protocol 'ftp:'"),
+    ],
+)
+def test_invalid_base_url_emits_actionable_hint_and_error(
+    tmp_path: Path,
+    base_url: str,
+    expected_fragment: str,
+) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = base_url
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-invalid-base-url.json"
+    env["DEV_UI_FULL_EVIDENCE_JSON"] = str(evidence_path)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["error"].startswith("Invalid DEV_UI_BASE_URL:")
+    assert expected_fragment in payload["error"]
+    assert "[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL" in result.stderr
