@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import parse_qs, urlencode, urljoin, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -356,12 +356,71 @@ def _send_request(
     return probe.status_code, probe.location
 
 
+def _normalize_dns_host(raw_host: str) -> str:
+    host = str(raw_host or "").strip().lower()
+    if host.endswith("."):
+        host = host.rstrip(".")
+    return host
+
+
+def _canonicalize_base_url_host(base_url: str) -> str:
+    candidate = str(base_url or "").strip()
+    if not candidate:
+        return ""
+
+    try:
+        parsed = urlsplit(candidate)
+    except Exception:  # noqa: BLE001
+        return candidate
+
+    if not parsed.scheme or not parsed.netloc:
+        return candidate
+
+    original_host = str(parsed.hostname or "").strip().lower()
+    canonical_host = _normalize_dns_host(original_host)
+    if not canonical_host or canonical_host == original_host:
+        return candidate
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    try:
+        parsed_port = parsed.port
+    except ValueError:
+        return candidate
+
+    host_segment = canonical_host
+    if ":" in canonical_host:
+        try:
+            parsed_ip = ipaddress.ip_address(canonical_host)
+        except ValueError:
+            parsed_ip = None
+        if isinstance(parsed_ip, ipaddress.IPv6Address):
+            host_segment = f"[{canonical_host}]"
+
+    port_segment = f":{parsed_port}" if parsed_port is not None else ""
+    canonical_netloc = f"{userinfo}{host_segment}{port_segment}"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            canonical_netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
 def _normalize_host_token(raw_host: str) -> str:
     candidate = str(raw_host or "").strip()
     if not candidate:
         return ""
 
-    bare_candidate = candidate.strip("[]").lower()
+    bare_candidate = _normalize_dns_host(candidate.strip("[]"))
     if ":" in bare_candidate and "://" not in candidate:
         try:
             ipaddress.ip_address(bare_candidate)
@@ -371,15 +430,15 @@ def _normalize_host_token(raw_host: str) -> str:
             return bare_candidate
 
     parsed = urlparse(candidate if "://" in candidate else f"//{candidate}")
-    host = str(parsed.hostname or "").strip().lower()
+    host = _normalize_dns_host(parsed.hostname or "")
     if host:
         return host
 
-    return candidate.strip("[]").lower()
+    return _normalize_dns_host(candidate.strip("[]"))
 
 
 def _expand_geo_host_variants(host: str) -> set[str]:
-    normalized = str(host or "").strip().lower()
+    normalized = _normalize_dns_host(host)
     if not normalized:
         return set()
 
@@ -1071,7 +1130,7 @@ def main(argv: list[str] | None = None) -> int:
             _write_result(args.output_json, payload)
         return 2
 
-    effective_base_url = base_url or ui_base_url
+    effective_base_url = _canonicalize_base_url_host(base_url or ui_base_url)
 
     explicit_authorize_hosts = _parse_allowed_authorize_hosts(
         args.expected_authorize_host

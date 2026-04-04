@@ -175,6 +175,49 @@ def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_before_valid
     assert "kanonisiere auf 'https://www.dev.georanking.ch'" in proc.stderr
 
 
+def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_with_trailing_dot_before_validation() -> (
+    None
+):
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://dev.georanking.ch./",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --env-name" in proc.stderr
+    assert "kanonisiere auf 'https://www.dev.georanking.ch/'" in proc.stderr
+
+
+def test_login_start_bundle_canonicalizes_trailing_dot_www_origin_before_validation() -> (
+    None
+):
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch./",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --env-name" in proc.stderr
+    assert "enthält einen Host mit trailing dot" in proc.stderr
+    assert "kanonisiere auf 'https://www.dev.georanking.ch/'" in proc.stderr
+
+
 def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host() -> (
     None
 ):
@@ -182,6 +225,7 @@ def test_login_start_bundle_defaults_harden_www_origins_against_legacy_bare_host
 
     required_snippets = [
         "import ipaddress",
+        'host = host.rstrip(".")',
         'if host.startswith("www.") and len(host) > 4:',
         'seed_hosts.append(f"auth.{bare_host}")',
         "seed_hosts.append(host)",

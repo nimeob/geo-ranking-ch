@@ -480,6 +480,31 @@ def test_parse_allowed_authorize_hosts_normalizes_urls_ports_and_ipv6_literals()
     }
 
 
+def test_parse_allowed_authorize_hosts_normalizes_trailing_dot_hosts():
+    module = _load_module()
+
+    hosts = module._parse_allowed_authorize_hosts(
+        "https://AUTH.dev.georanking.ch./oauth2/authorize,www.dev.geo-ranking.ch."
+    )
+
+    assert hosts == {
+        "auth.dev.georanking.ch",
+        "auth.dev.geo-ranking.ch",
+        "www.dev.georanking.ch",
+        "www.dev.geo-ranking.ch",
+    }
+
+
+def test_canonicalize_base_url_host_removes_trailing_dot_hosts():
+    module = _load_module()
+
+    canonicalized = module._canonicalize_base_url_host(
+        "https://www.dev.georanking.ch./gui?view=trace"
+    )
+
+    assert canonicalized == "https://www.dev.georanking.ch/gui?view=trace"
+
+
 def test_main_accepts_expected_authorize_host_values_with_urls_and_ports(capsys):
     module = _load_module()
     _StubHandler.routes = {
@@ -608,6 +633,61 @@ def test_main_derives_default_expected_authorize_host_from_non_www_origin(
     }
     assert captured["entry"] == expected_hosts
     assert captured["start"] == expected_hosts
+
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["request"]["expected_authorize_host"] == sorted(expected_hosts)
+    assert payload["request"]["expected_authorize_host_source"] == "derived_default"
+
+
+def test_main_derives_default_expected_authorize_host_from_trailing_dot_base_url(
+    monkeypatch, capsys
+):
+    module = _load_module()
+
+    captured: dict[str, set[str] | None] = {}
+    captured_request_base_urls: list[str] = []
+
+    def _fake_entry(**kwargs):
+        captured["entry"] = kwargs.get("allowed_authorize_hosts")
+        captured_request_base_urls.append(str(kwargs.get("base_url") or ""))
+        return module.LoginEntryCheckResult(
+            ok=True,
+            status_code=302,
+            location="https://auth.dev.georanking.ch/oauth2/authorize?state=abc",
+            request_url="https://www.dev.georanking.ch./login?next=%2Fgui&reason=manual_login",
+            content_type="",
+            reason="ok_redirect",
+        )
+
+    def _fake_start(**kwargs):
+        captured["start"] = kwargs.get("allowed_authorize_hosts")
+        captured_request_base_urls.append(str(kwargs.get("base_url") or ""))
+        return module.LoginStartCheckResult(
+            ok=True,
+            status_code=302,
+            location="https://auth.dev.georanking.ch/oauth2/authorize?state=abc",
+            request_url="https://www.dev.georanking.ch./login?next=%2Fgui&reason=manual_login&start=1",
+            reason="ok",
+        )
+
+    monkeypatch.setattr(module, "check_login_entry", _fake_entry)
+    monkeypatch.setattr(module, "check_login_start", _fake_start)
+
+    exit_code = module.main(["--base-url", "https://www.dev.georanking.ch./"])
+
+    assert exit_code == 0
+    expected_hosts = {
+        "auth.dev.georanking.ch",
+        "auth.dev.geo-ranking.ch",
+        "www.dev.georanking.ch",
+        "www.dev.geo-ranking.ch",
+    }
+    assert captured["entry"] == expected_hosts
+    assert captured["start"] == expected_hosts
+    assert captured_request_base_urls == [
+        "https://www.dev.georanking.ch/",
+        "https://www.dev.georanking.ch/",
+    ]
 
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["request"]["expected_authorize_host"] == sorted(expected_hosts)

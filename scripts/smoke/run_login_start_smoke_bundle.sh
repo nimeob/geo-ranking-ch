@@ -135,24 +135,41 @@ from urllib.parse import urlsplit, urlunsplit
 LEGACY_DEV_HOSTS = {"dev.georanking.ch", "dev.geo-ranking.ch"}
 
 
-def canonicalize_legacy_dev_ui_origin(raw_base_url: str) -> tuple[str, bool]:
+def canonicalize_ui_origin(raw_base_url: str) -> tuple[str, bool, str]:
     candidate = str(raw_base_url or "").strip()
     if not candidate:
-        return "", False
+        return "", False, "none"
 
     try:
         parsed = urlsplit(candidate)
     except Exception:
-        return candidate, False
+        return candidate, False, "none"
 
     if not parsed.scheme or not parsed.netloc:
-        return candidate, False
+        return candidate, False, "none"
 
-    host = str(parsed.hostname or "").strip().lower()
-    if host not in LEGACY_DEV_HOSTS:
-        return candidate, False
+    original_host = str(parsed.hostname or "").strip().lower()
+    host = original_host.rstrip(".")
+    if not host:
+        return candidate, False, "none"
 
-    canonical_host = f"www.{host}"
+    canonical_host = host
+    reason = "none"
+    if host != original_host:
+        reason = "host_trailing_dot"
+
+    if host in LEGACY_DEV_HOSTS:
+        canonical_host = f"www.{host}"
+        reason = (
+            "legacy_dev_non_www+host_trailing_dot"
+            if reason == "host_trailing_dot"
+            else "legacy_dev_non_www"
+        )
+
+    changed = canonical_host != original_host
+    if not changed:
+        return candidate, False, "none"
+
     userinfo = ""
     if parsed.username:
         userinfo = parsed.username
@@ -172,19 +189,29 @@ def canonicalize_legacy_dev_ui_origin(raw_base_url: str) -> tuple[str, bool]:
             parsed.fragment,
         )
     )
-    return canonicalized, True
+    return canonicalized, True, reason
 
 
-canonicalized, changed = canonicalize_legacy_dev_ui_origin(sys.argv[1])
-print(f"{canonicalized}\t{1 if changed else 0}")
+canonicalized, changed, reason = canonicalize_ui_origin(sys.argv[1])
+print(f"{canonicalized}\t{1 if changed else 0}\t{reason}")
 PY
 )"
 
-IFS=$'\t' read -r canonicalized_base_url canonicalized_base_url_flag <<< "$canonicalized_base_url_payload"
+IFS=$'\t' read -r canonicalized_base_url canonicalized_base_url_flag canonicalized_base_url_reason <<< "$canonicalized_base_url_payload"
 if [[ "$canonicalized_base_url_flag" == "1" ]]; then
   BASE_URL="$canonicalized_base_url"
   BASE_URL_CANONICALIZED="1"
-  echo "::warning::Base URL '${REQUESTED_BASE_URL}' verwendet einen nicht mehr unterstützten DEV-Origin; kanonisiere auf '${BASE_URL}'." >&2
+  case "${canonicalized_base_url_reason}" in
+    legacy_dev_non_www|legacy_dev_non_www+host_trailing_dot)
+      echo "::warning::Base URL '${REQUESTED_BASE_URL}' verwendet einen nicht mehr unterstützten DEV-Origin; kanonisiere auf '${BASE_URL}'." >&2
+      ;;
+    host_trailing_dot)
+      echo "::warning::Base URL '${REQUESTED_BASE_URL}' enthält einen Host mit trailing dot; kanonisiere auf '${BASE_URL}'." >&2
+      ;;
+    *)
+      echo "::warning::Base URL '${REQUESTED_BASE_URL}' wurde kanonisiert auf '${BASE_URL}'." >&2
+      ;;
+  esac
 fi
 
 if [ -z "$ENV_NAME" ]; then
@@ -220,8 +247,9 @@ def expand_geo_host_variants(host: str) -> list[str]:
 base_url = sys.argv[1].strip()
 parsed = urlparse(base_url)
 host = (parsed.hostname or "").strip().lower()
+host = host.rstrip(".")
 if not host and "://" not in base_url:
-    host = (urlparse(f"//{base_url}").hostname or "").strip().lower()
+    host = (urlparse(f"//{base_url}").hostname or "").strip().lower().rstrip(".")
 if not host:
     print("")
     raise SystemExit(0)
