@@ -71,6 +71,31 @@ def test_check_canonical_redirect_strips_trailing_dot_from_base_url(monkeypatch)
     assert result.alias_host == "www.dev.geo-ranking.ch"
 
 
+def test_check_canonical_redirect_canonicalizes_legacy_dev_non_www_base_url(monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        request_url = kwargs.get("request_url", "")
+        assert request_url.startswith("https://www.dev.geo-ranking.ch/login?")
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_canonical_redirect(
+        base_url="https://dev.georanking.ch",
+        canonical_origin="",
+        canonical_hosts="",
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert result.canonical_origin == "https://www.dev.georanking.ch"
+    assert result.alias_host == "www.dev.geo-ranking.ch"
+
+
 def test_check_canonical_redirect_accepts_equivalent_query_parameter_order(monkeypatch):
     module = _load_module()
 
@@ -391,6 +416,40 @@ def test_main_accepts_ui_base_url_alias(capsys, monkeypatch):
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["ok"] is True
     assert payload["request_url"].startswith("https://www.dev.geo-ranking.ch/login?")
+    assert payload["requested_base_url"] == "https://www.dev.georanking.ch"
+    assert payload["base_url_canonicalized"] is False
+
+
+def test_main_canonicalizes_legacy_dev_non_www_base_url(monkeypatch, capsys):
+    module = _load_module()
+
+    captured: dict[str, str] = {}
+
+    def _fake_check(**kwargs):
+        captured["base_url"] = str(kwargs.get("base_url", ""))
+        return module.CanonicalRedirectCheckResult(
+            ok=True,
+            skipped=False,
+            reason="ok",
+            request_url="https://www.dev.geo-ranking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+            expected_location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+            canonical_origin="https://www.dev.georanking.ch",
+            alias_host="www.dev.geo-ranking.ch",
+        )
+
+    monkeypatch.setattr(module, "check_canonical_redirect", _fake_check)
+
+    exit_code = module.main(["--base-url", "https://dev.georanking.ch"])
+
+    assert exit_code == 0
+    assert captured["base_url"] == "https://www.dev.georanking.ch"
+
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["base_url"] == "https://www.dev.georanking.ch"
+    assert payload["requested_base_url"] == "https://dev.georanking.ch"
+    assert payload["base_url_canonicalized"] is True
 
 
 def test_main_accepts_json_flag_without_value(capsys, monkeypatch):

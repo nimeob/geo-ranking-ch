@@ -25,6 +25,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
 _REDIRECT_HTTP_STATUSES = frozenset({301, 302, 303, 307, 308})
+_LEGACY_DEV_UI_HOSTS = frozenset({"dev.georanking.ch", "dev.geo-ranking.ch"})
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,50 @@ class CanonicalRedirectCheckResult:
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
         return None
+
+
+def _canonicalize_base_url(raw_base_url: str) -> str:
+    candidate = str(raw_base_url or "").strip()
+    if not candidate:
+        return ""
+
+    try:
+        parsed = urlsplit(candidate)
+    except Exception:  # noqa: BLE001
+        return candidate
+
+    if not parsed.scheme or not parsed.netloc:
+        return candidate
+
+    host = str(parsed.hostname or "").strip().lower()
+    if not host:
+        return candidate
+
+    canonical_host = host.rstrip(".")
+    if canonical_host in _LEGACY_DEV_UI_HOSTS:
+        canonical_host = f"www.{canonical_host}"
+
+    if canonical_host == host:
+        return candidate
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    port_segment = f":{parsed.port}" if parsed.port is not None else ""
+    canonical_netloc = f"{userinfo}{canonical_host}{port_segment}"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            canonical_netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
 
 def _normalize_origin(origin: str) -> str:
@@ -401,9 +446,9 @@ def check_canonical_redirect(
     retry_delay_seconds: float = 2.0,
     max_retry_delay_seconds: float = 10.0,
 ) -> CanonicalRedirectCheckResult:
-    normalized_base_origin = _normalize_origin(base_url)
+    normalized_base_origin = _normalize_origin(_canonicalize_base_url(base_url))
     normalized_canonical_origin = (
-        _normalize_origin(canonical_origin)
+        _normalize_origin(_canonicalize_base_url(canonical_origin))
         if canonical_origin.strip()
         else normalized_base_origin
     )
@@ -623,7 +668,9 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(payload, ensure_ascii=False))
         return 2
 
-    effective_base_url = base_url or ui_base_url
+    requested_base_url = str(base_url or ui_base_url).strip()
+    effective_base_url = _canonicalize_base_url(requested_base_url)
+    base_url_canonicalized = effective_base_url != requested_base_url
 
     output_json = str(args.output_json or args.json_out or "").strip()
 
@@ -647,6 +694,8 @@ def main(argv: list[str] | None = None) -> int:
             "reason": _classify_request_failure(exc),
             "error": str(exc),
             "base_url": effective_base_url,
+            "requested_base_url": requested_base_url,
+            "base_url_canonicalized": base_url_canonicalized,
             "ui_base_url": ui_base_url,
             "canonical_origin": args.canonical_origin,
             "canonical_hosts": args.canonical_hosts,
@@ -667,6 +716,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     payload = asdict(result)
+    payload["base_url"] = effective_base_url
+    payload["requested_base_url"] = requested_base_url
+    payload["base_url_canonicalized"] = base_url_canonicalized
+    payload["ui_base_url"] = ui_base_url
     if output_json:
         output_path = Path(output_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)
