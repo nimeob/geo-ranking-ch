@@ -213,6 +213,55 @@ def test_route_set_runner_prints_login_start_hint_on_secret_blocker(
     assert blocked_file.exists()
 
 
+def test_route_set_runner_canonicalizes_legacy_dev_base_url_in_preflight_hints(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://dev.geo-ranking.ch.",
+            "--run-id-base",
+            "manual-hint-legacy-base-url",
+            "--output-dir",
+            str(blocker_dir),
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert (
+        "run_login_start_smoke_bundle.sh --base-url https://www.dev.geo-ranking.ch --env-name dev"
+        in proc.stderr
+    )
+
+    blocked_file = (
+        blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-legacy-base-url.json"
+    )
+    assert blocked_file.exists()
+
+    blocked_payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    assert (
+        blocked_payload["fallback_login_start_smoke"]["base_url"]
+        == "https://www.dev.geo-ranking.ch"
+    )
+
+    summary_file = blocker_dir / "dev-ui-auth-analyze-route-set-summary.json"
+    assert summary_file.exists()
+    summary_payload = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary_payload["base_url"] == "https://www.dev.geo-ranking.ch"
+
+
 def test_route_set_runner_hint_preserves_normalized_route_subset_on_secret_blocker(
     tmp_path: Path,
 ) -> None:

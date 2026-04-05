@@ -141,6 +141,31 @@ def test_preflight_uses_staging_fallback_hint_when_base_url_contains_staging(tmp
     assert fallback["command"].endswith("--env-name staging")
 
 
+def test_preflight_canonicalizes_legacy_dev_non_www_base_url_in_fallback_hint(
+    tmp_path: Path,
+) -> None:
+    proc = _run(
+        tmp_path,
+        {
+            "GITHUB_RUN_ID": "778",
+            "DEV_UI_BASE_URL": "https://dev.geo-ranking.ch.",
+        },
+    )
+
+    assert proc.returncode == 1
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-778-1.json"
+    assert blocked_file.exists()
+
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    fallback = payload["fallback_login_start_smoke"]
+    assert fallback["base_url"] == "https://www.dev.geo-ranking.ch"
+    assert fallback["env_name"] == "dev"
+    assert (
+        fallback["command"]
+        == "./scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://www.dev.geo-ranking.ch --env-name dev"
+    )
+
+
 def test_workflow_runs_route_set_and_uploads_blocker_artifact() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
     assert "dev-ui-auth-analyze-smoke-blocked-*.json" in content

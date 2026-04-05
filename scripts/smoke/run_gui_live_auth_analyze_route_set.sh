@@ -102,6 +102,57 @@ infer_env_name_from_base_url() {
   fi
 }
 
+canonicalize_ui_base_url_for_hints() {
+  python3 - "$1" <<'PY'
+from __future__ import annotations
+
+import sys
+from urllib.parse import urlsplit, urlunsplit
+
+
+LEGACY_DEV_UI_HOSTS = {"dev.georanking.ch", "dev.geo-ranking.ch"}
+
+
+raw_value = str(sys.argv[1]).strip()
+if not raw_value:
+    print("")
+    raise SystemExit(0)
+
+try:
+    parsed = urlsplit(raw_value)
+except ValueError:
+    print(raw_value)
+    raise SystemExit(0)
+
+if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+    print(raw_value)
+    raise SystemExit(0)
+
+hostname = parsed.hostname.rstrip(".").lower()
+if hostname in LEGACY_DEV_UI_HOSTS:
+    hostname = f"www.{hostname}"
+
+credentials = ""
+if parsed.username:
+    credentials = parsed.username
+    if parsed.password:
+        credentials += f":{parsed.password}"
+    credentials += "@"
+
+port_segment = f":{parsed.port}" if parsed.port is not None else ""
+normalized = urlunsplit(
+    (
+        parsed.scheme.lower(),
+        f"{credentials}{hostname}{port_segment}",
+        parsed.path,
+        parsed.query,
+        parsed.fragment,
+    )
+)
+print(normalized)
+PY
+}
+
 write_route_set_summary() {
   local status="$1"
   local mode="$2"
@@ -318,7 +369,11 @@ esac
 fallback_output_dir="${output_dir_override:-${DEV_UI_SMOKE_EVIDENCE_DIR:-${DEV_UI_SMOKE_BLOCKER_DIR:-reports/evidence}}}"
 fallback_login_reason="${login_reason_override:-${DEV_UI_SMOKE_LOGIN_REASON:-manual_login}}"
 summary_output_dir="${fallback_output_dir}"
-summary_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
+summary_base_url_raw="${BASE_URL:-https://www.dev.georanking.ch}"
+summary_base_url="$(canonicalize_ui_base_url_for_hints "${summary_base_url_raw}")"
+if [[ -z "${summary_base_url}" ]]; then
+  summary_base_url="${summary_base_url_raw}"
+fi
 summary_env_name="$(infer_env_name_from_base_url "${summary_base_url}")"
 summary_path="${summary_output_dir}/${summary_env_name}-ui-auth-analyze-route-set-summary.json"
 

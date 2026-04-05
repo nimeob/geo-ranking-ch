@@ -8,6 +8,57 @@ print(sys.argv[1].strip())
 PY
 }
 
+canonicalize_ui_base_url() {
+  python3 - "$1" <<'PY'
+from __future__ import annotations
+
+import sys
+from urllib.parse import urlsplit, urlunsplit
+
+
+LEGACY_DEV_UI_HOSTS = {"dev.georanking.ch", "dev.geo-ranking.ch"}
+
+
+raw_value = str(sys.argv[1]).strip()
+if not raw_value:
+    print("")
+    raise SystemExit(0)
+
+try:
+    parsed = urlsplit(raw_value)
+except ValueError:
+    print(raw_value)
+    raise SystemExit(0)
+
+if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+    print(raw_value)
+    raise SystemExit(0)
+
+hostname = parsed.hostname.rstrip(".").lower()
+if hostname in LEGACY_DEV_UI_HOSTS:
+    hostname = f"www.{hostname}"
+
+credentials = ""
+if parsed.username:
+    credentials = parsed.username
+    if parsed.password:
+        credentials += f":{parsed.password}"
+    credentials += "@"
+
+port_segment = f":{parsed.port}" if parsed.port is not None else ""
+normalized = urlunsplit(
+    (
+        parsed.scheme.lower(),
+        f"{credentials}{hostname}{port_segment}",
+        parsed.path,
+        parsed.query,
+        parsed.fragment,
+    )
+)
+print(normalized)
+PY
+}
+
 RUN_ID="$(trim "${DEV_UI_SMOKE_RUN_ID:-}")"
 RUN_ATTEMPT="$(trim "${GITHUB_RUN_ATTEMPT:-1}")"
 if [[ -z "${RUN_ATTEMPT}" ]]; then
@@ -42,12 +93,17 @@ if [[ -z "${BASE_URL_RAW}" ]]; then
   BASE_URL_RAW="https://www.dev.georanking.ch"
 fi
 
+BASE_URL_EFFECTIVE="$(canonicalize_ui_base_url "${BASE_URL_RAW}")"
+if [[ -z "${BASE_URL_EFFECTIVE}" ]]; then
+  BASE_URL_EFFECTIVE="${BASE_URL_RAW}"
+fi
+
 FALLBACK_ENV_NAME="dev"
-if [[ "${BASE_URL_RAW,,}" == *"staging"* ]]; then
+if [[ "${BASE_URL_EFFECTIVE,,}" == *"staging"* ]]; then
   FALLBACK_ENV_NAME="staging"
 fi
 
-FALLBACK_LOGIN_START_SMOKE_COMMAND="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${BASE_URL_RAW} --env-name ${FALLBACK_ENV_NAME}"
+FALLBACK_LOGIN_START_SMOKE_COMMAND="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${BASE_URL_EFFECTIVE} --env-name ${FALLBACK_ENV_NAME}"
 
 MISSING=()
 if [[ -z "${USERNAME}" ]]; then
@@ -61,7 +117,7 @@ if (( ${#MISSING[@]} > 0 )); then
   mkdir -p "${BLOCKER_DIR}"
   OUT="${BLOCKER_DIR}/${BLOCKER_PREFIX}-${RUN_ID}.json"
 
-  python3 - "${OUT}" "${RUN_ID}" "${WORKFLOW_NAME}" "${BASE_URL_RAW}" "${FALLBACK_ENV_NAME}" "${FALLBACK_LOGIN_START_SMOKE_COMMAND}" "${MISSING[@]}" <<'PY'
+  python3 - "${OUT}" "${RUN_ID}" "${WORKFLOW_NAME}" "${BASE_URL_EFFECTIVE}" "${FALLBACK_ENV_NAME}" "${FALLBACK_LOGIN_START_SMOKE_COMMAND}" "${MISSING[@]}" <<'PY'
 import json
 import pathlib
 import sys
