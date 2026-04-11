@@ -182,3 +182,85 @@ def test_invalid_base_url_emits_actionable_hint_and_error(
     assert payload["error"].startswith("Invalid DEV_UI_BASE_URL:")
     assert expected_fragment in payload["error"]
     assert "[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL" in result.stderr
+
+
+def test_cli_overrides_base_url_and_evidence_path_without_credentials(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-cli.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--base-url",
+            "https://dev.example.test",
+            "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert evidence_path.exists(), f"expected evidence file, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["baseUrl"] == "https://dev.example.test"
+    assert payload["error"] == "Missing DEV_UI_SMOKE_USERNAME"
+
+
+def test_cli_headful_override_is_reflected_in_failure_evidence(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-headful.json"
+    env["DEV_UI_FULL_EVIDENCE_JSON"] = str(evidence_path)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--headful"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert evidence_path.exists(), f"expected evidence file, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["headless"] is False
+    assert payload["error"] == "Missing DEV_UI_SMOKE_USERNAME"
+
+
+def test_unknown_cli_option_exits_with_usage_and_code_2(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--nope"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert "[dev-ui-full-regression] ERROR Unknown option: --nope" in result.stderr
+    assert "Usage: node scripts/run_dev_ui_live_full_regression.mjs [options]" in result.stdout

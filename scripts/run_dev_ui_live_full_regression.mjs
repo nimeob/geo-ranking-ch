@@ -5,33 +5,122 @@ import { spawnSync } from "node:child_process";
 
 const LEGACY_DEV_UI_HOSTS = new Set(["dev.georanking.ch", "dev.geo-ranking.ch"]);
 
-const RAW_UI_BASE_URL = (process.env.DEV_UI_BASE_URL || "").trim();
-const UI_BASE_URL_NORMALIZATION = normalizeUiBaseUrl(RAW_UI_BASE_URL);
-const UI_BASE_URL = UI_BASE_URL_NORMALIZATION.value;
-const USERNAME = (process.env.DEV_UI_SMOKE_USERNAME || "").trim();
-const PASSWORD = (process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
-const MAX_WAIT_MS = Number(process.env.DEV_UI_FULL_MAX_WAIT_MS || 120_000);
-const LOGOUT_SETTLE_MS = Number(process.env.DEV_UI_FULL_LOGOUT_SETTLE_MS || 10_000);
-const PRE_LOGIN_5XX_SAMPLE_COUNT = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT || 12);
-const PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS || 250);
-const EVIDENCE_JSON = (process.env.DEV_UI_FULL_EVIDENCE_JSON || "artifacts/dev-ui-full/latest/dev-ui-full-regression.json").trim();
-const SCREENSHOT_DIR = (process.env.DEV_UI_FULL_SCREENSHOT_DIR || "artifacts/dev-ui-full/latest/screenshots").trim();
-const LOGIN_START_FALLBACK_ON_MISSING_CREDS = ["1", "true", "yes", "on"].includes(
-  String(process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS || "").trim().toLowerCase()
-);
+function parseCliArgs(argv) {
+  const options = {
+    baseUrl: "",
+    username: "",
+    password: "",
+    maxWaitMs: "",
+    logoutSettleMs: "",
+    sampleCount: "",
+    sampleIntervalMs: "",
+    evidenceJson: "",
+    screenshotDir: "",
+    headless: null,
+    forceLoginStartFallback: false,
+    helpRequested: false,
+  };
 
-function shouldShowHelp(argv) {
-  return argv.includes("--help") || argv.includes("-h");
+  const consumeValue = (currentFlag, inlineValue, args, index) => {
+    if (inlineValue !== null) return inlineValue;
+    const next = args[index + 1];
+    if (typeof next !== "string" || next.startsWith("--")) {
+      throw new Error(`Missing value for ${currentFlag}`);
+    }
+    return next;
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const raw = String(argv[i] || "").trim();
+    if (!raw) continue;
+
+    if (raw === "-h" || raw === "--help") {
+      options.helpRequested = true;
+      continue;
+    }
+
+    const eqIdx = raw.indexOf("=");
+    const flag = eqIdx >= 0 ? raw.slice(0, eqIdx) : raw;
+    const inlineValue = eqIdx >= 0 ? raw.slice(eqIdx + 1) : null;
+
+    switch (flag) {
+      case "--base-url":
+        options.baseUrl = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--username":
+        options.username = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--password":
+        options.password = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--max-wait-ms":
+        options.maxWaitMs = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--logout-settle-ms":
+        options.logoutSettleMs = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--pre-login-5xx-sample-count":
+        options.sampleCount = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--pre-login-5xx-sample-interval-ms":
+        options.sampleIntervalMs = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--evidence-json":
+        options.evidenceJson = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--screenshot-dir":
+        options.screenshotDir = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--headless":
+        options.headless = true;
+        break;
+      case "--headful":
+        options.headless = false;
+        break;
+      case "--fallback-login-start-on-missing-creds":
+      case "--fallback-login-start":
+        options.forceLoginStartFallback = true;
+        break;
+      default:
+        throw new Error(`Unknown option: ${flag}`);
+    }
+  }
+
+  return options;
 }
 
 function printHelp() {
   const lines = [
-    "Usage: node scripts/run_dev_ui_live_full_regression.mjs",
+    "Usage: node scripts/run_dev_ui_live_full_regression.mjs [options]",
     "",
-    "Required env vars:",
+    "Required params (env var oder CLI):",
     "  DEV_UI_BASE_URL",
     "  DEV_UI_SMOKE_USERNAME",
     "  DEV_UI_SMOKE_PASSWORD",
+    "",
+    "CLI options:",
+    "  --base-url <url>                         DEV_UI_BASE_URL override",
+    "  --username <value>                       DEV_UI_SMOKE_USERNAME override",
+    "  --password <value>                       DEV_UI_SMOKE_PASSWORD override",
+    "  --max-wait-ms <ms>                       DEV_UI_FULL_MAX_WAIT_MS override (default: 120000)",
+    "  --logout-settle-ms <ms>                  DEV_UI_FULL_LOGOUT_SETTLE_MS override (default: 10000)",
+    "  --pre-login-5xx-sample-count <n>         DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT override (default: 12)",
+    "  --pre-login-5xx-sample-interval-ms <ms>  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS override (default: 250)",
+    "  --evidence-json <path>                   DEV_UI_FULL_EVIDENCE_JSON override",
+    "  --screenshot-dir <path>                  DEV_UI_FULL_SCREENSHOT_DIR override",
+    "  --headless                               Erzwingt headless Browser-Mode",
+    "  --headful                                Erzwingt headful Browser-Mode",
+    "  --fallback-login-start                   Degraded mode when credentials are unavailable",
+    "  -h, --help                               Diese Hilfe anzeigen",
     "",
     "Optional env vars:",
     "  DEV_UI_FULL_MAX_WAIT_MS",
@@ -41,14 +130,65 @@ function printHelp() {
     "  DEV_UI_FULL_EVIDENCE_JSON",
     "  DEV_UI_FULL_SCREENSHOT_DIR",
     "  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Optional degraded mode when credentials are unavailable",
+    "  DEV_UI_FULL_HEADFUL",
   ];
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
-if (shouldShowHelp(process.argv.slice(2))) {
+let cliOptions = null;
+try {
+  cliOptions = parseCliArgs(process.argv.slice(2));
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error || "unknown error");
+  console.error(`[dev-ui-full-regression] ERROR ${message}`);
+  printHelp();
+  process.exit(2);
+}
+
+if (cliOptions.helpRequested) {
   printHelp();
   process.exit(0);
 }
+
+function parsePositiveInt(raw, fallback) {
+  const value = Number.parseInt(String(raw || ""), 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function isTruthy(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+const RAW_UI_BASE_URL = String(cliOptions.baseUrl || process.env.DEV_UI_BASE_URL || "").trim();
+const UI_BASE_URL_NORMALIZATION = normalizeUiBaseUrl(RAW_UI_BASE_URL);
+const UI_BASE_URL = UI_BASE_URL_NORMALIZATION.value;
+const USERNAME = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || "").trim();
+const PASSWORD = String(cliOptions.password || process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
+const MAX_WAIT_MS = parsePositiveInt(cliOptions.maxWaitMs || process.env.DEV_UI_FULL_MAX_WAIT_MS, 120_000);
+const LOGOUT_SETTLE_MS = parsePositiveInt(cliOptions.logoutSettleMs || process.env.DEV_UI_FULL_LOGOUT_SETTLE_MS, 10_000);
+const PRE_LOGIN_5XX_SAMPLE_COUNT = parsePositiveInt(
+  cliOptions.sampleCount || process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT,
+  12,
+);
+const PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS = parsePositiveInt(
+  cliOptions.sampleIntervalMs || process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS,
+  250,
+);
+const EVIDENCE_JSON = String(
+  cliOptions.evidenceJson
+  || process.env.DEV_UI_FULL_EVIDENCE_JSON
+  || "artifacts/dev-ui-full/latest/dev-ui-full-regression.json",
+).trim();
+const SCREENSHOT_DIR = String(
+  cliOptions.screenshotDir
+  || process.env.DEV_UI_FULL_SCREENSHOT_DIR
+  || "artifacts/dev-ui-full/latest/screenshots",
+).trim();
+const HEADLESS = typeof cliOptions.headless === "boolean" ? cliOptions.headless : !isTruthy(process.env.DEV_UI_FULL_HEADFUL);
+const LOGIN_START_FALLBACK_ON_MISSING_CREDS = cliOptions.forceLoginStartFallback || isTruthy(
+  process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
+);
 
 const ADDRESS_POOL = [
   "Bahnhofstrasse 1, 8001 Zürich",
@@ -560,7 +700,7 @@ async function main() {
     } else {
       const chromium = await loadChromium();
 
-      browser = await chromium.launch({ headless: true });
+      browser = await chromium.launch({ headless: HEADLESS });
       context = await browser.newContext({
         viewport: { width: 390, height: 844 },
       });
@@ -1032,6 +1172,7 @@ async function main() {
     requestedBaseUrl: RAW_UI_BASE_URL,
     baseUrlCanonicalized: UI_BASE_URL_NORMALIZATION.changed,
     baseUrlCanonicalizationReasons: UI_BASE_URL_NORMALIZATION.reasons,
+    headless: HEADLESS,
     guiUrl,
     firstAddress,
     firstResultId,
