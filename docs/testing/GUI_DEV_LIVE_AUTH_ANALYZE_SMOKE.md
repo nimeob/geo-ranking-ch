@@ -16,7 +16,7 @@ Dieser Smoke gilt nur als **grün**, wenn im echten DEV-System alle Schritte dur
 - Address-Pool: `scripts/smoke/ch_live_addresses.txt`
 - Shared Route-Matrix: `scripts/smoke/gui_smoke_routes.sh` (Single Source of Truth für kanonische + Legacy-Login-Pfade inkl. Legacy-`/history` und Artifact-Suffix-Mapping)
 - Route-Set Runner: `scripts/smoke/run_gui_live_auth_analyze_route_set.sh` (führt den gemeinsamen Route-Satz seriell in **einem** Workflow-Job aus und startet mit einem integrierten Secrets-Preflight; Standard bleibt harter Abbruch bei fehlenden Credentials, optional mit degradierter Login-Start-Fallback-Coverage)
-- Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml` (manuelle Inputs: `base_url`, `routes`, `route_presets`, `timeout_ms`, `login_reason`, `fallback_login_start_on_preflight_fail`)
+- Workflow: `.github/workflows/gui-dev-live-auth-analyze-smoke.yml` (manuelle Inputs: `base_url`, `routes`, `route_presets`, `timeout_ms`, `login_reason`, `fallback_login_start_on_preflight_fail`, Alias: `allow_login_start_fallback`)
 - Artifact: `gui-dev-live-auth-analyze-smoke-artifacts`
 
 Das Script erzeugt JSON-Evidence + Screenshot:
@@ -115,6 +115,7 @@ Optional:
 - `--routes /gui,/jobs?source=smoke` (überschreibt den Standard-Route-Satz für gezielte Retests; im Workflow analog über `workflow_dispatch`-Input `routes`)
 - `--route-presets core` oder `--route-presets jobs,results` (alternative Route-Auswahl ohne lange CSV; Presets: `all,core,modern,legacy,jobs,results,trace,minimal`; im Workflow analog über `workflow_dispatch`-Input `route_presets`)
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1` oder `--fallback-login-start-on-preflight-fail`
+- Alias: `DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK=1` (äquivalent zu `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1`)
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1` (nur Single-Route-Script; nutzt Login-Start-Fallback statt hard fail)
 
 Die Bundle-Skripte schreiben zusätzlich ein kompaktes Summary-Artefakt je Lauf:
@@ -151,4 +152,10 @@ Degraded Mode (falls Live-Secrets gerade fehlen) mit längerem Timeout:
 gh workflow run gui-dev-live-auth-analyze-smoke.yml \
   -f fallback_login_start_on_preflight_fail=true \
   -f timeout_ms=90000
+```
+
+Der Workflow akzeptiert dafür auch den Input-Alias:
+```bash
+gh workflow run gui-dev-live-auth-analyze-smoke.yml \
+  -f allow_login_start_fallback=true
 ```

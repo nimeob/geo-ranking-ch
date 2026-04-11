@@ -137,7 +137,9 @@ def test_route_set_runner_accepts_ui_base_url_alias_and_reaches_preflight(
         in proc.stderr
     )
 
-    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-ui-base-url-alias.json"
+    blocked_file = (
+        blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-ui-base-url-alias.json"
+    )
     assert blocked_file.exists()
 
 
@@ -251,7 +253,9 @@ def test_route_set_runner_hint_preserves_normalized_route_subset_on_secret_block
         '--fallback-login-start-on-preflight-fail --routes "/gui,/jobs?source=smoke"'
     ) in proc.stderr
 
-    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-routes.json"
+    blocked_file = (
+        blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-routes.json"
+    )
     assert blocked_file.exists()
 
 
@@ -324,7 +328,9 @@ def test_route_set_runner_hint_preserves_normalized_route_presets_on_secret_bloc
     assert proc.returncode == 1
     assert '--route-presets "core,trace"' in proc.stderr
 
-    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-presets.json"
+    blocked_file = (
+        blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint-presets.json"
+    )
     assert blocked_file.exists()
 
 
@@ -370,7 +376,10 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
 
     assert proc.returncode == 0
     assert "login-start fallback passed" in proc.stderr
-    assert "fallback_login_start_smoke=./scripts/smoke/run_login_start_smoke_bundle.sh" in proc.stderr
+    assert (
+        "fallback_login_start_smoke=./scripts/smoke/run_login_start_smoke_bundle.sh"
+        in proc.stderr
+    )
     assert f"--output-dir {evidence_dir}" in proc.stderr
     assert "--reason env_reason_contract" in proc.stderr
 
@@ -442,7 +451,10 @@ def test_route_set_runner_fallback_propagates_cli_route_subset(
 
     assert proc.returncode == 0
     assert "login-start fallback passed" in proc.stderr
-    assert "fallback_login_start_smoke=./scripts/smoke/run_login_start_smoke_bundle.sh" in proc.stderr
+    assert (
+        "fallback_login_start_smoke=./scripts/smoke/run_login_start_smoke_bundle.sh"
+        in proc.stderr
+    )
     assert '--routes "/gui,/jobs?source=smoke"' in proc.stderr
 
     assert (evidence_dir / "dev-login-start-smoke.json").exists()
@@ -495,6 +507,57 @@ def test_route_set_runner_fallback_propagates_quiet_flag(
     assert proc.stdout.strip() == ""
 
     assert (evidence_dir / "dev-login-start-smoke-root.json").exists()
+
+
+def test_route_set_runner_fallback_can_be_enabled_via_env_alias(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+    evidence_dir = tmp_path / "evidence"
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _LoginStartStubHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+    env["DEV_UI_SMOKE_EVIDENCE_DIR"] = str(evidence_dir)
+    env["DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK"] = "1"
+
+    try:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                base_url,
+                "--run-id-base",
+                "manual-fallback-env-alias",
+            ],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert proc.returncode == 0
+    assert "running login-start fallback (degraded mode)" in proc.stderr
+    assert (evidence_dir / "dev-login-start-smoke-root.json").exists()
+
+    summary_file = evidence_dir / "dev-ui-auth-analyze-route-set-summary.json"
+    assert summary_file.exists()
+
+    summary_payload = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary_payload["mode"] == "fallback_login_start"
+    assert summary_payload["fallback_status"] == "passed"
 
 
 def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
@@ -654,7 +717,10 @@ def test_route_set_runner_accepts_route_presets_and_uses_ordinal_run_ids(
     )
 
     assert proc.returncode == 0
-    assert "route 1/3: /gui?view=trace&request_id=req-smoke (run_id=manual-route-presets-1)" in proc.stdout
+    assert (
+        "route 1/3: /gui?view=trace&request_id=req-smoke (run_id=manual-route-presets-1)"
+        in proc.stdout
+    )
     assert "route 2/3: / (run_id=manual-route-presets-2)" in proc.stdout
     assert "route 3/3: /gui (run_id=manual-route-presets-3)" in proc.stdout
 
@@ -732,7 +798,9 @@ def test_route_set_runner_rejects_unsupported_route_preset(tmp_path: Path) -> No
     assert "HINT: Supported route presets:" in proc.stderr
 
 
-def test_route_set_runner_rejects_routes_and_presets_combination(tmp_path: Path) -> None:
+def test_route_set_runner_rejects_routes_and_presets_combination(
+    tmp_path: Path,
+) -> None:
     env = os.environ.copy()
     env["DEV_UI_SMOKE_USERNAME"] = "stub-user"
     env["DEV_UI_SMOKE_PASSWORD"] = "stub-password"
@@ -747,5 +815,8 @@ def test_route_set_runner_rejects_routes_and_presets_combination(tmp_path: Path)
     )
 
     assert proc.returncode == 2
-    assert "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" in proc.stderr
+    assert (
+        "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden"
+        in proc.stderr
+    )
     assert "Usage:" in proc.stderr
