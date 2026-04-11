@@ -65,6 +65,18 @@ node scripts/run_dev_ui_auth_analyze_smoke.mjs --fallback-login-start
 ```
 `--fallback-login-start` ist äquivalent zu `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1`.
 
+Alternativ direkt per CLI-Overrides (statt ENV-Export):
+```bash
+node scripts/run_dev_ui_auth_analyze_smoke.mjs \
+  --base-url https://www.dev.georanking.ch \
+  --username "<username>" \
+  --password "<password>" \
+  --gui-path /gui/history \
+  --run-id manual-$(date +%s) \
+  --timeout-ms 90000 \
+  --output-dir artifacts/dev-ui-live-smoke
+```
+
 Für den vollständigen Route-Satz lokal/manuell:
 ```bash
 BASE_URL="https://www.dev.georanking.ch" \

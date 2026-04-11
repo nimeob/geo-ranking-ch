@@ -693,3 +693,91 @@ def test_empty_sanitized_run_id_falls_back_to_stable_run_token(tmp_path: Path) -
 
     evidence_stem = evidence_files[-1].stem
     assert evidence_stem.endswith("-run"), evidence_stem
+
+
+def test_cli_overrides_base_url_and_gui_path_even_without_credentials(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--base-url",
+            "https://dev.example.test/",
+            "--gui-path",
+            "/gui/jobs?from=cli",
+            "--run-id",
+            "cli-override-check",
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files, result.stderr
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["target"]["baseOrigin"] == "https://dev.example.test"
+    assert payload["target"]["guiPath"] == "/gui/jobs?from=cli"
+    assert payload["target"]["expectedPostLoginPath"] == "/jobs?from=cli"
+
+
+def test_cli_output_dir_override_writes_evidence_outside_default_path(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    output_dir = tmp_path / "artifacts" / "ui-smoke"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--output-dir",
+            str(output_dir),
+            "--run-id",
+            "cli-output-dir-check",
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert sorted(output_dir.glob("dev-ui-auth-analyze-smoke-*.json"))
+    assert not sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+
+
+def test_help_flag_exits_successfully_without_live_credentials(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--help"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]" in result.stdout

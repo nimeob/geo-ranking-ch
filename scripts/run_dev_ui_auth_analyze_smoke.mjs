@@ -4,26 +4,36 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const cli = parseCliArgs(process.argv.slice(2));
-if (cli.mode === 'help') {
+let cliOptions = null;
+try {
+  cliOptions = parseCliArgs(process.argv.slice(2));
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error || 'unknown error');
+  console.error(`[dev-ui-auth-analyze-smoke] ERROR ${message}`);
+  printUsage(process.stderr);
+  process.exit(2);
+}
+
+if (cliOptions.mode === 'help') {
   printUsage(process.stdout);
   process.exit(0);
 }
-if (cli.mode === 'error') {
-  console.error(`[dev-ui-auth-analyze-smoke] ERROR unknown_cli_args=${cli.unknownArgs.join(',')}`);
+
+if (cliOptions.mode === 'error') {
+  console.error(`[dev-ui-auth-analyze-smoke] ERROR unknown_cli_args=${cliOptions.unknownArgs.join(',')}`);
   printUsage(process.stderr);
   process.exit(2);
 }
 
 const repoRoot = process.cwd();
-const configuredOutDir = String(process.env.DEV_UI_SMOKE_EVIDENCE_DIR || '').trim();
+const configuredOutDir = String(cliOptions.evidenceDir || process.env.DEV_UI_SMOKE_EVIDENCE_DIR || '').trim();
 const outDir = configuredOutDir
   ? path.resolve(repoRoot, configuredOutDir)
   : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
 const baseOrigin = normalizeOrigin(
-  canonicalizeLegacyDevUiOrigin(process.env.BASE_URL || 'https://www.dev.georanking.ch')
+  canonicalizeLegacyDevUiOrigin(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch')
 ) || 'https://www.dev.georanking.ch';
 const allowedOriginOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_ORIGINS || '').trim();
 const allowedOrigins = resolveAllowedOrigins(baseOrigin, allowedOriginOverrides);
@@ -34,19 +44,19 @@ const allowedAuthorizeHosts = resolveAllowedAuthorizeHosts(
   allowedAuthorizeHostOverrides
 );
 const allowedAuthorizeHostSet = new Set(allowedAuthorizeHosts);
-const guiPath = normalizeGuiPath(process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
+const guiPath = normalizeGuiPath(cliOptions.guiPath || process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
 const expectedPostLoginPath = resolveCanonicalGuiSuccessor(guiPath);
 const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);
-const loginReason = String(process.env.DEV_UI_SMOKE_LOGIN_REASON || 'manual_login').trim() || 'manual_login';
+const loginReason = String(cliOptions.loginReason || process.env.DEV_UI_SMOKE_LOGIN_REASON || 'manual_login').trim() || 'manual_login';
 const loginStartUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&reason=${encodeURIComponent(loginReason)}&start=1`;
 
-const username = String(process.env.DEV_UI_SMOKE_USERNAME || '').trim();
-const password = String(process.env.DEV_UI_SMOKE_PASSWORD || '');
-const allowLoginStartFallbackOnMissingCredentials = cli.forceLoginStartFallback || isTruthy(
+const username = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || '').trim();
+const password = String(cliOptions.password || process.env.DEV_UI_SMOKE_PASSWORD || '');
+const allowLoginStartFallbackOnMissingCredentials = cliOptions.forceLoginStartFallback || isTruthy(
   process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
 );
 
-const explicitRunMarker = String(process.env.DEV_UI_SMOKE_RUN_ID || '').trim();
+const explicitRunMarker = String(cliOptions.runId || process.env.DEV_UI_SMOKE_RUN_ID || '').trim();
 const githubRunNumber = String(process.env.GITHUB_RUN_NUMBER || '').trim();
 const githubRunAttempt = String(process.env.GITHUB_RUN_ATTEMPT || '').trim() || '1';
 const githubRunId = String(process.env.GITHUB_RUN_ID || '').trim();
@@ -66,37 +76,115 @@ const artifactRunToken = sanitizeFileToken(runMarker) || 'run';
 const stampToken = sanitizeFileToken(stamp);
 const appendRunTokenToArtifactName = Boolean(artifactRunToken && artifactRunToken !== stampToken);
 
-const addressFile = process.env.DEV_UI_SMOKE_ADDRESS_FILE
-  ? path.resolve(repoRoot, String(process.env.DEV_UI_SMOKE_ADDRESS_FILE))
+const addressFile = (cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_FILE)
+  ? path.resolve(repoRoot, String(cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_FILE))
   : path.join(repoRoot, 'scripts', 'smoke', 'ch_live_addresses.txt');
 
-const timeoutMs = parsePositiveInt(process.env.DEV_UI_SMOKE_TIMEOUT_MS, 60_000);
-const headless = !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
+const timeoutMs = parsePositiveInt(cliOptions.timeoutMs || process.env.DEV_UI_SMOKE_TIMEOUT_MS, 60_000);
+const headless = typeof cliOptions.headless === 'boolean' ? cliOptions.headless : !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
 
 function parseCliArgs(args) {
-  let helpRequested = false;
-  let forceLoginStartFallback = false;
+  let mode = 'run';
+  const options = {
+    baseUrl: '',
+    guiPath: '',
+    username: '',
+    password: '',
+    addressFile: '',
+    runId: '',
+    timeoutMs: '',
+    loginReason: '',
+    evidenceDir: '',
+    headless: null,
+    forceLoginStartFallback: false,
+    unknownArgs: [],
+  };
+
+  const consumeValue = (currentFlag, inlineValue, argv, index) => {
+    if (inlineValue !== null) return inlineValue;
+    const next = argv[index + 1];
+    if (typeof next !== 'string' || next.startsWith('--')) {
+      throw new Error(`missing_value_for_${currentFlag}`);
+    }
+    return next;
+  };
+
   const unknownArgs = [];
 
-  for (const arg of args) {
-    if (arg === '--help' || arg === '-h') {
-      helpRequested = true;
+  for (let i = 0; i < args.length; i += 1) {
+    const raw = String(args[i] || '').trim();
+    if (!raw) continue;
+
+    if (raw === '--help' || raw === '-h') {
+      mode = 'help';
       continue;
     }
+
     if (
-      arg === '--fallback-login-start-on-missing-creds'
-      || arg === '--fallback-login-start'
+      raw === '--fallback-login-start-on-missing-creds'
+      || raw === '--fallback-login-start'
     ) {
-      forceLoginStartFallback = true;
+      options.forceLoginStartFallback = true;
       continue;
     }
-    unknownArgs.push(arg);
+
+    const eqIdx = raw.indexOf('=');
+    const flag = eqIdx >= 0 ? raw.slice(0, eqIdx) : raw;
+    const inlineValue = eqIdx >= 0 ? raw.slice(eqIdx + 1) : null;
+
+    switch (flag) {
+      case '--base-url':
+        options.baseUrl = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--gui-path':
+        options.guiPath = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--username':
+        options.username = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--password':
+        options.password = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--address-file':
+        options.addressFile = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--run-id':
+        options.runId = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--timeout-ms':
+        options.timeoutMs = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--login-reason':
+        options.loginReason = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--output-dir':
+      case '--evidence-dir':
+        options.evidenceDir = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--headless':
+        options.headless = true;
+        break;
+      case '--headful':
+        options.headless = false;
+        break;
+      default:
+        unknownArgs.push(flag);
+    }
   }
 
-  if (helpRequested) {
+  if (mode === 'help') {
     return {
       mode: 'help',
-      forceLoginStartFallback,
+      ...options,
       unknownArgs: [],
     };
   }
@@ -104,14 +192,14 @@ function parseCliArgs(args) {
   if (unknownArgs.length > 0) {
     return {
       mode: 'error',
-      forceLoginStartFallback,
+      ...options,
       unknownArgs,
     };
   }
 
   return {
-    mode: 'run',
-    forceLoginStartFallback,
+    mode,
+    ...options,
     unknownArgs: [],
   };
 }
@@ -123,6 +211,16 @@ function printUsage(stream) {
       '',
       'Options:',
       '  -h, --help                                   Show this help and exit.',
+      '  --base-url <url>                             BASE_URL override (default: https://www.dev.georanking.ch).',
+      '  --gui-path <path>                            DEV_UI_SMOKE_GUI_PATH override (default: /gui).',
+      '  --username <value>                           DEV_UI_SMOKE_USERNAME override.',
+      '  --password <value>                           DEV_UI_SMOKE_PASSWORD override.',
+      '  --address-file <path>                        DEV_UI_SMOKE_ADDRESS_FILE override.',
+      '  --run-id <token>                             DEV_UI_SMOKE_RUN_ID override.',
+      '  --timeout-ms <ms>                            DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000).',
+      '  --login-reason <text>                        DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login).',
+      '  --output-dir <path> | --evidence-dir <path> DEV_UI_SMOKE_EVIDENCE_DIR override.',
+      '  --headless | --headful                       Browser mode override.',
       '  --fallback-login-start                       Force login-start fallback mode when credentials are missing.',
       '  --fallback-login-start-on-missing-creds      Alias for --fallback-login-start.',
       '',
