@@ -46,6 +46,18 @@ DEV_UI_SMOKE_RUN_ID="$(date +%s)" \
 node scripts/run_dev_ui_auth_analyze_smoke.mjs
 ```
 
+Alternativ direkt per CLI-Overrides (statt ENV-Export):
+```bash
+node scripts/run_dev_ui_auth_analyze_smoke.mjs \
+  --base-url https://www.dev.georanking.ch \
+  --username "<username>" \
+  --password "<password>" \
+  --gui-path /gui/history \
+  --run-id manual-$(date +%s) \
+  --timeout-ms 90000 \
+  --output-dir artifacts/dev-ui-live-smoke
+```
+
 Für den vollständigen Route-Satz lokal/manuell:
 ```bash
 BASE_URL="https://www.dev.georanking.ch" \

@@ -4,24 +4,132 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+function parseCliArgs(argv) {
+  const options = {
+    baseUrl: '',
+    guiPath: '',
+    username: '',
+    password: '',
+    addressFile: '',
+    runId: '',
+    timeoutMs: '',
+    loginReason: '',
+    evidenceDir: '',
+    headless: null,
+    helpRequested: false,
+  };
+
+  const consumeValue = (currentFlag, inlineValue, args, index) => {
+    if (inlineValue !== null) return inlineValue;
+    const next = args[index + 1];
+    if (typeof next !== 'string' || next.startsWith('--')) {
+      throw new Error(`Missing value for ${currentFlag}`);
+    }
+    return next;
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const raw = String(argv[i] || '').trim();
+    if (!raw) continue;
+
+    if (raw === '-h' || raw === '--help') {
+      options.helpRequested = true;
+      continue;
+    }
+
+    const eqIdx = raw.indexOf('=');
+    const flag = eqIdx >= 0 ? raw.slice(0, eqIdx) : raw;
+    const inlineValue = eqIdx >= 0 ? raw.slice(eqIdx + 1) : null;
+
+    switch (flag) {
+      case '--base-url':
+        options.baseUrl = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--gui-path':
+        options.guiPath = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--username':
+        options.username = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--password':
+        options.password = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--address-file':
+        options.addressFile = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--run-id':
+        options.runId = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--timeout-ms':
+        options.timeoutMs = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--login-reason':
+        options.loginReason = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--output-dir':
+      case '--evidence-dir':
+        options.evidenceDir = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--headless':
+        options.headless = true;
+        break;
+      case '--headful':
+        options.headless = false;
+        break;
+      default:
+        throw new Error(`Unknown option: ${flag}`);
+    }
+  }
+
+  return options;
+}
+
+function printUsage() {
+  console.log(`Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]\n\nOptions:\n  --base-url <url>        BASE_URL override (default: https://www.dev.georanking.ch)\n  --gui-path <path>       DEV_UI_SMOKE_GUI_PATH override (default: /gui)\n  --username <value>      DEV_UI_SMOKE_USERNAME override\n  --password <value>      DEV_UI_SMOKE_PASSWORD override\n  --address-file <path>   DEV_UI_SMOKE_ADDRESS_FILE override\n  --run-id <token>        DEV_UI_SMOKE_RUN_ID override\n  --timeout-ms <ms>       DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000)\n  --login-reason <text>   DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login)\n  --output-dir <path>     DEV_UI_SMOKE_EVIDENCE_DIR override\n  --evidence-dir <path>   Alias for --output-dir\n  --headless              Erzwingt headless mode\n  --headful               Erzwingt headful mode\n  -h, --help              Diese Hilfe anzeigen`);
+}
+
+let cliOptions = null;
+try {
+  cliOptions = parseCliArgs(process.argv.slice(2));
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error || 'unknown error');
+  console.error(`[dev-ui-auth-analyze-smoke] ERROR ${message}`);
+  printUsage();
+  process.exit(2);
+}
+
+if (cliOptions.helpRequested) {
+  printUsage();
+  process.exit(0);
+}
+
 const repoRoot = process.cwd();
-const configuredOutDir = String(process.env.DEV_UI_SMOKE_EVIDENCE_DIR || '').trim();
+const configuredOutDir = String(cliOptions.evidenceDir || process.env.DEV_UI_SMOKE_EVIDENCE_DIR || '').trim();
 const outDir = configuredOutDir
   ? path.resolve(repoRoot, configuredOutDir)
   : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
-const baseOrigin = String(process.env.BASE_URL || 'https://www.dev.georanking.ch').replace(/\/+$/, '');
-const guiPath = normalizeGuiPath(process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
+const baseOrigin = String(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch').replace(/\/+$/, '');
+const guiPath = normalizeGuiPath(cliOptions.guiPath || process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
 const expectedPostLoginPath = resolveCanonicalGuiSuccessor(guiPath);
 const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);
-const loginReason = String(process.env.DEV_UI_SMOKE_LOGIN_REASON || 'manual_login').trim() || 'manual_login';
+const loginReason = String(cliOptions.loginReason || process.env.DEV_UI_SMOKE_LOGIN_REASON || 'manual_login').trim() || 'manual_login';
 const loginStartUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&reason=${encodeURIComponent(loginReason)}&start=1`;
 
-const username = String(process.env.DEV_UI_SMOKE_USERNAME || '').trim();
-const password = String(process.env.DEV_UI_SMOKE_PASSWORD || '');
+const username = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || '').trim();
+const password = String(cliOptions.password || process.env.DEV_UI_SMOKE_PASSWORD || '');
 
-const explicitRunMarker = String(process.env.DEV_UI_SMOKE_RUN_ID || '').trim();
+const explicitRunMarker = String(cliOptions.runId || process.env.DEV_UI_SMOKE_RUN_ID || '').trim();
 const githubRunNumber = String(process.env.GITHUB_RUN_NUMBER || '').trim();
 const githubRunAttempt = String(process.env.GITHUB_RUN_ATTEMPT || '').trim() || '1';
 const githubRunId = String(process.env.GITHUB_RUN_ID || '').trim();
@@ -39,12 +147,12 @@ const runMarker =
   || stamp;
 const artifactRunToken = sanitizeFileToken(runMarker) || 'run';
 
-const addressFile = process.env.DEV_UI_SMOKE_ADDRESS_FILE
-  ? path.resolve(repoRoot, String(process.env.DEV_UI_SMOKE_ADDRESS_FILE))
+const addressFile = (cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_FILE)
+  ? path.resolve(repoRoot, String(cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_FILE))
   : path.join(repoRoot, 'scripts', 'smoke', 'ch_live_addresses.txt');
 
-const timeoutMs = parsePositiveInt(process.env.DEV_UI_SMOKE_TIMEOUT_MS, 60_000);
-const headless = !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
+const timeoutMs = parsePositiveInt(cliOptions.timeoutMs || process.env.DEV_UI_SMOKE_TIMEOUT_MS, 60_000);
+const headless = typeof cliOptions.headless === 'boolean' ? cliOptions.headless : !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
 
 function parsePositiveInt(raw, fallback) {
   const value = Number.parseInt(String(raw || ''), 10);
