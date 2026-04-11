@@ -39,6 +39,7 @@ login_reason_override=""
 run_id_base_override=""
 headful_override=""
 allow_login_start_fallback_override="${DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK:-0}"
+fallback_bundle_script_override="${DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT:-./scripts/smoke/run_login_start_smoke_bundle.sh}"
 
 is_truthy() {
   local raw="${1:-}"
@@ -161,6 +162,30 @@ if ! (
   fi
   fallback_command_override="${DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND:-}"
 
+  declare -a fallback_bundle_cmd=(
+    "${fallback_bundle_script_override}"
+    --base-url "${fallback_base_url}"
+    --env-name "${fallback_env_name}"
+  )
+
+  if [[ -n "${DEV_UI_SMOKE_EVIDENCE_DIR:-}" ]]; then
+    fallback_bundle_cmd+=(--output-dir "${DEV_UI_SMOKE_EVIDENCE_DIR}")
+  fi
+
+  if [[ -n "${DEV_UI_SMOKE_LOGIN_REASON:-}" ]]; then
+    fallback_bundle_cmd+=(--reason "${DEV_UI_SMOKE_LOGIN_REASON}")
+  fi
+
+  if [[ -n "${DEV_UI_SMOKE_TIMEOUT_MS:-}" && "${DEV_UI_SMOKE_TIMEOUT_MS}" =~ ^[0-9]+$ ]]; then
+    timeout_seconds="$(( (DEV_UI_SMOKE_TIMEOUT_MS + 999) / 1000 ))"
+    if (( timeout_seconds <= 0 )); then
+      timeout_seconds=1
+    fi
+    fallback_bundle_cmd+=(--timeout "${timeout_seconds}")
+  fi
+
+  fallback_bundle_hint="${fallback_bundle_cmd[*]}"
+
   if is_truthy "${allow_login_start_fallback_override}"; then
     echo "[gui-live-smoke-preflight] running login-start fallback due to missing live secrets" >&2
 
@@ -173,7 +198,7 @@ if ! (
     else
       if (
         cd "${REPO_ROOT}"
-        ./scripts/smoke/run_login_start_smoke_bundle.sh --base-url "${fallback_base_url}" --env-name "${fallback_env_name}"
+        "${fallback_bundle_cmd[@]}"
       ); then
         echo "✅ gui-dev-live-auth-analyze-smoke fallback login-start bundle passed"
         exit 0
@@ -187,7 +212,7 @@ if ! (
 
   echo "ERROR: live-auth route-set preflight failed; aborting route fan-out." >&2
   echo "HINT: If live credentials are unavailable, run login-start coverage instead:" >&2
-  echo "  ./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name}" >&2
+  echo "  ${fallback_bundle_hint}" >&2
   exit 1
 fi
 
