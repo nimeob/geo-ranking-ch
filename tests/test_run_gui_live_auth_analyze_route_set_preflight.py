@@ -352,6 +352,7 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
     env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
     env["DEV_UI_SMOKE_EVIDENCE_DIR"] = str(evidence_dir)
     env["DEV_UI_SMOKE_LOGIN_REASON"] = "env_reason_contract"
+    env["DEV_UI_SMOKE_TIMEOUT_MS"] = "2501"
 
     try:
         proc = subprocess.run(
@@ -382,6 +383,7 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
     )
     assert f"--output-dir {evidence_dir}" in proc.stderr
     assert "--reason env_reason_contract" in proc.stderr
+    assert "--timeout 3" in proc.stderr
 
     blocked_file = (
         blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-fallback-env.json"
