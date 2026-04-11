@@ -33,6 +33,11 @@ on:
         required: false
         default: false
         type: boolean
+      allow_login_start_fallback:
+        description: "Alias für fallback_login_start_on_preflight_fail"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: gui-dev-live-auth-analyze-smoke-${{ github.ref }}
@@ -86,7 +91,7 @@ jobs:
             cmd+=(--timeout-ms "${{ inputs.timeout_ms }}")
           fi
 
-          if [[ "${{ inputs.fallback_login_start_on_preflight_fail }}" == "true" ]]; then
+          if [[ "${{ inputs.fallback_login_start_on_preflight_fail }}" == "true" || "${{ inputs.allow_login_start_fallback }}" == "true" ]]; then
             cmd+=(--fallback-login-start-on-preflight-fail)
           fi
 

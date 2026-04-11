@@ -49,7 +49,7 @@ routes_override=""
 route_presets_override=""
 quiet="0"
 headful_override=""
-fallback_login_start_on_preflight_fail="${DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL:-0}"
+fallback_login_start_on_preflight_fail="${DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL:-${DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK:-0}}"
 selected_routes_csv=""
 selected_route_presets_csv=""
 

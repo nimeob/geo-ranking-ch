@@ -22,6 +22,8 @@ def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> Non
     assert "route_presets:" in content
     assert "timeout_ms:" in content
     assert "fallback_login_start_on_preflight_fail:" in content
+    assert "allow_login_start_fallback:" in content
+    assert "inputs.allow_login_start_fallback" in content
     assert (
         "inputs.routes und inputs.route_presets dürfen nicht gleichzeitig gesetzt werden"
         in content
@@ -43,6 +45,7 @@ def test_route_set_script_uses_shared_route_helper_and_route_specific_run_ids() 
     assert 'run_id="${base_run_id}-${ordinal}"' in content
     assert "--fallback-login-start-on-preflight-fail" in content
     assert "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL" in content
+    assert "DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK" in content
     assert "run_login_start_smoke_bundle.sh" in content
 
 
