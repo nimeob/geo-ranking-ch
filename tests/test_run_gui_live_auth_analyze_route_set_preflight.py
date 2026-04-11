@@ -115,6 +115,10 @@ def test_route_set_runner_prints_login_start_hint_on_secret_blocker(tmp_path: Pa
             "manual-hint",
             "--output-dir",
             str(blocker_dir),
+            "--login-reason",
+            "nightly_preflight",
+            "--timeout-ms",
+            "9100",
         ],
         cwd=str(REPO_ROOT),
         env=env,
@@ -125,9 +129,17 @@ def test_route_set_runner_prints_login_start_hint_on_secret_blocker(tmp_path: Pa
 
     assert proc.returncode == 1
     assert "run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev" in proc.stderr
+    assert f"--output-dir {blocker_dir}" in proc.stderr
+    assert "--reason nightly_preflight" in proc.stderr
+    assert "--timeout 10" in proc.stderr
 
     blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-hint.json"
     assert blocked_file.exists()
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    fallback_command = payload["fallback_login_start_smoke"]["command"]
+    assert f"--output-dir {blocker_dir}" in fallback_command
+    assert "--reason nightly_preflight" in fallback_command
+    assert "--timeout 10" in fallback_command
 
 
 def test_route_set_runner_can_auto_fallback_to_login_start_on_secret_blocker(

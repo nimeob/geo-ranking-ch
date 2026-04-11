@@ -47,7 +47,12 @@ if [[ "${BASE_URL_RAW,,}" == *"staging"* ]]; then
   FALLBACK_ENV_NAME="staging"
 fi
 
-FALLBACK_LOGIN_START_SMOKE_COMMAND="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${BASE_URL_RAW} --env-name ${FALLBACK_ENV_NAME}"
+FALLBACK_LOGIN_START_SMOKE_COMMAND_OVERRIDE="$(trim "${DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND:-}")"
+if [[ -n "${FALLBACK_LOGIN_START_SMOKE_COMMAND_OVERRIDE}" ]]; then
+  FALLBACK_LOGIN_START_SMOKE_COMMAND="${FALLBACK_LOGIN_START_SMOKE_COMMAND_OVERRIDE}"
+else
+  FALLBACK_LOGIN_START_SMOKE_COMMAND="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${BASE_URL_RAW} --env-name ${FALLBACK_ENV_NAME}"
+fi
 
 MISSING=()
 if [[ -z "${USERNAME}" ]]; then

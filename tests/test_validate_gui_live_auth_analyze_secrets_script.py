@@ -141,6 +141,27 @@ def test_preflight_uses_staging_fallback_hint_when_base_url_contains_staging(tmp
     assert fallback["command"].endswith("--env-name staging")
 
 
+def test_preflight_prefers_explicit_fallback_command_override(tmp_path: Path) -> None:
+    proc = _run(
+        tmp_path,
+        {
+            "GITHUB_RUN_ID": "8080",
+            "DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND": "./scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev --output-dir reports/evidence/nightly --reason nightly --timeout 9",
+        },
+    )
+
+    assert proc.returncode == 1
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-8080-1.json"
+    assert blocked_file.exists()
+
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    fallback = payload["fallback_login_start_smoke"]
+    assert fallback["command"] == (
+        "./scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch "
+        "--env-name dev --output-dir reports/evidence/nightly --reason nightly --timeout 9"
+    )
+
+
 def test_workflow_uses_preflight_script_and_uploads_blocker_artifact() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
     assert "run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh" in content

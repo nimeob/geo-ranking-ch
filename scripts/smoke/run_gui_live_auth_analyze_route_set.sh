@@ -51,6 +51,19 @@ is_truthy() {
   return 1
 }
 
+shell_quote() {
+  printf '%q' "$1"
+}
+
+build_command_from_args() {
+  local cmd="./scripts/smoke/run_login_start_smoke_bundle.sh"
+  local arg
+  for arg in "$@"; do
+    cmd+=" $(shell_quote "${arg}")"
+  done
+  printf '%s' "${cmd}"
+}
+
 require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
@@ -138,6 +151,38 @@ if [[ -n "${headful_override}" ]]; then
   export DEV_UI_SMOKE_HEADFUL="${headful_override}"
 fi
 
+user_fallback_command_override="${DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND:-}"
+fallback_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
+fallback_env_name="dev"
+if [[ "${fallback_base_url,,}" == *"staging"* ]]; then
+  fallback_env_name="staging"
+fi
+
+declare -a fallback_default_args=(--base-url "${fallback_base_url}" --env-name "${fallback_env_name}")
+
+effective_output_dir="${DEV_UI_SMOKE_EVIDENCE_DIR:-}"
+if [[ -n "${effective_output_dir}" ]]; then
+  fallback_default_args+=(--output-dir "${effective_output_dir}")
+fi
+
+effective_login_reason="${DEV_UI_SMOKE_LOGIN_REASON:-}"
+if [[ -n "${effective_login_reason}" ]]; then
+  fallback_default_args+=(--reason "${effective_login_reason}")
+fi
+
+effective_timeout_ms="${DEV_UI_SMOKE_TIMEOUT_MS:-}"
+if [[ "${effective_timeout_ms}" =~ ^[0-9]+$ ]] && (( effective_timeout_ms > 0 )); then
+  fallback_timeout_seconds="$(( (effective_timeout_ms + 999) / 1000 ))"
+  if (( fallback_timeout_seconds < 1 )); then
+    fallback_timeout_seconds=1
+  fi
+  fallback_default_args+=(--timeout "${fallback_timeout_seconds}")
+fi
+
+default_fallback_command="$(build_command_from_args "${fallback_default_args[@]}")"
+fallback_command_hint="${user_fallback_command_override:-${default_fallback_command}}"
+export DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND="${fallback_command_hint}"
+
 base_run_id="${run_id_base_override:-${DEV_UI_SMOKE_RUN_ID_BASE:-}}"
 if [[ -z "${base_run_id}" ]]; then
   if [[ -n "${GITHUB_RUN_NUMBER:-}" ]]; then
@@ -154,18 +199,11 @@ if ! (
   DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
     ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 ); then
-  fallback_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
-  fallback_env_name="dev"
-  if [[ "${fallback_base_url}" == *"staging"* ]]; then
-    fallback_env_name="staging"
-  fi
-  fallback_command_override="${DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND:-}"
-
   if is_truthy "${allow_login_start_fallback_override}"; then
     echo "[gui-live-smoke-preflight] running login-start fallback due to missing live secrets" >&2
 
-    if [[ -n "${fallback_command_override}" ]]; then
-      if bash -lc "${fallback_command_override}"; then
+    if [[ -n "${user_fallback_command_override}" ]]; then
+      if bash -lc "${user_fallback_command_override}"; then
         echo "✅ gui-dev-live-auth-analyze-smoke fallback login-start bundle passed"
         exit 0
       fi
@@ -173,7 +211,7 @@ if ! (
     else
       if (
         cd "${REPO_ROOT}"
-        ./scripts/smoke/run_login_start_smoke_bundle.sh --base-url "${fallback_base_url}" --env-name "${fallback_env_name}"
+        ./scripts/smoke/run_login_start_smoke_bundle.sh "${fallback_default_args[@]}"
       ); then
         echo "✅ gui-dev-live-auth-analyze-smoke fallback login-start bundle passed"
         exit 0
@@ -187,7 +225,7 @@ if ! (
 
   echo "ERROR: live-auth route-set preflight failed; aborting route fan-out." >&2
   echo "HINT: If live credentials are unavailable, run login-start coverage instead:" >&2
-  echo "  ./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name}" >&2
+  echo "  ${fallback_command_hint}" >&2
   exit 1
 fi
 
