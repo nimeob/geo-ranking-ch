@@ -317,6 +317,13 @@ esac
 
 fallback_output_dir="${output_dir_override:-${DEV_UI_SMOKE_EVIDENCE_DIR:-${DEV_UI_SMOKE_BLOCKER_DIR:-reports/evidence}}}"
 fallback_login_reason="${login_reason_override:-${DEV_UI_SMOKE_LOGIN_REASON:-manual_login}}"
+fallback_timeout_seconds=""
+if [[ -n "${DEV_UI_SMOKE_TIMEOUT_MS:-}" && "${DEV_UI_SMOKE_TIMEOUT_MS}" =~ ^[0-9]+$ ]]; then
+  fallback_timeout_seconds="$(( (DEV_UI_SMOKE_TIMEOUT_MS + 999) / 1000 ))"
+  if (( fallback_timeout_seconds <= 0 )); then
+    fallback_timeout_seconds="1"
+  fi
+fi
 summary_output_dir="${fallback_output_dir}"
 summary_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
 summary_env_name="$(infer_env_name_from_base_url "${summary_base_url}")"
@@ -349,6 +356,10 @@ if ! (
       "${fallback_route_args[@]}"
     )
 
+    if [[ -n "${fallback_timeout_seconds}" ]]; then
+      fallback_cmd+=(--timeout "${fallback_timeout_seconds}")
+    fi
+
     if [[ "${quiet}" == "1" ]]; then
       fallback_cmd+=(--quiet)
     fi
@@ -358,6 +369,9 @@ if ! (
       fallback_effective_cmd+=" --route-presets \"${selected_route_presets_csv}\""
     elif [[ -n "${routes_override}" ]]; then
       fallback_effective_cmd+=" --routes \"${selected_routes_csv}\""
+    fi
+    if [[ -n "${fallback_timeout_seconds}" ]]; then
+      fallback_effective_cmd+=" --timeout ${fallback_timeout_seconds}"
     fi
     if [[ "${quiet}" == "1" ]]; then
       fallback_effective_cmd+=" --quiet"
@@ -401,6 +415,10 @@ if ! (
   elif (( ${#fallback_route_args[@]} > 0 )); then
     fallback_login_start_hint+=" --routes \"${selected_routes_csv}\""
     fallback_auto_hint+=" --routes \"${selected_routes_csv}\""
+  fi
+  if [[ -n "${fallback_timeout_seconds}" ]]; then
+    fallback_login_start_hint+=" --timeout ${fallback_timeout_seconds}"
+    fallback_auto_hint+=" --timeout-ms ${DEV_UI_SMOKE_TIMEOUT_MS}"
   fi
 
   echo "ERROR: live-auth route-set preflight failed; aborting route fan-out." >&2
