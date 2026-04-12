@@ -52,6 +52,7 @@ headful_override=""
 fallback_login_start_on_preflight_fail="${DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL:-${DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK:-0}}"
 selected_routes_csv=""
 selected_route_presets_csv=""
+fallback_bundle_script="${DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT:-./scripts/smoke/run_login_start_smoke_bundle.sh}"
 
 declare -a selected_routes=()
 
@@ -348,7 +349,7 @@ if ! (
     echo "WARN: live-auth route-set preflight failed; running login-start fallback (degraded mode)." >&2
 
     fallback_cmd=(
-      ./scripts/smoke/run_login_start_smoke_bundle.sh
+      "${fallback_bundle_script}"
       --base-url "${fallback_base_url}"
       --env-name "${fallback_env_name}"
       --output-dir "${fallback_output_dir}"
@@ -364,7 +365,7 @@ if ! (
       fallback_cmd+=(--quiet)
     fi
 
-    fallback_effective_cmd="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name} --output-dir ${fallback_output_dir} --reason ${fallback_login_reason}"
+    fallback_effective_cmd="${fallback_bundle_script} --base-url ${fallback_base_url} --env-name ${fallback_env_name} --output-dir ${fallback_output_dir} --reason ${fallback_login_reason}"
     if [[ -n "${route_presets_override}" ]]; then
       fallback_effective_cmd+=" --route-presets \"${selected_route_presets_csv}\""
     elif [[ -n "${routes_override}" ]]; then
@@ -392,6 +393,8 @@ if ! (
         "${fallback_output_dir}/${fallback_env_name}-login-start-smoke-bundle-summary.json"
       echo "WARN: login-start fallback passed; live-auth route fan-out skipped." >&2
       exit 0
+    else
+      fallback_rc="$?"
     fi
 
     write_route_set_summary \
@@ -403,11 +406,11 @@ if ! (
       "" \
       "${fallback_output_dir}/${fallback_env_name}-login-start-smoke-bundle-summary.json"
 
-    echo "ERROR: login-start fallback failed after live-auth preflight failure." >&2
-    exit 1
+    echo "ERROR: login-start fallback failed after live-auth preflight failure (exit=${fallback_rc})." >&2
+    exit "${fallback_rc}"
   fi
 
-  fallback_login_start_hint="./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${fallback_base_url} --env-name ${fallback_env_name}"
+  fallback_login_start_hint="${fallback_bundle_script} --base-url ${fallback_base_url} --env-name ${fallback_env_name}"
   fallback_auto_hint="./scripts/smoke/run_gui_live_auth_analyze_route_set.sh --base-url ${fallback_base_url} --fallback-login-start-on-preflight-fail"
   if [[ -n "${route_presets_override}" ]]; then
     fallback_login_start_hint+=" --route-presets \"${selected_route_presets_csv}\""
