@@ -23,12 +23,13 @@ SCRIPT_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 usage() {
   cat <<'EOF'
-Usage: scripts/smoke/run_canonical_redirect_smoke_bundle.sh --base-url <url> --env-name <dev|staging> [options]
+Usage: scripts/smoke/run_canonical_redirect_smoke_bundle.sh --base-url <url> [options]
 
 Options:
   --base-url <url>              Canonical GUI-Base-URL (z. B. https://www.dev.georanking.ch)
   --ui-base-url <url>           Alias für --base-url
   --env-name <name>             Präfix für Artefakte (z. B. dev, staging)
+                                (optional; default: aus --base-url abgeleitet)
   --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts)
   --summary-json <path>         Optionaler Pfad für Bundle-Summary-JSON
                                 (default: <output-dir>/<env>-canonical-host-redirect-smoke-bundle-summary.json)
@@ -46,6 +47,62 @@ Options:
                                 (Alternative zu --routes)
   --quiet                       Unterdrückt Fortschritts-/Success-Logs auf stdout
 EOF
+}
+
+infer_env_name_from_base_url() {
+  local base_url="${1:-}"
+
+  python3 - "$base_url" <<'PY'
+from __future__ import annotations
+
+import ipaddress
+import sys
+from urllib.parse import urlsplit
+
+
+def infer_env_name(raw_base_url: str) -> str:
+    value = str(raw_base_url or "").strip()
+    if not value:
+        return "dev"
+
+    try:
+        parsed = urlsplit(value)
+    except Exception:
+        return "dev"
+
+    host = str(parsed.hostname or "").strip().lower().rstrip(".")
+    if not host:
+        return "dev"
+
+    if host in {"localhost", "localhost.localdomain"}:
+        return "local"
+
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        return "local"
+
+    if "staging" in host:
+        return "staging"
+    if "prod" in host:
+        return "prod"
+    if host in {
+        "www.georanking.ch",
+        "georanking.ch",
+        "www.geo-ranking.ch",
+        "geo-ranking.ch",
+    }:
+        return "prod"
+    if "dev" in host:
+        return "dev"
+
+    return "dev"
+
+
+print(infer_env_name(sys.argv[1]))
+PY
 }
 
 require_option_value() {
@@ -154,9 +211,11 @@ if [ -z "$BASE_URL" ]; then
 fi
 
 if [ -z "$ENV_NAME" ]; then
-  echo "::error::Missing required --env-name" >&2
-  usage >&2
-  exit 2
+  ENV_NAME="$(infer_env_name_from_base_url "$BASE_URL")"
+  if [ -z "$ENV_NAME" ]; then
+    ENV_NAME="dev"
+  fi
+  echo "::warning::--env-name nicht gesetzt; verwende abgeleitetes env '${ENV_NAME}' aus Base URL '${BASE_URL}'." >&2
 fi
 
 if [[ -n "${ROUTES_CSV}" && -n "${ROUTE_PRESETS_CSV}" ]]; then

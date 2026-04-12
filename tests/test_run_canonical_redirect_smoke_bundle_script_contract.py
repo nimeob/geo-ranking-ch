@@ -28,7 +28,9 @@ def test_canonical_redirect_bundle_script_uses_shared_route_helper_and_probe_loo
     assert "canonical-host-redirect-smoke-bundle-summary.json" in content
 
 
-def test_canonical_redirect_bundle_requires_base_url_and_env_name() -> None:
+def test_canonical_redirect_bundle_requires_base_url_and_supports_env_inference() -> (
+    None
+):
     content = SCRIPT.read_text(encoding="utf-8")
 
     assert "--base-url" in content
@@ -41,15 +43,32 @@ def test_canonical_redirect_bundle_requires_base_url_and_env_name() -> None:
     assert "--routes" in content
     assert "--route-presets" in content
     assert "Missing required --base-url" in content
-    assert "Missing required --env-name" in content
+    assert "--env-name nicht gesetzt; verwende abgeleitetes env" in content
 
 
-def test_canonical_redirect_bundle_accepts_ui_base_url_alias() -> None:
+def test_canonical_redirect_bundle_accepts_ui_base_url_alias_and_infers_env_name(
+    tmp_path,
+) -> None:
+    output_dir = tmp_path / "artifacts"
+    summary_path = tmp_path / "custom" / "canonical-summary.json"
+
     proc = subprocess.run(
         [
             str(SCRIPT),
             "--ui-base-url",
-            "https://www.dev.georanking.ch",
+            "http://127.0.0.1:9",
+            "--output-dir",
+            str(output_dir),
+            "--routes",
+            "/gui",
+            "--timeout",
+            "2",
+            "--max-attempts",
+            "1",
+            "--retry-delay",
+            "0",
+            "--summary-json",
+            str(summary_path),
         ],
         cwd=str(REPO_ROOT),
         env=os.environ.copy(),
@@ -58,8 +77,13 @@ def test_canonical_redirect_bundle_accepts_ui_base_url_alias() -> None:
         check=False,
     )
 
-    assert proc.returncode == 2
-    assert "Missing required --env-name" in proc.stderr
+    assert proc.returncode == 0, proc.stderr
+    assert "--env-name nicht gesetzt" in proc.stderr
+    assert summary_path.is_file()
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["env_name"] == "local"
+    assert (output_dir / "local-canonical-host-redirect-smoke.json").is_file()
 
 
 def test_canonical_redirect_bundle_accepts_summary_json_alias(tmp_path) -> None:

@@ -123,7 +123,7 @@ def test_login_start_bundle_script_uses_shared_route_helper_and_probe_loop() -> 
     assert "requested_base_url" in content
 
 
-def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
+def test_login_start_bundle_script_requires_base_url_and_supports_env_inference() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
     assert "--base-url" in content
@@ -136,25 +136,48 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     assert "--max-retry-delay" in content
     assert "--expected-authorize-host" in content
     assert "Missing required --base-url" in content
-    assert "Missing required --env-name" in content
+    assert "--env-name nicht gesetzt; verwende abgeleitetes env" in content
 
 
-def test_login_start_bundle_accepts_ui_base_url_alias() -> None:
-    proc = subprocess.run(
-        [
-            str(SCRIPT),
-            "--ui-base-url",
-            "https://www.dev.georanking.ch",
-        ],
-        cwd=str(REPO_ROOT),
-        env=os.environ.copy(),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+def test_login_start_bundle_accepts_ui_base_url_alias_and_infers_env_name(
+    tmp_path,
+) -> None:
+    output_dir = tmp_path / "artifacts"
+    summary_path = tmp_path / "summary" / "login-start-bundle.json"
 
-    assert proc.returncode == 2
-    assert "Missing required --env-name" in proc.stderr
+    with _BundleStubServer() as stub:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--ui-base-url",
+                stub.base_url,
+                "--output-dir",
+                str(output_dir),
+                "--routes",
+                "/gui",
+                "--timeout",
+                "5",
+                "--max-attempts",
+                "1",
+                "--retry-delay",
+                "0",
+                "--summary-json",
+                str(summary_path),
+            ],
+            cwd=str(REPO_ROOT),
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert proc.returncode == 0, proc.stderr
+    assert "--env-name nicht gesetzt" in proc.stderr
+    assert summary_path.is_file()
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["env_name"] == "local"
+    assert (output_dir / "local-login-start-smoke.json").is_file()
 
 
 def test_login_start_bundle_accepts_summary_json_alias(tmp_path) -> None:
@@ -208,6 +231,10 @@ def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_before_valid
             str(SCRIPT),
             "--base-url",
             "https://dev.georanking.ch",
+            "--routes",
+            "/gui",
+            "--route-presets",
+            "core",
         ],
         cwd=str(REPO_ROOT),
         env=os.environ.copy(),
@@ -217,7 +244,8 @@ def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_before_valid
     )
 
     assert proc.returncode == 2
-    assert "Missing required --env-name" in proc.stderr
+    assert "--routes und --route-presets" in proc.stderr
+    assert "--env-name nicht gesetzt" in proc.stderr
     assert "kanonisiere auf 'https://www.dev.georanking.ch'" in proc.stderr
 
 
@@ -229,6 +257,10 @@ def test_login_start_bundle_canonicalizes_trailing_dot_origin_before_validation(
             str(SCRIPT),
             "--base-url",
             "https://www.dev.georanking.ch.",
+            "--routes",
+            "/gui",
+            "--route-presets",
+            "core",
         ],
         cwd=str(REPO_ROOT),
         env=os.environ.copy(),
@@ -238,7 +270,8 @@ def test_login_start_bundle_canonicalizes_trailing_dot_origin_before_validation(
     )
 
     assert proc.returncode == 2
-    assert "Missing required --env-name" in proc.stderr
+    assert "--routes und --route-presets" in proc.stderr
+    assert "--env-name nicht gesetzt" in proc.stderr
     assert "Trailing-Dot" in proc.stderr
     assert "kanonisiere auf 'https://www.dev.georanking.ch'" in proc.stderr
 
