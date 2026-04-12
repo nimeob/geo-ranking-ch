@@ -11,6 +11,8 @@ Options:
   --base-url <url>        BASE_URL override (z. B. https://www.dev.georanking.ch)
   --ui-base-url <url>     Alias für --base-url
   --output-dir <dir>      Evidence/Blocker-Ausgabeordner (default: reports/evidence)
+  --summary-json <path>   Optionaler Pfad für Route-Set-Summary-JSON
+  --json-out <path>       Legacy-Alias für --summary-json
   --timeout-ms <ms>       Timeout pro UI-Run (default: DEV_UI_SMOKE_TIMEOUT_MS bzw. 60000)
   --address-file <path>   Adressliste für Analyze-Smoke (default: scripts/smoke/ch_live_addresses.txt)
   --login-reason <text>   reason-Parameter für /login (default: manual_login)
@@ -43,6 +45,7 @@ fi
 
 base_url_override=""
 output_dir_override=""
+summary_json_override=""
 timeout_ms_override=""
 address_file_override=""
 login_reason_override=""
@@ -279,6 +282,11 @@ while [[ $# -gt 0 ]]; do
       output_dir_override="$2"
       shift 2
       ;;
+    --summary-json|--json-out)
+      require_option_value "$1" "${2:-}"
+      summary_json_override="$2"
+      shift 2
+      ;;
     --timeout-ms)
       require_option_value "--timeout-ms" "${2:-}"
       timeout_ms_override="$2"
@@ -391,7 +399,12 @@ fi
 summary_output_dir="${fallback_output_dir}"
 summary_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
 summary_env_name="$(infer_env_name_from_base_url "${summary_base_url}")"
-summary_path="${summary_output_dir}/${summary_env_name}-ui-auth-analyze-route-set-summary.json"
+if [[ -n "${summary_json_override}" ]]; then
+  summary_path="${summary_json_override}"
+else
+  summary_path="${summary_output_dir}/${summary_env_name}-ui-auth-analyze-route-set-summary.json"
+fi
+summary_output_dir="$(dirname "${summary_path}")"
 
 declare -a fallback_route_args=()
 if [[ -n "${route_presets_override}" ]]; then
