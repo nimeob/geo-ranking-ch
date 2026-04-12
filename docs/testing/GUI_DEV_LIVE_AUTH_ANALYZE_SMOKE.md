@@ -84,3 +84,4 @@ Optional:
 - `DEV_UI_SMOKE_HEADFUL=1` oder `--headful`
 - `DEV_UI_SMOKE_LOGIN_REASON=manual_login` oder `--login-reason manual_login`
 - `DEV_UI_SMOKE_EVIDENCE_DIR=artifacts/dev-ui-live-smoke` oder `--output-dir ...`
+- `--base-url` wird auf die Origin normalisiert (Pfad/Query/Fragment werden ignoriert), z. B. `https://www.dev.georanking.ch/gui?x=1` → `https://www.dev.georanking.ch`.
