@@ -68,6 +68,92 @@ def test_git_check_ignore_ignores_nightworker_worktree_directory() -> None:
         probe.unlink(missing_ok=True)
 
 
+def test_git_check_ignore_ignores_night_worker_worktree_directory() -> None:
+    probe = Path(".night-worker/gitignore-probe.txt")
+    probe.parent.mkdir(parents=True, exist_ok=True)
+    probe.write_text("probe", encoding="utf-8")
+    try:
+        completed = subprocess.run(
+            ["git", "check-ignore", "-v", str(probe)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode == 0, (
+            f"expected {probe} to be ignored by git, got rc={completed.returncode}, "
+            f"stdout={completed.stdout!r}, stderr={completed.stderr!r}"
+        )
+        assert "/.night-worker/" in completed.stdout
+    finally:
+        probe.unlink(missing_ok=True)
+
+
+def test_git_check_ignore_ignores_root_local_worktree_runtime_dirs() -> None:
+    probes = [
+        (Path(".nightlock/gitignore-probe.txt"), "/.nightlock/"),
+        (Path(".worktrees/gitignore-probe.txt"), "/.worktrees/"),
+        (Path(".tmp/gitignore-probe.txt"), "/.tmp/"),
+        (Path(".local/gitignore-probe.txt"), "/.local/"),
+    ]
+
+    for probe, marker in probes:
+        probe.parent.mkdir(parents=True, exist_ok=True)
+        probe.write_text("probe", encoding="utf-8")
+        try:
+            completed = subprocess.run(
+                ["git", "check-ignore", "-v", str(probe)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            assert completed.returncode == 0, (
+                f"expected {probe} to be ignored by git, got rc={completed.returncode}, "
+                f"stdout={completed.stdout!r}, stderr={completed.stderr!r}"
+            )
+            assert marker in completed.stdout
+        finally:
+            probe.unlink(missing_ok=True)
+
+
+def test_git_check_ignore_ignores_root_tmp_label_triage_helper() -> None:
+    probe = Path(".tmp_label_triage.sh")
+    probe.write_text("#!/usr/bin/env bash\necho probe\n", encoding="utf-8")
+    try:
+        completed = subprocess.run(
+            ["git", "check-ignore", "-v", str(probe)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode == 0, (
+            f"expected {probe} to be ignored by git, got rc={completed.returncode}, "
+            f"stdout={completed.stdout!r}, stderr={completed.stderr!r}"
+        )
+        assert "/.tmp_label_triage.sh" in completed.stdout
+    finally:
+        probe.unlink(missing_ok=True)
+
+
+def test_git_check_ignore_ignores_dev_smoke_evidence_artifacts() -> None:
+    probe = Path("reports/evidence/dev-night-worker-probe.json")
+    probe.parent.mkdir(parents=True, exist_ok=True)
+    probe.write_text('{"probe": true}\n', encoding="utf-8")
+    try:
+        completed = subprocess.run(
+            ["git", "check-ignore", "-v", str(probe)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode == 0, (
+            f"expected {probe} to be ignored by git, got rc={completed.returncode}, "
+            f"stdout={completed.stdout!r}, stderr={completed.stderr!r}"
+        )
+        assert "reports/evidence/dev-*.json" in completed.stdout
+    finally:
+        probe.unlink(missing_ok=True)
+
+
 def test_git_check_ignore_ignores_local_run_triangulate_helper() -> None:
     probe = Path("run_triangulate.sh")
     probe.write_text("#!/usr/bin/env bash\necho probe\n", encoding="utf-8")
