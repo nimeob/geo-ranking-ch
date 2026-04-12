@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import crypto from 'node:crypto';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -16,6 +17,7 @@ function parseCliArgs(argv) {
     loginReason: '',
     evidenceDir: '',
     headless: null,
+    allowLoginStartFallback: false,
     helpRequested: false,
   };
 
@@ -85,6 +87,9 @@ function parseCliArgs(argv) {
       case '--headful':
         options.headless = false;
         break;
+      case '--allow-login-start-fallback':
+        options.allowLoginStartFallback = true;
+        break;
       default:
         throw new Error(`Unknown option: ${flag}`);
     }
@@ -94,7 +99,7 @@ function parseCliArgs(argv) {
 }
 
 function printUsage() {
-  console.log(`Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]\n\nOptions:\n  --base-url <url>        BASE_URL override (default: https://www.dev.georanking.ch)\n  --gui-path <path>       DEV_UI_SMOKE_GUI_PATH override (default: /gui)\n  --username <value>      DEV_UI_SMOKE_USERNAME override\n  --password <value>      DEV_UI_SMOKE_PASSWORD override\n  --address-file <path>   DEV_UI_SMOKE_ADDRESS_FILE override\n  --run-id <token>        DEV_UI_SMOKE_RUN_ID override\n  --timeout-ms <ms>       DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000)\n  --login-reason <text>   DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login)\n  --output-dir <path>     DEV_UI_SMOKE_EVIDENCE_DIR override\n  --evidence-dir <path>   Alias for --output-dir\n  --headless              Erzwingt headless mode\n  --headful               Erzwingt headful mode\n  -h, --help              Diese Hilfe anzeigen`);
+  console.log(`Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]\n\nOptions:\n  --base-url <url>        BASE_URL override (default: https://www.dev.georanking.ch)\n  --gui-path <path>       DEV_UI_SMOKE_GUI_PATH override (default: /gui)\n  --username <value>      DEV_UI_SMOKE_USERNAME override\n  --password <value>      DEV_UI_SMOKE_PASSWORD override\n  --address-file <path>   DEV_UI_SMOKE_ADDRESS_FILE override\n  --run-id <token>        DEV_UI_SMOKE_RUN_ID override\n  --timeout-ms <ms>       DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000)\n  --login-reason <text>   DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login)\n  --output-dir <path>     DEV_UI_SMOKE_EVIDENCE_DIR override\n  --evidence-dir <path>   Alias for --output-dir\n  --headless              Erzwingt headless mode\n  --headful               Erzwingt headful mode\n  --allow-login-start-fallback\n                          Bei fehlenden Live-Credentials login-start Bundle statt Hard-Fail ausführen\n  -h, --help              Diese Hilfe anzeigen`);
 }
 
 let cliOptions = null;
@@ -153,6 +158,99 @@ const addressFile = (cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_
 
 const timeoutMs = parsePositiveInt(cliOptions.timeoutMs || process.env.DEV_UI_SMOKE_TIMEOUT_MS, 60_000);
 const headless = typeof cliOptions.headless === 'boolean' ? cliOptions.headless : !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
+const allowLoginStartFallback = cliOptions.allowLoginStartFallback || isTruthy(process.env.DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK);
+
+const fallbackBundleScript = String(
+  process.env.DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT
+  || './scripts/smoke/run_login_start_smoke_bundle.sh'
+).trim() || './scripts/smoke/run_login_start_smoke_bundle.sh';
+const fallbackCommandOverride = String(process.env.DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND || '').trim();
+
+function resolveFallbackEnvName(origin) {
+  const normalized = String(origin || '').trim().toLowerCase();
+  return normalized.includes('staging') ? 'staging' : 'dev';
+}
+
+function quoteShellArg(raw) {
+  const value = String(raw ?? '');
+  if (/^[a-zA-Z0-9_./:@%+=,-]+$/.test(value)) {
+    return value;
+  }
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+function buildLoginStartFallbackMetadata() {
+  const fallbackEnvName = resolveFallbackEnvName(baseOrigin);
+  const timeoutSeconds = Math.max(1, Math.ceil(timeoutMs / 1000));
+  const args = ['--base-url', baseOrigin, '--env-name', fallbackEnvName, '--output-dir', outDir, '--reason', loginReason, '--timeout', String(timeoutSeconds)];
+  const command = fallbackCommandOverride
+    ? fallbackCommandOverride
+    : `${fallbackBundleScript} ${args.map((value) => quoteShellArg(value)).join(' ')}`;
+
+  return {
+    base_url: baseOrigin,
+    env_name: fallbackEnvName,
+    bundle_script: fallbackBundleScript,
+    args,
+    command,
+    command_override: fallbackCommandOverride,
+  };
+}
+
+function runCommand(command, args, options = {}) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finalize = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    const child = spawn(command, args, {
+      cwd: options.cwd || repoRoot,
+      env: options.env || process.env,
+      shell: options.shell === true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += String(chunk || '');
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += String(chunk || '');
+    });
+
+    child.on('error', (error) => {
+      finalize({
+        ok: false,
+        code: -1,
+        signal: '',
+        stdout,
+        stderr,
+        error: normalizeError(error),
+      });
+    });
+
+    child.on('close', (code, signal) => {
+      finalize({
+        ok: code === 0,
+        code: Number.isInteger(code) ? code : -1,
+        signal: signal || '',
+        stdout,
+        stderr,
+      });
+    });
+  });
+}
+
+async function runLoginStartFallback(fallbackMeta) {
+  if (fallbackMeta.command_override) {
+    return runCommand('bash', ['-lc', fallbackMeta.command_override], { shell: false });
+  }
+  return runCommand(fallbackMeta.bundle_script, fallbackMeta.args, { shell: false });
+}
 
 function parsePositiveInt(raw, fallback) {
   const value = Number.parseInt(String(raw || ''), 10);
@@ -596,11 +694,76 @@ function emitSmokeSummary(payload, evidencePath) {
 
 async function run() {
   const startedAtUtc = new Date().toISOString();
+  const missingCredentials = [];
+  if (!username) missingCredentials.push('DEV_UI_SMOKE_USERNAME');
+  if (!password) missingCredentials.push('DEV_UI_SMOKE_PASSWORD');
+  const fallbackMeta = buildLoginStartFallbackMetadata();
 
-  if (!username || !password) {
-    throw new Error(
+  if (missingCredentials.length > 0) {
+    if (allowLoginStartFallback) {
+      console.error('[dev-ui-auth-analyze-smoke] running login-start fallback due to missing live credentials');
+      const fallbackResult = await runLoginStartFallback(fallbackMeta);
+
+      const payload = {
+        startedAtUtc,
+        finishedAtUtc: new Date().toISOString(),
+        target: {
+          baseOrigin,
+          guiPath,
+          expectedPostLoginPath,
+          loginStartUrl,
+        },
+        runtime: {
+          browser: 'playwright-chromium',
+          headless,
+          timeoutMs,
+          runMarker,
+          runMarkerSource,
+          githubRunNumber,
+          githubRunAttempt,
+          githubRunId,
+        },
+        credentials: {
+          usernameMasked: maskUsername(username),
+        },
+        fallback_login_start_smoke: {
+          ...fallbackMeta,
+          executed: true,
+          result: {
+            ok: fallbackResult.ok,
+            code: fallbackResult.code,
+            signal: fallbackResult.signal,
+            stdout: String(fallbackResult.stdout || '').trim(),
+            stderr: String(fallbackResult.stderr || '').trim(),
+            error: fallbackResult.error || null,
+          },
+        },
+        checks: {
+          missingLiveCredentials: true,
+          fallbackLoginStartBundlePassed: fallbackResult.ok,
+        },
+        ok: fallbackResult.ok,
+      };
+
+      const evidencePath = await writeEvidence(payload);
+      emitSmokeSummary(payload, evidencePath);
+      if (!fallbackResult.ok) {
+        return false;
+      }
+      return true;
+    }
+
+    const missingMessage =
       'Fehlende Credentials: DEV_UI_SMOKE_USERNAME und DEV_UI_SMOKE_PASSWORD sind für echten Live-Login erforderlich.'
-    );
+      + ` Fallback-Hinweis: ${fallbackMeta.command}`;
+    const missingCredentialsError = new Error(missingMessage);
+    missingCredentialsError.blocked = true;
+    missingCredentialsError.reason = 'missing_required_github_secrets';
+    missingCredentialsError.required = ['DEV_UI_SMOKE_USERNAME', 'DEV_UI_SMOKE_PASSWORD'];
+    missingCredentialsError.missing = missingCredentials;
+    missingCredentialsError.next_step = 'Set both required live credentials or run the login-start fallback bundle.';
+    missingCredentialsError.fallback_login_start_smoke = fallbackMeta;
+    throw missingCredentialsError;
   }
 
   const addressPool = await readAddressPool(addressFile);
@@ -909,6 +1072,7 @@ run()
     }
   })
   .catch(async (error) => {
+    const normalizedError = normalizeError(error);
     const payload = {
       startedAtUtc: new Date().toISOString(),
       finishedAtUtc: new Date().toISOString(),
@@ -931,7 +1095,16 @@ run()
       credentials: {
         usernameMasked: maskUsername(username),
       },
-      error: normalizeError(error),
+      blocked: Boolean(error?.blocked),
+      reason: typeof error?.reason === 'string' ? error.reason : undefined,
+      required: Array.isArray(error?.required) ? error.required : undefined,
+      missing: Array.isArray(error?.missing) ? error.missing : undefined,
+      next_step: typeof error?.next_step === 'string' ? error.next_step : undefined,
+      fallback_login_start_smoke:
+        error?.fallback_login_start_smoke && typeof error.fallback_login_start_smoke === 'object'
+          ? error.fallback_login_start_smoke
+          : undefined,
+      error: normalizedError,
       ok: false,
     };
 

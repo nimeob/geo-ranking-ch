@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -103,6 +104,10 @@ def test_missing_credentials_emit_json_evidence_even_without_playwright(
 
     payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
     assert payload["ok"] is False
+    assert payload["blocked"] is True
+    assert payload["reason"] == "missing_required_github_secrets"
+    assert payload["missing"] == ["DEV_UI_SMOKE_USERNAME", "DEV_UI_SMOKE_PASSWORD"]
+    assert payload["fallback_login_start_smoke"]["command"]
     assert payload["error"]["name"] == "Error"
     assert "Fehlende Credentials" in payload["error"]["message"]
 
@@ -293,3 +298,93 @@ def test_help_flag_exits_successfully_without_live_credentials(tmp_path: Path) -
 
     assert result.returncode == 0
     assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]" in result.stdout
+    assert "--allow-login-start-fallback" in result.stdout
+
+
+def test_allow_login_start_fallback_runs_command_override_when_live_credentials_missing(
+    tmp_path: Path,
+) -> None:
+    marker_file = tmp_path / "fallback-marker.txt"
+    evidence_dir = tmp_path / "evidence"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND"] = (
+        f"printf fallback-ok > {shlex.quote(str(marker_file))}"
+    )
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--allow-login-start-fallback",
+            "--run-id",
+            "contract-fallback-ok",
+            "--output-dir",
+            str(evidence_dir),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert marker_file.read_text(encoding="utf-8") == "fallback-ok"
+
+    evidence_files = sorted(evidence_dir.glob("dev-ui-auth-analyze-smoke-*.json"))
+    assert evidence_files, result.stderr
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["fallback_login_start_smoke"]["executed"] is True
+    assert payload["fallback_login_start_smoke"]["result"]["ok"] is True
+    assert "running login-start fallback" in result.stderr
+
+
+def test_allow_login_start_fallback_emits_evidence_when_bundle_script_is_missing(
+    tmp_path: Path,
+) -> None:
+    evidence_dir = tmp_path / "evidence"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT"] = (
+        "./scripts/smoke/does-not-exist.sh"
+    )
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--allow-login-start-fallback",
+            "--run-id",
+            "contract-fallback-missing-script",
+            "--output-dir",
+            str(evidence_dir),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "Unhandled 'error' event" not in result.stderr
+
+    evidence_files = sorted(evidence_dir.glob("dev-ui-auth-analyze-smoke-*.json"))
+    assert evidence_files, result.stderr
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["checks"]["missingLiveCredentials"] is True
+    assert payload["checks"]["fallbackLoginStartBundlePassed"] is False
+    assert payload["fallback_login_start_smoke"]["executed"] is True
+    assert payload["fallback_login_start_smoke"]["result"]["ok"] is False
+    assert payload["fallback_login_start_smoke"]["result"]["code"] == -1
+    assert payload["fallback_login_start_smoke"]["result"]["error"]["name"] == "Error"
+    assert "ENOENT" in payload["fallback_login_start_smoke"]["result"]["error"]["message"]
