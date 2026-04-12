@@ -56,7 +56,12 @@ const allowLoginStartFallbackOnMissingCredentials = cliOptions.forceLoginStartFa
   process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
 );
 
-const explicitRunMarker = String(cliOptions.runId || process.env.DEV_UI_SMOKE_RUN_ID || '').trim();
+const explicitRunMarker = String(
+  cliOptions.runId
+  || process.env.DEV_UI_SMOKE_RUN_ID
+  || process.env.DEV_UI_SMOKE_RUN_TOKEN
+  || ''
+).trim();
 const githubRunNumber = String(process.env.GITHUB_RUN_NUMBER || '').trim();
 const githubRunAttempt = String(process.env.GITHUB_RUN_ATTEMPT || '').trim() || '1';
 const githubRunId = String(process.env.GITHUB_RUN_ID || '').trim();
@@ -155,6 +160,7 @@ function parseCliArgs(args) {
         if (inlineValue === null) i += 1;
         break;
       case '--run-id':
+      case '--run-token':
         options.runId = consumeValue(flag, inlineValue, args, i);
         if (inlineValue === null) i += 1;
         break;
@@ -218,6 +224,7 @@ function printUsage(stream) {
       '  --password <value>                           DEV_UI_SMOKE_PASSWORD override.',
       '  --address-file <path>                        DEV_UI_SMOKE_ADDRESS_FILE override.',
       '  --run-id <token>                             DEV_UI_SMOKE_RUN_ID override.',
+      '  --run-token <token>                          Legacy alias for --run-id.',
       '  --timeout-ms <ms>                            DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000).',
       '  --login-reason <text>                        DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login).',
       '  --output-dir <path> | --evidence-dir <path> DEV_UI_SMOKE_EVIDENCE_DIR override.',
@@ -231,6 +238,7 @@ function printUsage(stream) {
       '  DEV_UI_SMOKE_ALLOWED_ORIGINS                            Optional comma-separated origin allowlist for post-login + callback host hops.',
       '  DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS                    Optional comma-separated host/URL allowlist for absolute authorize redirects.',
       '  DEV_UI_SMOKE_USERNAME / DEV_UI_SMOKE_PASSWORD           Required for full live login + analyze smoke.',
+      '  DEV_UI_SMOKE_RUN_TOKEN                                   Legacy alias for DEV_UI_SMOKE_RUN_ID.',
       '  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Enable degraded login-start fallback without credentials.',
     ].join('\n') + '\n'
   );

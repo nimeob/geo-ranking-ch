@@ -23,6 +23,8 @@ Options:
                            Führt bei fehlenden Live-Secrets automatisch
                            den Login-Start-Bundle-Smoke als Fallback aus
                            (degraded mode statt harter Abbruch)
+  --allow-login-start-fallback
+                          Legacy alias für --fallback-login-start-on-preflight-fail
   --headless              Erzwingt headless mode
   --headful               Erzwingt headful mode
   -h, --help              Diese Hilfe anzeigen
@@ -307,7 +309,7 @@ while [[ $# -gt 0 ]]; do
       route_presets_override="$2"
       shift 2
       ;;
-    --fallback-login-start-on-preflight-fail)
+    --fallback-login-start-on-preflight-fail|--allow-login-start-fallback)
       fallback_login_start_on_preflight_fail="1"
       shift
       ;;
