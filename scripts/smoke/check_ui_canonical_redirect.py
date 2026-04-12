@@ -629,13 +629,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output-json",
+        "--summary-json",
+        "--json-out",
+        dest="output_json",
         default="",
         help="Optional JSON output file path",
-    )
-    parser.add_argument(
-        "--json-out",
-        default="",
-        help="Alias for --output-json",
     )
     parser.add_argument(
         "--json",
@@ -672,7 +670,7 @@ def main(argv: list[str] | None = None) -> int:
     effective_base_url = _canonicalize_base_url(requested_base_url)
     base_url_canonicalized = effective_base_url != requested_base_url
 
-    output_json = str(args.output_json or args.json_out or "").strip()
+    output_json = str(args.output_json or "").strip()
 
     try:
         result = check_canonical_redirect(

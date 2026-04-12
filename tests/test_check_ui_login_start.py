@@ -433,6 +433,27 @@ def test_main_accepts_json_out_alias_and_writes_result(tmp_path, capsys):
     assert file_payload["phase"] == "start"
 
 
+def test_main_accepts_summary_json_alias_and_writes_result(tmp_path, capsys):
+    module = _load_module()
+    _StubHandler.routes = {
+        "/login": (302, "https://idp.example.test/oauth2/authorize?state=abc"),
+    }
+    output_path = tmp_path / "login-start-summary.json"
+
+    with _StubServer() as stub:
+        exit_code = module.main(
+            ["--base-url", stub.base_url, "--summary-json", str(output_path)]
+        )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+
+    file_payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert file_payload["ok"] is True
+    assert file_payload["phase"] == "start"
+
+
 def test_main_accepts_ui_base_url_alias(capsys):
     module = _load_module()
     _StubHandler.routes = {

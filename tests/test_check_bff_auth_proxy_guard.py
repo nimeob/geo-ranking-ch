@@ -297,6 +297,33 @@ def test_main_writes_json_out_alias(tmp_path, monkeypatch, capsys):
     assert "auth.dev.georanking.ch" in written["expected_authorize_hosts"]
 
 
+def test_main_writes_summary_json_alias(tmp_path, monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
+
+    output_path = tmp_path / "auth-proxy-guard-summary.json"
+    exit_code = module.main(
+        [
+            "--api-base-url",
+            "https://api.dev.georanking.ch",
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+            "--summary-json",
+            str(output_path),
+            "--max-attempts",
+            "1",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["ok"] is True
+    assert written["trusted_forwarded_host"] == "www.dev.georanking.ch"
+
+
 def test_main_accepts_json_flag_without_value(monkeypatch, capsys):
     module = _load_module()
     monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
