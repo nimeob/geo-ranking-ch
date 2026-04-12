@@ -226,6 +226,7 @@ def test_help_flag_exits_zero_without_emitting_evidence(tmp_path: Path) -> None:
     assert result.returncode == 0
     assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs" in result.stdout
     assert "--fallback-login-start" in result.stdout
+    assert "--allow-login-start-fallback" in result.stdout
 
     evidence_files = sorted(
         (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
@@ -436,6 +437,48 @@ def test_missing_credentials_can_use_login_start_fallback_via_cli_flag(
         env["BASE_URL"] = server.base_url
         result = subprocess.run(
             ["node", str(SCRIPT), "--fallback-login-start"],
+            cwd=tmp_path,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    assert result.returncode == 0
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert (
+        evidence_files
+    ), f"expected evidence json, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["degradedMode"]["active"] is True
+    assert payload["degradedMode"]["reason"] == "missing_live_credentials"
+    assert payload["checks"]["entryRedirectToAuthAuthorize"] is True
+    assert payload["checks"]["entryRedirectResponseTypeCode"] is True
+    assert payload["checks"]["entryRedirectClientIdPresent"] is True
+    assert payload["checks"]["entryRedirectUriMatchesAuthCallback"] is True
+
+    assert "[dev-ui-auth-analyze-smoke] PASS" in result.stdout
+    assert "mode=login_start_fallback" in result.stdout
+
+
+def test_missing_credentials_can_use_login_start_fallback_via_legacy_cli_flag(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_RUN_ID"] = "contract-fallback-cli-legacy"
+    env["DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS"] = "auth.local.test"
+
+    with _LoginFallbackServer() as server:
+        env["BASE_URL"] = server.base_url
+        result = subprocess.run(
+            ["node", str(SCRIPT), "--allow-login-start-fallback"],
             cwd=tmp_path,
             env=env,
             check=False,
@@ -781,3 +824,4 @@ def test_help_flag_exits_successfully_without_live_credentials(tmp_path: Path) -
 
     assert result.returncode == 0
     assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]" in result.stdout
+    assert "--allow-login-start-fallback" in result.stdout

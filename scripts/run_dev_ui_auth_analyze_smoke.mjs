@@ -123,6 +123,7 @@ function parseCliArgs(args) {
     if (
       raw === '--fallback-login-start-on-missing-creds'
       || raw === '--fallback-login-start'
+      || raw === '--allow-login-start-fallback'
     ) {
       options.forceLoginStartFallback = true;
       continue;
@@ -223,6 +224,7 @@ function printUsage(stream) {
       '  --headless | --headful                       Browser mode override.',
       '  --fallback-login-start                       Force login-start fallback mode when credentials are missing.',
       '  --fallback-login-start-on-missing-creds      Alias for --fallback-login-start.',
+      '  --allow-login-start-fallback                 Legacy alias for --fallback-login-start.',
       '',
       'Environment:',
       '  BASE_URL                                                Optional base origin (default: https://www.dev.georanking.ch).',
