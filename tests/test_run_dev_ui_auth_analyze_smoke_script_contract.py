@@ -282,6 +282,73 @@ def test_cli_output_dir_override_writes_evidence_outside_default_path(
     )
 
 
+def test_cli_output_json_override_writes_evidence_to_requested_file(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    output_json = tmp_path / "artifacts" / "dev-ui-auth-analyze-smoke-custom.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--output-json",
+            str(output_json),
+            "--run-id",
+            "cli-output-json-check",
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert output_json.exists()
+    payload = json.loads(output_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["reason"] == "missing_required_github_secrets"
+    assert not sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+
+
+def test_cli_summary_json_alias_writes_evidence_to_requested_file(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    summary_json = tmp_path / "artifacts" / "dev-ui-auth-analyze-smoke-summary.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--summary-json",
+            str(summary_json),
+            "--run-id",
+            "cli-summary-json-check",
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert summary_json.exists()
+    payload = json.loads(summary_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["reason"] == "missing_required_github_secrets"
+
+
 def test_help_flag_exits_successfully_without_live_credentials(tmp_path: Path) -> None:
     env = os.environ.copy()
     env.pop("DEV_UI_SMOKE_USERNAME", None)
@@ -299,6 +366,8 @@ def test_help_flag_exits_successfully_without_live_credentials(tmp_path: Path) -
     assert result.returncode == 0
     assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]" in result.stdout
     assert "--allow-login-start-fallback" in result.stdout
+    assert "--output-json <path>" in result.stdout
+    assert "--summary-json <path>" in result.stdout
 
 
 def test_allow_login_start_fallback_runs_command_override_when_live_credentials_missing(

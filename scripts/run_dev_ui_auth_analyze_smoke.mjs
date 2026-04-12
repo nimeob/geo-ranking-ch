@@ -16,6 +16,7 @@ function parseCliArgs(argv) {
     timeoutMs: '',
     loginReason: '',
     evidenceDir: '',
+    outputJson: '',
     headless: null,
     allowLoginStartFallback: false,
     helpRequested: false,
@@ -81,6 +82,12 @@ function parseCliArgs(argv) {
         options.evidenceDir = consumeValue(flag, inlineValue, argv, i);
         if (inlineValue === null) i += 1;
         break;
+      case '--output-json':
+      case '--json-out':
+      case '--summary-json':
+        options.outputJson = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
       case '--headless':
         options.headless = true;
         break;
@@ -99,7 +106,7 @@ function parseCliArgs(argv) {
 }
 
 function printUsage() {
-  console.log(`Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]\n\nOptions:\n  --base-url <url>        BASE_URL override (default: https://www.dev.georanking.ch)\n  --gui-path <path>       DEV_UI_SMOKE_GUI_PATH override (default: /gui)\n  --username <value>      DEV_UI_SMOKE_USERNAME override\n  --password <value>      DEV_UI_SMOKE_PASSWORD override\n  --address-file <path>   DEV_UI_SMOKE_ADDRESS_FILE override\n  --run-id <token>        DEV_UI_SMOKE_RUN_ID override\n  --timeout-ms <ms>       DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000)\n  --login-reason <text>   DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login)\n  --output-dir <path>     DEV_UI_SMOKE_EVIDENCE_DIR override\n  --evidence-dir <path>   Alias for --output-dir\n  --headless              Erzwingt headless mode\n  --headful               Erzwingt headful mode\n  --allow-login-start-fallback\n                          Bei fehlenden Live-Credentials login-start Bundle statt Hard-Fail ausführen\n  -h, --help              Diese Hilfe anzeigen`);
+  console.log(`Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]\n\nOptions:\n  --base-url <url>        BASE_URL override (default: https://www.dev.georanking.ch)\n  --gui-path <path>       DEV_UI_SMOKE_GUI_PATH override (default: /gui)\n  --username <value>      DEV_UI_SMOKE_USERNAME override\n  --password <value>      DEV_UI_SMOKE_PASSWORD override\n  --address-file <path>   DEV_UI_SMOKE_ADDRESS_FILE override\n  --run-id <token>        DEV_UI_SMOKE_RUN_ID override\n  --timeout-ms <ms>       DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000)\n  --login-reason <text>   DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login)\n  --output-dir <path>     DEV_UI_SMOKE_EVIDENCE_DIR override\n  --evidence-dir <path>   Alias for --output-dir\n  --output-json <path>    JSON-Evidence gezielt an Pfad schreiben\n  --json-out <path>       Alias for --output-json\n  --summary-json <path>   Alias for --output-json\n  --headless              Erzwingt headless mode\n  --headful               Erzwingt headful mode\n  --allow-login-start-fallback\n                          Bei fehlenden Live-Credentials login-start Bundle statt Hard-Fail ausführen\n  -h, --help              Diese Hilfe anzeigen`);
 }
 
 let cliOptions = null;
@@ -122,6 +129,13 @@ const configuredOutDir = String(cliOptions.evidenceDir || process.env.DEV_UI_SMO
 const outDir = configuredOutDir
   ? path.resolve(repoRoot, configuredOutDir)
   : path.join(repoRoot, 'reports', 'evidence');
+const configuredOutputJsonPath = String(
+  cliOptions.outputJson
+  || process.env.DEV_UI_SMOKE_OUTPUT_JSON
+  || process.env.DEV_UI_SMOKE_SUMMARY_JSON
+  || ''
+).trim();
+const explicitOutputJsonPath = configuredOutputJsonPath ? path.resolve(repoRoot, configuredOutputJsonPath) : '';
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
 const baseOrigin = normalizeBaseOrigin(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch');
@@ -628,8 +642,9 @@ function maskUsername(value) {
 }
 
 async function writeEvidence(payload) {
-  await fs.mkdir(outDir, { recursive: true });
-  const outJson = buildArtifactPath('json');
+  const outJson = explicitOutputJsonPath || buildArtifactPath('json');
+  const outJsonDir = path.dirname(outJson);
+  await fs.mkdir(outJsonDir, { recursive: true });
   await fs.writeFile(outJson, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
   console.log(path.relative(repoRoot, outJson));
   return outJson;
