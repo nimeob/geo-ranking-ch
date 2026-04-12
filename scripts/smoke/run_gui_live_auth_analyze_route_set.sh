@@ -10,8 +10,10 @@ Führt den gemeinsamen GUI-Route-Satz seriell aus und startet mit einem Secrets-
 Options:
   --base-url <url>        BASE_URL override (z. B. https://www.dev.georanking.ch)
   --ui-base-url <url>     Alias für --base-url
-  --output-dir <dir>      Evidence/Blocker-Ausgabeordner (default: reports/evidence)
+  --output-dir <dir>      Evidence/Blocker-Ausgabeordner (default: reports/evidence;
+                          relative Pfade werden gegen Repo-Root aufgelöst)
   --summary-json <path>   Optionaler Pfad für Route-Set-Summary-JSON
+                          (relative Pfade werden gegen Repo-Root aufgelöst)
   --json-out <path>       Legacy-Alias für --summary-json
   --timeout-ms <ms>       Timeout pro UI-Run (default: DEV_UI_SMOKE_TIMEOUT_MS bzw. 60000)
   --address-file <path>   Adressliste für Analyze-Smoke (default: scripts/smoke/ch_live_addresses.txt)
@@ -270,6 +272,25 @@ require_option_value() {
   fi
 }
 
+resolve_path_against_repo_root() {
+  local raw_path="${1:-}"
+
+  if [[ -z "${raw_path}" ]]; then
+    echo ""
+    return 0
+  fi
+
+  if [[ "${raw_path}" == "~/"* ]]; then
+    raw_path="${HOME}/${raw_path#~/}"
+  fi
+
+  if [[ "${raw_path}" == /* ]]; then
+    echo "${raw_path}"
+  else
+    echo "${REPO_ROOT}/${raw_path}"
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --base-url|--ui-base-url)
@@ -345,6 +366,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -n "${output_dir_override}" ]]; then
+  output_dir_override="$(resolve_path_against_repo_root "${output_dir_override}")"
+fi
+if [[ -n "${summary_json_override}" ]]; then
+  summary_json_override="$(resolve_path_against_repo_root "${summary_json_override}")"
+fi
+
 if [[ -n "${base_url_override}" ]]; then
   export BASE_URL="${base_url_override}"
 fi
@@ -387,7 +415,8 @@ case "${fallback_login_start_on_preflight_fail,,}" in
     ;;
 esac
 
-fallback_output_dir="${output_dir_override:-${DEV_UI_SMOKE_EVIDENCE_DIR:-${DEV_UI_SMOKE_BLOCKER_DIR:-reports/evidence}}}"
+fallback_output_dir_raw="${output_dir_override:-${DEV_UI_SMOKE_EVIDENCE_DIR:-${DEV_UI_SMOKE_BLOCKER_DIR:-reports/evidence}}}"
+fallback_output_dir="$(resolve_path_against_repo_root "${fallback_output_dir_raw}")"
 fallback_login_reason="${login_reason_override:-${DEV_UI_SMOKE_LOGIN_REASON:-manual_login}}"
 fallback_timeout_seconds=""
 if [[ -n "${DEV_UI_SMOKE_TIMEOUT_MS:-}" && "${DEV_UI_SMOKE_TIMEOUT_MS}" =~ ^[0-9]+$ ]]; then
