@@ -404,7 +404,10 @@ def test_route_set_runner_fallback_uses_env_reason_and_evidence_dir(
     assert summary_payload["mode"] == "fallback_login_start"
     assert summary_payload["preflight_status"] == "failed"
     assert summary_payload["fallback_status"] == "passed"
-    assert summary_payload["routes"] == []
+    assert len(summary_payload["routes"]) > 0
+    assert summary_payload["routes"][0]["run_id"].startswith(
+        "manual-fallback-env-fallback-"
+    )
     assert summary_payload["fallback_bundle_summary"].endswith(
         "dev-login-start-smoke-bundle-summary.json"
     )
@@ -462,6 +465,21 @@ def test_route_set_runner_fallback_propagates_cli_route_subset(
     assert (evidence_dir / "dev-login-start-smoke.json").exists()
     assert (evidence_dir / "dev-login-start-smoke-jobs-query.json").exists()
     assert not (evidence_dir / "dev-login-start-smoke-root.json").exists()
+
+    summary_file = evidence_dir / "dev-ui-auth-analyze-route-set-summary.json"
+    assert summary_file.exists()
+
+    summary_payload = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary_payload["status"] == "passed"
+    assert summary_payload["mode"] == "fallback_login_start"
+    assert [item["route"] for item in summary_payload["routes"]] == [
+        "/gui",
+        "/jobs?source=smoke",
+    ]
+    assert [item["run_id"] for item in summary_payload["routes"]] == [
+        "manual-fallback-routes-fallback-1",
+        "manual-fallback-routes-fallback-2",
+    ]
 
 
 def test_route_set_runner_fallback_propagates_quiet_flag(

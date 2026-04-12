@@ -193,6 +193,67 @@ summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n"
 PY
 }
 
+build_fallback_route_rows_from_bundle_summary() {
+  local bundle_summary_path="$1"
+
+  python3 - "$bundle_summary_path" "$base_run_id" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+
+bundle_summary_path = Path(sys.argv[1])
+run_id_base = str(sys.argv[2] or "").strip()
+
+result = {
+    "route_rows": "",
+    "failed_routes_csv": "",
+}
+
+if not bundle_summary_path.is_file():
+    print(json.dumps(result, ensure_ascii=False))
+    raise SystemExit(0)
+
+try:
+    payload = json.loads(bundle_summary_path.read_text(encoding="utf-8"))
+except Exception:
+    print(json.dumps(result, ensure_ascii=False))
+    raise SystemExit(0)
+
+route_rows = []
+failed_routes = []
+
+for ordinal, row in enumerate(payload.get("routes") or [], start=1):
+    route = str((row or {}).get("route") or "").strip()
+    if not route:
+        continue
+
+    rc_raw = (row or {}).get("rc", 1)
+    try:
+        rc = int(rc_raw)
+    except (TypeError, ValueError):
+        rc = 1
+
+    if run_id_base:
+        run_id = f"{run_id_base}-fallback-{ordinal}"
+    else:
+        run_id = f"fallback-{ordinal}"
+
+    route_rows.append(f"{route}\t{run_id}\t{rc}")
+    if rc != 0:
+        failed_routes.append(route)
+
+result["route_rows"] = "\n".join(route_rows)
+if result["route_rows"]:
+    result["route_rows"] += "\n"
+result["failed_routes_csv"] = ",".join(failed_routes)
+
+print(json.dumps(result, ensure_ascii=False))
+PY
+}
+
 require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
@@ -383,28 +444,37 @@ if ! (
       cd "${REPO_ROOT}"
       "${fallback_cmd[@]}"
     ); then
+      fallback_bundle_summary_path="${fallback_output_dir}/${fallback_env_name}-login-start-smoke-bundle-summary.json"
+      fallback_route_summary_payload="$(build_fallback_route_rows_from_bundle_summary "${fallback_bundle_summary_path}")"
+      fallback_route_rows="$(printf '%s' "${fallback_route_summary_payload}" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("route_rows") or ""), end="")')"
+      fallback_failed_routes_csv="$(printf '%s' "${fallback_route_summary_payload}" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("failed_routes_csv") or ""), end="")')"
       write_route_set_summary \
         "passed" \
         "fallback_login_start" \
         "failed" \
         "passed" \
-        "" \
-        "" \
-        "${fallback_output_dir}/${fallback_env_name}-login-start-smoke-bundle-summary.json"
+        "${fallback_route_rows}" \
+        "${fallback_failed_routes_csv}" \
+        "${fallback_bundle_summary_path}"
       echo "WARN: login-start fallback passed; live-auth route fan-out skipped." >&2
       exit 0
     else
       fallback_rc="$?"
     fi
 
+    fallback_bundle_summary_path="${fallback_output_dir}/${fallback_env_name}-login-start-smoke-bundle-summary.json"
+    fallback_route_summary_payload="$(build_fallback_route_rows_from_bundle_summary "${fallback_bundle_summary_path}")"
+    fallback_route_rows="$(printf '%s' "${fallback_route_summary_payload}" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("route_rows") or ""), end="")')"
+    fallback_failed_routes_csv="$(printf '%s' "${fallback_route_summary_payload}" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("failed_routes_csv") or ""), end="")')"
+
     write_route_set_summary \
       "failed" \
       "fallback_login_start" \
       "failed" \
       "failed" \
-      "" \
-      "" \
-      "${fallback_output_dir}/${fallback_env_name}-login-start-smoke-bundle-summary.json"
+      "${fallback_route_rows}" \
+      "${fallback_failed_routes_csv}" \
+      "${fallback_bundle_summary_path}"
 
     echo "ERROR: login-start fallback failed after live-auth preflight failure (exit=${fallback_rc})." >&2
     exit "${fallback_rc}"
