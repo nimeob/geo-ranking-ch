@@ -36,6 +36,8 @@ def test_canonical_redirect_bundle_requires_base_url_and_env_name() -> None:
     assert "--env-name" in content
     assert "--canonical-origin" in content
     assert "--canonical-hosts" in content
+    assert "--summary-json" in content
+    assert "--json-out" in content
     assert "--routes" in content
     assert "--route-presets" in content
     assert "Missing required --base-url" in content
@@ -58,6 +60,48 @@ def test_canonical_redirect_bundle_accepts_ui_base_url_alias() -> None:
 
     assert proc.returncode == 2
     assert "Missing required --env-name" in proc.stderr
+
+
+def test_canonical_redirect_bundle_accepts_summary_json_alias(tmp_path) -> None:
+    output_dir = tmp_path / "artifacts"
+    custom_summary_path = tmp_path / "custom" / "canonical-summary.json"
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "http://127.0.0.1:9",
+            "--env-name",
+            "stub-summary",
+            "--output-dir",
+            str(output_dir),
+            "--routes",
+            "/gui",
+            "--timeout",
+            "2",
+            "--max-attempts",
+            "1",
+            "--retry-delay",
+            "0",
+            "--json-out",
+            str(custom_summary_path),
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert custom_summary_path.is_file()
+
+    summary = json.loads(custom_summary_path.read_text(encoding="utf-8"))
+    assert summary["status"] == "passed"
+    assert summary["env_name"] == "stub-summary"
+
+    route_artifact = output_dir / "stub-summary-canonical-host-redirect-smoke.json"
+    assert route_artifact.is_file()
 
 
 def test_canonical_redirect_bundle_rejects_missing_option_value_for_base_url() -> None:
