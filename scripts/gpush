@@ -20,23 +20,54 @@ fi
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
-if [[ "$#" -eq 0 ]]; then
-  exec git push "$AUTH_URL" "$BRANCH"
-fi
+set_upstream=0
 
-# Remove a single literal "origin" argument for compatibility
+# Remove a single literal "origin" argument for compatibility and
+# swallow git-push upstream flags to avoid persisting tokenized URLs
+# into branch.<name>.remote/merge config.
 args=()
-removed=0
+removed_origin=0
 for a in "$@"; do
-  if [[ $removed -eq 0 && "$a" == "origin" ]]; then
-    removed=1
+  case "$a" in
+    -u|--set-upstream)
+      set_upstream=1
+      continue
+      ;;
+  esac
+
+  if [[ $removed_origin -eq 0 && "$a" == "origin" ]]; then
+    removed_origin=1
     continue
   fi
+
   args+=("$a")
 done
 
 if [[ "${#args[@]}" -eq 0 ]]; then
-  exec git push "$AUTH_URL" "$BRANCH"
-else
-  exec git push "$AUTH_URL" "${args[@]}"
+  args=("$BRANCH")
+fi
+
+git push "$AUTH_URL" "${args[@]}"
+
+if [[ "$set_upstream" -eq 1 ]]; then
+  last_arg_index=$(( ${#args[@]} - 1 ))
+  remote_ref="${args[$last_arg_index]}"
+
+  if [[ "$remote_ref" == -* || -z "$remote_ref" ]]; then
+    remote_ref="$BRANCH"
+  fi
+
+  if [[ "$remote_ref" == *:* ]]; then
+    remote_ref="${remote_ref#*:}"
+  fi
+
+  remote_ref="${remote_ref#refs/heads/}"
+  remote_ref="${remote_ref#origin/}"
+
+  if [[ -z "$remote_ref" ]]; then
+    remote_ref="$BRANCH"
+  fi
+
+  git fetch origin "$remote_ref:refs/remotes/origin/$remote_ref" >/dev/null
+  git branch --set-upstream-to="origin/$remote_ref" "$BRANCH" >/dev/null
 fi

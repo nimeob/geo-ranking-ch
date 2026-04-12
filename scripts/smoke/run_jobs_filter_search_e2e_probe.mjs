@@ -1,21 +1,52 @@
 #!/usr/bin/env node
 
+class CliUsageError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'CliUsageError';
+  }
+}
+
 function fail(message) {
   throw new Error(message);
 }
 
+function usageError(message) {
+  throw new CliUsageError(message);
+}
+
+function printUsage(stream) {
+  stream.write(
+    [
+      'Usage: node scripts/smoke/run_jobs_filter_search_e2e_probe.mjs --jobs-url <url>',
+      '',
+      'Options:',
+      '  --jobs-url <url>    Public /jobs URL that should be probed.',
+      '  -h, --help          Show this help and exit.',
+    ].join('\n') + '\n'
+  );
+}
+
 function parseArgs(argv) {
-  const args = { jobsUrl: "" };
+  const args = { mode: 'run', jobsUrl: '' };
   for (let i = 2; i < argv.length; i += 1) {
     const token = argv[i];
+    if (token === '-h' || token === '--help') {
+      args.mode = 'help';
+      return args;
+    }
     if (token === "--jobs-url") {
       args.jobsUrl = String(argv[i + 1] || "").trim();
+      if (!args.jobsUrl) {
+        usageError('missing value for --jobs-url');
+      }
       i += 1;
       continue;
     }
+    usageError(`unknown option: ${token}`);
   }
   if (!args.jobsUrl) {
-    fail("missing --jobs-url");
+    usageError('missing --jobs-url');
   }
   return args;
 }
@@ -237,7 +268,13 @@ function queryParam(url, key) {
 }
 
 async function main() {
-  const { jobsUrl } = parseArgs(process.argv);
+  const parsed = parseArgs(process.argv);
+  if (parsed.mode === 'help') {
+    printUsage(process.stdout);
+    return;
+  }
+
+  const { jobsUrl } = parsed;
   const scriptSource = await fetchJobsPageScript(jobsUrl);
 
   const jobsById = {
@@ -327,6 +364,11 @@ async function main() {
 }
 
 main().catch((error) => {
+  if (error instanceof CliUsageError) {
+    process.stderr.write(`[jobs-filter-search-e2e-probe] ERROR: ${error.message}\n`);
+    printUsage(process.stderr);
+    process.exit(2);
+  }
   process.stderr.write(`[jobs-filter-search-e2e-probe] ${error?.stack || error}\n`);
   process.exit(1);
 });

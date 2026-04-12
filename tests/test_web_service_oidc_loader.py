@@ -29,6 +29,34 @@ class TestWebServiceOidcLoader(unittest.TestCase):
         self.assertEqual(validator.jwks.ttl_seconds, 120.0)
         self.assertEqual(validator.jwks.timeout_seconds, 4.5)
 
+    def test_supports_legacy_issuer_audience_aliases(self):
+        env = {
+            "OIDC_JWKS_URL": "https://example.test/.well-known/jwks.json",
+            "OIDC_ISSUER": "https://legacy-issuer.example.test",
+            "OIDC_AUDIENCE": "legacy-audience",
+        }
+
+        validator = load_oidc_jwt_validator_from_env(env_getter=lambda key, default="": env.get(key, default))
+        self.assertIsNotNone(validator)
+        assert validator is not None
+        self.assertEqual(validator.config.issuer, "https://legacy-issuer.example.test")
+        self.assertEqual(validator.config.audience, "legacy-audience")
+
+    def test_prefers_oidc_jwt_env_names_over_legacy_aliases(self):
+        env = {
+            "OIDC_JWKS_URL": "https://example.test/.well-known/jwks.json",
+            "OIDC_JWT_ISSUER": "https://primary-issuer.example.test",
+            "OIDC_JWT_AUDIENCE": "primary-audience",
+            "OIDC_ISSUER": "https://legacy-issuer.example.test",
+            "OIDC_AUDIENCE": "legacy-audience",
+        }
+
+        validator = load_oidc_jwt_validator_from_env(env_getter=lambda key, default="": env.get(key, default))
+        self.assertIsNotNone(validator)
+        assert validator is not None
+        self.assertEqual(validator.config.issuer, "https://primary-issuer.example.test")
+        self.assertEqual(validator.config.audience, "primary-audience")
+
     def test_rejects_invalid_numeric_env_values(self):
         env_ttl = {
             "OIDC_JWKS_URL": "https://example.test/jwks.json",

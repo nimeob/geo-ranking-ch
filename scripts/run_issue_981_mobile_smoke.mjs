@@ -1,13 +1,76 @@
 #!/usr/bin/env node
-import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+const issueNumber = 981;
+const scriptRelPath = 'scripts/run_issue_981_mobile_smoke.mjs';
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
+const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function buildUsage() {
+  return [
+    `Usage: node ${scriptRelPath}`,
+    '',
+    'Issue #981 Mobile E2E Smoke.',
+    'Prüft iOS/Android Mobile-Map-Interaktionen + Geolocation-Fallback auf /gui.',
+    '',
+    'Options:',
+    '  -h, --help   Show this help and exit.',
+    '',
+    'Environment:',
+    `  BASE_URL=${baseUrl}`,
+    `  GUI_STABILITY_WAIT_MS=${guiStabilityWaitMs}`,
+    `  BASE_URL_PROBE_TIMEOUT_MS=${baseUrlProbeTimeoutMs}`,
+  ].join('\n');
+}
+
+function parseCliArgs(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  const unknown = [];
+  let help = false;
+
+  for (const arg of args) {
+    if (arg === '-h' || arg === '--help') {
+      help = true;
+      continue;
+    }
+    unknown.push(arg);
+  }
+
+  return { help, unknown };
+}
+
+const cli = parseCliArgs(process.argv.slice(2));
+if (cli.help) {
+  console.log(buildUsage());
+  process.exit(0);
+}
+if (cli.unknown.length > 0) {
+  console.error(`[issue-${issueNumber}-mobile-e2e-smoke] unknown_cli_args=${cli.unknown.join(',')}`);
+  console.error(buildUsage());
+  process.exit(2);
+}
+
+async function loadChromium() {
+  try {
+    const playwrightModule = await import('playwright');
+    if (playwrightModule?.chromium) {
+      return playwrightModule.chromium;
+    }
+    throw new Error('chromium export missing');
+  } catch (error) {
+    const normalized = normalizeError(error);
+    throw new Error(
+      `Playwright Chromium nicht verfügbar. Installiere die Node-Abhängigkeiten mit \`npm ci\` `
+      + `und anschließend Browser-Binaries via \`npx playwright install --with-deps chromium\`. `
+      + `Ursache: ${normalized.name}: ${normalized.message}`
+    );
+  }
+}
 
 const devices = [
   {
@@ -28,18 +91,159 @@ const devices = [
   },
 ];
 
+class BaseUrlReachabilityError extends Error {
+  constructor(message, { targetUrl, reasonCode, hint, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'BaseUrlReachabilityError';
+    this.targetUrl = targetUrl || '';
+    this.reasonCode = reasonCode || 'unreachable';
+    this.hint = hint || '';
+  }
+}
+
+function compactMessage(message, maxLength = 320) {
+  const normalized = String(message || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength)}…`;
+}
+
+function isLocalHost(hostname) {
+  const host = String(hostname || '').trim().toLowerCase();
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
+
+function classifyConnectivityReason(error) {
+  const message = String(error?.message || '');
+  const causeCode = String(error?.cause?.code || '');
+  const causeName = String(error?.cause?.name || '');
+  const raw = `${message} ${causeCode} ${causeName}`.toLowerCase();
+  const upper = `${causeCode} ${causeName}`.toUpperCase();
+
+  if (upper.includes('CERT_HAS_EXPIRED') || raw.includes('certificate has expired')) return 'tls_cert_has_expired';
+  if (upper.includes('ERR_TLS_CERT_ALTNAME_INVALID') || raw.includes('hostname/ip does not match certificate')) {
+    return 'tls_hostname_mismatch';
+  }
+  if (
+    upper.includes('DEPTH_ZERO_SELF_SIGNED_CERT')
+    || upper.includes('SELF_SIGNED_CERT_IN_CHAIN')
+    || upper.includes('UNABLE_TO_VERIFY_LEAF_SIGNATURE')
+    || upper.includes('UNABLE_TO_GET_ISSUER_CERT_LOCALLY')
+    || raw.includes('self signed certificate')
+    || raw.includes('unable to verify the first certificate')
+  ) {
+    return 'tls_untrusted_ca';
+  }
+  if (raw.includes('tls') || raw.includes('certificate')) return 'tls_handshake_failed';
+
+  if (raw.includes('econnrefused') || raw.includes('err_connection_refused')) return 'connection_refused';
+  if (raw.includes('enotfound') || raw.includes('name_not_resolved') || raw.includes('err_name_not_resolved')) {
+    return 'dns_not_found';
+  }
+  if (raw.includes('etimedout') || raw.includes('aborted') || raw.includes('timeout')) return 'timeout';
+  if (raw.includes('econnreset') || raw.includes('err_connection_reset')) return 'connection_reset';
+  return 'unreachable';
+}
+
+function buildBaseUrlReachabilityHint(targetUrl, reasonCode) {
+  let parsed;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    return 'BASE_URL ist ungültig. Bitte vollständige URL inkl. Schema prüfen (z. B. http://127.0.0.1:8877/gui oder https://www.dev.georanking.ch/gui).';
+  }
+
+  if (isLocalHost(parsed.hostname)) {
+    return [
+      `Lokalen GUI-Server starten (Default): HOST=127.0.0.1 PORT=${parsed.port || '8877'} APP_VERSION=dev python3 -m src.web_service`,
+      `Danach Smoke erneut ausführen: BASE_URL=\"${targetUrl}\" node scripts/run_issue_981_mobile_smoke.mjs`,
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_cert_has_expired') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Zertifikat ist abgelaufen. Zertifikat erneuern und Deploy/LB-Listener neu laden.',
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_hostname_mismatch') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Hostname-Mismatch. SAN/CN des Zertifikats gegen die Base-URL prüfen.',
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_untrusted_ca' || reasonCode === 'tls_handshake_failed') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Verifikation fehlgeschlagen. Trust-Chain/CA-Bundle und Frontdoor-Zertifikat prüfen.',
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  return [
+    `Ziel-URL nicht erreichbar: ${targetUrl}`,
+    'Prüfe DNS/TLS/Ingress und ob /gui ohne Auth-Block erreichbar ist.',
+    `reason=${reasonCode}`,
+  ].join(' | ');
+}
+
+async function assertBaseUrlReachable(targetUrl, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(200, timeoutMs));
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { Accept: 'text/html,*/*;q=0.8' },
+    });
+
+    return {
+      ok: true,
+      status: response.status,
+      finalUrl: String(response.url || targetUrl),
+    };
+  } catch (error) {
+    const reasonCode = classifyConnectivityReason(error);
+    const hint = buildBaseUrlReachabilityHint(targetUrl, reasonCode);
+    throw new BaseUrlReachabilityError(
+      `BASE_URL nicht erreichbar (${reasonCode}): ${targetUrl}. reason=${compactMessage(error?.message || error, 240)}. hint=${hint}`,
+      { targetUrl, reasonCode, hint, cause: error }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function normalizeError(error) {
+  const hint = typeof error?.hint === 'string' ? error.hint : '';
+  const reasonCode = typeof error?.reasonCode === 'string' ? error.reasonCode : '';
+  const targetUrl = typeof error?.targetUrl === 'string' ? error.targetUrl : '';
+
   if (error instanceof Error) {
     return {
       name: error.name,
       message: error.message,
       stack: error.stack || '',
+      ...(hint ? { hint } : {}),
+      ...(reasonCode ? { reasonCode } : {}),
+      ...(targetUrl ? { targetUrl } : {}),
     };
   }
   return {
     name: 'Error',
     message: String(error || 'unknown error'),
     stack: '',
+    ...(hint ? { hint } : {}),
+    ...(reasonCode ? { reasonCode } : {}),
+    ...(targetUrl ? { targetUrl } : {}),
   };
 }
 
@@ -492,6 +696,8 @@ async function main() {
 
   let browser = null;
   try {
+    await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
+    const chromium = await loadChromium();
     browser = await chromium.launch({ headless: true });
 
     for (const device of devices) {
@@ -516,11 +722,12 @@ async function main() {
     && checks.every((entry) => entry?.checks?.overall?.passed === true);
 
   const payload = {
-    issue: 981,
+    issue: issueNumber,
     parentIssue: 975,
     startedAtUtc,
     finishedAtUtc,
     targetUrl: baseUrl,
+    baseUrlProbeTimeoutMs,
     limitations: [
       'Native Playwright WebKit (Safari engine) konnte auf diesem Runner wegen fehlender System-Libraries nicht gestartet werden; iOS-Check daher als iPhone-Profil-Simulator auf Chromium durchgeführt.',
     ],
@@ -540,11 +747,12 @@ async function main() {
 main().catch(async (error) => {
   const finishedAtUtc = new Date().toISOString();
   const payload = {
-    issue: 981,
+    issue: issueNumber,
     parentIssue: 975,
     startedAtUtc: finishedAtUtc,
     finishedAtUtc,
     targetUrl: baseUrl,
+    baseUrlProbeTimeoutMs,
     checks: [],
     fatalErrors: [normalizeError(error)],
     ok: false,

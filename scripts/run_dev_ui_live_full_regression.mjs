@@ -1,29 +1,126 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
-const UI_BASE_URL = (process.env.DEV_UI_BASE_URL || "").trim();
-const USERNAME = (process.env.DEV_UI_SMOKE_USERNAME || "").trim();
-const PASSWORD = (process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
-const MAX_WAIT_MS = Number(process.env.DEV_UI_FULL_MAX_WAIT_MS || 120_000);
-const LOGOUT_SETTLE_MS = Number(process.env.DEV_UI_FULL_LOGOUT_SETTLE_MS || 10_000);
-const PRE_LOGIN_5XX_SAMPLE_COUNT = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT || 12);
-const PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS = Number(process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS || 250);
-const EVIDENCE_JSON = (process.env.DEV_UI_FULL_EVIDENCE_JSON || "artifacts/dev-ui-full/latest/dev-ui-full-regression.json").trim();
-const SCREENSHOT_DIR = (process.env.DEV_UI_FULL_SCREENSHOT_DIR || "artifacts/dev-ui-full/latest/screenshots").trim();
+const LEGACY_DEV_UI_HOSTS = new Set(["dev.georanking.ch", "dev.geo-ranking.ch"]);
 
-function shouldShowHelp(argv) {
-  return argv.includes("--help") || argv.includes("-h");
+function parseCliArgs(argv) {
+  const options = {
+    baseUrl: "",
+    username: "",
+    password: "",
+    maxWaitMs: "",
+    logoutSettleMs: "",
+    sampleCount: "",
+    sampleIntervalMs: "",
+    evidenceJson: "",
+    screenshotDir: "",
+    headless: null,
+    forceLoginStartFallback: false,
+    helpRequested: false,
+  };
+
+  const consumeValue = (currentFlag, inlineValue, args, index) => {
+    if (inlineValue !== null) return inlineValue;
+    const next = args[index + 1];
+    if (typeof next !== "string" || next.startsWith("--")) {
+      throw new Error(`Missing value for ${currentFlag}`);
+    }
+    return next;
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const raw = String(argv[i] || "").trim();
+    if (!raw) continue;
+
+    if (raw === "-h" || raw === "--help") {
+      options.helpRequested = true;
+      continue;
+    }
+
+    const eqIdx = raw.indexOf("=");
+    const flag = eqIdx >= 0 ? raw.slice(0, eqIdx) : raw;
+    const inlineValue = eqIdx >= 0 ? raw.slice(eqIdx + 1) : null;
+
+    switch (flag) {
+      case "--base-url":
+        options.baseUrl = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--username":
+        options.username = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--password":
+        options.password = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--max-wait-ms":
+        options.maxWaitMs = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--logout-settle-ms":
+        options.logoutSettleMs = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--pre-login-5xx-sample-count":
+        options.sampleCount = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--pre-login-5xx-sample-interval-ms":
+        options.sampleIntervalMs = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--evidence-json":
+        options.evidenceJson = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--screenshot-dir":
+        options.screenshotDir = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--headless":
+        options.headless = true;
+        break;
+      case "--headful":
+        options.headless = false;
+        break;
+      case "--fallback-login-start-on-missing-creds":
+      case "--fallback-login-start":
+        options.forceLoginStartFallback = true;
+        break;
+      default:
+        throw new Error(`Unknown option: ${flag}`);
+    }
+  }
+
+  return options;
 }
 
 function printHelp() {
   const lines = [
-    "Usage: node scripts/run_dev_ui_live_full_regression.mjs",
+    "Usage: node scripts/run_dev_ui_live_full_regression.mjs [options]",
     "",
-    "Required env vars:",
+    "Required params (env var oder CLI):",
     "  DEV_UI_BASE_URL",
     "  DEV_UI_SMOKE_USERNAME",
     "  DEV_UI_SMOKE_PASSWORD",
+    "",
+    "CLI options:",
+    "  --base-url <url>                         DEV_UI_BASE_URL override",
+    "  --username <value>                       DEV_UI_SMOKE_USERNAME override",
+    "  --password <value>                       DEV_UI_SMOKE_PASSWORD override",
+    "  --max-wait-ms <ms>                       DEV_UI_FULL_MAX_WAIT_MS override (default: 120000)",
+    "  --logout-settle-ms <ms>                  DEV_UI_FULL_LOGOUT_SETTLE_MS override (default: 10000)",
+    "  --pre-login-5xx-sample-count <n>         DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT override (default: 12)",
+    "  --pre-login-5xx-sample-interval-ms <ms>  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS override (default: 250)",
+    "  --evidence-json <path>                   DEV_UI_FULL_EVIDENCE_JSON override",
+    "  --screenshot-dir <path>                  DEV_UI_FULL_SCREENSHOT_DIR override",
+    "  --headless                               Erzwingt headless Browser-Mode",
+    "  --headful                                Erzwingt headful Browser-Mode",
+    "  --fallback-login-start                   Degraded mode when credentials are unavailable",
+    "  -h, --help                               Diese Hilfe anzeigen",
     "",
     "Optional env vars:",
     "  DEV_UI_FULL_MAX_WAIT_MS",
@@ -32,14 +129,66 @@ function printHelp() {
     "  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS",
     "  DEV_UI_FULL_EVIDENCE_JSON",
     "  DEV_UI_FULL_SCREENSHOT_DIR",
+    "  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Optional degraded mode when credentials are unavailable",
+    "  DEV_UI_FULL_HEADFUL",
   ];
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
-if (shouldShowHelp(process.argv.slice(2))) {
+let cliOptions = null;
+try {
+  cliOptions = parseCliArgs(process.argv.slice(2));
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error || "unknown error");
+  console.error(`[dev-ui-full-regression] ERROR ${message}`);
+  printHelp();
+  process.exit(2);
+}
+
+if (cliOptions.helpRequested) {
   printHelp();
   process.exit(0);
 }
+
+function parsePositiveInt(raw, fallback) {
+  const value = Number.parseInt(String(raw || ""), 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function isTruthy(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+const RAW_UI_BASE_URL = String(cliOptions.baseUrl || process.env.DEV_UI_BASE_URL || "").trim();
+const UI_BASE_URL_NORMALIZATION = normalizeUiBaseUrl(RAW_UI_BASE_URL);
+const UI_BASE_URL = UI_BASE_URL_NORMALIZATION.value;
+const USERNAME = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || "").trim();
+const PASSWORD = String(cliOptions.password || process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
+const MAX_WAIT_MS = parsePositiveInt(cliOptions.maxWaitMs || process.env.DEV_UI_FULL_MAX_WAIT_MS, 120_000);
+const LOGOUT_SETTLE_MS = parsePositiveInt(cliOptions.logoutSettleMs || process.env.DEV_UI_FULL_LOGOUT_SETTLE_MS, 10_000);
+const PRE_LOGIN_5XX_SAMPLE_COUNT = parsePositiveInt(
+  cliOptions.sampleCount || process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT,
+  12,
+);
+const PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS = parsePositiveInt(
+  cliOptions.sampleIntervalMs || process.env.DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS,
+  250,
+);
+const EVIDENCE_JSON = String(
+  cliOptions.evidenceJson
+  || process.env.DEV_UI_FULL_EVIDENCE_JSON
+  || "artifacts/dev-ui-full/latest/dev-ui-full-regression.json",
+).trim();
+const SCREENSHOT_DIR = String(
+  cliOptions.screenshotDir
+  || process.env.DEV_UI_FULL_SCREENSHOT_DIR
+  || "artifacts/dev-ui-full/latest/screenshots",
+).trim();
+const HEADLESS = typeof cliOptions.headless === "boolean" ? cliOptions.headless : !isTruthy(process.env.DEV_UI_FULL_HEADFUL);
+const LOGIN_START_FALLBACK_ON_MISSING_CREDS = cliOptions.forceLoginStartFallback || isTruthy(
+  process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
+);
 
 const ADDRESS_POOL = [
   "Bahnhofstrasse 1, 8001 Zürich",
@@ -51,6 +200,78 @@ const ADDRESS_POOL = [
 
 function fail(message) {
   throw new Error(message);
+}
+
+function normalizeUiBaseUrl(rawBaseUrl) {
+  const candidate = String(rawBaseUrl || "").trim();
+  if (!candidate) {
+    return {
+      value: "",
+      requested: "",
+      changed: false,
+      reasons: [],
+      error: "",
+    };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: "must be an absolute URL (e.g. https://www.dev.georanking.ch)",
+    };
+  }
+
+  const protocol = String(parsed.protocol || "").toLowerCase();
+  if (protocol !== "http:" && protocol !== "https:") {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: `unsupported protocol '${protocol || "(missing)"}' (expected http: or https:)`,
+    };
+  }
+
+  const reasons = [];
+  let canonicalHost = String(parsed.hostname || "").trim().toLowerCase();
+  if (!canonicalHost) {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: "hostname is missing",
+    };
+  }
+
+  const strippedTrailingDotHost = canonicalHost.replace(/\.+$/, "");
+  if (strippedTrailingDotHost !== canonicalHost) {
+    canonicalHost = strippedTrailingDotHost;
+    reasons.push("trailing_dot");
+  }
+
+  if (LEGACY_DEV_UI_HOSTS.has(canonicalHost)) {
+    canonicalHost = `www.${canonicalHost}`;
+    reasons.push("legacy_dev_non_www");
+  }
+
+  parsed.hostname = canonicalHost;
+  const normalizedPath = parsed.pathname === "/" ? "" : parsed.pathname;
+  const normalized = `${parsed.protocol}//${parsed.host}${normalizedPath}${parsed.search}${parsed.hash}`;
+
+  return {
+    value: normalized,
+    requested: candidate,
+    changed: normalized !== candidate,
+    reasons,
+    error: "",
+  };
 }
 
 function inferFallbackEnvName(baseUrl) {
@@ -69,6 +290,38 @@ function buildLoginStartFallbackCommand(baseUrl) {
 
   const envName = inferFallbackEnvName(normalizedBaseUrl);
   return `./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${normalizedBaseUrl} --env-name ${envName}`;
+}
+
+function tailLines(text, maxLines = 12, maxChars = 8000) {
+  const normalized = String(text || "");
+  if (!normalized) return "";
+  const lines = normalized.split(/\r?\n/).filter((line) => line.length > 0);
+  const tail = lines.length <= maxLines ? lines.join("\n") : lines.slice(lines.length - maxLines).join("\n");
+  if (tail.length <= maxChars) {
+    return tail;
+  }
+  return tail.slice(tail.length - maxChars);
+}
+
+function runLoginStartFallbackBundle(baseUrl) {
+  const normalizedBaseUrl = String(baseUrl || "").trim();
+  const envName = inferFallbackEnvName(normalizedBaseUrl);
+  const args = ["--base-url", normalizedBaseUrl, "--env-name", envName];
+
+  const result = spawnSync("./scripts/smoke/run_login_start_smoke_bundle.sh", args, {
+    encoding: "utf8",
+    env: process.env,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+
+  return {
+    command: `./scripts/smoke/run_login_start_smoke_bundle.sh ${args.join(" ")}`,
+    ok: result.status === 0 && !result.error,
+    exitCode: Number.isFinite(result.status) ? result.status : -1,
+    stdout: String(result.stdout || ""),
+    stderr: String(result.stderr || ""),
+    spawnError: result.error ? String(result.error?.message || result.error) : "",
+  };
 }
 
 function normalizeError(error) {
@@ -105,19 +358,23 @@ async function loadChromium() {
   }
 }
 
-function validateRequiredEnv() {
+function validateRequiredEnv({ allowMissingCredentials = false } = {}) {
   if (!UI_BASE_URL) fail("Missing DEV_UI_BASE_URL");
-  if (!USERNAME) fail("Missing DEV_UI_SMOKE_USERNAME");
-  if (!PASSWORD) fail("Missing DEV_UI_SMOKE_PASSWORD");
+  if (UI_BASE_URL_NORMALIZATION.error) fail(`Invalid DEV_UI_BASE_URL: ${UI_BASE_URL_NORMALIZATION.error}`);
+  if (!allowMissingCredentials) {
+    if (!USERNAME) fail("Missing DEV_UI_SMOKE_USERNAME");
+    if (!PASSWORD) fail("Missing DEV_UI_SMOKE_PASSWORD");
+  }
 }
 
 function emitFailureHints(finalError) {
   const errorText = String(finalError || "");
-  if (!/^Missing DEV_UI_(BASE_URL|SMOKE_USERNAME|SMOKE_PASSWORD)$/.test(errorText)) {
+  if (!/^Missing DEV_UI_(BASE_URL|SMOKE_USERNAME|SMOKE_PASSWORD)$/.test(errorText)
+    && !errorText.startsWith("Invalid DEV_UI_BASE_URL:")) {
     return;
   }
 
-  if (errorText === "Missing DEV_UI_BASE_URL") {
+  if (errorText === "Missing DEV_UI_BASE_URL" || errorText.startsWith("Invalid DEV_UI_BASE_URL:")) {
     console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL (z. B. https://www.dev.georanking.ch) und starte erneut.");
     return;
   }
@@ -382,6 +639,17 @@ function isBlockingJobsConsoleError(message) {
   return touchesJobs && (isCors || isNetworkFail);
 }
 
+function normalizeHostname(value) {
+  return String(value || "").trim().toLowerCase().replace(/\.+$/, "");
+}
+
+function isSameHostname(urlObj, expectedHostname) {
+  if (!urlObj || typeof urlObj.hostname !== "string") {
+    return false;
+  }
+  return normalizeHostname(urlObj.hostname) === normalizeHostname(expectedHostname);
+}
+
 async function main() {
   const startedAt = new Date().toISOString();
   let browser = null;
@@ -394,17 +662,49 @@ async function main() {
   let firstAddress = "";
   let postLoginBootWindowStartedAtEpochMs = 0;
   let firstSyncAnalyzeSubmitAtEpochMs = 0;
+  let degradedMode = null;
 
   try {
-    validateRequiredEnv();
-    initializeTargetUrls();
-    const chromium = await loadChromium();
+    if (UI_BASE_URL_NORMALIZATION.changed && UI_BASE_URL_NORMALIZATION.reasons.length > 0) {
+      console.error(
+        `[dev-ui-full-regression] INFO: Canonicalized DEV_UI_BASE_URL `
+        + `'${UI_BASE_URL_NORMALIZATION.requested}' -> '${UI_BASE_URL}' `
+        + `(reasons=${UI_BASE_URL_NORMALIZATION.reasons.join(",")}).`
+      );
+    }
 
-    browser = await chromium.launch({ headless: true });
-    context = await browser.newContext({
-      viewport: { width: 390, height: 844 },
-    });
-    page = await context.newPage();
+    const missingCredentials = !USERNAME || !PASSWORD;
+    const allowMissingCredentials = LOGIN_START_FALLBACK_ON_MISSING_CREDS && missingCredentials;
+    validateRequiredEnv({ allowMissingCredentials });
+    initializeTargetUrls();
+
+    if (allowMissingCredentials) {
+      const fallbackResult = runLoginStartFallbackBundle(UI_BASE_URL);
+      degradedMode = {
+        active: true,
+        reason: "missing_live_credentials",
+        envFlag: "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
+        fallbackEnabled: true,
+        fallbackCommand: fallbackResult.command,
+        fallbackExitCode: fallbackResult.exitCode,
+        fallbackSpawnError: fallbackResult.spawnError,
+        fallbackStdoutTail: tailLines(fallbackResult.stdout),
+        fallbackStderrTail: tailLines(fallbackResult.stderr),
+      };
+
+      recordCheck(
+        "fallback.login_start_smoke_bundle_exit_0",
+        fallbackResult.ok,
+        `exit=${fallbackResult.exitCode} spawn_error=${fallbackResult.spawnError || "none"}`,
+      );
+    } else {
+      const chromium = await loadChromium();
+
+      browser = await chromium.launch({ headless: HEADLESS });
+      context = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+      });
+      page = await context.newPage();
 
     page.on("console", (msg) => {
       if (msg.type() === "error") {
@@ -417,7 +717,7 @@ async function main() {
     page.on("response", async (response) => {
       try {
         const url = new URL(response.url());
-        if (!url.origin.endsWith(base.hostname)) return;
+        if (!isSameHostname(url, base.hostname)) return;
         if (!url.pathname.startsWith("/analyze") && !url.pathname.startsWith("/auth") && !url.pathname.startsWith("/debug/trace")) return;
         let bodySnippet = "";
         if (response.status() >= 500) {
@@ -844,6 +1144,7 @@ async function main() {
         immediate5xx,
       }),
     );
+    }
   } catch (error) {
     finalError = String(error?.message || error);
     if (page) {
@@ -868,6 +1169,10 @@ async function main() {
     startedAt,
     finishedAt,
     baseUrl: UI_BASE_URL,
+    requestedBaseUrl: RAW_UI_BASE_URL,
+    baseUrlCanonicalized: UI_BASE_URL_NORMALIZATION.changed,
+    baseUrlCanonicalizationReasons: UI_BASE_URL_NORMALIZATION.reasons,
+    headless: HEADLESS,
     guiUrl,
     firstAddress,
     firstResultId,
@@ -878,6 +1183,7 @@ async function main() {
     pageErrors,
     networkLog,
     requestFailures,
+    degradedMode,
     error: finalError,
   };
 
@@ -891,7 +1197,11 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`[dev-ui-full-regression] PASSED with ${checks.length} checks`);
+  if (degradedMode?.active) {
+    console.log(`[dev-ui-full-regression] PASSED (degraded mode) with ${checks.length} checks`);
+  } else {
+    console.log(`[dev-ui-full-regression] PASSED with ${checks.length} checks`);
+  }
   console.log(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON}`);
 }
 

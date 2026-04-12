@@ -1,15 +1,61 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { chromium, devices, webkit } from 'playwright';
 
 const ISSUE_NUMBER = 986;
 const PARENT_ISSUE = 975;
+const SCRIPT_REL_PATH = 'scripts/run_issue_986_webkit_smoke.mjs';
 const repoRoot = process.cwd();
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
 const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
+const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function buildUsage() {
+  return [
+    `Usage: node ${SCRIPT_REL_PATH}`,
+    '',
+    'Issue #986 WebKit Smoke.',
+    'Validiert /gui mit nativer Playwright-WebKit Engine (optional Chromium-Fallback).',
+    '',
+    'Options:',
+    '  -h, --help   Show this help and exit.',
+    '',
+    'Environment:',
+    `  BASE_URL=${baseUrl}`,
+    `  GUI_STABILITY_WAIT_MS=${guiStabilityWaitMs}`,
+    `  BASE_URL_PROBE_TIMEOUT_MS=${baseUrlProbeTimeoutMs}`,
+    '  REQUIRE_NATIVE_WEBKIT=1   Fail hard if native WebKit is unavailable.',
+  ].join('\n');
+}
+
+function parseCliArgs(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  const unknown = [];
+  let help = false;
+
+  for (const arg of args) {
+    if (arg === '-h' || arg === '--help') {
+      help = true;
+      continue;
+    }
+    unknown.push(arg);
+  }
+
+  return { help, unknown };
+}
+
+const cli = parseCliArgs(process.argv.slice(2));
+if (cli.help) {
+  console.log(buildUsage());
+  process.exit(0);
+}
+if (cli.unknown.length > 0) {
+  console.error(`[issue-${ISSUE_NUMBER}-webkit-smoke] unknown_cli_args=${cli.unknown.join(',')}`);
+  console.error(buildUsage());
+  process.exit(2);
+}
 
 function parseBooleanEnv(name) {
   const value = String(process.env[name] || '').trim().toLowerCase();
@@ -17,6 +63,47 @@ function parseBooleanEnv(name) {
 }
 
 const requireNativeWebkit = parseBooleanEnv('REQUIRE_NATIVE_WEBKIT');
+
+class BaseUrlReachabilityError extends Error {
+  constructor(message, { targetUrl, reasonCode, hint, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'BaseUrlReachabilityError';
+    this.targetUrl = targetUrl || '';
+    this.reasonCode = reasonCode || 'unreachable';
+    this.hint = hint || '';
+  }
+}
+
+class PlaywrightDependencyError extends Error {
+  constructor(message, { installHint, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = 'PlaywrightDependencyError';
+    this.installHint = installHint || 'npm ci && npx playwright install --with-deps webkit';
+    this.missingDependency = 'playwright';
+  }
+}
+
+function isPlaywrightDependencyError(error) {
+  return error instanceof PlaywrightDependencyError || String(error?.name || '') === 'PlaywrightDependencyError';
+}
+
+async function loadPlaywrightBindings() {
+  try {
+    const playwright = await import('playwright');
+    return {
+      chromium: playwright.chromium,
+      webkit: playwright.webkit,
+      devices: playwright.devices,
+    };
+  } catch (error) {
+    const normalized = normalizeError(error);
+    const installHint = 'npm ci && npx playwright install --with-deps webkit';
+    throw new PlaywrightDependencyError(
+      `Playwright dependency fehlt oder ist nicht ladbar. reason=${compactMessage(normalized.message, 220)}. hint=${installHint}`,
+      { installHint, cause: error }
+    );
+  }
+}
 
 function isAuthRedirectUrl(url) {
   try {
@@ -94,43 +181,219 @@ async function openStableGuiPage(context, stage = 'webkit') {
 }
 
 function normalizeError(error) {
+  const hint = typeof error?.hint === 'string' ? error.hint : '';
+  const reasonCode = typeof error?.reasonCode === 'string' ? error.reasonCode : '';
+  const targetUrl = typeof error?.targetUrl === 'string' ? error.targetUrl : '';
+
   if (error instanceof Error) {
     return {
       name: error.name,
       message: error.message,
       stack: error.stack || '',
+      ...(hint ? { hint } : {}),
+      ...(reasonCode ? { reasonCode } : {}),
+      ...(targetUrl ? { targetUrl } : {}),
     };
   }
   return {
     name: 'Error',
     message: String(error || 'unknown error'),
     stack: '',
+    ...(hint ? { hint } : {}),
+    ...(reasonCode ? { reasonCode } : {}),
+    ...(targetUrl ? { targetUrl } : {}),
   };
 }
 
-async function launchPreferredBrowser({ requireNativeWebkit }) {
+function extractMissingWebkitLibraries(message) {
+  const lines = String(message || '').split(/\r?\n/);
+  const libraries = [];
+  let inMissingLibrariesSection = false;
+
+  for (const line of lines) {
+    if (!inMissingLibrariesSection) {
+      if (/Missing libraries:/i.test(line)) {
+        inMissingLibrariesSection = true;
+      }
+      continue;
+    }
+
+    if (/^[\s║]*╚/.test(line)) {
+      break;
+    }
+
+    const matches = line.match(/lib[^\s║]+/g) || [];
+    for (const lib of matches) {
+      if (!libraries.includes(lib)) {
+        libraries.push(lib);
+      }
+    }
+  }
+
+  return libraries;
+}
+
+function compactMessage(message, maxLength = 260) {
+  const normalized = String(message || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength)}…`;
+}
+
+function isLocalHost(hostname) {
+  const host = String(hostname || '').trim().toLowerCase();
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
+
+function classifyConnectivityReason(error) {
+  const message = String(error?.message || '');
+  const causeCode = String(error?.cause?.code || '');
+  const causeName = String(error?.cause?.name || '');
+  const raw = `${message} ${causeCode} ${causeName}`.toLowerCase();
+  const upper = `${causeCode} ${causeName}`.toUpperCase();
+
+  if (upper.includes('CERT_HAS_EXPIRED') || raw.includes('certificate has expired')) return 'tls_cert_has_expired';
+  if (upper.includes('ERR_TLS_CERT_ALTNAME_INVALID') || raw.includes('hostname/ip does not match certificate')) {
+    return 'tls_hostname_mismatch';
+  }
+  if (
+    upper.includes('DEPTH_ZERO_SELF_SIGNED_CERT')
+    || upper.includes('SELF_SIGNED_CERT_IN_CHAIN')
+    || upper.includes('UNABLE_TO_VERIFY_LEAF_SIGNATURE')
+    || upper.includes('UNABLE_TO_GET_ISSUER_CERT_LOCALLY')
+    || raw.includes('self signed certificate')
+    || raw.includes('unable to verify the first certificate')
+  ) {
+    return 'tls_untrusted_ca';
+  }
+  if (raw.includes('tls') || raw.includes('certificate')) return 'tls_handshake_failed';
+
+  if (raw.includes('econnrefused') || raw.includes('err_connection_refused')) return 'connection_refused';
+  if (raw.includes('enotfound') || raw.includes('name_not_resolved') || raw.includes('err_name_not_resolved')) {
+    return 'dns_not_found';
+  }
+  if (raw.includes('etimedout') || raw.includes('aborted') || raw.includes('timeout')) return 'timeout';
+  if (raw.includes('econnreset') || raw.includes('err_connection_reset')) return 'connection_reset';
+  return 'unreachable';
+}
+
+function buildBaseUrlReachabilityHint(targetUrl, reasonCode) {
+  let parsed;
+  try {
+    parsed = new URL(targetUrl);
+  } catch (_error) {
+    return 'BASE_URL ist ungültig. Bitte vollständige URL inkl. Schema prüfen (z. B. http://127.0.0.1:8877/gui oder https://www.dev.georanking.ch/gui).';
+  }
+
+  if (isLocalHost(parsed.hostname)) {
+    return [
+      `Lokalen GUI-Server starten (Default): HOST=127.0.0.1 PORT=${parsed.port || '8877'} APP_VERSION=dev python3 -m src.web_service`,
+      `Danach Smoke erneut ausführen: BASE_URL=\"${targetUrl}\" node scripts/run_issue_986_webkit_smoke.mjs`,
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_cert_has_expired') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Zertifikat ist abgelaufen. Zertifikat erneuern und Deploy/LB-Listener neu laden.',
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_hostname_mismatch') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Hostname-Mismatch. SAN/CN des Zertifikats gegen die Base-URL prüfen.',
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  if (reasonCode === 'tls_untrusted_ca' || reasonCode === 'tls_handshake_failed') {
+    return [
+      `Ziel-URL nicht erreichbar: ${targetUrl}`,
+      'TLS-Verifikation fehlgeschlagen. Trust-Chain/CA-Bundle und Frontdoor-Zertifikat prüfen.',
+      `reason=${reasonCode}`,
+    ].join(' | ');
+  }
+
+  return [
+    `Ziel-URL nicht erreichbar: ${targetUrl}`,
+    'Prüfe DNS/TLS/Ingress und ob /gui ohne Auth-Block erreichbar ist.',
+    `reason=${reasonCode}`,
+  ].join(' | ');
+}
+
+async function assertBaseUrlReachable(targetUrl, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(200, timeoutMs));
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { Accept: 'text/html,*/*;q=0.8' },
+    });
+
+    return {
+      ok: true,
+      status: response.status,
+      finalUrl: String(response.url || targetUrl),
+    };
+  } catch (error) {
+    const reasonCode = classifyConnectivityReason(error);
+    const hint = buildBaseUrlReachabilityHint(targetUrl, reasonCode);
+    throw new BaseUrlReachabilityError(
+      `BASE_URL nicht erreichbar (${reasonCode}): ${targetUrl}. reason=${compactMessage(error?.message || error, 240)}. hint=${hint}`,
+      { targetUrl, reasonCode, hint, cause: error }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function launchPreferredBrowser({ requireNativeWebkit, chromium, webkit }) {
+  const installHint = 'npx playwright install --with-deps webkit';
+
   try {
     return {
       browser: await webkit.launch({ headless: true }),
       runtimeBrowser: 'playwright-webkit',
       limitations: [],
+      webkitMissingLibraries: [],
+      webkitInstallHint: installHint,
     };
   } catch (error) {
     const normalized = normalizeError(error);
+    const webkitMissingLibraries = extractMissingWebkitLibraries(normalized.message);
+
     if (requireNativeWebkit) {
+      const reason =
+        webkitMissingLibraries.length > 0
+          ? `fehlende WebKit-Libraries: ${webkitMissingLibraries.join(', ')}`
+          : compactMessage(normalized.message, 360);
       throw new Error(
-        `Native Playwright WebKit ist verpflichtend, konnte aber nicht gestartet werden. reason=${normalized.message}`
+        `Native Playwright WebKit ist verpflichtend, konnte aber nicht gestartet werden. reason=${reason}. hint=${installHint}`
       );
     }
 
     const fallback = await chromium.launch({ headless: true });
+    const reason =
+      webkitMissingLibraries.length > 0
+        ? `fehlende WebKit-Libraries (${webkitMissingLibraries.length}): ${webkitMissingLibraries.slice(0, 8).join(', ')}${webkitMissingLibraries.length > 8 ? ', …' : ''}`
+        : compactMessage(normalized.message, 240);
+
     return {
       browser: fallback,
       runtimeBrowser: 'playwright-chromium-fallback',
       limitations: [
-        `Native Playwright WebKit konnte auf diesem Runner nicht gestartet werden (fallback auf Chromium/iPhone-Profil). reason=${normalized.message}`,
+        `Native Playwright WebKit konnte auf diesem Runner nicht gestartet werden (fallback auf Chromium/iPhone-Profil). reason=${reason}. hint=${installHint}`,
       ],
       webkitLaunchError: normalized,
+      webkitMissingLibraries,
+      webkitInstallHint: installHint,
     };
   }
 }
@@ -314,7 +577,9 @@ async function panMap(page) {
 
 async function run() {
   const startedAtUtc = new Date().toISOString();
-  const launch = await launchPreferredBrowser({ requireNativeWebkit });
+  await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
+  const { chromium, webkit, devices } = await loadPlaywrightBindings();
+  const launch = await launchPreferredBrowser({ requireNativeWebkit, chromium, webkit });
   const browser = launch.browser;
 
   const limitations = Array.isArray(launch.limitations) ? [...launch.limitations] : [];
@@ -419,6 +684,11 @@ async function run() {
       requestedBrowser: 'playwright-webkit',
       requireNativeWebkit,
       nativeWebkitActive: launch.runtimeBrowser === 'playwright-webkit',
+      playwrightDependencyMissing: false,
+      playwrightInstallHint: 'npm ci && npx playwright install --with-deps webkit',
+      webkitMissingLibraries: Array.isArray(launch.webkitMissingLibraries) ? launch.webkitMissingLibraries : [],
+      webkitInstallHint: launch.webkitInstallHint || 'npx playwright install --with-deps webkit',
+      baseUrlProbeTimeoutMs,
       device: 'iPhone 13',
       headless: true,
     },
@@ -446,6 +716,11 @@ run()
   })
   .catch(async (error) => {
     const finishedAtUtc = new Date().toISOString();
+    const playwrightDependencyMissing = isPlaywrightDependencyError(error);
+    const playwrightInstallHint = playwrightDependencyMissing
+      ? String(error?.installHint || 'npm ci && npx playwright install --with-deps webkit')
+      : 'npm ci && npx playwright install --with-deps webkit';
+
     const payload = {
       issue: ISSUE_NUMBER,
       parentIssue: PARENT_ISSUE,
@@ -453,14 +728,21 @@ run()
       finishedAtUtc,
       targetUrl: baseUrl,
       runtime: {
-        browser: 'unknown',
+        browser: playwrightDependencyMissing ? 'playwright-dependency-missing' : 'unknown',
         requestedBrowser: 'playwright-webkit',
         requireNativeWebkit,
         nativeWebkitActive: false,
+        playwrightDependencyMissing,
+        playwrightInstallHint,
+        webkitMissingLibraries: [],
+        webkitInstallHint: 'npx playwright install --with-deps webkit',
+        baseUrlProbeTimeoutMs,
         device: 'iPhone 13',
         headless: true,
       },
-      limitations: [],
+      limitations: playwrightDependencyMissing
+        ? [`Playwright dependency fehlt. hint=${playwrightInstallHint}`]
+        : [],
       checks: {},
       artifacts: {},
       webkitLaunchError: null,

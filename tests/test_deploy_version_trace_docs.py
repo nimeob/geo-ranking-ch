@@ -201,13 +201,7 @@ def _assert_login_contract_smoke_coverage(
         "Smoke-Test UI login start redirects to IdP authorize (",
         "scripts/smoke/run_login_start_smoke_bundle.sh",
         f'--env-name "{env_name}"',
-        f"artifacts/{env_name}-login-start-smoke.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-history.json",
-        f"artifacts/{env_name}-login-start-smoke-jobs.json",
-        f"artifacts/{env_name}-login-start-smoke-jobs-detail.json",
-        f"artifacts/{env_name}-login-start-smoke-results-detail.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy.json",
-        f"artifacts/{env_name}-login-start-smoke-gui-jobs-legacy-detail.json",
+        f"artifacts/{env_name}-login-start-smoke*.json",
         f"Upload login-start smoke artifacts ({env_name})",
         "actions/upload-artifact@v6",
         f"{env_name}-login-start-smoke-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}",
@@ -219,15 +213,24 @@ def _assert_login_contract_smoke_coverage(
     ), f"{workflow_name} fehlt Login-Contract-Smoke-Coverage: {missing}"
 
 
+def _assert_workflow_uploads_login_start_artifact_glob(
+    *, text: str, env_name: str, workflow_name: str
+) -> None:
+    expected_glob = f"artifacts/{env_name}-login-start-smoke*.json"
+    assert (
+        expected_glob in text
+    ), f"{workflow_name} fehlt Login-Start-Artefakt-Glob für env={env_name}: {expected_glob}"
+
+
 def _assert_canonical_host_smoke_coverage(
     *, text: str, env_name: str, workflow_name: str
 ) -> None:
     required = [
-        "Smoke-Test UI canonical-host redirect (/login?start=1 on alias host)",
-        "python3 scripts/smoke/check_ui_canonical_redirect.py",
+        "Smoke-Test UI canonical-host redirect route matrix (/login?start=1 on alias host)",
+        "scripts/smoke/run_canonical_redirect_smoke_bundle.sh",
         "UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}",
         "UI_CANONICAL_HOSTS: ${{ vars.UI_CANONICAL_HOSTS }}",
-        f"artifacts/{env_name}-canonical-host-redirect-smoke.json",
+        f'artifacts/{env_name}-canonical-host-redirect-smoke*.json',
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
@@ -273,6 +276,35 @@ def test_deploy_staging_workflow_smokes_login_contract_for_gui_history_jobs_and_
     )
 
 
+def test_deploy_workflow_upload_manifest_uses_login_start_globs_for_dev_and_alias():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    _assert_workflow_uploads_login_start_artifact_glob(
+        text=text,
+        env_name="dev",
+        workflow_name="deploy.yml",
+    )
+    _assert_workflow_uploads_login_start_artifact_glob(
+        text=text,
+        env_name="dev-alias",
+        workflow_name="deploy.yml",
+    )
+
+
+def test_deploy_staging_workflow_upload_manifest_uses_login_start_glob():
+    workflow = Path(".github/workflows/deploy-staging.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    _assert_workflow_uploads_login_start_artifact_glob(
+        text=text,
+        env_name="staging",
+        workflow_name="deploy-staging.yml",
+    )
+
+
 def test_deploy_workflow_smokes_canonical_host_redirect_when_alias_hosts_are_configured():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
@@ -291,6 +323,23 @@ def test_deploy_staging_workflow_smokes_canonical_host_redirect_when_alias_hosts
     _assert_canonical_host_smoke_coverage(
         text=text, env_name="staging", workflow_name="deploy-staging.yml"
     )
+
+
+def test_deploy_workflow_requires_tls_valid_alias_for_login_route_matrix_smoke():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "scripts/smoke/infer_geo_alias_base_url.py",
+        "--require-tls-hostname-match",
+        "No TLS-valid alias host could be inferred",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"deploy.yml fehlt TLS-validierter Alias-Guard für route-matrix smoke: {missing}"
 
 
 def test_deploy_workflow_smokes_auth_proxy_guard_for_login_logout_and_callback_paths():

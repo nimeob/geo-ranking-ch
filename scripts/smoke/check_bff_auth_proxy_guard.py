@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import socket
 import sys
 import time
 from dataclasses import asdict, dataclass
@@ -17,7 +19,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
@@ -25,6 +27,7 @@ _REDIRECT_HTTP_STATUSES = frozenset({301, 302, 303, 307, 308})
 _PROXY_MARKER_HEADER = "X-Geo-Auth-Proxy"
 _PROXY_MARKER_VALUE = "1"
 _EXPECTED_DISABLED_ERROR = "external_direct_login_disabled"
+_LEGACY_DEV_UI_HOSTS = frozenset({"dev.georanking.ch", "dev.geo-ranking.ch"})
 
 
 @dataclass(frozen=True)
@@ -76,8 +79,48 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _normalize_origin(raw_origin: str) -> str:
+def _canonicalize_origin(raw_origin: str) -> str:
     value = str(raw_origin or "").strip().rstrip("/")
+    if not value:
+        return ""
+
+    parsed = urlsplit(value)
+    if not parsed.scheme or not parsed.netloc:
+        return value
+
+    host = str(parsed.hostname or "").strip().lower()
+    if not host:
+        return value
+
+    canonical_host = host.rstrip(".")
+    if canonical_host in _LEGACY_DEV_UI_HOSTS:
+        canonical_host = f"www.{canonical_host}"
+
+    if canonical_host == host:
+        return value
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    port_segment = f":{parsed.port}" if parsed.port is not None else ""
+    canonical_netloc = f"{userinfo}{canonical_host}{port_segment}"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            canonical_netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
+def _normalize_origin(raw_origin: str) -> str:
+    value = _canonicalize_origin(raw_origin)
     parsed = urlparse(value)
     if not parsed.scheme or not parsed.netloc:
         raise ValueError(f"invalid_origin:{raw_origin}")
@@ -148,6 +191,25 @@ def _derive_default_authorize_hosts(ui_origin: str) -> set[str]:
     return {candidate for candidate in allowed_hosts if candidate}
 
 
+def _derive_default_api_origin(ui_origin: str) -> str:
+    normalized_ui = _normalize_origin(ui_origin)
+    parsed = urlparse(normalized_ui)
+
+    ui_host = _normalize_host_token(parsed.hostname or "")
+    if not ui_host:
+        raise ValueError("invalid_ui_base_url")
+
+    host_without_www = ui_host[4:] if ui_host.startswith("www.") and len(ui_host) > 4 else ui_host
+    api_host = host_without_www if host_without_www.startswith("api.") else f"api.{host_without_www}"
+
+    # Für geo-ranking/georanking-Aliase standardmäßig den canonical georanking Host nutzen,
+    # weil dieser in DEV zuverlässig als API-Origin verfügbar ist.
+    if "geo-ranking" in api_host:
+        api_host = api_host.replace("geo-ranking", "georanking")
+
+    return f"{parsed.scheme}://{api_host}"
+
+
 def _is_redirect_status(status_code: int) -> bool:
     return int(status_code) in _REDIRECT_HTTP_STATUSES
 
@@ -185,6 +247,107 @@ def _resolve_retry_delay(
     if delta_seconds <= 0:
         return fallback_delay
     return min(delta_seconds, retry_cap)
+
+
+def _iter_exception_chain(exc: Exception) -> list[Exception]:
+    errors: list[Exception] = []
+    seen: set[int] = set()
+    current: Exception | None = exc
+
+    while current is not None and id(current) not in seen:
+        errors.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+
+    return errors
+
+
+def _normalize_reason_suffix(value: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower())
+    cleaned = cleaned.strip("_")
+    return cleaned or fallback
+
+
+def _classify_request_failure(exc: Exception) -> str:
+    errors = _iter_exception_chain(exc)
+    messages = [str(item or "") for item in errors]
+    combined_message = " ".join(messages).lower()
+
+    if any(isinstance(item, (TimeoutError, socket.timeout)) for item in errors) or "timed out" in combined_message:
+        return "request_failed_timeout_timed_out"
+
+    if any(isinstance(item, socket.gaierror) for item in errors) or any(
+        token in combined_message
+        for token in (
+            "name or service not known",
+            "temporary failure in name resolution",
+            "nodename nor servname provided",
+            "getaddrinfo failed",
+            "enotfound",
+            "eai_again",
+        )
+    ):
+        return "request_failed_dns_resolution"
+
+    if any(
+        isinstance(item, (ConnectionRefusedError, ConnectionResetError, ConnectionAbortedError, BrokenPipeError))
+        for item in errors
+    ):
+        connection_suffix = _normalize_reason_suffix(type(errors[0]).__name__, "connection")
+        return f"request_failed_connection_{connection_suffix}"
+
+    if any(
+        token in combined_message
+        for token in (
+            "connection refused",
+            "connection reset",
+            "connection aborted",
+            "host is down",
+            "no route to host",
+            "network is unreachable",
+            "econnrefused",
+            "econnreset",
+            "ehostunreach",
+            "enetunreach",
+        )
+    ):
+        if "connection refused" in combined_message or "econnrefused" in combined_message:
+            return "request_failed_connection_refused"
+        if "connection reset" in combined_message or "econnreset" in combined_message:
+            return "request_failed_connection_reset"
+        if "host is down" in combined_message or "no route to host" in combined_message:
+            return "request_failed_connection_host_unreachable"
+        if "network is unreachable" in combined_message or "enetunreach" in combined_message:
+            return "request_failed_connection_network_unreachable"
+        return "request_failed_connection_error"
+
+    if any(
+        token in combined_message
+        for token in (
+            "certificate",
+            "cert_has_expired",
+            "certificateverifyfailed",
+            "certificate verify failed",
+            "self signed",
+            "x509",
+            "ssl",
+            "tls",
+            "hostname mismatch",
+            "doesn't match",
+            "unable to get local issuer certificate",
+        )
+    ):
+        if "certificate has expired" in combined_message or "cert_has_expired" in combined_message:
+            return "request_failed_tls_cert_has_expired"
+        if "self signed" in combined_message:
+            return "request_failed_tls_self_signed_cert"
+        if "unable to get local issuer certificate" in combined_message:
+            return "request_failed_tls_untrusted_issuer"
+        if "hostname mismatch" in combined_message or "doesn't match" in combined_message:
+            return "request_failed_tls_hostname_mismatch"
+        return "request_failed_tls_error"
+
+    return "request_failed"
 
 
 def _send_request_probe(
@@ -243,7 +406,7 @@ def _send_request_probe(
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
-    )
+    ) from last_error
 
 
 def _build_probe_headers(forwarded_host: str) -> dict[str, str]:
@@ -507,16 +670,20 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Smoke-check BFF auth-proxy forwarded-host guard")
     parser.add_argument(
         "--api-base-url",
-        required=True,
+        default="",
         help=(
             "API origin (BFF), e.g. https://api.dev.georanking.ch. "
-            "Do not point this to the UI origin."
+            "When omitted, inferred from --ui-base-url as api.<ui-host-without-www> "
+            "(with geo-ranking -> georanking canonicalization)."
         ),
     )
     parser.add_argument(
         "--ui-base-url",
         default="",
-        help="UI origin used to infer trusted forwarded host when --trusted-forwarded-host is omitted",
+        help=(
+            "UI origin used to infer trusted forwarded host when --trusted-forwarded-host is omitted "
+            "and to derive --api-base-url when it is not provided"
+        ),
     )
     parser.add_argument(
         "--trusted-forwarded-host",
@@ -548,16 +715,55 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--output-json", default="", help="Optional JSON output path")
     parser.add_argument("--json-out", default="", help="Alias for --output-json")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Backward-compatible no-op alias (stdout JSON is always emitted)",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
+    requested_ui_base_url = str(args.ui_base_url or "").strip()
+    requested_api_base_url = str(args.api_base_url or "").strip()
+
+    effective_api_base_url = requested_api_base_url
+    if not effective_api_base_url:
+        if not requested_ui_base_url:
+            payload = {
+                "ok": False,
+                "reason": "invalid_arguments:api_base_url_or_ui_base_url_required",
+                "api_base_url": requested_api_base_url,
+                "ui_base_url": requested_ui_base_url,
+                "expected_authorize_hosts": [],
+                "max_retry_delay": float(args.max_retry_delay),
+                "checks": [],
+                "hint": "",
+            }
+            print(json.dumps(payload, ensure_ascii=False))
+            return 2
+        try:
+            effective_api_base_url = _derive_default_api_origin(requested_ui_base_url)
+        except ValueError as exc:
+            payload = {
+                "ok": False,
+                "reason": f"invalid_arguments:{exc}",
+                "api_base_url": requested_api_base_url,
+                "ui_base_url": requested_ui_base_url,
+                "expected_authorize_hosts": [],
+                "max_retry_delay": float(args.max_retry_delay),
+                "checks": [],
+                "hint": "",
+            }
+            print(json.dumps(payload, ensure_ascii=False))
+            return 2
+
     try:
         result = check_auth_proxy_guard(
-            api_base_url=args.api_base_url,
-            ui_base_url=args.ui_base_url,
+            api_base_url=effective_api_base_url,
+            ui_base_url=requested_ui_base_url,
             trusted_forwarded_host=args.trusted_forwarded_host,
             untrusted_forwarded_host=args.untrusted_forwarded_host,
             timeout_seconds=max(1.0, float(args.timeout)),
@@ -570,8 +776,8 @@ def main(argv: list[str] | None = None) -> int:
         payload = {
             "ok": False,
             "reason": f"invalid_arguments:{exc}",
-            "api_base_url": args.api_base_url,
-            "ui_base_url": args.ui_base_url,
+            "api_base_url": effective_api_base_url,
+            "ui_base_url": requested_ui_base_url,
             "expected_authorize_hosts": [],
             "max_retry_delay": float(args.max_retry_delay),
             "checks": [],
@@ -582,9 +788,10 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:  # noqa: BLE001
         payload = {
             "ok": False,
-            "reason": f"probe_exception:{exc}",
-            "api_base_url": args.api_base_url,
-            "ui_base_url": args.ui_base_url,
+            "reason": _classify_request_failure(exc),
+            "error": str(exc),
+            "api_base_url": effective_api_base_url,
+            "ui_base_url": requested_ui_base_url,
             "expected_authorize_hosts": [],
             "max_retry_delay": float(args.max_retry_delay),
             "checks": [],

@@ -41,6 +41,8 @@ BASE_URL="https://www.dev.georanking.ch/" GUI_STABILITY_WAIT_MS=1500 node script
 
 Hinweis: Der Smoke bricht bewusst früh ab, wenn die GUI innerhalb des Stabilitätsfensters auf einen Auth-Login (`auth.*`/`/login`) umleitet. So werden false positives vermieden, bei denen Checks kurz vor einem Redirect noch grün laufen.
 
+Zusätzlich läuft vor dem Browser-Start ein Reachability-Preflight auf `BASE_URL` (Default-Timeout `5000ms`, override via `BASE_URL_PROBE_TIMEOUT_MS`). Bei nicht erreichbarer URL liefert die JSON-Evidence einen strukturierten Fehler (`runError.kind=base_url_unreachable`) mit konkretem `hint` (lokaler Startbefehl bzw. DNS/TLS-Hinweis).
+
 ## Artefakte
 
 - JSON Evidence: `reports/evidence/issue-1039-mobile-overflow-smoke-<timestamp>.json`

@@ -5,6 +5,51 @@ const path = require('node:path');
 const os = require('node:os');
 const { execFileSync, spawn } = require('node:child_process');
 
+const issueNumber = 1142;
+const scriptRelPath = 'scripts/run_issue_1142_mobile_table_overflow_smoke.cjs';
+
+function buildUsage() {
+  return [
+    `Usage: node ${scriptRelPath}`,
+    '',
+    'Issue #1142 Mobile Table Overflow Harness.',
+    'Vergleicht CSS-basierte Tabellen-Overflow-Metriken zwischen Baseline und aktuellem Stand.',
+    '',
+    'Options:',
+    '  -h, --help   Show this help and exit.',
+    '',
+    'Environment:',
+    '  ISSUE_1142_BASELINE_REF=HEAD~1   Optional baseline git ref for CSS comparison.',
+  ].join('\n');
+}
+
+function parseCliArgs(argv) {
+  const args = Array.isArray(argv) ? argv : [];
+  const unknown = [];
+  let help = false;
+
+  for (const arg of args) {
+    if (arg === '-h' || arg === '--help') {
+      help = true;
+      continue;
+    }
+    unknown.push(arg);
+  }
+
+  return { help, unknown };
+}
+
+const cli = parseCliArgs(process.argv.slice(2));
+if (cli.help) {
+  console.log(buildUsage());
+  process.exit(0);
+}
+if (cli.unknown.length > 0) {
+  console.error(`[issue-${issueNumber}-mobile-overflow-harness] unknown_cli_args=${cli.unknown.join(',')}`);
+  console.error(buildUsage());
+  process.exit(2);
+}
+
 function loadPlaywrightChromium() {
   for (const modName of ['playwright-core', 'playwright']) {
     try {

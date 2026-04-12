@@ -56,7 +56,13 @@ Optional mit Stabilitätsfenster (ms) für Redirect-Guard:
 BASE_URL="https://www.dev.georanking.ch/" GUI_STABILITY_WAIT_MS=1500 node scripts/run_issue_986_webkit_smoke.mjs
 ```
 
-Hinweis: Der Smoke beendet sich früh mit klarer Fehlermeldung, wenn die GUI kurz nach Load auf `auth.*`/`/login` umleitet. Damit werden false positives vermieden, die bei verzögerten Redirects sonst als Locator-Timeout erscheinen.
+Optional: Reachability-Preflight-Timeout (ms) für langsame Runner erhöhen:
+
+```bash
+BASE_URL="https://www.dev.georanking.ch/gui" BASE_URL_PROBE_TIMEOUT_MS=9000 node scripts/run_issue_986_webkit_smoke.mjs
+```
+
+Hinweis: Vor dem Playwright-Start prüft der Smoke per HTTP-Preflight, ob `BASE_URL` erreichbar ist. Bei `connection_refused`/DNS/Timeout liefert der JSON-Nachweis eine konkrete `runError.hint`-Empfehlung (lokalen Service starten bzw. DNS/TLS/Ingress prüfen). Danach greift wie bisher der Redirect-Guard (`auth.*`/`/login`) zur Vermeidung von false positives durch verzögerte Redirects.
 
 Wenn native WebKit auf dem Runner nicht verfügbar ist und der Smoke auf Chromium fallbackt, wird für den Pinch-Teil zusätzlich ein CDP-Gesture-Fallback (`Input.synthesizePinchGesture`) genutzt. Die Methode ist im JSON-Nachweis unter `checks.mapInteraction.pinch.method` inkl. `fallbackAttempted/fallbackUsed` sichtbar.
 
@@ -65,6 +71,11 @@ Für CI-Läufe mit **verpflichtendem** nativen WebKit kann `REQUIRE_NATIVE_WEBKI
 Output:
 - JSON Evidence: `reports/evidence/issue-986-webkit-smoke-<timestamp>.json`
 - Screenshot: `reports/evidence/issue-986-webkit-ios-<timestamp>.png`
+
+Bei Chromium-Fallback enthält der JSON-Nachweis zusätzlich strukturierte Dependency-Hinweise:
+- `runtime.webkitMissingLibraries`: deduplizierte Liste der fehlenden `lib*.so`-Abhängigkeiten (aus dem Playwright-Launchfehler extrahiert)
+- `runtime.webkitInstallHint`: empfohlener Install-Befehl (`npx playwright install --with-deps webkit`)
+- `limitations[]`: kompakte Zusammenfassung (kein unlesbarer Voll-Stacktrace)
 
 ## CI-Integration / Artifact
 Workflow: `.github/workflows/gui-webkit-smoke.yml`

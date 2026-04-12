@@ -1,106 +1,8 @@
 #!/usr/bin/env node
 
 import crypto from 'node:crypto';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-
-function parseCliArgs(argv) {
-  const options = {
-    baseUrl: '',
-    guiPath: '',
-    username: '',
-    password: '',
-    addressFile: '',
-    runId: '',
-    timeoutMs: '',
-    loginReason: '',
-    evidenceDir: '',
-    headless: null,
-    allowLoginStartFallback: false,
-    helpRequested: false,
-  };
-
-  const consumeValue = (currentFlag, inlineValue, args, index) => {
-    if (inlineValue !== null) return inlineValue;
-    const next = args[index + 1];
-    if (typeof next !== 'string' || next.startsWith('--')) {
-      throw new Error(`Missing value for ${currentFlag}`);
-    }
-    return next;
-  };
-
-  for (let i = 0; i < argv.length; i += 1) {
-    const raw = String(argv[i] || '').trim();
-    if (!raw) continue;
-
-    if (raw === '-h' || raw === '--help') {
-      options.helpRequested = true;
-      continue;
-    }
-
-    const eqIdx = raw.indexOf('=');
-    const flag = eqIdx >= 0 ? raw.slice(0, eqIdx) : raw;
-    const inlineValue = eqIdx >= 0 ? raw.slice(eqIdx + 1) : null;
-
-    switch (flag) {
-      case '--base-url':
-        options.baseUrl = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--gui-path':
-        options.guiPath = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--username':
-        options.username = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--password':
-        options.password = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--address-file':
-        options.addressFile = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--run-id':
-        options.runId = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--timeout-ms':
-        options.timeoutMs = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--login-reason':
-        options.loginReason = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--output-dir':
-      case '--evidence-dir':
-        options.evidenceDir = consumeValue(flag, inlineValue, argv, i);
-        if (inlineValue === null) i += 1;
-        break;
-      case '--headless':
-        options.headless = true;
-        break;
-      case '--headful':
-        options.headless = false;
-        break;
-      case '--allow-login-start-fallback':
-        options.allowLoginStartFallback = true;
-        break;
-      default:
-        throw new Error(`Unknown option: ${flag}`);
-    }
-  }
-
-  return options;
-}
-
-function printUsage() {
-  console.log(`Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]\n\nOptions:\n  --base-url <url>        BASE_URL override (default: https://www.dev.georanking.ch)\n  --gui-path <path>       DEV_UI_SMOKE_GUI_PATH override (default: /gui)\n  --username <value>      DEV_UI_SMOKE_USERNAME override\n  --password <value>      DEV_UI_SMOKE_PASSWORD override\n  --address-file <path>   DEV_UI_SMOKE_ADDRESS_FILE override\n  --run-id <token>        DEV_UI_SMOKE_RUN_ID override\n  --timeout-ms <ms>       DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000)\n  --login-reason <text>   DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login)\n  --output-dir <path>     DEV_UI_SMOKE_EVIDENCE_DIR override\n  --evidence-dir <path>   Alias for --output-dir\n  --headless              Erzwingt headless mode\n  --headful               Erzwingt headful mode\n  --allow-login-start-fallback\n                          Bei fehlenden Live-Credentials login-start Bundle statt Hard-Fail ausführen\n  -h, --help              Diese Hilfe anzeigen`);
-}
 
 let cliOptions = null;
 try {
@@ -108,13 +10,19 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error || 'unknown error');
   console.error(`[dev-ui-auth-analyze-smoke] ERROR ${message}`);
-  printUsage();
+  printUsage(process.stderr);
   process.exit(2);
 }
 
-if (cliOptions.helpRequested) {
-  printUsage();
+if (cliOptions.mode === 'help') {
+  printUsage(process.stdout);
   process.exit(0);
+}
+
+if (cliOptions.mode === 'error') {
+  console.error(`[dev-ui-auth-analyze-smoke] ERROR unknown_cli_args=${cliOptions.unknownArgs.join(',')}`);
+  printUsage(process.stderr);
+  process.exit(2);
 }
 
 const repoRoot = process.cwd();
@@ -124,7 +32,18 @@ const outDir = configuredOutDir
   : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
-const baseOrigin = normalizeBaseOrigin(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch');
+const baseOrigin = normalizeOrigin(
+  canonicalizeLegacyDevUiOrigin(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch')
+) || 'https://www.dev.georanking.ch';
+const allowedOriginOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_ORIGINS || '').trim();
+const allowedOrigins = resolveAllowedOrigins(baseOrigin, allowedOriginOverrides);
+const allowedAuthorizeHostOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS || '').trim();
+const allowedAuthorizeHosts = resolveAllowedAuthorizeHosts(
+  baseOrigin,
+  allowedOrigins,
+  allowedAuthorizeHostOverrides
+);
+const allowedAuthorizeHostSet = new Set(allowedAuthorizeHosts);
 const guiPath = normalizeGuiPath(cliOptions.guiPath || process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
 const expectedPostLoginPath = resolveCanonicalGuiSuccessor(guiPath);
 const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);
@@ -133,6 +52,9 @@ const loginStartUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&r
 
 const username = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || '').trim();
 const password = String(cliOptions.password || process.env.DEV_UI_SMOKE_PASSWORD || '');
+const allowLoginStartFallbackOnMissingCredentials = cliOptions.forceLoginStartFallback || isTruthy(
+  process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
+);
 
 const explicitRunMarker = String(cliOptions.runId || process.env.DEV_UI_SMOKE_RUN_ID || '').trim();
 const githubRunNumber = String(process.env.GITHUB_RUN_NUMBER || '').trim();
@@ -151,6 +73,8 @@ const runMarker =
   || (githubRunId ? `${githubRunId}-${githubRunAttempt}` : '')
   || stamp;
 const artifactRunToken = sanitizeFileToken(runMarker) || 'run';
+const stampToken = sanitizeFileToken(stamp);
+const appendRunTokenToArtifactName = Boolean(artifactRunToken && artifactRunToken !== stampToken);
 
 const addressFile = (cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_FILE)
   ? path.resolve(repoRoot, String(cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_FILE))
@@ -158,98 +82,156 @@ const addressFile = (cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_
 
 const timeoutMs = parsePositiveInt(cliOptions.timeoutMs || process.env.DEV_UI_SMOKE_TIMEOUT_MS, 60_000);
 const headless = typeof cliOptions.headless === 'boolean' ? cliOptions.headless : !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
-const allowLoginStartFallback = cliOptions.allowLoginStartFallback || isTruthy(process.env.DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK);
 
-const fallbackBundleScript = String(
-  process.env.DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT
-  || './scripts/smoke/run_login_start_smoke_bundle.sh'
-).trim() || './scripts/smoke/run_login_start_smoke_bundle.sh';
-const fallbackCommandOverride = String(process.env.DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND || '').trim();
+function parseCliArgs(args) {
+  let mode = 'run';
+  const options = {
+    baseUrl: '',
+    guiPath: '',
+    username: '',
+    password: '',
+    addressFile: '',
+    runId: '',
+    timeoutMs: '',
+    loginReason: '',
+    evidenceDir: '',
+    headless: null,
+    forceLoginStartFallback: false,
+    unknownArgs: [],
+  };
 
-function resolveFallbackEnvName(origin) {
-  const normalized = String(origin || '').trim().toLowerCase();
-  return normalized.includes('staging') ? 'staging' : 'dev';
-}
+  const consumeValue = (currentFlag, inlineValue, argv, index) => {
+    if (inlineValue !== null) return inlineValue;
+    const next = argv[index + 1];
+    if (typeof next !== 'string' || next.startsWith('--')) {
+      throw new Error(`missing_value_for_${currentFlag}`);
+    }
+    return next;
+  };
 
-function quoteShellArg(raw) {
-  const value = String(raw ?? '');
-  if (/^[a-zA-Z0-9_./:@%+=,-]+$/.test(value)) {
-    return value;
+  const unknownArgs = [];
+
+  for (let i = 0; i < args.length; i += 1) {
+    const raw = String(args[i] || '').trim();
+    if (!raw) continue;
+
+    if (raw === '--help' || raw === '-h') {
+      mode = 'help';
+      continue;
+    }
+
+    if (
+      raw === '--fallback-login-start-on-missing-creds'
+      || raw === '--fallback-login-start'
+    ) {
+      options.forceLoginStartFallback = true;
+      continue;
+    }
+
+    const eqIdx = raw.indexOf('=');
+    const flag = eqIdx >= 0 ? raw.slice(0, eqIdx) : raw;
+    const inlineValue = eqIdx >= 0 ? raw.slice(eqIdx + 1) : null;
+
+    switch (flag) {
+      case '--base-url':
+        options.baseUrl = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--gui-path':
+        options.guiPath = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--username':
+        options.username = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--password':
+        options.password = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--address-file':
+        options.addressFile = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--run-id':
+        options.runId = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--timeout-ms':
+        options.timeoutMs = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--login-reason':
+        options.loginReason = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--output-dir':
+      case '--evidence-dir':
+        options.evidenceDir = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--headless':
+        options.headless = true;
+        break;
+      case '--headful':
+        options.headless = false;
+        break;
+      default:
+        unknownArgs.push(flag);
+    }
   }
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
 
-function buildLoginStartFallbackMetadata() {
-  const fallbackEnvName = resolveFallbackEnvName(baseOrigin);
-  const timeoutSeconds = Math.max(1, Math.ceil(timeoutMs / 1000));
-  const args = ['--base-url', baseOrigin, '--env-name', fallbackEnvName, '--output-dir', outDir, '--reason', loginReason, '--timeout', String(timeoutSeconds)];
-  const command = fallbackCommandOverride
-    ? fallbackCommandOverride
-    : `${fallbackBundleScript} ${args.map((value) => quoteShellArg(value)).join(' ')}`;
+  if (mode === 'help') {
+    return {
+      mode: 'help',
+      ...options,
+      unknownArgs: [],
+    };
+  }
+
+  if (unknownArgs.length > 0) {
+    return {
+      mode: 'error',
+      ...options,
+      unknownArgs,
+    };
+  }
 
   return {
-    base_url: baseOrigin,
-    env_name: fallbackEnvName,
-    bundle_script: fallbackBundleScript,
-    args,
-    command,
-    command_override: fallbackCommandOverride,
+    mode,
+    ...options,
+    unknownArgs: [],
   };
 }
 
-function runCommand(command, args, options = {}) {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finalize = (result) => {
-      if (settled) return;
-      settled = true;
-      resolve(result);
-    };
-
-    const child = spawn(command, args, {
-      cwd: options.cwd || repoRoot,
-      env: options.env || process.env,
-      shell: options.shell === true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk) => {
-      stdout += String(chunk || '');
-    });
-    child.stderr.on('data', (chunk) => {
-      stderr += String(chunk || '');
-    });
-
-    child.on('error', (error) => {
-      finalize({
-        ok: false,
-        code: -1,
-        signal: '',
-        stdout,
-        stderr,
-        error: normalizeError(error),
-      });
-    });
-
-    child.on('close', (code, signal) => {
-      finalize({
-        ok: code === 0,
-        code: Number.isInteger(code) ? code : -1,
-        signal: signal || '',
-        stdout,
-        stderr,
-      });
-    });
-  });
-}
-
-async function runLoginStartFallback(fallbackMeta) {
-  if (fallbackMeta.command_override) {
-    return runCommand('bash', ['-lc', fallbackMeta.command_override], { shell: false });
-  }
-  return runCommand(fallbackMeta.bundle_script, fallbackMeta.args, { shell: false });
+function printUsage(stream) {
+  stream.write(
+    [
+      'Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs [options]',
+      '',
+      'Options:',
+      '  -h, --help                                   Show this help and exit.',
+      '  --base-url <url>                             BASE_URL override (default: https://www.dev.georanking.ch).',
+      '  --gui-path <path>                            DEV_UI_SMOKE_GUI_PATH override (default: /gui).',
+      '  --username <value>                           DEV_UI_SMOKE_USERNAME override.',
+      '  --password <value>                           DEV_UI_SMOKE_PASSWORD override.',
+      '  --address-file <path>                        DEV_UI_SMOKE_ADDRESS_FILE override.',
+      '  --run-id <token>                             DEV_UI_SMOKE_RUN_ID override.',
+      '  --timeout-ms <ms>                            DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000).',
+      '  --login-reason <text>                        DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login).',
+      '  --output-dir <path> | --evidence-dir <path> DEV_UI_SMOKE_EVIDENCE_DIR override.',
+      '  --headless | --headful                       Browser mode override.',
+      '  --fallback-login-start                       Force login-start fallback mode when credentials are missing.',
+      '  --fallback-login-start-on-missing-creds      Alias for --fallback-login-start.',
+      '',
+      'Environment:',
+      '  BASE_URL                                                Optional base origin (default: https://www.dev.georanking.ch).',
+      '  DEV_UI_SMOKE_ALLOWED_ORIGINS                            Optional comma-separated origin allowlist for post-login + callback host hops.',
+      '  DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS                    Optional comma-separated host/URL allowlist for absolute authorize redirects.',
+      '  DEV_UI_SMOKE_USERNAME / DEV_UI_SMOKE_PASSWORD           Required for full live login + analyze smoke.',
+      '  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Enable degraded login-start fallback without credentials.',
+    ].join('\n') + '\n'
+  );
 }
 
 function parsePositiveInt(raw, fallback) {
@@ -262,42 +244,216 @@ function isTruthy(value) {
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
+function normalizeOrigin(rawOrigin) {
+  try {
+    const parsed = new URL(String(rawOrigin || '').trim());
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') {
+      return '';
+    }
+
+    const hostname = String(parsed.hostname || '').trim().toLowerCase();
+    if (!hostname) {
+      return '';
+    }
+
+    const port = String(parsed.port || '').trim();
+    const isDefaultPort = (protocol === 'https:' && (port === '' || port === '443'))
+      || (protocol === 'http:' && (port === '' || port === '80'));
+    const portSegment = isDefaultPort ? '' : `:${port}`;
+    return `${protocol}//${hostname}${portSegment}`;
+  } catch {
+    return '';
+  }
+}
+
+function isUnsupportedLegacyDevUiHostname(hostname) {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  return normalized === 'dev.georanking.ch' || normalized === 'dev.geo-ranking.ch';
+}
+
+function canonicalizeLegacyDevUiOrigin(rawOrigin) {
+  const candidate = String(rawOrigin || '').trim();
+  if (!candidate) return candidate;
+
+  try {
+    const parsed = new URL(candidate);
+    if (!isUnsupportedLegacyDevUiHostname(parsed.hostname)) {
+      return candidate;
+    }
+
+    parsed.hostname = `www.${parsed.hostname}`;
+    return parsed.toString();
+  } catch {
+    return candidate;
+  }
+}
+
+function isIpLiteralHostname(hostname) {
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
+function expandGeoHostVariants(hostname) {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  if (!normalized) return [];
+
+  const variants = new Set([normalized]);
+  if (normalized.includes('geo-ranking')) {
+    variants.add(normalized.replaceAll('geo-ranking', 'georanking'));
+  }
+  if (normalized.includes('georanking')) {
+    variants.add(normalized.replaceAll('georanking', 'geo-ranking'));
+  }
+
+  return Array.from(variants);
+}
+
+function expandHostnameAliases(hostname) {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  if (!normalized) return [];
+
+  const aliases = new Set();
+  const canToggleWww = normalized.includes('.') && !isIpLiteralHostname(normalized) && normalized !== 'localhost';
+
+  const addWithGeoVariants = (candidate) => {
+    for (const variant of expandGeoHostVariants(candidate)) {
+      if (isUnsupportedLegacyDevUiHostname(variant)) {
+        continue;
+      }
+      aliases.add(variant);
+    }
+  };
+
+  addWithGeoVariants(normalized);
+
+  if (canToggleWww) {
+    if (normalized.startsWith('www.') && normalized.length > 4) {
+      addWithGeoVariants(normalized.slice(4));
+    } else {
+      addWithGeoVariants(`www.${normalized}`);
+    }
+  }
+
+  return Array.from(aliases);
+}
+
+function normalizeHostToken(rawHost) {
+  const candidate = String(rawHost || '').trim();
+  if (!candidate) return '';
+
+  try {
+    const parsed = new URL(candidate.includes('://') ? candidate : `https://${candidate}`);
+    const hostname = String(parsed.hostname || '').trim().toLowerCase();
+    return hostname;
+  } catch {
+    return candidate.replace(/^\[|\]$/g, '').toLowerCase();
+  }
+}
+
+function resolveAllowedOrigins(primaryOrigin, rawOverrides) {
+  const allowed = new Set();
+
+  const addOrigin = (value) => {
+    const normalized = normalizeOrigin(value);
+    if (!normalized) return;
+
+    try {
+      const parsed = new URL(normalized);
+      const protocol = parsed.protocol;
+      const portSegment = parsed.port ? `:${parsed.port}` : '';
+
+      for (const hostVariant of expandHostnameAliases(parsed.hostname)) {
+        allowed.add(`${protocol}//${hostVariant}${portSegment}`);
+      }
+    } catch {
+      allowed.add(normalized);
+    }
+  };
+
+  addOrigin(primaryOrigin);
+
+  const overrides = String(rawOverrides || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  for (const override of overrides) {
+    addOrigin(override);
+  }
+
+  return Array.from(allowed);
+}
+
+function resolveAllowedAuthorizeHosts(primaryOrigin, originAllowlist, rawOverrides) {
+  const allowedHosts = new Set();
+
+  const addHostSeeds = (hostToken) => {
+    const normalizedHost = normalizeHostToken(hostToken);
+    if (!normalizedHost) return;
+
+    if (normalizedHost.startsWith('auth.') && normalizedHost.length > 5) {
+      allowedHosts.add(normalizedHost);
+      addHostSeeds(normalizedHost.slice(5));
+      return;
+    }
+
+    const seedHosts = normalizedHost.startsWith('www.') && normalizedHost.length > 4
+      ? [normalizedHost, normalizedHost.slice(4)]
+      : [normalizedHost];
+
+    for (const seedHost of seedHosts) {
+      for (const hostVariant of expandGeoHostVariants(seedHost)) {
+        if (!isUnsupportedLegacyDevUiHostname(hostVariant)) {
+          allowedHosts.add(hostVariant);
+        }
+        allowedHosts.add(`auth.${hostVariant}`);
+      }
+    }
+  };
+
+  addHostSeeds(primaryOrigin);
+  for (const origin of originAllowlist || []) {
+    addHostSeeds(origin);
+  }
+
+  const overrides = String(rawOverrides || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  for (const override of overrides) {
+    addHostSeeds(override);
+  }
+
+  return Array.from(allowedHosts);
+}
+
+function isAllowedOrigin(value) {
+  const normalized = normalizeOrigin(value);
+  if (!normalized) {
+    return false;
+  }
+  return allowedOrigins.includes(normalized);
+}
+
 function normalizeGuiPath(rawPath) {
   const value = String(rawPath || '').trim() || '/gui';
   return value.startsWith('/') ? value : `/${value}`;
 }
 
-function normalizeBaseOrigin(rawBaseUrl) {
-  const candidate = String(rawBaseUrl || '').trim();
-  if (!candidate) return 'https://www.dev.georanking.ch';
-
-  try {
-    return new URL(candidate).origin;
-  } catch {
-    const hostLike = candidate.match(/^([a-z0-9.-]+(?::\d+)?)(?:\/.*)?$/i);
-    if (hostLike && hostLike[1]) {
-      try {
-        return new URL(`https://${hostLike[1]}`).origin;
-      } catch {
-        // keep fallback below
-      }
-    }
-
-    return candidate.replace(/\/+$/, '');
-  }
-}
-
 function parseRelativeUrl(rawPath) {
-  const normalized = normalizeGuiPath(rawPath);
+  const input = String(rawPath || '').trim() || '/gui';
   try {
-    const parsed = new URL(normalized, 'https://example.invalid');
+    const parsed = new URL(input, 'https://example.invalid');
+    const normalizedPathname = parsed.pathname.startsWith('/')
+      ? parsed.pathname
+      : `/${parsed.pathname}`;
     return {
-      pathname: parsed.pathname,
+      pathname: normalizedPathname,
       search: parsed.search,
     };
   } catch {
+    const normalizedFallback = normalizeGuiPath(input);
     return {
-      pathname: normalized,
+      pathname: normalizedFallback,
       search: '',
     };
   }
@@ -315,7 +471,7 @@ function resolveCanonicalGuiSuccessor(pathname) {
 function isExpectedPostLoginUrl(value) {
   try {
     const parsed = new URL(String(value || ''));
-    if (parsed.origin !== baseOrigin) return false;
+    if (!isAllowedOrigin(parsed.origin)) return false;
     if (parsed.pathname !== expectedPostLoginTarget.pathname) return false;
     if (!expectedPostLoginTarget.search) return true;
     return parsed.search === expectedPostLoginTarget.search;
@@ -333,7 +489,8 @@ function sanitizeFileToken(value) {
 }
 
 function buildArtifactPath(extension) {
-  return path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}-${artifactRunToken}.${extension}`);
+  const runSuffix = appendRunTokenToArtifactName ? `-${artifactRunToken}` : '';
+  return path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}${runSuffix}.${extension}`);
 }
 
 async function loadChromium() {
@@ -443,6 +600,407 @@ function isAnalyzeRequestUrl(value) {
   } catch {
     return false;
   }
+}
+
+function isExpectedAuthCallbackRedirect(value) {
+  try {
+    const parsed = new URL(String(value || ''), baseOrigin);
+    return isAllowedOrigin(parsed.origin) && parsed.pathname === '/auth/callback';
+  } catch {
+    return false;
+  }
+}
+
+function parseAuthAuthorizeRedirect(value) {
+  const result = {
+    isAuthAuthorizeUrl: false,
+    responseTypeCode: false,
+    clientIdPresent: false,
+    redirectUriMatchesAuthCallback: false,
+    authorizeHostAllowed: false,
+    authorizeHost: '',
+  };
+
+  try {
+    const parsed = new URL(String(value || ''));
+    const host = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+
+    result.authorizeHost = host;
+    result.authorizeHostAllowed = allowedAuthorizeHostSet.has(host);
+    if (!result.authorizeHostAllowed) {
+      return result;
+    }
+
+    const responseType = String(parsed.searchParams.get('response_type') || '').trim().toLowerCase();
+    result.responseTypeCode = responseType === 'code';
+    result.clientIdPresent = String(parsed.searchParams.get('client_id') || '').trim().length > 0;
+    result.redirectUriMatchesAuthCallback = isExpectedAuthCallbackRedirect(parsed.searchParams.get('redirect_uri'));
+
+    if (pathname === '/oauth2/authorize' || pathname.endsWith('/oauth2/authorize')) {
+      result.isAuthAuthorizeUrl = true;
+      return result;
+    }
+
+    if (pathname === '/login' || pathname.endsWith('/login')) {
+      result.isAuthAuthorizeUrl = parsed.searchParams.has('response_type') && parsed.searchParams.has('client_id');
+      return result;
+    }
+
+    return result;
+  } catch {
+    return result;
+  }
+}
+
+function buildLoginStartFallbackHint() {
+  const envName = baseOrigin.toLowerCase().includes('staging') ? 'staging' : 'dev';
+  return [
+    `BASE_URL="${baseOrigin}" \\`,
+    `./scripts/smoke/run_login_start_smoke_bundle.sh --base-url "$BASE_URL" --env-name ${envName}`,
+  ].join('\n');
+}
+
+const MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS = 6;
+
+function isRedirectStatus(status) {
+  return Number.isFinite(status) && status >= 300 && status < 400;
+}
+
+function isAuthorizeContractSatisfied(contract) {
+  return Boolean(
+    contract
+      && contract.isAuthAuthorizeUrl
+      && contract.authorizeHostAllowed
+      && contract.responseTypeCode
+      && contract.clientIdPresent
+      && contract.redirectUriMatchesAuthCallback
+  );
+}
+
+function normalizePathname(value) {
+  const raw = String(value || '').trim() || '/';
+  if (raw === '/') return '/';
+  return raw.replace(/\/+$/, '') || '/';
+}
+
+function isIntermediateLoginRedirectUrl(value) {
+  try {
+    const parsed = new URL(String(value || ''));
+    const pathname = normalizePathname(parsed.pathname.toLowerCase());
+    return pathname === '/login' || pathname === '/auth/login';
+  } catch {
+    return false;
+  }
+}
+
+function classifyFetchRequestFailure(error) {
+  const causeCode = String(error?.cause?.code || '').trim().toUpperCase();
+  const errorCode = String(error?.code || '').trim().toUpperCase();
+  const message = String(error?.message || '').trim().toLowerCase();
+  const causeMessage = String(error?.cause?.message || '').trim().toLowerCase();
+
+  const tlsCodes = new Set([
+    'CERT_HAS_EXPIRED',
+    'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+    'DEPTH_ZERO_SELF_SIGNED_CERT',
+    'SELF_SIGNED_CERT_IN_CHAIN',
+    'ERR_TLS_CERT_ALTNAME_INVALID',
+    'CERT_SIGNATURE_FAILURE',
+    'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+  ]);
+  const dnsCodes = new Set(['ENOTFOUND', 'EAI_AGAIN']);
+  const timeoutCodes = new Set(['ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT']);
+  const connectionCodes = new Set(['ECONNREFUSED', 'ECONNRESET', 'EHOSTUNREACH', 'ENETUNREACH']);
+
+  const candidateCodes = [causeCode, errorCode].filter(Boolean);
+
+  const normalizeSuffix = (value, fallback) => {
+    const cleaned = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    return cleaned || fallback;
+  };
+
+  const hasTlsMessage = [message, causeMessage].some((entry) => entry.includes('certificate') || entry.includes('tls'));
+
+  if (candidateCodes.some((code) => tlsCodes.has(code)) || hasTlsMessage) {
+    const suffix = normalizeSuffix(causeCode || errorCode || causeMessage, 'tls');
+    return `request_failed_tls_${suffix}`;
+  }
+  if (candidateCodes.some((code) => dnsCodes.has(code))) {
+    const suffix = normalizeSuffix(causeCode || errorCode, 'dns');
+    return `request_failed_dns_${suffix}`;
+  }
+  if (candidateCodes.some((code) => timeoutCodes.has(code))) {
+    const suffix = normalizeSuffix(causeCode || errorCode, 'timeout');
+    return `request_failed_timeout_${suffix}`;
+  }
+  if (candidateCodes.some((code) => connectionCodes.has(code))) {
+    const suffix = normalizeSuffix(causeCode || errorCode, 'connection');
+    return `request_failed_connection_${suffix}`;
+  }
+
+  if (message.includes('fetch failed') || causeMessage.includes('fetch failed')) {
+    return 'request_failed_fetch';
+  }
+
+  return 'request_failed_unknown';
+}
+
+async function fetchSingleRedirectProbe(requestUrl) {
+  try {
+    const response = await fetch(requestUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+
+    const location = String(response.headers.get('location') || '').trim();
+    const status = response.status;
+    let absoluteLocation = '';
+
+    if (location) {
+      try {
+        absoluteLocation = new URL(location, requestUrl).toString();
+      } catch {
+        absoluteLocation = '';
+      }
+    }
+
+    const authorizeContract = parseAuthAuthorizeRedirect(absoluteLocation);
+    return {
+      requestUrl,
+      status,
+      location: absoluteLocation,
+      authorizeContract,
+      requestError: null,
+    };
+  } catch (error) {
+    const normalizedError = normalizeError(error);
+    const causeCode = String(error?.cause?.code || '').trim();
+    const reason = classifyFetchRequestFailure(error);
+    return {
+      requestUrl,
+      status: 0,
+      location: '',
+      authorizeContract: parseAuthAuthorizeRedirect(''),
+      requestError: {
+        ...normalizedError,
+        code: causeCode,
+        reason,
+      },
+    };
+  }
+}
+
+async function probeLoginRedirect(url) {
+  const redirectChain = [];
+  const visited = new Set([String(url)]);
+  let currentRequestUrl = String(url);
+
+  for (let hop = 0; hop <= MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS; hop += 1) {
+    const probe = await fetchSingleRedirectProbe(currentRequestUrl);
+    redirectChain.push({
+      requestUrl: probe.requestUrl,
+      status: probe.status,
+      location: probe.location,
+      requestError: probe.requestError,
+    });
+
+    if (probe.requestError) {
+      return {
+        ok: false,
+        reason: probe.requestError.reason || 'request_failed_unknown',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        requestError: probe.requestError,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (
+      isRedirectStatus(probe.status)
+      && probe.location
+      && isAuthorizeContractSatisfied(probe.authorizeContract)
+    ) {
+      return {
+        ok: true,
+        reason: 'ok',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        requestError: null,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (!isRedirectStatus(probe.status)) {
+      return {
+        ok: false,
+        reason: `unexpected_status_${probe.status}`,
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        requestError: null,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (!probe.location) {
+      return {
+        ok: false,
+        reason: 'missing_location_header',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        requestError: null,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (!isIntermediateLoginRedirectUrl(probe.location)) {
+      return {
+        ok: false,
+        reason: 'non_login_redirect_target',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        requestError: null,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (hop >= MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS) {
+      return {
+        ok: false,
+        reason: 'redirect_hop_limit_exceeded',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        requestError: null,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    if (visited.has(probe.location)) {
+      return {
+        ok: false,
+        reason: 'redirect_loop_detected',
+        requestUrl: String(url),
+        finalRequestUrl: probe.requestUrl,
+        status: probe.status,
+        location: probe.location,
+        authorizeContract: probe.authorizeContract,
+        requestError: null,
+        redirectHopCount: hop,
+        redirectChain,
+      };
+    }
+
+    visited.add(probe.location);
+    currentRequestUrl = probe.location;
+  }
+
+  return {
+    ok: false,
+    reason: 'redirect_hop_limit_exceeded',
+    requestUrl: String(url),
+    finalRequestUrl: currentRequestUrl,
+    status: 0,
+    location: '',
+    authorizeContract: parseAuthAuthorizeRedirect(''),
+    requestError: null,
+    redirectHopCount: MAX_LOGIN_START_FALLBACK_REDIRECT_HOPS,
+    redirectChain,
+  };
+}
+
+async function runLoginStartFallbackProbe(startedAtUtc) {
+  const entryUrl = `${baseOrigin}/login?next=${encodeURIComponent(guiPath)}&reason=${encodeURIComponent(loginReason)}`;
+
+  const startProbe = await probeLoginRedirect(loginStartUrl);
+  const entryProbe = await probeLoginRedirect(entryUrl);
+
+  const checks = {
+    fallbackEnabled: true,
+    startRedirectToAuthAuthorize: startProbe.ok,
+    entryRedirectToAuthAuthorize: entryProbe.ok,
+    startRedirectAuthorizeHostAllowed: Boolean(startProbe?.authorizeContract?.authorizeHostAllowed),
+    entryRedirectAuthorizeHostAllowed: Boolean(entryProbe?.authorizeContract?.authorizeHostAllowed),
+    startRedirectResponseTypeCode: Boolean(startProbe?.authorizeContract?.responseTypeCode),
+    entryRedirectResponseTypeCode: Boolean(entryProbe?.authorizeContract?.responseTypeCode),
+    startRedirectClientIdPresent: Boolean(startProbe?.authorizeContract?.clientIdPresent),
+    entryRedirectClientIdPresent: Boolean(entryProbe?.authorizeContract?.clientIdPresent),
+    startRedirectUriMatchesAuthCallback: Boolean(startProbe?.authorizeContract?.redirectUriMatchesAuthCallback),
+    entryRedirectUriMatchesAuthCallback: Boolean(entryProbe?.authorizeContract?.redirectUriMatchesAuthCallback),
+  };
+
+  const ok = Object.values(checks).every((value) => value === true);
+
+  const payload = {
+    startedAtUtc,
+    finishedAtUtc: new Date().toISOString(),
+    target: {
+      baseOrigin,
+      allowedOrigins,
+      allowedAuthorizeHosts,
+      guiPath,
+      expectedPostLoginPath,
+      loginStartUrl,
+    },
+    runtime: {
+      browser: 'none-login-start-fallback',
+      headless,
+      timeoutMs,
+      runMarker,
+      runMarkerSource,
+      githubRunNumber,
+      githubRunAttempt,
+      githubRunId,
+    },
+    credentials: {
+      usernameMasked: maskUsername(username),
+    },
+    degradedMode: {
+      active: true,
+      reason: 'missing_live_credentials',
+      envFlag: 'DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS',
+    },
+    loginStartFallback: {
+      startProbe,
+      entryProbe,
+    },
+    checks,
+    ok,
+  };
+
+  const evidencePath = await writeEvidence(payload);
+  emitSmokeSummary(payload, evidencePath);
+  return ok;
 }
 
 function analyzePayloadCompleteness(payload) {
@@ -594,7 +1152,7 @@ async function ensureAnalyzeShellReady(page, baseOrigin, timeout) {
         (url) => {
           try {
             const parsed = new URL(String(url));
-            return parsed.origin === baseOrigin && parsed.pathname === '/gui';
+            return isAllowedOrigin(parsed.origin) && parsed.pathname === '/gui';
           } catch {
             return false;
           }
@@ -656,9 +1214,10 @@ function emitSmokeSummary(payload, evidencePath) {
     const analyzeStatus = toSummaryToken(payload?.analyze?.responseStatus);
     const resultsCount = toSummaryToken(payload?.uiState?.resultRowCount);
     const terminalSignal = toSummaryToken(payload?.uiState?.terminalUiSignal?.reason);
+    const modeToken = payload?.degradedMode?.active ? 'mode=login_start_fallback' : 'mode=live_auth_analyze';
     console.log(
       `[dev-ui-auth-analyze-smoke] PASS gui_path=${guiPathToken} run_marker=${runMarkerToken}`
-      + ` analyze_status=${analyzeStatus} results=${resultsCount} terminal_signal=${terminalSignal}`
+      + ` ${modeToken} analyze_status=${analyzeStatus} results=${resultsCount} terminal_signal=${terminalSignal}`
       + ` evidence=${evidenceRelPath}`
     );
     return;
@@ -683,87 +1242,32 @@ function emitSmokeSummary(payload, evidencePath) {
     ? payload.guardSignals.sessionExpiredSignals.join(',')
     : '';
   const guardSignalsToken = guardSignals ? toSummaryToken(guardSignals) : '-';
+  const startProbeReason = toSummaryToken(payload?.loginStartFallback?.startProbe?.reason);
+  const entryProbeReason = toSummaryToken(payload?.loginStartFallback?.entryProbe?.reason);
 
   console.error(
     `[dev-ui-auth-analyze-smoke] FAIL gui_path=${guiPathToken} run_marker=${runMarkerToken}`
     + ` failed_checks=${failedChecksToken} analyze_status=${analyzeStatus}`
     + ` phase=${phaseState} terminal_signal=${terminalSignal}`
+    + ` start_reason=${startProbeReason} entry_reason=${entryProbeReason}`
     + ` guard_signals=${guardSignalsToken} evidence=${evidenceRelPath}`
   );
 }
 
 async function run() {
   const startedAtUtc = new Date().toISOString();
-  const missingCredentials = [];
-  if (!username) missingCredentials.push('DEV_UI_SMOKE_USERNAME');
-  if (!password) missingCredentials.push('DEV_UI_SMOKE_PASSWORD');
-  const fallbackMeta = buildLoginStartFallbackMetadata();
 
-  if (missingCredentials.length > 0) {
-    if (allowLoginStartFallback) {
-      console.error('[dev-ui-auth-analyze-smoke] running login-start fallback due to missing live credentials');
-      const fallbackResult = await runLoginStartFallback(fallbackMeta);
-
-      const payload = {
-        startedAtUtc,
-        finishedAtUtc: new Date().toISOString(),
-        target: {
-          baseOrigin,
-          guiPath,
-          expectedPostLoginPath,
-          loginStartUrl,
-        },
-        runtime: {
-          browser: 'playwright-chromium',
-          headless,
-          timeoutMs,
-          runMarker,
-          runMarkerSource,
-          githubRunNumber,
-          githubRunAttempt,
-          githubRunId,
-        },
-        credentials: {
-          usernameMasked: maskUsername(username),
-        },
-        fallback_login_start_smoke: {
-          ...fallbackMeta,
-          executed: true,
-          result: {
-            ok: fallbackResult.ok,
-            code: fallbackResult.code,
-            signal: fallbackResult.signal,
-            stdout: String(fallbackResult.stdout || '').trim(),
-            stderr: String(fallbackResult.stderr || '').trim(),
-            error: fallbackResult.error || null,
-          },
-        },
-        checks: {
-          missingLiveCredentials: true,
-          fallbackLoginStartBundlePassed: fallbackResult.ok,
-        },
-        ok: fallbackResult.ok,
-      };
-
-      const evidencePath = await writeEvidence(payload);
-      emitSmokeSummary(payload, evidencePath);
-      if (!fallbackResult.ok) {
-        return false;
-      }
-      return true;
+  if (!username || !password) {
+    if (allowLoginStartFallbackOnMissingCredentials) {
+      return runLoginStartFallbackProbe(startedAtUtc);
     }
 
-    const missingMessage =
-      'Fehlende Credentials: DEV_UI_SMOKE_USERNAME und DEV_UI_SMOKE_PASSWORD sind für echten Live-Login erforderlich.'
-      + ` Fallback-Hinweis: ${fallbackMeta.command}`;
-    const missingCredentialsError = new Error(missingMessage);
-    missingCredentialsError.blocked = true;
-    missingCredentialsError.reason = 'missing_required_github_secrets';
-    missingCredentialsError.required = ['DEV_UI_SMOKE_USERNAME', 'DEV_UI_SMOKE_PASSWORD'];
-    missingCredentialsError.missing = missingCredentials;
-    missingCredentialsError.next_step = 'Set both required live credentials or run the login-start fallback bundle.';
-    missingCredentialsError.fallback_login_start_smoke = fallbackMeta;
-    throw missingCredentialsError;
+    const fallbackHint = buildLoginStartFallbackHint();
+    throw new Error(
+      'Fehlende Credentials: DEV_UI_SMOKE_USERNAME und DEV_UI_SMOKE_PASSWORD sind für echten Live-Login erforderlich. '
+      + 'Optionaler degraded Fallback: setze DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1 oder führe aus:\n'
+      + fallbackHint
+    );
   }
 
   const addressPool = await readAddressPool(addressFile);
@@ -998,6 +1502,8 @@ async function run() {
     finishedAtUtc: new Date().toISOString(),
     target: {
       baseOrigin,
+      allowedOrigins,
+      allowedAuthorizeHosts,
       guiPath,
       expectedPostLoginPath,
       loginStartUrl,
@@ -1072,12 +1578,13 @@ run()
     }
   })
   .catch(async (error) => {
-    const normalizedError = normalizeError(error);
     const payload = {
       startedAtUtc: new Date().toISOString(),
       finishedAtUtc: new Date().toISOString(),
       target: {
         baseOrigin,
+        allowedOrigins,
+        allowedAuthorizeHosts,
         guiPath,
         expectedPostLoginPath,
         loginStartUrl,
@@ -1095,16 +1602,7 @@ run()
       credentials: {
         usernameMasked: maskUsername(username),
       },
-      blocked: Boolean(error?.blocked),
-      reason: typeof error?.reason === 'string' ? error.reason : undefined,
-      required: Array.isArray(error?.required) ? error.required : undefined,
-      missing: Array.isArray(error?.missing) ? error.missing : undefined,
-      next_step: typeof error?.next_step === 'string' ? error.next_step : undefined,
-      fallback_login_start_smoke:
-        error?.fallback_login_start_smoke && typeof error.fallback_login_start_smoke === 'object'
-          ? error.fallback_login_start_smoke
-          : undefined,
-      error: normalizedError,
+      error: normalizeError(error),
       ok: false,
     };
 

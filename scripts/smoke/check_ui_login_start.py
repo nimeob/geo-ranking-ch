@@ -16,7 +16,10 @@ The redirect chain may be either:
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
+import re
+import socket
 import sys
 import time
 from dataclasses import dataclass
@@ -25,7 +28,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import parse_qs, urlencode, urljoin, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -73,6 +76,53 @@ def _build_start_request_url(base_url: str, *, next_path: str, reason: str) -> s
     return f"{normalized_base}/login?{query}"
 
 
+_LEGACY_DEV_UI_HOSTS = frozenset({"dev.georanking.ch", "dev.geo-ranking.ch"})
+
+
+def _canonicalize_base_url_trailing_dot(raw_base_url: str) -> str:
+    candidate = str(raw_base_url or "").strip()
+    if not candidate:
+        return ""
+
+    try:
+        parsed = urlsplit(candidate)
+    except Exception:  # noqa: BLE001
+        return candidate
+
+    if not parsed.scheme or not parsed.netloc:
+        return candidate
+
+    host = str(parsed.hostname or "").strip().lower()
+    if not host:
+        return candidate
+
+    canonical_host = host.rstrip(".")
+    if canonical_host in _LEGACY_DEV_UI_HOSTS:
+        canonical_host = f"www.{canonical_host}"
+
+    if canonical_host == host:
+        return candidate
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    port_segment = f":{parsed.port}" if parsed.port is not None else ""
+    canonical_netloc = f"{userinfo}{canonical_host}{port_segment}"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            canonical_netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
 _REDIRECT_HTTP_STATUSES = frozenset({301, 302, 303, 307, 308})
 _MAX_SAME_LOGIN_REDIRECT_HOPS = 4
@@ -111,6 +161,147 @@ def _resolve_retry_delay(
     if delta_seconds <= 0:
         return fallback_delay
     return min(delta_seconds, retry_cap)
+
+
+def _iter_exception_chain(exc: Exception) -> list[Exception]:
+    errors: list[Exception] = []
+    seen: set[int] = set()
+    current: Exception | None = exc
+
+    while current is not None and id(current) not in seen:
+        errors.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+
+    return errors
+
+
+def _normalize_reason_suffix(value: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower())
+    cleaned = cleaned.strip("_")
+    return cleaned or fallback
+
+
+def _classify_request_failure(exc: Exception) -> str:
+    errors = _iter_exception_chain(exc)
+    messages = [str(item or "") for item in errors]
+    combined_message = " ".join(messages).lower()
+
+    if (
+        any(isinstance(item, (TimeoutError, socket.timeout)) for item in errors)
+        or "timed out" in combined_message
+    ):
+        return "request_failed_timeout_timed_out"
+
+    if any(isinstance(item, socket.gaierror) for item in errors) or any(
+        token in combined_message
+        for token in (
+            "name or service not known",
+            "temporary failure in name resolution",
+            "nodename nor servname provided",
+            "getaddrinfo failed",
+            "enotfound",
+            "eai_again",
+        )
+    ):
+        return "request_failed_dns_resolution"
+
+    if any(
+        isinstance(
+            item,
+            (
+                ConnectionRefusedError,
+                ConnectionResetError,
+                ConnectionAbortedError,
+                BrokenPipeError,
+            ),
+        )
+        for item in errors
+    ):
+        connection_suffix = _normalize_reason_suffix(
+            type(errors[0]).__name__, "connection"
+        )
+        return f"request_failed_connection_{connection_suffix}"
+
+    if any(
+        token in combined_message
+        for token in (
+            "connection refused",
+            "connection reset",
+            "connection aborted",
+            "host is down",
+            "no route to host",
+            "network is unreachable",
+            "econnrefused",
+            "econnreset",
+            "ehostunreach",
+            "enetunreach",
+        )
+    ):
+        if (
+            "connection refused" in combined_message
+            or "econnrefused" in combined_message
+        ):
+            return "request_failed_connection_refused"
+        if "connection reset" in combined_message or "econnreset" in combined_message:
+            return "request_failed_connection_reset"
+        if "host is down" in combined_message or "no route to host" in combined_message:
+            return "request_failed_connection_host_unreachable"
+        if (
+            "network is unreachable" in combined_message
+            or "enetunreach" in combined_message
+        ):
+            return "request_failed_connection_network_unreachable"
+        return "request_failed_connection_error"
+
+    if any(
+        token in combined_message
+        for token in (
+            "certificate",
+            "cert_has_expired",
+            "certificateverifyfailed",
+            "certificate verify failed",
+            "self signed",
+            "x509",
+            "ssl",
+            "tls",
+            "hostname mismatch",
+            "doesn't match",
+            "unable to get local issuer certificate",
+        )
+    ):
+        if (
+            "certificate has expired" in combined_message
+            or "cert_has_expired" in combined_message
+        ):
+            return "request_failed_tls_cert_has_expired"
+        if "self signed" in combined_message:
+            return "request_failed_tls_self_signed_cert"
+        if "unable to get local issuer certificate" in combined_message:
+            return "request_failed_tls_untrusted_issuer"
+        if (
+            "hostname mismatch" in combined_message
+            or "doesn't match" in combined_message
+        ):
+            return "request_failed_tls_hostname_mismatch"
+        return "request_failed_tls_error"
+
+    return "request_failed"
+
+
+_NON_RETRYABLE_REQUEST_FAILURE_REASONS = frozenset(
+    {
+        "request_failed_tls_hostname_mismatch",
+        "request_failed_tls_cert_has_expired",
+        "request_failed_tls_self_signed_cert",
+        "request_failed_tls_untrusted_issuer",
+    }
+)
+
+
+def _is_non_retryable_request_failure(exc: Exception) -> bool:
+    reason = _classify_request_failure(exc)
+    return reason in _NON_RETRYABLE_REQUEST_FAILURE_REASONS
 
 
 def _send_request_probe(
@@ -180,13 +371,17 @@ def _send_request_probe(
             )
         except Exception as exc:  # noqa: BLE001
             last_error = exc
+            if _is_non_retryable_request_failure(exc):
+                break
             if attempt >= attempts:
                 break
-            time.sleep(min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds)))
+            time.sleep(
+                min(max(0.0, retry_delay_seconds), max(0.0, max_retry_delay_seconds))
+            )
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
-    )
+    ) from last_error
 
 
 def _send_request(
@@ -213,12 +408,21 @@ def _normalize_host_token(raw_host: str) -> str:
     if not candidate:
         return ""
 
+    bare_candidate = candidate.strip("[]").lower()
+    if ":" in bare_candidate and "://" not in candidate:
+        try:
+            ipaddress.ip_address(bare_candidate)
+        except ValueError:
+            pass
+        else:
+            return bare_candidate
+
     parsed = urlparse(candidate if "://" in candidate else f"//{candidate}")
     host = str(parsed.hostname or "").strip().lower()
     if host:
-        return host
+        return host.rstrip(".")
 
-    return candidate.strip("[]").lower()
+    return candidate.strip("[]").lower().rstrip(".")
 
 
 def _expand_geo_host_variants(host: str) -> set[str]:
@@ -229,6 +433,8 @@ def _expand_geo_host_variants(host: str) -> set[str]:
     variants = {normalized}
     if "geo-ranking" in normalized:
         variants.add(normalized.replace("geo-ranking", "georanking"))
+    if "georanking" in normalized:
+        variants.add(normalized.replace("georanking", "geo-ranking"))
     return variants
 
 
@@ -242,6 +448,37 @@ def _parse_allowed_authorize_hosts(raw_hosts: str | None) -> set[str]:
             continue
         hosts.update(_expand_geo_host_variants(normalized))
     return hosts
+
+
+def _derive_default_allowed_authorize_hosts(base_url: str) -> set[str]:
+    parsed = urlparse(str(base_url or "").strip())
+    host = _normalize_host_token(parsed.hostname or "")
+    if not host:
+        return set()
+
+    if host in {"localhost", "localhost.localdomain"}:
+        return set()
+
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        return set()
+
+    seed_hosts: list[str] = []
+    if host.startswith("www.") and len(host) > 4:
+        bare_host = host[4:]
+        seed_hosts.append(f"auth.{bare_host}")
+        seed_hosts.append(host)
+    else:
+        seed_hosts.append(f"auth.{host}")
+        seed_hosts.append(host)
+
+    allow_hosts: set[str] = set()
+    for seed in seed_hosts:
+        allow_hosts.update(_expand_geo_host_variants(seed))
+    return allow_hosts
 
 
 def _is_authorize_redirect(
@@ -286,13 +523,14 @@ class _AnchorHrefCollector(HTMLParser):
 
 
 def _validate_entry_start_link_query(
-    *, body_preview: str, next_path: str, reason: str
+    *, body_preview: str, next_path: str, reason: str, request_url: str
 ) -> tuple[bool, str]:
     collector = _AnchorHrefCollector()
     collector.feed(body_preview)
     collector.close()
 
     has_start_link = False
+    has_matching_origin = False
     has_matching_next = False
 
     for href in collector.hrefs:
@@ -307,6 +545,11 @@ def _validate_entry_start_link_query(
             continue
 
         has_start_link = True
+
+        if not _is_same_origin_login_entry_href(href=href, request_url=request_url):
+            continue
+
+        has_matching_origin = True
 
         next_value = str((query.get("next") or [""])[0])
         if next_value != str(next_path):
@@ -325,10 +568,41 @@ def _validate_entry_start_link_query(
             return True, "ok"
         return False, "entry_missing_start_link"
 
+    if not has_matching_origin:
+        return False, "entry_start_link_host_mismatch"
+
     if not has_matching_next:
         return False, "entry_start_link_next_mismatch"
 
     return False, "entry_start_link_reason_mismatch"
+
+
+def _is_same_origin_login_entry_href(*, href: str, request_url: str) -> bool:
+    parsed_href = urlparse(href)
+
+    # Relative URLs are same-origin by definition in browser navigation.
+    if not parsed_href.netloc:
+        return True
+
+    parsed_request = urlparse(request_url)
+    request_host = _normalize_host_token(parsed_request.hostname or "")
+    href_host = _normalize_host_token(parsed_href.hostname or "")
+    if not request_host or not href_host:
+        return False
+
+    allowed_hosts = _expand_geo_host_variants(request_host)
+    if href_host not in allowed_hosts:
+        return False
+
+    request_scheme = (parsed_request.scheme or "").strip().lower()
+    href_scheme = (parsed_href.scheme or request_scheme).strip().lower()
+    if request_scheme and href_scheme and href_scheme != request_scheme:
+        return False
+
+    default_port = {"http": 80, "https": 443}
+    request_port = parsed_request.port or default_port.get(request_scheme)
+    href_port = parsed_href.port or default_port.get(href_scheme)
+    return request_port == href_port
 
 
 def _validate_auth_login_redirect_query(
@@ -582,6 +856,7 @@ def check_login_entry(
         body_preview=probe.body_preview,
         next_path=next_path,
         reason=reason,
+        request_url=probe_request_url,
     )
     if not entry_start_ok:
         return LoginEntryCheckResult(
@@ -626,17 +901,19 @@ def check_login_start(
         read_body_preview=False,
     )
 
-    current_request_url, first_probe, redirect_follow_error = _follow_same_login_redirects(
-        phase="start",
-        request_url=current_request_url,
-        probe=first_probe,
-        next_path=next_path,
-        reason=reason,
-        require_start=True,
-        timeout_seconds=timeout_seconds,
-        max_attempts=max_attempts,
-        retry_delay_seconds=retry_delay_seconds,
-        max_retry_delay_seconds=max_retry_delay_seconds,
+    current_request_url, first_probe, redirect_follow_error = (
+        _follow_same_login_redirects(
+            phase="start",
+            request_url=current_request_url,
+            probe=first_probe,
+            next_path=next_path,
+            reason=reason,
+            require_start=True,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            max_retry_delay_seconds=max_retry_delay_seconds,
+        )
     )
     first_status = first_probe.status_code
     first_location = first_probe.location
@@ -773,8 +1050,13 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--base-url",
-        required=True,
+        default="",
         help="UI base URL, e.g. https://www.dev.georanking.ch",
+    )
+    parser.add_argument(
+        "--ui-base-url",
+        default="",
+        help="Alias for --base-url",
     )
     parser.add_argument(
         "--next",
@@ -822,8 +1104,20 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help=(
             "Optional comma-separated allow-list for absolute authorize redirect hosts "
             "(accepts hostnames, host:port, or full URLs; e.g. "
-            "auth.dev.georanking.ch,www.dev.georanking.ch)."
+            "auth.dev.georanking.ch,www.dev.georanking.ch). Defaults to derived "
+            "auth.<base-host> + <base-host> variants for non-local origins "
+            "(localhost/IP origins keep host checks disabled)."
         ),
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress stdout JSON payloads (artifacts via --output-json remain unchanged)",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Backward-compatible no-op alias (stdout JSON is always emitted unless --quiet)",
     )
     return parser.parse_args(argv)
 
@@ -836,15 +1130,54 @@ def _write_result(path: str, payload: dict[str, object]) -> None:
     )
 
 
+def _emit_payload(payload: dict[str, object], *, quiet: bool) -> None:
+    if quiet:
+        return
+    print(json.dumps(payload, ensure_ascii=False))
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
 
-    allowed_authorize_hosts = _parse_allowed_authorize_hosts(
+    base_url = str(args.base_url or "").strip()
+    ui_base_url = str(args.ui_base_url or "").strip()
+    if not base_url and not ui_base_url:
+        payload = {
+            "ok": False,
+            "phase": "request",
+            "reason": "invalid_arguments:base_url_required",
+            "request": {
+                "base_url": base_url,
+                "ui_base_url": ui_base_url,
+            },
+        }
+        _emit_payload(payload, quiet=args.quiet)
+        if args.output_json:
+            _write_result(args.output_json, payload)
+        return 2
+
+    requested_base_url = str(base_url or ui_base_url).strip()
+    effective_base_url = _canonicalize_base_url_trailing_dot(requested_base_url)
+
+    explicit_authorize_hosts = _parse_allowed_authorize_hosts(
         args.expected_authorize_host
     )
+    if explicit_authorize_hosts:
+        allowed_authorize_hosts = explicit_authorize_hosts
+        expected_authorize_host_source = "argument"
+    else:
+        allowed_authorize_hosts = _derive_default_allowed_authorize_hosts(
+            effective_base_url
+        )
+        expected_authorize_host_source = (
+            "derived_default" if allowed_authorize_hosts else "none"
+        )
 
     request_meta = {
-        "base_url": args.base_url,
+        "base_url": effective_base_url,
+        "requested_base_url": requested_base_url,
+        "base_url_canonicalized": effective_base_url != requested_base_url,
+        "ui_base_url": ui_base_url,
         "next": args.next_path,
         "reason": args.reason,
         "timeout": args.timeout,
@@ -852,11 +1185,12 @@ def main(argv: list[str] | None = None) -> int:
         "retry_delay": args.retry_delay,
         "max_retry_delay": args.max_retry_delay,
         "expected_authorize_host": sorted(allowed_authorize_hosts),
+        "expected_authorize_host_source": expected_authorize_host_source,
     }
 
     try:
         entry_result = check_login_entry(
-            base_url=args.base_url,
+            base_url=effective_base_url,
             next_path=args.next_path,
             reason=args.reason,
             timeout_seconds=args.timeout,
@@ -876,13 +1210,13 @@ def main(argv: list[str] | None = None) -> int:
                 "content_type": entry_result.content_type,
                 "request": request_meta,
             }
-            print(json.dumps(payload, ensure_ascii=False))
+            _emit_payload(payload, quiet=args.quiet)
             if args.output_json:
                 _write_result(args.output_json, payload)
             return 1
 
         start_result = check_login_start(
-            base_url=args.base_url,
+            base_url=effective_base_url,
             next_path=args.next_path,
             reason=args.reason,
             timeout_seconds=args.timeout,
@@ -895,11 +1229,11 @@ def main(argv: list[str] | None = None) -> int:
         payload = {
             "ok": False,
             "phase": "request",
-            "reason": "request_failed",
+            "reason": _classify_request_failure(exc),
             "error": str(exc),
             "request": request_meta,
         }
-        print(json.dumps(payload, ensure_ascii=False))
+        _emit_payload(payload, quiet=args.quiet)
         if args.output_json:
             _write_result(args.output_json, payload)
         return 1
@@ -911,6 +1245,7 @@ def main(argv: list[str] | None = None) -> int:
         "status_code": start_result.status_code,
         "request_url": start_result.request_url,
         "location": start_result.location,
+        "request": request_meta,
         "entry": {
             "ok": entry_result.ok,
             "reason": entry_result.reason,
@@ -920,7 +1255,7 @@ def main(argv: list[str] | None = None) -> int:
             "content_type": entry_result.content_type,
         },
     }
-    print(json.dumps(payload, ensure_ascii=False))
+    _emit_payload(payload, quiet=args.quiet)
     if args.output_json:
         _write_result(args.output_json, payload)
 

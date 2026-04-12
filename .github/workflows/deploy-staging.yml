@@ -491,7 +491,7 @@ jobs:
             exit 1
           fi
 
-      - name: Smoke-Test UI canonical-host redirect (/login?start=1 on alias host)
+      - name: Smoke-Test UI canonical-host redirect route matrix (/login?start=1 on alias host)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
           UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}
@@ -503,18 +503,18 @@ jobs:
             exit 1
           fi
 
-          python3 scripts/smoke/check_ui_canonical_redirect.py \
+          scripts/smoke/run_canonical_redirect_smoke_bundle.sh \
             --base-url "${SERVICE_APP_BASE_URL}" \
+            --env-name "staging" \
             --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
             --canonical-hosts "${UI_CANONICAL_HOSTS:-}" \
-            --next "/gui" \
             --reason "manual_login" \
             --timeout 20 \
             --max-attempts 8 \
             --retry-delay 5 \
-            --output-json artifacts/staging-canonical-host-redirect-smoke.json
+            --output-dir "artifacts"
 
-      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs + /jobs/:id + /results/:id + legacy /gui/jobs*)
+      - name: Smoke-Test UI login start redirects to IdP authorize (/ + /gui + /gui/history + legacy /history + /jobs + /jobs/:id + /results/:id + legacy /gui/results/:id + legacy /gui/jobs*)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
@@ -552,14 +552,8 @@ jobs:
           name: staging-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
-            artifacts/staging-login-start-smoke.json
-            artifacts/staging-login-start-smoke-gui-history.json
-            artifacts/staging-login-start-smoke-jobs.json
-            artifacts/staging-login-start-smoke-jobs-detail.json
-            artifacts/staging-login-start-smoke-results-detail.json
-            artifacts/staging-login-start-smoke-gui-jobs-legacy.json
-            artifacts/staging-login-start-smoke-gui-jobs-legacy-detail.json
-            artifacts/staging-canonical-host-redirect-smoke.json
+            artifacts/staging-login-start-smoke*.json
+            artifacts/staging-canonical-host-redirect-smoke*.json
             artifacts/staging-auth-proxy-guard-smoke.json
 
       - name: Optional strict split smoke (API + UI routing)

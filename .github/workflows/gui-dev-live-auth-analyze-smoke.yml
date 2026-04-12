@@ -2,6 +2,42 @@ name: gui-dev-live-auth-analyze-smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      base_url:
+        description: "UI-Base-URL für den Smoke-Lauf"
+        required: false
+        default: "https://www.dev.georanking.ch"
+        type: string
+      routes:
+        description: "Optionales CSV-Subset (z. B. /gui,/jobs?source=smoke)"
+        required: false
+        default: ""
+        type: string
+      route_presets:
+        description: "Optionale Route-Presets (z. B. core oder jobs,results)"
+        required: false
+        default: ""
+        type: string
+      timeout_ms:
+        description: "Optionales Timeout pro Route in Millisekunden"
+        required: false
+        default: ""
+        type: string
+      login_reason:
+        description: "reason-Parameter für /login"
+        required: false
+        default: "manual_login"
+        type: string
+      fallback_login_start_on_preflight_fail:
+        description: "Bei fehlenden Live-Secrets Login-Start-Fallback nutzen"
+        required: false
+        default: false
+        type: boolean
+      allow_login_start_fallback:
+        description: "Alias für fallback_login_start_on_preflight_fail"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: gui-dev-live-auth-analyze-smoke-${{ github.ref }}
@@ -12,16 +48,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      BASE_URL: https://www.dev.georanking.ch
+      BASE_URL: ${{ inputs.base_url }}
+      DEV_UI_SMOKE_LOGIN_REASON: ${{ inputs.login_reason }}
       DEV_UI_SMOKE_USERNAME: ${{ secrets.DEV_UI_SMOKE_USERNAME }}
       DEV_UI_SMOKE_PASSWORD: ${{ secrets.DEV_UI_SMOKE_PASSWORD }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Validate required secrets
-        run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -34,8 +68,37 @@ jobs:
       - name: Install Playwright Chromium + system deps
         run: npx playwright install --with-deps chromium
 
-      - name: Run DEV live UI auth+analyze smoke (all routes)
-        run: ./scripts/smoke/run_gui_live_auth_analyze_route_set.sh
+      - name: Run DEV live UI auth+analyze smoke route set
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmd=(./scripts/smoke/run_gui_live_auth_analyze_route_set.sh)
+
+          if [[ -n "${{ inputs.routes }}" && -n "${{ inputs.route_presets }}" ]]; then
+            echo "::error::inputs.routes und inputs.route_presets dürfen nicht gleichzeitig gesetzt werden"
+            exit 2
+          fi
+
+          if [[ -n "${{ inputs.routes }}" ]]; then
+            cmd+=(--routes "${{ inputs.routes }}")
+          fi
+
+          if [[ -n "${{ inputs.route_presets }}" ]]; then
+            cmd+=(--route-presets "${{ inputs.route_presets }}")
+          fi
+
+          if [[ -n "${{ inputs.timeout_ms }}" ]]; then
+            cmd+=(--timeout-ms "${{ inputs.timeout_ms }}")
+          fi
+
+          if [[ "${{ inputs.fallback_login_start_on_preflight_fail }}" == "true" || "${{ inputs.allow_login_start_fallback }}" == "true" ]]; then
+            cmd+=(--fallback-login-start-on-preflight-fail)
+          fi
+
+          printf 'Running command:'
+          printf ' %q' "${cmd[@]}"
+          printf '\n'
+          "${cmd[@]}"
 
       - name: Upload smoke artifacts
         id: upload_dev_auth_analyze_artifacts
@@ -48,6 +111,9 @@ jobs:
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
             reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
+            reports/evidence/*-login-start-smoke*.json
+            reports/evidence/*-ui-auth-analyze-route-set-summary.json
+            reports/evidence/*-login-start-smoke-bundle-summary.json
           if-no-files-found: warn
           overwrite: true
 
@@ -60,5 +126,8 @@ jobs:
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
             reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
+            reports/evidence/*-login-start-smoke*.json
+            reports/evidence/*-ui-auth-analyze-route-set-summary.json
+            reports/evidence/*-login-start-smoke-bundle-summary.json
           if-no-files-found: warn
           overwrite: true

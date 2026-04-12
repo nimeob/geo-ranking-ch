@@ -141,11 +141,37 @@ jobs:
           rm -f .dockerignore
           export DOCKER_BUILDKIT=0
 
-          docker build --no-cache -t "${API_IMAGE_URI}" .
-          docker push "${API_IMAGE_URI}"
+          retry_cmd() {
+            local max_attempts="$1"
+            shift
+            local sleep_seconds="$1"
+            shift
 
-          docker build --no-cache -f Dockerfile.ui --build-arg APP_VERSION="${IMAGE_TAG}" -t "${UI_IMAGE_URI}" .
-          docker push "${UI_IMAGE_URI}"
+            local attempt=1
+            while true; do
+              if "$@"; then
+                return 0
+              fi
+              local rc=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::error::Command failed after ${attempt} attempts (rc=${rc}): $*"
+                return "$rc"
+              fi
+              echo "::warning::Attempt ${attempt}/${max_attempts} failed (rc=${rc}); retrying in ${sleep_seconds}s: $*"
+              sleep "$sleep_seconds"
+              attempt=$((attempt + 1))
+              sleep_seconds=$((sleep_seconds * 2))
+            done
+          }
+
+          BASE_IMAGE="public.ecr.aws/docker/library/python:3.12-slim"
+          retry_cmd 5 20 docker pull "${BASE_IMAGE}"
+
+          retry_cmd 3 30 docker build --no-cache --pull=false -t "${API_IMAGE_URI}" .
+          retry_cmd 3 20 docker push "${API_IMAGE_URI}"
+
+          retry_cmd 3 30 docker build --no-cache --pull=false -f Dockerfile.ui --build-arg APP_VERSION="${IMAGE_TAG}" -t "${UI_IMAGE_URI}" .
+          retry_cmd 3 20 docker push "${UI_IMAGE_URI}"
 
           echo "api_image_uri=${API_IMAGE_URI}" >> "$GITHUB_OUTPUT"
           echo "ui_image_uri=${UI_IMAGE_URI}" >> "$GITHUB_OUTPUT"
@@ -368,7 +394,7 @@ jobs:
             exit 1
           fi
 
-      - name: Smoke-Test UI canonical-host redirect (/login?start=1 on alias host)
+      - name: Smoke-Test UI canonical-host redirect route matrix (/login?start=1 on alias host)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
           UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}
@@ -377,16 +403,16 @@ jobs:
           set -euo pipefail
           [ -n "${SERVICE_APP_BASE_URL:-}" ]
 
-          python3 scripts/smoke/check_ui_canonical_redirect.py \
+          scripts/smoke/run_canonical_redirect_smoke_bundle.sh \
             --base-url "${SERVICE_APP_BASE_URL}" \
+            --env-name "dev" \
             --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
             --canonical-hosts "${UI_CANONICAL_HOSTS:-}" \
-            --next "/gui" \
             --reason "manual_login" \
             --timeout 20 \
             --max-attempts 8 \
             --retry-delay 5 \
-            --output-json artifacts/dev-canonical-host-redirect-smoke.json
+            --output-dir "artifacts"
 
       - name: Reconcile DEV ALB listener login-entry rules
         env:
@@ -408,7 +434,7 @@ jobs:
             exit "$RECONCILE_RC"
           fi
 
-      - name: Smoke-Test UI login start redirects to IdP authorize (/gui + /gui/history + /jobs + /jobs/:id + /results/:id + legacy /gui/jobs*)
+      - name: Smoke-Test UI login start redirects to IdP authorize (/ + /gui + /gui/history + legacy /history + /jobs + /jobs/:id + /results/:id + legacy /gui/results/:id + legacy /gui/jobs*)
         env:
           SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}
         run: |
@@ -429,53 +455,15 @@ jobs:
           set -euo pipefail
           [ -n "${SERVICE_APP_BASE_URL:-}" ]
 
-          ALIAS_BASE_URL=$(python3 - <<'PY'
-          from urllib.parse import urlparse
-          import os
-
-          service_app_base_url = (os.getenv("SERVICE_APP_BASE_URL") or "").strip()
-          canonical_origin = (os.getenv("UI_CANONICAL_ORIGIN") or "").strip()
-          canonical_hosts_raw = (os.getenv("UI_CANONICAL_HOSTS") or "").strip()
-
-          base_parsed = urlparse(service_app_base_url)
-          canonical_parsed = urlparse(canonical_origin) if canonical_origin else base_parsed
-
-          canonical_host = (canonical_parsed.hostname or "").strip().lower()
-          scheme = canonical_parsed.scheme or base_parsed.scheme or "https"
-
-          candidates = []
-          for part in canonical_hosts_raw.split(","):
-              host = part.strip().lower()
-              if host:
-                  candidates.append(host)
-
-          if canonical_host and canonical_host not in candidates:
-              candidates.insert(0, canonical_host)
-
-          # Prefer the explicit dev.geo-ranking.ch alias, when configured.
-          alias_host = ""
-          for candidate in candidates:
-              if candidate == canonical_host:
-                  continue
-              if "geo-ranking" in candidate:
-                  alias_host = candidate
-                  break
-
-          if not alias_host:
-              for candidate in candidates:
-                  if candidate != canonical_host:
-                      alias_host = candidate
-                      break
-
-          if not alias_host:
-              raise SystemExit(0)
-
-          print(f"{scheme}://{alias_host}")
-          PY
-          )
+          ALIAS_BASE_URL="$(python3 scripts/smoke/infer_geo_alias_base_url.py \
+            --service-app-base-url "${SERVICE_APP_BASE_URL}" \
+            --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
+            --canonical-hosts "${UI_CANONICAL_HOSTS:-}" \
+            --require-tls-hostname-match \
+            --probe-timeout 5)"
 
           if [ -z "${ALIAS_BASE_URL:-}" ]; then
-            echo "::notice::No alias host configured in UI_CANONICAL_HOSTS; skipping alias route-matrix smoke."
+            echo "::notice::No TLS-valid alias host could be inferred from SERVICE_APP_BASE_URL/UI_CANONICAL_*; skipping alias route-matrix smoke."
             exit 0
           fi
 
@@ -505,21 +493,9 @@ jobs:
           name: dev-login-start-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           path: |
-            artifacts/dev-login-start-smoke.json
-            artifacts/dev-login-start-smoke-gui-history.json
-            artifacts/dev-login-start-smoke-jobs.json
-            artifacts/dev-login-start-smoke-jobs-detail.json
-            artifacts/dev-login-start-smoke-results-detail.json
-            artifacts/dev-login-start-smoke-gui-jobs-legacy.json
-            artifacts/dev-login-start-smoke-gui-jobs-legacy-detail.json
-            artifacts/dev-alias-login-start-smoke.json
-            artifacts/dev-alias-login-start-smoke-gui-history.json
-            artifacts/dev-alias-login-start-smoke-jobs.json
-            artifacts/dev-alias-login-start-smoke-jobs-detail.json
-            artifacts/dev-alias-login-start-smoke-results-detail.json
-            artifacts/dev-alias-login-start-smoke-gui-jobs-legacy.json
-            artifacts/dev-alias-login-start-smoke-gui-jobs-legacy-detail.json
-            artifacts/dev-canonical-host-redirect-smoke.json
+            artifacts/dev-login-start-smoke*.json
+            artifacts/dev-alias-login-start-smoke*.json
+            artifacts/dev-canonical-host-redirect-smoke*.json
             artifacts/dev-auth-proxy-guard-smoke.json
 
       - name: Deployment summary

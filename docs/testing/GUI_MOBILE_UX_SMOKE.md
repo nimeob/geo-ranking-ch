@@ -33,7 +33,13 @@ Optional mit stabilitätsfenster (ms) für Redirect-Guard:
 BASE_URL="https://www.dev.georanking.ch/" GUI_STABILITY_WAIT_MS=1500 node scripts/run_issue_1016_mobile_ux_smoke.mjs
 ```
 
-Hinweis: Der Smoke prüft zuerst, ob die GUI nach dem Initial-Load stabil bleibt. Bei Redirect auf Auth-Login (`auth.*`/`/login`) wird der Lauf mit klarer Fehlermeldung beendet statt später mit Locator-Timeout zu kippen.
+Optional: Reachability-Preflight-Timeout (ms) für langsame Runner erhöhen:
+
+```bash
+BASE_URL="https://www.dev.georanking.ch/gui" BASE_URL_PROBE_TIMEOUT_MS=9000 node scripts/run_issue_1016_mobile_ux_smoke.mjs
+```
+
+Hinweis: Der Smoke prüft vor dem Browser-Start per HTTP-Preflight, ob `BASE_URL` erreichbar ist. Bei `connection_refused`/DNS/Timeout wird ein Evidence-JSON mit `runError.hint` geschrieben (konkrete Next-Steps), statt nur einen späten Locator-Timeout zu liefern. Danach greift wie bisher der Redirect-Guard (`auth.*`/`/login`).
 
 ## Evidence
 Der Smoke erzeugt pro Lauf:

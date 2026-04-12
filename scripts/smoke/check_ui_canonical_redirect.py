@@ -12,17 +12,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import socket
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
 _REDIRECT_HTTP_STATUSES = frozenset({301, 302, 303, 307, 308})
+_LEGACY_DEV_UI_HOSTS = frozenset({"dev.georanking.ch", "dev.geo-ranking.ch"})
 
 
 @dataclass(frozen=True)
@@ -49,12 +52,74 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
+def _canonicalize_base_url(raw_base_url: str) -> str:
+    candidate = str(raw_base_url or "").strip()
+    if not candidate:
+        return ""
+
+    try:
+        parsed = urlsplit(candidate)
+    except Exception:  # noqa: BLE001
+        return candidate
+
+    if not parsed.scheme or not parsed.netloc:
+        return candidate
+
+    host = str(parsed.hostname or "").strip().lower()
+    if not host:
+        return candidate
+
+    canonical_host = host.rstrip(".")
+    if canonical_host in _LEGACY_DEV_UI_HOSTS:
+        canonical_host = f"www.{canonical_host}"
+
+    if canonical_host == host:
+        return candidate
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    port_segment = f":{parsed.port}" if parsed.port is not None else ""
+    canonical_netloc = f"{userinfo}{canonical_host}{port_segment}"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            canonical_netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
 def _normalize_origin(origin: str) -> str:
     candidate = origin.strip().rstrip("/")
-    parsed = urlparse(candidate)
+    parsed = urlsplit(candidate)
     if not parsed.scheme or not parsed.netloc:
         raise ValueError(f"invalid_origin:{origin}")
-    return f"{parsed.scheme}://{parsed.netloc}"
+
+    host = str(parsed.hostname or "").strip().lower().rstrip(".")
+    if not host:
+        raise ValueError(f"invalid_origin:{origin}")
+
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    try:
+        port = parsed.port
+    except ValueError as exc:  # invalid port
+        raise ValueError(f"invalid_origin:{origin}") from exc
+
+    port_segment = f":{port}" if port is not None else ""
+    return urlunsplit((parsed.scheme, f"{userinfo}{host}{port_segment}", "", "", ""))
 
 
 def _normalize_host(value: str) -> str:
@@ -62,7 +127,7 @@ def _normalize_host(value: str) -> str:
     if not raw_value:
         return ""
     parsed = urlparse(raw_value if "://" in raw_value else f"//{raw_value}")
-    return str(parsed.hostname or "").strip().lower()
+    return str(parsed.hostname or "").strip().lower().rstrip(".")
 
 
 def _parse_canonical_hosts(raw_hosts: str) -> list[str]:
@@ -74,6 +139,26 @@ def _parse_canonical_hosts(raw_hosts: str) -> list[str]:
             seen.add(host)
             normalized.append(host)
     return normalized
+
+
+def _expand_geo_host_aliases(host: str) -> list[str]:
+    normalized_host = str(host or "").strip().lower()
+    if not normalized_host:
+        return []
+
+    candidates: list[str] = []
+    if "geo-ranking" in normalized_host:
+        candidates.append(normalized_host.replace("geo-ranking", "georanking"))
+    if "georanking" in normalized_host:
+        candidates.append(normalized_host.replace("georanking", "geo-ranking"))
+
+    aliases: list[str] = []
+    seen: set[str] = {normalized_host}
+    for candidate in candidates:
+        if candidate and candidate not in seen:
+            aliases.append(candidate)
+            seen.add(candidate)
+    return aliases
 
 
 def _is_redirect_status(status_code: int) -> bool:
@@ -111,6 +196,122 @@ def _resolve_retry_delay(
     return min(delta_seconds, retry_cap)
 
 
+def _iter_exception_chain(exc: Exception) -> list[Exception]:
+    errors: list[Exception] = []
+    seen: set[int] = set()
+    current: Exception | None = exc
+
+    while current is not None and id(current) not in seen:
+        errors.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+
+    return errors
+
+
+def _normalize_reason_suffix(value: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower())
+    cleaned = cleaned.strip("_")
+    return cleaned or fallback
+
+
+def _classify_request_failure(exc: Exception) -> str:
+    errors = _iter_exception_chain(exc)
+    messages = [str(item or "") for item in errors]
+    combined_message = " ".join(messages).lower()
+
+    if any(isinstance(item, (TimeoutError, socket.timeout)) for item in errors) or "timed out" in combined_message:
+        return "request_failed_timeout_timed_out"
+
+    if any(isinstance(item, socket.gaierror) for item in errors) or any(
+        token in combined_message
+        for token in (
+            "name or service not known",
+            "temporary failure in name resolution",
+            "nodename nor servname provided",
+            "getaddrinfo failed",
+            "enotfound",
+            "eai_again",
+        )
+    ):
+        return "request_failed_dns_resolution"
+
+    if any(
+        isinstance(item, (ConnectionRefusedError, ConnectionResetError, ConnectionAbortedError, BrokenPipeError))
+        for item in errors
+    ):
+        connection_suffix = _normalize_reason_suffix(type(errors[0]).__name__, "connection")
+        return f"request_failed_connection_{connection_suffix}"
+
+    if any(
+        token in combined_message
+        for token in (
+            "connection refused",
+            "connection reset",
+            "connection aborted",
+            "host is down",
+            "no route to host",
+            "network is unreachable",
+            "econnrefused",
+            "econnreset",
+            "ehostunreach",
+            "enetunreach",
+        )
+    ):
+        if "connection refused" in combined_message or "econnrefused" in combined_message:
+            return "request_failed_connection_refused"
+        if "connection reset" in combined_message or "econnreset" in combined_message:
+            return "request_failed_connection_reset"
+        if "host is down" in combined_message or "no route to host" in combined_message:
+            return "request_failed_connection_host_unreachable"
+        if "network is unreachable" in combined_message or "enetunreach" in combined_message:
+            return "request_failed_connection_network_unreachable"
+        return "request_failed_connection_error"
+
+    if any(
+        token in combined_message
+        for token in (
+            "certificate",
+            "cert_has_expired",
+            "certificateverifyfailed",
+            "certificate verify failed",
+            "self signed",
+            "x509",
+            "ssl",
+            "tls",
+            "hostname mismatch",
+            "doesn't match",
+            "unable to get local issuer certificate",
+        )
+    ):
+        if "certificate has expired" in combined_message or "cert_has_expired" in combined_message:
+            return "request_failed_tls_cert_has_expired"
+        if "self signed" in combined_message:
+            return "request_failed_tls_self_signed_cert"
+        if "unable to get local issuer certificate" in combined_message:
+            return "request_failed_tls_untrusted_issuer"
+        if "hostname mismatch" in combined_message or "doesn't match" in combined_message:
+            return "request_failed_tls_hostname_mismatch"
+        return "request_failed_tls_error"
+
+    return "request_failed"
+
+
+_NON_RETRYABLE_REQUEST_FAILURE_REASONS = frozenset(
+    {
+        "request_failed_tls_hostname_mismatch",
+        "request_failed_tls_cert_has_expired",
+        "request_failed_tls_self_signed_cert",
+        "request_failed_tls_untrusted_issuer",
+    }
+)
+
+
+def _is_non_retryable_request_failure(exc: Exception) -> bool:
+    reason = _classify_request_failure(exc)
+    return reason in _NON_RETRYABLE_REQUEST_FAILURE_REASONS
+
+
 def _send_request_probe(
     *,
     request_url: str,
@@ -118,8 +319,9 @@ def _send_request_probe(
     max_attempts: int,
     retry_delay_seconds: float,
     max_retry_delay_seconds: float = 10.0,
+    headers: dict[str, str] | None = None,
 ) -> _HttpProbeResult:
-    req = Request(request_url, method="GET")
+    req = Request(request_url, method="GET", headers=headers or {})
     opener = build_opener(_NoRedirect)
 
     attempts = max(1, int(max_attempts))
@@ -156,6 +358,8 @@ def _send_request_probe(
             return _HttpProbeResult(status_code=status, location=location)
         except Exception as exc:  # noqa: BLE001
             last_error = exc
+            if _is_non_retryable_request_failure(exc):
+                break
             if attempt >= attempts:
                 break
             time.sleep(
@@ -164,7 +368,7 @@ def _send_request_probe(
 
     raise RuntimeError(
         f"request_failed_after_retries(attempts={attempts}, timeout_seconds={timeout_seconds}): {last_error}"
-    )
+    ) from last_error
 
 
 def _build_alias_request_url(
@@ -175,8 +379,37 @@ def _build_alias_request_url(
     return f"{canonical.scheme}://{alias_host}/login?{query}"
 
 
+def _build_alias_host_header_probe(
+    *, canonical_origin: str, next_path: str, reason: str
+) -> str:
+    canonical = urlparse(canonical_origin)
+    query = urlencode({"next": next_path, "reason": reason, "start": "1"})
+    return f"{canonical.scheme}://{canonical.netloc}/login?{query}"
+
+
+def _looks_like_tls_verification_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    if "certificate verify failed" in text:
+        return True
+    if "ssl:" in text and "certificate" in text:
+        return True
+    return False
+
+
 def _query_items(query: str) -> list[tuple[str, str]]:
     return sorted(parse_qsl(query, keep_blank_values=True))
+
+
+def _effective_port(parts) -> int | None:
+    if parts.port is not None:
+        return int(parts.port)
+
+    scheme = parts.scheme.lower()
+    if scheme == "https":
+        return 443
+    if scheme == "http":
+        return 80
+    return None
 
 
 def _canonical_redirect_target_matches(*, observed: str, expected: str) -> bool:
@@ -185,8 +418,15 @@ def _canonical_redirect_target_matches(*, observed: str, expected: str) -> bool:
 
     if observed_parts.scheme.lower() != expected_parts.scheme.lower():
         return False
-    if observed_parts.netloc.lower() != expected_parts.netloc.lower():
+
+    observed_host = (observed_parts.hostname or "").lower()
+    expected_host = (expected_parts.hostname or "").lower()
+    if observed_host != expected_host:
         return False
+
+    if _effective_port(observed_parts) != _effective_port(expected_parts):
+        return False
+
     if observed_parts.path != expected_parts.path:
         return False
 
@@ -206,9 +446,9 @@ def check_canonical_redirect(
     retry_delay_seconds: float = 2.0,
     max_retry_delay_seconds: float = 10.0,
 ) -> CanonicalRedirectCheckResult:
-    normalized_base_origin = _normalize_origin(base_url)
+    normalized_base_origin = _normalize_origin(_canonicalize_base_url(base_url))
     normalized_canonical_origin = (
-        _normalize_origin(canonical_origin)
+        _normalize_origin(_canonicalize_base_url(canonical_origin))
         if canonical_origin.strip()
         else normalized_base_origin
     )
@@ -231,6 +471,9 @@ def check_canonical_redirect(
         alias_candidates = [
             host for host in configured_hosts if host and host != canonical_host
         ]
+
+        if not alias_candidates:
+            alias_candidates = _expand_geo_host_aliases(canonical_host)
 
     if not alias_candidates:
         return CanonicalRedirectCheckResult(
@@ -255,13 +498,39 @@ def check_canonical_redirect(
 
     expected_location = f"{normalized_canonical_origin}/login?{urlencode({'next': next_path, 'reason': reason, 'start': '1'})}"
 
-    probe = _send_request_probe(
-        request_url=request_url,
-        timeout_seconds=timeout_seconds,
-        max_attempts=max_attempts,
-        retry_delay_seconds=retry_delay_seconds,
-        max_retry_delay_seconds=max_retry_delay_seconds,
-    )
+    try:
+        probe = _send_request_probe(
+            request_url=request_url,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            max_retry_delay_seconds=max_retry_delay_seconds,
+        )
+    except RuntimeError as exc:
+        canonical_scheme = urlparse(normalized_canonical_origin).scheme.lower()
+        if not (
+            canonical_scheme == "https"
+            and selected_alias_host
+            and selected_alias_host != canonical_host
+            and _looks_like_tls_verification_error(exc)
+        ):
+            raise
+
+        probe = _send_request_probe(
+            request_url=_build_alias_host_header_probe(
+                canonical_origin=normalized_canonical_origin,
+                next_path=next_path,
+                reason=reason,
+            ),
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            max_retry_delay_seconds=max_retry_delay_seconds,
+            headers={
+                "Host": selected_alias_host,
+                "X-Forwarded-Host": selected_alias_host,
+            },
+        )
 
     if not _is_redirect_status(probe.status_code):
         return CanonicalRedirectCheckResult(
@@ -310,7 +579,16 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Smoke-check optional canonical-host redirect contract for UI /login"
     )
-    parser.add_argument("--base-url", required=True, help="Canonical GUI base URL")
+    parser.add_argument(
+        "--base-url",
+        default="",
+        help="Canonical GUI base URL",
+    )
+    parser.add_argument(
+        "--ui-base-url",
+        default="",
+        help="Alias for --base-url",
+    )
     parser.add_argument(
         "--canonical-origin",
         default="",
@@ -319,7 +597,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--canonical-hosts",
         default="",
-        help="Comma-separated canonical host list from UI_CANONICAL_HOSTS",
+        help=(
+            "Comma-separated canonical host list from UI_CANONICAL_HOSTS "
+            "(optional; geo-ranking/georanking alias inferred from canonical origin when omitted)"
+        ),
     )
     parser.add_argument(
         "--alias-host",
@@ -356,17 +637,46 @@ def _build_parser() -> argparse.ArgumentParser:
         default="",
         help="Alias for --output-json",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Backward-compatible no-op alias (stdout JSON is always emitted)",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress stdout JSON output (useful in bundle loops when --output-json is set)",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
+    base_url = str(args.base_url or "").strip()
+    ui_base_url = str(args.ui_base_url or "").strip()
+    if not base_url and not ui_base_url:
+        payload = {
+            "ok": False,
+            "skipped": False,
+            "reason": "invalid_arguments:base_url_required",
+            "base_url": base_url,
+            "ui_base_url": ui_base_url,
+            "max_retry_delay": float(args.max_retry_delay),
+        }
+        if not args.quiet:
+            print(json.dumps(payload, ensure_ascii=False))
+        return 2
+
+    requested_base_url = str(base_url or ui_base_url).strip()
+    effective_base_url = _canonicalize_base_url(requested_base_url)
+    base_url_canonicalized = effective_base_url != requested_base_url
+
     output_json = str(args.output_json or args.json_out or "").strip()
 
     try:
         result = check_canonical_redirect(
-            base_url=args.base_url,
+            base_url=effective_base_url,
             canonical_origin=args.canonical_origin,
             canonical_hosts=args.canonical_hosts,
             alias_host=args.alias_host,
@@ -381,9 +691,12 @@ def main(argv: list[str] | None = None) -> int:
         payload = {
             "ok": False,
             "skipped": False,
-            "reason": "request_error",
+            "reason": _classify_request_failure(exc),
             "error": str(exc),
-            "base_url": args.base_url,
+            "base_url": effective_base_url,
+            "requested_base_url": requested_base_url,
+            "base_url_canonicalized": base_url_canonicalized,
+            "ui_base_url": ui_base_url,
             "canonical_origin": args.canonical_origin,
             "canonical_hosts": args.canonical_hosts,
             "alias_host": args.alias_host,
@@ -398,10 +711,15 @@ def main(argv: list[str] | None = None) -> int:
                 json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
-        print(json.dumps(payload, ensure_ascii=False))
+        if not args.quiet:
+            print(json.dumps(payload, ensure_ascii=False))
         return 1
 
     payload = asdict(result)
+    payload["base_url"] = effective_base_url
+    payload["requested_base_url"] = requested_base_url
+    payload["base_url_canonicalized"] = base_url_canonicalized
+    payload["ui_base_url"] = ui_base_url
     if output_json:
         output_path = Path(output_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -410,7 +728,8 @@ def main(argv: list[str] | None = None) -> int:
             encoding="utf-8",
         )
 
-    print(json.dumps(payload, ensure_ascii=False))
+    if not args.quiet:
+        print(json.dumps(payload, ensure_ascii=False))
     return 0 if result.ok else 1
 
 

@@ -62,12 +62,6 @@ PRE_COMMIT_BIN="${PRE_COMMIT_BIN:-${DEFAULT_PRE_COMMIT}}"
 TYPECHECK_TARGETS="${TYPECHECK_TARGETS:-src tests scripts}"
 UNIT_TEST_TARGETS="${UNIT_TEST_TARGETS:-}"
 LINT_SCOPE="${LINT_SCOPE:-staged}"
-LINT_INCLUDE_UNTRACKED="${LINT_INCLUDE_UNTRACKED:-1}"
-LINT_CHUNK_SIZE="${LINT_CHUNK_SIZE:-200}"
-LINT_EXCLUDE_PREFIXES_DEFAULT=".local/ .tmp .night-worker/ .nightworker/ .nightlock/ .worktrees/ artifacts/ logs/ workspace-logs/ node_modules/ reports/evidence/"
-LINT_EXCLUDE_PREFIXES_RAW="${LINT_EXCLUDE_PREFIXES:-${LINT_EXCLUDE_PREFIXES_DEFAULT}}"
-
-read -r -a LINT_EXCLUDE_PREFIXES <<< "${LINT_EXCLUDE_PREFIXES_RAW}"
 
 require_cmd() {
   local cmd="$1"
@@ -89,6 +83,12 @@ FORBIDDEN_WIP_LINT_FILES=(
   "triage_add_labels.sh"
 )
 
+LOCAL_LINT_EXCLUDE_PREFIXES=(
+  ".local/"
+  ".tmp/"
+  ".nightlock/"
+)
+
 is_forbidden_lint_file() {
   local candidate="$1"
   local forbidden
@@ -100,84 +100,15 @@ is_forbidden_lint_file() {
   return 1
 }
 
-is_excluded_lint_prefix() {
+is_local_lint_excluded_file() {
   local candidate="$1"
   local prefix
-  for prefix in "${LINT_EXCLUDE_PREFIXES[@]}"; do
-    [[ -n "${prefix}" ]] || continue
+  for prefix in "${LOCAL_LINT_EXCLUDE_PREFIXES[@]}"; do
     if [[ "${candidate}" == "${prefix}"* ]]; then
       return 0
     fi
   done
   return 1
-}
-
-is_known_binary_artifact() {
-  local candidate="$1"
-  case "${candidate}" in
-    *.tar|*.tar.gz|*.tgz|*.zip|*.gz|*.7z|*.rar|*.pdf|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.ico|*.mp3|*.mp4|*.mov|*.avi|*.woff|*.woff2)
-      return 0
-      ;;
-  esac
-  return 1
-}
-
-lint_file_allowed() {
-  local candidate="$1"
-  [[ -n "${candidate}" ]] || return 1
-  [[ -f "${candidate}" ]] || return 1
-
-  if is_forbidden_lint_file "${candidate}"; then
-    return 1
-  fi
-
-  if is_excluded_lint_prefix "${candidate}"; then
-    return 1
-  fi
-
-  if is_known_binary_artifact "${candidate}"; then
-    return 1
-  fi
-
-  return 0
-}
-
-run_pre_commit_for_files() {
-  local -a files=("$@")
-  local total="${#files[@]}"
-  local preview_limit=10
-  local chunk_size="${LINT_CHUNK_SIZE}"
-
-  if ! [[ "${chunk_size}" =~ ^[0-9]+$ ]] || (( chunk_size < 1 )); then
-    chunk_size=200
-  fi
-
-  if (( total == 0 )); then
-    echo "[dev-check] lint: ${PRE_COMMIT_BIN} run"
-    "${PRE_COMMIT_BIN}" run
-    return
-  fi
-
-  if (( total <= preview_limit )); then
-    echo "[dev-check] lint targets (${total}): ${files[*]}"
-  else
-    echo "[dev-check] lint targets (${total}, preview ${preview_limit}): ${files[*]:0:preview_limit} ..."
-  fi
-
-  if (( total <= chunk_size )); then
-    echo "[dev-check] lint: ${PRE_COMMIT_BIN} run --files <${total} files>"
-    "${PRE_COMMIT_BIN}" run --files "${files[@]}"
-    return
-  fi
-
-  echo "[dev-check] lint: ${PRE_COMMIT_BIN} run --files in chunks (chunk_size=${chunk_size})"
-  local i=0
-  while (( i < total )); do
-    local -a chunk=("${files[@]:i:chunk_size}")
-    echo "[dev-check] lint chunk: files $((i + 1))-$((i + ${#chunk[@]}))/${total}"
-    "${PRE_COMMIT_BIN}" run --files "${chunk[@]}"
-    (( i += ${#chunk[@]} ))
-  done
 }
 
 if [[ "${LINT_SCOPE}" == "all" ]]; then
@@ -187,17 +118,27 @@ else
   mapfile -t lint_files < <(
     {
       git diff --name-only --diff-filter=ACMR HEAD
-      if [[ "${LINT_INCLUDE_UNTRACKED}" == "1" ]]; then
-        git ls-files --others --exclude-standard
-      fi
+      git ls-files --others --exclude-standard
     } | awk 'NF' | sort -u | while IFS= read -r file; do
-      if lint_file_allowed "${file}"; then
-        printf '%s\n' "${file}"
+      [[ -n "${file}" ]] || continue
+      [[ -f "${file}" ]] || continue
+      if is_forbidden_lint_file "${file}"; then
+        continue
       fi
+      if is_local_lint_excluded_file "${file}"; then
+        continue
+      fi
+      printf '%s\n' "${file}"
     done
   )
 
-  run_pre_commit_for_files "${lint_files[@]}"
+  if (( ${#lint_files[@]} > 0 )); then
+    echo "[dev-check] lint: ${PRE_COMMIT_BIN} run --files ${lint_files[*]}"
+    "${PRE_COMMIT_BIN}" run --files "${lint_files[@]}"
+  else
+    echo "[dev-check] lint: ${PRE_COMMIT_BIN} run"
+    "${PRE_COMMIT_BIN}" run
+  fi
 fi
 
 echo "[dev-check] boundaries: ${PYTHON_BIN} scripts/check_bl31_service_boundaries.py --src-dir src"

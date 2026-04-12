@@ -69,5 +69,7 @@ runtime/
 # OpenClaw local artifacts
 /.openclaw/issue_*_body.md
 /.nightworker/
+/.night-worker/
+/.nightlock/
 /run_triangulate.sh
 .tools/

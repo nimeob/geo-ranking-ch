@@ -1178,9 +1178,11 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       const ANALYZE_DRAFT_STORAGE_KEY = "geo-ranking-ui-analyze-draft-v1";
       const SESSION_EXPIRY_WARNING_LEAD_MS = 120000;
       const AUTH_SESSION_POLL_INTERVAL_MS = 60000;
+      const AUTH_UNAUTHENTICATED_BACKGROUND_POLL_COOLDOWN_MS = 300000;
       const TRACE_DEBUG_ENDPOINT = "/debug/trace";
       const ANALYZE_JOBS_ENDPOINT_BASE = "/analyze/jobs";
       const ANALYZE_HISTORY_ENDPOINT = "/analyze/history";
+      const HISTORY_AUTH_MIGRATION_NOTICE = "Historische Abfragen sind in dieser Umgebung aktuell noch nicht über die GUI-Session verfügbar.";
       const AUTH_LOGIN_ENDPOINT = "__AUTH_LOGIN_ENDPOINT__";
       const AUTH_LOGOUT_ENDPOINT = "__AUTH_LOGOUT_ENDPOINT__";
       const AUTH_ME_ENDPOINT = "__AUTH_ME_ENDPOINT__";
@@ -1395,7 +1397,10 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         sessionExpiresAtMs: 0,
         sessionExpiresInSeconds: 0,
         warningShownForExpiryMs: 0,
+        nextUnauthenticatedPollAtMs: 0,
       };
+      let historyPanelFetchSupported = true;
+      let historyPanelFetchCompatibilityNotice = "";
 
       const formEl = document.getElementById("analyze-form");
       const queryEl = document.getElementById("query");
@@ -1475,6 +1480,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       let requestIdFeedbackResetHandle = null;
       let authRecoveryRedirectScheduled = false;
       let authSessionPollHandle = null;
+      let authSessionRefreshInFlight = null;
 
       function utcTimestamp() {
         return new Date().toISOString();
@@ -1703,8 +1709,35 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           return;
         }
         authSessionPollHandle = window.setInterval(() => {
-          void refreshAuthSession({ force: true });
+          if (isDocumentHidden()) {
+            return;
+          }
+          const forceRefresh = authState.authenticated === true;
+          void refreshAuthSession({ force: forceRefresh });
         }, AUTH_SESSION_POLL_INTERVAL_MS);
+      }
+
+      function isDocumentHidden() {
+        if (typeof document === "undefined") {
+          return false;
+        }
+        if (typeof document.visibilityState === "string") {
+          return document.visibilityState === "hidden";
+        }
+        return document.hidden === true;
+      }
+
+      function scheduleAuthVisibilityRefresh() {
+        if (typeof document === "undefined" || !document.addEventListener) {
+          return;
+        }
+        document.addEventListener("visibilitychange", () => {
+          if (isDocumentHidden()) {
+            return;
+          }
+          const forceRefresh = authState.authenticated !== true;
+          void refreshAuthSession({ force: forceRefresh });
+        });
       }
 
       function readStoredJobIds() {
@@ -1868,12 +1901,28 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
         historyShell.innerHTML = rows.join("\\n");
       }
 
+      function renderHistoryCompatibilityNotice(message) {
+        if (!historyShell) return;
+        const copy = String(message || "").trim() || "Historische Abfragen sind aktuell nicht verfügbar.";
+        historyShell.innerHTML = `<div class="placeholder">${escapeHtml(copy)}</div>`;
+      }
+
       async function loadHistory() {
         if (!historyShell) return;
+
         const isAuthenticated = await refreshAuthSession({ force: false });
         if (!isAuthenticated && authState.authCheckSupported) {
           // Keep GUI shell usable for anonymous sessions; history is optional.
           // Login redirect is reserved for protected user actions (analyze, result drill-down, etc.).
+          renderHistoryItems([]);
+          return;
+        }
+
+        if (!historyPanelFetchSupported) {
+          if (historyPanelFetchCompatibilityNotice) {
+            renderHistoryCompatibilityNotice(historyPanelFetchCompatibilityNotice);
+            return;
+          }
           renderHistoryItems([]);
           return;
         }
@@ -1909,9 +1958,24 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             // History is a best-effort, non-critical panel.
             // A 401 here must NOT trigger global session recovery (redirect loop), because
             // /analyze/history may be served by a different backend path during migration.
-            if (response.status === 401) {
-              renderHistoryItems([]);
-              return;
+            // Some frontdoors/proxies may surface the same bearer/deprecation signal as 403.
+            if (response.status === 401 || response.status === 403) {
+              const deprecationScope = data && data.deprecation && data.deprecation.scope
+                ? String(data.deprecation.scope)
+                : "";
+              const responseMessage = data && data.message ? String(data.message) : "";
+              const missingBearerToken = responseMessage.toLowerCase().includes("missing or invalid bearer token");
+              const frontFacingDeprecated = deprecationScope === "history-front-facing";
+              if (missingBearerToken || frontFacingDeprecated) {
+                historyPanelFetchSupported = false;
+                historyPanelFetchCompatibilityNotice = HISTORY_AUTH_MIGRATION_NOTICE;
+                renderHistoryCompatibilityNotice(historyPanelFetchCompatibilityNotice);
+                return;
+              }
+              if (response.status === 401) {
+                renderHistoryItems([]);
+                return;
+              }
             }
 
             const errCode = data && data.error ? String(data.error) : `http_${response.status}`;
@@ -1926,6 +1990,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
             }
             throw new Error(authFailure.errorMessage);
           }
+          historyPanelFetchCompatibilityNotice = "";
           renderHistoryItems(data.history);
         } catch (error) {
           historyShell.innerHTML = `<div class="error">Historie konnte nicht geladen werden: ${escapeHtml(
@@ -4690,6 +4755,8 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           authState.sessionExpiresInSeconds = 0;
           authState.warningShownForExpiryMs = 0;
           hideSessionExpiryWarning();
+        } else {
+          authState.nextUnauthenticatedPollAtMs = 0;
         }
 
         updateAuthEntryPoints();
@@ -4712,88 +4779,119 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           return authState.authenticated === true;
         }
 
-        const headers = {
-          "Accept": "application/json",
-          "X-Session-Id": uiSessionId,
-        };
-
-        const authFetch = await fetchWithTimeoutAndSafeRetry(
-          AUTH_ME_ENDPOINT,
-          {
-            method: "GET",
-            headers,
-            credentials: "include",
-          },
-          {
-            timeoutMs: DEV_CLIENT_REQUEST_POLICY.requestTimeoutMs,
-            maxRetries: DEV_CLIENT_REQUEST_POLICY.maxRetryBudget,
-            retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
-          }
-        );
-
-        if (!authFetch.ok || !authFetch.response) {
-          const failureSummary = summarizeDevRequestFailure(authFetch);
-          const authRequestId = normalizeTraceRequestId(authFetch.requestId || "");
-          emitUiEvent("ui.auth.session_check.end", {
-            level: "warn",
-            direction: "api->ui",
-            status: failureSummary.finalReason,
-            route: AUTH_ME_ENDPOINT,
-            method: "GET",
-            requestId: authRequestId,
-            final_reason: failureSummary.finalReason,
-            attempt_count: failureSummary.attemptCount,
-            retry_count: failureSummary.retryCount,
-            timeout_ms: failureSummary.timeoutMs,
-          });
+        if (!force && authState.authenticated === false && isDocumentHidden()) {
           updateAuthEntryPoints();
-          return authState.authenticated === true;
-        }
-
-        const response = authFetch.response;
-
-        if (response.status === 404 || response.status === 405) {
-          setAuthState(authState.authenticated === true, {
-            userClaims: authState.userClaims,
-            authCheckSupported: false,
-            sessionExpiresAtMs: 0,
-            sessionExpiresInSeconds: 0,
-          });
-          return authState.authenticated === true;
-        }
-
-        let payload = null;
-        try {
-          payload = await response.json();
-        } catch (error) {
-          payload = null;
-        }
-
-        if (response.ok && payload && payload.ok === true) {
-          const sessionExpiresAtMs = parseSessionExpiryMs(payload.session_expires_at);
-          const sessionExpiresInSeconds = parseSessionExpiryInSeconds(payload.session_expires_in_seconds);
-          setAuthState(true, {
-            userClaims: payload.user_claims || {},
-            authCheckSupported: true,
-            sessionExpiresAtMs,
-            sessionExpiresInSeconds,
-          });
-          updateSessionExpiryWarning(payload);
-          return true;
-        }
-
-        if (response.status === 401) {
-          setAuthState(false, {
-            userClaims: {},
-            authCheckSupported: true,
-            sessionExpiresAtMs: 0,
-            sessionExpiresInSeconds: 0,
-          });
           return false;
         }
 
-        updateAuthEntryPoints();
-        return authState.authenticated === true;
+        if (
+          !force
+          && authState.authenticated === false
+          && Number.isFinite(Number(authState.nextUnauthenticatedPollAtMs))
+          && Number(authState.nextUnauthenticatedPollAtMs) > Date.now()
+        ) {
+          updateAuthEntryPoints();
+          return false;
+        }
+
+        if (authSessionRefreshInFlight) {
+          return authSessionRefreshInFlight;
+        }
+
+        const refreshTask = (async () => {
+          const headers = {
+            "Accept": "application/json",
+            "X-Session-Id": uiSessionId,
+          };
+
+          const authFetch = await fetchWithTimeoutAndSafeRetry(
+            AUTH_ME_ENDPOINT,
+            {
+              method: "GET",
+              headers,
+              credentials: "include",
+            },
+            {
+              timeoutMs: DEV_CLIENT_REQUEST_POLICY.requestTimeoutMs,
+              maxRetries: DEV_CLIENT_REQUEST_POLICY.maxRetryBudget,
+              retryDelayMs: DEV_CLIENT_REQUEST_POLICY.retryDelayMs,
+            }
+          );
+
+          if (!authFetch.response) {
+            const failureSummary = summarizeDevRequestFailure(authFetch);
+            const authRequestId = normalizeTraceRequestId(authFetch.requestId || "");
+            emitUiEvent("ui.auth.session_check.end", {
+              level: "warn",
+              direction: "api->ui",
+              status: failureSummary.finalReason,
+              route: AUTH_ME_ENDPOINT,
+              method: "GET",
+              requestId: authRequestId,
+              final_reason: failureSummary.finalReason,
+              attempt_count: failureSummary.attemptCount,
+              retry_count: failureSummary.retryCount,
+              timeout_ms: failureSummary.timeoutMs,
+            });
+            updateAuthEntryPoints();
+            return authState.authenticated === true;
+          }
+
+          const response = authFetch.response;
+
+          if (response.status === 404 || response.status === 405) {
+            setAuthState(authState.authenticated === true, {
+              userClaims: authState.userClaims,
+              authCheckSupported: false,
+              sessionExpiresAtMs: 0,
+              sessionExpiresInSeconds: 0,
+            });
+            return authState.authenticated === true;
+          }
+
+          let payload = null;
+          try {
+            payload = await response.json();
+          } catch (error) {
+            payload = null;
+          }
+
+          if (response.ok && payload && payload.ok === true) {
+            const sessionExpiresAtMs = parseSessionExpiryMs(payload.session_expires_at);
+            const sessionExpiresInSeconds = parseSessionExpiryInSeconds(payload.session_expires_in_seconds);
+            setAuthState(true, {
+              userClaims: payload.user_claims || {},
+              authCheckSupported: true,
+              sessionExpiresAtMs,
+              sessionExpiresInSeconds,
+            });
+            updateSessionExpiryWarning(payload);
+            return true;
+          }
+
+          if (response.status === 401 || response.status === 403) {
+            setAuthState(false, {
+              userClaims: {},
+              authCheckSupported: true,
+              sessionExpiresAtMs: 0,
+              sessionExpiresInSeconds: 0,
+            });
+            authState.nextUnauthenticatedPollAtMs = Date.now() + AUTH_UNAUTHENTICATED_BACKGROUND_POLL_COOLDOWN_MS;
+            return false;
+          }
+
+          updateAuthEntryPoints();
+          return authState.authenticated === true;
+        })();
+
+        authSessionRefreshInFlight = refreshTask;
+        try {
+          return await refreshTask;
+        } finally {
+          if (authSessionRefreshInFlight === refreshTask) {
+            authSessionRefreshInFlight = null;
+          }
+        }
       }
 
       async function ensureAuthenticatedForAction({ trigger = "auth_guard", requestId = "" } = {}) {
@@ -5932,6 +6030,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
       restoreAnalyzeDraft();
       void refreshAuthSession({ force: false });
       scheduleAuthSessionPolling();
+      scheduleAuthVisibilityRefresh();
 
       emitUiEvent("ui.session.start", {
         direction: "internal",
@@ -5969,7 +6068,9 @@ def render_gui_mvp_html(
 
     safe_version = escape(app_version or "dev")
     safe_login_endpoint = escape(str(auth_login_endpoint or "/auth/login"), quote=True)
-    safe_logout_endpoint = escape(str(auth_logout_endpoint or "/auth/logout"), quote=True)
+    safe_logout_endpoint = escape(
+        str(auth_logout_endpoint or "/auth/logout"), quote=True
+    )
     safe_me_endpoint = escape(str(auth_me_endpoint or "/auth/me"), quote=True)
 
     html = _GUI_MVP_HTML_TEMPLATE.replace("__APP_VERSION__", safe_version)

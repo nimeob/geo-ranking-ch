@@ -297,6 +297,102 @@ def test_main_writes_json_out_alias(tmp_path, monkeypatch, capsys):
     assert "auth.dev.georanking.ch" in written["expected_authorize_hosts"]
 
 
+def test_main_accepts_json_flag_without_value(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
+
+    exit_code = module.main(
+        [
+            "--api-base-url",
+            "https://api.dev.georanking.ch",
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+            "--max-attempts",
+            "1",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+
+
+def test_derive_default_api_origin_from_ui_base_url():
+    module = _load_module()
+
+    assert module._derive_default_api_origin("https://www.dev.georanking.ch") == "https://api.dev.georanking.ch"
+    assert module._derive_default_api_origin("https://www.dev.geo-ranking.ch") == "https://api.dev.georanking.ch"
+    assert module._derive_default_api_origin("https://dev.geo-ranking.ch") == "https://api.dev.georanking.ch"
+    assert module._derive_default_api_origin("https://dev.georanking.ch.") == "https://api.dev.georanking.ch"
+    assert module._derive_default_api_origin("https://api.dev.georanking.ch") == "https://api.dev.georanking.ch"
+
+
+def test_normalize_origin_canonicalizes_legacy_dev_non_www_ui_host():
+    module = _load_module()
+
+    assert module._normalize_origin("https://dev.geo-ranking.ch") == "https://www.dev.geo-ranking.ch"
+    assert module._normalize_origin("https://dev.georanking.ch.") == "https://www.dev.georanking.ch"
+
+
+def test_main_derives_api_base_url_when_only_ui_base_url_is_provided(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
+
+    exit_code = module.main(["--ui-base-url", "https://www.dev.georanking.ch", "--max-attempts", "1"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["api_base_url"] == "https://api.dev.georanking.ch"
+
+
+def test_main_derives_canonical_api_host_for_geo_ranking_ui_alias(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(
+        module,
+        "_send_request_probe",
+        lambda **kwargs: _happy_probe_geo_ranking_alias(module, **kwargs),
+    )
+
+    exit_code = module.main(["--ui-base-url", "https://www.dev.geo-ranking.ch", "--max-attempts", "1"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["api_base_url"] == "https://api.dev.georanking.ch"
+    assert payload["trusted_forwarded_host"] == "www.dev.geo-ranking.ch"
+
+
+def test_main_canonicalizes_legacy_dev_non_www_ui_base_url(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(
+        module,
+        "_send_request_probe",
+        lambda **kwargs: _happy_probe_geo_ranking_alias(module, **kwargs),
+    )
+
+    exit_code = module.main(["--ui-base-url", "https://dev.geo-ranking.ch", "--max-attempts", "1"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+    assert payload["api_base_url"] == "https://api.dev.georanking.ch"
+    assert payload["ui_base_url"] == "https://www.dev.geo-ranking.ch"
+    assert payload["trusted_forwarded_host"] == "www.dev.geo-ranking.ch"
+
+
+def test_main_returns_invalid_arguments_when_api_and_ui_base_url_are_missing(capsys):
+    module = _load_module()
+
+    exit_code = module.main(["--ui-base-url", ""])
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "invalid_arguments:api_base_url_or_ui_base_url_required"
+
+
 def test_main_returns_invalid_argument_exit_code_when_hosts_collapse(monkeypatch, capsys):
     module = _load_module()
     monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
@@ -316,6 +412,44 @@ def test_main_returns_invalid_argument_exit_code_when_hosts_collapse(monkeypatch
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["ok"] is False
     assert payload["reason"].startswith("invalid_arguments:")
+
+
+def test_main_classifies_timeout_probe_exceptions(monkeypatch, capsys):
+    module = _load_module()
+
+    def _boom(**kwargs):
+        _ = kwargs
+        raise TimeoutError("timed out while connecting")
+
+    monkeypatch.setattr(module, "check_auth_proxy_guard", _boom)
+
+    exit_code = module.main(["--api-base-url", "https://api.dev.georanking.ch"])
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "request_failed_timeout_timed_out"
+    assert "timed out" in payload["error"]
+
+
+def test_main_classifies_dns_probe_exceptions(monkeypatch, capsys):
+    module = _load_module()
+
+    def _boom(**kwargs):
+        _ = kwargs
+        raise RuntimeError(
+            "request_failed_after_retries(attempts=5, timeout_seconds=15.0): "
+            "<urlopen error [Errno -2] Name or service not known>"
+        )
+
+    monkeypatch.setattr(module, "check_auth_proxy_guard", _boom)
+
+    exit_code = module.main(["--api-base-url", "https://api.dev.georanking.ch"])
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "request_failed_dns_resolution"
 
 
 def test_send_request_probe_honors_retry_after_header(monkeypatch):
@@ -587,4 +721,3 @@ def test_send_request_probe_uses_default_retry_delay_for_stale_http_date(monkeyp
     assert result.status_code == 403
     assert fake_opener.calls == 2
     assert sleep_calls == [2.75]
-
