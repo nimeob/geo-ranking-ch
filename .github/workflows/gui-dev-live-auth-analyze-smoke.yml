@@ -111,6 +111,8 @@ jobs:
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
             reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
+            reports/evidence/*-ui-auth-analyze-route-set-summary.json
+            reports/evidence/*-login-start-smoke-bundle-summary.json
           if-no-files-found: warn
           overwrite: true
 
@@ -123,5 +125,7 @@ jobs:
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
             reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
+            reports/evidence/*-ui-auth-analyze-route-set-summary.json
+            reports/evidence/*-login-start-smoke-bundle-summary.json
           if-no-files-found: warn
           overwrite: true
