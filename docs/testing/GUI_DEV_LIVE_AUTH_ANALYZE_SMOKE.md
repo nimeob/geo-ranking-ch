@@ -69,6 +69,7 @@ node scripts/run_dev_ui_auth_analyze_smoke.mjs --help
 node scripts/run_dev_ui_auth_analyze_smoke.mjs --fallback-login-start
 ```
 `--fallback-login-start` ist äquivalent zu `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1`.
+`--run-token` ist ein Legacy-Alias für `--run-id`.
 
 Alternativ direkt per CLI-Overrides (statt ENV-Export):
 ```bash
@@ -117,10 +118,11 @@ Optional:
 - `DEV_UI_SMOKE_HEADFUL=1` oder `--headful`
 - `DEV_UI_SMOKE_LOGIN_REASON=manual_login` oder `--login-reason manual_login`
 - `DEV_UI_SMOKE_EVIDENCE_DIR=artifacts/dev-ui-live-smoke` oder `--output-dir ...`
+- `DEV_UI_SMOKE_RUN_TOKEN=<token>` oder `--run-token <token>` (Legacy-Alias für `DEV_UI_SMOKE_RUN_ID` / `--run-id`)
 - `--routes /gui,/jobs?source=smoke` (überschreibt den Standard-Route-Satz für gezielte Retests; im Workflow analog über `workflow_dispatch`-Input `routes`)
 - `--route-presets core` oder `--route-presets jobs,results` (alternative Route-Auswahl ohne lange CSV; Presets: `all,core,modern,legacy,jobs,results,trace,minimal`; im Workflow analog über `workflow_dispatch`-Input `route_presets`)
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1` oder `--fallback-login-start-on-preflight-fail`
-- Alias: `DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK=1` (äquivalent zu `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1`)
+- Alias: `DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK=1` oder `--allow-login-start-fallback` (äquivalent zu `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1`)
 - `DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1` (nur Single-Route-Script; nutzt Login-Start-Fallback statt hard fail)
 
 Die Bundle-Skripte schreiben zusätzlich ein kompaktes Summary-Artefakt je Lauf:

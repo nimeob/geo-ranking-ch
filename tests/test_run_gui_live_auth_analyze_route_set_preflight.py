@@ -580,6 +580,57 @@ def test_route_set_runner_fallback_can_be_enabled_via_env_alias(
     assert summary_payload["fallback_status"] == "passed"
 
 
+def test_route_set_runner_fallback_can_be_enabled_via_cli_alias(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+    evidence_dir = tmp_path / "evidence"
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _LoginStartStubHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+    env["DEV_UI_SMOKE_EVIDENCE_DIR"] = str(evidence_dir)
+
+    try:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                base_url,
+                "--run-id-base",
+                "manual-fallback-cli-alias",
+                "--allow-login-start-fallback",
+            ],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+    assert proc.returncode == 0
+    assert "running login-start fallback (degraded mode)" in proc.stderr
+    assert (evidence_dir / "dev-login-start-smoke-root.json").exists()
+
+    summary_file = evidence_dir / "dev-ui-auth-analyze-route-set-summary.json"
+    assert summary_file.exists()
+
+    summary_payload = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary_payload["mode"] == "fallback_login_start"
+    assert summary_payload["fallback_status"] == "passed"
+
+
 def test_route_set_runner_fallback_surfaces_bundle_exit_code_from_override(
     tmp_path: Path,
 ) -> None:

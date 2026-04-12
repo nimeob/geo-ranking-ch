@@ -738,6 +738,64 @@ def test_empty_sanitized_run_id_falls_back_to_stable_run_token(tmp_path: Path) -
     assert evidence_stem.endswith("-run"), evidence_stem
 
 
+def test_cli_run_token_alias_sets_run_marker_and_artifact_suffix(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--run-token", "legacy-cli-run-token"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files, result.stderr
+
+    evidence_name = evidence_files[-1].name
+    assert "legacy-cli-run-token" in evidence_name
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["runtime"]["runMarker"] == "legacy-cli-run-token"
+
+
+def test_env_run_token_alias_sets_run_marker_and_artifact_suffix(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env.pop("DEV_UI_SMOKE_RUN_ID", None)
+    env["DEV_UI_SMOKE_RUN_TOKEN"] = "legacy-env-run-token"
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files, result.stderr
+
+    evidence_name = evidence_files[-1].name
+    assert "legacy-env-run-token" in evidence_name
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["runtime"]["runMarker"] == "legacy-env-run-token"
+
+
 def test_cli_overrides_base_url_and_gui_path_even_without_credentials(
     tmp_path: Path,
 ) -> None:
