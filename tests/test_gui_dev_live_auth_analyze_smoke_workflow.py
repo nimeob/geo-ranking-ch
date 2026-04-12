@@ -29,6 +29,8 @@ def test_workflow_runs_single_job_route_set_with_shared_artifact_upload() -> Non
         in content
     )
     assert "gui-dev-live-auth-analyze-smoke-artifacts" in content
+    assert "*-ui-auth-analyze-route-set-summary.json" in content
+    assert "*-login-start-smoke-bundle-summary.json" in content
     assert (
         "gui-dev-live-auth-analyze-smoke-artifacts-${{ matrix.path_slug }}"
         not in content

@@ -32,6 +32,8 @@ class TestGuiDevLiveAuthAnalyzeSmokeDocs(unittest.TestCase):
             "allow_login_start_fallback",
             "route_presets",
             "--route-presets",
+            "-ui-auth-analyze-route-set-summary.json",
+            "-login-start-smoke-bundle-summary.json",
         ]
         for marker in required_markers:
             self.assertIn(marker, content)
