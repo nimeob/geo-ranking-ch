@@ -119,7 +119,7 @@ const outDir = configuredOutDir
   : path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
-const baseOrigin = String(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch').replace(/\/+$/, '');
+const baseOrigin = normalizeBaseOrigin(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch');
 const guiPath = normalizeGuiPath(cliOptions.guiPath || process.env.DEV_UI_SMOKE_GUI_PATH || '/gui');
 const expectedPostLoginPath = resolveCanonicalGuiSuccessor(guiPath);
 const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);
@@ -167,6 +167,26 @@ function isTruthy(value) {
 function normalizeGuiPath(rawPath) {
   const value = String(rawPath || '').trim() || '/gui';
   return value.startsWith('/') ? value : `/${value}`;
+}
+
+function normalizeBaseOrigin(rawBaseUrl) {
+  const candidate = String(rawBaseUrl || '').trim();
+  if (!candidate) return 'https://www.dev.georanking.ch';
+
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    const hostLike = candidate.match(/^([a-z0-9.-]+(?::\d+)?)(?:\/.*)?$/i);
+    if (hostLike && hostLike[1]) {
+      try {
+        return new URL(`https://${hostLike[1]}`).origin;
+      } catch {
+        // keep fallback below
+      }
+    }
+
+    return candidate.replace(/\/+$/, '');
+  }
 }
 
 function parseRelativeUrl(rawPath) {

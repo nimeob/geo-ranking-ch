@@ -206,6 +206,45 @@ def test_cli_overrides_base_url_and_gui_path_even_without_credentials(
     assert payload["target"]["expectedPostLoginPath"] == "/jobs?from=cli"
 
 
+def test_cli_base_url_is_normalized_to_origin_when_path_or_query_is_passed(
+    tmp_path: Path,
+) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--base-url",
+            "https://dev.example.test/gui?from=ci#frag",
+            "--gui-path",
+            "/gui/history",
+            "--run-id",
+            "cli-origin-normalization-check",
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files, result.stderr
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["target"]["baseOrigin"] == "https://dev.example.test"
+    assert payload["target"]["loginStartUrl"].startswith(
+        "https://dev.example.test/login?next=%2Fgui%2Fhistory"
+    )
+
+
 def test_cli_output_dir_override_writes_evidence_outside_default_path(
     tmp_path: Path,
 ) -> None:
