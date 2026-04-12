@@ -103,6 +103,42 @@ def test_route_set_runner_rejects_unknown_cli_option_before_preflight(
     assert "Usage:" in proc.stderr
 
 
+def test_route_set_runner_accepts_summary_json_alias_path(tmp_path: Path) -> None:
+    blocker_dir = tmp_path / "blocked"
+    custom_summary_path = tmp_path / "custom" / "route-set-summary.json"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--run-id-base",
+            "manual-summary-alias",
+            "--output-dir",
+            str(blocker_dir),
+            "--json-out",
+            str(custom_summary_path),
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert custom_summary_path.exists()
+
+    summary_payload = json.loads(custom_summary_path.read_text(encoding="utf-8"))
+    assert summary_payload["status"] == "blocked"
+    assert summary_payload["preflight_status"] == "failed"
+    assert summary_payload["run_id_base"] == "manual-summary-alias"
+
+
 def test_route_set_runner_accepts_ui_base_url_alias_and_reaches_preflight(
     tmp_path: Path,
 ) -> None:
@@ -149,6 +185,8 @@ def test_route_set_runner_accepts_ui_base_url_alias_and_reaches_preflight(
         ("--base-url", "--headless"),
         ("--ui-base-url", "--headless"),
         ("--output-dir", "--headless"),
+        ("--summary-json", "--headless"),
+        ("--json-out", "--headless"),
         ("--timeout-ms", "--headless"),
         ("--address-file", "--headless"),
         ("--login-reason", "--headless"),
