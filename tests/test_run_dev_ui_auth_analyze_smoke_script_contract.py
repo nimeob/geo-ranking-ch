@@ -388,3 +388,50 @@ def test_allow_login_start_fallback_emits_evidence_when_bundle_script_is_missing
     assert payload["fallback_login_start_smoke"]["result"]["code"] == -1
     assert payload["fallback_login_start_smoke"]["result"]["error"]["name"] == "Error"
     assert "ENOENT" in payload["fallback_login_start_smoke"]["result"]["error"]["message"]
+
+
+def test_allow_login_start_fallback_resolves_relative_bundle_script_from_repo_when_cwd_differs(
+    tmp_path: Path,
+) -> None:
+    evidence_dir = tmp_path / "evidence"
+    marker_file = tmp_path / "bundle-cwd.txt"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT"] = (
+        "./tests/data/fake_login_start_bundle_ok.sh"
+    )
+    env["DEV_UI_SMOKE_FALLBACK_MARKER_PATH"] = str(marker_file)
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--allow-login-start-fallback",
+            "--run-id",
+            "contract-fallback-repo-relative-bundle",
+            "--output-dir",
+            str(evidence_dir),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert marker_file.read_text(encoding="utf-8").strip() == str(REPO_ROOT)
+
+    evidence_files = sorted(evidence_dir.glob("dev-ui-auth-analyze-smoke-*.json"))
+    assert evidence_files, result.stderr
+
+    payload = json.loads(evidence_files[-1].read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["fallback_login_start_smoke"]["executed"] is True
+    assert payload["fallback_login_start_smoke"]["result"]["ok"] is True
+    assert payload["fallback_login_start_smoke"]["bundle_cwd"] == str(REPO_ROOT)
+    assert payload["fallback_login_start_smoke"]["bundle_script"].endswith(
+        "/tests/data/fake_login_start_bundle_ok.sh"
+    )

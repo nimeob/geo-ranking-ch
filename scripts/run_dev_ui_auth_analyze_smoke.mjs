@@ -2,8 +2,10 @@
 
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function parseCliArgs(argv) {
   const options = {
@@ -118,6 +120,9 @@ if (cliOptions.helpRequested) {
 }
 
 const repoRoot = process.cwd();
+const scriptFilePath = fileURLToPath(import.meta.url);
+const scriptDir = path.dirname(scriptFilePath);
+const scriptRepoRoot = path.resolve(scriptDir, '..');
 const configuredOutDir = String(cliOptions.evidenceDir || process.env.DEV_UI_SMOKE_EVIDENCE_DIR || '').trim();
 const outDir = configuredOutDir
   ? path.resolve(repoRoot, configuredOutDir)
@@ -160,11 +165,44 @@ const timeoutMs = parsePositiveInt(cliOptions.timeoutMs || process.env.DEV_UI_SM
 const headless = typeof cliOptions.headless === 'boolean' ? cliOptions.headless : !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
 const allowLoginStartFallback = cliOptions.allowLoginStartFallback || isTruthy(process.env.DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK);
 
-const fallbackBundleScript = String(
+const fallbackBundleScriptRaw = String(
   process.env.DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT
   || './scripts/smoke/run_login_start_smoke_bundle.sh'
 ).trim() || './scripts/smoke/run_login_start_smoke_bundle.sh';
+const fallbackBundleScript = resolveBundleScriptPath(fallbackBundleScriptRaw);
+const fallbackBundleCwd = isPathInside(fallbackBundleScript, scriptRepoRoot) ? scriptRepoRoot : repoRoot;
 const fallbackCommandOverride = String(process.env.DEV_UI_SMOKE_LOGIN_START_FALLBACK_COMMAND || '').trim();
+
+function pathExists(candidatePath) {
+  try {
+    return existsSync(candidatePath);
+  } catch {
+    return false;
+  }
+}
+
+function isPathInside(candidatePath, rootPath) {
+  const relative = path.relative(rootPath, candidatePath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function resolveBundleScriptPath(rawPath) {
+  const candidate = String(rawPath || '').trim();
+  if (!candidate) return '';
+  if (path.isAbsolute(candidate)) return candidate;
+
+  const cwdResolved = path.resolve(repoRoot, candidate);
+  if (pathExists(cwdResolved)) {
+    return cwdResolved;
+  }
+
+  const repoResolved = path.resolve(scriptRepoRoot, candidate);
+  if (pathExists(repoResolved)) {
+    return repoResolved;
+  }
+
+  return cwdResolved;
+}
 
 function resolveFallbackEnvName(origin) {
   const normalized = String(origin || '').trim().toLowerCase();
@@ -191,6 +229,8 @@ function buildLoginStartFallbackMetadata() {
     base_url: baseOrigin,
     env_name: fallbackEnvName,
     bundle_script: fallbackBundleScript,
+    bundle_script_raw: fallbackBundleScriptRaw,
+    bundle_cwd: fallbackBundleCwd,
     args,
     command,
     command_override: fallbackCommandOverride,
@@ -249,7 +289,10 @@ async function runLoginStartFallback(fallbackMeta) {
   if (fallbackMeta.command_override) {
     return runCommand('bash', ['-lc', fallbackMeta.command_override], { shell: false });
   }
-  return runCommand(fallbackMeta.bundle_script, fallbackMeta.args, { shell: false });
+  return runCommand(fallbackMeta.bundle_script, fallbackMeta.args, {
+    shell: false,
+    cwd: fallbackMeta.bundle_cwd || repoRoot,
+  });
 }
 
 function parsePositiveInt(raw, fallback) {
