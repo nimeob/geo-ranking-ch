@@ -6,6 +6,7 @@ REQUESTED_BASE_URL=""
 BASE_URL_CANONICALIZED="0"
 ENV_NAME=""
 OUTPUT_DIR="artifacts"
+SUMMARY_JSON=""
 REASON="manual_login"
 TIMEOUT_SECONDS="20"
 MAX_ATTEMPTS="8"
@@ -29,6 +30,9 @@ Options:
   --ui-base-url <url>           Alias für --base-url
   --env-name <name>             Präfix für Artefakte (z. B. dev, staging)
   --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts)
+  --summary-json <path>         Optionaler Pfad für Bundle-Summary-JSON
+                                (default: <output-dir>/<env>-login-start-smoke-bundle-summary.json)
+  --json-out <path>             Legacy-Alias für --summary-json
   --reason <reason>             login-start reason (default: manual_login)
   --timeout <seconds>           Request-Timeout je Probe (default: 20)
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
@@ -72,6 +76,11 @@ while [ "$#" -gt 0 ]; do
     --output-dir)
       require_option_value "--output-dir" "${2:-}"
       OUTPUT_DIR="$2"
+      shift 2
+      ;;
+    --summary-json|--json-out)
+      require_option_value "$1" "${2:-}"
+      SUMMARY_JSON="$2"
       shift 2
       ;;
     --reason)
@@ -314,6 +323,9 @@ selected_routes=("${GUI_SMOKE_SELECTED_ROUTES[@]}")
 selected_route_presets=("${GUI_SMOKE_SELECTED_PRESETS[@]}")
 
 mkdir -p "$OUTPUT_DIR"
+if [[ -n "${SUMMARY_JSON}" ]]; then
+  mkdir -p "$(dirname "$SUMMARY_JSON")"
+fi
 
 write_bundle_summary() {
   local status="$1"
@@ -533,6 +545,9 @@ for route in "${selected_routes[@]}"; do
 done
 
 bundle_summary_path="${OUTPUT_DIR}/${ENV_NAME}-login-start-smoke-bundle-summary.json"
+if [[ -n "${SUMMARY_JSON}" ]]; then
+  bundle_summary_path="${SUMMARY_JSON}"
+fi
 summary_rows=""
 for route in "${selected_routes[@]}"; do
   rc="${route_rc[$route]:-1}"

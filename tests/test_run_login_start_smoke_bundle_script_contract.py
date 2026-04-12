@@ -131,6 +131,8 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     assert "--env-name" in content
     assert "--routes" in content
     assert "--route-presets" in content
+    assert "--summary-json" in content
+    assert "--json-out" in content
     assert "--max-retry-delay" in content
     assert "--expected-authorize-host" in content
     assert "Missing required --base-url" in content
@@ -153,6 +155,49 @@ def test_login_start_bundle_accepts_ui_base_url_alias() -> None:
 
     assert proc.returncode == 2
     assert "Missing required --env-name" in proc.stderr
+
+
+def test_login_start_bundle_accepts_summary_json_alias(tmp_path) -> None:
+    output_dir = tmp_path / "artifacts"
+    custom_summary_path = tmp_path / "custom" / "login-start-summary.json"
+
+    with _BundleStubServer() as stub:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                stub.base_url,
+                "--env-name",
+                "stub-summary",
+                "--output-dir",
+                str(output_dir),
+                "--routes",
+                "/gui",
+                "--timeout",
+                "5",
+                "--max-attempts",
+                "1",
+                "--retry-delay",
+                "0",
+                "--json-out",
+                str(custom_summary_path),
+            ],
+            cwd=str(REPO_ROOT),
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert proc.returncode == 0, proc.stderr
+    assert custom_summary_path.is_file()
+
+    summary = json.loads(custom_summary_path.read_text(encoding="utf-8"))
+    assert summary["status"] == "passed"
+    assert summary["env_name"] == "stub-summary"
+
+    route_artifact = output_dir / "stub-summary-login-start-smoke.json"
+    assert route_artifact.is_file()
 
 
 def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_before_validation() -> (

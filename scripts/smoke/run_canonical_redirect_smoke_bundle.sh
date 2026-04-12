@@ -4,6 +4,7 @@ set -euo pipefail
 BASE_URL=""
 ENV_NAME=""
 OUTPUT_DIR="artifacts"
+SUMMARY_JSON=""
 CANONICAL_ORIGIN=""
 CANONICAL_HOSTS=""
 ALIAS_HOST=""
@@ -29,6 +30,9 @@ Options:
   --ui-base-url <url>           Alias für --base-url
   --env-name <name>             Präfix für Artefakte (z. B. dev, staging)
   --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts)
+  --summary-json <path>         Optionaler Pfad für Bundle-Summary-JSON
+                                (default: <output-dir>/<env>-canonical-host-redirect-smoke-bundle-summary.json)
+  --json-out <path>             Legacy-Alias für --summary-json
   --canonical-origin <origin>   Optionaler Canonical-Origin Override
   --canonical-hosts <hosts>     Optionale CSV-Liste für UI_CANONICAL_HOSTS
   --alias-host <host>           Optionaler Alias-Host Override
@@ -70,6 +74,11 @@ while [ "$#" -gt 0 ]; do
     --output-dir)
       require_option_value "--output-dir" "${2:-}"
       OUTPUT_DIR="$2"
+      shift 2
+      ;;
+    --summary-json|--json-out)
+      require_option_value "$1" "${2:-}"
+      SUMMARY_JSON="$2"
       shift 2
       ;;
     --canonical-origin)
@@ -175,6 +184,9 @@ selected_routes=("${GUI_SMOKE_SELECTED_ROUTES[@]}")
 selected_route_presets=("${GUI_SMOKE_SELECTED_PRESETS[@]}")
 
 mkdir -p "$OUTPUT_DIR"
+if [[ -n "${SUMMARY_JSON}" ]]; then
+  mkdir -p "$(dirname "$SUMMARY_JSON")"
+fi
 
 write_bundle_summary() {
   local status="$1"
@@ -365,6 +377,9 @@ for route in "${selected_routes[@]}"; do
 done
 
 bundle_summary_path="${OUTPUT_DIR}/${ENV_NAME}-canonical-host-redirect-smoke-bundle-summary.json"
+if [[ -n "${SUMMARY_JSON}" ]]; then
+  bundle_summary_path="${SUMMARY_JSON}"
+fi
 summary_rows=""
 for route in "${selected_routes[@]}"; do
   rc="${route_rc[$route]:-1}"
