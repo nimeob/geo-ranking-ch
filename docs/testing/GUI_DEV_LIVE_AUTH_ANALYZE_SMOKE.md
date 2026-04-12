@@ -36,6 +36,11 @@ Ohne diese Secrets schlägt der Workflow absichtlich mit klarer Fehlermeldung fe
 Zusätzlich wird ein Blocker-Evidence-File erzeugt:
 - `reports/evidence/dev-ui-auth-analyze-smoke-blocked-<run_id>.json`
 
+Wenn der degradierte Login-Start-Fallback aktiv ist, entstehen zusätzlich Login-Start-Artefakte:
+- `reports/evidence/<env>-login-start-smoke*.json` (z. B. `dev-login-start-smoke-root.json`)
+- `reports/evidence/<env>-login-start-smoke-bundle-summary.json`
+- `reports/evidence/<env>-ui-auth-analyze-route-set-summary.json`
+
 ## Lokaler Lauf
 ```bash
 npm ci

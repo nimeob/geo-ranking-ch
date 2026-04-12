@@ -26,6 +26,7 @@ class TestGuiDevLiveAuthAnalyzeSmokeDocs(unittest.TestCase):
             "gui-dev-live-auth-analyze-smoke-artifacts",
             "dev-ui-auth-analyze-smoke-",
             "dev-ui-auth-analyze-smoke-blocked-",
+            "dev-login-start-smoke",
             "--fallback-login-start-on-preflight-fail",
             "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL",
             "DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK",
