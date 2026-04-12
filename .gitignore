@@ -46,6 +46,10 @@ cdk.out/
 logs/
 artifacts/
 
+# Lokale Smoke-/Night-Worker-Evidenz (ephemeral, nicht für Commit bestimmt)
+reports/evidence/dev-*.json
+reports/evidence/dev-*.png
+
 # Test
 .pytest_cache/
 .coverage
@@ -69,5 +73,11 @@ runtime/
 # OpenClaw local artifacts
 /.openclaw/issue_*_body.md
 /.nightworker/
+/.night-worker/
+/.nightlock/
+/.worktrees/
+/.tmp/
+/.local/
+/.tmp_label_triage.sh
 /run_triangulate.sh
 .tools/
