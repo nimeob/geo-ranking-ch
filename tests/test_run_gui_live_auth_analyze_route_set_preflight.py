@@ -562,6 +562,58 @@ def test_route_set_runner_fallback_can_be_enabled_via_env_alias(
     assert summary_payload["fallback_status"] == "passed"
 
 
+def test_route_set_runner_fallback_surfaces_bundle_exit_code_from_override(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+    evidence_dir = tmp_path / "evidence"
+
+    fake_bundle = tmp_path / "fake-login-start-bundle.sh"
+    fake_bundle.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "exit 9\n",
+        encoding="utf-8",
+    )
+    fake_bundle.chmod(0o755)
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+    env["DEV_UI_SMOKE_EVIDENCE_DIR"] = str(evidence_dir)
+    env["DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT"] = str(fake_bundle)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--run-id-base",
+            "manual-fallback-bundle-exit-code",
+            "--fallback-login-start-on-preflight-fail",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 9
+    assert "login-start fallback failed after live-auth preflight failure (exit=9)." in proc.stderr
+    assert str(fake_bundle) in proc.stderr
+
+    summary_file = evidence_dir / "dev-ui-auth-analyze-route-set-summary.json"
+    assert summary_file.exists()
+
+    summary_payload = json.loads(summary_file.read_text(encoding="utf-8"))
+    assert summary_payload["status"] == "failed"
+    assert summary_payload["mode"] == "fallback_login_start"
+    assert summary_payload["preflight_status"] == "failed"
+    assert summary_payload["fallback_status"] == "failed"
+
+
 def test_route_set_runner_accepts_cli_route_subset_and_uses_ordinal_run_ids(
     tmp_path: Path,
 ) -> None:
