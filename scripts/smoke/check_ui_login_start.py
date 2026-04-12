@@ -1095,6 +1095,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-json",
+        "--summary-json",
         "--json-out",
         dest="output_json",
         help="Optional output path for machine-readable result",

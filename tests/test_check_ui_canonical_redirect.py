@@ -392,6 +392,39 @@ def test_main_writes_json_out_alias(tmp_path, capsys, monkeypatch):
     assert written["alias_host"] == "www.dev.geo-ranking.ch"
 
 
+def test_main_writes_summary_json_alias(tmp_path, capsys, monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        return module._HttpProbeResult(
+            status_code=307,
+            location="https://www.dev.georanking.ch/login?next=%2Fgui&reason=manual_login&start=1",
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    output_path = tmp_path / "canonical-smoke-summary.json"
+    exit_code = module.main(
+        [
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--alias-host",
+            "www.dev.geo-ranking.ch",
+            "--summary-json",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is True
+
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["ok"] is True
+    assert written["alias_host"] == "www.dev.geo-ranking.ch"
+
+
 def test_main_accepts_ui_base_url_alias(capsys, monkeypatch):
     module = _load_module()
 

@@ -713,8 +713,14 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default=10.0,
         help="Cap for effective retry sleep in seconds (default: 10.0)",
     )
-    parser.add_argument("--output-json", default="", help="Optional JSON output path")
-    parser.add_argument("--json-out", default="", help="Alias for --output-json")
+    parser.add_argument(
+        "--output-json",
+        "--summary-json",
+        "--json-out",
+        dest="output_json",
+        default="",
+        help="Optional JSON output path",
+    )
     parser.add_argument(
         "--json",
         action="store_true",
@@ -804,7 +810,7 @@ def main(argv: list[str] | None = None) -> int:
     rendered = json.dumps(payload, ensure_ascii=False)
     print(rendered)
 
-    out_path = str(args.output_json or args.json_out or "").strip()
+    out_path = str(args.output_json or "").strip()
     if out_path:
         path = Path(out_path)
         path.parent.mkdir(parents=True, exist_ok=True)
