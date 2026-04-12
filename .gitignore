@@ -49,6 +49,8 @@ artifacts/
 # Lokale Smoke-/Night-Worker-Evidenz (ephemeral, nicht für Commit bestimmt)
 reports/evidence/dev-*.json
 reports/evidence/dev-*.png
+reports/evidence/issue-*-webkit-smoke-*.json
+reports/evidence/issue-*-webkit-ios-*.png
 
 # Test
 .pytest_cache/

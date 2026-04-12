@@ -154,6 +154,37 @@ def test_git_check_ignore_ignores_dev_smoke_evidence_artifacts() -> None:
         probe.unlink(missing_ok=True)
 
 
+def test_git_check_ignore_ignores_webkit_issue_smoke_evidence_artifacts() -> None:
+    probes = [
+        (
+            Path("reports/evidence/issue-999-webkit-smoke-20260412T220000Z.json"),
+            "reports/evidence/issue-*-webkit-smoke-*.json",
+        ),
+        (
+            Path("reports/evidence/issue-999-webkit-ios-20260412T220000Z.png"),
+            "reports/evidence/issue-*-webkit-ios-*.png",
+        ),
+    ]
+
+    for probe, marker in probes:
+        probe.parent.mkdir(parents=True, exist_ok=True)
+        probe.write_text("probe", encoding="utf-8")
+        try:
+            completed = subprocess.run(
+                ["git", "check-ignore", "-v", str(probe)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            assert completed.returncode == 0, (
+                f"expected {probe} to be ignored by git, got rc={completed.returncode}, "
+                f"stdout={completed.stdout!r}, stderr={completed.stderr!r}"
+            )
+            assert marker in completed.stdout
+        finally:
+            probe.unlink(missing_ok=True)
+
+
 def test_git_check_ignore_ignores_local_run_triangulate_helper() -> None:
     probe = Path("run_triangulate.sh")
     probe.write_text("#!/usr/bin/env bash\necho probe\n", encoding="utf-8")
