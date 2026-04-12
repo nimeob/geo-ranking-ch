@@ -233,3 +233,57 @@ def test_route_set_runner_default_fallback_forwards_cli_overrides_to_bundle(
 
     blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-forwarded-args.json"
     assert blocked_file.exists()
+
+
+def test_route_set_runner_default_fallback_uses_reports_evidence_output_dir(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+    capture_args_file = tmp_path / "fallback-default-args.txt"
+    fake_bundle = tmp_path / "fake-login-start-bundle-default.sh"
+    fake_bundle.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "printf '%s\n' \"$@\" > \"${CAPTURE_ARGS_FILE}\"\n",
+        encoding="utf-8",
+    )
+    fake_bundle.chmod(0o755)
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_LOGIN_START_FALLBACK_BUNDLE_SCRIPT"] = str(fake_bundle)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+    env["CAPTURE_ARGS_FILE"] = str(capture_args_file)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--run-id-base",
+            "manual-default-output-dir",
+            "--allow-login-start-fallback",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0
+    assert capture_args_file.exists(), proc.stderr
+
+    args = capture_args_file.read_text(encoding="utf-8").splitlines()
+    assert args == [
+        "--base-url",
+        "https://www.dev.georanking.ch",
+        "--env-name",
+        "dev",
+        "--output-dir",
+        "reports/evidence",
+    ]
+
+    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-default-output-dir.json"
+    assert blocked_file.exists()

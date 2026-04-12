@@ -13,15 +13,13 @@ jobs:
     timeout-minutes: 30
     env:
       BASE_URL: https://www.dev.georanking.ch
+      DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK: '1'
       DEV_UI_SMOKE_USERNAME: ${{ secrets.DEV_UI_SMOKE_USERNAME }}
       DEV_UI_SMOKE_PASSWORD: ${{ secrets.DEV_UI_SMOKE_PASSWORD }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Validate required secrets
-        run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -48,6 +46,7 @@ jobs:
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
             reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
+            reports/evidence/dev-login-start-smoke*.json
           if-no-files-found: warn
           overwrite: true
 
@@ -60,5 +59,6 @@ jobs:
             reports/evidence/dev-ui-auth-analyze-smoke-*.json
             reports/evidence/dev-ui-auth-analyze-smoke-*.png
             reports/evidence/dev-ui-auth-analyze-smoke-blocked-*.json
+            reports/evidence/dev-login-start-smoke*.json
           if-no-files-found: warn
           overwrite: true

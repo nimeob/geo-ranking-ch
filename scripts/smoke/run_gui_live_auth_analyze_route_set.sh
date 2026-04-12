@@ -125,6 +125,15 @@ fi
 if [[ -n "${output_dir_override}" ]]; then
   export DEV_UI_SMOKE_EVIDENCE_DIR="${output_dir_override}"
   export DEV_UI_SMOKE_BLOCKER_DIR="${output_dir_override}"
+elif [[ -n "${DEV_UI_SMOKE_EVIDENCE_DIR:-}" ]]; then
+  if [[ -z "${DEV_UI_SMOKE_BLOCKER_DIR:-}" ]]; then
+    export DEV_UI_SMOKE_BLOCKER_DIR="${DEV_UI_SMOKE_EVIDENCE_DIR}"
+  fi
+else
+  export DEV_UI_SMOKE_EVIDENCE_DIR="reports/evidence"
+  if [[ -z "${DEV_UI_SMOKE_BLOCKER_DIR:-}" ]]; then
+    export DEV_UI_SMOKE_BLOCKER_DIR="reports/evidence"
+  fi
 fi
 if [[ -n "${timeout_ms_override}" ]]; then
   export DEV_UI_SMOKE_TIMEOUT_MS="${timeout_ms_override}"
