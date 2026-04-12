@@ -136,6 +136,7 @@ Der Route-Set-Runner schreibt ebenfalls ein Summary-Artefakt (für Live- und Fal
 - Live/Fallback-Route-Set: `<output-dir>/<env>-ui-auth-analyze-route-set-summary.json`
   - `mode=live_auth_analyze` bei echten Route-Fanout-Läufen
   - `mode=fallback_login_start` bei degradierter Login-Start-Fallback-Coverage
+  - `routes[]` bleibt auch im Fallback befüllt (aus dem Login-Start-Bundle übernommen; `run_id` als `<run_id_base>-fallback-<ordinal>`)
   - `status=blocked` bei Preflight-Abbruch ohne aktivierten Fallback
 
 ### Workflow-Dispatch Beispiele
