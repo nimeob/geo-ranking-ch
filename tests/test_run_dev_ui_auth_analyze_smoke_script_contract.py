@@ -225,6 +225,8 @@ def test_help_flag_exits_zero_without_emitting_evidence(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs" in result.stdout
+    assert "--summary-json" in result.stdout
+    assert "--json-out" in result.stdout
     assert "--fallback-login-start" in result.stdout
     assert "--allow-login-start-fallback" in result.stdout
 
@@ -232,6 +234,75 @@ def test_help_flag_exits_zero_without_emitting_evidence(tmp_path: Path) -> None:
         (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
     )
     assert evidence_files == []
+
+
+def test_summary_json_override_writes_canonical_copy(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    summary_json = tmp_path / "artifacts" / "canonical" / "dev-ui-auth-analyze-smoke.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--run-id",
+            "contract-summary-json",
+            "--summary-json",
+            str(summary_json),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert summary_json.is_file()
+
+    payload = json.loads(summary_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["error"]["name"] == "Error"
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files
+
+
+def test_json_out_alias_writes_canonical_copy(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    summary_json = tmp_path / "artifacts" / "canonical" / "dev-ui-auth-analyze-smoke-alias.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--run-id",
+            "contract-json-out-alias",
+            "--gui-path",
+            "/gui/jobs?from=json-out",
+            "--json-out",
+            str(summary_json),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert summary_json.is_file()
+
+    payload = json.loads(summary_json.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["target"]["guiPath"] == "/gui/jobs?from=json-out"
 
 
 def test_unknown_cli_argument_exits_with_usage_and_no_evidence(tmp_path: Path) -> None:

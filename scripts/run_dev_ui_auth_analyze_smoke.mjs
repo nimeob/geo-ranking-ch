@@ -30,6 +30,8 @@ const configuredOutDir = String(cliOptions.evidenceDir || process.env.DEV_UI_SMO
 const outDir = configuredOutDir
   ? path.resolve(repoRoot, configuredOutDir)
   : path.join(repoRoot, 'reports', 'evidence');
+const configuredSummaryJson = String(cliOptions.summaryJson || process.env.DEV_UI_SMOKE_SUMMARY_JSON || '').trim();
+const summaryJsonPath = configuredSummaryJson ? path.resolve(repoRoot, configuredSummaryJson) : '';
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
 const baseOrigin = normalizeOrigin(
@@ -100,6 +102,7 @@ function parseCliArgs(args) {
     timeoutMs: '',
     loginReason: '',
     evidenceDir: '',
+    summaryJson: '',
     headless: null,
     forceLoginStartFallback: false,
     unknownArgs: [],
@@ -177,6 +180,11 @@ function parseCliArgs(args) {
         options.evidenceDir = consumeValue(flag, inlineValue, args, i);
         if (inlineValue === null) i += 1;
         break;
+      case '--summary-json':
+      case '--json-out':
+        options.summaryJson = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
       case '--headless':
         options.headless = true;
         break;
@@ -228,6 +236,8 @@ function printUsage(stream) {
       '  --timeout-ms <ms>                            DEV_UI_SMOKE_TIMEOUT_MS override (default: 60000).',
       '  --login-reason <text>                        DEV_UI_SMOKE_LOGIN_REASON override (default: manual_login).',
       '  --output-dir <path> | --evidence-dir <path> DEV_UI_SMOKE_EVIDENCE_DIR override.',
+      '  --summary-json <path>                        Optional canonical summary JSON output path.',
+      '  --json-out <path>                            Legacy alias for --summary-json.',
       '  --headless | --headful                       Browser mode override.',
       '  --fallback-login-start                       Force login-start fallback mode when credentials are missing.',
       '  --fallback-login-start-on-missing-creds      Alias for --fallback-login-start.',
@@ -239,6 +249,7 @@ function printUsage(stream) {
       '  DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS                    Optional comma-separated host/URL allowlist for absolute authorize redirects.',
       '  DEV_UI_SMOKE_USERNAME / DEV_UI_SMOKE_PASSWORD           Required for full live login + analyze smoke.',
       '  DEV_UI_SMOKE_RUN_TOKEN                                   Legacy alias for DEV_UI_SMOKE_RUN_ID.',
+      '  DEV_UI_SMOKE_SUMMARY_JSON                                Optional canonical summary JSON output path.',
       '  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Enable degraded login-start fallback without credentials.',
     ].join('\n') + '\n'
   );
@@ -1198,7 +1209,14 @@ function maskUsername(value) {
 async function writeEvidence(payload) {
   await fs.mkdir(outDir, { recursive: true });
   const outJson = buildArtifactPath('json');
-  await fs.writeFile(outJson, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  const serialized = `${JSON.stringify(payload, null, 2)}\n`;
+  await fs.writeFile(outJson, serialized, 'utf8');
+
+  if (summaryJsonPath) {
+    await fs.mkdir(path.dirname(summaryJsonPath), { recursive: true });
+    await fs.writeFile(summaryJsonPath, serialized, 'utf8');
+  }
+
   console.log(path.relative(repoRoot, outJson));
   return outJson;
 }
