@@ -52,6 +52,37 @@ is_truthy() {
   return 1
 }
 
+normalize_base_url_origin() {
+  local raw_base_url="${1:-}"
+
+  node -e '
+const raw = String(process.argv[1] || "").trim();
+if (!raw) {
+  console.log("https://www.dev.georanking.ch");
+  process.exit(0);
+}
+
+try {
+  console.log(new URL(raw).origin);
+  process.exit(0);
+} catch {
+  // continue with host-like fallback
+}
+
+const hostLike = raw.match(/^([a-z0-9.-]+(?::\d+)?)(?:\/.*)?$/i);
+if (hostLike && hostLike[1]) {
+  try {
+    console.log(new URL(`https://${hostLike[1]}`).origin);
+    process.exit(0);
+  } catch {
+    // continue with slash-trim fallback
+  }
+}
+
+console.log(raw.replace(/\/+$/, ""));
+' "${raw_base_url}"
+}
+
 require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
@@ -155,7 +186,8 @@ if ! (
   DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
     ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 ); then
-  fallback_base_url="${BASE_URL:-https://www.dev.georanking.ch}"
+  fallback_base_url_raw="${BASE_URL:-https://www.dev.georanking.ch}"
+  fallback_base_url="$(normalize_base_url_origin "${fallback_base_url_raw}")"
   fallback_env_name="dev"
   if [[ "${fallback_base_url}" == *"staging"* ]]; then
     fallback_env_name="staging"

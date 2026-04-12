@@ -8,6 +8,31 @@ print(sys.argv[1].strip())
 PY
 }
 
+normalize_base_url_origin() {
+  python3 - "$1" <<'PY'
+import re
+import sys
+from urllib.parse import urlparse
+
+raw = (sys.argv[1] or "").strip()
+if not raw:
+    print("https://www.dev.georanking.ch")
+    raise SystemExit(0)
+
+parsed = urlparse(raw)
+if parsed.scheme and parsed.netloc:
+    print(f"{parsed.scheme}://{parsed.netloc}")
+    raise SystemExit(0)
+
+host_like = re.match(r"^([a-z0-9.-]+(?::\d+)?)(?:/.*)?$", raw, flags=re.IGNORECASE)
+if host_like:
+    print(f"https://{host_like.group(1)}")
+    raise SystemExit(0)
+
+print(raw.rstrip('/'))
+PY
+}
+
 RUN_ID="$(trim "${DEV_UI_SMOKE_RUN_ID:-}")"
 RUN_ATTEMPT="$(trim "${GITHUB_RUN_ATTEMPT:-1}")"
 if [[ -z "${RUN_ATTEMPT}" ]]; then
@@ -37,10 +62,12 @@ if [[ -z "${BLOCKER_DIR}" ]]; then
   BLOCKER_DIR="reports/evidence"
 fi
 
-BASE_URL_RAW="$(trim "${DEV_UI_BASE_URL:-${BASE_URL:-https://www.dev.georanking.ch}}")"
-if [[ -z "${BASE_URL_RAW}" ]]; then
-  BASE_URL_RAW="https://www.dev.georanking.ch"
+BASE_URL_INPUT="$(trim "${DEV_UI_BASE_URL:-${BASE_URL:-https://www.dev.georanking.ch}}")"
+if [[ -z "${BASE_URL_INPUT}" ]]; then
+  BASE_URL_INPUT="https://www.dev.georanking.ch"
 fi
+
+BASE_URL_RAW="$(normalize_base_url_origin "${BASE_URL_INPUT}")"
 
 FALLBACK_ENV_NAME="dev"
 if [[ "${BASE_URL_RAW,,}" == *"staging"* ]]; then
