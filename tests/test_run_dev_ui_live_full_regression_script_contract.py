@@ -264,3 +264,52 @@ def test_unknown_cli_option_exits_with_usage_and_code_2(tmp_path: Path) -> None:
     assert result.returncode == 2
     assert "[dev-ui-full-regression] ERROR Unknown option: --nope" in result.stderr
     assert "Usage: node scripts/run_dev_ui_live_full_regression.mjs [options]" in result.stdout
+
+
+def test_script_resolves_paths_and_fallback_bundle_from_repo_root() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert "const REPO_ROOT = path.resolve(SCRIPT_DIR, \"..\");" in content
+    assert "const LOGIN_START_FALLBACK_SCRIPT = path.join(REPO_ROOT, \"scripts\", \"smoke\", \"run_login_start_smoke_bundle.sh\");" in content
+    assert "const EVIDENCE_JSON_PATH = resolvePathAgainstRepoRoot(EVIDENCE_JSON);" in content
+    assert "const SCREENSHOT_DIR_PATH = resolvePathAgainstRepoRoot(SCREENSHOT_DIR);" in content
+    assert "const result = spawnSync(LOGIN_START_FALLBACK_SCRIPT, args, {" in content
+    assert "cwd: REPO_ROOT," in content
+
+
+def test_relative_evidence_path_is_resolved_against_repo_root_not_cwd(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    relative_evidence = "artifacts/dev-ui-full/latest/dev-ui-full-regression-contract-relative-evidence.json"
+    env["DEV_UI_FULL_EVIDENCE_JSON"] = relative_evidence
+
+    repo_evidence_path = REPO_ROOT / relative_evidence
+    cwd_evidence_path = tmp_path / relative_evidence
+
+    if repo_evidence_path.exists():
+        repo_evidence_path.unlink()
+
+    try:
+        result = subprocess.run(
+            ["node", str(SCRIPT)],
+            cwd=tmp_path,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 1
+        assert repo_evidence_path.exists(), (
+            f"expected evidence under repo root, got stdout={result.stdout!r} stderr={result.stderr!r}"
+        )
+        assert not cwd_evidence_path.exists()
+
+        payload = json.loads(repo_evidence_path.read_text(encoding="utf-8"))
+        assert payload["ok"] is False
+        assert payload["error"] == "Missing DEV_UI_SMOKE_USERNAME"
+    finally:
+        if repo_evidence_path.exists():
+            repo_evidence_path.unlink()

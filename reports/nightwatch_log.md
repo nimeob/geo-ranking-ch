@@ -134,3 +134,23 @@
 - Branch-Update:
   - Commit `4ef61ee` — `smoke: resolve bundle paths from repo root`
   - nach `origin/night/worker-20260413-ui-roi` gepusht.
+
+## 2026-04-13 05:30 CET — Dev-UI-Full-Regression CWD-Härtung (ROI-Folge)
+- ROI-Lücke identifiziert: `scripts/run_dev_ui_live_full_regression.mjs` war bei Aufruf aus fremdem `cwd` inkonsistent.
+  - Relative `DEV_UI_FULL_EVIDENCE_JSON`/`DEV_UI_FULL_SCREENSHOT_DIR` wurden gegen `process.cwd()` statt Repo-Root aufgelöst.
+  - Der Login-Start-Fallback (`--fallback-login-start`) nutzte ein relatives Script-Kommando, das außerhalb des Repo-CWD brechen konnte.
+- Umsetzung:
+  - Script berechnet nun `REPO_ROOT` über `import.meta.url`.
+  - Relative Evidence-/Screenshot-Pfade werden mit `resolvePathAgainstRepoRoot(...)` stabil gegen Repo-Root normalisiert.
+  - Fallback-Runner wird über absoluten Script-Pfad + `cwd: REPO_ROOT` ausgeführt.
+  - Konsolen-Ausgabe verweist auf den effektiv aufgelösten absoluten Evidence-Pfad.
+- Regressionen ergänzt:
+  - `tests/test_run_dev_ui_live_full_regression_script_contract.py`
+    - neuer Guard auf Repo-Root-Path-Resolution + Fallback-Spawn (`cwd: REPO_ROOT`)
+    - neuer Laufzeit-Contract: relativer `DEV_UI_FULL_EVIDENCE_JSON` wird bei fremdem `cwd` unter Repo-Root geschrieben.
+- Lokal verifiziert:
+  - `pytest -q tests/test_run_dev_ui_live_full_regression_script_contract.py tests/test_gui_dev_live_full_regression_script.py` → **16 passed**
+  - `pytest -q tests/test_run_* tests/test_dev_smoke_* tests/test_gui_dev_live_auth_analyze_smoke_* tests/test_gui_webkit_smoke_* tests/test_gui_dev_live_full_regression_script.py` → **184 passed, 3 subtests passed**
+- Dev-Sanity (live endpoint-basiert):
+  - `run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev` → **passed**
+  - `run_canonical_redirect_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev` → **passed**
