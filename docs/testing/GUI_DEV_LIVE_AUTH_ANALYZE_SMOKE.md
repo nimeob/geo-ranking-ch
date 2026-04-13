@@ -134,6 +134,10 @@ Hinweis: `run_login_start_smoke_bundle.sh` kanonisiert den Legacy-DEV-Origin
 `https://www.dev.georanking.ch` / `https://www.dev.geo-ranking.ch` und markiert
 das im Summary über `requested_base_url` + `base_url_canonicalized=true`.
 
+Für Alias-Origin-Checks ohne Kanonisierung (z. B. direkte TLS-/Host-Validierung)
+kann `--preserve-requested-base-url` gesetzt werden. Dann wird exakt der
+angefragte Origin geprüft.
+
 Der Route-Set-Runner schreibt ebenfalls ein Summary-Artefakt (für Live- und Fallback-Läufe):
 - Live/Fallback-Route-Set: `<output-dir>/<env>-ui-auth-analyze-route-set-summary.json`
   - `mode=live_auth_analyze` bei echten Route-Fanout-Läufen
