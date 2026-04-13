@@ -1,5 +1,16 @@
 from pathlib import Path
 
+import yaml
+
+
+def _load_workflow_yaml(path: str) -> dict:
+    workflow = Path(path)
+    assert workflow.exists(), f"Workflow fehlt: {path}"
+
+    data = yaml.safe_load(workflow.read_text(encoding="utf-8"))
+    assert isinstance(data, dict), f"Workflow {path} ist kein gültiges YAML-Objekt"
+    return data
+
 
 def test_deploy_version_trace_runbook_contains_required_checklist():
     doc = Path("docs/testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md")
@@ -72,37 +83,33 @@ def test_deploy_workflow_runs_boundary_guardrail_before_unit_tests():
 
 
 def test_deploy_workflow_auto_cancels_stale_in_progress_dev_runs():
-    workflow = Path(".github/workflows/deploy.yml")
-    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+    data = _load_workflow_yaml(".github/workflows/deploy.yml")
+    concurrency = data.get("concurrency")
 
-    text = workflow.read_text(encoding="utf-8")
-    required = [
-        "concurrency:",
-        "group: deploy-ecs-dev",
-        "cancel-in-progress: true",
-    ]
-
-    missing = [snippet for snippet in required if snippet not in text]
+    assert isinstance(
+        concurrency, dict
+    ), "deploy.yml fehlt root.concurrency als YAML-Objekt"
     assert (
-        not missing
-    ), f"deploy.yml fehlt Dev-Concurrency-Autocancel-Verdrahtung: {missing}"
+        concurrency.get("group") == "deploy-ecs-dev"
+    ), "deploy.yml concurrency.group muss deploy-ecs-dev sein"
+    assert (
+        concurrency.get("cancel-in-progress") is True
+    ), "deploy.yml concurrency.cancel-in-progress muss true sein"
 
 
 def test_deploy_staging_workflow_keeps_in_progress_runs_for_manual_rollout_control():
-    workflow = Path(".github/workflows/deploy-staging.yml")
-    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
+    data = _load_workflow_yaml(".github/workflows/deploy-staging.yml")
+    concurrency = data.get("concurrency")
 
-    text = workflow.read_text(encoding="utf-8")
-    required = [
-        "concurrency:",
-        "group: deploy-ecs-staging",
-        "cancel-in-progress: false",
-    ]
-
-    missing = [snippet for snippet in required if snippet not in text]
+    assert isinstance(
+        concurrency, dict
+    ), "deploy-staging.yml fehlt root.concurrency als YAML-Objekt"
     assert (
-        not missing
-    ), f"deploy-staging.yml fehlt erwartete Staging-Concurrency-Verdrahtung: {missing}"
+        concurrency.get("group") == "deploy-ecs-staging"
+    ), "deploy-staging.yml concurrency.group muss deploy-ecs-staging sein"
+    assert (
+        concurrency.get("cancel-in-progress") is False
+    ), "deploy-staging.yml concurrency.cancel-in-progress muss false sein"
 
 
 def test_deploy_workflow_guards_against_container_name_mismatches():
