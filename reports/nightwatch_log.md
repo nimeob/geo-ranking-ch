@@ -250,3 +250,20 @@
   - `gh issue list` mit globalem Token weiter 401.
   - Repo-spezifisch funktioniert API über `./scripts/gha ...` (GH-App-Token wrapper) zuverlässig.
   - Offenen `status:todo`-Strang identifiziert: `#1519` (Alias-Host TLS-Mismatch im Route-Matrix-Kontext).
+
+## 2026-04-13 08:09 CET — Alias-Route-Matrix: angefragten Origin optional strikt prüfen (#1519)
+- Problemfokus: `run_login_start_smoke_bundle.sh` kanonisiert Legacy-Non-WWW-Hosts standardmäßig auf `www.*`; dadurch kann Alias-Origin-Drift/TLS-Breakage in Workflow-Smokes verdeckt werden.
+- Umsetzung:
+  - Neuer Flag in `scripts/smoke/run_login_start_smoke_bundle.sh`: `--preserve-requested-base-url`
+  - Bei gesetztem Flag wird die Legacy-Host-Kanonisierung bewusst übersprungen, damit exakt der angefragte Alias-Origin geprüft wird.
+  - Dev-Deploy-Alias-Smoke wired mit strict-origin Modus:
+    - `.github/workflows/deploy.yml` (Alias-Route-Matrix-Step nutzt jetzt `--preserve-requested-base-url`).
+- Regressionen:
+  - `tests/test_run_login_start_smoke_bundle_script_contract.py`
+    - Option-Surface erweitert
+    - neuer Contract: Legacy-Origin + `--preserve-requested-base-url` erzeugt **keine** Kanonisierungs-Warnung.
+  - `tests/test_deploy_version_trace_docs.py`
+    - Workflow-Guard erweitert: Alias-Smoke muss `--preserve-requested-base-url` enthalten.
+- Verifikation:
+  - `python3 -m pytest -q tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_deploy_version_trace_docs.py`
+  - Ergebnis: **44 passed**.

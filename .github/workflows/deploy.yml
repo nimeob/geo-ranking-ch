@@ -470,6 +470,7 @@ jobs:
           scripts/smoke/run_login_start_smoke_bundle.sh \
             --base-url "${ALIAS_BASE_URL}" \
             --env-name "dev-alias" \
+            --preserve-requested-base-url \
             --output-dir "artifacts"
 
       - name: Smoke-Test API auth proxy forwarded-host guard (/auth/login|logout|callback)

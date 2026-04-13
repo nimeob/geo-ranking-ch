@@ -135,6 +135,7 @@ def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
     assert "--summary-json" in content
     assert "--json-out" in content
     assert "--max-retry-delay" in content
+    assert "--preserve-requested-base-url" in content
     assert "--expected-authorize-host" in content
     assert "Missing required --base-url" in content
     assert "Missing required --env-name" in content
@@ -280,6 +281,28 @@ def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_before_valid
     assert proc.returncode == 2
     assert "Missing required --env-name" in proc.stderr
     assert "kanonisiere auf 'https://www.dev.georanking.ch'" in proc.stderr
+
+
+def test_login_start_bundle_can_preserve_requested_origin_without_canonicalization() -> (
+    None
+):
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://dev.georanking.ch",
+            "--preserve-requested-base-url",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --env-name" in proc.stderr
+    assert "kanonisiere auf" not in proc.stderr
 
 
 def test_login_start_bundle_canonicalizes_trailing_dot_origin_before_validation() -> (
