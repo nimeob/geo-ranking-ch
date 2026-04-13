@@ -18,7 +18,6 @@ class TestIssue1039MobileOverflowSmokeScript(unittest.TestCase):
             "const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);",
             "function normalizeUiBaseUrl(rawBaseUrl)",
             "legacy_dev_non_www",
-            "const repoRoot = path.resolve(__dirname, '..');",
             "const targetUrl = baseUrlNormalization.value || baseUrl;",
             "targetUrlRequested: baseUrl",
             "baseUrlCanonicalizationReasons: baseUrlNormalization.reasons",

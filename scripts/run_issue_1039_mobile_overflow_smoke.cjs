@@ -9,7 +9,7 @@ const DEFAULT_BASE_URL = 'http://127.0.0.1:8877/gui';
 const DEFAULT_GUI_STABILITY_WAIT_MS = 1200;
 const DEFAULT_BASE_URL_PROBE_TIMEOUT_MS = 5000;
 const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = process.cwd();
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
 function normalizeUiBaseUrl(rawBaseUrl) {

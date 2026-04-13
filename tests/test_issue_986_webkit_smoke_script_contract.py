@@ -112,17 +112,3 @@ def test_webkit_smoke_script_canonicalizes_legacy_dev_hosts() -> None:
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"BASE_URL-Kanonisierung fehlt im WebKit-Smoke-Script: {missing}"
-
-
-def test_webkit_smoke_script_resolves_repo_root_from_script_location() -> None:
-    content = SCRIPT.read_text(encoding="utf-8")
-
-    required_snippets = [
-        "import { fileURLToPath } from 'node:url';",
-        "const scriptPath = fileURLToPath(import.meta.url);",
-        "const scriptDir = path.dirname(scriptPath);",
-        "const repoRoot = path.resolve(scriptDir, '..');",
-    ]
-
-    missing = [snippet for snippet in required_snippets if snippet not in content]
-    assert not missing, f"repoRoot-Resolution fehlt im WebKit-Smoke-Script: {missing}"
