@@ -9,6 +9,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlencode, urlparse
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "run_dev_ui_auth_analyze_smoke.mjs"
@@ -237,6 +239,7 @@ def test_help_flag_exits_zero_without_emitting_evidence(tmp_path: Path) -> None:
     assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs" in result.stdout
     assert "--summary-json" in result.stdout
     assert "--json-out" in result.stdout
+    assert "--out" in result.stdout
     assert "--fallback-login-start" in result.stdout
     assert "--allow-login-start-fallback" in result.stdout
 
@@ -282,7 +285,8 @@ def test_summary_json_override_writes_canonical_copy(tmp_path: Path) -> None:
     assert evidence_files
 
 
-def test_json_out_alias_writes_canonical_copy(tmp_path: Path) -> None:
+@pytest.mark.parametrize("alias_flag", ["--json-out", "--out"])
+def test_json_out_alias_writes_canonical_copy(tmp_path: Path, alias_flag: str) -> None:
     env = os.environ.copy()
     env.pop("DEV_UI_SMOKE_USERNAME", None)
     env.pop("DEV_UI_SMOKE_PASSWORD", None)
@@ -297,7 +301,7 @@ def test_json_out_alias_writes_canonical_copy(tmp_path: Path) -> None:
             "contract-json-out-alias",
             "--gui-path",
             "/gui/jobs?from=json-out",
-            "--json-out",
+            alias_flag,
             str(summary_json),
         ],
         cwd=tmp_path,

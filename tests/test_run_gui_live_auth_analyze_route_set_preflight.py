@@ -104,7 +104,11 @@ def test_route_set_runner_rejects_unknown_cli_option_before_preflight(
     assert "Usage:" in proc.stderr
 
 
-def test_route_set_runner_accepts_summary_json_alias_path(tmp_path: Path) -> None:
+@pytest.mark.parametrize("alias_flag", ["--summary-json", "--json-out", "--out"])
+def test_route_set_runner_accepts_summary_json_alias_path(
+    tmp_path: Path,
+    alias_flag: str,
+) -> None:
     blocker_dir = tmp_path / "blocked"
     custom_summary_path = tmp_path / "custom" / "route-set-summary.json"
 
@@ -121,7 +125,7 @@ def test_route_set_runner_accepts_summary_json_alias_path(tmp_path: Path) -> Non
             "manual-summary-alias",
             "--output-dir",
             str(blocker_dir),
-            "--json-out",
+            alias_flag,
             str(custom_summary_path),
         ],
         cwd=str(REPO_ROOT),
@@ -246,6 +250,7 @@ def test_route_set_runner_accepts_ui_base_url_alias_and_reaches_preflight(
         ("--output-dir", "--headless"),
         ("--summary-json", "--headless"),
         ("--json-out", "--headless"),
+        ("--out", "--headless"),
         ("--timeout-ms", "--headless"),
         ("--address-file", "--headless"),
         ("--login-reason", "--headless"),
