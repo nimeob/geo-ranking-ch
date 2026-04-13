@@ -103,6 +103,7 @@ function parseCliArgs(argv) {
         break;
       case "--fallback-login-start-on-missing-creds":
       case "--fallback-login-start":
+      case "--allow-login-start-fallback":
         options.forceLoginStartFallback = true;
         break;
       default:
@@ -140,6 +141,8 @@ function printHelp() {
     "  --headless                               Erzwingt headless Browser-Mode",
     "  --headful                                Erzwingt headful Browser-Mode",
     "  --fallback-login-start                   Degraded mode when credentials are unavailable",
+    "  --fallback-login-start-on-missing-creds  Alias für --fallback-login-start",
+    "  --allow-login-start-fallback             Legacy alias für --fallback-login-start",
     "  -h, --help                               Diese Hilfe anzeigen",
     "",
     "Optional env vars:",

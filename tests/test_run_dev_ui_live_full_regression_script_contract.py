@@ -92,6 +92,8 @@ def test_help_flag_prints_usage_without_env_or_playwright(tmp_path: Path) -> Non
     assert "--summary-json <path>" in result.stdout
     assert "--json-out <path>" in result.stdout
     assert "--out <path>" in result.stdout
+    assert "--fallback-login-start-on-missing-creds" in result.stdout
+    assert "--allow-login-start-fallback" in result.stdout
     assert result.stderr == ""
 
 
@@ -303,6 +305,40 @@ def test_unknown_cli_option_exits_with_usage_and_code_2(tmp_path: Path) -> None:
     assert result.returncode == 2
     assert "[dev-ui-full-regression] ERROR Unknown option: --nope" in result.stderr
     assert "Usage: node scripts/run_dev_ui_live_full_regression.mjs [options]" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "fallback_flag",
+    [
+        "--fallback-login-start-on-missing-creds",
+        "--allow-login-start-fallback",
+    ],
+)
+def test_fallback_cli_aliases_are_accepted(fallback_flag: str, tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-fallback-flag.json"
+    env["DEV_UI_FULL_EVIDENCE_JSON"] = str(evidence_path)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), fallback_flag],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "Unknown option" not in result.stderr
+    assert evidence_path.exists(), f"expected evidence file, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["error"] == "Missing DEV_UI_BASE_URL"
 
 
 def test_script_resolves_paths_and_fallback_bundle_from_repo_root() -> None:
