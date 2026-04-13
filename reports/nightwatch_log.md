@@ -267,3 +267,6 @@
 - Verifikation:
   - `python3 -m pytest -q tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_deploy_version_trace_docs.py`
   - Ergebnis: **44 passed**.
+- Live-Verifikation (direkter Alias-Origin, ohne Kanonisierung):
+  - `scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://dev.geo-ranking.ch --env-name dev-alias-manual --preserve-requested-base-url --output-dir reports/evidence --routes /gui --timeout 8 --max-attempts 1 --retry-delay 0 --max-retry-delay 1` → **PASS** (`reason=ok`, `status_code=302`).
+  - `scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://dev.georanking.ch --env-name dev-alias-manual-georanking --preserve-requested-base-url --output-dir reports/evidence --routes /gui --timeout 8 --max-attempts 1 --retry-delay 0 --max-retry-delay 1` → **PASS** (`reason=ok`, `status_code=302`).
