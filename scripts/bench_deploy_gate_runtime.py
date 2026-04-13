@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import subprocess
 import sys
@@ -54,9 +55,21 @@ def _cutoff_from_commit(commit: str) -> datetime:
     return _parse_ts(out)
 
 
-def _load_runs_from_gh(repo: str, workflow: str, limit: int) -> list[dict]:
+def _resolve_gh_cli(*, explicit: str = "", repo_root: Path | None = None) -> str:
+    if explicit.strip():
+        return explicit.strip()
+
+    root = repo_root or Path(__file__).resolve().parents[1]
+    gha = root / "scripts" / "gha"
+    if gha.is_file() and os.access(gha, os.X_OK):
+        return str(gha)
+
+    return "gh"
+
+
+def _load_runs_from_gh(repo: str, workflow: str, limit: int, *, gh_cli: str) -> list[dict]:
     cmd = [
-        "gh",
+        gh_cli,
         "run",
         "list",
         "--repo",
@@ -133,6 +146,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Optional event filter (e.g. schedule or workflow_dispatch)",
     )
+    parser.add_argument(
+        "--gh-cli",
+        default="",
+        help="Optional gh binary path (default: prefer ./scripts/gha wrapper, fallback: gh)",
+    )
     parser.add_argument("--output-json", default="", help="Optional output path for JSON summary")
     return parser
 
@@ -143,9 +161,10 @@ def main(argv: list[str]) -> int:
 
     conclusion_filter = args.conclusion.strip().lower() or None
     event_filter = args.event.strip().lower() or None
+    gh_cli = _resolve_gh_cli(explicit=args.gh_cli)
 
     cutoff = _cutoff_from_commit(args.cutoff_sha)
-    raw_runs = _load_runs_from_gh(args.repo, args.workflow, args.limit)
+    raw_runs = _load_runs_from_gh(args.repo, args.workflow, args.limit, gh_cli=gh_cli)
     runs = _normalize_runs(raw_runs, conclusion=conclusion_filter, event=event_filter)
 
     before = [run for run in runs if run.started_at < cutoff]
