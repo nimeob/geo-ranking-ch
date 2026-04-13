@@ -7,6 +7,7 @@ const { execFileSync, spawn } = require('node:child_process');
 
 const issueNumber = 1142;
 const scriptRelPath = 'scripts/run_issue_1142_mobile_table_overflow_smoke.cjs';
+const DEFAULT_BASELINE_REF = 'HEAD~1';
 
 function buildUsage() {
   return [
@@ -16,30 +17,85 @@ function buildUsage() {
     'Vergleicht CSS-basierte Tabellen-Overflow-Metriken zwischen Baseline und aktuellem Stand.',
     '',
     'Options:',
-    '  -h, --help   Show this help and exit.',
+    '  -h, --help              Show this help and exit.',
+    `  --baseline-ref <ref>   Override baseline git ref (default: ${DEFAULT_BASELINE_REF})`,
+    '  --evidence-json <path> Override JSON evidence output path.',
+    '  --json-out <path>      Alias für --evidence-json (legacy compatibility).',
+    '  --base-url <url>       Accepted for compatibility (unused by this harness).',
+    '  --headless             Accepted for compatibility (runner is always headless).',
     '',
     'Environment:',
-    '  ISSUE_1142_BASELINE_REF=HEAD~1   Optional baseline git ref for CSS comparison.',
+    `  ISSUE_1142_BASELINE_REF=${DEFAULT_BASELINE_REF}   Optional baseline git ref for CSS comparison.`,
   ].join('\n');
 }
 
 function parseCliArgs(argv) {
   const args = Array.isArray(argv) ? argv : [];
   const unknown = [];
-  let help = false;
+  const options = {
+    help: false,
+    baselineRef: '',
+    evidenceJson: '',
+  };
 
-  for (const arg of args) {
-    if (arg === '-h' || arg === '--help') {
-      help = true;
+  const consumeValue = (flag, inlineValue, currentArgs, index) => {
+    if (inlineValue !== null) return inlineValue;
+    const next = currentArgs[index + 1];
+    if (typeof next !== 'string' || next.startsWith('-')) {
+      throw new Error(`Missing value for ${flag}`);
+    }
+    return next;
+  };
+
+  for (let i = 0; i < args.length; i += 1) {
+    const raw = String(args[i] || '').trim();
+    if (!raw) continue;
+
+    if (raw === '-h' || raw === '--help') {
+      options.help = true;
       continue;
     }
-    unknown.push(arg);
+
+    const eqIdx = raw.indexOf('=');
+    const flag = eqIdx >= 0 ? raw.slice(0, eqIdx) : raw;
+    const inlineValue = eqIdx >= 0 ? raw.slice(eqIdx + 1) : null;
+
+    switch (flag) {
+      case '--baseline-ref':
+        options.baselineRef = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--evidence-json':
+      case '--json-out':
+        options.evidenceJson = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--headless':
+      case '--base-url':
+        if (flag === '--base-url') {
+          consumeValue(flag, inlineValue, args, i);
+          if (inlineValue === null) i += 1;
+        }
+        break;
+      default:
+        unknown.push(raw);
+        break;
+    }
   }
 
-  return { help, unknown };
+  return { ...options, unknown };
 }
 
-const cli = parseCliArgs(process.argv.slice(2));
+const cli = (() => {
+  try {
+    return parseCliArgs(process.argv.slice(2));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || 'unknown error');
+    console.error(`[issue-${issueNumber}-mobile-overflow-harness] ${message}`);
+    console.error(buildUsage());
+    process.exit(2);
+  }
+})();
 if (cli.help) {
   console.log(buildUsage());
   process.exit(0);
@@ -49,6 +105,15 @@ if (cli.unknown.length > 0) {
   console.error(buildUsage());
   process.exit(2);
 }
+
+const repoRoot = process.cwd();
+const outputJsonPath = (() => {
+  const rawPath = String(cli.evidenceJson || '').trim();
+  if (!rawPath) return '';
+  if (path.isAbsolute(rawPath)) return path.normalize(rawPath);
+  return path.resolve(repoRoot, rawPath);
+})();
+const outDir = outputJsonPath ? path.dirname(outputJsonPath) : path.join(repoRoot, 'reports', 'evidence');
 
 function loadPlaywrightChromium() {
   for (const modName of ['playwright-core', 'playwright']) {
@@ -161,8 +226,6 @@ function renderGuiHtmlAtGitRef(repoRoot, gitRef, { quiet = false } = {}) {
 }
 
 async function main() {
-  const repoRoot = process.cwd();
-  const outDir = path.join(repoRoot, 'reports', 'evidence');
   await fs.mkdir(outDir, { recursive: true });
 
   const currentHtml = execFileSync('python3', ['-c', 'from src.shared.gui_mvp import render_gui_mvp_html; print(render_gui_mvp_html(app_version="dev"))'], {
@@ -171,7 +234,9 @@ async function main() {
     maxBuffer: 20 * 1024 * 1024,
   });
 
-  const baselineRefRequested = process.env.ISSUE_1142_BASELINE_REF || 'HEAD~1';
+  const baselineRefRequested = String(
+    cli.baselineRef || process.env.ISSUE_1142_BASELINE_REF || DEFAULT_BASELINE_REF,
+  ).trim() || DEFAULT_BASELINE_REF;
   let baselineRefResolved = baselineRefRequested;
   let baselineFallbackUsed = false;
   let baselineHtml;
@@ -279,7 +344,7 @@ async function main() {
     ok: Object.values(assertions).every(Boolean),
   };
 
-  const jsonPath = path.join(outDir, 'issue-1142-mobile-overflow-evidence.json');
+  const jsonPath = outputJsonPath || path.join(outDir, 'issue-1142-mobile-overflow-evidence.json');
   await fs.writeFile(jsonPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 
   console.log(jsonPath);
