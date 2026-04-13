@@ -71,6 +71,40 @@ def test_deploy_workflow_runs_boundary_guardrail_before_unit_tests():
     ), "Boundary-Preflight muss vor dem Unit-Test-Lauf ausgeführt werden."
 
 
+def test_deploy_workflow_auto_cancels_stale_in_progress_dev_runs():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "concurrency:",
+        "group: deploy-ecs-dev",
+        "cancel-in-progress: true",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"deploy.yml fehlt Dev-Concurrency-Autocancel-Verdrahtung: {missing}"
+
+
+def test_deploy_staging_workflow_keeps_in_progress_runs_for_manual_rollout_control():
+    workflow = Path(".github/workflows/deploy-staging.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "concurrency:",
+        "group: deploy-ecs-staging",
+        "cancel-in-progress: false",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"deploy-staging.yml fehlt erwartete Staging-Concurrency-Verdrahtung: {missing}"
+
+
 def test_deploy_workflow_guards_against_container_name_mismatches():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
@@ -230,7 +264,7 @@ def _assert_canonical_host_smoke_coverage(
         "scripts/smoke/run_canonical_redirect_smoke_bundle.sh",
         "UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}",
         "UI_CANONICAL_HOSTS: ${{ vars.UI_CANONICAL_HOSTS }}",
-        f'artifacts/{env_name}-canonical-host-redirect-smoke*.json',
+        f"artifacts/{env_name}-canonical-host-redirect-smoke*.json",
     ]
 
     missing = [snippet for snippet in required if snippet not in text]
