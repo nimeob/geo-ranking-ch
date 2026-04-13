@@ -333,6 +333,7 @@ def test_deploy_workflow_requires_tls_valid_alias_for_login_route_matrix_smoke()
     required = [
         "scripts/smoke/infer_geo_alias_base_url.py",
         "--require-tls-hostname-match",
+        "--preserve-requested-base-url",
         "No TLS-valid alias host could be inferred",
     ]
 

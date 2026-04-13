@@ -1,16 +1,92 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const ISSUE_NUMBER = 986;
 const PARENT_ISSUE = 975;
 const SCRIPT_REL_PATH = 'scripts/run_issue_986_webkit_smoke.mjs';
-const repoRoot = process.cwd();
+const scriptPath = fileURLToPath(import.meta.url);
+const scriptDir = path.dirname(scriptPath);
+const repoRoot = path.resolve(scriptDir, '..');
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8877/gui';
 const DEFAULT_GUI_STABILITY_WAIT_MS = 1200;
 const DEFAULT_BASE_URL_PROBE_TIMEOUT_MS = 5000;
+const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function normalizeUiBaseUrl(rawBaseUrl) {
+  const candidate = String(rawBaseUrl || '').trim();
+  if (!candidate) {
+    return {
+      value: '',
+      requested: '',
+      changed: false,
+      reasons: [],
+      error: '',
+    };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: 'must be an absolute URL (e.g. https://www.dev.georanking.ch/gui)',
+    };
+  }
+
+  const protocol = String(parsed.protocol || '').toLowerCase();
+  if (protocol !== 'http:' && protocol !== 'https:') {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: `unsupported protocol '${protocol || '(missing)'}' (expected http: or https:)`,
+    };
+  }
+
+  const reasons = [];
+  let canonicalHost = String(parsed.hostname || '').trim().toLowerCase();
+  if (!canonicalHost) {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: 'hostname is missing',
+    };
+  }
+
+  const strippedTrailingDotHost = canonicalHost.replace(/\.+$/, '');
+  if (strippedTrailingDotHost !== canonicalHost) {
+    canonicalHost = strippedTrailingDotHost;
+    reasons.push('trailing_dot');
+  }
+
+  if (LEGACY_DEV_UI_HOSTS.has(canonicalHost)) {
+    canonicalHost = `www.${canonicalHost}`;
+    reasons.push('legacy_dev_non_www');
+  }
+
+  parsed.hostname = canonicalHost;
+  const normalizedPath = parsed.pathname === '/' ? '' : parsed.pathname;
+  const normalized = `${parsed.protocol}//${parsed.host}${normalizedPath}${parsed.search}${parsed.hash}`;
+
+  return {
+    value: normalized,
+    requested: candidate,
+    changed: normalized !== candidate,
+    reasons,
+    error: '',
+  };
+}
 
 function buildUsage() {
   return [
@@ -107,6 +183,8 @@ if (cli.unknown.length > 0) {
 }
 
 const baseUrl = String(cli.baseUrl || process.env.BASE_URL || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL;
+const baseUrlNormalization = normalizeUiBaseUrl(baseUrl);
+const targetUrl = baseUrlNormalization.value || baseUrl;
 const guiStabilityWaitMs = Number.parseInt(
   process.env.GUI_STABILITY_WAIT_MS || String(DEFAULT_GUI_STABILITY_WAIT_MS),
   10,
@@ -188,7 +266,7 @@ async function waitForGuiOrAuthRedirect(page, { stage, selector, timeoutMs }) {
   const currentUrl = page.url();
   if (isAuthRedirectUrl(currentUrl)) {
     throw new Error(
-      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -208,7 +286,7 @@ async function waitForGuiOrAuthRedirect(page, { stage, selector, timeoutMs }) {
   if (winner.kind === 'auth-redirect') {
     const authUrl = page.url();
     throw new Error(
-      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${authUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${authUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -219,7 +297,7 @@ async function waitForGuiOrAuthRedirect(page, { stage, selector, timeoutMs }) {
   const finalUrl = page.url();
   if (isAuthRedirectUrl(finalUrl)) {
     throw new Error(
-      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${finalUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stage}] Unerwarteter Redirect auf Auth-Login erkannt: ${finalUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -233,7 +311,7 @@ async function waitForGuiOrAuthRedirect(page, { stage, selector, timeoutMs }) {
 
 async function openStableGuiPage(context, stage = 'webkit') {
   const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
 
   await waitForGuiOrAuthRedirect(page, {
@@ -642,7 +720,7 @@ async function panMap(page) {
 
 async function run() {
   const startedAtUtc = new Date().toISOString();
-  await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
+  await assertBaseUrlReachable(targetUrl, baseUrlProbeTimeoutMs);
   const { chromium, webkit, devices } = await loadPlaywrightBindings();
   const launch = await launchPreferredBrowser({ requireNativeWebkit, chromium, webkit });
   const browser = launch.browser;
@@ -743,7 +821,8 @@ async function run() {
     parentIssue: PARENT_ISSUE,
     startedAtUtc,
     finishedAtUtc,
-    targetUrl: baseUrl,
+    targetUrl,
+    targetUrlRequested: baseUrl,
     runtime: {
       browser: launch.runtimeBrowser,
       requestedBrowser: 'playwright-webkit',
@@ -754,6 +833,8 @@ async function run() {
       webkitMissingLibraries: Array.isArray(launch.webkitMissingLibraries) ? launch.webkitMissingLibraries : [],
       webkitInstallHint: launch.webkitInstallHint || 'npx playwright install --with-deps webkit',
       baseUrlProbeTimeoutMs,
+      baseUrlCanonicalized: baseUrlNormalization.changed,
+      baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
       device: 'iPhone 13',
       headless: true,
     },
@@ -791,7 +872,8 @@ run()
       parentIssue: PARENT_ISSUE,
       startedAtUtc: finishedAtUtc,
       finishedAtUtc,
-      targetUrl: baseUrl,
+      targetUrl,
+      targetUrlRequested: baseUrl,
       runtime: {
         browser: playwrightDependencyMissing ? 'playwright-dependency-missing' : 'unknown',
         requestedBrowser: 'playwright-webkit',
@@ -802,6 +884,8 @@ run()
         webkitMissingLibraries: [],
         webkitInstallHint: 'npx playwright install --with-deps webkit',
         baseUrlProbeTimeoutMs,
+        baseUrlCanonicalized: baseUrlNormalization.changed,
+        baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
         device: 'iPhone 13',
         headless: true,
       },

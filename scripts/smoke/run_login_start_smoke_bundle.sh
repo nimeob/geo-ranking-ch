@@ -13,6 +13,7 @@ MAX_ATTEMPTS="8"
 RETRY_DELAY_SECONDS="5"
 MAX_RETRY_DELAY_SECONDS="10"
 EXPECTED_AUTHORIZE_HOST=""
+PRESERVE_REQUESTED_BASE_URL="0"
 ROUTES_CSV=""
 ROUTE_PRESETS_CSV=""
 QUIET="0"
@@ -40,6 +41,8 @@ Options:
   --max-attempts <count>        Retry-Versuche je Route (default: 8)
   --retry-delay <seconds>       Delay zwischen Retries (default: 5)
   --max-retry-delay <seconds>   Cap für Retry-Sleep (default: 10)
+  --preserve-requested-base-url Deaktiviert Legacy-Host-Kanonisierung; prüft exakt
+                                den angefragten Origin (z. B. für Alias-Origin-Smokes)
   --routes <csv>                Optionale CSV-Route-Subset aus GUI_SMOKE_ROUTES
   --route-presets <csv>         Optionale Presets (all,core,modern,legacy,jobs,results,trace,minimal)
                                 (Alternative zu --routes)
@@ -129,6 +132,10 @@ while [ "$#" -gt 0 ]; do
       MAX_RETRY_DELAY_SECONDS="$2"
       shift 2
       ;;
+    --preserve-requested-base-url)
+      PRESERVE_REQUESTED_BASE_URL="1"
+      shift
+      ;;
     --routes)
       require_option_value "--routes" "${2:-}"
       ROUTES_CSV="$2"
@@ -167,7 +174,10 @@ if [ -z "$BASE_URL" ]; then
 fi
 
 REQUESTED_BASE_URL="$BASE_URL"
+BASE_URL_CANONICALIZED="0"
+canonicalized_base_url_reasons=""
 
+if [[ "${PRESERVE_REQUESTED_BASE_URL}" != "1" ]]; then
 canonicalized_base_url_payload="$(python3 - "$BASE_URL" <<'PY'
 from __future__ import annotations
 
@@ -245,6 +255,7 @@ if [[ "$canonicalized_base_url_flag" == "1" ]]; then
   else
     echo "::warning::Base URL '${REQUESTED_BASE_URL}' wurde kanonisiert auf '${BASE_URL}' (reasons=${canonicalized_base_url_reasons})." >&2
   fi
+fi
 fi
 
 if [ -z "$ENV_NAME" ]; then

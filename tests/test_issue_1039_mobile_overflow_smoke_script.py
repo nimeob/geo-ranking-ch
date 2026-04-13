@@ -11,6 +11,27 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "run_issue_1039_mobile_overflow_smoke.cjs"
 
 
 class TestIssue1039MobileOverflowSmokeScript(unittest.TestCase):
+    def test_script_canonicalizes_legacy_dev_hosts(self) -> None:
+        content = SCRIPT_PATH.read_text(encoding="utf-8")
+
+        required_snippets = [
+            "const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);",
+            "function normalizeUiBaseUrl(rawBaseUrl)",
+            "legacy_dev_non_www",
+            "const targetUrl = baseUrlNormalization.value || baseUrl;",
+            "targetUrlRequested: baseUrl",
+            "baseUrlCanonicalizationReasons: baseUrlNormalization.reasons",
+        ]
+
+        missing = [snippet for snippet in required_snippets if snippet not in content]
+        self.assertFalse(
+            missing,
+            msg=(
+                "run_issue_1039_mobile_overflow_smoke.cjs fehlt BASE_URL-Kanonisierung: "
+                f"{missing}"
+            ),
+        )
+
     def test_unreachable_local_base_url_emits_structured_hint(self) -> None:
         env = os.environ.copy()
         env["BASE_URL"] = "http://127.0.0.1:9/gui"

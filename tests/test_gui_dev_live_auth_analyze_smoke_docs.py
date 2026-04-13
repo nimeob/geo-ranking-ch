@@ -35,6 +35,7 @@ class TestGuiDevLiveAuthAnalyzeSmokeDocs(unittest.TestCase):
             "--route-presets",
             "-ui-auth-analyze-route-set-summary.json",
             "-login-start-smoke-bundle-summary.json",
+            "--preserve-requested-base-url",
         ]
         for marker in required_markers:
             self.assertIn(marker, content)

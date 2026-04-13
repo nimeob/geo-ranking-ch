@@ -13,6 +13,7 @@ class TestIssue1142MobileOverflowScriptContract(unittest.TestCase):
         content = script_path.read_text(encoding="utf-8")
         required_markers = [
             "ISSUE_1142_BASELINE_REF",
+            "const repoRoot = path.resolve(__dirname, '..');",
             "baselineRefRequested",
             "baselineRefResolved",
             "baselineFallbackUsed",
