@@ -125,3 +125,34 @@ def test_issue_smoke_unknown_option_exits_with_usage_and_no_side_effects(
     assert not evidence_root.exists(), (
         f"Unknown CLI args dürfen keine Evidence erzeugen: stdout={result.stdout!r} stderr={result.stderr!r}"
     )
+
+
+@pytest.mark.skipif(NODE_BIN is None, reason="node runtime fehlt")
+def test_issue_986_help_accepts_legacy_cli_flags_without_unknown_option(tmp_path: Path) -> None:
+    script = REPO_ROOT / "scripts" / "run_issue_986_webkit_smoke.mjs"
+    out_json = tmp_path / "custom-evidence.json"
+
+    result = subprocess.run(
+        [
+            str(NODE_BIN),
+            str(script),
+            "--help",
+            "--base-url",
+            "https://www.dev.georanking.ch/gui",
+            "--headless",
+            "--json-out",
+            str(out_json),
+        ],
+        cwd=str(tmp_path),
+        env=os.environ.copy(),
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "Usage: node scripts/run_issue_986_webkit_smoke.mjs" in result.stdout
+    assert "--json-out <path>" in result.stdout
+    assert "unknown_cli_args" not in result.stderr
+    assert not out_json.exists()

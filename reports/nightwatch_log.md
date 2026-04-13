@@ -169,3 +169,21 @@
   - CLI-Sanity: `DEV_UI_BASE_URL=https://www.dev.georanking.ch node scripts/run_dev_ui_live_full_regression.mjs --out <tmp>/evidence.json` → erwarteter Credentials-Fail, aber Evidence wurde korrekt geschrieben (kein Unknown-Option-Fail).
 - Dev-UI-Sanity (degraded, mangels Live-Creds):
   - `node scripts/run_dev_ui_live_full_regression.mjs --base-url https://www.dev.georanking.ch --fallback-login-start --headless --out reports/evidence/night-ui-full-legacy-out-20260413T042710Z.json` → **PASSED (degraded mode)**.
+
+## 2026-04-13 06:30 CET — Issue-986 Smoke-CLI kompatibel gemacht (`--base-url/--json-out`)
+- Nächster ROI-Blocker reproduziert: `scripts/run_issue_986_webkit_smoke.mjs` akzeptierte bisher nur `--help`; typische Runner-Aufrufe mit `--base-url --headless --json-out` scheiterten mit `unknown_cli_args`.
+- Umsetzung:
+  - CLI-Parser erweitert um
+    - `--base-url <url>`
+    - `--evidence-json <path>`
+    - `--json-out <path>` (Legacy-Alias)
+    - `--headless` (kompatibler No-Op, Runner bleibt headless)
+  - Evidence-Output kann jetzt optional auf expliziten Zielpfad geschrieben werden (statt nur Auto-Stamp in `reports/evidence/`).
+- Regressionen ergänzt:
+  - `tests/test_issue_986_webkit_smoke_script_contract.py` (CLI-Override-Guards)
+  - `tests/test_issue_mobile_smoke_cli_usage.py` (Help-Run mit Legacy-Flags darf nicht als unknown failen)
+- Lokal verifiziert:
+  - `pytest -q tests/test_issue_986_webkit_smoke_script_contract.py tests/test_issue_mobile_smoke_cli_usage.py` → **16 passed**.
+- Dev-UI-Livecheck ausgeführt (mit neuer CLI):
+  - `node scripts/run_issue_986_webkit_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-986-cli-compat-20260413T043017Z.json`
+  - Ergebnis: **ok=true**, Login-Entry sichtbar, Map-Interaktion bestanden; auf Runner weiterhin erwarteter Chromium-Fallback wegen fehlender nativer WebKit-Libs (`runtime.webkitMissingLibraries`).
