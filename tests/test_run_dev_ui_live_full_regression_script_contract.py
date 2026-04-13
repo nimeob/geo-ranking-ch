@@ -312,14 +312,26 @@ def test_script_resolves_paths_and_fallback_bundle_from_repo_root() -> None:
     assert "const LOGIN_START_FALLBACK_SCRIPT = path.join(REPO_ROOT, \"scripts\", \"smoke\", \"run_login_start_smoke_bundle.sh\");" in content
     assert "const EVIDENCE_JSON_PATH = resolvePathAgainstRepoRoot(EVIDENCE_JSON);" in content
     assert "const SCREENSHOT_DIR_PATH = resolvePathAgainstRepoRoot(SCREENSHOT_DIR);" in content
-    assert 'const FALLBACK_ARTIFACTS_DIR_PATH = path.join(path.dirname(EVIDENCE_JSON_PATH), "fallback-login-start", RUN_TOKEN);' in content
-    assert 'const FALLBACK_SUMMARY_JSON_PATH = path.join(FALLBACK_ARTIFACTS_DIR_PATH, "login-start-smoke-bundle-summary.json");' in content
+    assert 'const FALLBACK_ARTIFACTS_BASE_DIR_PATH = path.join(path.dirname(EVIDENCE_JSON_PATH), "fallback-login-start", RUN_TOKEN);' in content
     assert "const result = spawnSync(LOGIN_START_FALLBACK_SCRIPT, args, {" in content
     assert "cwd: REPO_ROOT," in content
     assert '"--output-dir",' in content
     assert '"--summary-json",' in content
+    assert "const outputDir = reserveUniqueDirectoryPath(FALLBACK_ARTIFACTS_BASE_DIR_PATH);" in content
+    assert "const summaryJson = path.join(outputDir, \"login-start-smoke-bundle-summary.json\");" in content
     assert "fallbackOutputDir: fallbackResult.outputDir," in content
     assert "fallbackSummaryJson: fallbackResult.summaryJson," in content
+
+
+def test_script_reserves_unique_output_paths_to_avoid_evidence_clobber() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert "function reserveUniqueOutputPath(filePath)" in content
+    assert 'const fd = fs.openSync(candidate, "wx");' in content
+    assert "const reservedEvidenceJsonPath = reserveUniqueOutputPath(EVIDENCE_JSON_PATH);" in content
+    assert "const shot = reserveUniqueOutputPath(screenshotName(label));" in content
+    assert "function reserveUniqueDirectoryPath(dirPath)" in content
+    assert "const outputDir = reserveUniqueDirectoryPath(FALLBACK_ARTIFACTS_BASE_DIR_PATH);" in content
 
 
 def test_cli_run_id_is_recorded_in_runtime_evidence(tmp_path: Path) -> None:
@@ -420,3 +432,39 @@ def test_relative_evidence_path_is_resolved_against_repo_root_not_cwd(tmp_path: 
     finally:
         if repo_evidence_path.exists():
             repo_evidence_path.unlink()
+
+
+def test_existing_evidence_file_gets_unique_suffix_instead_of_overwrite(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-clobber.json"
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    evidence_path.write_text("existing-payload\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert evidence_path.read_text(encoding="utf-8") == "existing-payload\n"
+
+    suffixed_path = evidence_path.with_name("dev-ui-full-regression-contract-clobber1.json")
+    assert suffixed_path.exists(), f"expected reserved suffix evidence file, stderr={result.stderr!r}"
+
+    payload = json.loads(suffixed_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["error"] == "Missing DEV_UI_SMOKE_USERNAME"
+    assert f"[dev-ui-full-regression] Evidence: {suffixed_path}" in result.stderr
