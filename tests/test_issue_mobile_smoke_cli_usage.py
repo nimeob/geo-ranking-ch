@@ -149,6 +149,18 @@ def test_issue_smoke_unknown_option_exits_with_usage_and_no_side_effects(
             "--evidence-json",
             "-h",
         ),
+        (
+            "scripts/run_issue_1039_mobile_overflow_smoke.cjs",
+            "Usage: node scripts/run_issue_1039_mobile_overflow_smoke.cjs",
+            "--base-url",
+            "-h",
+        ),
+        (
+            "scripts/run_issue_1142_mobile_table_overflow_smoke.cjs",
+            "Usage: node scripts/run_issue_1142_mobile_table_overflow_smoke.cjs",
+            "--baseline-ref",
+            "-h",
+        ),
     ],
 )
 def test_issue_smoke_missing_flag_value_exits_with_usage_and_no_side_effects(
@@ -198,6 +210,14 @@ def test_issue_smoke_missing_flag_value_exits_with_usage_and_no_side_effects(
         (
             "scripts/run_issue_986_webkit_smoke.mjs",
             "Usage: node scripts/run_issue_986_webkit_smoke.mjs",
+        ),
+        (
+            "scripts/run_issue_1039_mobile_overflow_smoke.cjs",
+            "Usage: node scripts/run_issue_1039_mobile_overflow_smoke.cjs",
+        ),
+        (
+            "scripts/run_issue_1142_mobile_table_overflow_smoke.cjs",
+            "Usage: node scripts/run_issue_1142_mobile_table_overflow_smoke.cjs",
         ),
     ],
 )

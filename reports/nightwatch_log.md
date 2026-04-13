@@ -221,3 +221,51 @@
 - Dev-Sanity (Fallback-Mode ohne Live-Creds):
   - `node scripts/run_dev_ui_auth_analyze_smoke.mjs --base-url https://www.dev.georanking.ch --gui-path /gui --fallback-login-start --headless --summary-json reports/evidence/night-dev-ui-auth-analyze-20260413T044032Z.json`
   - Ergebnis: **PASS**, Summary + Evidence geschrieben.
+## 2026-04-13 07:58 CET — CWD-unabhängige Issue-Smoke-Runner + GH-Auth-Entblockung
+- ROI-Ziel: Night-Runner robust machen, auch wenn Scripts nicht aus Repo-Root gestartet werden (z. B. externe Runner/tmp-CWD).
+- Umsetzung (Pfadauflösung auf Script-Standort statt `process.cwd()`):
+  - `scripts/run_issue_1016_mobile_ux_smoke.mjs`
+  - `scripts/run_issue_981_mobile_smoke.mjs`
+  - `scripts/run_issue_986_webkit_smoke.mjs`
+  - `scripts/run_issue_1039_mobile_overflow_smoke.cjs`
+  - `scripts/run_issue_1142_mobile_table_overflow_smoke.cjs`
+- Regressionen ergänzt:
+  - `tests/test_issue_1016_mobile_ux_smoke_script_contract.py`
+  - `tests/test_issue_981_mobile_smoke_script_contract.py`
+  - `tests/test_issue_986_webkit_smoke_script_contract.py`
+  - `tests/test_issue_1039_mobile_overflow_smoke_script.py`
+  - `tests/test_issue_1142_mobile_overflow_script_contract.py`
+- Lokal verifiziert:
+  - `python3 -m pytest -q tests/test_issue_1016_mobile_ux_smoke_script_contract.py tests/test_issue_981_mobile_smoke_script_contract.py tests/test_issue_986_webkit_smoke_script_contract.py tests/test_issue_1039_mobile_overflow_smoke_script.py tests/test_issue_1142_mobile_overflow_script_contract.py tests/test_issue_mobile_smoke_cli_usage.py`
+  - Ergebnis: **38 passed**.
+- Laufzeit-Check (CWD-unabhängig):
+  - Start aus `/tmp` mit `--json-out reports/evidence/...` für Issue-1039 + Issue-981.
+  - Ergebnis: Evidence landet korrekt unter `<repo>/reports/evidence/...` (nicht unter `/tmp/reports/evidence`).
+- Git:
+  - Commit: `e9cda80` (`fix(smoke): resolve repo root from script path for issue runners`)
+  - Branch: `night/worker-20260413-ui-roi`
+  - Push: `origin/night/worker-20260413-ui-roi`
+- Blocker-Entschärfung:
+  - `gh issue list` mit globalem Token weiter 401.
+  - Repo-spezifisch funktioniert API über `./scripts/gha ...` (GH-App-Token wrapper) zuverlässig.
+  - Offenen `status:todo`-Strang identifiziert: `#1519` (Alias-Host TLS-Mismatch im Route-Matrix-Kontext).
+
+## 2026-04-13 08:09 CET — Alias-Route-Matrix: angefragten Origin optional strikt prüfen (#1519)
+- Problemfokus: `run_login_start_smoke_bundle.sh` kanonisiert Legacy-Non-WWW-Hosts standardmäßig auf `www.*`; dadurch kann Alias-Origin-Drift/TLS-Breakage in Workflow-Smokes verdeckt werden.
+- Umsetzung:
+  - Neuer Flag in `scripts/smoke/run_login_start_smoke_bundle.sh`: `--preserve-requested-base-url`
+  - Bei gesetztem Flag wird die Legacy-Host-Kanonisierung bewusst übersprungen, damit exakt der angefragte Alias-Origin geprüft wird.
+  - Dev-Deploy-Alias-Smoke wired mit strict-origin Modus:
+    - `.github/workflows/deploy.yml` (Alias-Route-Matrix-Step nutzt jetzt `--preserve-requested-base-url`).
+- Regressionen:
+  - `tests/test_run_login_start_smoke_bundle_script_contract.py`
+    - Option-Surface erweitert
+    - neuer Contract: Legacy-Origin + `--preserve-requested-base-url` erzeugt **keine** Kanonisierungs-Warnung.
+  - `tests/test_deploy_version_trace_docs.py`
+    - Workflow-Guard erweitert: Alias-Smoke muss `--preserve-requested-base-url` enthalten.
+- Verifikation:
+  - `python3 -m pytest -q tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_deploy_version_trace_docs.py`
+  - Ergebnis: **44 passed**.
+- Live-Verifikation (direkter Alias-Origin, ohne Kanonisierung):
+  - `scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://dev.geo-ranking.ch --env-name dev-alias-manual --preserve-requested-base-url --output-dir reports/evidence --routes /gui --timeout 8 --max-attempts 1 --retry-delay 0 --max-retry-delay 1` → **PASS** (`reason=ok`, `status_code=302`).
+  - `scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://dev.georanking.ch --env-name dev-alias-manual-georanking --preserve-requested-base-url --output-dir reports/evidence --routes /gui --timeout 8 --max-attempts 1 --retry-delay 0 --max-retry-delay 1` → **PASS** (`reason=ok`, `status_code=302`).
