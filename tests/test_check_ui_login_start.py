@@ -694,6 +694,8 @@ def test_main_strips_trailing_dot_from_base_url_before_checks(monkeypatch, capsy
     assert payload["request"]["base_url"] == "https://www.dev.georanking.ch"
     assert payload["request"]["requested_base_url"] == "https://www.dev.georanking.ch."
     assert payload["request"]["base_url_canonicalized"] is True
+    assert payload["request"]["base_url_canonicalization_mode"] == "trailing_dot"
+    assert payload["request"]["legacy_dev_alias_smoke_degraded"] is False
     assert payload["request"]["expected_authorize_host"] == sorted(expected_hosts)
 
 
@@ -794,6 +796,11 @@ def test_main_canonicalizes_legacy_dev_non_www_base_url_before_checks(monkeypatc
     assert payload["request"]["base_url"] == "https://www.dev.geo-ranking.ch"
     assert payload["request"]["requested_base_url"] == "https://dev.geo-ranking.ch"
     assert payload["request"]["base_url_canonicalized"] is True
+    assert (
+        payload["request"]["base_url_canonicalization_mode"]
+        == "legacy_dev_alias_to_www"
+    )
+    assert payload["request"]["legacy_dev_alias_smoke_degraded"] is True
     assert payload["request"]["expected_authorize_host"] == sorted(expected_hosts)
 
 

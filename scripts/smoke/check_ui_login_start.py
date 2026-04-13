@@ -123,6 +123,32 @@ def _canonicalize_base_url_trailing_dot(raw_base_url: str) -> str:
     )
 
 
+def _derive_base_url_canonicalization_mode(
+    requested_base_url: str, effective_base_url: str
+) -> str:
+    requested = str(requested_base_url or "").strip()
+    effective = str(effective_base_url or "").strip()
+    if not requested or requested == effective:
+        return "none"
+
+    try:
+        requested_parsed = urlsplit(requested)
+        effective_parsed = urlsplit(effective)
+    except Exception:  # noqa: BLE001
+        return "other"
+
+    requested_host = str(requested_parsed.hostname or "").strip().lower()
+    effective_host = str(effective_parsed.hostname or "").strip().lower()
+
+    if requested_host in _LEGACY_DEV_UI_HOSTS and effective_host == f"www.{requested_host}":
+        return "legacy_dev_alias_to_www"
+
+    if requested_host.rstrip(".") == effective_host:
+        return "trailing_dot"
+
+    return "other"
+
+
 _TRANSIENT_HTTP_STATUSES = frozenset({408, 429, 502, 503, 504})
 _REDIRECT_HTTP_STATUSES = frozenset({301, 302, 303, 307, 308})
 _MAX_SAME_LOGIN_REDIRECT_HOPS = 4
@@ -1159,6 +1185,9 @@ def main(argv: list[str] | None = None) -> int:
 
     requested_base_url = str(base_url or ui_base_url).strip()
     effective_base_url = _canonicalize_base_url_trailing_dot(requested_base_url)
+    base_url_canonicalization_mode = _derive_base_url_canonicalization_mode(
+        requested_base_url, effective_base_url
+    )
 
     explicit_authorize_hosts = _parse_allowed_authorize_hosts(
         args.expected_authorize_host
@@ -1178,6 +1207,10 @@ def main(argv: list[str] | None = None) -> int:
         "base_url": effective_base_url,
         "requested_base_url": requested_base_url,
         "base_url_canonicalized": effective_base_url != requested_base_url,
+        "base_url_canonicalization_mode": base_url_canonicalization_mode,
+        "legacy_dev_alias_smoke_degraded": (
+            base_url_canonicalization_mode == "legacy_dev_alias_to_www"
+        ),
         "ui_base_url": ui_base_url,
         "next": args.next_path,
         "reason": args.reason,
