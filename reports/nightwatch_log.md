@@ -208,3 +208,16 @@
 - Dev-Livechecks mit neuer CLI:
   - `node scripts/run_issue_981_mobile_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-981-cli-compat-20260413T043641Z.json` → **ok=true**
   - `node scripts/run_issue_1016_mobile_ux_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-1016-cli-compat-20260413T043657Z.json` → **ok=true**
+
+## 2026-04-13 06:40 CET — Dev-UI-Auth-Analyze CLI Missing-Value-Härtung
+- ROI-Regression geschlossen: `scripts/run_dev_ui_auth_analyze_smoke.mjs` konnte bisher Kurzflags (`-h`) fälschlich als Wert zu `--<flag>` konsumieren.
+- Umsetzung:
+  - CLI-Parser-Guard in `consumeValue(...)` auf `next.startsWith('-')` gehärtet (statt nur `--`), damit fehlende Werte konsistent als `missing_value_for_--...` fehlschlagen.
+- Regressionstest ergänzt:
+  - `tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py`
+  - neuer Contract: `--summary-json -h` → Exit-Code `2`, Usage auf `stderr`, **keine** Evidence-Nebenwirkung.
+- Lokal verifiziert:
+  - `pytest -q tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py` → **27 passed**.
+- Dev-Sanity (Fallback-Mode ohne Live-Creds):
+  - `node scripts/run_dev_ui_auth_analyze_smoke.mjs --base-url https://www.dev.georanking.ch --gui-path /gui --fallback-login-start --headless --summary-json reports/evidence/night-dev-ui-auth-analyze-20260413T044032Z.json`
+  - Ergebnis: **PASS**, Summary + Evidence geschrieben.
