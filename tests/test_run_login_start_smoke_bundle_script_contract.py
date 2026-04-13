@@ -122,6 +122,8 @@ def test_login_start_bundle_script_uses_shared_route_helper_and_probe_loop() -> 
     assert "Base URL '" in content
     assert "base_url_canonicalized" in content
     assert "requested_base_url" in content
+    assert "base_url_canonicalization_reasons" in content
+    assert "legacy_dev_alias_smoke_degraded" in content
 
 
 def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
@@ -588,6 +590,8 @@ def test_login_start_bundle_summary_includes_route_reason_phase_status_and_durat
     assert summary["requested_base_url"] == stub.base_url
     assert summary["base_url"] == stub.base_url
     assert summary["base_url_canonicalized"] is False
+    assert summary["base_url_canonicalization_reasons"] == []
+    assert summary["legacy_dev_alias_smoke_degraded"] is False
     assert summary["selected_routes"] == ["/gui", "/jobs"]
     assert summary["failed_routes"] == []
 
