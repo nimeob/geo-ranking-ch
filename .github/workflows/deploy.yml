@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: deploy-ecs-dev
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   AWS_REGION: eu-central-1
