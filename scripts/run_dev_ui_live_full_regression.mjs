@@ -16,6 +16,7 @@ function parseCliArgs(argv) {
     baseUrl: "",
     username: "",
     password: "",
+    runId: "",
     maxWaitMs: "",
     logoutSettleMs: "",
     sampleCount: "",
@@ -60,6 +61,11 @@ function parseCliArgs(argv) {
         break;
       case "--password":
         options.password = consumeValue(flag, inlineValue, argv, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case "--run-id":
+      case "--run-token":
+        options.runId = consumeValue(flag, inlineValue, argv, i);
         if (inlineValue === null) i += 1;
         break;
       case "--max-wait-ms":
@@ -120,6 +126,8 @@ function printHelp() {
     "  --base-url <url>                         DEV_UI_BASE_URL override",
     "  --username <value>                       DEV_UI_SMOKE_USERNAME override",
     "  --password <value>                       DEV_UI_SMOKE_PASSWORD override",
+    "  --run-id <token>                         DEV_UI_FULL_RUN_ID override",
+    "  --run-token <token>                      Legacy alias für --run-id",
     "  --max-wait-ms <ms>                       DEV_UI_FULL_MAX_WAIT_MS override (default: 120000)",
     "  --logout-settle-ms <ms>                  DEV_UI_FULL_LOGOUT_SETTLE_MS override (default: 10000)",
     "  --pre-login-5xx-sample-count <n>         DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT override (default: 12)",
@@ -141,6 +149,8 @@ function printHelp() {
     "  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS",
     "  DEV_UI_FULL_EVIDENCE_JSON",
     "  DEV_UI_FULL_SCREENSHOT_DIR",
+    "  DEV_UI_FULL_RUN_ID",
+    "  DEV_UI_FULL_RUN_TOKEN",
     "  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Optional degraded mode when credentials are unavailable",
     "  DEV_UI_FULL_HEADFUL",
   ];
@@ -181,11 +191,44 @@ function resolvePathAgainstRepoRoot(rawPath) {
   return path.resolve(REPO_ROOT, value);
 }
 
+function sanitizeFileToken(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+function buildIsoStampToken() {
+  return new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
 const RAW_UI_BASE_URL = String(cliOptions.baseUrl || process.env.DEV_UI_BASE_URL || "").trim();
 const UI_BASE_URL_NORMALIZATION = normalizeUiBaseUrl(RAW_UI_BASE_URL);
 const UI_BASE_URL = UI_BASE_URL_NORMALIZATION.value;
 const USERNAME = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || "").trim();
 const PASSWORD = String(cliOptions.password || process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
+const EXPLICIT_RUN_MARKER = String(
+  cliOptions.runId
+  || process.env.DEV_UI_FULL_RUN_ID
+  || process.env.DEV_UI_FULL_RUN_TOKEN
+  || "",
+).trim();
+const GITHUB_RUN_NUMBER = String(process.env.GITHUB_RUN_NUMBER || "").trim();
+const GITHUB_RUN_ATTEMPT = String(process.env.GITHUB_RUN_ATTEMPT || "").trim() || "1";
+const GITHUB_RUN_ID = String(process.env.GITHUB_RUN_ID || "").trim();
+const RUN_MARKER_SOURCE = EXPLICIT_RUN_MARKER
+  ? "DEV_UI_FULL_RUN_ID"
+  : GITHUB_RUN_NUMBER
+    ? "GITHUB_RUN_NUMBER+GITHUB_RUN_ATTEMPT"
+    : GITHUB_RUN_ID
+      ? "GITHUB_RUN_ID+GITHUB_RUN_ATTEMPT"
+      : "timestamp";
+const RUN_MARKER = EXPLICIT_RUN_MARKER
+  || (GITHUB_RUN_NUMBER ? `${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}` : "")
+  || (GITHUB_RUN_ID ? `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` : "")
+  || buildIsoStampToken();
+const RUN_TOKEN = sanitizeFileToken(RUN_MARKER) || "run";
 const MAX_WAIT_MS = parsePositiveInt(cliOptions.maxWaitMs || process.env.DEV_UI_FULL_MAX_WAIT_MS, 120_000);
 const LOGOUT_SETTLE_MS = parsePositiveInt(cliOptions.logoutSettleMs || process.env.DEV_UI_FULL_LOGOUT_SETTLE_MS, 10_000);
 const PRE_LOGIN_5XX_SAMPLE_COUNT = parsePositiveInt(
@@ -208,6 +251,8 @@ const SCREENSHOT_DIR = String(
 ).trim();
 const EVIDENCE_JSON_PATH = resolvePathAgainstRepoRoot(EVIDENCE_JSON);
 const SCREENSHOT_DIR_PATH = resolvePathAgainstRepoRoot(SCREENSHOT_DIR);
+const FALLBACK_ARTIFACTS_DIR_PATH = path.join(path.dirname(EVIDENCE_JSON_PATH), "fallback-login-start", RUN_TOKEN);
+const FALLBACK_SUMMARY_JSON_PATH = path.join(FALLBACK_ARTIFACTS_DIR_PATH, "login-start-smoke-bundle-summary.json");
 const HEADLESS = typeof cliOptions.headless === "boolean" ? cliOptions.headless : !isTruthy(process.env.DEV_UI_FULL_HEADFUL);
 const LOGIN_START_FALLBACK_ON_MISSING_CREDS = cliOptions.forceLoginStartFallback || isTruthy(
   process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
@@ -329,7 +374,16 @@ function tailLines(text, maxLines = 12, maxChars = 8000) {
 function runLoginStartFallbackBundle(baseUrl) {
   const normalizedBaseUrl = String(baseUrl || "").trim();
   const envName = inferFallbackEnvName(normalizedBaseUrl);
-  const args = ["--base-url", normalizedBaseUrl, "--env-name", envName];
+  const args = [
+    "--base-url",
+    normalizedBaseUrl,
+    "--env-name",
+    envName,
+    "--output-dir",
+    FALLBACK_ARTIFACTS_DIR_PATH,
+    "--summary-json",
+    FALLBACK_SUMMARY_JSON_PATH,
+  ];
 
   const result = spawnSync(LOGIN_START_FALLBACK_SCRIPT, args, {
     encoding: "utf8",
@@ -345,6 +399,8 @@ function runLoginStartFallbackBundle(baseUrl) {
     stdout: String(result.stdout || ""),
     stderr: String(result.stderr || ""),
     spawnError: result.error ? String(result.error?.message || result.error) : "",
+    outputDir: FALLBACK_ARTIFACTS_DIR_PATH,
+    summaryJson: FALLBACK_SUMMARY_JSON_PATH,
   };
 }
 
@@ -709,9 +765,13 @@ async function main() {
         reason: "missing_live_credentials",
         envFlag: "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
         fallbackEnabled: true,
+        runMarker: RUN_MARKER,
+        runMarkerSource: RUN_MARKER_SOURCE,
         fallbackCommand: fallbackResult.command,
         fallbackExitCode: fallbackResult.exitCode,
         fallbackSpawnError: fallbackResult.spawnError,
+        fallbackOutputDir: fallbackResult.outputDir,
+        fallbackSummaryJson: fallbackResult.summaryJson,
         fallbackStdoutTail: tailLines(fallbackResult.stdout),
         fallbackStderrTail: tailLines(fallbackResult.stderr),
       };
@@ -1197,6 +1257,11 @@ async function main() {
     baseUrlCanonicalized: UI_BASE_URL_NORMALIZATION.changed,
     baseUrlCanonicalizationReasons: UI_BASE_URL_NORMALIZATION.reasons,
     headless: HEADLESS,
+    runtime: {
+      runMarker: RUN_MARKER,
+      runMarkerSource: RUN_MARKER_SOURCE,
+      runToken: RUN_TOKEN,
+    },
     guiUrl,
     firstAddress,
     firstResultId,
