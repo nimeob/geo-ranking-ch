@@ -87,6 +87,8 @@ def test_help_flag_prints_usage_without_env_or_playwright(tmp_path: Path) -> Non
     assert "DEV_UI_BASE_URL" in result.stdout
     assert "DEV_UI_SMOKE_USERNAME" in result.stdout
     assert "DEV_UI_SMOKE_PASSWORD" in result.stdout
+    assert "--run-id <token>" in result.stdout
+    assert "DEV_UI_FULL_RUN_ID" in result.stdout
     assert "--summary-json <path>" in result.stdout
     assert "--json-out <path>" in result.stdout
     assert "--out <path>" in result.stdout
@@ -310,8 +312,76 @@ def test_script_resolves_paths_and_fallback_bundle_from_repo_root() -> None:
     assert "const LOGIN_START_FALLBACK_SCRIPT = path.join(REPO_ROOT, \"scripts\", \"smoke\", \"run_login_start_smoke_bundle.sh\");" in content
     assert "const EVIDENCE_JSON_PATH = resolvePathAgainstRepoRoot(EVIDENCE_JSON);" in content
     assert "const SCREENSHOT_DIR_PATH = resolvePathAgainstRepoRoot(SCREENSHOT_DIR);" in content
+    assert 'const FALLBACK_ARTIFACTS_DIR_PATH = path.join(path.dirname(EVIDENCE_JSON_PATH), "fallback-login-start", RUN_TOKEN);' in content
+    assert 'const FALLBACK_SUMMARY_JSON_PATH = path.join(FALLBACK_ARTIFACTS_DIR_PATH, "login-start-smoke-bundle-summary.json");' in content
     assert "const result = spawnSync(LOGIN_START_FALLBACK_SCRIPT, args, {" in content
     assert "cwd: REPO_ROOT," in content
+    assert '"--output-dir",' in content
+    assert '"--summary-json",' in content
+    assert "fallbackOutputDir: fallbackResult.outputDir," in content
+    assert "fallbackSummaryJson: fallbackResult.summaryJson," in content
+
+
+def test_cli_run_id_is_recorded_in_runtime_evidence(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-run-id.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--run-id",
+            "contract-run-id-2026-04-14",
+            "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["runtime"]["runMarker"] == "contract-run-id-2026-04-14"
+    assert payload["runtime"]["runMarkerSource"] == "DEV_UI_FULL_RUN_ID"
+    assert payload["runtime"]["runToken"] == "contract-run-id-2026-04-14"
+
+
+def test_legacy_run_token_alias_is_recorded_in_runtime_evidence(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-run-token.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--run-token",
+            "legacy-cli-run-token",
+            "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["runtime"]["runMarker"] == "legacy-cli-run-token"
+    assert payload["runtime"]["runMarkerSource"] == "DEV_UI_FULL_RUN_ID"
+    assert payload["runtime"]["runToken"] == "legacy-cli-run-token"
 
 
 def test_relative_evidence_path_is_resolved_against_repo_root_not_cwd(tmp_path: Path) -> None:
