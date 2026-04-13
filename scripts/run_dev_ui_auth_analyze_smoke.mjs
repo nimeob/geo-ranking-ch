@@ -509,9 +509,34 @@ function sanitizeFileToken(value) {
     .slice(0, 64);
 }
 
-function buildArtifactPath(extension) {
+function buildArtifactPath(extension, attempt = 0) {
   const runSuffix = appendRunTokenToArtifactName ? `-${artifactRunToken}` : '';
-  return path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}${runSuffix}.${extension}`);
+  const collisionSuffix = attempt > 0 ? String(attempt) : '';
+  return path.join(outDir, `dev-ui-auth-analyze-smoke-${stamp}${runSuffix}${collisionSuffix}.${extension}`);
+}
+
+async function reserveUniqueArtifactPath(extension) {
+  const maxAttempts = 50;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidate = buildArtifactPath(extension, attempt);
+    let handle = null;
+    try {
+      handle = await fs.open(candidate, 'wx');
+      await handle.close();
+      return candidate;
+    } catch (error) {
+      if (handle) {
+        await handle.close().catch(() => {});
+      }
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'EEXIST') {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(`unable_to_allocate_unique_artifact_path_${extension}`);
 }
 
 async function loadChromium() {
@@ -1208,7 +1233,7 @@ function maskUsername(value) {
 
 async function writeEvidence(payload) {
   await fs.mkdir(outDir, { recursive: true });
-  const outJson = buildArtifactPath('json');
+  const outJson = await reserveUniqueArtifactPath('json');
   const serialized = `${JSON.stringify(payload, null, 2)}\n`;
   await fs.writeFile(outJson, serialized, 'utf8');
 
@@ -1448,14 +1473,14 @@ async function run() {
     finalUrl = page.url();
 
     await fs.mkdir(outDir, { recursive: true });
-    const screenshotPath = buildArtifactPath('png');
+    const screenshotPath = await reserveUniqueArtifactPath('png');
     await page.screenshot({ path: screenshotPath, fullPage: true });
     screenshotRelPath = path.relative(repoRoot, screenshotPath);
   } finally {
     if (!screenshotRelPath) {
       try {
         await fs.mkdir(outDir, { recursive: true });
-        const fallbackScreenshotPath = buildArtifactPath('png');
+        const fallbackScreenshotPath = await reserveUniqueArtifactPath('png');
         await page.screenshot({ path: fallbackScreenshotPath, fullPage: true });
         screenshotRelPath = path.relative(repoRoot, fallbackScreenshotPath);
       } catch {

@@ -209,6 +209,16 @@ def test_script_emits_actionable_console_summary_markers() -> None:
     assert "evidence=" in content
 
 
+def test_script_reserves_unique_artifact_paths_to_avoid_evidence_clobber() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert "async function reserveUniqueArtifactPath(extension)" in content
+    assert "const candidate = buildArtifactPath(extension, attempt);" in content
+    assert "handle = await fs.open(candidate, 'wx');" in content
+    assert "const outJson = await reserveUniqueArtifactPath('json');" in content
+    assert "const screenshotPath = await reserveUniqueArtifactPath('png');" in content
+
+
 def test_help_flag_exits_zero_without_emitting_evidence(tmp_path: Path) -> None:
     env = os.environ.copy()
     env.pop("DEV_UI_SMOKE_USERNAME", None)
