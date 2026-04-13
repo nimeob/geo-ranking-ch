@@ -221,7 +221,6 @@
 - Dev-Sanity (Fallback-Mode ohne Live-Creds):
   - `node scripts/run_dev_ui_auth_analyze_smoke.mjs --base-url https://www.dev.georanking.ch --gui-path /gui --fallback-login-start --headless --summary-json reports/evidence/night-dev-ui-auth-analyze-20260413T044032Z.json`
   - Ergebnis: **PASS**, Summary + Evidence geschrieben.
-
 ## 2026-04-13 07:58 CET — CWD-unabhängige Issue-Smoke-Runner + GH-Auth-Entblockung
 - ROI-Ziel: Night-Runner robust machen, auch wenn Scripts nicht aus Repo-Root gestartet werden (z. B. externe Runner/tmp-CWD).
 - Umsetzung (Pfadauflösung auf Script-Standort statt `process.cwd()`):

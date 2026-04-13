@@ -79,8 +79,9 @@ function parseCliArgs(argv) {
         if (inlineValue === null) i += 1;
         break;
       case "--evidence-json":
-      case "--out":
+      case "--summary-json":
       case "--json-out":
+      case "--out":
         options.evidenceJson = consumeValue(flag, inlineValue, argv, i);
         if (inlineValue === null) i += 1;
         break;
@@ -124,8 +125,9 @@ function printHelp() {
     "  --pre-login-5xx-sample-count <n>         DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT override (default: 12)",
     "  --pre-login-5xx-sample-interval-ms <ms>  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS override (default: 250)",
     "  --evidence-json <path>                   DEV_UI_FULL_EVIDENCE_JSON override",
+    "  --summary-json <path>                    Alias für --evidence-json (legacy compatibility)",
+    "  --json-out <path>                        Alias für --evidence-json (legacy compatibility)",
     "  --out <path>                             Alias für --evidence-json (legacy compatibility)",
-    "  --json-out <path>                        Legacy alias für --evidence-json",
     "  --screenshot-dir <path>                  DEV_UI_FULL_SCREENSHOT_DIR override",
     "  --headless                               Erzwingt headless Browser-Mode",
     "  --headful                                Erzwingt headful Browser-Mode",

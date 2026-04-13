@@ -174,6 +174,8 @@ if [ -z "$BASE_URL" ]; then
 fi
 
 REQUESTED_BASE_URL="$BASE_URL"
+BASE_URL_CANONICALIZED="0"
+canonicalized_base_url_reasons=""
 
 if [[ "${PRESERVE_REQUESTED_BASE_URL}" != "1" ]]; then
 canonicalized_base_url_payload="$(python3 - "$BASE_URL" <<'PY'
@@ -371,6 +373,8 @@ write_bundle_summary() {
   SUMMARY_BASE_URL="$BASE_URL" \
   SUMMARY_REQUESTED_BASE_URL="$REQUESTED_BASE_URL" \
   SUMMARY_BASE_URL_CANONICALIZED="$BASE_URL_CANONICALIZED" \
+  SUMMARY_BASE_URL_CANONICALIZATION_REASONS="$canonicalized_base_url_reasons" \
+  SUMMARY_LEGACY_DEV_ALIAS_SMOKE_DEGRADED="$([[ "$canonicalized_base_url_reasons" == *"legacy_dev_non_www"* ]] && echo 1 || echo 0)" \
   SUMMARY_ENV_NAME="$ENV_NAME" \
   SUMMARY_REASON="$REASON" \
   SUMMARY_EXPECTED_AUTHORIZE_HOST="$EXPECTED_AUTHORIZE_HOST" \
@@ -442,6 +446,15 @@ summary = {
     "base_url": os.environ.get("SUMMARY_BASE_URL", ""),
     "requested_base_url": os.environ.get("SUMMARY_REQUESTED_BASE_URL", ""),
     "base_url_canonicalized": os.environ.get("SUMMARY_BASE_URL_CANONICALIZED", "0") == "1",
+    "base_url_canonicalization_reasons": [
+        reason
+        for reason in os.environ.get("SUMMARY_BASE_URL_CANONICALIZATION_REASONS", "").split(",")
+        if reason
+    ],
+    "legacy_dev_alias_smoke_degraded": os.environ.get(
+        "SUMMARY_LEGACY_DEV_ALIAS_SMOKE_DEGRADED", "0"
+    )
+    == "1",
     "env_name": os.environ.get("SUMMARY_ENV_NAME", ""),
     "reason": os.environ.get("SUMMARY_REASON", ""),
     "expected_authorize_host": os.environ.get("SUMMARY_EXPECTED_AUTHORIZE_HOST", ""),

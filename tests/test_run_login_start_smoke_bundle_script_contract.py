@@ -122,6 +122,8 @@ def test_login_start_bundle_script_uses_shared_route_helper_and_probe_loop() -> 
     assert "Base URL '" in content
     assert "base_url_canonicalized" in content
     assert "requested_base_url" in content
+    assert "base_url_canonicalization_reasons" in content
+    assert "legacy_dev_alias_smoke_degraded" in content
 
 
 def test_login_start_bundle_script_requires_base_url_and_env_name() -> None:
@@ -611,6 +613,8 @@ def test_login_start_bundle_summary_includes_route_reason_phase_status_and_durat
     assert summary["requested_base_url"] == stub.base_url
     assert summary["base_url"] == stub.base_url
     assert summary["base_url_canonicalized"] is False
+    assert summary["base_url_canonicalization_reasons"] == []
+    assert summary["legacy_dev_alias_smoke_degraded"] is False
     assert summary["selected_routes"] == ["/gui", "/jobs"]
     assert summary["failed_routes"] == []
 
@@ -665,6 +669,48 @@ def test_login_start_bundle_accepts_quiet_flag_and_suppresses_progress_stdout(
     summary_path = output_dir / "stub-quiet-login-start-smoke-bundle-summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["status"] == "passed"
+
+
+def test_login_start_bundle_preserve_requested_base_url_mode_runs_successfully(
+    tmp_path,
+) -> None:
+    output_dir = tmp_path / "artifacts"
+
+    with _BundleStubServer() as stub:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                stub.base_url,
+                "--env-name",
+                "stub-preserve",
+                "--output-dir",
+                str(output_dir),
+                "--routes",
+                "/gui",
+                "--timeout",
+                "5",
+                "--max-attempts",
+                "1",
+                "--retry-delay",
+                "0",
+                "--preserve-requested-base-url",
+            ],
+            cwd=str(REPO_ROOT),
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert proc.returncode == 0, proc.stderr
+
+    summary_path = output_dir / "stub-preserve-login-start-smoke-bundle-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["status"] == "passed"
+    assert summary["base_url"] == stub.base_url
+    assert summary["requested_base_url"] == stub.base_url
+    assert summary["base_url_canonicalized"] is False
 
 
 def test_login_start_bundle_fail_fast_stops_after_first_transport_error(tmp_path) -> None:
