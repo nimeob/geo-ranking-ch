@@ -182,6 +182,7 @@ function parseCliArgs(args) {
         break;
       case '--summary-json':
       case '--json-out':
+      case '--out':
         options.summaryJson = consumeValue(flag, inlineValue, args, i);
         if (inlineValue === null) i += 1;
         break;
@@ -238,6 +239,7 @@ function printUsage(stream) {
       '  --output-dir <path> | --evidence-dir <path> DEV_UI_SMOKE_EVIDENCE_DIR override.',
       '  --summary-json <path>                        Optional canonical summary JSON output path.',
       '  --json-out <path>                            Legacy alias for --summary-json.',
+      '  --out <path>                                 Legacy alias for --summary-json.',
       '  --headless | --headful                       Browser mode override.',
       '  --fallback-login-start                       Force login-start fallback mode when credentials are missing.',
       '  --fallback-login-start-on-missing-creds      Alias for --fallback-login-start.',

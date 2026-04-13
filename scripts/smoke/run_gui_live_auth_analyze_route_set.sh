@@ -15,6 +15,7 @@ Options:
   --summary-json <path>   Optionaler Pfad für Route-Set-Summary-JSON
                           (relative Pfade werden gegen Repo-Root aufgelöst)
   --json-out <path>       Legacy-Alias für --summary-json
+  --out <path>            Legacy-Alias für --summary-json
   --timeout-ms <ms>       Timeout pro UI-Run (default: DEV_UI_SMOKE_TIMEOUT_MS bzw. 60000)
   --address-file <path>   Adressliste für Analyze-Smoke (default: scripts/smoke/ch_live_addresses.txt)
   --login-reason <text>   reason-Parameter für /login (default: manual_login)
@@ -303,7 +304,7 @@ while [[ $# -gt 0 ]]; do
       output_dir_override="$2"
       shift 2
       ;;
-    --summary-json|--json-out)
+    --summary-json|--json-out|--out)
       require_option_value "$1" "${2:-}"
       summary_json_override="$2"
       shift 2
