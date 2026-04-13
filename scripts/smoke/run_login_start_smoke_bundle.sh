@@ -174,6 +174,8 @@ if [ -z "$BASE_URL" ]; then
 fi
 
 REQUESTED_BASE_URL="$BASE_URL"
+BASE_URL_CANONICALIZED="0"
+canonicalized_base_url_reasons=""
 
 if [[ "${PRESERVE_REQUESTED_BASE_URL}" != "1" ]]; then
 canonicalized_base_url_payload="$(python3 - "$BASE_URL" <<'PY'
