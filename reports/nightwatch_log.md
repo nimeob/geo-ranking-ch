@@ -113,3 +113,111 @@
   - `pytest -q tests/test_smoke_probe_cli_usage.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py tests/test_check_ui_canonical_redirect.py` → **35 passed**
 - Live-Sanity nach Änderung:
   - `run_canonical_redirect_smoke_bundle.sh --route-presets minimal` zeigt jetzt kurze, scannbare Route-Zeilen und bleibt **passed**.
+
+## 2026-04-13 04:45 CET — Bundle-Runner CWD-Härtung (ROI)
+- Deploy-Status verifiziert: GitHub Actions Run `24322757032` (**main / Deploy to AWS (ECS dev)**) vollständig **grün** inkl. API/UI-Deploy und Login-/Canonical-/Auth-Guard-Smokes.
+- Volltestlauf verifiziert: `pytest -q` → **1967 passed, 2 skipped, 179 subtests passed**.
+- ROI-Gap geschlossen: Bundle-Skripte waren bei Aufruf aus fremdem Working-Directory anfällig (relative Pfade + Probe-Skript-Aufruf).
+- Umsetzung:
+  - `scripts/smoke/run_login_start_smoke_bundle.sh`
+  - `scripts/smoke/run_canonical_redirect_smoke_bundle.sh`
+  - Beide Runner lösen jetzt `--output-dir`/`--summary-json` relativ zum Repo-Root auf und rufen Probe-Skripte via absolute `REPO_ROOT`-Pfadreferenz auf.
+- Regressionstests ergänzt:
+  - `tests/test_run_login_start_smoke_bundle_script_contract.py`
+  - `tests/test_run_canonical_redirect_smoke_bundle_script_contract.py`
+  - Neu: Relative-Path/CWD-Contracts (Aufruf aus fremdem `cwd`) für beide Bundle-Runner.
+- Lokal grün: `pytest -q tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py` → **34 passed**.
+- Live-Sanity gegen DEV weiterhin **ok**:
+  - `check_ui_login_start.py --base-url https://www.dev.georanking.ch`
+  - `check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch`
+  - `check_bff_auth_proxy_guard.py --api-base-url https://api.dev.georanking.ch --ui-base-url https://www.dev.georanking.ch`
+- Branch-Update:
+  - Commit `4ef61ee` — `smoke: resolve bundle paths from repo root`
+  - nach `origin/night/worker-20260413-ui-roi` gepusht.
+
+## 2026-04-13 05:30 CET — Dev-UI-Full-Regression CWD-Härtung (ROI-Folge)
+- ROI-Lücke identifiziert: `scripts/run_dev_ui_live_full_regression.mjs` war bei Aufruf aus fremdem `cwd` inkonsistent.
+  - Relative `DEV_UI_FULL_EVIDENCE_JSON`/`DEV_UI_FULL_SCREENSHOT_DIR` wurden gegen `process.cwd()` statt Repo-Root aufgelöst.
+  - Der Login-Start-Fallback (`--fallback-login-start`) nutzte ein relatives Script-Kommando, das außerhalb des Repo-CWD brechen konnte.
+- Umsetzung:
+  - Script berechnet nun `REPO_ROOT` über `import.meta.url`.
+  - Relative Evidence-/Screenshot-Pfade werden mit `resolvePathAgainstRepoRoot(...)` stabil gegen Repo-Root normalisiert.
+  - Fallback-Runner wird über absoluten Script-Pfad + `cwd: REPO_ROOT` ausgeführt.
+  - Konsolen-Ausgabe verweist auf den effektiv aufgelösten absoluten Evidence-Pfad.
+- Regressionen ergänzt:
+  - `tests/test_run_dev_ui_live_full_regression_script_contract.py`
+    - neuer Guard auf Repo-Root-Path-Resolution + Fallback-Spawn (`cwd: REPO_ROOT`)
+    - neuer Laufzeit-Contract: relativer `DEV_UI_FULL_EVIDENCE_JSON` wird bei fremdem `cwd` unter Repo-Root geschrieben.
+- Lokal verifiziert:
+  - `pytest -q tests/test_run_dev_ui_live_full_regression_script_contract.py tests/test_gui_dev_live_full_regression_script.py` → **16 passed**
+  - `pytest -q tests/test_run_* tests/test_dev_smoke_* tests/test_gui_dev_live_auth_analyze_smoke_* tests/test_gui_webkit_smoke_* tests/test_gui_dev_live_full_regression_script.py` → **184 passed, 3 subtests passed**
+- Dev-Sanity (live endpoint-basiert):
+  - `run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev` → **passed**
+  - `run_canonical_redirect_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev` → **passed**
+
+## 2026-04-13 06:27 CET — Legacy `--out` Alias für UI-Full-Regression wiederhergestellt (ROI)
+- Konkreter Operator-Blocker reproduziert: `scripts/run_dev_ui_live_full_regression.mjs` brach bei altem Aufrufschema mit `Unknown option: --out` ab.
+- Umsetzung:
+  - `scripts/run_dev_ui_live_full_regression.mjs` akzeptiert jetzt `--out <path>` als Legacy-Alias für `--evidence-json <path>`.
+  - `--help` dokumentiert den Alias explizit (Legacy-Compatibility), damit Night-Runs/alte Snippets nicht mehr hart fehlschlagen.
+- Regressionen ergänzt:
+  - `tests/test_run_dev_ui_live_full_regression_script_contract.py`
+    - neuer Laufzeit-Contract: `--out` schreibt Evidence korrekt.
+    - `--help`-Contract prüft jetzt zusätzlich die sichtbare `--out`-Option.
+- Lokal verifiziert:
+  - `pytest -q tests/test_run_dev_ui_live_full_regression_script_contract.py tests/test_gui_dev_live_full_regression_script.py tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py tests/test_run_dev_smoke_bundle_cli.py` → **47 passed**.
+  - CLI-Sanity: `DEV_UI_BASE_URL=https://www.dev.georanking.ch node scripts/run_dev_ui_live_full_regression.mjs --out <tmp>/evidence.json` → erwarteter Credentials-Fail, aber Evidence wurde korrekt geschrieben (kein Unknown-Option-Fail).
+- Dev-UI-Sanity (degraded, mangels Live-Creds):
+  - `node scripts/run_dev_ui_live_full_regression.mjs --base-url https://www.dev.georanking.ch --fallback-login-start --headless --out reports/evidence/night-ui-full-legacy-out-20260413T042710Z.json` → **PASSED (degraded mode)**.
+
+## 2026-04-13 06:30 CET — Issue-986 Smoke-CLI kompatibel gemacht (`--base-url/--json-out`)
+- Nächster ROI-Blocker reproduziert: `scripts/run_issue_986_webkit_smoke.mjs` akzeptierte bisher nur `--help`; typische Runner-Aufrufe mit `--base-url --headless --json-out` scheiterten mit `unknown_cli_args`.
+- Umsetzung:
+  - CLI-Parser erweitert um
+    - `--base-url <url>`
+    - `--evidence-json <path>`
+    - `--json-out <path>` (Legacy-Alias)
+    - `--headless` (kompatibler No-Op, Runner bleibt headless)
+  - Evidence-Output kann jetzt optional auf expliziten Zielpfad geschrieben werden (statt nur Auto-Stamp in `reports/evidence/`).
+- Regressionen ergänzt:
+  - `tests/test_issue_986_webkit_smoke_script_contract.py` (CLI-Override-Guards)
+  - `tests/test_issue_mobile_smoke_cli_usage.py` (Help-Run mit Legacy-Flags darf nicht als unknown failen)
+- Lokal verifiziert:
+  - `pytest -q tests/test_issue_986_webkit_smoke_script_contract.py tests/test_issue_mobile_smoke_cli_usage.py` → **16 passed**.
+- Dev-UI-Livecheck ausgeführt (mit neuer CLI):
+  - `node scripts/run_issue_986_webkit_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-986-cli-compat-20260413T043017Z.json`
+  - Ergebnis: **ok=true**, Login-Entry sichtbar, Map-Interaktion bestanden; auf Runner weiterhin erwarteter Chromium-Fallback wegen fehlender nativer WebKit-Libs (`runtime.webkitMissingLibraries`).
+
+## 2026-04-13 06:37 CET — CLI-Kompatibilität auch für Issue-981/1016 Mobile-Smokes
+- ROI-Ziel: Konsistente Runner-Operatorik für mobile Issue-Smokes, damit bestehende Aufrufmuster (`--base-url --headless --json-out`) nicht auf einzelnen Scripts brechen.
+- Umsetzung:
+  - `scripts/run_issue_981_mobile_smoke.mjs`
+  - `scripts/run_issue_1016_mobile_ux_smoke.mjs`
+  - Beide akzeptieren jetzt:
+    - `--base-url <url>`
+    - `--evidence-json <path>`
+    - `--json-out <path>` (Alias)
+    - `--headless` (kompatibler No-Op)
+  - Optionaler JSON-Output kann auf expliziten Pfad geschrieben werden.
+- Regressionen ergänzt:
+  - `tests/test_issue_mobile_smoke_cli_usage.py` (Help mit Legacy-Flags für 1016/981/986)
+  - `tests/test_issue_1016_mobile_ux_smoke_script_contract.py` (CLI-Override-Snippets)
+  - `tests/test_issue_981_mobile_smoke_script_contract.py` (CLI-Override-Snippets)
+- Lokal verifiziert:
+  - `pytest -q tests/test_issue_mobile_smoke_cli_usage.py tests/test_issue_1016_mobile_ux_smoke_script_contract.py tests/test_issue_981_mobile_smoke_script_contract.py tests/test_issue_986_webkit_smoke_script_contract.py` → **24 passed**
+- Dev-Livechecks mit neuer CLI:
+  - `node scripts/run_issue_981_mobile_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-981-cli-compat-20260413T043641Z.json` → **ok=true**
+  - `node scripts/run_issue_1016_mobile_ux_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-1016-cli-compat-20260413T043657Z.json` → **ok=true**
+
+## 2026-04-13 06:40 CET — Dev-UI-Auth-Analyze CLI Missing-Value-Härtung
+- ROI-Regression geschlossen: `scripts/run_dev_ui_auth_analyze_smoke.mjs` konnte bisher Kurzflags (`-h`) fälschlich als Wert zu `--<flag>` konsumieren.
+- Umsetzung:
+  - CLI-Parser-Guard in `consumeValue(...)` auf `next.startsWith('-')` gehärtet (statt nur `--`), damit fehlende Werte konsistent als `missing_value_for_--...` fehlschlagen.
+- Regressionstest ergänzt:
+  - `tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py`
+  - neuer Contract: `--summary-json -h` → Exit-Code `2`, Usage auf `stderr`, **keine** Evidence-Nebenwirkung.
+- Lokal verifiziert:
+  - `pytest -q tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py` → **27 passed**.
+- Dev-Sanity (Fallback-Mode ohne Live-Creds):
+  - `node scripts/run_dev_ui_auth_analyze_smoke.mjs --base-url https://www.dev.georanking.ch --gui-path /gui --fallback-login-start --headless --summary-json reports/evidence/night-dev-ui-auth-analyze-20260413T044032Z.json`
+  - Ergebnis: **PASS**, Summary + Evidence geschrieben.

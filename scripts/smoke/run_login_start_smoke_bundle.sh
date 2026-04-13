@@ -29,9 +29,11 @@ Options:
   --base-url <url>              Base URL der GUI (z. B. https://www.dev.georanking.ch)
   --ui-base-url <url>           Alias für --base-url
   --env-name <name>             Präfix für Artefakte (z. B. dev, staging)
-  --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts)
+  --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts;
+                                relative Pfade werden gegen Repo-Root aufgelöst)
   --summary-json <path>         Optionaler Pfad für Bundle-Summary-JSON
                                 (default: <output-dir>/<env>-login-start-smoke-bundle-summary.json)
+                                (relative Pfade werden gegen Repo-Root aufgelöst)
   --json-out <path>             Legacy-Alias für --summary-json
   --reason <reason>             login-start reason (default: manual_login)
   --timeout <seconds>           Request-Timeout je Probe (default: 20)
@@ -58,6 +60,25 @@ require_option_value() {
     echo "::error::Missing value for ${option_name}" >&2
     usage >&2
     exit 2
+  fi
+}
+
+resolve_path_against_repo_root() {
+  local raw_path="${1:-}"
+
+  if [[ -z "${raw_path}" ]]; then
+    echo ""
+    return 0
+  fi
+
+  if [[ "${raw_path}" == "~/"* ]]; then
+    raw_path="${HOME}/${raw_path#~/}"
+  fi
+
+  if [[ "${raw_path}" == /* ]]; then
+    echo "${raw_path}"
+  else
+    echo "${REPO_ROOT}/${raw_path}"
   fi
 }
 
@@ -230,6 +251,11 @@ if [ -z "$ENV_NAME" ]; then
   echo "::error::Missing required --env-name" >&2
   usage >&2
   exit 2
+fi
+
+OUTPUT_DIR="$(resolve_path_against_repo_root "${OUTPUT_DIR}")"
+if [[ -n "${SUMMARY_JSON}" ]]; then
+  SUMMARY_JSON="$(resolve_path_against_repo_root "${SUMMARY_JSON}")"
 fi
 
 if [[ -n "${ROUTES_CSV}" && -n "${ROUTE_PRESETS_CSV}" ]]; then
@@ -427,7 +453,7 @@ run_probe() {
   local route="$1"
   local output_json="$2"
 
-  python3 scripts/smoke/check_ui_login_start.py \
+  python3 "${REPO_ROOT}/scripts/smoke/check_ui_login_start.py" \
     --base-url "$BASE_URL" \
     --next "$route" \
     --reason "$REASON" \

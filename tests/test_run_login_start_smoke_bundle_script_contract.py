@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -198,6 +199,66 @@ def test_login_start_bundle_accepts_summary_json_alias(tmp_path) -> None:
 
     route_artifact = output_dir / "stub-summary-login-start-smoke.json"
     assert route_artifact.is_file()
+
+
+def test_login_start_bundle_resolves_relative_paths_against_repo_root(
+    tmp_path: Path,
+) -> None:
+    caller_cwd = tmp_path / "caller"
+    caller_cwd.mkdir(parents=True, exist_ok=True)
+
+    relative_root = Path(".tmp") / f"login-start-relative-{tmp_path.name}"
+    output_dir_rel = str(relative_root / "evidence")
+    summary_rel = str(relative_root / "summary" / "login-start-summary.json")
+
+    expected_output_dir = REPO_ROOT / output_dir_rel
+    expected_summary_path = REPO_ROOT / summary_rel
+    unexpected_summary_path = caller_cwd / summary_rel
+
+    shutil.rmtree(REPO_ROOT / relative_root, ignore_errors=True)
+
+    try:
+        with _BundleStubServer() as stub:
+            proc = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--base-url",
+                    stub.base_url,
+                    "--env-name",
+                    "stub-relative",
+                    "--output-dir",
+                    output_dir_rel,
+                    "--summary-json",
+                    summary_rel,
+                    "--routes",
+                    "/gui",
+                    "--timeout",
+                    "5",
+                    "--max-attempts",
+                    "1",
+                    "--retry-delay",
+                    "0",
+                ],
+                cwd=str(caller_cwd),
+                env=os.environ.copy(),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        assert proc.returncode == 0, proc.stderr
+
+        route_artifact = expected_output_dir / "stub-relative-login-start-smoke.json"
+        assert route_artifact.exists()
+        assert expected_summary_path.exists()
+
+        summary_payload = json.loads(expected_summary_path.read_text(encoding="utf-8"))
+        assert summary_payload["status"] == "passed"
+        assert summary_payload["env_name"] == "stub-relative"
+
+        assert not unexpected_summary_path.exists()
+    finally:
+        shutil.rmtree(REPO_ROOT / relative_root, ignore_errors=True)
 
 
 def test_login_start_bundle_canonicalizes_legacy_dev_non_www_origin_before_validation() -> (

@@ -329,6 +329,31 @@ def test_unknown_cli_argument_exits_with_usage_and_no_evidence(tmp_path: Path) -
     assert evidence_files == []
 
 
+def test_missing_cli_value_exits_with_usage_and_no_evidence(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--summary-json", "-h"],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert "missing_value_for_--summary-json" in result.stderr
+    assert "Usage: node scripts/run_dev_ui_auth_analyze_smoke.mjs" in result.stderr
+    assert "unknown_cli_args" not in result.stderr
+
+    evidence_files = sorted(
+        (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
+    )
+    assert evidence_files == []
+
+
 def test_missing_credentials_emit_json_evidence_even_without_playwright(
     tmp_path: Path,
 ) -> None:

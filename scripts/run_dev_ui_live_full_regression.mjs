@@ -2,6 +2,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const SCRIPT_DIR = path.dirname(SCRIPT_PATH);
+const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
+const LOGIN_START_FALLBACK_SCRIPT = path.join(REPO_ROOT, "scripts", "smoke", "run_login_start_smoke_bundle.sh");
 
 const LEGACY_DEV_UI_HOSTS = new Set(["dev.georanking.ch", "dev.geo-ranking.ch"]);
 
@@ -73,6 +79,7 @@ function parseCliArgs(argv) {
         if (inlineValue === null) i += 1;
         break;
       case "--evidence-json":
+      case "--out":
         options.evidenceJson = consumeValue(flag, inlineValue, argv, i);
         if (inlineValue === null) i += 1;
         break;
@@ -116,6 +123,7 @@ function printHelp() {
     "  --pre-login-5xx-sample-count <n>         DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT override (default: 12)",
     "  --pre-login-5xx-sample-interval-ms <ms>  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_INTERVAL_MS override (default: 250)",
     "  --evidence-json <path>                   DEV_UI_FULL_EVIDENCE_JSON override",
+    "  --out <path>                             Alias für --evidence-json (legacy compatibility)",
     "  --screenshot-dir <path>                  DEV_UI_FULL_SCREENSHOT_DIR override",
     "  --headless                               Erzwingt headless Browser-Mode",
     "  --headful                                Erzwingt headful Browser-Mode",
@@ -160,6 +168,15 @@ function isTruthy(value) {
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
+function resolvePathAgainstRepoRoot(rawPath) {
+  const value = String(rawPath || "").trim();
+  if (!value) return "";
+  if (path.isAbsolute(value)) {
+    return path.normalize(value);
+  }
+  return path.resolve(REPO_ROOT, value);
+}
+
 const RAW_UI_BASE_URL = String(cliOptions.baseUrl || process.env.DEV_UI_BASE_URL || "").trim();
 const UI_BASE_URL_NORMALIZATION = normalizeUiBaseUrl(RAW_UI_BASE_URL);
 const UI_BASE_URL = UI_BASE_URL_NORMALIZATION.value;
@@ -185,6 +202,8 @@ const SCREENSHOT_DIR = String(
   || process.env.DEV_UI_FULL_SCREENSHOT_DIR
   || "artifacts/dev-ui-full/latest/screenshots",
 ).trim();
+const EVIDENCE_JSON_PATH = resolvePathAgainstRepoRoot(EVIDENCE_JSON);
+const SCREENSHOT_DIR_PATH = resolvePathAgainstRepoRoot(SCREENSHOT_DIR);
 const HEADLESS = typeof cliOptions.headless === "boolean" ? cliOptions.headless : !isTruthy(process.env.DEV_UI_FULL_HEADFUL);
 const LOGIN_START_FALLBACK_ON_MISSING_CREDS = cliOptions.forceLoginStartFallback || isTruthy(
   process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
@@ -289,7 +308,7 @@ function buildLoginStartFallbackCommand(baseUrl) {
   }
 
   const envName = inferFallbackEnvName(normalizedBaseUrl);
-  return `./scripts/smoke/run_login_start_smoke_bundle.sh --base-url ${normalizedBaseUrl} --env-name ${envName}`;
+  return `${LOGIN_START_FALLBACK_SCRIPT} --base-url ${normalizedBaseUrl} --env-name ${envName}`;
 }
 
 function tailLines(text, maxLines = 12, maxChars = 8000) {
@@ -308,14 +327,15 @@ function runLoginStartFallbackBundle(baseUrl) {
   const envName = inferFallbackEnvName(normalizedBaseUrl);
   const args = ["--base-url", normalizedBaseUrl, "--env-name", envName];
 
-  const result = spawnSync("./scripts/smoke/run_login_start_smoke_bundle.sh", args, {
+  const result = spawnSync(LOGIN_START_FALLBACK_SCRIPT, args, {
     encoding: "utf8",
+    cwd: REPO_ROOT,
     env: process.env,
     maxBuffer: 4 * 1024 * 1024,
   });
 
   return {
-    command: `./scripts/smoke/run_login_start_smoke_bundle.sh ${args.join(" ")}`,
+    command: `${LOGIN_START_FALLBACK_SCRIPT} ${args.join(" ")}`,
     ok: result.status === 0 && !result.error,
     exitCode: Number.isFinite(result.status) ? result.status : -1,
     stdout: String(result.stdout || ""),
@@ -421,7 +441,7 @@ function mkDirFor(filePath) {
 }
 
 function screenshotName(label) {
-  return path.join(SCREENSHOT_DIR, `${new Date().toISOString().replace(/[:.]/g, "-")}-${label}.png`);
+  return path.join(SCREENSHOT_DIR_PATH, `${new Date().toISOString().replace(/[:.]/g, "-")}-${label}.png`);
 }
 
 async function safeScreenshot(page, label) {
@@ -1187,12 +1207,12 @@ async function main() {
     error: finalError,
   };
 
-  mkDirFor(EVIDENCE_JSON);
-  fs.writeFileSync(EVIDENCE_JSON, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
+  mkDirFor(EVIDENCE_JSON_PATH);
+  fs.writeFileSync(EVIDENCE_JSON_PATH, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
 
   if (finalError) {
     console.error(`[dev-ui-full-regression] FAILED: ${finalError}`);
-    console.error(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON}`);
+    console.error(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON_PATH}`);
     emitFailureHints(finalError);
     process.exit(1);
   }
@@ -1202,7 +1222,7 @@ async function main() {
   } else {
     console.log(`[dev-ui-full-regression] PASSED with ${checks.length} checks`);
   }
-  console.log(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON}`);
+  console.log(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON_PATH}`);
 }
 
 await main();

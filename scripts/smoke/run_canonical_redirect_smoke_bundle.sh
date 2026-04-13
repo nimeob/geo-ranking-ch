@@ -29,9 +29,11 @@ Options:
   --base-url <url>              Canonical GUI-Base-URL (z. B. https://www.dev.georanking.ch)
   --ui-base-url <url>           Alias für --base-url
   --env-name <name>             Präfix für Artefakte (z. B. dev, staging)
-  --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts)
+  --output-dir <dir>            Ausgabeordner für JSON-Artefakte (default: artifacts;
+                                relative Pfade werden gegen Repo-Root aufgelöst)
   --summary-json <path>         Optionaler Pfad für Bundle-Summary-JSON
                                 (default: <output-dir>/<env>-canonical-host-redirect-smoke-bundle-summary.json)
+                                (relative Pfade werden gegen Repo-Root aufgelöst)
   --json-out <path>             Legacy-Alias für --summary-json
   --canonical-origin <origin>   Optionaler Canonical-Origin Override
   --canonical-hosts <hosts>     Optionale CSV-Liste für UI_CANONICAL_HOSTS
@@ -56,6 +58,25 @@ require_option_value() {
     echo "::error::Missing value for ${option_name}" >&2
     usage >&2
     exit 2
+  fi
+}
+
+resolve_path_against_repo_root() {
+  local raw_path="${1:-}"
+
+  if [[ -z "${raw_path}" ]]; then
+    echo ""
+    return 0
+  fi
+
+  if [[ "${raw_path}" == "~/"* ]]; then
+    raw_path="${HOME}/${raw_path#~/}"
+  fi
+
+  if [[ "${raw_path}" == /* ]]; then
+    echo "${raw_path}"
+  else
+    echo "${REPO_ROOT}/${raw_path}"
   fi
 }
 
@@ -157,6 +178,11 @@ if [ -z "$ENV_NAME" ]; then
   echo "::error::Missing required --env-name" >&2
   usage >&2
   exit 2
+fi
+
+OUTPUT_DIR="$(resolve_path_against_repo_root "${OUTPUT_DIR}")"
+if [[ -n "${SUMMARY_JSON}" ]]; then
+  SUMMARY_JSON="$(resolve_path_against_repo_root "${SUMMARY_JSON}")"
 fi
 
 if [[ -n "${ROUTES_CSV}" && -n "${ROUTE_PRESETS_CSV}" ]]; then
@@ -285,7 +311,7 @@ run_probe() {
     probe_args+=("--alias-host" "$ALIAS_HOST")
   fi
 
-  python3 scripts/smoke/check_ui_canonical_redirect.py "${probe_args[@]}"
+  python3 "${REPO_ROOT}/scripts/smoke/check_ui_canonical_redirect.py" "${probe_args[@]}"
 }
 
 log_info() {

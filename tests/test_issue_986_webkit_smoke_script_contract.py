@@ -79,3 +79,20 @@ def test_webkit_smoke_script_has_base_url_reachability_preflight() -> None:
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"BASE_URL-Preflight fehlt im WebKit-Smoke-Script: {missing}"
+
+
+def test_webkit_smoke_script_accepts_legacy_cli_overrides_for_base_url_and_output() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    required_snippets = [
+        "case '--base-url':",
+        "case '--evidence-json':",
+        "case '--json-out':",
+        "case '--headless':",
+        "const baseUrl = String(cli.baseUrl || process.env.BASE_URL || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL;",
+        "const outputJsonPath = (() => {",
+        "const outJson = outputJsonPath || path.join(outDir, `issue-986-webkit-smoke-${stamp}.json`);",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, f"CLI-Override-Kompatibilität fehlt im WebKit-Smoke-Script: {missing}"
