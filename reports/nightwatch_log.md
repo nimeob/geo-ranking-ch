@@ -113,3 +113,24 @@
   - `pytest -q tests/test_smoke_probe_cli_usage.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py tests/test_check_ui_canonical_redirect.py` → **35 passed**
 - Live-Sanity nach Änderung:
   - `run_canonical_redirect_smoke_bundle.sh --route-presets minimal` zeigt jetzt kurze, scannbare Route-Zeilen und bleibt **passed**.
+
+## 2026-04-13 04:45 CET — Bundle-Runner CWD-Härtung (ROI)
+- Deploy-Status verifiziert: GitHub Actions Run `24322757032` (**main / Deploy to AWS (ECS dev)**) vollständig **grün** inkl. API/UI-Deploy und Login-/Canonical-/Auth-Guard-Smokes.
+- Volltestlauf verifiziert: `pytest -q` → **1967 passed, 2 skipped, 179 subtests passed**.
+- ROI-Gap geschlossen: Bundle-Skripte waren bei Aufruf aus fremdem Working-Directory anfällig (relative Pfade + Probe-Skript-Aufruf).
+- Umsetzung:
+  - `scripts/smoke/run_login_start_smoke_bundle.sh`
+  - `scripts/smoke/run_canonical_redirect_smoke_bundle.sh`
+  - Beide Runner lösen jetzt `--output-dir`/`--summary-json` relativ zum Repo-Root auf und rufen Probe-Skripte via absolute `REPO_ROOT`-Pfadreferenz auf.
+- Regressionstests ergänzt:
+  - `tests/test_run_login_start_smoke_bundle_script_contract.py`
+  - `tests/test_run_canonical_redirect_smoke_bundle_script_contract.py`
+  - Neu: Relative-Path/CWD-Contracts (Aufruf aus fremdem `cwd`) für beide Bundle-Runner.
+- Lokal grün: `pytest -q tests/test_run_login_start_smoke_bundle_script_contract.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py` → **34 passed**.
+- Live-Sanity gegen DEV weiterhin **ok**:
+  - `check_ui_login_start.py --base-url https://www.dev.georanking.ch`
+  - `check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch`
+  - `check_bff_auth_proxy_guard.py --api-base-url https://api.dev.georanking.ch --ui-base-url https://www.dev.georanking.ch`
+- Branch-Update:
+  - Commit `4ef61ee` — `smoke: resolve bundle paths from repo root`
+  - nach `origin/night/worker-20260413-ui-roi` gepusht.
