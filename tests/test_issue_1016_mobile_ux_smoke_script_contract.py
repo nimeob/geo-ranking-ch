@@ -65,3 +65,17 @@ def test_issue_1016_mobile_ux_smoke_canonicalizes_legacy_dev_hosts() -> None:
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"run_issue_1016_mobile_ux_smoke.mjs fehlt BASE_URL-Kanonisierung: {missing}"
+
+
+def test_issue_1016_mobile_ux_smoke_resolves_repo_root_from_script_location() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    required_snippets = [
+        "import { fileURLToPath } from 'node:url';",
+        "const scriptPath = fileURLToPath(import.meta.url);",
+        "const scriptDir = path.dirname(scriptPath);",
+        "const repoRoot = path.resolve(scriptDir, '..');",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, f"run_issue_1016_mobile_ux_smoke.mjs fehlt repoRoot-Resolution: {missing}"

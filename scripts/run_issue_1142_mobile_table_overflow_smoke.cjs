@@ -106,7 +106,7 @@ if (cli.unknown.length > 0) {
   process.exit(2);
 }
 
-const repoRoot = process.cwd();
+const repoRoot = path.resolve(__dirname, '..');
 const outputJsonPath = (() => {
   const rawPath = String(cli.evidenceJson || '').trim();
   if (!rawPath) return '';

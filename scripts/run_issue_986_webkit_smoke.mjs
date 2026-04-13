@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const ISSUE_NUMBER = 986;
 const PARENT_ISSUE = 975;
 const SCRIPT_REL_PATH = 'scripts/run_issue_986_webkit_smoke.mjs';
-const repoRoot = process.cwd();
+const scriptPath = fileURLToPath(import.meta.url);
+const scriptDir = path.dirname(scriptPath);
+const repoRoot = path.resolve(scriptDir, '..');
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8877/gui';
 const DEFAULT_GUI_STABILITY_WAIT_MS = 1200;
 const DEFAULT_BASE_URL_PROBE_TIMEOUT_MS = 5000;
