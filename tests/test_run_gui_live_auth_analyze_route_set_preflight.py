@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -137,6 +138,64 @@ def test_route_set_runner_accepts_summary_json_alias_path(tmp_path: Path) -> Non
     assert summary_payload["status"] == "blocked"
     assert summary_payload["preflight_status"] == "failed"
     assert summary_payload["run_id_base"] == "manual-summary-alias"
+
+
+def test_route_set_runner_resolves_relative_paths_against_repo_root(
+    tmp_path: Path,
+) -> None:
+    caller_cwd = tmp_path / "caller"
+    caller_cwd.mkdir(parents=True, exist_ok=True)
+
+    relative_root = Path(".tmp") / f"route-set-relative-{tmp_path.name}"
+    output_dir_rel = str(relative_root / "evidence")
+    summary_rel = str(relative_root / "summary" / "route-set-summary.json")
+
+    expected_output_dir = REPO_ROOT / output_dir_rel
+    expected_summary_path = REPO_ROOT / summary_rel
+    unexpected_summary_path = caller_cwd / summary_rel
+
+    shutil.rmtree(REPO_ROOT / relative_root, ignore_errors=True)
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    try:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                "https://www.dev.georanking.ch",
+                "--run-id-base",
+                "manual-relative-paths",
+                "--output-dir",
+                output_dir_rel,
+                "--summary-json",
+                summary_rel,
+            ],
+            cwd=str(caller_cwd),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert proc.returncode == 1
+
+        blocked_file = (
+            expected_output_dir
+            / "dev-ui-auth-analyze-smoke-blocked-manual-relative-paths.json"
+        )
+        assert blocked_file.exists()
+        assert expected_summary_path.exists()
+
+        summary_payload = json.loads(expected_summary_path.read_text(encoding="utf-8"))
+        assert summary_payload["status"] == "blocked"
+        assert summary_payload["preflight_status"] == "failed"
+
+        assert not unexpected_summary_path.exists()
+    finally:
+        shutil.rmtree(REPO_ROOT / relative_root, ignore_errors=True)
 
 
 def test_route_set_runner_accepts_ui_base_url_alias_and_reaches_preflight(
@@ -677,9 +736,7 @@ def test_route_set_runner_fallback_surfaces_bundle_exit_code_from_override(
 
     fake_bundle = tmp_path / "fake-login-start-bundle.sh"
     fake_bundle.write_text(
-        "#!/usr/bin/env bash\n"
-        "set -euo pipefail\n"
-        "exit 9\n",
+        "#!/usr/bin/env bash\n" "set -euo pipefail\n" "exit 9\n",
         encoding="utf-8",
     )
     fake_bundle.chmod(0o755)
@@ -708,7 +765,10 @@ def test_route_set_runner_fallback_surfaces_bundle_exit_code_from_override(
     )
 
     assert proc.returncode == 9
-    assert "login-start fallback failed after live-auth preflight failure (exit=9)." in proc.stderr
+    assert (
+        "login-start fallback failed after live-auth preflight failure (exit=9)."
+        in proc.stderr
+    )
     assert str(fake_bundle) in proc.stderr
 
     summary_file = evidence_dir / "dev-ui-auth-analyze-route-set-summary.json"
