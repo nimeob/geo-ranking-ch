@@ -17,7 +17,7 @@ def test_issue_1016_mobile_ux_smoke_has_base_url_reachability_preflight_and_stru
         "class BaseUrlReachabilityError extends Error",
         "function classifyConnectivityReason(error)",
         "async function assertBaseUrlReachable(targetUrl, timeoutMs)",
-        "await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);",
+        "await assertBaseUrlReachable(targetUrl, baseUrlProbeTimeoutMs);",
         "tls_cert_has_expired",
         "tls_hostname_mismatch",
         "tls_untrusted_ca",
@@ -49,3 +49,33 @@ def test_issue_1016_mobile_ux_smoke_accepts_legacy_cli_overrides() -> None:
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"run_issue_1016_mobile_ux_smoke.mjs fehlt CLI-Override-Kompatibilität: {missing}"
+
+
+def test_issue_1016_mobile_ux_smoke_canonicalizes_legacy_dev_hosts() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    required_snippets = [
+        "const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);",
+        "function normalizeUiBaseUrl(rawBaseUrl)",
+        "legacy_dev_non_www",
+        "const targetUrl = baseUrlNormalization.value || baseUrl;",
+        "targetUrlRequested: baseUrl",
+        "baseUrlCanonicalizationReasons: baseUrlNormalization.reasons",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, f"run_issue_1016_mobile_ux_smoke.mjs fehlt BASE_URL-Kanonisierung: {missing}"
+
+
+def test_issue_1016_mobile_ux_smoke_resolves_repo_root_from_script_location() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    required_snippets = [
+        "import { fileURLToPath } from 'node:url';",
+        "const scriptPath = fileURLToPath(import.meta.url);",
+        "const scriptDir = path.dirname(scriptPath);",
+        "const repoRoot = path.resolve(scriptDir, '..');",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, f"run_issue_1016_mobile_ux_smoke.mjs fehlt repoRoot-Resolution: {missing}"

@@ -1,15 +1,91 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const issueNumber = 1016;
 const scriptRelPath = 'scripts/run_issue_1016_mobile_ux_smoke.mjs';
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8877/gui';
 const DEFAULT_GUI_STABILITY_WAIT_MS = 1200;
 const DEFAULT_BASE_URL_PROBE_TIMEOUT_MS = 5000;
-const repoRoot = process.cwd();
+const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);
+const scriptPath = fileURLToPath(import.meta.url);
+const scriptDir = path.dirname(scriptPath);
+const repoRoot = path.resolve(scriptDir, '..');
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function normalizeUiBaseUrl(rawBaseUrl) {
+  const candidate = String(rawBaseUrl || '').trim();
+  if (!candidate) {
+    return {
+      value: '',
+      requested: '',
+      changed: false,
+      reasons: [],
+      error: '',
+    };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: 'must be an absolute URL (e.g. https://www.dev.georanking.ch/gui)',
+    };
+  }
+
+  const protocol = String(parsed.protocol || '').toLowerCase();
+  if (protocol !== 'http:' && protocol !== 'https:') {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: `unsupported protocol '${protocol || '(missing)'}' (expected http: or https:)`,
+    };
+  }
+
+  const reasons = [];
+  let canonicalHost = String(parsed.hostname || '').trim().toLowerCase();
+  if (!canonicalHost) {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: 'hostname is missing',
+    };
+  }
+
+  const strippedTrailingDotHost = canonicalHost.replace(/\.+$/, '');
+  if (strippedTrailingDotHost !== canonicalHost) {
+    canonicalHost = strippedTrailingDotHost;
+    reasons.push('trailing_dot');
+  }
+
+  if (LEGACY_DEV_UI_HOSTS.has(canonicalHost)) {
+    canonicalHost = `www.${canonicalHost}`;
+    reasons.push('legacy_dev_non_www');
+  }
+
+  parsed.hostname = canonicalHost;
+  const normalizedPath = parsed.pathname === '/' ? '' : parsed.pathname;
+  const normalized = `${parsed.protocol}//${parsed.host}${normalizedPath}${parsed.search}${parsed.hash}`;
+
+  return {
+    value: normalized,
+    requested: candidate,
+    changed: normalized !== candidate,
+    reasons,
+    error: '',
+  };
+}
 
 function buildUsage() {
   return [
@@ -105,6 +181,8 @@ if (cli.unknown.length > 0) {
 }
 
 const baseUrl = String(cli.baseUrl || process.env.BASE_URL || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL;
+const baseUrlNormalization = normalizeUiBaseUrl(baseUrl);
+const targetUrl = baseUrlNormalization.value || baseUrl;
 const guiStabilityWaitMs = Number.parseInt(
   process.env.GUI_STABILITY_WAIT_MS || String(DEFAULT_GUI_STABILITY_WAIT_MS),
   10,
@@ -312,7 +390,7 @@ async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs 
   const currentUrl = page.url();
   if (isAuthRedirectUrl(currentUrl)) {
     throw new Error(
-      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -332,7 +410,7 @@ async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs 
   if (winner.kind === 'auth-redirect') {
     const authUrl = page.url();
     throw new Error(
-      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${authUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${authUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -343,7 +421,7 @@ async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs 
   const finalUrl = page.url();
   if (isAuthRedirectUrl(finalUrl)) {
     throw new Error(
-      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${finalUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${finalUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -359,7 +437,7 @@ async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs 
 
 async function openStableGuiPage(context) {
   const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
 
   await waitForGuiOrAuthRedirect(page, {
@@ -528,7 +606,7 @@ async function main() {
   let runError = null;
 
   try {
-    await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
+    await assertBaseUrlReachable(targetUrl, baseUrlProbeTimeoutMs);
 
     const chromium = await loadChromium();
     browser = await chromium.launch({ headless: true });
@@ -581,7 +659,10 @@ async function main() {
     issue: issueNumber,
     startedAtUtc,
     finishedAtUtc,
-    targetUrl: baseUrl,
+    targetUrl,
+    targetUrlRequested: baseUrl,
+    baseUrlCanonicalized: baseUrlNormalization.changed,
+    baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
     baseUrlProbeTimeoutMs,
     checks,
     artifacts: screenshotPath
@@ -607,7 +688,10 @@ main().catch(async (error) => {
     issue: issueNumber,
     startedAtUtc: finishedAtUtc,
     finishedAtUtc,
-    targetUrl: baseUrl,
+    targetUrl,
+    targetUrlRequested: baseUrl,
+    baseUrlCanonicalized: baseUrlNormalization.changed,
+    baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
     baseUrlProbeTimeoutMs,
     checks: {},
     artifacts: {},
