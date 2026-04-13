@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "bench_deploy_gate_runtime.py"
@@ -63,3 +64,37 @@ def test_summarize_handles_empty_and_non_empty_samples() -> None:
     assert summary["median"] == 600.0
     assert summary["min"] == 540.0
     assert summary["max"] == 660.0
+
+
+def test_resolve_gh_cli_prefers_scripts_wrapper_when_present(tmp_path: Path) -> None:
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir(parents=True)
+    gha = scripts_dir / "gha"
+    gha.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    gha.chmod(0o755)
+
+    resolved = MODULE._resolve_gh_cli(repo_root=tmp_path)
+
+    assert resolved == str(gha)
+
+
+def test_resolve_gh_cli_prefers_explicit_override(tmp_path: Path) -> None:
+    resolved = MODULE._resolve_gh_cli(explicit="/custom/bin/gh", repo_root=tmp_path)
+
+    assert resolved == "/custom/bin/gh"
+
+
+def test_load_runs_from_gh_uses_selected_cli(monkeypatch: Any) -> None:
+    captured: dict[str, Any] = {}
+
+    def _fake_check_output(cmd: list[str], text: bool = True) -> str:
+        captured["cmd"] = cmd
+        assert text is True
+        return "[]"
+
+    monkeypatch.setattr(MODULE.subprocess, "check_output", _fake_check_output)
+
+    runs = MODULE._load_runs_from_gh("nimeob/geo-ranking-ch", "deploy.yml", 5, gh_cli="./scripts/gha")
+
+    assert runs == []
+    assert captured["cmd"][0] == "./scripts/gha"
