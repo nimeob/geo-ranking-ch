@@ -4,9 +4,9 @@ import path from 'node:path';
 
 const issueNumber = 1016;
 const scriptRelPath = 'scripts/run_issue_1016_mobile_ux_smoke.mjs';
-const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:8877/gui';
-const guiStabilityWaitMs = Number.parseInt(process.env.GUI_STABILITY_WAIT_MS || '1200', 10);
-const baseUrlProbeTimeoutMs = Number.parseInt(process.env.BASE_URL_PROBE_TIMEOUT_MS || '5000', 10);
+const DEFAULT_BASE_URL = 'http://127.0.0.1:8877/gui';
+const DEFAULT_GUI_STABILITY_WAIT_MS = 1200;
+const DEFAULT_BASE_URL_PROBE_TIMEOUT_MS = 5000;
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -19,32 +19,81 @@ function buildUsage() {
     'Prüft Burger-Menü UX + Pinch-Zoom Smoothness auf /gui.',
     '',
     'Options:',
-    '  -h, --help   Show this help and exit.',
+    '  -h, --help              Show this help and exit.',
+    `  --base-url <url>       Override BASE_URL (default: ${DEFAULT_BASE_URL})`,
+    '  --evidence-json <path> Override JSON evidence output path.',
+    '  --json-out <path>      Alias für --evidence-json (legacy compatibility).',
+    '  --headless             Accepted for compatibility (runner is always headless).',
     '',
     'Environment:',
-    `  BASE_URL=${baseUrl}`,
-    `  GUI_STABILITY_WAIT_MS=${guiStabilityWaitMs}`,
-    `  BASE_URL_PROBE_TIMEOUT_MS=${baseUrlProbeTimeoutMs}`,
+    `  BASE_URL=${DEFAULT_BASE_URL}`,
+    `  GUI_STABILITY_WAIT_MS=${DEFAULT_GUI_STABILITY_WAIT_MS}`,
+    `  BASE_URL_PROBE_TIMEOUT_MS=${DEFAULT_BASE_URL_PROBE_TIMEOUT_MS}`,
   ].join('\n');
 }
 
 function parseCliArgs(argv) {
   const args = Array.isArray(argv) ? argv : [];
   const unknown = [];
-  let help = false;
+  const options = {
+    help: false,
+    baseUrl: '',
+    evidenceJson: '',
+  };
 
-  for (const arg of args) {
-    if (arg === '-h' || arg === '--help') {
-      help = true;
+  const consumeValue = (flag, inlineValue, currentArgs, index) => {
+    if (inlineValue !== null) return inlineValue;
+    const next = currentArgs[index + 1];
+    if (typeof next !== 'string' || next.startsWith('-')) {
+      throw new Error(`Missing value for ${flag}`);
+    }
+    return next;
+  };
+
+  for (let i = 0; i < args.length; i += 1) {
+    const raw = String(args[i] || '').trim();
+    if (!raw) continue;
+
+    if (raw === '-h' || raw === '--help') {
+      options.help = true;
       continue;
     }
-    unknown.push(arg);
+
+    const eqIdx = raw.indexOf('=');
+    const flag = eqIdx >= 0 ? raw.slice(0, eqIdx) : raw;
+    const inlineValue = eqIdx >= 0 ? raw.slice(eqIdx + 1) : null;
+
+    switch (flag) {
+      case '--base-url':
+        options.baseUrl = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--evidence-json':
+      case '--json-out':
+        options.evidenceJson = consumeValue(flag, inlineValue, args, i);
+        if (inlineValue === null) i += 1;
+        break;
+      case '--headless':
+        break;
+      default:
+        unknown.push(raw);
+        break;
+    }
   }
 
-  return { help, unknown };
+  return { ...options, unknown };
 }
 
-const cli = parseCliArgs(process.argv.slice(2));
+const cli = (() => {
+  try {
+    return parseCliArgs(process.argv.slice(2));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || 'unknown error');
+    console.error(`[issue-${issueNumber}-mobile-ux-smoke] ${message}`);
+    console.error(buildUsage());
+    process.exit(2);
+  }
+})();
 if (cli.help) {
   console.log(buildUsage());
   process.exit(0);
@@ -54,6 +103,22 @@ if (cli.unknown.length > 0) {
   console.error(buildUsage());
   process.exit(2);
 }
+
+const baseUrl = String(cli.baseUrl || process.env.BASE_URL || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL;
+const guiStabilityWaitMs = Number.parseInt(
+  process.env.GUI_STABILITY_WAIT_MS || String(DEFAULT_GUI_STABILITY_WAIT_MS),
+  10,
+);
+const baseUrlProbeTimeoutMs = Number.parseInt(
+  process.env.BASE_URL_PROBE_TIMEOUT_MS || String(DEFAULT_BASE_URL_PROBE_TIMEOUT_MS),
+  10,
+);
+const outputJsonPath = (() => {
+  const rawPath = String(cli.evidenceJson || '').trim();
+  if (!rawPath) return '';
+  if (path.isAbsolute(rawPath)) return path.normalize(rawPath);
+  return path.resolve(repoRoot, rawPath);
+})();
 
 async function loadChromium() {
   try {
@@ -528,8 +593,8 @@ async function main() {
     ok,
   };
 
-  const outJson = path.join(outDir, `issue-${issueNumber}-mobile-ux-smoke-${stamp}.json`);
-  await fs.mkdir(outDir, { recursive: true });
+  const outJson = outputJsonPath || path.join(outDir, `issue-${issueNumber}-mobile-ux-smoke-${stamp}.json`);
+  await fs.mkdir(path.dirname(outJson), { recursive: true });
   await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
 
   console.log(path.relative(repoRoot, outJson));
@@ -550,8 +615,8 @@ main().catch(async (error) => {
     ok: false,
   };
 
-  await fs.mkdir(outDir, { recursive: true });
-  const outJson = path.join(outDir, `issue-${issueNumber}-mobile-ux-smoke-${stamp}.json`);
+  const outJson = outputJsonPath || path.join(outDir, `issue-${issueNumber}-mobile-ux-smoke-${stamp}.json`);
+  await fs.mkdir(path.dirname(outJson), { recursive: true });
   await fs.writeFile(outJson, JSON.stringify(payload, null, 2) + '\n', 'utf8');
   console.log(path.relative(repoRoot, outJson));
   process.exit(1);

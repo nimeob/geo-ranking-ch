@@ -187,3 +187,24 @@
 - Dev-UI-Livecheck ausgeführt (mit neuer CLI):
   - `node scripts/run_issue_986_webkit_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-986-cli-compat-20260413T043017Z.json`
   - Ergebnis: **ok=true**, Login-Entry sichtbar, Map-Interaktion bestanden; auf Runner weiterhin erwarteter Chromium-Fallback wegen fehlender nativer WebKit-Libs (`runtime.webkitMissingLibraries`).
+
+## 2026-04-13 06:37 CET — CLI-Kompatibilität auch für Issue-981/1016 Mobile-Smokes
+- ROI-Ziel: Konsistente Runner-Operatorik für mobile Issue-Smokes, damit bestehende Aufrufmuster (`--base-url --headless --json-out`) nicht auf einzelnen Scripts brechen.
+- Umsetzung:
+  - `scripts/run_issue_981_mobile_smoke.mjs`
+  - `scripts/run_issue_1016_mobile_ux_smoke.mjs`
+  - Beide akzeptieren jetzt:
+    - `--base-url <url>`
+    - `--evidence-json <path>`
+    - `--json-out <path>` (Alias)
+    - `--headless` (kompatibler No-Op)
+  - Optionaler JSON-Output kann auf expliziten Pfad geschrieben werden.
+- Regressionen ergänzt:
+  - `tests/test_issue_mobile_smoke_cli_usage.py` (Help mit Legacy-Flags für 1016/981/986)
+  - `tests/test_issue_1016_mobile_ux_smoke_script_contract.py` (CLI-Override-Snippets)
+  - `tests/test_issue_981_mobile_smoke_script_contract.py` (CLI-Override-Snippets)
+- Lokal verifiziert:
+  - `pytest -q tests/test_issue_mobile_smoke_cli_usage.py tests/test_issue_1016_mobile_ux_smoke_script_contract.py tests/test_issue_981_mobile_smoke_script_contract.py tests/test_issue_986_webkit_smoke_script_contract.py` → **24 passed**
+- Dev-Livechecks mit neuer CLI:
+  - `node scripts/run_issue_981_mobile_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-981-cli-compat-20260413T043641Z.json` → **ok=true**
+  - `node scripts/run_issue_1016_mobile_ux_smoke.mjs --base-url https://www.dev.georanking.ch/gui --headless --json-out reports/evidence/night-issue-1016-cli-compat-20260413T043657Z.json` → **ok=true**

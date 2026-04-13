@@ -32,3 +32,20 @@ def test_issue_1016_mobile_ux_smoke_has_base_url_reachability_preflight_and_stru
     assert (
         not missing
     ), f"run_issue_1016_mobile_ux_smoke.mjs fehlt Preflight/Failure-Snippets: {missing}"
+
+
+def test_issue_1016_mobile_ux_smoke_accepts_legacy_cli_overrides() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    required_snippets = [
+        "case '--base-url':",
+        "case '--evidence-json':",
+        "case '--json-out':",
+        "case '--headless':",
+        "const baseUrl = String(cli.baseUrl || process.env.BASE_URL || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL;",
+        "const outputJsonPath = (() => {",
+        "const outJson = outputJsonPath || path.join(outDir, `issue-${issueNumber}-mobile-ux-smoke-${stamp}.json`);",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, f"run_issue_1016_mobile_ux_smoke.mjs fehlt CLI-Override-Kompatibilität: {missing}"

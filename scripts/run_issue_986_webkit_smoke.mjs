@@ -46,7 +46,7 @@ function parseCliArgs(argv) {
   const consumeValue = (flag, inlineValue, currentArgs, index) => {
     if (inlineValue !== null) return inlineValue;
     const next = currentArgs[index + 1];
-    if (typeof next !== 'string' || next.startsWith('--')) {
+    if (typeof next !== 'string' || next.startsWith('-')) {
       throw new Error(`Missing value for ${flag}`);
     }
     return next;
