@@ -251,8 +251,7 @@ const SCREENSHOT_DIR = String(
 ).trim();
 const EVIDENCE_JSON_PATH = resolvePathAgainstRepoRoot(EVIDENCE_JSON);
 const SCREENSHOT_DIR_PATH = resolvePathAgainstRepoRoot(SCREENSHOT_DIR);
-const FALLBACK_ARTIFACTS_DIR_PATH = path.join(path.dirname(EVIDENCE_JSON_PATH), "fallback-login-start", RUN_TOKEN);
-const FALLBACK_SUMMARY_JSON_PATH = path.join(FALLBACK_ARTIFACTS_DIR_PATH, "login-start-smoke-bundle-summary.json");
+const FALLBACK_ARTIFACTS_BASE_DIR_PATH = path.join(path.dirname(EVIDENCE_JSON_PATH), "fallback-login-start", RUN_TOKEN);
 const HEADLESS = typeof cliOptions.headless === "boolean" ? cliOptions.headless : !isTruthy(process.env.DEV_UI_FULL_HEADFUL);
 const LOGIN_START_FALLBACK_ON_MISSING_CREDS = cliOptions.forceLoginStartFallback || isTruthy(
   process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
@@ -374,15 +373,17 @@ function tailLines(text, maxLines = 12, maxChars = 8000) {
 function runLoginStartFallbackBundle(baseUrl) {
   const normalizedBaseUrl = String(baseUrl || "").trim();
   const envName = inferFallbackEnvName(normalizedBaseUrl);
+  const outputDir = reserveUniqueDirectoryPath(FALLBACK_ARTIFACTS_BASE_DIR_PATH);
+  const summaryJson = path.join(outputDir, "login-start-smoke-bundle-summary.json");
   const args = [
     "--base-url",
     normalizedBaseUrl,
     "--env-name",
     envName,
     "--output-dir",
-    FALLBACK_ARTIFACTS_DIR_PATH,
+    outputDir,
     "--summary-json",
-    FALLBACK_SUMMARY_JSON_PATH,
+    summaryJson,
   ];
 
   const result = spawnSync(LOGIN_START_FALLBACK_SCRIPT, args, {
@@ -399,8 +400,8 @@ function runLoginStartFallbackBundle(baseUrl) {
     stdout: String(result.stdout || ""),
     stderr: String(result.stderr || ""),
     spawnError: result.error ? String(result.error?.message || result.error) : "",
-    outputDir: FALLBACK_ARTIFACTS_DIR_PATH,
-    summaryJson: FALLBACK_SUMMARY_JSON_PATH,
+    outputDir,
+    summaryJson,
   };
 }
 
@@ -500,13 +501,69 @@ function mkDirFor(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
 
+function buildReservedFilePath(filePath, attempt = 0) {
+  if (attempt <= 0) {
+    return filePath;
+  }
+
+  const parsed = path.parse(filePath);
+  return path.join(parsed.dir, `${parsed.name}${attempt}${parsed.ext}`);
+}
+
+function reserveUniqueOutputPath(filePath) {
+  mkDirFor(filePath);
+
+  const MAX_ATTEMPTS = 200;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const candidate = buildReservedFilePath(filePath, attempt);
+    try {
+      const fd = fs.openSync(candidate, "wx");
+      fs.closeSync(fd);
+      return candidate;
+    } catch (error) {
+      if (error && typeof error === "object" && error.code === "EEXIST") {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(`Unable to reserve unique output path for ${filePath}`);
+}
+
+function buildReservedDirectoryPath(dirPath, attempt = 0) {
+  if (attempt <= 0) {
+    return dirPath;
+  }
+  return `${dirPath}-${attempt}`;
+}
+
+function reserveUniqueDirectoryPath(dirPath) {
+  fs.mkdirSync(path.dirname(dirPath), { recursive: true });
+
+  const MAX_ATTEMPTS = 200;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const candidate = buildReservedDirectoryPath(dirPath, attempt);
+    try {
+      fs.mkdirSync(candidate, { recursive: false });
+      return candidate;
+    } catch (error) {
+      if (error && typeof error === "object" && error.code === "EEXIST") {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(`Unable to reserve unique directory path for ${dirPath}`);
+}
+
 function screenshotName(label) {
   return path.join(SCREENSHOT_DIR_PATH, `${new Date().toISOString().replace(/[:.]/g, "-")}-${label}.png`);
 }
 
 async function safeScreenshot(page, label) {
-  const shot = screenshotName(label);
-  mkDirFor(shot);
+  const shot = reserveUniqueOutputPath(screenshotName(label));
   await page.screenshot({ path: shot, fullPage: true });
   return shot;
 }
@@ -1276,12 +1333,12 @@ async function main() {
     error: finalError,
   };
 
-  mkDirFor(EVIDENCE_JSON_PATH);
-  fs.writeFileSync(EVIDENCE_JSON_PATH, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
+  const reservedEvidenceJsonPath = reserveUniqueOutputPath(EVIDENCE_JSON_PATH);
+  fs.writeFileSync(reservedEvidenceJsonPath, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
 
   if (finalError) {
     console.error(`[dev-ui-full-regression] FAILED: ${finalError}`);
-    console.error(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON_PATH}`);
+    console.error(`[dev-ui-full-regression] Evidence: ${reservedEvidenceJsonPath}`);
     emitFailureHints(finalError);
     process.exit(1);
   }
@@ -1291,7 +1348,7 @@ async function main() {
   } else {
     console.log(`[dev-ui-full-regression] PASSED with ${checks.length} checks`);
   }
-  console.log(`[dev-ui-full-regression] Evidence: ${EVIDENCE_JSON_PATH}`);
+  console.log(`[dev-ui-full-regression] Evidence: ${reservedEvidenceJsonPath}`);
 }
 
 await main();
