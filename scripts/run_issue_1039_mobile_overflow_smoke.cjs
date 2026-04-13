@@ -8,8 +8,81 @@ const scriptRelPath = 'scripts/run_issue_1039_mobile_overflow_smoke.cjs';
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8877/gui';
 const DEFAULT_GUI_STABILITY_WAIT_MS = 1200;
 const DEFAULT_BASE_URL_PROBE_TIMEOUT_MS = 5000;
+const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);
 const repoRoot = process.cwd();
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function normalizeUiBaseUrl(rawBaseUrl) {
+  const candidate = String(rawBaseUrl || '').trim();
+  if (!candidate) {
+    return {
+      value: '',
+      requested: '',
+      changed: false,
+      reasons: [],
+      error: '',
+    };
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: 'must be an absolute URL (e.g. https://www.dev.georanking.ch/gui)',
+    };
+  }
+
+  const protocol = String(parsed.protocol || '').toLowerCase();
+  if (protocol !== 'http:' && protocol !== 'https:') {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: `unsupported protocol '${protocol || '(missing)'}' (expected http: or https:)`,
+    };
+  }
+
+  const reasons = [];
+  let canonicalHost = String(parsed.hostname || '').trim().toLowerCase();
+  if (!canonicalHost) {
+    return {
+      value: candidate,
+      requested: candidate,
+      changed: false,
+      reasons: [],
+      error: 'hostname is missing',
+    };
+  }
+
+  const strippedTrailingDotHost = canonicalHost.replace(/\.+$/, '');
+  if (strippedTrailingDotHost !== canonicalHost) {
+    canonicalHost = strippedTrailingDotHost;
+    reasons.push('trailing_dot');
+  }
+
+  if (LEGACY_DEV_UI_HOSTS.has(canonicalHost)) {
+    canonicalHost = `www.${canonicalHost}`;
+    reasons.push('legacy_dev_non_www');
+  }
+
+  parsed.hostname = canonicalHost;
+  const normalizedPath = parsed.pathname === '/' ? '' : parsed.pathname;
+  const normalized = `${parsed.protocol}//${parsed.host}${normalizedPath}${parsed.search}${parsed.hash}`;
+
+  return {
+    value: normalized,
+    requested: candidate,
+    changed: normalized !== candidate,
+    reasons,
+    error: '',
+  };
+}
 
 function buildUsage() {
   return [
@@ -106,6 +179,8 @@ if (cli.unknown.length > 0) {
 }
 
 const baseUrl = String(cli.baseUrl || process.env.BASE_URL || DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL;
+const baseUrlNormalization = normalizeUiBaseUrl(baseUrl);
+const targetUrl = baseUrlNormalization.value || baseUrl;
 const guiStabilityWaitMs = Number.parseInt(
   process.env.GUI_STABILITY_WAIT_MS || String(DEFAULT_GUI_STABILITY_WAIT_MS),
   10,
@@ -284,7 +359,7 @@ async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs 
   const currentUrl = page.url();
   if (isAuthRedirectUrl(currentUrl)) {
     throw new Error(
-      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${currentUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -304,7 +379,7 @@ async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs 
   if (winner.kind === 'auth-redirect') {
     const authUrl = page.url();
     throw new Error(
-      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${authUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${authUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -315,7 +390,7 @@ async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs 
   const finalUrl = page.url();
   if (isAuthRedirectUrl(finalUrl)) {
     throw new Error(
-      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${finalUrl} (target=${baseUrl}, waitMs=${guiStabilityWaitMs}).`
+      `[${stageLabel}] Unerwarteter Redirect auf Auth-Login erkannt: ${finalUrl} (target=${targetUrl}, waitMs=${guiStabilityWaitMs}).`
     );
   }
 
@@ -331,7 +406,7 @@ async function waitForGuiOrAuthRedirect(page, { stageLabel, selector, timeoutMs 
 
 async function openStableGuiPage(context, stageLabel) {
   const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(Math.max(0, guiStabilityWaitMs));
 
   await waitForGuiOrAuthRedirect(page, {
@@ -458,7 +533,7 @@ function normalizeRunError(error) {
   if (error instanceof BaseUrlReachabilityError) {
     payload.kind = 'base_url_unreachable';
     payload.hint = error.hint || '';
-    payload.targetUrl = error.targetUrl || baseUrl;
+    payload.targetUrl = error.targetUrl || targetUrl;
     payload.reasonCode = error.reasonCode || 'unreachable';
     return payload;
   }
@@ -477,7 +552,7 @@ function normalizeRunError(error) {
   ) {
     payload.kind = 'base_url_unreachable';
     payload.reasonCode = 'connection_refused';
-    payload.hint = buildBaseUrlReachabilityHint(baseUrl, 'connection_refused');
+    payload.hint = buildBaseUrlReachabilityHint(targetUrl, 'connection_refused');
   }
 
   return payload;
@@ -489,7 +564,7 @@ async function main() {
   let payload = null;
 
   try {
-    const preflight = await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);
+    const preflight = await assertBaseUrlReachable(targetUrl, baseUrlProbeTimeoutMs);
 
     const chromium = loadPlaywrightChromium();
     browser = await chromium.launch({ headless: true });
@@ -499,7 +574,8 @@ async function main() {
 
     payload = {
       issue: issueNumber,
-      targetUrl: baseUrl,
+      targetUrl,
+      targetUrlRequested: baseUrl,
       runtime: {
         playwrightDependencyMissing: false,
         playwrightInstallHint: 'npm ci && npx playwright install --with-deps chromium',
@@ -507,6 +583,8 @@ async function main() {
         baseUrlProbeTimeoutMs,
         baseUrlProbeStatus: preflight.status,
         baseUrlProbeFinalUrl: preflight.finalUrl,
+        baseUrlCanonicalized: baseUrlNormalization.changed,
+        baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
       },
       checks: {
         mobileNoHorizontalScroll: {
@@ -544,7 +622,8 @@ async function main() {
     const normalizedRunError = normalizeRunError(error);
     payload = {
       issue: issueNumber,
-      targetUrl: baseUrl,
+      targetUrl,
+      targetUrlRequested: baseUrl,
       runtime: {
         playwrightDependencyMissing: normalizedRunError.kind === 'playwright_dependency_missing',
         playwrightInstallHint:
@@ -553,6 +632,8 @@ async function main() {
             : 'npm ci && npx playwright install --with-deps chromium',
         baseUrlReachable: normalizedRunError.kind !== 'base_url_unreachable',
         baseUrlProbeTimeoutMs,
+        baseUrlCanonicalized: baseUrlNormalization.changed,
+        baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
       },
       checks: {},
       snapshots: {},
@@ -583,7 +664,8 @@ main().catch(async (error) => {
   const normalizedRunError = normalizeRunError(error);
   const payload = {
     issue: issueNumber,
-    targetUrl: baseUrl,
+    targetUrl,
+    targetUrlRequested: baseUrl,
     runtime: {
       playwrightDependencyMissing: normalizedRunError.kind === 'playwright_dependency_missing',
       playwrightInstallHint:
@@ -592,6 +674,8 @@ main().catch(async (error) => {
           : 'npm ci && npx playwright install --with-deps chromium',
       baseUrlReachable: normalizedRunError.kind !== 'base_url_unreachable',
       baseUrlProbeTimeoutMs,
+      baseUrlCanonicalized: baseUrlNormalization.changed,
+      baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
     },
     startedAtUtc: new Date().toISOString(),
     finishedAtUtc: new Date().toISOString(),

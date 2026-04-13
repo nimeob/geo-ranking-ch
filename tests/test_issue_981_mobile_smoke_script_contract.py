@@ -16,7 +16,7 @@ def test_issue_981_mobile_smoke_has_base_url_reachability_preflight() -> None:
         "function classifyConnectivityReason(error)",
         "function buildBaseUrlReachabilityHint(targetUrl, reasonCode)",
         "async function assertBaseUrlReachable(targetUrl, timeoutMs)",
-        "await assertBaseUrlReachable(baseUrl, baseUrlProbeTimeoutMs);",
+        "await assertBaseUrlReachable(targetUrl, baseUrlProbeTimeoutMs);",
         "tls_cert_has_expired",
         "tls_hostname_mismatch",
         "tls_untrusted_ca",
@@ -46,3 +46,19 @@ def test_issue_981_mobile_smoke_accepts_legacy_cli_overrides() -> None:
 
     missing = [snippet for snippet in required_snippets if snippet not in content]
     assert not missing, f"run_issue_981_mobile_smoke.mjs fehlt CLI-Override-Kompatibilität: {missing}"
+
+
+def test_issue_981_mobile_smoke_canonicalizes_legacy_dev_hosts() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    required_snippets = [
+        "const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);",
+        "function normalizeUiBaseUrl(rawBaseUrl)",
+        "legacy_dev_non_www",
+        "const targetUrl = baseUrlNormalization.value || baseUrl;",
+        "targetUrlRequested: baseUrl",
+        "baseUrlCanonicalizationReasons: baseUrlNormalization.reasons",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, f"run_issue_981_mobile_smoke.mjs fehlt BASE_URL-Kanonisierung: {missing}"
