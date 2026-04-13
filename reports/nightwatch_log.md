@@ -221,3 +221,32 @@
 - Dev-Sanity (Fallback-Mode ohne Live-Creds):
   - `node scripts/run_dev_ui_auth_analyze_smoke.mjs --base-url https://www.dev.georanking.ch --gui-path /gui --fallback-login-start --headless --summary-json reports/evidence/night-dev-ui-auth-analyze-20260413T044032Z.json`
   - Ergebnis: **PASS**, Summary + Evidence geschrieben.
+
+## 2026-04-13 07:58 CET — CWD-unabhängige Issue-Smoke-Runner + GH-Auth-Entblockung
+- ROI-Ziel: Night-Runner robust machen, auch wenn Scripts nicht aus Repo-Root gestartet werden (z. B. externe Runner/tmp-CWD).
+- Umsetzung (Pfadauflösung auf Script-Standort statt `process.cwd()`):
+  - `scripts/run_issue_1016_mobile_ux_smoke.mjs`
+  - `scripts/run_issue_981_mobile_smoke.mjs`
+  - `scripts/run_issue_986_webkit_smoke.mjs`
+  - `scripts/run_issue_1039_mobile_overflow_smoke.cjs`
+  - `scripts/run_issue_1142_mobile_table_overflow_smoke.cjs`
+- Regressionen ergänzt:
+  - `tests/test_issue_1016_mobile_ux_smoke_script_contract.py`
+  - `tests/test_issue_981_mobile_smoke_script_contract.py`
+  - `tests/test_issue_986_webkit_smoke_script_contract.py`
+  - `tests/test_issue_1039_mobile_overflow_smoke_script.py`
+  - `tests/test_issue_1142_mobile_overflow_script_contract.py`
+- Lokal verifiziert:
+  - `python3 -m pytest -q tests/test_issue_1016_mobile_ux_smoke_script_contract.py tests/test_issue_981_mobile_smoke_script_contract.py tests/test_issue_986_webkit_smoke_script_contract.py tests/test_issue_1039_mobile_overflow_smoke_script.py tests/test_issue_1142_mobile_overflow_script_contract.py tests/test_issue_mobile_smoke_cli_usage.py`
+  - Ergebnis: **38 passed**.
+- Laufzeit-Check (CWD-unabhängig):
+  - Start aus `/tmp` mit `--json-out reports/evidence/...` für Issue-1039 + Issue-981.
+  - Ergebnis: Evidence landet korrekt unter `<repo>/reports/evidence/...` (nicht unter `/tmp/reports/evidence`).
+- Git:
+  - Commit: `e9cda80` (`fix(smoke): resolve repo root from script path for issue runners`)
+  - Branch: `night/worker-20260413-ui-roi`
+  - Push: `origin/night/worker-20260413-ui-roi`
+- Blocker-Entschärfung:
+  - `gh issue list` mit globalem Token weiter 401.
+  - Repo-spezifisch funktioniert API über `./scripts/gha ...` (GH-App-Token wrapper) zuverlässig.
+  - Offenen `status:todo`-Strang identifiziert: `#1519` (Alias-Host TLS-Mismatch im Route-Matrix-Kontext).
