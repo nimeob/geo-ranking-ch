@@ -87,6 +87,7 @@ def test_help_flag_prints_usage_without_env_or_playwright(tmp_path: Path) -> Non
     assert "DEV_UI_BASE_URL" in result.stdout
     assert "DEV_UI_SMOKE_USERNAME" in result.stdout
     assert "DEV_UI_SMOKE_PASSWORD" in result.stdout
+    assert "--out <path>" in result.stdout
     assert result.stderr == ""
 
 
@@ -201,6 +202,39 @@ def test_cli_overrides_base_url_and_evidence_path_without_credentials(
             "--base-url",
             "https://dev.example.test",
             "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert evidence_path.exists(), f"expected evidence file, got stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["baseUrl"] == "https://dev.example.test"
+    assert payload["error"] == "Missing DEV_UI_SMOKE_USERNAME"
+
+
+def test_cli_accepts_legacy_out_alias_for_evidence_json(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-out-alias.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--base-url",
+            "https://dev.example.test",
+            "--out",
             str(evidence_path),
         ],
         cwd=tmp_path,

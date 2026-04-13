@@ -154,3 +154,18 @@
 - Dev-Sanity (live endpoint-basiert):
   - `run_login_start_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev` → **passed**
   - `run_canonical_redirect_smoke_bundle.sh --base-url https://www.dev.georanking.ch --env-name dev` → **passed**
+
+## 2026-04-13 06:27 CET — Legacy `--out` Alias für UI-Full-Regression wiederhergestellt (ROI)
+- Konkreter Operator-Blocker reproduziert: `scripts/run_dev_ui_live_full_regression.mjs` brach bei altem Aufrufschema mit `Unknown option: --out` ab.
+- Umsetzung:
+  - `scripts/run_dev_ui_live_full_regression.mjs` akzeptiert jetzt `--out <path>` als Legacy-Alias für `--evidence-json <path>`.
+  - `--help` dokumentiert den Alias explizit (Legacy-Compatibility), damit Night-Runs/alte Snippets nicht mehr hart fehlschlagen.
+- Regressionen ergänzt:
+  - `tests/test_run_dev_ui_live_full_regression_script_contract.py`
+    - neuer Laufzeit-Contract: `--out` schreibt Evidence korrekt.
+    - `--help`-Contract prüft jetzt zusätzlich die sichtbare `--out`-Option.
+- Lokal verifiziert:
+  - `pytest -q tests/test_run_dev_ui_live_full_regression_script_contract.py tests/test_gui_dev_live_full_regression_script.py tests/test_run_dev_ui_auth_analyze_smoke_script_contract.py tests/test_run_dev_smoke_bundle_cli.py` → **47 passed**.
+  - CLI-Sanity: `DEV_UI_BASE_URL=https://www.dev.georanking.ch node scripts/run_dev_ui_live_full_regression.mjs --out <tmp>/evidence.json` → erwarteter Credentials-Fail, aber Evidence wurde korrekt geschrieben (kein Unknown-Option-Fail).
+- Dev-UI-Sanity (degraded, mangels Live-Creds):
+  - `node scripts/run_dev_ui_live_full_regression.mjs --base-url https://www.dev.georanking.ch --fallback-login-start --headless --out reports/evidence/night-ui-full-legacy-out-20260413T042710Z.json` → **PASSED (degraded mode)**.
