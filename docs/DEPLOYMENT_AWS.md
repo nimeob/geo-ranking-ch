@@ -417,6 +417,7 @@ Smoke-Verhalten:
 | `DEPLOY_GATE_MAX_WAIT_SECONDS` | Optional: maximales Retry-Fenster für das Readiness-Gate (API `/health` + GUI `/gui` + DB-Reachability); Default `90` |
 | `DEPLOY_GATE_RETRY_DELAY_SECONDS` | Optional: Pause (Sekunden) zwischen Readiness-Gate-Versuchen; Default `5` |
 | `DEPLOY_GATE_ROLLBACK_MODE` | Optional: Verhalten bei Gate-Timeout; aktuell nur `mark-required` unterstützt (Default). Der Workflow setzt dann `ROLLBACK_REQUIRED` + TaskDef-Hinweise und endet mit `failed`. |
+| `ECS_STABILITY_TIMEOUT_SECONDS` | Optional: Hartes Timeout (Sekunden) für `aws ecs wait services-stable` in API/UI-Rollout-Schritten; Default `900`. Bei Timeout werden ECS-Service-Diagnostics im Workflow-Log ausgegeben. |
 | `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Deploy-Workflow den zusätzlichen `/debug/trace`-Sanity-Check |
 
 **Preflight-Validator (required ENV-Keys)**
@@ -493,6 +494,7 @@ Für `staging` existiert ein separater Workflow:
 | `SERVICE_API_BASE_URL` | API-Base-URL für Smokes (`https://api.staging.<domain>`) |
 | `SERVICE_APP_BASE_URL` | UI-Base-URL für Smokes (`https://www.staging.<domain>` oder `https://app.staging.<domain>`) |
 | `SERVICE_HEALTH_URL` | Optionales API-Health-Override-Ziel (`/health`), falls `SERVICE_API_BASE_URL` nicht genutzt wird |
+| `ECS_STABILITY_TIMEOUT_SECONDS` | Optional: Hartes Timeout (Sekunden) für `aws ecs wait services-stable` in API/UI-Rollout-Schritten; Default `900`. Bei Timeout werden ECS-Service-Diagnostics im Workflow-Log ausgegeben. |
 | `TRACE_DEBUG_ENABLED` | Optionales Toggle (`1/true`), aktiviert im Post-Deploy-Verify den `/debug/trace`-Sanity-Check |
 
 **Benötigte GitHub Secrets (Environment `staging`):**
