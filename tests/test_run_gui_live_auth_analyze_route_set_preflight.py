@@ -562,6 +562,8 @@ def test_route_set_runner_fallback_propagates_cli_route_subset(
         "fallback_login_start_smoke=./scripts/smoke/run_login_start_smoke_bundle.sh"
         in proc.stderr
     )
+    assert f'--output-dir "{evidence_dir}"' in proc.stderr
+    assert '--reason "manual_login"' in proc.stderr
     assert '--routes "/gui,/jobs?source=smoke"' in proc.stderr
 
     assert (evidence_dir / "dev-login-start-smoke.json").exists()

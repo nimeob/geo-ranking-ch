@@ -443,9 +443,23 @@ elif [[ -n "${routes_override}" ]]; then
   fallback_route_args=(--routes "${selected_routes_csv}")
 fi
 
+preflight_fallback_hint_extra_args="--output-dir \"${fallback_output_dir}\" --reason \"${fallback_login_reason}\""
+if [[ -n "${route_presets_override}" ]]; then
+  preflight_fallback_hint_extra_args+=" --route-presets \"${selected_route_presets_csv}\""
+elif [[ -n "${routes_override}" ]]; then
+  preflight_fallback_hint_extra_args+=" --routes \"${selected_routes_csv}\""
+fi
+if [[ -n "${fallback_timeout_seconds}" ]]; then
+  preflight_fallback_hint_extra_args+=" --timeout ${fallback_timeout_seconds}"
+fi
+if [[ "${quiet}" == "1" ]]; then
+  preflight_fallback_hint_extra_args+=" --quiet"
+fi
+
 if ! (
   cd "${REPO_ROOT}"
   DEV_UI_SMOKE_RUN_ID="${base_run_id}" \
+  DEV_UI_SMOKE_FALLBACK_LOGIN_START_EXTRA_ARGS="${preflight_fallback_hint_extra_args}" \
     ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 ); then
   fallback_base_url="${summary_base_url}"
