@@ -269,3 +269,24 @@
 - Live-Verifikation (direkter Alias-Origin, ohne Kanonisierung):
   - `scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://dev.geo-ranking.ch --env-name dev-alias-manual --preserve-requested-base-url --output-dir reports/evidence --routes /gui --timeout 8 --max-attempts 1 --retry-delay 0 --max-retry-delay 1` → **PASS** (`reason=ok`, `status_code=302`).
   - `scripts/smoke/run_login_start_smoke_bundle.sh --base-url https://dev.georanking.ch --env-name dev-alias-manual-georanking --preserve-requested-base-url --output-dir reports/evidence --routes /gui --timeout 8 --max-attempts 1 --retry-delay 0 --max-retry-delay 1` → **PASS** (`reason=ok`, `status_code=302`).
+
+## 2026-04-14 05:15 CET — Auth-Proxy-Guard Redirect-Härtung + DEV-Retest
+- ROI-Gap identifiziert: `check_bff_auth_proxy_guard.py` validierte bei trusted `/auth/login` den Redirect-Host, aber nicht explizit den tatsächlichen `authorize`-Pfadsegment-Contract und kein HTTPS-Scheme für absolute Redirects.
+- Umsetzung:
+  - `scripts/smoke/check_bff_auth_proxy_guard.py`
+    - neuer Guard `_has_authorize_path_segment(...)` (fail-closed wenn nur Query-Noise wie `next=/oauth2/authorize` vorkommt).
+    - zusätzlicher Scheme-Guard: absolute trusted-authorize Redirects müssen `https` sein.
+  - neue Failure-Reasons:
+    - `authorize_redirect_path_missing_authorize_segment`
+    - `authorize_redirect_must_use_https`
+- Tests erweitert:
+  - `tests/test_check_bff_auth_proxy_guard.py`
+    - Negativtest für Redirect auf `/login?next=%2Foauth2%2Fauthorize`.
+    - Negativtest für trusted Redirect auf `http://.../oauth2/authorize`.
+- Verifikation:
+  - `pytest -q tests/test_check_bff_auth_proxy_guard.py` → **26 passed**.
+  - `pytest -q` → **2018 passed, 2 skipped, 179 subtests passed**.
+  - Live-Checks DEV:
+    - `check_bff_auth_proxy_guard.py --api-base-url https://api.dev.georanking.ch --ui-base-url https://www.dev.georanking.ch` → **ok**.
+    - `check_ui_login_start.py --base-url https://www.dev.georanking.ch` → **ok**.
+    - `check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch` → **ok**.
