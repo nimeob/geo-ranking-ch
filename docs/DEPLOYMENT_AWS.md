@@ -367,7 +367,16 @@ aws ecs update-service \
 
 ### Deployment via GitHub Actions
 
-CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (Trigger: **nur manueller `workflow_dispatch` / on-demand**). Der Lauf ist service-getrennt und deployt die volle BL-31-Topologie.
+CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt. Trigger sind:
+- manueller `workflow_dispatch` (on-demand)
+- `push` auf `main`
+- stündlicher `schedule` (`7 * * * *`)
+
+Der Lauf ist service-getrennt und deployt die volle BL-31-Topologie.
+
+Concurrency-Verhalten (dev):
+- `concurrency.group: deploy-ecs-dev`
+- `cancel-in-progress: false` (queued rollout, kein automatisches Abbrechen laufender Deploys)
 
 Verbindliche Tier-Zuordnung (PR/Deploy/Nightly) inkl. Gate-Verantwortlichkeiten: [`docs/testing/DEPLOY_TEST_TIERS.md`](testing/DEPLOY_TEST_TIERS.md)
 
