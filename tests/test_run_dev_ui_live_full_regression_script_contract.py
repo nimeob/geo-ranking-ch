@@ -375,7 +375,11 @@ def test_fallback_bundle_summary_quality_gate_contract_present() -> None:
     assert '"fallback.login_start_smoke_bundle_summary_json_loaded"' in content
     assert '"fallback.login_start_smoke_bundle_summary_status_passed"' in content
     assert '"fallback.login_start_smoke_bundle_summary_routes_covered"' in content
+    assert '"fallback.login_start_smoke_bundle_summary_routes_named"' in content
     assert '"fallback.login_start_smoke_bundle_summary_no_failed_routes"' in content
+    assert '"fallback.login_start_smoke_bundle_summary_route_set_matches_selected"' in content
+    assert "fallbackMissingReportedRoutes" in content
+    assert "fallbackUnexpectedReportedRoutes" in content
     assert "Fallback login-start smoke bundle failed quality gate" in content
 
 

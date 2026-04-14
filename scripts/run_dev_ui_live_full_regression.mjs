@@ -901,12 +901,30 @@ async function main() {
       const fallbackRoutes = Array.isArray(fallbackSummary?.routes) ? fallbackSummary.routes : [];
       const fallbackFailedRoutes = Array.isArray(fallbackSummary?.failed_routes) ? fallbackSummary.failed_routes : [];
       const fallbackSelectedRoutes = Array.isArray(fallbackSummary?.selected_routes) ? fallbackSummary.selected_routes : [];
+      const fallbackRouteKeys = fallbackRoutes
+        .map((entry) => String(entry?.route || "").trim())
+        .filter((value) => value.length > 0);
+      const fallbackSelectedRouteKeys = fallbackSelectedRoutes
+        .map((entry) => String(entry || "").trim())
+        .filter((value) => value.length > 0);
+      const fallbackUniqueRouteKeys = [...new Set(fallbackRouteKeys)];
+      const fallbackUniqueSelectedRouteKeys = [...new Set(fallbackSelectedRouteKeys)];
+      const fallbackRouteKeySet = new Set(fallbackUniqueRouteKeys);
+      const fallbackSelectedRouteKeySet = new Set(fallbackUniqueSelectedRouteKeys);
+      const fallbackMissingReportedRoutes = fallbackUniqueSelectedRouteKeys
+        .filter((route) => !fallbackRouteKeySet.has(route));
+      const fallbackUnexpectedReportedRoutes = fallbackUniqueRouteKeys
+        .filter((route) => !fallbackSelectedRouteKeySet.has(route));
       const fallbackPassedRoutes = fallbackRoutes.filter((entry) => String(entry?.status || "").toLowerCase() === "passed").length;
       const fallbackSummaryStatus = String(fallbackSummary?.status || "").toLowerCase();
       const fallbackSummaryStatusDisplay = fallbackSummaryStatus || "(missing)";
       const fallbackSummaryStatusIsPassed = fallbackSummaryStatus === "passed";
       const fallbackSummaryRoutesCovered = fallbackRoutes.length > 0 && fallbackPassedRoutes === fallbackRoutes.length;
       const fallbackSummaryNoFailedRoutes = fallbackFailedRoutes.length === 0;
+      const fallbackSummaryRoutesNamed = fallbackRoutes.length > 0 && fallbackRouteKeys.length === fallbackRoutes.length;
+      const fallbackSummaryRouteSetMatchesSelected = fallbackSelectedRouteKeys.length > 0
+        && fallbackMissingReportedRoutes.length === 0
+        && fallbackUnexpectedReportedRoutes.length === 0;
 
       degradedMode = {
         active: true,
@@ -930,6 +948,10 @@ async function main() {
         fallbackSummaryFailedRouteCount: fallbackFailedRoutes.length,
         fallbackSummarySelectedRouteCount: fallbackSelectedRoutes.length,
         fallbackSummaryPassedRouteCount: fallbackPassedRoutes,
+        fallbackSummaryNamedRouteCount: fallbackRouteKeys.length,
+        fallbackSummaryRouteSetMatchesSelected,
+        fallbackSummaryMissingReportedRoutes: fallbackMissingReportedRoutes,
+        fallbackSummaryUnexpectedReportedRoutes: fallbackUnexpectedReportedRoutes,
       };
 
       recordCheck(
@@ -953,21 +975,35 @@ async function main() {
         `routes=${fallbackRoutes.length} passed=${fallbackPassedRoutes}`,
       );
       recordCheck(
+        "fallback.login_start_smoke_bundle_summary_routes_named",
+        fallbackSummaryRoutesNamed,
+        `routes=${fallbackRoutes.length} named_routes=${fallbackRouteKeys.length}`,
+      );
+      recordCheck(
         "fallback.login_start_smoke_bundle_summary_no_failed_routes",
         fallbackSummaryNoFailedRoutes,
         `failed_routes=${fallbackFailedRoutes.length} selected_routes=${fallbackSelectedRoutes.length}`,
       );
+      recordCheck(
+        "fallback.login_start_smoke_bundle_summary_route_set_matches_selected",
+        fallbackSummaryRouteSetMatchesSelected,
+        `missing_routes=${fallbackMissingReportedRoutes.join(",") || "none"} unexpected_routes=${fallbackUnexpectedReportedRoutes.join(",") || "none"}`,
+      );
 
       if (!fallbackResult.ok || !fallbackSummaryLoad.ok || !fallbackSummaryStatusIsPassed
-        || !fallbackSummaryRoutesCovered || !fallbackSummaryNoFailedRoutes) {
+        || !fallbackSummaryRoutesCovered || !fallbackSummaryRoutesNamed || !fallbackSummaryNoFailedRoutes
+        || !fallbackSummaryRouteSetMatchesSelected) {
         throw new Error(
           "Fallback login-start smoke bundle failed quality gate"
           + ` (exit=${fallbackResult.exitCode}`
           + ` summary_loaded=${fallbackSummaryLoad.ok}`
           + ` status=${fallbackSummaryStatus || "missing"}`
           + ` routes=${fallbackRoutes.length}`
+          + ` named_routes=${fallbackRouteKeys.length}`
           + ` passed=${fallbackPassedRoutes}`
-          + ` failed_routes=${fallbackFailedRoutes.length})`,
+          + ` failed_routes=${fallbackFailedRoutes.length}`
+          + ` missing_routes=${fallbackMissingReportedRoutes.length}`
+          + ` unexpected_routes=${fallbackUnexpectedReportedRoutes.length})`,
         );
       }
     } else {
