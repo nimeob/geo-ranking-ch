@@ -513,8 +513,13 @@ def _is_authorize_redirect(
     parsed_location = urlparse(location)
     # Contract: redirect target must actually route to an authorize endpoint.
     # Keep matching flexible across IdP path variants (/oauth2/authorize, /oidc/authorize, ...)
-    # but do not accept unrelated paths that only mention "authorize" in query params.
-    if "authorize" not in parsed_location.path.lower():
+    # but do not accept unrelated paths (e.g. /reauthorize) or query-only mentions.
+    normalized_segments = [
+        segment
+        for segment in str(parsed_location.path or "").strip().lower().split("/")
+        if segment
+    ]
+    if "authorize" not in normalized_segments:
         return False
 
     # Relative redirects (e.g. /oauth2/authorize) stay valid.
