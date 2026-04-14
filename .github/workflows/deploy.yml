@@ -277,17 +277,60 @@ jobs:
           wait_for_service_stability() {
             local service_name="$1"
             local timeout_seconds="${ECS_STABILITY_TIMEOUT_SECONDS:-900}"
+            local heartbeat_seconds="60"
+            local wait_started_at
+            local deadline_epoch
+            local wait_rc=0
 
-            set +e
-            timeout "${timeout_seconds}" aws ecs wait services-stable \
-              --cluster "$ECS_CLUSTER" \
-              --services "$service_name"
-            local wait_rc=$?
-            set -e
-
-            if [[ "$wait_rc" -eq 0 ]]; then
-              return 0
+            if ! [[ "${timeout_seconds}" =~ ^[0-9]+$ ]] || [ "${timeout_seconds}" -le 0 ]; then
+              echo "::warning::Invalid ECS_STABILITY_TIMEOUT_SECONDS='${timeout_seconds}', falling back to 900s"
+              timeout_seconds="900"
             fi
+
+            wait_started_at="$(date +%s)"
+            deadline_epoch=$((wait_started_at + timeout_seconds))
+
+            while true; do
+              local now_epoch
+              local remaining_seconds
+              local slice_seconds
+              local elapsed_seconds
+
+              now_epoch="$(date +%s)"
+              remaining_seconds=$((deadline_epoch - now_epoch))
+              if [ "$remaining_seconds" -le 0 ]; then
+                wait_rc=124
+                break
+              fi
+
+              slice_seconds="$heartbeat_seconds"
+              if [ "$remaining_seconds" -lt "$slice_seconds" ]; then
+                slice_seconds="$remaining_seconds"
+              fi
+
+              set +e
+              timeout "${slice_seconds}" aws ecs wait services-stable \
+                --cluster "$ECS_CLUSTER" \
+                --services "$service_name"
+              wait_rc=$?
+              set -e
+
+              if [[ "$wait_rc" -eq 0 ]]; then
+                return 0
+              fi
+
+              if [[ "$wait_rc" -ne 124 ]]; then
+                break
+              fi
+
+              elapsed_seconds=$(( $(date +%s) - wait_started_at ))
+              echo "::notice::ECS wait still in progress for service '${service_name}' (${elapsed_seconds}s elapsed, timeout=${timeout_seconds}s)."
+              aws ecs describe-services \
+                --cluster "$ECS_CLUSTER" \
+                --services "$service_name" \
+                --query 'services[0].{status:status,desiredCount:desiredCount,runningCount:runningCount,pendingCount:pendingCount,deployments:deployments[].{status:status,rolloutState:rolloutState,rolloutStateReason:rolloutStateReason,desiredCount:desiredCount,pendingCount:pendingCount,runningCount:runningCount,failedTasks:failedTasks}}' \
+                --output json || true
+            done
 
             if [[ "$wait_rc" -eq 124 ]]; then
               echo "::error::ECS wait timed out after ${timeout_seconds}s for service '${service_name}'."
@@ -346,17 +389,60 @@ jobs:
           wait_for_service_stability() {
             local service_name="$1"
             local timeout_seconds="${ECS_STABILITY_TIMEOUT_SECONDS:-900}"
+            local heartbeat_seconds="60"
+            local wait_started_at
+            local deadline_epoch
+            local wait_rc=0
 
-            set +e
-            timeout "${timeout_seconds}" aws ecs wait services-stable \
-              --cluster "$ECS_CLUSTER" \
-              --services "$service_name"
-            local wait_rc=$?
-            set -e
-
-            if [[ "$wait_rc" -eq 0 ]]; then
-              return 0
+            if ! [[ "${timeout_seconds}" =~ ^[0-9]+$ ]] || [ "${timeout_seconds}" -le 0 ]; then
+              echo "::warning::Invalid ECS_STABILITY_TIMEOUT_SECONDS='${timeout_seconds}', falling back to 900s"
+              timeout_seconds="900"
             fi
+
+            wait_started_at="$(date +%s)"
+            deadline_epoch=$((wait_started_at + timeout_seconds))
+
+            while true; do
+              local now_epoch
+              local remaining_seconds
+              local slice_seconds
+              local elapsed_seconds
+
+              now_epoch="$(date +%s)"
+              remaining_seconds=$((deadline_epoch - now_epoch))
+              if [ "$remaining_seconds" -le 0 ]; then
+                wait_rc=124
+                break
+              fi
+
+              slice_seconds="$heartbeat_seconds"
+              if [ "$remaining_seconds" -lt "$slice_seconds" ]; then
+                slice_seconds="$remaining_seconds"
+              fi
+
+              set +e
+              timeout "${slice_seconds}" aws ecs wait services-stable \
+                --cluster "$ECS_CLUSTER" \
+                --services "$service_name"
+              wait_rc=$?
+              set -e
+
+              if [[ "$wait_rc" -eq 0 ]]; then
+                return 0
+              fi
+
+              if [[ "$wait_rc" -ne 124 ]]; then
+                break
+              fi
+
+              elapsed_seconds=$(( $(date +%s) - wait_started_at ))
+              echo "::notice::ECS wait still in progress for service '${service_name}' (${elapsed_seconds}s elapsed, timeout=${timeout_seconds}s)."
+              aws ecs describe-services \
+                --cluster "$ECS_CLUSTER" \
+                --services "$service_name" \
+                --query 'services[0].{status:status,desiredCount:desiredCount,runningCount:runningCount,pendingCount:pendingCount,deployments:deployments[].{status:status,rolloutState:rolloutState,rolloutStateReason:rolloutStateReason,desiredCount:desiredCount,pendingCount:pendingCount,runningCount:runningCount,failedTasks:failedTasks}}' \
+                --output json || true
+            done
 
             if [[ "$wait_rc" -eq 124 ]]; then
               echo "::error::ECS wait timed out after ${timeout_seconds}s for service '${service_name}'."
