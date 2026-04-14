@@ -86,6 +86,22 @@ def test_architecture_doc_describes_dev_deploy_triggers_and_queue_concurrency():
     ), f"ARCHITECTURE.md fehlt Trigger/Concurrency-Dokumentation für dev deploy: {missing}"
 
 
+def test_actions_migration_matrix_reflects_dev_deploy_trigger_reality():
+    doc = Path("docs/automation/github-actions-migration-matrix.md")
+    assert doc.exists(), "Dokument fehlt: docs/automation/github-actions-migration-matrix.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "`push` auf `main`, `schedule` (stündlich), `workflow_dispatch`",
+        "`push` auf `main` + `schedule` + `workflow_dispatch`",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"github-actions-migration-matrix.md fehlt Trigger-Sync für deploy.yml: {missing}"
+
+
 def test_deploy_workflow_runs_post_deploy_verification_step():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"

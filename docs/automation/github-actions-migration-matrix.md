@@ -15,7 +15,7 @@ Reproduzierbare Ist-Aufnahme aller aktuellen Workflows unter `.github/workflows/
 
 | Workflow | Datei | Trigger heute | Zweck | Kritikalität | Zielentscheidung | Begründung |
 |---|---|---|---|---|---|---|
-| Deploy to AWS (ECS dev) | `.github/workflows/deploy.yml` | `schedule` (stündlich), `workflow_dispatch` | Build/Test + ECS Deploy inkl. Smoke-Checks | hoch | `keep-on-github` (MVP) | OIDC-Deploypfad über GitHub ist bereits etabliert und auditierbar; bis OpenClaw-Äquivalent inkl. Branch-Gates verifiziert ist, bleibt dieser Pfad minimal bestehen. |
+| Deploy to AWS (ECS dev) | `.github/workflows/deploy.yml` | `push` auf `main`, `schedule` (stündlich), `workflow_dispatch` | Build/Test + ECS Deploy inkl. Smoke-Checks | hoch | `keep-on-github` (MVP) | OIDC-Deploypfad über GitHub ist bereits etabliert und auditierbar; bis OpenClaw-Äquivalent inkl. Branch-Gates verifiziert ist, bleibt dieser Pfad minimal bestehen. |
 | Deploy to AWS (ECS staging) | `.github/workflows/deploy-staging.yml` | `workflow_dispatch` | Build/Test + ECS Deploy inkl. Smoke-Checks + Post-Deploy Verify (Version/Trace) | hoch | `keep-on-github` (MVP) | Staging-Deploypfad ist sicherheitskritisch (OIDC + Environment-Secrets/Vars) und soll für MVP auditierbar direkt über GitHub Actions laufen. |
 | contract-tests | `.github/workflows/contract-tests.yml` | `push`/`pull_request` auf API-Contract-Pfade, `workflow_dispatch` | Contract-/Schema-Regressionen + Feldkatalog-Validierung | mittel | `migrate-to-openclaw` | Deterministische Testläufe können als OpenClaw Job (event-surrogate/cron + PR-Kommentar) kosteneffizient übernommen werden. |
 | crawler-regression | `.github/workflows/crawler-regression.yml` | `push(main)`/`pull_request` auf Crawler-Pfade, `workflow_dispatch` | Regressionstest für Consistency-Crawler | mittel | `migrate-to-openclaw` | Read-only Crawler-Regression passt gut zu OpenClaw-Scheduler + Artefaktablage in Repo/Reports. |
@@ -40,7 +40,7 @@ Reproduzierbare Ist-Aufnahme aller aktuellen Workflows unter `.github/workflows/
 
 ## WP4/BL-336-Resultat (Stand: 2026-03-01)
 
-- `deploy.yml`: bleibt automatischer GitHub-Pfad (`schedule` + `workflow_dispatch`).
+- `deploy.yml`: bleibt automatischer GitHub-Pfad (`push` auf `main` + `schedule` + `workflow_dispatch`).
 - `deploy-staging.yml`: bleibt GitHub-Pfad (`workflow_dispatch`) für Staging Deploy + Post-Deploy Verify.
 - `contract-tests.yml`, `crawler-regression.yml`, `docs-quality.yml`: bleiben auf `workflow_dispatch` als manueller Fallback (Primärpfad OpenClaw).
 - `bl20-sequencer.yml`: retired und in #384 final aus dem Repo entfernt.
