@@ -34,9 +34,14 @@ const configuredSummaryJson = String(cliOptions.summaryJson || process.env.DEV_U
 const summaryJsonPath = configuredSummaryJson ? path.resolve(repoRoot, configuredSummaryJson) : '';
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
-const baseOrigin = normalizeOrigin(
-  canonicalizeLegacyDevUiOrigin(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch')
-) || 'https://www.dev.georanking.ch';
+const rawBaseOriginInput = String(cliOptions.baseUrl || process.env.BASE_URL || 'https://www.dev.georanking.ch').trim();
+const canonicalizedBaseOriginInput = canonicalizeLegacyDevUiOrigin(rawBaseOriginInput);
+if (rawBaseOriginInput && canonicalizedBaseOriginInput !== rawBaseOriginInput) {
+  console.log(
+    `[dev-ui-auth-analyze-smoke] INFO: Canonicalized BASE_URL '${rawBaseOriginInput}' -> '${canonicalizedBaseOriginInput}' (reason=legacy_dev_non_www).`
+  );
+}
+const baseOrigin = normalizeOrigin(canonicalizedBaseOriginInput) || 'https://www.dev.georanking.ch';
 const allowedOriginOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_ORIGINS || '').trim();
 const allowedOrigins = resolveAllowedOrigins(baseOrigin, allowedOriginOverrides);
 const allowedAuthorizeHostOverrides = String(process.env.DEV_UI_SMOKE_ALLOWED_AUTHORIZE_HOSTS || '').trim();
