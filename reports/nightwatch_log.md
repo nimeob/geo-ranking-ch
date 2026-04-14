@@ -290,3 +290,17 @@
     - `check_bff_auth_proxy_guard.py --api-base-url https://api.dev.georanking.ch --ui-base-url https://www.dev.georanking.ch` → **ok**.
     - `check_ui_login_start.py --base-url https://www.dev.georanking.ch` → **ok**.
     - `check_ui_canonical_redirect.py --base-url https://www.dev.georanking.ch` → **ok**.
+
+## 2026-04-14 05:30 CET — Blocker-Entblockung Browser + Full-Bundle-Sanity + PR
+- Browser-Blocker aktiv adressiert:
+  - `openclaw gateway status` + `openclaw gateway restart` ausgeführt.
+  - Ergebnis: Gateway-RPC probe **ok**, aber Browser-Tool-Start weiterhin Timeout (`timed out ... Do NOT retry`).
+  - Entscheidung: Kein blindes Browser-Retry; UI-Verifikation weiter über Live-Smoke/Regression.
+- Zusätzliche Live-Verifikation (DEV):
+  - `run_dev_ui_live_full_regression.mjs --fallback-login-start --out reports/evidence/night-ui-full-20260414T0522Z.json` → **PASSED (degraded mode)**.
+  - `run_login_start_smoke_bundle.sh --route-presets all` (env `dev-night-auth-guard`) → **passed**.
+  - `run_canonical_redirect_smoke_bundle.sh --route-presets all` (env `dev-night-auth-guard`) → **passed**.
+- GitHub:
+  - Branch `night/worker-20260414-deploy-cancel-guard` gepusht.
+  - PR eröffnet: **#1664** `smoke: tighten authorize redirect contracts in UI and BFF guards`
+    - https://github.com/nimeob/geo-ranking-ch/pull/1664
