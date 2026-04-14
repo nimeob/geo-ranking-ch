@@ -832,7 +832,7 @@ Nachweislauf (Issue #347):
 
 ## 8. Offene Punkte / TODOs
 
-Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (aktuell **BL-01** bis **BL-18**), um doppelte Pflege zu vermeiden.
+Offene Deployment-Themen werden zentral im [`docs/BACKLOG.md`](BACKLOG.md) gepflegt (aktuell **BL-01** bis **BL-422**), um doppelte Pflege zu vermeiden.
 
 > **AWS-Ressourcen-Inventar:** Eine vollständige, verifizierte Übersicht aller AWS-Ressourcen (Name/ARN, Region, Zweck, Tags, Konfig-Parameter, IaC-Status, Rebuild-Hinweise) findet sich in [`docs/AWS_INVENTORY.md`](AWS_INVENTORY.md).
 
@@ -843,4 +843,4 @@ Aktueller Stand (Deployment-relevant):
 - ✅ Monitoring/Alerting-Baseline inkl. SNS → Telegram produktiv aktiv.
 - ✅ HTTP-Uptime-Probe auf `/health` produktiv aktiv (BL-12 abgeschlossen).
 - ✅ Health-Probe-IaC-Parität verifiziert (BL-14 abgeschlossen): Terraform `validate` grün; Default-Plan ohne Infrastrukturänderungen; Import-first-Plan mit `manage_health_probe=true` zeigt **0 add / 4 change / 0 destroy** (nur in-place Drift-Korrekturen).
-- ⏳ Nächster offener Gesamt-Block: **BL-15** (Legacy-IAM-Readiness, read-only) — aktueller Arbeitsstand inkl. Consumer-Inventar (`scripts/audit_legacy_aws_consumer_refs.sh`), Runtime-Baseline (`scripts/audit_legacy_runtime_consumers.sh`), CloudTrail-Fingerprint-Audit (`scripts/audit_legacy_cloudtrail_consumers.sh`), externer Consumer-Matrix (`docs/LEGACY_CONSUMER_INVENTORY.md`) und Go/No-Go-Template: `docs/LEGACY_IAM_USER_READINESS.md`.
+- ✅ Legacy-IAM-Readiness (BL-15) ist abgeschlossen; verbleibende Delivery-/Deploy-Weiterentwicklungen laufen ausschließlich über die offenen BL-Items im Backlog.
