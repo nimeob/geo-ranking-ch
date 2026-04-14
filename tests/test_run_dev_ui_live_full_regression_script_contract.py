@@ -89,6 +89,8 @@ def test_help_flag_prints_usage_without_env_or_playwright(tmp_path: Path) -> Non
     assert "DEV_UI_SMOKE_PASSWORD" in result.stdout
     assert "--run-id <token>" in result.stdout
     assert "DEV_UI_FULL_RUN_ID" in result.stdout
+    assert "DEV_UI_SMOKE_RUN_ID" in result.stdout
+    assert "DEV_UI_SMOKE_RUN_TOKEN" in result.stdout
     assert "--summary-json <path>" in result.stdout
     assert "--json-out <path>" in result.stdout
     assert "--out <path>" in result.stdout
@@ -417,6 +419,66 @@ def test_legacy_run_token_alias_is_recorded_in_runtime_evidence(tmp_path: Path) 
     assert payload["runtime"]["runMarker"] == "legacy-cli-run-token"
     assert payload["runtime"]["runMarkerSource"] == "DEV_UI_FULL_RUN_ID"
     assert payload["runtime"]["runToken"] == "legacy-cli-run-token"
+
+
+def test_legacy_smoke_run_id_env_alias_is_recorded_in_runtime_evidence(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env["DEV_UI_SMOKE_RUN_ID"] = "legacy-smoke-run-id"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-smoke-run-id.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["runtime"]["runMarker"] == "legacy-smoke-run-id"
+    assert payload["runtime"]["runMarkerSource"] == "DEV_UI_SMOKE_RUN_ID"
+    assert payload["runtime"]["runToken"] == "legacy-smoke-run-id"
+
+
+def test_legacy_smoke_run_token_env_alias_is_recorded_in_runtime_evidence(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env["DEV_UI_SMOKE_RUN_TOKEN"] = "legacy-smoke-run-token"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-smoke-run-token.json"
+
+    result = subprocess.run(
+        [
+            "node",
+            str(SCRIPT),
+            "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["runtime"]["runMarker"] == "legacy-smoke-run-token"
+    assert payload["runtime"]["runMarkerSource"] == "DEV_UI_SMOKE_RUN_ID"
+    assert payload["runtime"]["runToken"] == "legacy-smoke-run-token"
 
 
 def test_relative_evidence_path_is_resolved_against_repo_root_not_cwd(tmp_path: Path) -> None:
