@@ -463,6 +463,25 @@ function runLoginStartFallbackBundle(baseUrl) {
   };
 }
 
+function loadJsonFileSafe(filePath) {
+  const candidate = String(filePath || "").trim();
+  if (!candidate) {
+    return { ok: false, reason: "missing_path", payload: null };
+  }
+
+  try {
+    const raw = fs.readFileSync(candidate, "utf8");
+    return { ok: true, reason: "ok", payload: JSON.parse(raw) };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "read_or_parse_failed",
+      payload: null,
+      error: String(error?.message || error),
+    };
+  }
+}
+
 function normalizeError(error) {
   if (error instanceof Error) {
     return {
@@ -875,6 +894,20 @@ async function main() {
 
     if (allowMissingCredentials) {
       const fallbackResult = runLoginStartFallbackBundle(UI_BASE_URL);
+      const fallbackSummaryLoad = loadJsonFileSafe(fallbackResult.summaryJson);
+      const fallbackSummary = fallbackSummaryLoad.payload && typeof fallbackSummaryLoad.payload === "object"
+        ? fallbackSummaryLoad.payload
+        : null;
+      const fallbackRoutes = Array.isArray(fallbackSummary?.routes) ? fallbackSummary.routes : [];
+      const fallbackFailedRoutes = Array.isArray(fallbackSummary?.failed_routes) ? fallbackSummary.failed_routes : [];
+      const fallbackSelectedRoutes = Array.isArray(fallbackSummary?.selected_routes) ? fallbackSummary.selected_routes : [];
+      const fallbackPassedRoutes = fallbackRoutes.filter((entry) => String(entry?.status || "").toLowerCase() === "passed").length;
+      const fallbackSummaryStatus = String(fallbackSummary?.status || "").toLowerCase();
+      const fallbackSummaryStatusDisplay = fallbackSummaryStatus || "(missing)";
+      const fallbackSummaryStatusIsPassed = fallbackSummaryStatus === "passed";
+      const fallbackSummaryRoutesCovered = fallbackRoutes.length > 0 && fallbackPassedRoutes === fallbackRoutes.length;
+      const fallbackSummaryNoFailedRoutes = fallbackFailedRoutes.length === 0;
+
       degradedMode = {
         active: true,
         reason: "missing_live_credentials",
@@ -889,6 +922,14 @@ async function main() {
         fallbackSummaryJson: fallbackResult.summaryJson,
         fallbackStdoutTail: tailLines(fallbackResult.stdout),
         fallbackStderrTail: tailLines(fallbackResult.stderr),
+        fallbackSummaryLoaded: fallbackSummaryLoad.ok,
+        fallbackSummaryLoadReason: fallbackSummaryLoad.reason,
+        fallbackSummaryLoadError: fallbackSummaryLoad.error || "",
+        fallbackSummaryStatus,
+        fallbackSummaryRouteCount: fallbackRoutes.length,
+        fallbackSummaryFailedRouteCount: fallbackFailedRoutes.length,
+        fallbackSummarySelectedRouteCount: fallbackSelectedRoutes.length,
+        fallbackSummaryPassedRouteCount: fallbackPassedRoutes,
       };
 
       recordCheck(
@@ -896,6 +937,39 @@ async function main() {
         fallbackResult.ok,
         `exit=${fallbackResult.exitCode} spawn_error=${fallbackResult.spawnError || "none"}`,
       );
+      recordCheck(
+        "fallback.login_start_smoke_bundle_summary_json_loaded",
+        fallbackSummaryLoad.ok,
+        `summary_json=${fallbackResult.summaryJson} reason=${fallbackSummaryLoad.reason} error=${fallbackSummaryLoad.error || "none"}`,
+      );
+      recordCheck(
+        "fallback.login_start_smoke_bundle_summary_status_passed",
+        fallbackSummaryStatusIsPassed,
+        `status=${fallbackSummaryStatusDisplay}`,
+      );
+      recordCheck(
+        "fallback.login_start_smoke_bundle_summary_routes_covered",
+        fallbackSummaryRoutesCovered,
+        `routes=${fallbackRoutes.length} passed=${fallbackPassedRoutes}`,
+      );
+      recordCheck(
+        "fallback.login_start_smoke_bundle_summary_no_failed_routes",
+        fallbackSummaryNoFailedRoutes,
+        `failed_routes=${fallbackFailedRoutes.length} selected_routes=${fallbackSelectedRoutes.length}`,
+      );
+
+      if (!fallbackResult.ok || !fallbackSummaryLoad.ok || !fallbackSummaryStatusIsPassed
+        || !fallbackSummaryRoutesCovered || !fallbackSummaryNoFailedRoutes) {
+        throw new Error(
+          "Fallback login-start smoke bundle failed quality gate"
+          + ` (exit=${fallbackResult.exitCode}`
+          + ` summary_loaded=${fallbackSummaryLoad.ok}`
+          + ` status=${fallbackSummaryStatus || "missing"}`
+          + ` routes=${fallbackRoutes.length}`
+          + ` passed=${fallbackPassedRoutes}`
+          + ` failed_routes=${fallbackFailedRoutes.length})`,
+        );
+      }
     } else {
       const chromium = await loadChromium();
 

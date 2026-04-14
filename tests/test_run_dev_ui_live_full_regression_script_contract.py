@@ -368,6 +368,17 @@ def test_script_reserves_unique_output_paths_to_avoid_evidence_clobber() -> None
     assert "const outputDir = reserveUniqueDirectoryPath(FALLBACK_ARTIFACTS_BASE_DIR_PATH);" in content
 
 
+def test_fallback_bundle_summary_quality_gate_contract_present() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert "function loadJsonFileSafe(filePath)" in content
+    assert '"fallback.login_start_smoke_bundle_summary_json_loaded"' in content
+    assert '"fallback.login_start_smoke_bundle_summary_status_passed"' in content
+    assert '"fallback.login_start_smoke_bundle_summary_routes_covered"' in content
+    assert '"fallback.login_start_smoke_bundle_summary_no_failed_routes"' in content
+    assert "Fallback login-start smoke bundle failed quality gate" in content
+
+
 def test_cli_run_id_is_recorded_in_runtime_evidence(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
