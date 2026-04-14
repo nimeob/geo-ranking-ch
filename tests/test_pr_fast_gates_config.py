@@ -58,6 +58,14 @@ class TestPrFastGatesConfig(unittest.TestCase):
         self.assertIn("`contract-smoke`", content)
         self.assertIn("`docs-link-guard`", content)
 
+    def test_deploy_test_tiers_documents_dev_trigger_and_queue_concurrency(self):
+        content = self._read("docs/testing/DEPLOY_TEST_TIERS.md")
+        self.assertIn("`workflow_dispatch` (on-demand)", content)
+        self.assertIn("`push` auf `main`", content)
+        self.assertIn("stündlich per `schedule`", content)
+        self.assertIn("`deploy-ecs-dev`", content)
+        self.assertIn("`cancel-in-progress: false`", content)
+
 
 if __name__ == "__main__":
     unittest.main()
