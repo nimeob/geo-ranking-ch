@@ -341,6 +341,22 @@ def test_deployment_aws_doc_lists_required_deploy_auth_secret_preflight():
     ), f"DEPLOYMENT_AWS.md fehlt Pflicht-Secret-Dokumentation: {missing}"
 
 
+def test_deployment_aws_doc_does_not_reference_closed_bl15_as_open_blocker():
+    doc = Path("docs/DEPLOYMENT_AWS.md")
+    assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
+
+    text = doc.read_text(encoding="utf-8")
+    forbidden = [
+        "Nächster offener Gesamt-Block: **BL-15**",
+        "aktuell **BL-01** bis **BL-18**",
+    ]
+
+    stale = [snippet for snippet in forbidden if snippet in text]
+    assert (
+        not stale
+    ), f"DEPLOYMENT_AWS.md enthält veraltete Backlog-/BL-15-Open-Referenzen: {stale}"
+
+
 def test_deploy_workflow_uses_deploy_gate_runner_with_rollback_snapshot():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
