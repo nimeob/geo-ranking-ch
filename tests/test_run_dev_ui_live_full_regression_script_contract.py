@@ -114,10 +114,19 @@ def test_help_lists_full_and_legacy_fallback_env_aliases(tmp_path: Path) -> None
 
     assert result.returncode == 0
     assert "DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1" in result.stdout
+    assert "DEV_UI_FULL_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1" in result.stdout
     assert "DEV_UI_FULL_ALLOW_LOGIN_START_FALLBACK=1" in result.stdout
     assert "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1" in result.stdout
+    assert "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1" in result.stdout
     assert "DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK=1" in result.stdout
     assert result.stderr == ""
+
+
+def test_script_checks_legacy_preflight_fallback_env_aliases() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+
+    assert '"DEV_UI_FULL_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL"' in content
+    assert '"DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL"' in content
 
 
 def test_missing_credentials_emit_evidence_even_before_browser_boot(tmp_path: Path) -> None:
