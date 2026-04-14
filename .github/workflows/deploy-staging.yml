@@ -37,6 +37,7 @@ jobs:
     name: "Deploy full ECS environment (staging: API + UI)"
     runs-on: ubuntu-latest
     needs: build-and-test
+    timeout-minutes: 90
 
     # Ensure staging uses a dedicated GitHub Environment (vars/secrets).
     environment: staging
@@ -271,6 +272,7 @@ jobs:
           register_taskdef "$ECS_UI_SERVICE" "$ECS_UI_CONTAINER_NAME" "$UI_IMAGE_URI" "ui_task_def_arn" "${UI_CANONICAL_ORIGIN:-}" "${UI_CANONICAL_HOSTS:-}"
 
       - name: Deploy API service and wait for stability
+        timeout-minutes: 25
         env:
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
@@ -396,6 +398,7 @@ jobs:
           fi
 
       - name: Deploy UI service and wait for stability
+        timeout-minutes: 25
         env:
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
           ECS_UI_SERVICE: ${{ vars.ECS_UI_SERVICE }}
