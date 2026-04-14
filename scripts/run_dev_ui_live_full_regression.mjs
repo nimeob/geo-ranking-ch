@@ -103,6 +103,7 @@ function parseCliArgs(argv) {
         break;
       case "--fallback-login-start-on-missing-creds":
       case "--fallback-login-start":
+      case "--fallback-login-start-on-preflight-fail":
       case "--allow-login-start-fallback":
         options.forceLoginStartFallback = true;
         break;
@@ -141,6 +142,7 @@ function printHelp() {
     "  --headless                               Erzwingt headless Browser-Mode",
     "  --headful                                Erzwingt headful Browser-Mode",
     "  --fallback-login-start                   Degraded mode when credentials are unavailable",
+    "  --fallback-login-start-on-preflight-fail Legacy alias for --fallback-login-start",
     "  --allow-login-start-fallback              Legacy alias for --fallback-login-start",
     "  -h, --help                               Diese Hilfe anzeigen",
     "",
@@ -153,7 +155,10 @@ function printHelp() {
     "  DEV_UI_FULL_SCREENSHOT_DIR",
     "  DEV_UI_FULL_RUN_ID",
     "  DEV_UI_FULL_RUN_TOKEN",
+    "  DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1     Optional degraded mode when credentials are unavailable",
+    "  DEV_UI_FULL_ALLOW_LOGIN_START_FALLBACK=1                Legacy alias for DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
     "  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Optional degraded mode when credentials are unavailable",
+    "  DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK=1               Legacy alias for DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
     "  DEV_UI_FULL_HEADFUL",
   ];
   process.stdout.write(`${lines.join("\n")}\n`);
@@ -182,6 +187,29 @@ function parsePositiveInt(raw, fallback) {
 function isTruthy(value) {
   const normalized = String(value || "").trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function resolveFallbackLoginStartFlagFromEnv() {
+  const envFlagCandidates = [
+    "DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
+    "DEV_UI_FULL_ALLOW_LOGIN_START_FALLBACK",
+    "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
+    "DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK",
+  ];
+
+  for (const envFlag of envFlagCandidates) {
+    if (isTruthy(process.env[envFlag])) {
+      return {
+        enabled: true,
+        source: envFlag,
+      };
+    }
+  }
+
+  return {
+    enabled: false,
+    source: "",
+  };
 }
 
 function resolvePathAgainstRepoRoot(rawPath) {
@@ -255,9 +283,11 @@ const EVIDENCE_JSON_PATH = resolvePathAgainstRepoRoot(EVIDENCE_JSON);
 const SCREENSHOT_DIR_PATH = resolvePathAgainstRepoRoot(SCREENSHOT_DIR);
 const FALLBACK_ARTIFACTS_BASE_DIR_PATH = path.join(path.dirname(EVIDENCE_JSON_PATH), "fallback-login-start", RUN_TOKEN);
 const HEADLESS = typeof cliOptions.headless === "boolean" ? cliOptions.headless : !isTruthy(process.env.DEV_UI_FULL_HEADFUL);
-const LOGIN_START_FALLBACK_ON_MISSING_CREDS = cliOptions.forceLoginStartFallback || isTruthy(
-  process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
-);
+const LOGIN_START_FALLBACK_ENV = resolveFallbackLoginStartFlagFromEnv();
+const LOGIN_START_FALLBACK_ON_MISSING_CREDS = cliOptions.forceLoginStartFallback || LOGIN_START_FALLBACK_ENV.enabled;
+const LOGIN_START_FALLBACK_ENV_FLAG = cliOptions.forceLoginStartFallback
+  ? "cli:--fallback-login-start"
+  : LOGIN_START_FALLBACK_ENV.source;
 
 const ADDRESS_POOL = [
   "Bahnhofstrasse 1, 8001 Zürich",
@@ -822,7 +852,7 @@ async function main() {
       degradedMode = {
         active: true,
         reason: "missing_live_credentials",
-        envFlag: "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
+        envFlag: LOGIN_START_FALLBACK_ENV_FLAG || "DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
         fallbackEnabled: true,
         runMarker: RUN_MARKER,
         runMarkerSource: RUN_MARKER_SOURCE,
