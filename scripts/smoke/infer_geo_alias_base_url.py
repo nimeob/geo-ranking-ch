@@ -142,7 +142,13 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Infer alias base URL for geo-ranking/georanking smoke checks"
     )
-    parser.add_argument("--service-app-base-url", required=True)
+    parser.add_argument(
+        "--service-app-base-url",
+        "--base-url",
+        dest="service_app_base_url",
+        required=True,
+        help="Canonical service app base URL (alias: --base-url)",
+    )
     parser.add_argument("--canonical-origin", default="")
     parser.add_argument("--canonical-hosts", default="")
     parser.add_argument(

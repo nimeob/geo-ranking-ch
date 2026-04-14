@@ -127,3 +127,19 @@ def test_main_prints_empty_line_when_alias_missing(capsys):
 
     assert exit_code == 0
     assert capsys.readouterr().out == "\n"
+
+
+def test_main_accepts_base_url_alias_flag(capsys):
+    module = _load_module()
+
+    exit_code = module.main(
+        [
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--canonical-hosts",
+            "www.dev.georanking.ch,www.dev.geo-ranking.ch",
+        ]
+    )
+
+    assert exit_code == 0
+    assert capsys.readouterr().out.strip() == "https://www.dev.geo-ranking.ch"
