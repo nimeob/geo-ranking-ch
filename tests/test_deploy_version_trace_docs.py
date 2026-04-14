@@ -146,6 +146,33 @@ def _assert_service_stability_step_timeout(
             timeout_minutes == 25
         ), f"{workflow_name} Step '{step_name}' muss timeout-minutes=25 setzen"
 
+        env = matched_step.get("env")
+        assert isinstance(
+            env, dict
+        ), f"{workflow_name} Step '{step_name}' muss env als YAML-Objekt setzen"
+        assert (
+            env.get("ECS_STABILITY_TIMEOUT_SECONDS")
+            == "${{ vars.ECS_STABILITY_TIMEOUT_SECONDS }}"
+        ), (
+            f"{workflow_name} Step '{step_name}' muss ECS_STABILITY_TIMEOUT_SECONDS "
+            "aus vars übernehmen"
+        )
+
+        run_script = matched_step.get("run") or ""
+        assert isinstance(
+            run_script, str
+        ), f"{workflow_name} Step '{step_name}' muss run-Shellcode enthalten"
+
+        required_snippets = [
+            "wait_for_service_stability",
+            'timeout "${slice_seconds}" aws ecs wait services-stable',
+            "::group::ECS service diagnostics",
+        ]
+        missing = [snippet for snippet in required_snippets if snippet not in run_script]
+        assert (
+            not missing
+        ), f"{workflow_name} Step '{step_name}' fehlt ECS-Stability-Guardrail: {missing}"
+
 
 def test_deploy_workflow_sets_explicit_timeout_guards_for_ecs_stability_waits():
     data = _load_workflow_yaml(".github/workflows/deploy.yml")
@@ -278,6 +305,23 @@ def test_deployment_aws_doc_mentions_container_resolution_guardrail():
     assert (
         not missing
     ), f"DEPLOYMENT_AWS.md fehlt Container-Auflösungs-Hinweis: {missing}"
+
+
+def test_deployment_aws_doc_mentions_ecs_stability_timeout_guardrail():
+    doc = Path("docs/DEPLOYMENT_AWS.md")
+    assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "ECS_STABILITY_TIMEOUT_SECONDS",
+        "aws ecs wait services-stable",
+        "ECS-Service-Diagnostics",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"DEPLOYMENT_AWS.md fehlt ECS-Stability-Timeout-Guardrail-Doku: {missing}"
 
 
 def test_deployment_aws_doc_lists_required_deploy_auth_secret_preflight():
