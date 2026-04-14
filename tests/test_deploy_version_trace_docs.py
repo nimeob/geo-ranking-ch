@@ -48,6 +48,60 @@ def test_deployment_aws_doc_references_post_deploy_verifier():
     assert not missing, f"DEPLOYMENT_AWS.md fehlt erforderliche Referenzen: {missing}"
 
 
+def test_deployment_aws_doc_describes_dev_deploy_triggers_and_queue_concurrency():
+    doc = Path("docs/DEPLOYMENT_AWS.md")
+    assert doc.exists(), "Dokument fehlt: docs/DEPLOYMENT_AWS.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "manueller `workflow_dispatch` (on-demand)",
+        "`push` auf `main`",
+        "stündlicher `schedule` (`7 * * * *`)",
+        "`concurrency.group: deploy-ecs-dev`",
+        "`cancel-in-progress: false`",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"DEPLOYMENT_AWS.md fehlt Trigger/Concurrency-Dokumentation für dev deploy: {missing}"
+
+
+def test_architecture_doc_describes_dev_deploy_triggers_and_queue_concurrency():
+    doc = Path("docs/ARCHITECTURE.md")
+    assert doc.exists(), "Dokument fehlt: docs/ARCHITECTURE.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "`workflow_dispatch` (manueller Start)",
+        "`push` auf `main`",
+        "`schedule` (stündlich, `7 * * * *`)",
+        "`group: deploy-ecs-dev`",
+        "`cancel-in-progress: false`",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"ARCHITECTURE.md fehlt Trigger/Concurrency-Dokumentation für dev deploy: {missing}"
+
+
+def test_actions_migration_matrix_reflects_dev_deploy_trigger_reality():
+    doc = Path("docs/automation/github-actions-migration-matrix.md")
+    assert doc.exists(), "Dokument fehlt: docs/automation/github-actions-migration-matrix.md"
+
+    text = doc.read_text(encoding="utf-8")
+    required = [
+        "`push` auf `main`, `schedule` (stündlich), `workflow_dispatch`",
+        "`push` auf `main` + `schedule` + `workflow_dispatch`",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"github-actions-migration-matrix.md fehlt Trigger-Sync für deploy.yml: {missing}"
+
+
 def test_deploy_workflow_runs_post_deploy_verification_step():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"

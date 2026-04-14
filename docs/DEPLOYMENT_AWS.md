@@ -367,7 +367,16 @@ aws ecs update-service \
 
 ### Deployment via GitHub Actions
 
-CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt (Trigger: **nur manueller `workflow_dispatch` / on-demand**). Der Lauf ist service-getrennt und deployt die volle BL-31-Topologie.
+CI/CD-Workflow für ECS (dev) ist in `.github/workflows/deploy.yml` umgesetzt. Trigger sind:
+- manueller `workflow_dispatch` (on-demand)
+- `push` auf `main`
+- stündlicher `schedule` (`7 * * * *`)
+
+Der Lauf ist service-getrennt und deployt die volle BL-31-Topologie.
+
+Concurrency-Verhalten (dev):
+- `concurrency.group: deploy-ecs-dev`
+- `cancel-in-progress: false` (queued rollout, kein automatisches Abbrechen laufender Deploys)
 
 Verbindliche Tier-Zuordnung (PR/Deploy/Nightly) inkl. Gate-Verantwortlichkeiten: [`docs/testing/DEPLOY_TEST_TIERS.md`](testing/DEPLOY_TEST_TIERS.md)
 
@@ -509,7 +518,7 @@ Für `staging` existiert ein separater Workflow:
 >
 > Verbindliche Checkliste für Version-/Trace-Verifikation: [`docs/testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md`](testing/DEPLOY_VERSION_TRACE_DEBUG_RUNBOOK.md).
 
-### BL-02 Verifikationsnachweise (historisch, vor Umstellung auf workflow_dispatch-only)
+### BL-02 Verifikationsnachweise (historisch)
 
 | Datum (UTC) | Run | Trigger | Ergebnis | Relevante Schritte |
 |---|---|---|---|---|
@@ -523,7 +532,7 @@ Kurzfazit BL-02:
 - Historischer Push-Trigger auf `main` war zu diesem Zeitpunkt verifiziert.
 - `services-stable` und `/health`-Smoke waren mehrfach erfolgreich nachgewiesen.
 - Regression `ecs:DescribeTaskDefinition` wurde via IAM-Policy-Fix (OIDC-Role, Policy v2) geschlossen.
-- **Aktueller Ist-Stand:** `deploy.yml` läuft nur noch per `workflow_dispatch`; die BL-02-Läufe dienen als Referenzhistorie.
+- **Aktueller Ist-Stand:** `deploy.yml` läuft per `workflow_dispatch`, `push` auf `main` und stündlichem `schedule`; die BL-02-Läufe dienen als Referenzhistorie.
 
 > ⚠️ Niemals Secrets direkt in Code oder Dokumente schreiben.
 

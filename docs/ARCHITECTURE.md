@@ -72,6 +72,12 @@ Workflow-Dateien (relevant für Split-Stand):
 ### Trigger
 
 - `workflow_dispatch` (manueller Start)
+- `push` auf `main`
+- `schedule` (stündlich, `7 * * * *`)
+
+Concurrency (dev deploy):
+- `group: deploy-ecs-dev`
+- `cancel-in-progress: false` (queued statt laufende Deploys abzubrechen)
 
 ### Pipeline-Phasen (`deploy.yml`, Ist-Stand)
 
