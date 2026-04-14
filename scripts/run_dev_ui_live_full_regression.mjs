@@ -158,8 +158,10 @@ function printHelp() {
     "  DEV_UI_SMOKE_RUN_ID                                  Legacy alias for DEV_UI_FULL_RUN_ID",
     "  DEV_UI_SMOKE_RUN_TOKEN                               Legacy alias for DEV_UI_FULL_RUN_ID",
     "  DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1     Optional degraded mode when credentials are unavailable",
+    "  DEV_UI_FULL_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1    Legacy alias for DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
     "  DEV_UI_FULL_ALLOW_LOGIN_START_FALLBACK=1                Legacy alias for DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
     "  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Optional degraded mode when credentials are unavailable",
+    "  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL=1   Legacy alias for DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
     "  DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK=1               Legacy alias for DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
     "  DEV_UI_FULL_HEADFUL",
   ];
@@ -194,8 +196,10 @@ function isTruthy(value) {
 function resolveFallbackLoginStartFlagFromEnv() {
   const envFlagCandidates = [
     "DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
+    "DEV_UI_FULL_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL",
     "DEV_UI_FULL_ALLOW_LOGIN_START_FALLBACK",
     "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
+    "DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_PREFLIGHT_FAIL",
     "DEV_UI_SMOKE_ALLOW_LOGIN_START_FALLBACK",
   ];
 
