@@ -463,6 +463,11 @@ def test_missing_credentials_payload_normalizes_allowed_origin_overrides(
     )
 
     assert result.returncode == 1
+    assert (
+        "[dev-ui-auth-analyze-smoke] INFO: Canonicalized BASE_URL "
+        "'https://dev.georanking.ch' -> "
+    ) in result.stdout
+    assert "(reason=legacy_dev_non_www)." in result.stdout
 
     evidence_files = sorted(
         (tmp_path / "reports" / "evidence").glob("dev-ui-auth-analyze-smoke-*.json")
