@@ -376,7 +376,90 @@ def test_fallback_bundle_summary_quality_gate_contract_present() -> None:
     assert '"fallback.login_start_smoke_bundle_summary_status_passed"' in content
     assert '"fallback.login_start_smoke_bundle_summary_routes_covered"' in content
     assert '"fallback.login_start_smoke_bundle_summary_no_failed_routes"' in content
+    assert '"fallback.login_start_smoke_bundle_summary_selected_routes_consistent"' in content
     assert "Fallback login-start smoke bundle failed quality gate" in content
+
+
+def test_fallback_bundle_fails_when_selected_routes_and_routes_drift(tmp_path: Path) -> None:
+    repo_root = tmp_path / "mini-repo"
+    script_path = repo_root / "scripts" / "run_dev_ui_live_full_regression.mjs"
+    script_path.parent.mkdir(parents=True, exist_ok=True)
+    script_path.write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+
+    fallback_script_path = repo_root / "scripts" / "smoke" / "run_login_start_smoke_bundle.sh"
+    fallback_script_path.parent.mkdir(parents=True, exist_ok=True)
+    fallback_script_path.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+
+summary_json=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --summary-json)
+      summary_json="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$summary_json" ]; then
+  echo "missing --summary-json" >&2
+  exit 2
+fi
+
+mkdir -p "$(dirname "$summary_json")"
+cat >"$summary_json" <<'JSON'
+{"status":"passed","selected_routes":["/jobs","/results/demo-result","/healthz"],"routes":[{"route":"/jobs","status":"passed"},{"route":"/results/demo-result","status":"passed"}],"failed_routes":[]}
+JSON
+""",
+        encoding="utf-8",
+    )
+    fallback_script_path.chmod(0o755)
+
+    evidence_path = repo_root / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-fallback-parity.json"
+
+    env = os.environ.copy()
+    env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
+    env["DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS"] = "1"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        [
+            "node",
+            str(script_path),
+            "--fallback-login-start",
+            "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=repo_root,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["degradedMode"]["active"] is True
+    assert payload["degradedMode"]["fallbackSummarySelectedRoutesConsistent"] is False
+
+    checks = {entry["name"]: entry for entry in payload["checks"]}
+    assert checks["fallback.login_start_smoke_bundle_summary_status_passed"]["ok"] is True
+    assert checks["fallback.login_start_smoke_bundle_summary_routes_covered"]["ok"] is True
+    assert checks["fallback.login_start_smoke_bundle_summary_no_failed_routes"]["ok"] is True
+    assert checks["fallback.login_start_smoke_bundle_summary_selected_routes_consistent"]["ok"] is False
+    assert "selected_routes=3 routes=2" in checks[
+        "fallback.login_start_smoke_bundle_summary_selected_routes_consistent"
+    ]["detail"]
+
+    assert payload["error"].startswith(
+        "CHECK FAILED: fallback.login_start_smoke_bundle_summary_selected_routes_consistent"
+    )
 
 
 def test_cli_run_id_is_recorded_in_runtime_evidence(tmp_path: Path) -> None:

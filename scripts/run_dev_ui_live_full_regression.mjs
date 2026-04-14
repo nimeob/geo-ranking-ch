@@ -907,6 +907,8 @@ async function main() {
       const fallbackSummaryStatusIsPassed = fallbackSummaryStatus === "passed";
       const fallbackSummaryRoutesCovered = fallbackRoutes.length > 0 && fallbackPassedRoutes === fallbackRoutes.length;
       const fallbackSummaryNoFailedRoutes = fallbackFailedRoutes.length === 0;
+      const fallbackSummarySelectedRoutesConsistent = fallbackSelectedRoutes.length > 0
+        && fallbackRoutes.length === fallbackSelectedRoutes.length;
 
       degradedMode = {
         active: true,
@@ -930,6 +932,7 @@ async function main() {
         fallbackSummaryFailedRouteCount: fallbackFailedRoutes.length,
         fallbackSummarySelectedRouteCount: fallbackSelectedRoutes.length,
         fallbackSummaryPassedRouteCount: fallbackPassedRoutes,
+        fallbackSummarySelectedRoutesConsistent,
       };
 
       recordCheck(
@@ -957,15 +960,22 @@ async function main() {
         fallbackSummaryNoFailedRoutes,
         `failed_routes=${fallbackFailedRoutes.length} selected_routes=${fallbackSelectedRoutes.length}`,
       );
+      recordCheck(
+        "fallback.login_start_smoke_bundle_summary_selected_routes_consistent",
+        fallbackSummarySelectedRoutesConsistent,
+        `selected_routes=${fallbackSelectedRoutes.length} routes=${fallbackRoutes.length}`,
+      );
 
       if (!fallbackResult.ok || !fallbackSummaryLoad.ok || !fallbackSummaryStatusIsPassed
-        || !fallbackSummaryRoutesCovered || !fallbackSummaryNoFailedRoutes) {
+        || !fallbackSummaryRoutesCovered || !fallbackSummaryNoFailedRoutes
+        || !fallbackSummarySelectedRoutesConsistent) {
         throw new Error(
           "Fallback login-start smoke bundle failed quality gate"
           + ` (exit=${fallbackResult.exitCode}`
           + ` summary_loaded=${fallbackSummaryLoad.ok}`
           + ` status=${fallbackSummaryStatus || "missing"}`
           + ` routes=${fallbackRoutes.length}`
+          + ` selected_routes=${fallbackSelectedRoutes.length}`
           + ` passed=${fallbackPassedRoutes}`
           + ` failed_routes=${fallbackFailedRoutes.length})`,
         );
