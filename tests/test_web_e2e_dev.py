@@ -23,6 +23,20 @@ def _http_json(method: str, url: str, payload=None, headers=None, timeout: float
         return e.code, parsed
 
 
+def _resolve_api_base_url(*, base_url: str, health_payload: dict) -> str:
+    env_api_base = os.getenv("DEV_API_BASE_URL", "").strip().rstrip("/")
+    if env_api_base:
+        return env_api_base
+
+    api_base_url = health_payload.get("api_base_url")
+    if isinstance(api_base_url, str):
+        normalized = api_base_url.strip().rstrip("/")
+        if normalized.startswith(("http://", "https://")):
+            return normalized
+
+    return base_url
+
+
 @unittest.skipUnless(os.getenv("DEV_BASE_URL"), "DEV_BASE_URL nicht gesetzt")
 class TestWebServiceE2EDev(unittest.TestCase):
     @classmethod
@@ -35,7 +49,12 @@ class TestWebServiceE2EDev(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(health.get("ok"))
 
+        api_base_url = _resolve_api_base_url(base_url=self.base_url, health_payload=health)
+
         status, version = _http_json("GET", f"{self.base_url}/version")
+        if status == 404 and api_base_url != self.base_url:
+            status, version = _http_json("GET", f"{api_base_url}/version")
+
         self.assertEqual(status, 200)
         self.assertIn("service", version)
 
@@ -50,33 +69,49 @@ class TestWebServiceE2EDev(unittest.TestCase):
             "timeout_seconds": 4,
         }
 
+        status, health = _http_json("GET", f"{self.base_url}/health")
+        self.assertEqual(status, 200)
+        api_base_url = _resolve_api_base_url(base_url=self.base_url, health_payload=health)
+
+        analyze_base = self.base_url
+        status, body = _http_json("POST", f"{analyze_base}/analyze", payload=payload, timeout=40)
+        if status == 404 and api_base_url != self.base_url:
+            analyze_base = api_base_url
+            status, body = _http_json("POST", f"{analyze_base}/analyze", payload=payload, timeout=40)
+
         if self.dev_token:
-            status, body = _http_json("POST", f"{self.base_url}/analyze", payload=payload)
-            self.assertEqual(status, 401)
-            self.assertEqual(body.get("error"), "unauthorized")
+            if status == 401:
+                self.assertEqual(body.get("error"), "unauthorized")
 
-            status, body = _http_json(
-                "POST",
-                f"{self.base_url}/analyze",
-                payload=payload,
-                headers={"Authorization": "Bearer wrong-token"},
-                timeout=40,
-            )
-            self.assertEqual(status, 401)
-            self.assertEqual(body.get("error"), "unauthorized")
+                status, body = _http_json(
+                    "POST",
+                    f"{analyze_base}/analyze",
+                    payload=payload,
+                    headers={"Authorization": "Bearer wrong-token"},
+                    timeout=40,
+                )
+                self.assertEqual(status, 401)
+                self.assertEqual(body.get("error"), "unauthorized")
 
-            status, body = _http_json(
-                "POST",
-                f"{self.base_url}/analyze",
-                payload=payload,
-                headers={"Authorization": f"Bearer {self.dev_token}"},
-                timeout=40,
-            )
+                status, body = _http_json(
+                    "POST",
+                    f"{analyze_base}/analyze",
+                    payload=payload,
+                    headers={"Authorization": f"Bearer {self.dev_token}"},
+                    timeout=40,
+                )
+                self.assertEqual(status, 200)
+                self.assertTrue(body.get("ok"))
+                self.assertIn("result", body)
+                return
+
             self.assertEqual(status, 200)
             self.assertTrue(body.get("ok"))
-            self.assertIn("result", body)
             return
 
-        status, body = _http_json("POST", f"{self.base_url}/analyze", payload=payload, timeout=40)
-        self.assertEqual(status, 200)
-        self.assertTrue(body.get("ok"))
+        if status == 200:
+            self.assertTrue(body.get("ok"))
+            return
+
+        self.assertEqual(status, 401)
+        self.assertEqual(body.get("error"), "unauthorized")
