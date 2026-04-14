@@ -82,7 +82,7 @@ def test_deploy_workflow_runs_boundary_guardrail_before_unit_tests():
     ), "Boundary-Preflight muss vor dem Unit-Test-Lauf ausgeführt werden."
 
 
-def test_deploy_workflow_auto_cancels_stale_in_progress_dev_runs():
+def test_deploy_workflow_keeps_in_progress_dev_runs_for_ordered_rollout_control():
     data = _load_workflow_yaml(".github/workflows/deploy.yml")
     concurrency = data.get("concurrency")
 
@@ -93,8 +93,8 @@ def test_deploy_workflow_auto_cancels_stale_in_progress_dev_runs():
         concurrency.get("group") == "deploy-ecs-dev"
     ), "deploy.yml concurrency.group muss deploy-ecs-dev sein"
     assert (
-        concurrency.get("cancel-in-progress") is True
-    ), "deploy.yml concurrency.cancel-in-progress muss true sein"
+        concurrency.get("cancel-in-progress") is False
+    ), "deploy.yml concurrency.cancel-in-progress muss false sein"
 
 
 def test_deploy_staging_workflow_keeps_in_progress_runs_for_manual_rollout_control():
