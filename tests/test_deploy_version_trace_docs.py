@@ -112,6 +112,59 @@ def test_deploy_staging_workflow_keeps_in_progress_runs_for_manual_rollout_contr
     ), "deploy-staging.yml concurrency.cancel-in-progress muss false sein"
 
 
+def _assert_service_stability_step_timeout(
+    *, data: dict, workflow_name: str, expected_job_timeout_minutes: int
+) -> None:
+    jobs = data.get("jobs") or {}
+    deploy_job = jobs.get("deploy-ecs-full-env")
+    assert isinstance(
+        deploy_job, dict
+    ), f"{workflow_name} fehlt jobs.deploy-ecs-full-env"
+
+    job_timeout = deploy_job.get("timeout-minutes")
+    assert (
+        job_timeout == expected_job_timeout_minutes
+    ), f"{workflow_name} jobs.deploy-ecs-full-env timeout-minutes muss {expected_job_timeout_minutes} sein"
+
+    steps = deploy_job.get("steps") or []
+    assert isinstance(steps, list), f"{workflow_name} jobs.deploy-ecs-full-env.steps ist keine Liste"
+
+    step_names = {
+        "Deploy API service and wait for stability",
+        "Deploy UI service and wait for stability",
+    }
+
+    for step_name in step_names:
+        matched_step = next(
+            (step for step in steps if isinstance(step, dict) and step.get("name") == step_name),
+            None,
+        )
+        assert matched_step is not None, f"{workflow_name} fehlt Step: {step_name}"
+
+        timeout_minutes = matched_step.get("timeout-minutes")
+        assert (
+            timeout_minutes == 25
+        ), f"{workflow_name} Step '{step_name}' muss timeout-minutes=25 setzen"
+
+
+def test_deploy_workflow_sets_explicit_timeout_guards_for_ecs_stability_waits():
+    data = _load_workflow_yaml(".github/workflows/deploy.yml")
+    _assert_service_stability_step_timeout(
+        data=data,
+        workflow_name="deploy.yml",
+        expected_job_timeout_minutes=75,
+    )
+
+
+def test_deploy_staging_workflow_sets_explicit_timeout_guards_for_ecs_stability_waits():
+    data = _load_workflow_yaml(".github/workflows/deploy-staging.yml")
+    _assert_service_stability_step_timeout(
+        data=data,
+        workflow_name="deploy-staging.yml",
+        expected_job_timeout_minutes=90,
+    )
+
+
 def test_deploy_workflow_guards_against_container_name_mismatches():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
