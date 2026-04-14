@@ -155,6 +155,8 @@ function printHelp() {
     "  DEV_UI_FULL_SCREENSHOT_DIR",
     "  DEV_UI_FULL_RUN_ID",
     "  DEV_UI_FULL_RUN_TOKEN",
+    "  DEV_UI_SMOKE_RUN_ID                                  Legacy alias for DEV_UI_FULL_RUN_ID",
+    "  DEV_UI_SMOKE_RUN_TOKEN                               Legacy alias for DEV_UI_FULL_RUN_ID",
     "  DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1     Optional degraded mode when credentials are unavailable",
     "  DEV_UI_FULL_ALLOW_LOGIN_START_FALLBACK=1                Legacy alias for DEV_UI_FULL_FALLBACK_LOGIN_START_ON_MISSING_CREDS",
     "  DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS=1    Optional degraded mode when credentials are unavailable",
@@ -233,28 +235,48 @@ function buildIsoStampToken() {
   return new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 
+function resolveExplicitRunMarker() {
+  const candidates = [
+    { value: cliOptions.runId, source: "DEV_UI_FULL_RUN_ID" },
+    { value: process.env.DEV_UI_FULL_RUN_ID, source: "DEV_UI_FULL_RUN_ID" },
+    { value: process.env.DEV_UI_FULL_RUN_TOKEN, source: "DEV_UI_FULL_RUN_ID" },
+    { value: process.env.DEV_UI_SMOKE_RUN_ID, source: "DEV_UI_SMOKE_RUN_ID" },
+    { value: process.env.DEV_UI_SMOKE_RUN_TOKEN, source: "DEV_UI_SMOKE_RUN_ID" },
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate.value || "").trim();
+    if (value) {
+      return {
+        value,
+        source: candidate.source,
+      };
+    }
+  }
+
+  return {
+    value: "",
+    source: "",
+  };
+}
+
 const RAW_UI_BASE_URL = String(cliOptions.baseUrl || process.env.DEV_UI_BASE_URL || "").trim();
 const UI_BASE_URL_NORMALIZATION = normalizeUiBaseUrl(RAW_UI_BASE_URL);
 const UI_BASE_URL = UI_BASE_URL_NORMALIZATION.value;
 const USERNAME = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || "").trim();
 const PASSWORD = String(cliOptions.password || process.env.DEV_UI_SMOKE_PASSWORD || "").trim();
-const EXPLICIT_RUN_MARKER = String(
-  cliOptions.runId
-  || process.env.DEV_UI_FULL_RUN_ID
-  || process.env.DEV_UI_FULL_RUN_TOKEN
-  || "",
-).trim();
+const EXPLICIT_RUN_MARKER = resolveExplicitRunMarker();
 const GITHUB_RUN_NUMBER = String(process.env.GITHUB_RUN_NUMBER || "").trim();
 const GITHUB_RUN_ATTEMPT = String(process.env.GITHUB_RUN_ATTEMPT || "").trim() || "1";
 const GITHUB_RUN_ID = String(process.env.GITHUB_RUN_ID || "").trim();
-const RUN_MARKER_SOURCE = EXPLICIT_RUN_MARKER
-  ? "DEV_UI_FULL_RUN_ID"
+const RUN_MARKER_SOURCE = EXPLICIT_RUN_MARKER.value
+  ? EXPLICIT_RUN_MARKER.source
   : GITHUB_RUN_NUMBER
     ? "GITHUB_RUN_NUMBER+GITHUB_RUN_ATTEMPT"
     : GITHUB_RUN_ID
       ? "GITHUB_RUN_ID+GITHUB_RUN_ATTEMPT"
       : "timestamp";
-const RUN_MARKER = EXPLICIT_RUN_MARKER
+const RUN_MARKER = EXPLICIT_RUN_MARKER.value
   || (GITHUB_RUN_NUMBER ? `${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}` : "")
   || (GITHUB_RUN_ID ? `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` : "")
   || buildIsoStampToken();
