@@ -186,6 +186,27 @@ def test_deploy_workflow_emits_periodic_heartbeat_diagnostics_while_waiting_for_
     ), "deploy.yml sollte Heartbeat-Diagnostics für API- und UI-Deploy-Step enthalten"
 
 
+def test_deploy_staging_workflow_emits_periodic_heartbeat_diagnostics_while_waiting_for_ecs_stability():
+    workflow = Path(".github/workflows/deploy-staging.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        "Invalid ECS_STABILITY_TIMEOUT_SECONDS",
+        "timeout \"${slice_seconds}\" aws ecs wait services-stable",
+        "ECS wait still in progress for service",
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"deploy-staging.yml fehlt periodischer ECS-Stability-Heartbeat/Guard: {missing}"
+
+    assert (
+        text.count("ECS wait still in progress for service") >= 2
+    ), "deploy-staging.yml sollte Heartbeat-Diagnostics für API- und UI-Deploy-Step enthalten"
+
+
 def test_deploy_workflow_guards_against_container_name_mismatches():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
