@@ -141,6 +141,26 @@ def test_preflight_uses_staging_fallback_hint_when_base_url_contains_staging(tmp
     assert fallback["command"].endswith("--env-name staging")
 
 
+def test_preflight_appends_extra_fallback_hint_args_when_provided(tmp_path: Path) -> None:
+    extra_args = '--output-dir "reports/evidence" --reason "manual login" --route-presets "core,trace" --timeout 45 --quiet'
+    proc = _run(
+        tmp_path,
+        {
+            "GITHUB_RUN_ID": "991",
+            "DEV_UI_SMOKE_FALLBACK_LOGIN_START_EXTRA_ARGS": extra_args,
+        },
+    )
+
+    assert proc.returncode == 1
+    blocked_file = tmp_path / "reports" / "evidence" / "dev-ui-auth-analyze-smoke-blocked-991-1.json"
+    assert blocked_file.exists()
+
+    payload = json.loads(blocked_file.read_text(encoding="utf-8"))
+    fallback_command = payload["fallback_login_start_smoke"]["command"]
+    assert fallback_command.endswith(extra_args)
+    assert f"fallback_login_start_smoke={fallback_command}" in proc.stderr
+
+
 def test_workflow_runs_route_set_and_uploads_blocker_artifact() -> None:
     content = WORKFLOW.read_text(encoding="utf-8")
     assert "dev-ui-auth-analyze-smoke-blocked-*.json" in content
