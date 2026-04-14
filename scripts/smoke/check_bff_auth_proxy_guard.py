@@ -466,6 +466,16 @@ def _build_probe_specs(*, trusted_host: str, untrusted_host: str) -> list[_Probe
     ]
 
 
+def _has_authorize_path_segment(location: str) -> bool:
+    parsed_location = urlparse(location)
+    normalized_segments = [
+        segment
+        for segment in str(parsed_location.path or "").strip().lower().split("/")
+        if segment
+    ]
+    return "authorize" in normalized_segments
+
+
 def _evaluate_probe(
     *, spec: _ProbeSpec, probe: _HttpProbeResult, allowed_authorize_hosts: set[str]
 ) -> _ProbeOutcome:
@@ -493,8 +503,32 @@ def _evaluate_probe(
                 forwarded_host=spec.forwarded_host,
             )
 
+        if not _has_authorize_path_segment(probe.location):
+            return _ProbeOutcome(
+                name=spec.name,
+                ok=False,
+                reason="authorize_redirect_path_missing_authorize_segment",
+                status_code=probe.status_code,
+                location=probe.location,
+                expected_status=spec.expect_status,
+                expected_redirect=spec.expect_redirect,
+                forwarded_host=spec.forwarded_host,
+            )
+
+        parsed_location = urlparse(probe.location)
+        if parsed_location.netloc and str(parsed_location.scheme or "").strip().lower() != "https":
+            return _ProbeOutcome(
+                name=spec.name,
+                ok=False,
+                reason="authorize_redirect_must_use_https",
+                status_code=probe.status_code,
+                location=probe.location,
+                expected_status=spec.expect_status,
+                expected_redirect=spec.expect_redirect,
+                forwarded_host=spec.forwarded_host,
+            )
+
         if spec.expect_redirect and allowed_authorize_hosts:
-            parsed_location = urlparse(probe.location)
             if parsed_location.netloc:
                 observed_host = _normalize_host_token(parsed_location.hostname or "")
                 if observed_host not in allowed_authorize_hosts:
