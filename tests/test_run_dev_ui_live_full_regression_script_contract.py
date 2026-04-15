@@ -221,6 +221,7 @@ def test_invalid_base_url_emits_actionable_hint_and_error(
     assert payload["error"].startswith("Invalid DEV_UI_BASE_URL:")
     assert expected_fragment in payload["error"]
     assert "[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL" in result.stderr
+    assert "--base-url" in result.stderr
 
 
 def test_cli_overrides_base_url_and_evidence_path_without_credentials(
