@@ -132,7 +132,7 @@ def _normalize_host(raw_value: str) -> str:
     if not value:
         return ""
     parsed = urlparse(value if "://" in value else f"//{value}")
-    return str(parsed.hostname or "").strip().lower()
+    return str(parsed.hostname or "").strip().lower().rstrip(".")
 
 
 def _normalize_host_token(raw_host: str) -> str:
@@ -141,11 +141,11 @@ def _normalize_host_token(raw_host: str) -> str:
         return ""
 
     parsed = urlparse(candidate if "://" in candidate else f"//{candidate}")
-    host = str(parsed.hostname or "").strip().lower()
+    host = str(parsed.hostname or "").strip().lower().rstrip(".")
     if host:
         return host
 
-    return candidate.strip("[]").lower()
+    return candidate.strip("[]").lower().rstrip(".")
 
 
 def _expand_geo_host_variants(host: str) -> set[str]:
