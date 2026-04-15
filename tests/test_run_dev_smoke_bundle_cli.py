@@ -77,3 +77,45 @@ def test_dev_smoke_bundle_rejects_short_flag_as_missing_only_value() -> None:
     assert proc.returncode == 2
     assert "Missing value for --only" in proc.stderr
     assert "Usage:" in proc.stderr
+
+
+def test_dev_smoke_bundle_rejects_empty_inline_only_value() -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), "--only="],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --only" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_dev_smoke_bundle_rejects_whitespace_inline_only_value() -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), "--only=   "],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --only" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_dev_smoke_bundle_accepts_inline_only_value() -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), "--only=lint", "--skip-lint"],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "no steps selected" in proc.stderr
+    assert "Unknown option" not in proc.stderr
