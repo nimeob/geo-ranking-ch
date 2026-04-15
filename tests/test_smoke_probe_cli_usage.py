@@ -81,3 +81,29 @@ def test_smoke_probe_help_contract(script_rel: str, required_flag: str, usage_pr
     assert f"missing value for {required_flag}" in missing_value.stderr
     assert usage_prefix in missing_value.stderr
     assert "    at " not in missing_value.stderr
+
+    missing_inline_value = subprocess.run(
+        [str(NODE_BIN), str(script), f"{required_flag}="],
+        cwd=str(REPO_ROOT),
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+    assert missing_inline_value.returncode == 2
+    assert f"missing value for {required_flag}" in missing_inline_value.stderr
+    assert usage_prefix in missing_inline_value.stderr
+    assert "    at " not in missing_inline_value.stderr
+
+    missing_whitespace_inline_value = subprocess.run(
+        [str(NODE_BIN), str(script), f"{required_flag}=   "],
+        cwd=str(REPO_ROOT),
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+    assert missing_whitespace_inline_value.returncode == 2
+    assert f"missing value for {required_flag}" in missing_whitespace_inline_value.stderr
+    assert usage_prefix in missing_whitespace_inline_value.stderr
+    assert "    at " not in missing_whitespace_inline_value.stderr
