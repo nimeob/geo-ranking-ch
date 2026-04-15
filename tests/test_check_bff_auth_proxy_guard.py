@@ -270,6 +270,38 @@ def test_check_auth_proxy_guard_accepts_custom_authorize_host_override(monkeypat
     assert result.expected_authorize_hosts == ["idp.partner.example"]
 
 
+def test_check_auth_proxy_guard_accepts_expected_authorize_host_with_trailing_dot(monkeypatch):
+    module = _load_module()
+
+    def _custom_host_probe(**kwargs):
+        request_url = kwargs["request_url"]
+        headers = kwargs["headers"]
+        if "/auth/login" in request_url and headers.get("X-Forwarded-Host") == "www.dev.georanking.ch":
+            return module._HttpProbeResult(
+                status_code=302,
+                location="https://idp.partner.example/oidc/authorize?client_id=abc",
+                body_text="",
+            )
+        return _happy_probe(module, **kwargs)
+
+    monkeypatch.setattr(module, "_send_request_probe", _custom_host_probe)
+
+    result = module.check_auth_proxy_guard(
+        api_base_url="https://api.dev.georanking.ch",
+        ui_base_url="https://www.dev.georanking.ch",
+        trusted_forwarded_host="",
+        untrusted_forwarded_host="evil.example.test",
+        timeout_seconds=3,
+        max_attempts=1,
+        retry_delay_seconds=0,
+        expected_authorize_host="idp.partner.example.",
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+    assert result.expected_authorize_hosts == ["idp.partner.example"]
+
+
 def test_check_auth_proxy_guard_accepts_geo_ranking_alias_authorize_host_override(monkeypatch):
     module = _load_module()
     monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
@@ -498,6 +530,27 @@ def test_main_returns_invalid_argument_exit_code_when_hosts_collapse(monkeypatch
             "https://api.dev.georanking.ch",
             "--trusted-forwarded-host",
             "www.dev.georanking.ch",
+            "--untrusted-forwarded-host",
+            "www.dev.georanking.ch",
+        ]
+    )
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"].startswith("invalid_arguments:")
+
+
+def test_main_rejects_forwarded_hosts_that_only_differ_by_trailing_dot(monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
+
+    exit_code = module.main(
+        [
+            "--api-base-url",
+            "https://api.dev.georanking.ch",
+            "--trusted-forwarded-host",
+            "www.dev.georanking.ch.",
             "--untrusted-forwarded-host",
             "www.dev.georanking.ch",
         ]
