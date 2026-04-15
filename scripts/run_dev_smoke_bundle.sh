@@ -21,8 +21,11 @@ EOF
 require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
+  local normalized_option_value
 
-  if [[ -z "${option_value}" || "${option_value}" == -* ]]; then
+  normalized_option_value="$(printf '%s' "${option_value}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+  if [[ -z "${normalized_option_value}" || "${normalized_option_value}" == -* ]]; then
     echo "ERROR: Missing value for ${option_name}" >&2
     usage >&2
     exit 2
@@ -103,6 +106,12 @@ while [[ $# -gt 0 ]]; do
       require_option_value "--only" "${2:-}"
       parse_only_steps_csv "$2"
       shift 2
+      ;;
+    --only=*)
+      option_value="${1#*=}"
+      require_option_value "--only" "${option_value}"
+      parse_only_steps_csv "${option_value}"
+      shift
       ;;
     -h|--help)
       usage
