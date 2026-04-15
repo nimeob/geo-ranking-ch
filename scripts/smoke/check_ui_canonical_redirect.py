@@ -161,6 +161,34 @@ def _expand_geo_host_aliases(host: str) -> list[str]:
     return aliases
 
 
+def _geo_host_family(host: str) -> str:
+    normalized_host = str(host or "").strip().lower()
+    if "geo-ranking" in normalized_host:
+        return "geo-ranking"
+    if "georanking" in normalized_host:
+        return "georanking"
+    return ""
+
+
+def _prefer_alias_candidates_for_canonical_host(
+    *, alias_candidates: list[str], canonical_host: str
+) -> list[str]:
+    canonical_family = _geo_host_family(canonical_host)
+    if not canonical_family:
+        return alias_candidates
+
+    same_family = [
+        host for host in alias_candidates if _geo_host_family(host) == canonical_family
+    ]
+    if not same_family:
+        return alias_candidates
+
+    same_family_set = set(same_family)
+    return same_family + [
+        host for host in alias_candidates if host not in same_family_set
+    ]
+
+
 def _is_redirect_status(status_code: int) -> bool:
     return int(status_code) in _REDIRECT_HTTP_STATUSES
 
@@ -471,6 +499,10 @@ def check_canonical_redirect(
         alias_candidates = [
             host for host in configured_hosts if host and host != canonical_host
         ]
+        alias_candidates = _prefer_alias_candidates_for_canonical_host(
+            alias_candidates=alias_candidates,
+            canonical_host=canonical_host,
+        )
 
         if not alias_candidates:
             alias_candidates = _expand_geo_host_aliases(canonical_host)
