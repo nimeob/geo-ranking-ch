@@ -533,13 +533,16 @@ function emitFailureHints(finalError) {
   }
 
   if (errorText === "Missing DEV_UI_BASE_URL" || errorText.startsWith("Invalid DEV_UI_BASE_URL:")) {
-    console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL (z. B. https://www.dev.georanking.ch) und starte erneut.");
+    console.error(
+      "[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL (z. B. https://www.dev.georanking.ch) "
+      + "oder übergib --base-url und starte erneut."
+    );
     return;
   }
 
   const fallbackCommand = buildLoginStartFallbackCommand(UI_BASE_URL);
   if (!fallbackCommand) {
-    console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL und starte erneut.");
+    console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL oder übergib --base-url und starte erneut.");
     return;
   }
 
