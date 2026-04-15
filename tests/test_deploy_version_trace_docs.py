@@ -639,6 +639,45 @@ def test_deploy_workflow_requires_tls_valid_alias_for_login_route_matrix_smoke()
     ), f"deploy.yml fehlt TLS-validierter Alias-Guard für route-matrix smoke: {missing}"
 
 
+def test_deploy_workflow_runs_auth_perimeter_smoke_in_quiet_mode():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = (
+        '--canonical-hosts "${UI_CANONICAL_HOSTS:-}" \\\n            --quiet \\\n            --output-dir "artifacts"'
+    )
+    assert (
+        required in text
+    ), "deploy.yml sollte auth-perimeter smoke mit --quiet ausführen, um Success-Log-Rauschen zu reduzieren"
+
+
+def test_deploy_workflow_runs_alias_login_route_matrix_smoke_in_quiet_mode():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = (
+        "--preserve-requested-base-url \\\n            --quiet \\\n            --output-dir \"artifacts\""
+    )
+    assert (
+        required in text
+    ), "deploy.yml sollte alias route-matrix smoke mit --quiet ausführen, um Success-Log-Rauschen zu reduzieren"
+
+
+def test_deploy_staging_workflow_runs_auth_perimeter_smoke_in_quiet_mode():
+    workflow = Path(".github/workflows/deploy-staging.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy-staging.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = (
+        '--canonical-hosts "${UI_CANONICAL_HOSTS:-}" \\\n            --quiet \\\n            --output-dir "artifacts"'
+    )
+    assert (
+        required in text
+    ), "deploy-staging.yml sollte auth-perimeter smoke mit --quiet ausführen, um Success-Log-Rauschen zu reduzieren"
+
+
 def test_deploy_workflow_smokes_auth_proxy_guard_for_login_logout_and_callback_paths():
     workflow = Path(".github/workflows/deploy.yml")
     assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"

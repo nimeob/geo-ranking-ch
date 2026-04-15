@@ -344,3 +344,21 @@
 - Live-Retest gegen DEV UI/API:
   - `run_auth_perimeter_smoke_bundle.sh --base-url https://www.dev.georanking.ch --api-base-url https://api.dev.georanking.ch --route-presets minimal --env-name dev-night-bff-quiet` → **PASS**.
   - Ergebnis: BFF-Step bleibt bei Erfolg still, Bundle-Ausgabe ist deutlich besser scanbar; Failure-Signale bleiben erhalten.
+
+## 2026-04-15 04:18 CET — Deploy-Workflow Quiet-Mode für Auth-Perimeter-Smokes (dev+staging)
+- ROI-Fokus: CI/Deploy-Logs in Success-Fällen weiter entrümpeln, ohne Failure-Diagnostik zu verlieren.
+- Änderung in Workflows:
+  - `.github/workflows/deploy.yml`
+    - `run_auth_perimeter_smoke_bundle.sh` jetzt mit `--quiet`.
+    - Alias-Route-Matrix (`run_login_start_smoke_bundle.sh`) jetzt ebenfalls mit `--quiet`.
+  - `.github/workflows/deploy-staging.yml`
+    - `run_auth_perimeter_smoke_bundle.sh` jetzt mit `--quiet`.
+- Regression-Guards ergänzt:
+  - `tests/test_deploy_version_trace_docs.py`
+    - neuer Contract, dass dev/staging den auth-perimeter smoke in quiet mode ausführen.
+    - neuer Contract, dass dev alias-route-matrix smoke in quiet mode ausführt.
+- Verifikation lokal:
+  - `pytest -q tests/test_deploy_version_trace_docs.py tests/test_run_auth_perimeter_smoke_bundle_script_contract.py tests/test_check_bff_auth_proxy_guard.py` → **77 passed**.
+- Live-Retest gegen DEV:
+  - `run_auth_perimeter_smoke_bundle.sh --base-url https://www.dev.georanking.ch --api-base-url https://api.dev.georanking.ch --route-presets minimal --quiet` → **PASS**.
+  - Evidence: `reports/evidence/dev-night-workflow-quiet-auth-perimeter-smoke-bundle-summary.json` (alle 3 Steps `passed`).

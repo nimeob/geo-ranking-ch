@@ -663,6 +663,7 @@ jobs:
             --env-name "staging" \
             --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
             --canonical-hosts "${UI_CANONICAL_HOSTS:-}" \
+            --quiet \
             --output-dir "artifacts"
 
       - name: Upload login-start smoke artifacts (staging)
