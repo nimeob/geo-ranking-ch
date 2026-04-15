@@ -432,6 +432,29 @@ def test_login_start_bundle_normalizes_expected_authorize_host_csv_in_summary(
     )
 
 
+def test_login_start_bundle_rejects_invalid_expected_authorize_host_csv() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--expected-authorize-host",
+            " , https:///oauth2/authorize , ",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "--expected-authorize-host enthält keine gültigen Hostnamen" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
 def test_login_start_bundle_rejects_missing_option_value_for_base_url() -> None:
     proc = subprocess.run(
         [str(SCRIPT), "--base-url"],
