@@ -50,6 +50,20 @@ def test_missing_value_rejects_flag_token() -> None:
     assert "Usage: node scripts/check_easyname_authoritative_dns.js [options]" in result.stderr
 
 
+def test_missing_value_rejects_empty_inline_assignment() -> None:
+    result = subprocess.run(
+        ["node", str(SCRIPT), "--host="],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert "[easyname-dns] ERROR Missing value for --host" in result.stderr
+    assert "Usage: node scripts/check_easyname_authoritative_dns.js [options]" in result.stderr
+
+
 def test_parse_args_supports_inline_assignment() -> None:
     snippet = f"""
 const mod = require({json.dumps(str(SCRIPT))});

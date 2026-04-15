@@ -370,6 +370,8 @@ def test_unknown_cli_option_exits_with_usage_and_code_2(tmp_path: Path) -> None:
     [
         (["--base-url", "-h"], "Missing value for --base-url"),
         (["--username", "--headless"], "Missing value for --username"),
+        (["--base-url="], "Missing value for --base-url"),
+        (["--password=   "], "Missing value for --password"),
     ],
 )
 def test_cli_flags_are_rejected_as_missing_option_values(tmp_path: Path, argv: list[str], expected_error: str) -> None:
