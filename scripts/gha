@@ -20,4 +20,11 @@ if [[ ${#args[@]} -ge 2 && "${args[0]}" == "auth" && "${args[1]}" == "status" ]]
   fi
 fi
 
+# `gh auth refresh` rejects execution when GH_TOKEN is set in the environment.
+# Forward refresh commands with GH_TOKEN unset so routine credential maintenance
+# from TOOLS.md works with this wrapper.
+if [[ ${#args[@]} -ge 2 && "${args[0]}" == "auth" && "${args[1]}" == "refresh" ]]; then
+  exec env -u GH_TOKEN gh "${args[@]}"
+fi
+
 GH_TOKEN="$($SCRIPT_DIR/gh_app_token.sh)" exec gh "${args[@]}"

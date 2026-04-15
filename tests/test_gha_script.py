@@ -85,6 +85,14 @@ def test_auth_status_keeps_existing_active_flag_without_duplication() -> None:
     assert token == "test-token"
 
 
+def test_auth_refresh_unsets_gh_token_before_forwarding() -> None:
+    code, _, args, token = _run_gha(["auth", "refresh", "-h", "github.com"])
+
+    assert code == 0
+    assert args == ["auth", "refresh", "-h", "github.com"]
+    assert token == ""
+
+
 def test_non_auth_status_commands_are_forwarded_verbatim() -> None:
     code, _, args, token = _run_gha(["run", "list", "--limit", "5"])
 
