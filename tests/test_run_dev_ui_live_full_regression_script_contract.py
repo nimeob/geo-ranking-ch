@@ -224,6 +224,31 @@ def test_invalid_base_url_emits_actionable_hint_and_error(
     assert "--base-url" in result.stderr
 
 
+def test_missing_base_url_emits_cli_override_hint(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-missing-base-url.json"
+    env["DEV_UI_FULL_EVIDENCE_JSON"] = str(evidence_path)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["error"] == "Missing DEV_UI_BASE_URL"
+    assert "[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL" in result.stderr
+    assert "--base-url" in result.stderr
+
+
 def test_cli_overrides_base_url_and_evidence_path_without_credentials(
     tmp_path: Path,
 ) -> None:
