@@ -462,6 +462,80 @@ JSON
     )
 
 
+def test_cli_base_url_is_honored_in_fallback_mode_without_dev_ui_base_url_env(tmp_path: Path) -> None:
+    repo_root = tmp_path / "mini-repo"
+    script_path = repo_root / "scripts" / "run_dev_ui_live_full_regression.mjs"
+    script_path.parent.mkdir(parents=True, exist_ok=True)
+    script_path.write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+
+    fallback_script_path = repo_root / "scripts" / "smoke" / "run_login_start_smoke_bundle.sh"
+    fallback_script_path.parent.mkdir(parents=True, exist_ok=True)
+    fallback_script_path.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+
+summary_json=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --summary-json)
+      summary_json="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$summary_json" ]; then
+  echo "missing --summary-json" >&2
+  exit 2
+fi
+
+mkdir -p "$(dirname "$summary_json")"
+cat >"$summary_json" <<'JSON'
+{"status":"passed","selected_routes":["/jobs","/results/demo-result"],"routes":[{"route":"/jobs","status":"passed"},{"route":"/results/demo-result","status":"passed"}],"failed_routes":[]}
+JSON
+""",
+        encoding="utf-8",
+    )
+    fallback_script_path.chmod(0o755)
+
+    evidence_path = repo_root / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-contract-cli-base-url-fallback.json"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        [
+            "node",
+            str(script_path),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--fallback-login-start",
+            "--evidence-json",
+            str(evidence_path),
+        ],
+        cwd=repo_root,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["baseUrl"] == "https://www.dev.georanking.ch"
+    assert payload["requestedBaseUrl"] == "https://www.dev.georanking.ch"
+    assert payload["degradedMode"]["active"] is True
+    assert payload["degradedMode"]["envFlag"] == "cli:--fallback-login-start"
+    assert payload["error"] in ("", None)
+    assert "PASSED (degraded mode)" in result.stdout
+
+
 def test_cli_run_id_is_recorded_in_runtime_evidence(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["DEV_UI_BASE_URL"] = "https://www.dev.georanking.ch"
