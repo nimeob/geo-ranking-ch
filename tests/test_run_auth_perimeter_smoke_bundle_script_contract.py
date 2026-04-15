@@ -406,6 +406,7 @@ def test_auth_perimeter_bundle_reports_failed_step_and_returns_nonzero(
         output_flag="--summary-json",
         status="failed",
         rc=7,
+        stdout_line="canonical-step-failed-noise",
     )
     _write_stub_script(bff_stub, output_flag="--output-json", status="passed", rc=0, ok=True)
 
@@ -449,6 +450,7 @@ def test_auth_perimeter_bundle_reports_failed_step_and_returns_nonzero(
     assert by_name["canonical_redirect_bundle"]["rc"] == 7
     assert by_name["canonical_redirect_bundle"]["reported_status"] == "failed"
     assert by_name["bff_auth_proxy_guard"]["status"] == "passed"
+    assert "canonical-step-failed-noise" in proc.stderr
 
 
 def test_auth_perimeter_bundle_quiet_suppresses_success_stdout_noise(tmp_path: Path) -> None:
