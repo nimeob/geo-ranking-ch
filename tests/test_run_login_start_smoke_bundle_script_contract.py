@@ -8,6 +8,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "smoke" / "run_login_start_smoke_bundle.sh"
@@ -579,6 +581,39 @@ def test_login_start_bundle_rejects_missing_option_value_for_route_presets() -> 
     assert proc.returncode == 2
     assert "Missing value for --route-presets" in proc.stderr
     assert "Usage:" in proc.stderr
+
+
+@pytest.mark.parametrize("inline_value", ["", "   "])
+def test_login_start_bundle_rejects_empty_inline_assignment_for_summary_json(
+    inline_value: str,
+) -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), f"--summary-json={inline_value}"],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --summary-json" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_login_start_bundle_accepts_inline_base_url_assignment() -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), "--base-url=https://www.dev.georanking.ch"],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --env-name" in proc.stderr
+    assert "Unknown option" not in proc.stderr
 
 
 def test_login_start_bundle_rejects_unsupported_routes_csv() -> None:

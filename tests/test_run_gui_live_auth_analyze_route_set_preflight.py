@@ -282,6 +282,63 @@ def test_route_set_runner_rejects_missing_option_value_when_next_token_is_flag(
     assert "Usage:" in proc.stderr
 
 
+@pytest.mark.parametrize("inline_value", ["", "   "])
+@pytest.mark.parametrize(
+    "option",
+    ["--base-url", "--summary-json", "--run-id-base", "--routes"],
+)
+def test_route_set_runner_rejects_empty_inline_assignment(
+    tmp_path: Path,
+    inline_value: str,
+    option: str,
+) -> None:
+    env = os.environ.copy()
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(tmp_path / "blocked")
+
+    proc = subprocess.run(
+        [str(SCRIPT), f"{option}={inline_value}"],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert f"Missing value for {option}" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_route_set_runner_accepts_inline_assignments_for_common_options(
+    tmp_path: Path,
+) -> None:
+    blocker_dir = tmp_path / "blocked"
+
+    env = os.environ.copy()
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    env["DEV_UI_SMOKE_BLOCKER_DIR"] = str(blocker_dir)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url=https://www.dev.georanking.ch",
+            "--run-id-base=manual-inline-options",
+            f"--output-dir={blocker_dir}",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 1
+    assert "Unknown option" not in proc.stderr
+    blocked_file = blocker_dir / "dev-ui-auth-analyze-smoke-blocked-manual-inline-options.json"
+    assert blocked_file.exists()
+
+
 def test_route_set_runner_prints_login_start_hint_on_secret_blocker(
     tmp_path: Path,
 ) -> None:

@@ -265,8 +265,11 @@ PY
 require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
+  local normalized_option_value
 
-  if [[ -z "${option_value}" || "${option_value}" == -* ]]; then
+  normalized_option_value="$(printf '%s' "${option_value}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+  if [[ -z "${normalized_option_value}" || "${normalized_option_value}" == -* ]]; then
     echo "ERROR: Missing value for ${option_name}" >&2
     usage >&2
     exit 2
@@ -294,45 +297,101 @@ resolve_path_against_repo_root() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --base-url=*|--ui-base-url=*)
+      option_name="${1%%=*}"
+      option_value="${1#*=}"
+      require_option_value "$option_name" "$option_value"
+      base_url_override="$option_value"
+      shift
+      ;;
     --base-url|--ui-base-url)
       require_option_value "$1" "${2:-}"
       base_url_override="$2"
       shift 2
+      ;;
+    --output-dir=*)
+      option_value="${1#*=}"
+      require_option_value "--output-dir" "$option_value"
+      output_dir_override="$option_value"
+      shift
       ;;
     --output-dir)
       require_option_value "--output-dir" "${2:-}"
       output_dir_override="$2"
       shift 2
       ;;
+    --summary-json=*|--json-out=*|--out=*)
+      option_name="${1%%=*}"
+      option_value="${1#*=}"
+      require_option_value "$option_name" "$option_value"
+      summary_json_override="$option_value"
+      shift
+      ;;
     --summary-json|--json-out|--out)
       require_option_value "$1" "${2:-}"
       summary_json_override="$2"
       shift 2
+      ;;
+    --timeout-ms=*)
+      option_value="${1#*=}"
+      require_option_value "--timeout-ms" "$option_value"
+      timeout_ms_override="$option_value"
+      shift
       ;;
     --timeout-ms)
       require_option_value "--timeout-ms" "${2:-}"
       timeout_ms_override="$2"
       shift 2
       ;;
+    --address-file=*)
+      option_value="${1#*=}"
+      require_option_value "--address-file" "$option_value"
+      address_file_override="$option_value"
+      shift
+      ;;
     --address-file)
       require_option_value "--address-file" "${2:-}"
       address_file_override="$2"
       shift 2
+      ;;
+    --login-reason=*)
+      option_value="${1#*=}"
+      require_option_value "--login-reason" "$option_value"
+      login_reason_override="$option_value"
+      shift
       ;;
     --login-reason)
       require_option_value "--login-reason" "${2:-}"
       login_reason_override="$2"
       shift 2
       ;;
+    --run-id-base=*)
+      option_value="${1#*=}"
+      require_option_value "--run-id-base" "$option_value"
+      run_id_base_override="$option_value"
+      shift
+      ;;
     --run-id-base)
       require_option_value "--run-id-base" "${2:-}"
       run_id_base_override="$2"
       shift 2
       ;;
+    --routes=*)
+      option_value="${1#*=}"
+      require_option_value "--routes" "$option_value"
+      routes_override="$option_value"
+      shift
+      ;;
     --routes)
       require_option_value "--routes" "${2:-}"
       routes_override="$2"
       shift 2
+      ;;
+    --route-presets=*)
+      option_value="${1#*=}"
+      require_option_value "--route-presets" "$option_value"
+      route_presets_override="$option_value"
+      shift
       ;;
     --route-presets)
       require_option_value "--route-presets" "${2:-}"
