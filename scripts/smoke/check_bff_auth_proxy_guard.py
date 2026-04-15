@@ -760,11 +760,20 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Backward-compatible no-op alias (stdout JSON is always emitted)",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help=(
+            "Suppress stdout JSON on success (failure payloads are still emitted). "
+            "Output file writing via --output-json/--summary-json/--json-out remains unchanged."
+        ),
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
+    quiet = bool(args.quiet)
 
     requested_ui_base_url = str(args.ui_base_url or "").strip()
     requested_api_base_url = str(args.api_base_url or "").strip()
@@ -842,7 +851,8 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = asdict(result)
     rendered = json.dumps(payload, ensure_ascii=False)
-    print(rendered)
+    if not quiet or not result.ok:
+        print(rendered)
 
     out_path = str(args.output_json or "").strip()
     if out_path:
