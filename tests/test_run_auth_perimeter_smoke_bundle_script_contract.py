@@ -6,6 +6,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "smoke" / "run_auth_perimeter_smoke_bundle.sh"
@@ -113,6 +115,44 @@ def test_auth_perimeter_bundle_rejects_short_flag_as_missing_option_value() -> N
     assert proc.returncode == 2
     assert "Missing value for --summary-json" in proc.stderr
     assert "Usage:" in proc.stderr
+
+
+@pytest.mark.parametrize("inline_value", ["", "   "])
+def test_auth_perimeter_bundle_rejects_empty_inline_assignment_for_output_dir(
+    inline_value: str,
+) -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            f"--output-dir={inline_value}",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --output-dir" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
+def test_auth_perimeter_bundle_accepts_inline_output_dir_assignment() -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), "--output-dir=reports/evidence-inline"],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing required --base-url" in proc.stderr
+    assert "Unknown option" not in proc.stderr
 
 
 def test_auth_perimeter_bundle_rejects_routes_and_presets_combination() -> None:

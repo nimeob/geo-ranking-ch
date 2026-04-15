@@ -58,8 +58,11 @@ EOF
 require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
+  local normalized_option_value
 
-  if [ -z "${option_value}" ] || [[ "${option_value}" == -* ]]; then
+  normalized_option_value="$(printf '%s' "${option_value}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+  if [ -z "${normalized_option_value}" ] || [[ "${normalized_option_value}" == -* ]]; then
     echo "::error::Missing value for ${option_name}" >&2
     usage >&2
     exit 2
@@ -126,45 +129,101 @@ PY
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --base-url=*|--ui-base-url=*)
+      option_name="${1%%=*}"
+      option_value="${1#*=}"
+      require_option_value "$option_name" "$option_value"
+      BASE_URL="$option_value"
+      shift
+      ;;
     --base-url|--ui-base-url)
       require_option_value "$1" "${2:-}"
       BASE_URL="$2"
       shift 2
+      ;;
+    --env-name=*)
+      option_value="${1#*=}"
+      require_option_value "--env-name" "$option_value"
+      ENV_NAME="$option_value"
+      shift
       ;;
     --env-name)
       require_option_value "--env-name" "${2:-}"
       ENV_NAME="$2"
       shift 2
       ;;
+    --output-dir=*)
+      option_value="${1#*=}"
+      require_option_value "--output-dir" "$option_value"
+      OUTPUT_DIR="$option_value"
+      shift
+      ;;
     --output-dir)
       require_option_value "--output-dir" "${2:-}"
       OUTPUT_DIR="$2"
       shift 2
+      ;;
+    --summary-json=*|--json-out=*)
+      option_name="${1%%=*}"
+      option_value="${1#*=}"
+      require_option_value "$option_name" "$option_value"
+      SUMMARY_JSON="$option_value"
+      shift
       ;;
     --summary-json|--json-out)
       require_option_value "$1" "${2:-}"
       SUMMARY_JSON="$2"
       shift 2
       ;;
+    --reason=*)
+      option_value="${1#*=}"
+      require_option_value "--reason" "$option_value"
+      REASON="$option_value"
+      shift
+      ;;
     --reason)
       require_option_value "--reason" "${2:-}"
       REASON="$2"
       shift 2
+      ;;
+    --timeout=*)
+      option_value="${1#*=}"
+      require_option_value "--timeout" "$option_value"
+      TIMEOUT_SECONDS="$option_value"
+      shift
       ;;
     --timeout)
       require_option_value "--timeout" "${2:-}"
       TIMEOUT_SECONDS="$2"
       shift 2
       ;;
+    --max-attempts=*)
+      option_value="${1#*=}"
+      require_option_value "--max-attempts" "$option_value"
+      MAX_ATTEMPTS="$option_value"
+      shift
+      ;;
     --max-attempts)
       require_option_value "--max-attempts" "${2:-}"
       MAX_ATTEMPTS="$2"
       shift 2
       ;;
+    --retry-delay=*)
+      option_value="${1#*=}"
+      require_option_value "--retry-delay" "$option_value"
+      RETRY_DELAY_SECONDS="$option_value"
+      shift
+      ;;
     --retry-delay)
       require_option_value "--retry-delay" "${2:-}"
       RETRY_DELAY_SECONDS="$2"
       shift 2
+      ;;
+    --max-retry-delay=*)
+      option_value="${1#*=}"
+      require_option_value "--max-retry-delay" "$option_value"
+      MAX_RETRY_DELAY_SECONDS="$option_value"
+      shift
       ;;
     --max-retry-delay)
       require_option_value "--max-retry-delay" "${2:-}"
@@ -175,10 +234,22 @@ while [ "$#" -gt 0 ]; do
       PRESERVE_REQUESTED_BASE_URL="1"
       shift
       ;;
+    --routes=*)
+      option_value="${1#*=}"
+      require_option_value "--routes" "$option_value"
+      ROUTES_CSV="$option_value"
+      shift
+      ;;
     --routes)
       require_option_value "--routes" "${2:-}"
       ROUTES_CSV="$2"
       shift 2
+      ;;
+    --route-presets=*)
+      option_value="${1#*=}"
+      require_option_value "--route-presets" "$option_value"
+      ROUTE_PRESETS_CSV="$option_value"
+      shift
       ;;
     --route-presets)
       require_option_value "--route-presets" "${2:-}"
@@ -187,6 +258,12 @@ while [ "$#" -gt 0 ]; do
       ;;
     --quiet)
       QUIET="1"
+      shift
+      ;;
+    --expected-authorize-host=*)
+      option_value="${1#*=}"
+      require_option_value "--expected-authorize-host" "$option_value"
+      EXPECTED_AUTHORIZE_HOST="$option_value"
       shift
       ;;
     --expected-authorize-host)

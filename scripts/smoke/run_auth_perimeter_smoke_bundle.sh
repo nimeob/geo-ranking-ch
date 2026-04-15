@@ -118,8 +118,11 @@ PY
 require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
+  local normalized_option_value
 
-  if [[ -z "${option_value}" || "${option_value}" == -* ]]; then
+  normalized_option_value="$(printf '%s' "${option_value}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+  if [[ -z "${normalized_option_value}" || "${normalized_option_value}" == -* ]]; then
     echo "ERROR: Missing value for ${option_name}" >&2
     usage >&2
     exit 2
@@ -158,75 +161,167 @@ quiet="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --base-url=*|--ui-base-url=*)
+      option_name="${1%%=*}"
+      option_value="${1#*=}"
+      require_option_value "$option_name" "$option_value"
+      base_url="$option_value"
+      shift
+      ;;
     --base-url|--ui-base-url)
       require_option_value "$1" "${2:-}"
       base_url="$2"
       shift 2
+      ;;
+    --api-base-url=*)
+      option_value="${1#*=}"
+      require_option_value "--api-base-url" "$option_value"
+      api_base_url="$option_value"
+      shift
       ;;
     --api-base-url)
       require_option_value "--api-base-url" "${2:-}"
       api_base_url="$2"
       shift 2
       ;;
+    --env-name=*)
+      option_value="${1#*=}"
+      require_option_value "--env-name" "$option_value"
+      env_name="$option_value"
+      shift
+      ;;
     --env-name)
       require_option_value "--env-name" "${2:-}"
       env_name="$2"
       shift 2
+      ;;
+    --output-dir=*)
+      option_value="${1#*=}"
+      require_option_value "--output-dir" "$option_value"
+      output_dir="$(resolve_path_against_repo_root "$option_value")"
+      shift
       ;;
     --output-dir)
       require_option_value "--output-dir" "${2:-}"
       output_dir="$(resolve_path_against_repo_root "$2")"
       shift 2
       ;;
+    --summary-json=*|--json-out=*)
+      option_name="${1%%=*}"
+      option_value="${1#*=}"
+      require_option_value "$option_name" "$option_value"
+      summary_json_override="$(resolve_path_against_repo_root "$option_value")"
+      shift
+      ;;
     --summary-json|--json-out)
       require_option_value "$1" "${2:-}"
       summary_json_override="$(resolve_path_against_repo_root "$2")"
       shift 2
+      ;;
+    --reason=*)
+      option_value="${1#*=}"
+      require_option_value "--reason" "$option_value"
+      reason="$option_value"
+      shift
       ;;
     --reason)
       require_option_value "--reason" "${2:-}"
       reason="$2"
       shift 2
       ;;
+    --timeout=*)
+      option_value="${1#*=}"
+      require_option_value "--timeout" "$option_value"
+      timeout="$option_value"
+      shift
+      ;;
     --timeout)
       require_option_value "--timeout" "${2:-}"
       timeout="$2"
       shift 2
+      ;;
+    --max-attempts=*)
+      option_value="${1#*=}"
+      require_option_value "--max-attempts" "$option_value"
+      max_attempts="$option_value"
+      shift
       ;;
     --max-attempts)
       require_option_value "--max-attempts" "${2:-}"
       max_attempts="$2"
       shift 2
       ;;
+    --retry-delay=*)
+      option_value="${1#*=}"
+      require_option_value "--retry-delay" "$option_value"
+      retry_delay="$option_value"
+      shift
+      ;;
     --retry-delay)
       require_option_value "--retry-delay" "${2:-}"
       retry_delay="$2"
       shift 2
+      ;;
+    --max-retry-delay=*)
+      option_value="${1#*=}"
+      require_option_value "--max-retry-delay" "$option_value"
+      max_retry_delay="$option_value"
+      shift
       ;;
     --max-retry-delay)
       require_option_value "--max-retry-delay" "${2:-}"
       max_retry_delay="$2"
       shift 2
       ;;
+    --routes=*)
+      option_value="${1#*=}"
+      require_option_value "--routes" "$option_value"
+      routes_csv="$option_value"
+      shift
+      ;;
     --routes)
       require_option_value "--routes" "${2:-}"
       routes_csv="$2"
       shift 2
+      ;;
+    --route-presets=*)
+      option_value="${1#*=}"
+      require_option_value "--route-presets" "$option_value"
+      route_presets_csv="$option_value"
+      shift
       ;;
     --route-presets)
       require_option_value "--route-presets" "${2:-}"
       route_presets_csv="$2"
       shift 2
       ;;
+    --canonical-origin=*)
+      option_value="${1#*=}"
+      require_option_value "--canonical-origin" "$option_value"
+      canonical_origin="$option_value"
+      shift
+      ;;
     --canonical-origin)
       require_option_value "--canonical-origin" "${2:-}"
       canonical_origin="$2"
       shift 2
       ;;
+    --canonical-hosts=*)
+      option_value="${1#*=}"
+      require_option_value "--canonical-hosts" "$option_value"
+      canonical_hosts="$option_value"
+      shift
+      ;;
     --canonical-hosts)
       require_option_value "--canonical-hosts" "${2:-}"
       canonical_hosts="$2"
       shift 2
+      ;;
+    --alias-host=*)
+      option_value="${1#*=}"
+      require_option_value "--alias-host" "$option_value"
+      alias_host="$option_value"
+      shift
       ;;
     --alias-host)
       require_option_value "--alias-host" "${2:-}"
@@ -237,10 +332,22 @@ while [[ $# -gt 0 ]]; do
       preserve_requested_base_url="1"
       shift
       ;;
+    --expected-authorize-host=*)
+      option_value="${1#*=}"
+      require_option_value "--expected-authorize-host" "$option_value"
+      expected_authorize_host="$option_value"
+      shift
+      ;;
     --expected-authorize-host)
       require_option_value "--expected-authorize-host" "${2:-}"
       expected_authorize_host="$2"
       shift 2
+      ;;
+    --bff-output-json=*)
+      option_value="${1#*=}"
+      require_option_value "--bff-output-json" "$option_value"
+      bff_output_json_override="$(resolve_path_against_repo_root "$option_value")"
+      shift
       ;;
     --bff-output-json)
       require_option_value "--bff-output-json" "${2:-}"
