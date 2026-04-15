@@ -19,6 +19,7 @@ def _write_stub_script(
     rc: int,
     ok: bool | None = None,
     required_tokens: list[str] | None = None,
+    stdout_line: str = "",
 ) -> None:
     ok_snippet = ""
     if ok is not None:
@@ -36,6 +37,9 @@ def _write_stub_script(
         "if missing:\n"
         "    print(f'missing required args: {missing}', file=sys.stderr)\n"
         "    sys.exit(9)\n"
+        f"stdout_line = {stdout_line!r}\n"
+        "if stdout_line:\n"
+        "    print(stdout_line)\n"
         "\n"
         "out_path = ''\n"
         f"flag = {output_flag!r}\n"
@@ -131,6 +135,27 @@ def test_auth_perimeter_bundle_rejects_routes_and_presets_combination() -> None:
 
     assert proc.returncode == 2
     assert "--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" in proc.stderr
+
+
+def test_auth_perimeter_bundle_rejects_expected_authorize_host_when_it_collapses_to_empty() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--expected-authorize-host",
+            " , , https:// , :// ,",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "--expected-authorize-host enthält keine gültigen Hostnamen" in proc.stderr
+    assert "Usage:" in proc.stderr
 
 
 def test_auth_perimeter_bundle_runs_with_stubbed_steps_and_writes_repo_relative_summary(
@@ -424,3 +449,68 @@ def test_auth_perimeter_bundle_reports_failed_step_and_returns_nonzero(
     assert by_name["canonical_redirect_bundle"]["rc"] == 7
     assert by_name["canonical_redirect_bundle"]["reported_status"] == "failed"
     assert by_name["bff_auth_proxy_guard"]["status"] == "passed"
+
+
+def test_auth_perimeter_bundle_quiet_suppresses_success_stdout_noise(tmp_path: Path) -> None:
+    stubs_dir = tmp_path / "stubs"
+    stubs_dir.mkdir(parents=True, exist_ok=True)
+
+    login_stub = stubs_dir / "login_stub.py"
+    canonical_stub = stubs_dir / "canonical_stub.py"
+    bff_stub = stubs_dir / "bff_stub.py"
+
+    _write_stub_script(
+        login_stub,
+        output_flag="--summary-json",
+        status="passed",
+        rc=0,
+        stdout_line="login-noise",
+    )
+    _write_stub_script(
+        canonical_stub,
+        output_flag="--summary-json",
+        status="passed",
+        rc=0,
+        stdout_line="canonical-noise",
+    )
+    _write_stub_script(
+        bff_stub,
+        output_flag="--output-json",
+        status="passed",
+        rc=0,
+        ok=True,
+        stdout_line="bff-noise",
+    )
+
+    output_dir = tmp_path / "evidence"
+    summary_path = tmp_path / "bundle-summary.json"
+
+    env = os.environ.copy()
+    env["AUTH_PERIMETER_LOGIN_START_BUNDLE_SCRIPT"] = str(login_stub)
+    env["AUTH_PERIMETER_CANONICAL_BUNDLE_SCRIPT"] = str(canonical_stub)
+    env["AUTH_PERIMETER_BFF_GUARD_SCRIPT"] = str(bff_stub)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "stub-quiet-noise",
+            "--output-dir",
+            str(output_dir),
+            "--summary-json",
+            str(summary_path),
+            "--quiet",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == ""
+    assert proc.stderr.strip() == ""
+    assert summary_path.exists()

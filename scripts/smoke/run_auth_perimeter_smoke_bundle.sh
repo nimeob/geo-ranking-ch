@@ -270,7 +270,13 @@ if [[ -z "${base_url}" ]]; then
 fi
 
 if [[ -n "${expected_authorize_host}" ]]; then
+  raw_expected_authorize_host="${expected_authorize_host}"
   expected_authorize_host="$(normalize_authorize_host_csv "${expected_authorize_host}")"
+  if [[ -z "${expected_authorize_host}" ]]; then
+    echo "ERROR: --expected-authorize-host enthält keine gültigen Hostnamen: ${raw_expected_authorize_host}" >&2
+    usage >&2
+    exit 2
+  fi
 fi
 
 if [[ -z "${env_name}" ]]; then
@@ -369,13 +375,31 @@ run_step() {
     echo "[auth-perimeter] ${step_name}: start"
   fi
 
-  set +e
-  (
-    cd "${REPO_ROOT}"
-    "$@"
-  )
-  rc=$?
-  set -e
+  if [[ "${quiet}" == "1" ]]; then
+    local step_log
+    step_log="$(mktemp "${output_dir}/${env_name}-${step_name}.XXXX.log")"
+    set +e
+    (
+      cd "${REPO_ROOT}"
+      "$@"
+    ) >"${step_log}" 2>&1
+    rc=$?
+    set -e
+
+    if (( rc != 0 )) && [[ -s "${step_log}" ]]; then
+      cat "${step_log}" >&2
+    fi
+
+    rm -f "${step_log}"
+  else
+    set +e
+    (
+      cd "${REPO_ROOT}"
+      "$@"
+    )
+    rc=$?
+    set -e
+  fi
 
   if (( rc != 0 )); then
     overall_rc=1
