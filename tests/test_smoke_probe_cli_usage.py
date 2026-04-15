@@ -68,3 +68,16 @@ def test_smoke_probe_help_contract(script_rel: str, required_flag: str, usage_pr
     assert "unknown option: --unknown-option" in unknown_option.stderr
     assert usage_prefix in unknown_option.stderr
     assert "    at " not in unknown_option.stderr
+
+    missing_value = subprocess.run(
+        [str(NODE_BIN), str(script), required_flag, "-h"],
+        cwd=str(REPO_ROOT),
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+    assert missing_value.returncode == 2
+    assert f"missing value for {required_flag}" in missing_value.stderr
+    assert usage_prefix in missing_value.stderr
+    assert "    at " not in missing_value.stderr

@@ -29,6 +29,15 @@ function printUsage(stream) {
 
 function parseArgs(argv) {
   const args = { mode: 'run', jobsUrl: '' };
+
+  const consumeValue = (flag, index) => {
+    const next = String(argv[index + 1] || '').trim();
+    if (!next || next.startsWith('-')) {
+      usageError(`missing value for ${flag}`);
+    }
+    return next;
+  };
+
   for (let i = 2; i < argv.length; i += 1) {
     const token = argv[i];
     if (token === '-h' || token === '--help') {
@@ -36,10 +45,7 @@ function parseArgs(argv) {
       return args;
     }
     if (token === "--jobs-url") {
-      args.jobsUrl = String(argv[i + 1] || "").trim();
-      if (!args.jobsUrl) {
-        usageError('missing value for --jobs-url');
-      }
+      args.jobsUrl = consumeValue('--jobs-url', i);
       i += 1;
       continue;
     }

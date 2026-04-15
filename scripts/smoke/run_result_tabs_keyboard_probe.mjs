@@ -29,6 +29,15 @@ function printUsage(stream) {
 
 function parseArgs(argv) {
   const args = { mode: 'run', resultUrl: '' };
+
+  const consumeValue = (flag, index) => {
+    const next = String(argv[index + 1] || '').trim();
+    if (!next || next.startsWith('-')) {
+      usageError(`missing value for ${flag}`);
+    }
+    return next;
+  };
+
   for (let i = 2; i < argv.length; i += 1) {
     const token = argv[i];
     if (token === '-h' || token === '--help') {
@@ -36,10 +45,7 @@ function parseArgs(argv) {
       return args;
     }
     if (token === "--result-url") {
-      args.resultUrl = String(argv[i + 1] || "").trim();
-      if (!args.resultUrl) {
-        usageError('missing value for --result-url');
-      }
+      args.resultUrl = consumeValue('--result-url', i);
       i += 1;
       continue;
     }
