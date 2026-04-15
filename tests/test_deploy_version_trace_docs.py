@@ -448,8 +448,6 @@ def _assert_login_contract_smoke_coverage(
     *, text: str, env_name: str, workflow_name: str
 ) -> None:
     required = [
-        "Smoke-Test UI login start redirects to IdP authorize (",
-        "scripts/smoke/run_login_start_smoke_bundle.sh",
         f'--env-name "{env_name}"',
         f"artifacts/{env_name}-login-start-smoke*.json",
         f"Upload login-start smoke artifacts ({env_name})",
@@ -461,6 +459,23 @@ def _assert_login_contract_smoke_coverage(
     assert (
         not missing
     ), f"{workflow_name} fehlt Login-Contract-Smoke-Coverage: {missing}"
+
+    has_login_start_runner = (
+        "scripts/smoke/run_login_start_smoke_bundle.sh" in text
+        or "scripts/smoke/run_auth_perimeter_smoke_bundle.sh" in text
+    )
+    assert (
+        has_login_start_runner
+    ), f"{workflow_name} fehlt Login-Start-Smoke-Runner (direkt oder via auth perimeter bundle)"
+
+    has_login_step_name = (
+        "Smoke-Test UI login start redirects to IdP authorize (" in text
+        or "Smoke-Test auth perimeter bundle (login-start + canonical-host + BFF auth-proxy guard)"
+        in text
+    )
+    assert (
+        has_login_step_name
+    ), f"{workflow_name} fehlt Login-Start-Smoke-Stepname (direkt oder via auth perimeter bundle)"
 
 
 def _assert_workflow_uploads_login_start_artifact_glob(
@@ -476,8 +491,6 @@ def _assert_canonical_host_smoke_coverage(
     *, text: str, env_name: str, workflow_name: str
 ) -> None:
     required = [
-        "Smoke-Test UI canonical-host redirect route matrix (/login?start=1 on alias host)",
-        "scripts/smoke/run_canonical_redirect_smoke_bundle.sh",
         "UI_CANONICAL_ORIGIN: ${{ vars.UI_CANONICAL_ORIGIN }}",
         "UI_CANONICAL_HOSTS: ${{ vars.UI_CANONICAL_HOSTS }}",
         f"artifacts/{env_name}-canonical-host-redirect-smoke*.json",
@@ -488,13 +501,29 @@ def _assert_canonical_host_smoke_coverage(
         not missing
     ), f"{workflow_name} fehlt Canonical-Host-Smoke-Coverage: {missing}"
 
+    has_canonical_runner = (
+        "scripts/smoke/run_canonical_redirect_smoke_bundle.sh" in text
+        or "scripts/smoke/run_auth_perimeter_smoke_bundle.sh" in text
+    )
+    assert (
+        has_canonical_runner
+    ), f"{workflow_name} fehlt Canonical-Host-Smoke-Runner (direkt oder via auth perimeter bundle)"
+
+    has_canonical_step_name = (
+        "Smoke-Test UI canonical-host redirect route matrix (/login?start=1 on alias host)"
+        in text
+        or "Smoke-Test auth perimeter bundle (login-start + canonical-host + BFF auth-proxy guard)"
+        in text
+    )
+    assert (
+        has_canonical_step_name
+    ), f"{workflow_name} fehlt Canonical-Host-Smoke-Stepname (direkt oder via auth perimeter bundle)"
+
 
 def _assert_auth_proxy_guard_smoke_coverage(
     *, text: str, env_name: str, workflow_name: str
 ) -> None:
     required = [
-        "Smoke-Test API auth proxy forwarded-host guard (/auth/login|logout|callback)",
-        "python3 scripts/smoke/check_bff_auth_proxy_guard.py",
         "SERVICE_API_BASE_URL: ${{ vars.SERVICE_API_BASE_URL }}",
         "SERVICE_APP_BASE_URL: ${{ vars.SERVICE_APP_BASE_URL }}",
         f"artifacts/{env_name}-auth-proxy-guard-smoke.json",
@@ -504,6 +533,23 @@ def _assert_auth_proxy_guard_smoke_coverage(
     assert (
         not missing
     ), f"{workflow_name} fehlt Auth-Proxy-Guard-Smoke-Coverage: {missing}"
+
+    has_guard_runner = (
+        "python3 scripts/smoke/check_bff_auth_proxy_guard.py" in text
+        or "scripts/smoke/run_auth_perimeter_smoke_bundle.sh" in text
+    )
+    assert (
+        has_guard_runner
+    ), f"{workflow_name} fehlt Auth-Proxy-Guard-Smoke-Runner (direkt oder via auth perimeter bundle)"
+
+    has_guard_step_name = (
+        "Smoke-Test API auth proxy forwarded-host guard (/auth/login|logout|callback)" in text
+        or "Smoke-Test auth perimeter bundle (login-start + canonical-host + BFF auth-proxy guard)"
+        in text
+    )
+    assert (
+        has_guard_step_name
+    ), f"{workflow_name} fehlt Auth-Proxy-Guard-Smoke-Stepname (direkt oder via auth perimeter bundle)"
 
 
 def test_deploy_workflow_smokes_login_contract_for_gui_history_jobs_and_legacy_routes():
