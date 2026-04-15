@@ -520,6 +520,7 @@ jobs:
             --env-name "dev" \
             --canonical-origin "${UI_CANONICAL_ORIGIN:-}" \
             --canonical-hosts "${UI_CANONICAL_HOSTS:-}" \
+            --quiet \
             --output-dir "artifacts"
 
       - name: Smoke-Test UI login start route matrix on alias host (dev.geo-ranking.ch)
@@ -547,6 +548,7 @@ jobs:
             --base-url "${ALIAS_BASE_URL}" \
             --env-name "dev-alias" \
             --preserve-requested-base-url \
+            --quiet \
             --output-dir "artifacts"
 
       - name: Upload login-start smoke artifacts (dev)
