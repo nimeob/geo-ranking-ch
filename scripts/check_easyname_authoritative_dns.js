@@ -44,10 +44,11 @@ function parseArgs(argv) {
     if (eqIndex > 0) {
       const optionName = token.slice(0, eqIndex);
       const inlineValue = token.slice(eqIndex + 1);
+      const normalizedInlineValue = inlineValue.trim();
       if (!valueOptions.has(optionName)) {
         throw new Error(`Unknown option: ${optionName}`);
       }
-      if (!inlineValue || inlineValue.startsWith('-')) {
+      if (!normalizedInlineValue || normalizedInlineValue.startsWith('-')) {
         throw new Error(`Missing value for ${optionName}`);
       }
       args[optionName.slice(2)] = inlineValue;
@@ -59,7 +60,8 @@ function parseArgs(argv) {
     }
 
     const next = argv[i + 1];
-    if (!next || next.startsWith('-')) {
+    const normalizedNext = typeof next === 'string' ? next.trim() : '';
+    if (!normalizedNext || normalizedNext.startsWith('-')) {
       throw new Error(`Missing value for ${token}`);
     }
 

@@ -116,12 +116,12 @@ function parseCliArgs(argv) {
   };
 
   const consumeValue = (flag, inlineValue, currentArgs, index) => {
-    if (inlineValue !== null) return inlineValue;
-    const next = currentArgs[index + 1];
-    if (typeof next !== 'string' || next.startsWith('-')) {
+    const candidate = inlineValue !== null ? inlineValue : currentArgs[index + 1];
+    const normalized = typeof candidate === 'string' ? candidate.trim() : '';
+    if (!normalized || normalized.startsWith('-')) {
       throw new Error(`Missing value for ${flag}`);
     }
-    return next;
+    return candidate;
   };
 
   for (let i = 0; i < args.length; i += 1) {

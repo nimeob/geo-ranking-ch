@@ -29,12 +29,12 @@ function parseCliArgs(argv) {
   };
 
   const consumeValue = (currentFlag, inlineValue, args, index) => {
-    if (inlineValue !== null) return inlineValue;
-    const next = args[index + 1];
-    if (typeof next !== "string" || next.startsWith("-")) {
+    const candidate = inlineValue !== null ? inlineValue : args[index + 1];
+    const normalized = typeof candidate === "string" ? candidate.trim() : "";
+    if (!normalized || normalized.startsWith("-")) {
       throw new Error(`Missing value for ${currentFlag}`);
     }
-    return next;
+    return candidate;
   };
 
   for (let i = 0; i < argv.length; i += 1) {
