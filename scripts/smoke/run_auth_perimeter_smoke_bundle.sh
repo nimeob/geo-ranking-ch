@@ -76,6 +76,45 @@ resolve_command_path() {
   fi
 }
 
+normalize_authorize_host_csv() {
+  local raw_csv="${1:-}"
+
+  python3 - "$raw_csv" <<'PY'
+from __future__ import annotations
+
+import sys
+from urllib.parse import urlparse
+
+
+def _normalize_host_token(raw_host: str) -> str:
+    candidate = (raw_host or "").strip()
+    if not candidate:
+        return ""
+
+    if "://" in candidate:
+        parsed = urlparse(candidate)
+        return str(parsed.hostname or "").strip().lower().rstrip(".")
+
+    parsed = urlparse(f"//{candidate}")
+    host = str(parsed.hostname or "").strip().lower().rstrip(".")
+    if host:
+        return host
+
+    return candidate.strip("[]").lower().rstrip(".")
+
+
+ordered: list[str] = []
+seen: set[str] = set()
+for token in sys.argv[1].split(","):
+    normalized = _normalize_host_token(token)
+    if normalized and normalized not in seen:
+        ordered.append(normalized)
+        seen.add(normalized)
+
+print(",".join(ordered))
+PY
+}
+
 require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
@@ -228,6 +267,10 @@ if [[ -z "${base_url}" ]]; then
   echo "ERROR: Missing required --base-url" >&2
   usage >&2
   exit 2
+fi
+
+if [[ -n "${expected_authorize_host}" ]]; then
+  expected_authorize_host="$(normalize_authorize_host_csv "${expected_authorize_host}")"
 fi
 
 if [[ -z "${env_name}" ]]; then

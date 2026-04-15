@@ -1,0 +1,45 @@
+{
+  "status": "passed",
+  "base_url": "https://www.dev.georanking.ch",
+  "api_base_url": "",
+  "env_name": "dev",
+  "output_dir": "/data/.openclaw/workspace/geo-ranking-ch/.worktrees/night-auth-proxy-host-normalization/reports/evidence",
+  "reason": "manual_login",
+  "timeout": "20",
+  "max_attempts": "4",
+  "retry_delay": "2",
+  "max_retry_delay": "10",
+  "routes_csv": "",
+  "route_presets_csv": "",
+  "canonical_origin": "",
+  "canonical_hosts": "",
+  "alias_host": "",
+  "preserve_requested_base_url": false,
+  "expected_authorize_host": "auth.dev.georanking.ch,auth.dev.geo-ranking.ch",
+  "bff_output_json": "/data/.openclaw/workspace/geo-ranking-ch/.worktrees/night-auth-proxy-host-normalization/reports/evidence/dev-auth-proxy-guard-smoke.json",
+  "started_at": "2026-04-15T01:23:27Z",
+  "finished_at": "2026-04-15T01:23:33Z",
+  "steps": [
+    {
+      "name": "login_start_bundle",
+      "status": "passed",
+      "rc": 0,
+      "output_json": "/data/.openclaw/workspace/geo-ranking-ch/.worktrees/night-auth-proxy-host-normalization/reports/evidence/dev-login-start-smoke-bundle-summary.json",
+      "reported_status": "passed"
+    },
+    {
+      "name": "canonical_redirect_bundle",
+      "status": "passed",
+      "rc": 0,
+      "output_json": "/data/.openclaw/workspace/geo-ranking-ch/.worktrees/night-auth-proxy-host-normalization/reports/evidence/dev-canonical-host-redirect-smoke-bundle-summary.json",
+      "reported_status": "passed"
+    },
+    {
+      "name": "bff_auth_proxy_guard",
+      "status": "passed",
+      "rc": 0,
+      "output_json": "/data/.openclaw/workspace/geo-ranking-ch/.worktrees/night-auth-proxy-host-normalization/reports/evidence/dev-auth-proxy-guard-smoke.json",
+      "reported_status": "passed"
+    }
+  ]
+}

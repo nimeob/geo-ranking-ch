@@ -274,6 +274,76 @@ def test_auth_perimeter_bundle_forwards_canonical_overrides_and_bff_output_overr
     assert bff_output_override.exists()
 
 
+def test_auth_perimeter_bundle_normalizes_expected_authorize_host_before_forwarding(
+    tmp_path: Path,
+) -> None:
+    stubs_dir = tmp_path / "stubs"
+    stubs_dir.mkdir(parents=True, exist_ok=True)
+
+    login_stub = stubs_dir / "login_stub.py"
+    canonical_stub = stubs_dir / "canonical_stub.py"
+    bff_stub = stubs_dir / "bff_stub.py"
+
+    normalized_expected = "auth.dev.georanking.ch,auth.dev.geo-ranking.ch"
+
+    _write_stub_script(
+        login_stub,
+        output_flag="--summary-json",
+        status="passed",
+        rc=0,
+        required_tokens=["--expected-authorize-host", normalized_expected],
+    )
+    _write_stub_script(
+        canonical_stub,
+        output_flag="--summary-json",
+        status="passed",
+        rc=0,
+    )
+    _write_stub_script(
+        bff_stub,
+        output_flag="--output-json",
+        status="passed",
+        rc=0,
+        ok=True,
+        required_tokens=["--expected-authorize-host", normalized_expected],
+    )
+
+    output_dir = tmp_path / "evidence"
+    summary_path = tmp_path / "bundle-summary.json"
+
+    env = os.environ.copy()
+    env["AUTH_PERIMETER_LOGIN_START_BUNDLE_SCRIPT"] = str(login_stub)
+    env["AUTH_PERIMETER_CANONICAL_BUNDLE_SCRIPT"] = str(canonical_stub)
+    env["AUTH_PERIMETER_BFF_GUARD_SCRIPT"] = str(bff_stub)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "stub-expected-host-normalized",
+            "--output-dir",
+            str(output_dir),
+            "--summary-json",
+            str(summary_path),
+            "--expected-authorize-host",
+            " AUTH.DEV.GEORANKING.CH.,https://auth.dev.geo-ranking.ch./oauth2/authorize,auth.dev.georanking.ch ",
+            "--quiet",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["status"] == "passed"
+    assert summary["expected_authorize_host"] == normalized_expected
+
+
 def test_auth_perimeter_bundle_reports_failed_step_and_returns_nonzero(
     tmp_path: Path,
 ) -> None:
