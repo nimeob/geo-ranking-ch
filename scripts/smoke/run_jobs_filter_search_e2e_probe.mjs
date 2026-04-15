@@ -30,12 +30,13 @@ function printUsage(stream) {
 function parseArgs(argv) {
   const args = { mode: 'run', jobsUrl: '' };
 
-  const consumeValue = (flag, index) => {
-    const next = String(argv[index + 1] || '').trim();
-    if (!next || next.startsWith('-')) {
+  const consumeValue = (flag, inlineValue, index) => {
+    const candidate = inlineValue !== null ? inlineValue : argv[index + 1];
+    const normalized = typeof candidate === 'string' ? candidate.trim() : '';
+    if (!normalized || normalized.startsWith('-')) {
       usageError(`missing value for ${flag}`);
     }
-    return next;
+    return candidate;
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -44,9 +45,14 @@ function parseArgs(argv) {
       args.mode = 'help';
       return args;
     }
-    if (token === "--jobs-url") {
-      args.jobsUrl = consumeValue('--jobs-url', i);
-      i += 1;
+
+    const eqIdx = token.indexOf('=');
+    const flag = eqIdx >= 0 ? token.slice(0, eqIdx) : token;
+    const inlineValue = eqIdx >= 0 ? token.slice(eqIdx + 1) : null;
+
+    if (flag === '--jobs-url') {
+      args.jobsUrl = consumeValue('--jobs-url', inlineValue, i);
+      if (inlineValue === null) i += 1;
       continue;
     }
     usageError(`unknown option: ${token}`);
