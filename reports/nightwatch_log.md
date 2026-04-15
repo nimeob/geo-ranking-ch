@@ -304,3 +304,23 @@
   - Branch `night/worker-20260414-deploy-cancel-guard` gepusht.
   - PR eröffnet: **#1664** `smoke: tighten authorize redirect contracts in UI and BFF guards`
     - https://github.com/nimeob/geo-ranking-ch/pull/1664
+
+## 2026-04-15 02:45 CET — Auth-Perimeter Workflow-Bundle auf main + Canonical-Host-Alias-Präferenz gehärtet
+- PR **#1672** (`ci(smoke): run auth perimeter bundle in deploy workflows`) erstellt, CI grün, gemerged.
+  - https://github.com/nimeob/geo-ranking-ch/pull/1672
+  - Merge-Commit: `3c76553d29c2e1143670600a2ea4d15b58ee4e49`
+- Verifiziert: Main-Deploy-Run nach Merge gestartet: `24430218329` (Deploy to AWS ECS dev).
+- Live-Reproduktion gegen DEV (explizite Canonical-Parameter, gemischte Hostliste):
+  - `run_auth_perimeter_smoke_bundle.sh` mit `--canonical-origin https://www.dev.georanking.ch` und `--canonical-hosts www.dev.georanking.ch,dev.geo-ranking.ch,dev.georanking.ch`
+  - vorheriger Zustand: Canonical-Redirect-Smoke **19x FAIL** (`canonical_redirect_target_mismatch`) wegen Auswahl des first-match Alias-Hosts aus falscher Host-Familie.
+- ROI-Fix umgesetzt:
+  - `scripts/smoke/check_ui_canonical_redirect.py` wählt bei gemischten `--canonical-hosts` jetzt bevorzugt Alias-Kandidaten aus derselben `geo-ranking`/`georanking`-Familie wie `canonical_origin`.
+  - Dadurch entfällt ein reiner Reihenfolge-Effekt in Hostlisten und der Check bleibt semantisch strict auf die konfigurierte Canonical-Origin.
+- Tests ergänzt/validiert:
+  - neu: `test_check_canonical_redirect_prefers_same_family_alias_when_hosts_are_mixed`
+  - `pytest -q tests/test_check_ui_canonical_redirect.py tests/test_run_canonical_redirect_smoke_bundle_script_contract.py tests/test_run_auth_perimeter_smoke_bundle_script_contract.py` → **49 passed**
+- Live-Retest gegen DEV nach Fix:
+  - identischer Bundle-Run (`env=dev-night-pr1672b`) jetzt vollständig **PASS** (login-start + canonical-host + BFF guard).
+  - Evidence:
+    - `reports/evidence/dev-night-pr1672-auth-perimeter-smoke-bundle-summary.json` (repro fail)
+    - `reports/evidence/dev-night-pr1672b-auth-perimeter-smoke-bundle-summary.json` (retest pass)
