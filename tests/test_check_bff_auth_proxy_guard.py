@@ -445,6 +445,67 @@ def test_main_accepts_json_flag_without_value(monkeypatch, capsys):
     assert payload["ok"] is True
 
 
+def test_main_quiet_suppresses_success_stdout_but_still_writes_json(tmp_path, monkeypatch, capsys):
+    module = _load_module()
+    monkeypatch.setattr(module, "_send_request_probe", lambda **kwargs: _happy_probe(module, **kwargs))
+
+    output_path = tmp_path / "auth-proxy-guard-quiet.json"
+    exit_code = module.main(
+        [
+            "--api-base-url",
+            "https://api.dev.georanking.ch",
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+            "--json-out",
+            str(output_path),
+            "--max-attempts",
+            "1",
+            "--quiet",
+        ]
+    )
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert captured.out.strip() == ""
+
+    written = json.loads(output_path.read_text(encoding="utf-8"))
+    assert written["ok"] is True
+
+
+def test_main_quiet_still_emits_failure_payload(monkeypatch, capsys):
+    module = _load_module()
+
+    def _failed_check(**_kwargs):
+        return module.AuthProxyGuardSmokeResult(
+            ok=False,
+            reason="failed_login_trusted",
+            api_base_url="https://api.dev.georanking.ch",
+            ui_base_url="https://www.dev.georanking.ch",
+            trusted_forwarded_host="www.dev.georanking.ch",
+            untrusted_forwarded_host="evil.example.test",
+            expected_authorize_hosts=["auth.dev.georanking.ch"],
+            checks=[{"name": "login_trusted", "ok": False, "reason": "unexpected_status_403"}],
+            hint="",
+        )
+
+    monkeypatch.setattr(module, "check_auth_proxy_guard", _failed_check)
+
+    exit_code = module.main(
+        [
+            "--api-base-url",
+            "https://api.dev.georanking.ch",
+            "--ui-base-url",
+            "https://www.dev.georanking.ch",
+            "--quiet",
+        ]
+    )
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["ok"] is False
+    assert payload["reason"] == "failed_login_trusted"
+
+
 def test_derive_default_api_origin_from_ui_base_url():
     module = _load_module()
 

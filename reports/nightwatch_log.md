@@ -324,3 +324,23 @@
   - Evidence:
     - `reports/evidence/dev-night-pr1672-auth-perimeter-smoke-bundle-summary.json` (repro fail)
     - `reports/evidence/dev-night-pr1672b-auth-perimeter-smoke-bundle-summary.json` (retest pass)
+
+## 2026-04-15 03:55 CET — Auth-Perimeter Log-Rauschen gesenkt (BFF Quiet-Forwarding)
+- ROI-Gap identifiziert: `run_auth_perimeter_smoke_bundle.sh` war trotz kompakter Bundle-Statuszeilen weiterhin laut, weil `check_bff_auth_proxy_guard.py` im Success-Case immer eine volle JSON-Payload auf stdout emitierte.
+- Umsetzung:
+  - `scripts/smoke/check_bff_auth_proxy_guard.py`
+    - neuer CLI-Flag `--quiet`.
+    - Verhalten: suppress stdout nur bei **success**; bei Failures/invalid args bleibt die JSON-Payload sichtbar (diagnosefreundlich).
+  - `scripts/smoke/run_auth_perimeter_smoke_bundle.sh`
+    - BFF-Guard wird im Bundle jetzt standardmäßig mit `--quiet` aufgerufen.
+- Regressionen ergänzt:
+  - `tests/test_check_bff_auth_proxy_guard.py`
+    - Quiet-Success: kein stdout, JSON-Datei wird weiterhin geschrieben.
+    - Quiet-Failure: Fehler-Payload bleibt auf stdout sichtbar.
+  - `tests/test_run_auth_perimeter_smoke_bundle_script_contract.py`
+    - neuer Contract, dass der Bundle-Runner `--quiet` an den BFF-Guard weiterreicht.
+- Lokale Verifikation:
+  - `pytest -q tests/test_check_bff_auth_proxy_guard.py tests/test_run_auth_perimeter_smoke_bundle_script_contract.py` → **41 passed**.
+- Live-Retest gegen DEV UI/API:
+  - `run_auth_perimeter_smoke_bundle.sh --base-url https://www.dev.georanking.ch --api-base-url https://api.dev.georanking.ch --route-presets minimal --env-name dev-night-bff-quiet` → **PASS**.
+  - Ergebnis: BFF-Step bleibt bei Erfolg still, Bundle-Ausgabe ist deutlich besser scanbar; Failure-Signale bleiben erhalten.

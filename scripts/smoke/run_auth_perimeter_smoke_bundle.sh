@@ -353,6 +353,7 @@ declare -a bff_args=(
   --max-attempts "${max_attempts}"
   --retry-delay "${retry_delay}"
   --max-retry-delay "${max_retry_delay}"
+  --quiet
   --output-json "${bff_summary_path}"
 )
 if [[ -n "${api_base_url}" ]]; then
