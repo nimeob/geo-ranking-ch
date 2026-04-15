@@ -203,6 +203,29 @@ def test_canonical_redirect_bundle_rejects_missing_option_value_for_timeout() ->
     assert "Usage:" in proc.stderr
 
 
+def test_canonical_redirect_bundle_rejects_short_flag_as_missing_option_value() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "dev",
+            "--timeout",
+            "-h",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --timeout" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
 def test_canonical_redirect_bundle_rejects_missing_option_value_for_routes() -> None:
     proc = subprocess.run(
         [

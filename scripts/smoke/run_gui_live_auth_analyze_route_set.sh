@@ -266,7 +266,7 @@ require_option_value() {
   local option_name="$1"
   local option_value="${2:-}"
 
-  if [[ -z "${option_value}" || "${option_value}" == --* ]]; then
+  if [[ -z "${option_value}" || "${option_value}" == -* ]]; then
     echo "ERROR: Missing value for ${option_name}" >&2
     usage >&2
     exit 2
