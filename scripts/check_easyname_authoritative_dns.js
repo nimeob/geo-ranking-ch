@@ -12,20 +12,62 @@
 
 const dns = require('dns');
 
+function usage() {
+  return [
+    'Usage: node scripts/check_easyname_authoritative_dns.js [options]',
+    '',
+    'Options:',
+    '  --host <hostname>        Hostname to resolve (default: api.dev.georanking.ch)',
+    '  --zone <zone>            DNS zone for SOA lookup (default: georanking.ch)',
+    '  --expect-cname <target>  Expected CNAME target',
+    '  -h, --help               Show this help and exit',
+  ].join('\n');
+}
+
 function parseArgs(argv) {
   const args = {};
+  const valueOptions = new Set(['--host', '--zone', '--expect-cname']);
+
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
-    if (!token.startsWith('--')) continue;
-    const key = token.slice(2);
-    const next = argv[i + 1];
-    if (!next || next.startsWith('--')) {
-      args[key] = true;
+
+    if (token === '-h' || token === '--help') {
+      args.help = true;
       continue;
     }
+
+    if (!token.startsWith('--')) {
+      throw new Error(`Unknown positional argument: ${token}`);
+    }
+
+    const eqIndex = token.indexOf('=');
+    if (eqIndex > 0) {
+      const optionName = token.slice(0, eqIndex);
+      const inlineValue = token.slice(eqIndex + 1);
+      if (!valueOptions.has(optionName)) {
+        throw new Error(`Unknown option: ${optionName}`);
+      }
+      if (!inlineValue || inlineValue.startsWith('-')) {
+        throw new Error(`Missing value for ${optionName}`);
+      }
+      args[optionName.slice(2)] = inlineValue;
+      continue;
+    }
+
+    if (!valueOptions.has(token)) {
+      throw new Error(`Unknown option: ${token}`);
+    }
+
+    const next = argv[i + 1];
+    if (!next || next.startsWith('-')) {
+      throw new Error(`Missing value for ${token}`);
+    }
+
+    const key = token.slice(2);
     args[key] = next;
     i += 1;
   }
+
   return args;
 }
 
@@ -41,8 +83,13 @@ function resolveWith(resolver, method, value) {
   });
 }
 
-(async () => {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    process.stdout.write(`${usage()}\n`);
+    return;
+  }
+
   const host = args.host || 'api.dev.georanking.ch';
   const zone = args.zone || 'georanking.ch';
   const expectedCname = (args['expect-cname'] || '').replace(/\.$/, '');
@@ -121,7 +168,17 @@ function resolveWith(resolver, method, value) {
 
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   process.exit(success ? 0 : 1);
-})().catch((err) => {
-  process.stderr.write(`${err.stack || err.message}\n`);
-  process.exit(2);
-});
+}
+
+if (require.main === module) {
+  main().catch((err) => {
+    process.stderr.write(`[easyname-dns] ERROR ${err.message}\n`);
+    process.stderr.write(`${usage()}\n`);
+    process.exit(2);
+  });
+}
+
+module.exports = {
+  parseArgs,
+  usage,
+};
