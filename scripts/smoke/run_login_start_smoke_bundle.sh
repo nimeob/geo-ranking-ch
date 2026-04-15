@@ -85,6 +85,45 @@ resolve_path_against_repo_root() {
   fi
 }
 
+normalize_authorize_host_csv() {
+  local raw_csv="${1:-}"
+
+  python3 - "$raw_csv" <<'PY'
+from __future__ import annotations
+
+import sys
+from urllib.parse import urlparse
+
+
+def _normalize_host_token(raw_host: str) -> str:
+    candidate = (raw_host or "").strip()
+    if not candidate:
+        return ""
+
+    if "://" in candidate:
+        parsed = urlparse(candidate)
+        return str(parsed.hostname or "").strip().lower().rstrip(".")
+
+    parsed = urlparse(f"//{candidate}")
+    host = str(parsed.hostname or "").strip().lower().rstrip(".")
+    if host:
+        return host
+
+    return candidate.strip("[]").lower().rstrip(".")
+
+
+ordered: list[str] = []
+seen: set[str] = set()
+for token in sys.argv[1].split(","):
+    normalized = _normalize_host_token(token)
+    if normalized and normalized not in seen:
+        ordered.append(normalized)
+        seen.add(normalized)
+
+print(",".join(ordered))
+PY
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --base-url|--ui-base-url)
@@ -269,6 +308,10 @@ if [[ -n "${SUMMARY_JSON}" ]]; then
   SUMMARY_JSON="$(resolve_path_against_repo_root "${SUMMARY_JSON}")"
 fi
 
+if [[ -n "${EXPECTED_AUTHORIZE_HOST}" ]]; then
+  EXPECTED_AUTHORIZE_HOST="$(normalize_authorize_host_csv "${EXPECTED_AUTHORIZE_HOST}")"
+fi
+
 if [[ -n "${ROUTES_CSV}" && -n "${ROUTE_PRESETS_CSV}" ]]; then
   echo "::error::--routes und --route-presets dürfen nicht gleichzeitig gesetzt werden" >&2
   usage >&2
@@ -295,9 +338,9 @@ def expand_geo_host_variants(host: str) -> list[str]:
 
 base_url = sys.argv[1].strip()
 parsed = urlparse(base_url)
-host = (parsed.hostname or "").strip().lower()
+host = (parsed.hostname or "").strip().lower().rstrip(".")
 if not host and "://" not in base_url:
-    host = (urlparse(f"//{base_url}").hostname or "").strip().lower()
+    host = (urlparse(f"//{base_url}").hostname or "").strip().lower().rstrip(".")
 if not host:
     print("")
     raise SystemExit(0)

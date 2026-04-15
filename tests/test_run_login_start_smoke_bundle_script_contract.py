@@ -389,6 +389,49 @@ def test_login_start_bundle_derives_no_default_authorize_host_for_local_ip_origi
     assert summary["expected_authorize_host"] == ""
 
 
+def test_login_start_bundle_normalizes_expected_authorize_host_csv_in_summary(
+    tmp_path,
+) -> None:
+    output_dir = tmp_path / "artifacts"
+
+    with _BundleStubServer() as stub:
+        proc = subprocess.run(
+            [
+                str(SCRIPT),
+                "--base-url",
+                stub.base_url,
+                "--env-name",
+                "stub-host-normalize",
+                "--output-dir",
+                str(output_dir),
+                "--routes",
+                "/gui",
+                "--timeout",
+                "5",
+                "--max-attempts",
+                "1",
+                "--retry-delay",
+                "0",
+                "--expected-authorize-host",
+                " AUTH.DEV.GEORANKING.CH.,https://auth.dev.georanking.ch./oauth2/authorize,auth.dev.geo-ranking.ch.:443,auth.dev.georanking.ch ",
+            ],
+            cwd=str(REPO_ROOT),
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert proc.returncode == 0, proc.stderr
+
+    summary_path = output_dir / "stub-host-normalize-login-start-smoke-bundle-summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert (
+        summary["expected_authorize_host"]
+        == "auth.dev.georanking.ch,auth.dev.geo-ranking.ch"
+    )
+
+
 def test_login_start_bundle_rejects_missing_option_value_for_base_url() -> None:
     proc = subprocess.run(
         [str(SCRIPT), "--base-url"],
