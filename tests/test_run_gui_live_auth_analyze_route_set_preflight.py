@@ -246,6 +246,7 @@ def test_route_set_runner_accepts_ui_base_url_alias_and_reaches_preflight(
     ("missing_option", "next_flag"),
     [
         ("--base-url", "--headless"),
+        ("--base-url", "-h"),
         ("--ui-base-url", "--headless"),
         ("--output-dir", "--headless"),
         ("--summary-json", "--headless"),

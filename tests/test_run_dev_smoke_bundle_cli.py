@@ -63,3 +63,17 @@ def test_dev_smoke_bundle_rejects_unknown_only_step() -> None:
     assert proc.returncode == 2
     assert "Unsupported step in --only" in proc.stderr
     assert "supported values are lint,typecheck,smoke" in proc.stderr
+
+
+def test_dev_smoke_bundle_rejects_short_flag_as_missing_only_value() -> None:
+    proc = subprocess.run(
+        [str(SCRIPT), "--only", "-h"],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --only" in proc.stderr
+    assert "Usage:" in proc.stderr

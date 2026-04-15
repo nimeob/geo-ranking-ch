@@ -90,6 +90,27 @@ def test_auth_perimeter_bundle_rejects_missing_option_value_for_output_dir() -> 
     assert "Usage:" in proc.stderr
 
 
+def test_auth_perimeter_bundle_rejects_short_flag_as_missing_option_value() -> None:
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--summary-json",
+            "-h",
+        ],
+        cwd=str(REPO_ROOT),
+        env=os.environ.copy(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert "Missing value for --summary-json" in proc.stderr
+    assert "Usage:" in proc.stderr
+
+
 def test_auth_perimeter_bundle_rejects_routes_and_presets_combination() -> None:
     proc = subprocess.run(
         [
