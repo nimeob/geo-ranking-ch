@@ -309,7 +309,13 @@ if [[ -n "${SUMMARY_JSON}" ]]; then
 fi
 
 if [[ -n "${EXPECTED_AUTHORIZE_HOST}" ]]; then
+  raw_expected_authorize_host="${EXPECTED_AUTHORIZE_HOST}"
   EXPECTED_AUTHORIZE_HOST="$(normalize_authorize_host_csv "${EXPECTED_AUTHORIZE_HOST}")"
+  if [[ -z "${EXPECTED_AUTHORIZE_HOST}" ]]; then
+    echo "::error::--expected-authorize-host enthält keine gültigen Hostnamen: ${raw_expected_authorize_host}" >&2
+    usage >&2
+    exit 2
+  fi
 fi
 
 if [[ -n "${ROUTES_CSV}" && -n "${ROUTE_PRESETS_CSV}" ]]; then
