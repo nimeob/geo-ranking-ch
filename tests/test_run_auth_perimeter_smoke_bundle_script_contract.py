@@ -18,6 +18,7 @@ def _write_stub_script(
     status: str,
     rc: int,
     ok: bool | None = None,
+    required_tokens: list[str] | None = None,
 ) -> None:
     ok_snippet = ""
     if ok is not None:
@@ -30,6 +31,12 @@ def _write_stub_script(
         "import sys\n"
         "\n"
         "args = sys.argv[1:]\n"
+        f"required_tokens = {required_tokens or []!r}\n"
+        "missing = [token for token in required_tokens if token not in args]\n"
+        "if missing:\n"
+        "    print(f'missing required args: {missing}', file=sys.stderr)\n"
+        "    sys.exit(9)\n"
+        "\n"
         "out_path = ''\n"
         f"flag = {output_flag!r}\n"
         "for idx, token in enumerate(args):\n"
@@ -185,9 +192,86 @@ def test_auth_perimeter_bundle_runs_with_stubbed_steps_and_writes_repo_relative_
 
         assert (expected_output_dir / "stub-auth-perimeter-login-start-smoke-bundle-summary.json").exists()
         assert (expected_output_dir / "stub-auth-perimeter-canonical-host-redirect-smoke-bundle-summary.json").exists()
-        assert (expected_output_dir / "stub-auth-perimeter-bff-auth-proxy-guard.json").exists()
+        assert (expected_output_dir / "stub-auth-perimeter-auth-proxy-guard-smoke.json").exists()
+        assert summary["bff_output_json"] == str(
+            expected_output_dir / "stub-auth-perimeter-auth-proxy-guard-smoke.json"
+        )
     finally:
         shutil.rmtree(REPO_ROOT / relative_root, ignore_errors=True)
+
+
+def test_auth_perimeter_bundle_forwards_canonical_overrides_and_bff_output_override(
+    tmp_path: Path,
+) -> None:
+    stubs_dir = tmp_path / "stubs"
+    stubs_dir.mkdir(parents=True, exist_ok=True)
+
+    login_stub = stubs_dir / "login_stub.py"
+    canonical_stub = stubs_dir / "canonical_stub.py"
+    bff_stub = stubs_dir / "bff_stub.py"
+
+    _write_stub_script(login_stub, output_flag="--summary-json", status="passed", rc=0)
+    _write_stub_script(
+        canonical_stub,
+        output_flag="--summary-json",
+        status="passed",
+        rc=0,
+        required_tokens=[
+            "--canonical-origin",
+            "https://www.dev.georanking.ch",
+            "--canonical-hosts",
+            "www.dev.georanking.ch,dev.geo-ranking.ch",
+            "--alias-host",
+            "dev.geo-ranking.ch",
+        ],
+    )
+    _write_stub_script(bff_stub, output_flag="--output-json", status="passed", rc=0, ok=True)
+
+    output_dir = tmp_path / "evidence"
+    summary_path = tmp_path / "bundle-summary.json"
+    bff_output_override = tmp_path / "custom" / "bff-guard.json"
+
+    env = os.environ.copy()
+    env["AUTH_PERIMETER_LOGIN_START_BUNDLE_SCRIPT"] = str(login_stub)
+    env["AUTH_PERIMETER_CANONICAL_BUNDLE_SCRIPT"] = str(canonical_stub)
+    env["AUTH_PERIMETER_BFF_GUARD_SCRIPT"] = str(bff_stub)
+
+    proc = subprocess.run(
+        [
+            str(SCRIPT),
+            "--base-url",
+            "https://www.dev.georanking.ch",
+            "--env-name",
+            "stub-overrides",
+            "--output-dir",
+            str(output_dir),
+            "--summary-json",
+            str(summary_path),
+            "--canonical-origin",
+            "https://www.dev.georanking.ch",
+            "--canonical-hosts",
+            "www.dev.georanking.ch,dev.geo-ranking.ch",
+            "--alias-host",
+            "dev.geo-ranking.ch",
+            "--bff-output-json",
+            str(bff_output_override),
+            "--quiet",
+        ],
+        cwd=str(REPO_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["status"] == "passed"
+    assert summary["canonical_origin"] == "https://www.dev.georanking.ch"
+    assert summary["canonical_hosts"] == "www.dev.georanking.ch,dev.geo-ranking.ch"
+    assert summary["alias_host"] == "dev.geo-ranking.ch"
+    assert summary["bff_output_json"] == str(bff_output_override)
+    assert bff_output_override.exists()
 
 
 def test_auth_perimeter_bundle_reports_failed_step_and_returns_nonzero(

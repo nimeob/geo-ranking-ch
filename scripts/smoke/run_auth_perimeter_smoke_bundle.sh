@@ -23,8 +23,13 @@ Options:
   --max-retry-delay <seconds>   Retry delay cap (default: 10)
   --routes <csv>                Optional route subset (forwarded to login/canonical bundles)
   --route-presets <csv>         Optional route presets (all,core,modern,legacy,jobs,results,trace,minimal)
+  --canonical-origin <origin>   Optional canonical origin override for canonical-redirect smoke
+  --canonical-hosts <hosts>     Optional CSV canonical host list for canonical-redirect smoke
+  --alias-host <host>           Optional alias host override for canonical-redirect smoke
   --preserve-requested-base-url Keep requested origin for login-start bundle (no canonicalization)
   --expected-authorize-host <h> Optional authorize host allow-list (forwarded to login + BFF guards)
+  --bff-output-json <path>      Optional output path for BFF guard JSON
+                                (default: <output-dir>/<env>-auth-proxy-guard-smoke.json)
   --quiet                       Suppress progress logs on stdout
   -h, --help                    Show this help and exit
 EOF
@@ -104,8 +109,12 @@ retry_delay="5"
 max_retry_delay="10"
 routes_csv=""
 route_presets_csv=""
+canonical_origin=""
+canonical_hosts=""
+alias_host=""
 preserve_requested_base_url="0"
 expected_authorize_host=""
+bff_output_json_override=""
 quiet="0"
 
 while [[ $# -gt 0 ]]; do
@@ -170,6 +179,21 @@ while [[ $# -gt 0 ]]; do
       route_presets_csv="$2"
       shift 2
       ;;
+    --canonical-origin)
+      require_option_value "--canonical-origin" "${2:-}"
+      canonical_origin="$2"
+      shift 2
+      ;;
+    --canonical-hosts)
+      require_option_value "--canonical-hosts" "${2:-}"
+      canonical_hosts="$2"
+      shift 2
+      ;;
+    --alias-host)
+      require_option_value "--alias-host" "${2:-}"
+      alias_host="$2"
+      shift 2
+      ;;
     --preserve-requested-base-url)
       preserve_requested_base_url="1"
       shift
@@ -177,6 +201,11 @@ while [[ $# -gt 0 ]]; do
     --expected-authorize-host)
       require_option_value "--expected-authorize-host" "${2:-}"
       expected_authorize_host="$2"
+      shift 2
+      ;;
+    --bff-output-json)
+      require_option_value "--bff-output-json" "${2:-}"
+      bff_output_json_override="$(resolve_path_against_repo_root "$2")"
       shift 2
       ;;
     --quiet)
@@ -210,7 +239,7 @@ mkdir -p "${output_dir}" "$(dirname "${summary_path}")"
 
 login_summary_path="${output_dir}/${env_name}-login-start-smoke-bundle-summary.json"
 canonical_summary_path="${output_dir}/${env_name}-canonical-host-redirect-smoke-bundle-summary.json"
-bff_summary_path="${output_dir}/${env_name}-bff-auth-proxy-guard.json"
+bff_summary_path="${bff_output_json_override:-${output_dir}/${env_name}-auth-proxy-guard-smoke.json}"
 
 LOGIN_START_BUNDLE_SCRIPT="$(resolve_command_path "${LOGIN_START_BUNDLE_SCRIPT}")"
 CANONICAL_BUNDLE_SCRIPT="$(resolve_command_path "${CANONICAL_BUNDLE_SCRIPT}")"
@@ -259,6 +288,15 @@ if [[ -n "${expected_authorize_host}" ]]; then
 fi
 
 declare -a canonical_args=("${common_bundle_args[@]}" --summary-json "${canonical_summary_path}")
+if [[ -n "${canonical_origin}" ]]; then
+  canonical_args+=(--canonical-origin "${canonical_origin}")
+fi
+if [[ -n "${canonical_hosts}" ]]; then
+  canonical_args+=(--canonical-hosts "${canonical_hosts}")
+fi
+if [[ -n "${alias_host}" ]]; then
+  canonical_args+=(--alias-host "${alias_host}")
+fi
 
 declare -a bff_args=(
   --ui-base-url "${base_url}"
@@ -338,8 +376,12 @@ SUMMARY_RETRY_DELAY="${retry_delay}" \
 SUMMARY_MAX_RETRY_DELAY="${max_retry_delay}" \
 SUMMARY_ROUTES_CSV="${routes_csv}" \
 SUMMARY_ROUTE_PRESETS_CSV="${route_presets_csv}" \
+SUMMARY_CANONICAL_ORIGIN="${canonical_origin}" \
+SUMMARY_CANONICAL_HOSTS="${canonical_hosts}" \
+SUMMARY_ALIAS_HOST="${alias_host}" \
 SUMMARY_PRESERVE_REQUESTED_BASE_URL="${preserve_requested_base_url}" \
 SUMMARY_EXPECTED_AUTHORIZE_HOST="${expected_authorize_host}" \
+SUMMARY_BFF_OUTPUT_JSON="${bff_summary_path}" \
 SUMMARY_STARTED_AT="${SCRIPT_STARTED_AT}" \
 SUMMARY_FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 SUMMARY_STEP_ROWS="${rows}" \
@@ -400,8 +442,12 @@ summary = {
     "max_retry_delay": os.environ.get("SUMMARY_MAX_RETRY_DELAY", ""),
     "routes_csv": os.environ.get("SUMMARY_ROUTES_CSV", ""),
     "route_presets_csv": os.environ.get("SUMMARY_ROUTE_PRESETS_CSV", ""),
+    "canonical_origin": os.environ.get("SUMMARY_CANONICAL_ORIGIN", ""),
+    "canonical_hosts": os.environ.get("SUMMARY_CANONICAL_HOSTS", ""),
+    "alias_host": os.environ.get("SUMMARY_ALIAS_HOST", ""),
     "preserve_requested_base_url": os.environ.get("SUMMARY_PRESERVE_REQUESTED_BASE_URL", "0") == "1",
     "expected_authorize_host": os.environ.get("SUMMARY_EXPECTED_AUTHORIZE_HOST", ""),
+    "bff_output_json": os.environ.get("SUMMARY_BFF_OUTPUT_JSON", ""),
     "started_at": os.environ.get("SUMMARY_STARTED_AT", ""),
     "finished_at": os.environ.get("SUMMARY_FINISHED_AT", ""),
     "steps": rows,
