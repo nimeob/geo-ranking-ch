@@ -365,6 +365,33 @@ def test_unknown_cli_option_exits_with_usage_and_code_2(tmp_path: Path) -> None:
     assert "Usage: node scripts/run_dev_ui_live_full_regression.mjs [options]" in result.stdout
 
 
+@pytest.mark.parametrize(
+    "argv, expected_error",
+    [
+        (["--base-url", "-h"], "Missing value for --base-url"),
+        (["--username", "--headless"], "Missing value for --username"),
+    ],
+)
+def test_cli_flags_are_rejected_as_missing_option_values(tmp_path: Path, argv: list[str], expected_error: str) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT), *argv],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert f"[dev-ui-full-regression] ERROR {expected_error}" in result.stderr
+    assert "Usage: node scripts/run_dev_ui_live_full_regression.mjs [options]" in result.stdout
+
+
 def test_script_resolves_paths_and_fallback_bundle_from_repo_root() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
 
