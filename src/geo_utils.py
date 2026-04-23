@@ -12,52 +12,52 @@ import math
 import re
 from typing import Optional
 from functools import lru_cache
-import urllib.error
-import urllib.parse
-import urllib.request
 
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from cachetools import cached, TTLCache
-from cachetools.keys import hashkey
 
 # --- Konfiguration ---
 GEOADMIN_BASE = "https://api3.geo.admin.ch/rest/services"
 REFRAME_BASE = "https://geodesy.geo.admin.ch/reframe"
 HEADERS = {"User-Agent": "openclaw-geo-utils/1.0", "Accept": "application/json"}
 
+# --- Session mit Retry-Logik ---
+session = requests.Session()
+retry = Retry(
+    total=3,
+    backoff_factor=1,
+    status_forcelist=[500, 502, 503, 504],
+    allowed_methods=["GET", "POST"]
+)
+session.mount("https://", HTTPAdapter(max_retries=retry))
+
 # --- Cache für API-Antworten (1 Stunde) ---
-api_cache = TTLCache(maxsize=1000, ttl=3600)  # Legacy-Export (abwärtskompatibel)
-_cache_wgs84_to_lv95 = TTLCache(maxsize=1000, ttl=3600)
-_cache_lv95_to_wgs84 = TTLCache(maxsize=1000, ttl=3600)
-_cache_elevation_at = TTLCache(maxsize=1000, ttl=3600)
-_cache_geocode_ch = TTLCache(maxsize=1000, ttl=3600)
-_cache_building_info = TTLCache(maxsize=1000, ttl=3600)
+api_cache = TTLCache(maxsize=1000, ttl=3600)
 
 # --- HTTP-Helfer ---
 def _get(url: str, timeout: int = 10, params: dict = None) -> dict:
-    """Führt einen GET-Request mit Timeout aus."""
-    if params:
-        qs = urllib.parse.urlencode(params, doseq=True)
-        sep = "&" if "?" in url else "?"
-        url = f"{url}{sep}{qs}"
-
-    req = urllib.request.Request(url, headers=HEADERS, method="GET")
-    with urllib.request.urlopen(req, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8"))
+    """Führt einen GET-Request mit Retry und Timeout aus."""
+    response = session.get(url, headers=HEADERS, timeout=timeout, params=params)
+    response.raise_for_status()
+    return response.json()
 
 def _post(url: str, data: bytes, content_type: str = "application/x-www-form-urlencoded", timeout: int = 10) -> list | dict:
-    """Führt einen POST-Request mit Timeout aus."""
-    req = urllib.request.Request(
+    """Führt einen POST-Request mit Retry und Timeout aus."""
+    response = session.post(
         url,
         data=data,
         headers={**HEADERS, "Content-Type": content_type},
-        method="POST",
+        timeout=timeout
     )
-    with urllib.request.urlopen(req, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8"))
+    response.raise_for_status()
+    return response.json()
 
 
 # --- Koordinaten-Umrechnung ---
-def _wgs84_to_lv95_uncached(lat: float, lon: float) -> tuple[float, float]:
+@cached(api_cache)
+def wgs84_to_lv95(lat: float, lon: float) -> tuple[float, float]:
     """WGS84 (lat, lon) → LV95 (easting, northing).
     
     Returns: (easting, northing) in LV95 / EPSG:2056
@@ -67,12 +67,8 @@ def _wgs84_to_lv95_uncached(lat: float, lon: float) -> tuple[float, float]:
     return float(d["easting"]), float(d["northing"])
 
 
-@cached(_cache_wgs84_to_lv95)
-def wgs84_to_lv95(lat: float, lon: float) -> tuple[float, float]:
-    return _wgs84_to_lv95_uncached(lat, lon)
-
-
-def _lv95_to_wgs84_uncached(easting: float, northing: float) -> tuple[float, float]:
+@cached(api_cache)
+def lv95_to_wgs84(easting: float, northing: float) -> tuple[float, float]:
     """LV95 (easting, northing) → WGS84 (lat, lon).
     
     Returns: (lat, lon)
@@ -82,13 +78,9 @@ def _lv95_to_wgs84_uncached(easting: float, northing: float) -> tuple[float, flo
     return float(d["northing"]), float(d["easting"])
 
 
-@cached(_cache_lv95_to_wgs84)
-def lv95_to_wgs84(easting: float, northing: float) -> tuple[float, float]:
-    return _lv95_to_wgs84_uncached(easting, northing)
-
-
 # --- Höhe / Elevation ---
-def _elevation_at_uncached(lat: float, lon: float) -> Optional[float]:
+@cached(api_cache)
+def elevation_at(lat: float, lon: float) -> Optional[float]:
     """Höhe über Meer an einem WGS84-Punkt (swisstopo DHM25/SRTM kombiniert).
     
     Returns: Höhe in Metern (ü.M.), oder None wenn außerhalb CH.
@@ -99,17 +91,8 @@ def _elevation_at_uncached(lat: float, lon: float) -> Optional[float]:
         d = _get(url)
         h = d.get("height")
         return float(h) if h not in (None, "None") else None
-    except Exception:
+    except (requests.RequestException, ValueError, KeyError):
         return None
-    finally:
-        # Cache-Leaks zwischen unterschiedlichen Call-Pfaden vermeiden
-        # (insb. Tests, die identische Koordinaten mit abweichenden Mocks nutzen).
-        _cache_wgs84_to_lv95.pop(hashkey(lat, lon), None)
-
-
-@cached(_cache_elevation_at)
-def elevation_at(lat: float, lon: float) -> Optional[float]:
-    return _elevation_at_uncached(lat, lon)
 
 
 def elevation_profile(
@@ -132,7 +115,7 @@ def elevation_profile(
     geom_json = json.dumps(geom)
 
     url = f"{GEOADMIN_BASE}/profile.json?sr=2056&nb_points={nb_points}"
-    data = urllib.parse.quote(geom_json)
+    data = requests.utils.quote(geom_json)
     pts = _post(url, data.encode())
 
     result = []
@@ -149,7 +132,7 @@ def elevation_profile(
 
 
 # --- Geocoding ---
-@cached(_cache_geocode_ch)
+@cached(api_cache)
 def geocode_ch(
     query: str,
     origins: str = "address,gg25,gazetteer",
@@ -187,10 +170,10 @@ def geocode_ch(
         lv_e = a.get("y") or a.get("lon")
         lv_n = a.get("x") or a.get("lat")
         lat, lon = (None, None)
-        if lv_e and lv_n and a.get("detail"):
+        if lv_e and lv_n:
             try:
                 lat, lon = lv95_to_wgs84(float(lv_e), float(lv_n))
-            except (ValueError, TypeError, KeyError):
+            except (ValueError, TypeError):
                 pass
 
         # Label bereinigen (HTML-Tags entfernen)
@@ -220,7 +203,7 @@ def location_info(lat: float, lon: float) -> dict:
     Returns: Dict mit keys: gemeinde, kanton, kanton_kz, gde_nr,
              easting, northing, elevation_m
     """
-    e, n = _wgs84_to_lv95_uncached(lat, lon)
+    e, n = wgs84_to_lv95(lat, lon)
 
     # Margin für mapExtent (~500m)
     margin = 500
@@ -254,13 +237,8 @@ def location_info(lat: float, lon: float) -> dict:
         elif "kanton" in layer and kanton is None:
             kanton = attrs.get("name") or attrs.get("ak")
 
-    # Höhe (ohne erneute Koordinaten-Umrechnung)
-    try:
-        d_h = _get(f"{GEOADMIN_BASE}/height?easting={e}&northing={n}&sr=2056")
-        h = d_h.get("height")
-        elev = float(h) if h not in (None, "None") else None
-    except Exception:
-        elev = None
+    # Höhe
+    elev = elevation_at(lat, lon)
 
     return {
         "gemeinde":    gemeinde,
@@ -325,7 +303,7 @@ def _gwr_code(table: dict, code) -> str:
 
 
 # --- Gebäude-Info (Adressregister + GWR) ---
-@cached(_cache_building_info)
+@cached(api_cache)
 def building_info(address: str) -> Optional[dict]:
     """Gebäude- und Wohnungsdaten aus dem amtlichen Adressregister + GWR.
 
@@ -369,7 +347,7 @@ def building_info(address: str) -> Optional[dict]:
             "addr_official":  a.get("adr_official"),
             "addr_modified":  a.get("adr_modified"),
         })
-    except Exception:
+    except (requests.RequestException, KeyError):
         pass
 
     # GWR (Gebäude- und Wohnungsregister)
@@ -433,7 +411,7 @@ def building_info(address: str) -> Optional[dict]:
             },
             "wohnungen": wohnungen,
         })
-    except Exception:
+    except (requests.RequestException, KeyError):
         pass
 
     return result
@@ -441,16 +419,12 @@ def building_info(address: str) -> Optional[dict]:
 
 # --- Haversine (lokal, kein API) ---
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Heuristische Distanz in km zwischen zwei WGS84-Punkten.
-
-    Basis ist die Haversine-Luftlinie, skaliert mit einem konservativen
-    CH-Reisefaktor (1.25), damit das Ergebnis näher an realen Wegen liegt.
-    """
+    """Luftlinie in km zwischen zwei WGS84-Punkten."""
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
-    return (R * 2 * math.asin(math.sqrt(a))) * 1.25
+    return R * 2 * math.asin(math.sqrt(a))
 
 
 # --- CLI (direkte Verwendung) ---
