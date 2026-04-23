@@ -23,4 +23,5 @@ types-passlib>=1.7.4
 
 # Docs
 mkdocs>=1.5.3
-mkdocs-material>=9.5.0
+mkdocs-material>=9.5.0-e fastapi
+cachetools
