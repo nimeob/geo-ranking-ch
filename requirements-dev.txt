@@ -1,4 +1,8 @@
 # Development-Abhängigkeiten
+# Runtime-Abhängigkeiten explizit inkludieren, damit CI-Testjobs
+# (z. B. Deploy-Workflows) auch FastAPI-/Cache-Imports auflösen können.
+-r requirements.txt
+
 # Testing
 pytest>=7.4,<8.0
 pytest-cov>=4.1.0
@@ -23,5 +27,4 @@ types-passlib>=1.7.4
 
 # Docs
 mkdocs>=1.5.3
-mkdocs-material>=9.5.0-e fastapi
-cachetools
+mkdocs-material>=9.5.0
