@@ -90,7 +90,7 @@ const appendRunTokenToArtifactName = Boolean(artifactRunToken && artifactRunToke
 
 const addressFile = (cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_FILE)
   ? path.resolve(repoRoot, String(cliOptions.addressFile || process.env.DEV_UI_SMOKE_ADDRESS_FILE))
-  : path.join(repoRoot, 'scripts', 'smoke', 'ch_live_addresses.txt');
+  : path.join(__dirname, 'smoke', 'ch_live_addresses.txt');
 
 const timeoutMs = parsePositiveInt(cliOptions.timeoutMs || process.env.DEV_UI_SMOKE_TIMEOUT_MS, 60_000);
 const headless = typeof cliOptions.headless === 'boolean' ? cliOptions.headless : !isTruthy(process.env.DEV_UI_SMOKE_HEADFUL);
