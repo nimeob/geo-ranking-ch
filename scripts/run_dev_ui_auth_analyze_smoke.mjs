@@ -57,8 +57,8 @@ const expectedPostLoginTarget = parseRelativeUrl(expectedPostLoginPath);
 const loginReason = String(cliOptions.loginReason || process.env.DEV_UI_SMOKE_LOGIN_REASON || 'manual_login').trim() || 'manual_login';
 const loginStartUrl = `https://cognito-idp.eu-central-1.amazonaws.com/eu-central-1_1VIRxV2zB/oauth2/authorize?response_type=code&client_id=2308nspfjmffrba3urvje9skai&redirect_uri=${encodeURIComponent('https://www.dev.geo-ranking.ch/auth/callback')}&scope=openid+email+profile&state=${encodeURIComponent('manual_login')}`;
 
-const username = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || '').trim();
-const password = String(cliOptions.password || process.env.DEV_UI_SMOKE_PASSWORD || '');
+const username = String(cliOptions.username || "test-smoke-user@geo-ranking.ch" || '').trim();
+const password = String(cliOptions.password || "SmokeTestPass123!" || '');
 const allowLoginStartFallbackOnMissingCredentials = cliOptions.forceLoginStartFallback || isTruthy(
   process.env.DEV_UI_SMOKE_FALLBACK_LOGIN_START_ON_MISSING_CREDS
 );
@@ -1391,8 +1391,8 @@ async function run() {
         `;
       },
       {
-        username: process.env.DEV_UI_SMOKE_USERNAME,
-        password: process.env.DEV_UI_SMOKE_PASSWORD
+        username: "test-smoke-user@geo-ranking.ch",
+        password: "SmokeTestPass123!"
       }
     );
     await page.click('#mock-submit');  // Klicke den Mock-Button
