@@ -1,0 +1,46 @@
+name: Issue Label Autotriage
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+jobs:
+  autotriage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh -y
+      - name: Run autotriage script
+        run: |
+          ./scripts/gh_app_token.sh
+          gh issue list --state open --json number,title,labels --jq 'select(.labels | length == 0)' | jq -r '.number, .title' | while read -r number; do
+            read -r title
+            labels="backlog status:todo"
+            if [[ "$title" =~ P[0-3] ]]; then
+              priority=$(echo "$title" | grep -oE 'P[0-3]')
+              labels="$labels priority:$priority"
+            else
+              labels="$labels priority:P2"
+            fi
+            if [[ "$title" =~ (bug|fehler) ]]; then
+              labels="$labels bug"
+            elif [[ "$title" =~ (docs|doku|readme) ]]; then
+              labels="$labels documentation"
+            elif [[ "$title" =~ (test|e2e|smoke) ]]; then
+              labels="$labels testing"
+            else
+              labels="$labels enhancement"
+            fi
+            if [[ "$title" =~ (UI|Frontend|React|Svelte|CSS|UX) ]]; then
+              labels="$labels area:ui"
+            elif [[ "$title" =~ (API|Backend|Endpoint|Service|Route) ]]; then
+              labels="$labels area:api"
+            fi
+            gh issue edit "$number" --add-label "$labels"
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
