@@ -903,7 +903,7 @@ _GUI_MVP_HTML_TEMPLATE = """<!doctype html>
           <button id=\"burger-btn\" type=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-controls=\"burger-menu\" aria-label=\"Navigation umschalten\">☰ Menü</button>
           <div id=\"burger-menu\" class=\"burger-menu\" role=\"menu\" aria-label=\"Hauptnavigation\" aria-hidden=\"true\" hidden>
             <a role=\"menuitem\" href=\"/gui\">Abfrage</a>
-            <a role=\"menuitem\" href=\"/history\">Historische Abfragen</a>
+            <a role=\"menuitem\" href=\"/gui/history\">Historische Abfragen</a>
             <a role=\"menuitem\" href=\"#input\">Input</a>
             <a role=\"menuitem\" href=\"#map\">Karte</a>
             <a role=\"menuitem\" href=\"#result\">Result-Panel</a>
