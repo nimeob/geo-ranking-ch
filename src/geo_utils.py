@@ -1,5 +1,4 @@
-"""
-geo_utils.py — Schweizer Geodaten-Utilities (swisstopo / GeoAdmin API)
+"""Schweizer Geodaten-Utilities (swisstopo / GeoAdmin API)
 
 Verwendung in anderen Skills:
     import sys; sys.path.insert(0, '/data/.openclaw/workspace')
@@ -11,31 +10,53 @@ Kein API-Key nötig. Nur CH-Daten (Schweiz + Liechtenstein).
 import json
 import math
 import re
-import urllib.request
-import urllib.parse
 from typing import Optional
+from functools import lru_cache
 
-GEOADMIN_BASE  = "https://api3.geo.admin.ch/rest/services"
-REFRAME_BASE   = "https://geodesy.geo.admin.ch/reframe"
-HEADERS        = {"User-Agent": "openclaw-geo-utils/1.0", "Accept": "application/json"}
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from cachetools import cached, TTLCache
 
+# --- Konfiguration ---
+GEOADMIN_BASE = "https://api3.geo.admin.ch/rest/services"
+REFRAME_BASE = "https://geodesy.geo.admin.ch/reframe"
+HEADERS = {"User-Agent": "openclaw-geo-utils/1.0", "Accept": "application/json"}
 
-# ── HTTP-Helfer ────────────────────────────────────────────────────────────────
+# --- Session mit Retry-Logik ---
+session = requests.Session()
+retry = Retry(
+    total=3,
+    backoff_factor=1,
+    status_forcelist=[500, 502, 503, 504],
+    allowed_methods=["GET", "POST"]
+)
+session.mount("https://", HTTPAdapter(max_retries=retry))
 
-def _get(url: str, timeout: int = 10) -> dict:
-    req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read())
+# --- Cache für API-Antworten (1 Stunde) ---
+api_cache = TTLCache(maxsize=1000, ttl=3600)
 
+# --- HTTP-Helfer ---
+def _get(url: str, timeout: int = 10, params: dict = None) -> dict:
+    """Führt einen GET-Request mit Retry und Timeout aus."""
+    response = session.get(url, headers=HEADERS, timeout=timeout, params=params)
+    response.raise_for_status()
+    return response.json()
 
 def _post(url: str, data: bytes, content_type: str = "application/x-www-form-urlencoded", timeout: int = 10) -> list | dict:
-    req = urllib.request.Request(url, data=data, headers={**HEADERS, "Content-Type": content_type})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read())
+    """Führt einen POST-Request mit Retry und Timeout aus."""
+    response = session.post(
+        url,
+        data=data,
+        headers={**HEADERS, "Content-Type": content_type},
+        timeout=timeout
+    )
+    response.raise_for_status()
+    return response.json()
 
 
-# ── Koordinaten-Umrechnung ────────────────────────────────────────────────────
-
+# --- Koordinaten-Umrechnung ---
+@cached(api_cache)
 def wgs84_to_lv95(lat: float, lon: float) -> tuple[float, float]:
     """WGS84 (lat, lon) → LV95 (easting, northing).
     
@@ -46,6 +67,7 @@ def wgs84_to_lv95(lat: float, lon: float) -> tuple[float, float]:
     return float(d["easting"]), float(d["northing"])
 
 
+@cached(api_cache)
 def lv95_to_wgs84(easting: float, northing: float) -> tuple[float, float]:
     """LV95 (easting, northing) → WGS84 (lat, lon).
     
@@ -56,8 +78,8 @@ def lv95_to_wgs84(easting: float, northing: float) -> tuple[float, float]:
     return float(d["northing"]), float(d["easting"])
 
 
-# ── Höhe / Elevation ──────────────────────────────────────────────────────────
-
+# --- Höhe / Elevation ---
+@cached(api_cache)
 def elevation_at(lat: float, lon: float) -> Optional[float]:
     """Höhe über Meer an einem WGS84-Punkt (swisstopo DHM25/SRTM kombiniert).
     
@@ -69,7 +91,7 @@ def elevation_at(lat: float, lon: float) -> Optional[float]:
         d = _get(url)
         h = d.get("height")
         return float(h) if h not in (None, "None") else None
-    except Exception:
+    except (requests.RequestException, ValueError, KeyError):
         return None
 
 
@@ -93,8 +115,8 @@ def elevation_profile(
     geom_json = json.dumps(geom)
 
     url = f"{GEOADMIN_BASE}/profile.json?sr=2056&nb_points={nb_points}"
-    data = urllib.parse.urlencode({"geom": geom_json}).encode()
-    pts = _post(url, data)
+    data = requests.utils.quote(geom_json)
+    pts = _post(url, data.encode())
 
     result = []
     for p in pts:
@@ -109,8 +131,8 @@ def elevation_profile(
     return result
 
 
-# ── Geocoding ─────────────────────────────────────────────────────────────────
-
+# --- Geocoding ---
+@cached(api_cache)
 def geocode_ch(
     query: str,
     origins: str = "address,gg25,gazetteer",
@@ -130,16 +152,16 @@ def geocode_ch(
     Returns: Liste von Dicts mit keys: label, lat, lon, easting, northing,
              origin, detail, zip_code, city
     """
-    params = urllib.parse.urlencode({
+    params = {
         "searchText": query,
         "type": "locations",
         "origins": origins,
         "sr": "2056",
         "limit": limit,
         "lang": "de",
-    })
-    url = f"{GEOADMIN_BASE}/api/SearchServer?{params}"
-    d = _get(url)
+    }
+    url = f"{GEOADMIN_BASE}/api/SearchServer"
+    d = _get(url, params=params)
 
     results = []
     for r in d.get("results", [])[:limit]:
@@ -151,7 +173,7 @@ def geocode_ch(
         if lv_e and lv_n:
             try:
                 lat, lon = lv95_to_wgs84(float(lv_e), float(lv_n))
-            except Exception:
+            except (ValueError, TypeError):
                 pass
 
         # Label bereinigen (HTML-Tags entfernen)
@@ -174,8 +196,7 @@ def geocode_ch(
     return results
 
 
-# ── Standort-Info ─────────────────────────────────────────────────────────────
-
+# --- Standort-Info ---
 def location_info(lat: float, lon: float) -> dict:
     """Gemeinde, Kanton und Koordinaten für einen WGS84-Punkt ermitteln.
 
@@ -230,8 +251,7 @@ def location_info(lat: float, lon: float) -> dict:
     }
 
 
-# ── GWR-Code-Tabellen ─────────────────────────────────────────────────────────
-
+# --- GWR-Code-Tabellen ---
 _GKAT = {
     1010: "Einfamilienhaus", 1020: "EFH + Nebengebäude", 1021: "EFH + Wohngebäude",
     1025: "Mehrfamilienhaus", 1030: "Wohngebäude", 1040: "Gebäude m. teilw. Wohnnutzung",
@@ -282,8 +302,8 @@ def _gwr_code(table: dict, code) -> str:
         return str(code)
 
 
-# ── Gebäude-Info (Adressregister + GWR) ──────────────────────────────────────
-
+# --- Gebäude-Info (Adressregister + GWR) ---
+@cached(api_cache)
 def building_info(address: str) -> Optional[dict]:
     """Gebäude- und Wohnungsdaten aus dem amtlichen Adressregister + GWR.
 
@@ -327,7 +347,7 @@ def building_info(address: str) -> Optional[dict]:
             "addr_official":  a.get("adr_official"),
             "addr_modified":  a.get("adr_modified"),
         })
-    except Exception:
+    except (requests.RequestException, KeyError):
         pass
 
     # GWR (Gebäude- und Wohnungsregister)
@@ -391,14 +411,13 @@ def building_info(address: str) -> Optional[dict]:
             },
             "wohnungen": wohnungen,
         })
-    except Exception:
+    except (requests.RequestException, KeyError):
         pass
 
     return result
 
 
-# ── Haversine (lokal, kein API) ───────────────────────────────────────────────
-
+# --- Haversine (lokal, kein API) ---
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Luftlinie in km zwischen zwei WGS84-Punkten."""
     R = 6371.0
@@ -408,8 +427,7 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.asin(math.sqrt(a))
 
 
-# ── CLI (direkte Verwendung) ──────────────────────────────────────────────────
-
+# --- CLI (direkte Verwendung) ---
 if __name__ == "__main__":
     import argparse
 

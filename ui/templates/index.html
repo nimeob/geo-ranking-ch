@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>geo-ranking-ch</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <header>
+        <h1>geo-ranking-ch</h1>
+        <nav>
+            <a href="/ui/">Home</a>
+            <a href="/ui/map">Karte</a>
+            <a href="/docs">API-Dokumentation</a>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h2>Willkommen</h2>
+            <p>Diese Plattform bietet Zugang zu Schweizer Geodaten, Adressen und Gebäudeinformationen.</p>
+        </section>
+        <section>
+            <h2>API-Endpoints</h2>
+            <ul>
+                <li><a href="/docs">Interaktive API-Dokumentation (Swagger UI)</a></li>
+                <li><code>/api/v1/geocode</code> – Adressen suchen</li>
+                <li><code>/api/v1/elevation</code> – Höhen abfragen</li>
+                <li><code>/api/v1/building-info</code> – Gebäudeinformationen</li>
+            </ul>
+        </section>
+    </main>
+    <footer>
+        <p>© 2026 geo-ranking-ch. Datenquellen: <a href="https://geo.admin.ch">swisstopo</a>, <a href="https://www.bfs.admin.ch">BFS</a>.</p>
+    </footer>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
