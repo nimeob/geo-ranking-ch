@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,8 +14,32 @@ const DEFAULT_BASE_URL = 'http://127.0.0.1:8877/gui';
 const DEFAULT_GUI_STABILITY_WAIT_MS = 1200;
 const DEFAULT_BASE_URL_PROBE_TIMEOUT_MS = 5000;
 const LEGACY_DEV_UI_HOSTS = new Set(['dev.georanking.ch', 'dev.geo-ranking.ch']);
+const WEBKIT_INSTALL_DOC_URL = 'https://playwright.dev/docs/browsers#install-system-dependencies';
+const WEBKIT_INSTALL_WITH_DEPS_HINT = 'npm ci && npx playwright install --with-deps webkit';
+const WEBKIT_INSTALL_BASE_HINT = 'npm ci && npx playwright install webkit';
 const outDir = path.join(repoRoot, 'reports', 'evidence');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+function hasAptPackageManager() {
+  return ['/usr/bin/apt-get', '/bin/apt-get', '/usr/bin/apt', '/bin/apt'].some((candidatePath) =>
+    existsSync(candidatePath)
+  );
+}
+
+function buildWebkitInstallHint() {
+  if (process.platform === 'linux') {
+    if (hasAptPackageManager()) {
+      return `${WEBKIT_INSTALL_BASE_HINT} (apt-basierte Runner optional: ${WEBKIT_INSTALL_WITH_DEPS_HINT}; Systemlibs bei Bedarf: ${WEBKIT_INSTALL_DOC_URL})`;
+    }
+    return `${WEBKIT_INSTALL_BASE_HINT} (Hinweis: '--with-deps' benötigt apt. Systemlibs ggf. manuell installieren: ${WEBKIT_INSTALL_DOC_URL})`;
+  }
+
+  if (process.platform === 'darwin') {
+    return `${WEBKIT_INSTALL_BASE_HINT} (bei fehlenden Systemlibs siehe: ${WEBKIT_INSTALL_DOC_URL})`;
+  }
+
+  return `${WEBKIT_INSTALL_BASE_HINT} (bei fehlenden Systemlibs siehe: ${WEBKIT_INSTALL_DOC_URL})`;
+}
 
 function normalizeUiBaseUrl(rawBaseUrl) {
   const candidate = String(rawBaseUrl || '').trim();
@@ -221,7 +246,7 @@ class PlaywrightDependencyError extends Error {
   constructor(message, { installHint, cause } = {}) {
     super(message, cause ? { cause } : undefined);
     this.name = 'PlaywrightDependencyError';
-    this.installHint = installHint || 'npm ci && npx playwright install --with-deps webkit';
+    this.installHint = installHint || buildWebkitInstallHint();
     this.missingDependency = 'playwright';
   }
 }
@@ -240,7 +265,7 @@ async function loadPlaywrightBindings() {
     };
   } catch (error) {
     const normalized = normalizeError(error);
-    const installHint = 'npm ci && npx playwright install --with-deps webkit';
+    const installHint = buildWebkitInstallHint();
     throw new PlaywrightDependencyError(
       `Playwright dependency fehlt oder ist nicht ladbar. reason=${compactMessage(normalized.message, 220)}. hint=${installHint}`,
       { installHint, cause: error }
@@ -498,7 +523,7 @@ async function assertBaseUrlReachable(targetUrl, timeoutMs) {
 }
 
 async function launchPreferredBrowser({ requireNativeWebkit, chromium, webkit }) {
-  const installHint = 'npx playwright install --with-deps webkit';
+  const installHint = buildWebkitInstallHint();
 
   try {
     return {
@@ -829,9 +854,9 @@ async function run() {
       requireNativeWebkit,
       nativeWebkitActive: launch.runtimeBrowser === 'playwright-webkit',
       playwrightDependencyMissing: false,
-      playwrightInstallHint: 'npm ci && npx playwright install --with-deps webkit',
+      playwrightInstallHint: buildWebkitInstallHint(),
       webkitMissingLibraries: Array.isArray(launch.webkitMissingLibraries) ? launch.webkitMissingLibraries : [],
-      webkitInstallHint: launch.webkitInstallHint || 'npx playwright install --with-deps webkit',
+      webkitInstallHint: launch.webkitInstallHint || buildWebkitInstallHint(),
       baseUrlProbeTimeoutMs,
       baseUrlCanonicalized: baseUrlNormalization.changed,
       baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
@@ -864,8 +889,8 @@ run()
     const finishedAtUtc = new Date().toISOString();
     const playwrightDependencyMissing = isPlaywrightDependencyError(error);
     const playwrightInstallHint = playwrightDependencyMissing
-      ? String(error?.installHint || 'npm ci && npx playwright install --with-deps webkit')
-      : 'npm ci && npx playwright install --with-deps webkit';
+      ? String(error?.installHint || buildWebkitInstallHint())
+      : buildWebkitInstallHint();
 
     const payload = {
       issue: ISSUE_NUMBER,
@@ -882,7 +907,7 @@ run()
         playwrightDependencyMissing,
         playwrightInstallHint,
         webkitMissingLibraries: [],
-        webkitInstallHint: 'npx playwright install --with-deps webkit',
+        webkitInstallHint: buildWebkitInstallHint(),
         baseUrlProbeTimeoutMs,
         baseUrlCanonicalized: baseUrlNormalization.changed,
         baseUrlCanonicalizationReasons: baseUrlNormalization.reasons,
