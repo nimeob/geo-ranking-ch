@@ -1,5 +1,26 @@
-# Entwicklungsabhängigkeiten
-pytest>=7.0
-pre-commit>=3.5
-psycopg2-binary>=2.9   # DB migration runner (db-migrate.py, #813)
-pyyaml>=6.0            # compliance evidence tests (test_compliance_golive_testlauf_evidence.py, #1322)
+# Development-Abhängigkeiten
+# Testing
+pytest>=7.4,<8.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+requests-mock>=1.11.0
+httpx>=0.26.0
+
+# Linting & Formatting
+ruff>=0.3.0
+mypy>=1.8.0
+
+# Security
+bandit>=1.7.7
+safety>=2.3.5
+pip-audit>=2.6.0
+
+# Type Checking
+types-requests>=2.31.0
+types-cachetools>=5.3.0
+types-python-jose>=3.3.0
+types-passlib>=1.7.4
+
+# Docs
+mkdocs>=1.5.3
+mkdocs-material>=9.5.0

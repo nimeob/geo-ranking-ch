@@ -1,31 +1,46 @@
-# docker-compose.dev.yml
-# Local development Postgres for geo-ranking-ch.
-# Usage: docker compose -f docker-compose.dev.yml up -d
-#
-# Issue: #833 (INFRA-DB-0.wp4)
-
-version: "3.9"
+version: "3.8"
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: georanking_dev_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-georanking_dev}
-      POSTGRES_USER: ${POSTGRES_USER:-georanking}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_only_change_me}
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "8000:8000"
+    environment:
+      - APP_DEBUG=True
+      - GEO_ADMIN_BASE_URL=https://api3.geo.admin.ch/rest/services
+      - API_KEY_HEADER=X-API-Key
+      - DATABASE_URL=postgresql://geo:geo123@postgres:5432/geo_ranking
+      - REDIS_URL=redis://redis:6379/0
     volumes:
-      - georanking_dev_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-georanking} -d ${POSTGRES_DB:-georanking_dev}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+      - .:/app
+    command: >
+      sh -c "pip install -r requirements-dev.txt &&
+             uvicorn src.api.web_service.main:app --host 0.0.0.0 --port 8000 --reload"
+    depends_on:
+      - redis
+      - postgres
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Optional: Postgres für Async-Jobs
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=geo
+      - POSTGRES_PASSWORD=geo123
+      - POSTGRES_DB=geo_ranking
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  georanking_dev_pgdata:
-    driver: local
+  redis_data:
+  postgres_data:
