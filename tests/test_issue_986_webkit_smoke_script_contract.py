@@ -13,7 +13,7 @@ def test_webkit_smoke_script_extracts_missing_libraries_from_launch_error() -> N
     required_snippets = [
         "function extractMissingWebkitLibraries(message)",
         "Missing libraries:",
-        "const installHint = 'npx playwright install --with-deps webkit';",
+        "const installHint = buildWebkitInstallHint();",
         "webkitMissingLibraries = extractMissingWebkitLibraries(normalized.message)",
     ]
 
@@ -25,8 +25,13 @@ def test_webkit_smoke_script_emits_structured_runtime_dependency_hints() -> None
     content = SCRIPT.read_text(encoding="utf-8")
 
     required_snippets = [
+        "function buildWebkitInstallHint()",
+        "function hasAptPackageManager()",
+        "WEBKIT_INSTALL_WITH_DEPS_HINT",
+        "WEBKIT_INSTALL_BASE_HINT",
+        "playwright.dev/docs/browsers#install-system-dependencies",
         "webkitMissingLibraries: Array.isArray(launch.webkitMissingLibraries) ? launch.webkitMissingLibraries : []",
-        "webkitInstallHint: launch.webkitInstallHint || 'npx playwright install --with-deps webkit'",
+        "webkitInstallHint: launch.webkitInstallHint || buildWebkitInstallHint()",
         "hint=${installHint}",
     ]
 
@@ -44,7 +49,7 @@ def test_webkit_smoke_script_handles_missing_playwright_dependency_with_actionab
         "async function loadPlaywrightBindings()",
         "await import('playwright')",
         "Playwright dependency fehlt oder ist nicht ladbar",
-        "npm ci && npx playwright install --with-deps webkit",
+        "buildWebkitInstallHint()",
         "const { chromium, webkit, devices } = await loadPlaywrightBindings();",
         "playwrightDependencyMissing: false",
         "browser: playwrightDependencyMissing ? 'playwright-dependency-missing' : 'unknown'",
