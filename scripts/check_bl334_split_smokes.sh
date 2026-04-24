@@ -199,13 +199,14 @@ capture_core_flow_failure_artifacts() {
   } >"${CORE_FLOW_FAILURE_EVIDENCE_DIR}/core-flow-failure-trace.md"
 }
 
-echo "[BL-334.5] API-only smoke (src.api.web_service)"
+echo "[BL-334.5] API-only smoke (src.web_service)"
 API_PORT="$(find_free_port)"
 HOST="127.0.0.1" \
 PORT="${API_PORT}" \
+APP_VERSION="${SMOKE_UI_APP_VERSION}" \
 PYTHONPATH="${REPO_ROOT}" \
 ENABLE_E2E_FAULT_INJECTION="1" \
-"${PYTHON_BIN}" -m src.api.web_service >"${API_LOG}" 2>&1 &
+"${PYTHON_BIN}" -m src.web_service >"${API_LOG}" 2>&1 &
 API_PID="$!"
 
 wait_http_200 "http://127.0.0.1:${API_PORT}/health"
@@ -280,7 +281,7 @@ cat >"${OUT_JSON}" <<EOF
 {
   "timestampUtc": "${STAMP}",
   "api": {
-    "entrypoint": "python -m src.api.web_service",
+    "entrypoint": "python -m src.web_service",
     "healthUrl": "http://127.0.0.1:${API_PORT}/health",
     "analyzeUrl": "http://127.0.0.1:${API_PORT}/analyze",
     "result": "pass",
