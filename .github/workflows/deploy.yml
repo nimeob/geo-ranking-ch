@@ -603,3 +603,57 @@ jobs:
               });
               core.info(`Created issue #${issue.number}`);
             }
+
+  close-recovered-failure-issue:
+    name: Close recovered deployment failure issue
+    runs-on: ubuntu-latest
+    needs: [build-and-test, deploy-ecs-full-env]
+    if: ${{ success() && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Close stale failure issue after successful deploy
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = 'CI: stündlicher Dev-Deploy fehlgeschlagen';
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const match = existing.find((i) => i.title === title);
+
+            if (!match) {
+              core.info('No open deployment-failure issue found; nothing to close.');
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: match.number,
+              body: [
+                'Recovery bestätigt: Der letzte Dev-Deploy ist wieder grün.',
+                '',
+                `- Lauf: ${runUrl}`,
+                `- Workflow: ${context.workflow}`,
+                `- Event: ${context.eventName}`,
+                `- SHA: ${context.sha}`,
+                `- UTC: ${new Date().toISOString()}`,
+              ].join('\n'),
+            });
+
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: match.number,
+              state: 'closed',
+              state_reason: 'completed',
+            });
+
+            core.info(`Closed recovered deployment-failure issue #${match.number}`);
