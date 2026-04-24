@@ -101,18 +101,82 @@ def normalize_lookup_event(event: dict[str, Any]) -> NormalizedEvent:
     if not isinstance(user_identity, dict):
         user_identity = {}
 
+    def pick(*candidates: Any) -> Any:
+        for candidate in candidates:
+            if candidate is not None:
+                return candidate
+        return None
+
     return {
-        "event_time": _normalize_text(event.get("eventTime") or detail.get("eventTime")),
-        "event_name": _normalize_text(event.get("eventName") or detail.get("eventName")),
-        "event_source": _normalize_text(event.get("EventSource") or detail.get("eventSource")),
-        "source_ip": _normalize_text(detail.get("sourceIPAddress")),
-        "user_agent": _normalize_text(detail.get("userAgent")),
-        "recipient_account": _normalize_text(
-            detail.get("recipientAccountId") or user_identity.get("accountId")
+        "event_time": _normalize_text(
+            pick(
+                event.get("eventTime"),
+                event.get("EventTime"),
+                event.get("event_time"),
+                detail.get("eventTime"),
+                detail.get("EventTime"),
+            )
         ),
-        "username": _normalize_text(event.get("Username") or user_identity.get("userName")),
+        "event_name": _normalize_text(
+            pick(
+                event.get("eventName"),
+                event.get("EventName"),
+                event.get("event_name"),
+                detail.get("eventName"),
+                detail.get("EventName"),
+            )
+        ),
+        "event_source": _normalize_text(
+            pick(
+                event.get("eventSource"),
+                event.get("EventSource"),
+                event.get("event_source"),
+                detail.get("eventSource"),
+                detail.get("EventSource"),
+            )
+        ),
+        "source_ip": _normalize_text(
+            pick(
+                detail.get("sourceIPAddress"),
+                event.get("sourceIPAddress"),
+                event.get("SourceIPAddress"),
+                event.get("source_ip"),
+            )
+        ),
+        "user_agent": _normalize_text(
+            pick(
+                detail.get("userAgent"),
+                event.get("userAgent"),
+                event.get("UserAgent"),
+                event.get("user_agent"),
+            )
+        ),
+        "recipient_account": _normalize_text(
+            pick(
+                detail.get("recipientAccountId"),
+                event.get("recipientAccountId"),
+                event.get("RecipientAccountId"),
+                event.get("recipient_account"),
+                user_identity.get("accountId"),
+            )
+        ),
+        "username": _normalize_text(
+            pick(
+                event.get("Username"),
+                event.get("userName"),
+                event.get("username"),
+                user_identity.get("userName"),
+            )
+        ),
         "region": _normalize_text(
-            detail.get("awsRegion") or detail.get("region") or event.get("AwsRegion") or event.get("Region")
+            pick(
+                detail.get("awsRegion"),
+                detail.get("region"),
+                event.get("awsRegion"),
+                event.get("AwsRegion"),
+                event.get("Region"),
+                event.get("region"),
+            )
         ),
     }
 
