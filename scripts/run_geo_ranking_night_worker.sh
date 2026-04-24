@@ -13,11 +13,15 @@ INTERVAL_SECONDS="${NIGHT_WORKER_INTERVAL_SECONDS:-900}"
 UI_BASE_URL="${NIGHT_WORKER_UI_BASE_URL:-https://www.dev.georanking.ch}"
 API_BASE_URL="${NIGHT_WORKER_API_BASE_URL:-https://api.dev.georanking.ch}"
 ONE_SHOT="${NIGHT_WORKER_ONESHOT:-0}"
+CI_AUTORETRY_ENABLED="${NIGHT_WORKER_CI_AUTORETRY_ENABLED:-1}"
+CI_AUTORETRY_MAX_PER_CYCLE="${NIGHT_WORKER_CI_AUTORETRY_MAX_PER_CYCLE:-3}"
+CI_AUTORETRY_COOLDOWN_MINUTES="${NIGHT_WORKER_CI_AUTORETRY_COOLDOWN_MINUTES:-90}"
 
 GHA_BIN="${NIGHT_WORKER_GHA_BIN:-./scripts/gha}"
 BLOCKER_RETRY_SCRIPT="${NIGHT_WORKER_BLOCKER_RETRY_SCRIPT:-scripts/blocker_retry_supervisor.py}"
 AUTH_SMOKE_SCRIPT="${NIGHT_WORKER_AUTH_SMOKE_SCRIPT:-./scripts/smoke/run_auth_perimeter_smoke_bundle.sh}"
 PYTHON_BIN="${NIGHT_WORKER_PYTHON_BIN:-python3}"
+CI_RERUN_STATE_FILE="${RUNTIME_DIR}/ci-rerun-state.json"
 
 # Ensure gh CLI is discoverable in non-interactive/night shells.
 for d in \
@@ -196,6 +200,134 @@ PY
     if [[ "${recent_failures}" =~ ^[0-9]+$ ]] && (( recent_failures > 0 )); then
       cycle_blockers=$((cycle_blockers + recent_failures))
       log "BLOCKER: ${recent_failures} fehlgeschlagene/abgebrochene CI Runs in den letzten 6h (siehe ${runs_snapshot_json})"
+
+      if [[ "${CI_AUTORETRY_ENABLED}" == "1" ]]; then
+        rerun_candidates="$(${PYTHON_BIN} - <<'PY' "${runs_snapshot_json}" "${CI_RERUN_STATE_FILE}" "${CI_AUTORETRY_MAX_PER_CYCLE}" "${CI_AUTORETRY_COOLDOWN_MINUTES}"
+import json
+import os
+import sys
+import time
+from datetime import datetime, timedelta, timezone
+
+runs_path, state_path, max_per_cycle_raw, cooldown_minutes_raw = sys.argv[1:5]
+
+try:
+    max_per_cycle = int(max_per_cycle_raw)
+except Exception:
+    max_per_cycle = 3
+if max_per_cycle < 1:
+    max_per_cycle = 1
+
+try:
+    cooldown_minutes = int(cooldown_minutes_raw)
+except Exception:
+    cooldown_minutes = 90
+if cooldown_minutes < 1:
+    cooldown_minutes = 1
+cooldown_seconds = cooldown_minutes * 60
+
+def parse_dt(s):
+    return datetime.fromisoformat(s.replace('Z', '+00:00')).astimezone(timezone.utc)
+
+try:
+    runs = json.load(open(runs_path, encoding='utf-8'))
+except Exception:
+    raise SystemExit(0)
+
+try:
+    state = json.load(open(state_path, encoding='utf-8'))
+except Exception:
+    state = {}
+if not isinstance(state, dict):
+    state = {}
+
+cutoff = datetime.now(timezone.utc) - timedelta(hours=6)
+now_epoch = int(time.time())
+
+def failed(run):
+    conclusion = (run.get('conclusion') or '').lower()
+    status = (run.get('status') or '').lower()
+    if conclusion in {'failure', 'cancelled', 'timed_out', 'action_required', 'startup_failure'}:
+        return True
+    if status == 'completed' and conclusion not in {'success', 'skipped', 'neutral'}:
+        return True
+    return False
+
+selected = []
+for run in runs:
+    if not failed(run):
+        continue
+    created = run.get('createdAt')
+    if not created:
+        continue
+    try:
+        if parse_dt(created) < cutoff:
+            continue
+    except Exception:
+        continue
+
+    run_id = run.get('databaseId')
+    if not isinstance(run_id, int):
+        continue
+    last_retry = state.get(str(run_id), 0)
+    if isinstance(last_retry, str) and last_retry.isdigit():
+        last_retry = int(last_retry)
+    if not isinstance(last_retry, int):
+        last_retry = 0
+    if now_epoch - last_retry < cooldown_seconds:
+        continue
+
+    selected.append((run_id, run.get('workflowName') or 'unknown'))
+    if len(selected) >= max_per_cycle:
+        break
+
+for run_id, workflow_name in selected:
+    print(f"{run_id}|{workflow_name}")
+PY
+)"
+
+        rerun_success_ids=""
+        if [[ -n "${rerun_candidates}" ]]; then
+          while IFS='|' read -r run_id workflow_name; do
+            [[ -n "${run_id}" ]] || continue
+            if "${GHA_BIN}" run rerun "${run_id}" >> "${RUNTIME_DIR}/night-worker.log" 2>&1; then
+              log "ACTION: CI-Rerun ausgelöst für Run ${run_id} (${workflow_name})"
+              rerun_success_ids+="${run_id} "
+            else
+              cycle_blockers=$((cycle_blockers + 1))
+              log "BLOCKER: CI-Rerun fehlgeschlagen für Run ${run_id} (${workflow_name})"
+            fi
+          done <<< "${rerun_candidates}"
+
+          if [[ -n "${rerun_success_ids}" ]]; then
+            ${PYTHON_BIN} - <<'PY' "${CI_RERUN_STATE_FILE}" ${rerun_success_ids}
+import json
+import sys
+import time
+
+state_path = sys.argv[1]
+ids = sys.argv[2:]
+
+try:
+    state = json.load(open(state_path, encoding='utf-8'))
+except Exception:
+    state = {}
+if not isinstance(state, dict):
+    state = {}
+
+now_epoch = int(time.time())
+for rid in ids:
+    if rid:
+        state[str(rid)] = now_epoch
+
+with open(state_path, 'w', encoding='utf-8') as fh:
+    json.dump(state, fh, ensure_ascii=False, indent=2)
+PY
+          fi
+        else
+          log "CYCLE ${cycle_ts}: keine CI-Rerun-Kandidaten (Cooldown aktiv oder keine retry-fähigen Runs)"
+        fi
+      fi
     fi
   else
     cycle_blockers=$((cycle_blockers + 1))
