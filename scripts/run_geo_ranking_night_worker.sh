@@ -16,6 +16,8 @@ ONE_SHOT="${NIGHT_WORKER_ONESHOT:-0}"
 CI_AUTORETRY_ENABLED="${NIGHT_WORKER_CI_AUTORETRY_ENABLED:-1}"
 CI_AUTORETRY_MAX_PER_CYCLE="${NIGHT_WORKER_CI_AUTORETRY_MAX_PER_CYCLE:-3}"
 CI_AUTORETRY_COOLDOWN_MINUTES="${NIGHT_WORKER_CI_AUTORETRY_COOLDOWN_MINUTES:-90}"
+CI_MONITORED_BRANCHES="${NIGHT_WORKER_CI_MONITORED_BRANCHES:-main}"
+CI_MONITORED_EVENTS="${NIGHT_WORKER_CI_MONITORED_EVENTS:-push,workflow_dispatch,schedule,repository_dispatch}"
 
 GHA_BIN="${NIGHT_WORKER_GHA_BIN:-./scripts/gha}"
 BLOCKER_RETRY_SCRIPT="${NIGHT_WORKER_BLOCKER_RETRY_SCRIPT:-scripts/blocker_retry_supervisor.py}"
@@ -105,6 +107,7 @@ if command -v gh >/dev/null 2>&1; then
 else
   log "BLOCKER: gh CLI nicht gefunden (PATH=$PATH)"
 fi
+log "PRECHECK: CI monitor filter branches=${CI_MONITORED_BRANCHES:-*}, events=${CI_MONITORED_EVENTS:-*}"
 
 while true; do
   cycle_ts="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -159,19 +162,48 @@ PY
   fi
 
   runs_snapshot_json="${REPORT_DIR}/${cycle_ts}-recent-runs.json"
-  if "${GHA_BIN}" run list --limit 10 --json databaseId,workflowName,status,conclusion,createdAt,url > "${runs_snapshot_json}" 2>> "${RUNTIME_DIR}/night-worker.log"; then
-    recent_failures="$("${PYTHON_BIN}" - <<'PY' "${runs_snapshot_json}"
+  if "${GHA_BIN}" run list --limit 10 --json databaseId,workflowName,status,conclusion,createdAt,url,headBranch,event > "${runs_snapshot_json}" 2>> "${RUNTIME_DIR}/night-worker.log"; then
+    recent_failures="$("${PYTHON_BIN}" - <<'PY' "${runs_snapshot_json}" "${CI_MONITORED_BRANCHES}" "${CI_MONITORED_EVENTS}"
 import json
 import sys
 from datetime import datetime, timedelta, timezone
+
+
+runs_path, branches_raw, events_raw = sys.argv[1:4]
+
+
+def parse_csv(raw: str, lower: bool = False) -> set[str]:
+    out: set[str] = set()
+    for item in (raw or "").split(','):
+        value = item.strip()
+        if not value:
+            continue
+        out.add(value.lower() if lower else value)
+    return out
+
+
+branch_allow = parse_csv(branches_raw)
+event_allow = parse_csv(events_raw, lower=True)
 
 
 def parse_dt(s):
     return datetime.fromisoformat(s.replace('Z', '+00:00')).astimezone(timezone.utc)
 
 
+def monitored(run):
+    if branch_allow:
+        branch = (run.get('headBranch') or '').strip()
+        if branch not in branch_allow:
+            return False
+    if event_allow:
+        event = (run.get('event') or '').strip().lower()
+        if event not in event_allow:
+            return False
+    return True
+
+
 try:
-    data = json.load(open(sys.argv[1], encoding="utf-8"))
+    data = json.load(open(runs_path, encoding="utf-8"))
 except Exception:
     print(0)
     raise SystemExit
@@ -179,6 +211,8 @@ except Exception:
 cutoff = datetime.now(timezone.utc) - timedelta(hours=6)
 count = 0
 for run in data:
+    if not monitored(run):
+        continue
     conclusion = (run.get('conclusion') or '').lower()
     status = (run.get('status') or '').lower()
     created = run.get('createdAt')
@@ -199,17 +233,17 @@ PY
 )"
     if [[ "${recent_failures}" =~ ^[0-9]+$ ]] && (( recent_failures > 0 )); then
       cycle_blockers=$((cycle_blockers + recent_failures))
-      log "BLOCKER: ${recent_failures} fehlgeschlagene/abgebrochene CI Runs in den letzten 6h (siehe ${runs_snapshot_json})"
+      log "BLOCKER: ${recent_failures} fehlgeschlagene/abgebrochene CI Runs in den letzten 6h (Filter branches=${CI_MONITORED_BRANCHES:-*}, events=${CI_MONITORED_EVENTS:-*}; siehe ${runs_snapshot_json})"
 
       if [[ "${CI_AUTORETRY_ENABLED}" == "1" ]]; then
-        rerun_candidates="$(${PYTHON_BIN} - <<'PY' "${runs_snapshot_json}" "${CI_RERUN_STATE_FILE}" "${CI_AUTORETRY_MAX_PER_CYCLE}" "${CI_AUTORETRY_COOLDOWN_MINUTES}"
+        rerun_candidates="$(${PYTHON_BIN} - <<'PY' "${runs_snapshot_json}" "${CI_RERUN_STATE_FILE}" "${CI_AUTORETRY_MAX_PER_CYCLE}" "${CI_AUTORETRY_COOLDOWN_MINUTES}" "${CI_MONITORED_BRANCHES}" "${CI_MONITORED_EVENTS}"
 import json
 import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
 
-runs_path, state_path, max_per_cycle_raw, cooldown_minutes_raw = sys.argv[1:5]
+runs_path, state_path, max_per_cycle_raw, cooldown_minutes_raw, branches_raw, events_raw = sys.argv[1:7]
 
 try:
     max_per_cycle = int(max_per_cycle_raw)
@@ -226,8 +260,34 @@ if cooldown_minutes < 1:
     cooldown_minutes = 1
 cooldown_seconds = cooldown_minutes * 60
 
+
+def parse_csv(raw: str, lower: bool = False) -> set[str]:
+    out: set[str] = set()
+    for item in (raw or "").split(','):
+        value = item.strip()
+        if not value:
+            continue
+        out.add(value.lower() if lower else value)
+    return out
+
+
+branch_allow = parse_csv(branches_raw)
+event_allow = parse_csv(events_raw, lower=True)
+
 def parse_dt(s):
     return datetime.fromisoformat(s.replace('Z', '+00:00')).astimezone(timezone.utc)
+
+
+def monitored(run):
+    if branch_allow:
+        branch = (run.get('headBranch') or '').strip()
+        if branch not in branch_allow:
+            return False
+    if event_allow:
+        event = (run.get('event') or '').strip().lower()
+        if event not in event_allow:
+            return False
+    return True
 
 try:
     runs = json.load(open(runs_path, encoding='utf-8'))
@@ -255,6 +315,8 @@ def failed(run):
 
 selected = []
 for run in runs:
+    if not monitored(run):
+        continue
     if not failed(run):
         continue
     created = run.get('createdAt')
@@ -328,6 +390,8 @@ PY
           log "CYCLE ${cycle_ts}: keine CI-Rerun-Kandidaten (Cooldown aktiv oder keine retry-fähigen Runs)"
         fi
       fi
+    else
+      log "CYCLE ${cycle_ts}: keine fehlgeschlagenen überwachten CI Runs in den letzten 6h"
     fi
   else
     cycle_blockers=$((cycle_blockers + 1))
