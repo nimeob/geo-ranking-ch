@@ -1,42 +1,30 @@
-# Dockerfile für geo-ranking-ch (FastAPI + UI)
-FROM python:3.11-slim as builder
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
-# Abhängigkeiten installieren
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+ARG API_PORT=8080
+ARG APP_VERSION=dev
 
-# Quelle kopieren
-COPY . .
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=${API_PORT} \
+    APP_VERSION=${APP_VERSION}
 
-# Runtime-Image
-FROM python:3.11-slim
 WORKDIR /app
 
-# Benutzer erstellen
-RUN useradd --create-home --shell /bin/bash appuser
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Abhängigkeiten kopieren
-COPY --from=builder /root/.local /home/appuser/.local
-COPY --from=builder /app /app
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# UI-Dateien kopieren
-COPY --from=builder /app/ui /app/ui
+COPY src/__init__.py ./src/__init__.py
+COPY src/gwr_codes.py ./src/gwr_codes.py
+COPY src/api ./src/api
+COPY src/shared ./src/shared
 
-# Umgebungsvariablen
-ENV PATH=/home/appuser/.local/bin:$PATH
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
+EXPOSE ${API_PORT}
 
-# Port freigeben
-EXPOSE 8000
-
-# Health-Check
 HEALTHCHECK --interval=30s --timeout=3s \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -fsS http://localhost:${API_PORT}/health || exit 1
 
-# als Nicht-Root-Benutzer ausführen
-USER appuser
-
-# Befehl zum Starten
-CMD ["uvicorn", "src.api.web_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "src.api.web_service"]
