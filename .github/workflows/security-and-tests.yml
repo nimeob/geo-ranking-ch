@@ -95,38 +95,68 @@ jobs:
 
       - name: Run Ruff (Linting)
         run: |
+          collect_changed_py_files() {
+            local base_ref="$1"
+            mapfile -t CHANGED_PY_FILES < <(git diff --name-only --diff-filter=ACMR "${base_ref}...HEAD" -- src tests | grep -E '\.py$' || true)
+          }
+
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE_REF="${{ github.base_ref }}"
             git fetch --no-tags --depth=1 origin "${BASE_REF}" || true
-            mapfile -t CHANGED_PY_FILES < <(git diff --name-only --diff-filter=ACMR "origin/${BASE_REF}...HEAD" -- src tests | grep -E '\.py$' || true)
-
-            if [[ ${#CHANGED_PY_FILES[@]} -eq 0 ]]; then
-              echo "No changed Python files under src/ or tests/; skipping ruff."
-              exit 0
+            collect_changed_py_files "origin/${BASE_REF}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            if [[ -z "${BASE_SHA}" || "${BASE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
+              BASE_SHA="$(git rev-parse HEAD^ 2>/dev/null || true)"
             fi
 
-            echo "Ruff target files (PR diff):"
-            printf ' - %s\n' "${CHANGED_PY_FILES[@]}"
-            ruff check "${CHANGED_PY_FILES[@]}"
-          else
-            ruff check src/ tests/
+            if [[ -n "${BASE_SHA}" ]] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+              collect_changed_py_files "${BASE_SHA}"
+            else
+              echo "Push baseline not available; falling back to full src/tests lint run."
+              mapfile -t CHANGED_PY_FILES < <(git ls-files src tests | grep -E '\.py$' || true)
+            fi
           fi
+
+          if [[ ${#CHANGED_PY_FILES[@]} -eq 0 ]]; then
+            echo "No changed Python files under src/ or tests/; skipping ruff."
+            exit 0
+          fi
+
+          echo "Ruff target files (event diff):"
+          printf ' - %s\n' "${CHANGED_PY_FILES[@]}"
+          ruff check "${CHANGED_PY_FILES[@]}"
 
       - name: Run mypy (Type Checking)
         run: |
+          collect_changed_src_py_files() {
+            local base_ref="$1"
+            mapfile -t CHANGED_SRC_PY_FILES < <(git diff --name-only --diff-filter=ACMR "${base_ref}...HEAD" -- src | grep -E '\.py$' || true)
+          }
+
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE_REF="${{ github.base_ref }}"
             git fetch --no-tags --depth=1 origin "${BASE_REF}" || true
-            mapfile -t CHANGED_SRC_PY_FILES < <(git diff --name-only --diff-filter=ACMR "origin/${BASE_REF}...HEAD" -- src | grep -E '\.py$' || true)
-
-            if [[ ${#CHANGED_SRC_PY_FILES[@]} -eq 0 ]]; then
-              echo "No changed Python files under src/; skipping mypy."
-              exit 0
+            collect_changed_src_py_files "origin/${BASE_REF}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            if [[ -z "${BASE_SHA}" || "${BASE_SHA}" == "0000000000000000000000000000000000000000" ]]; then
+              BASE_SHA="$(git rev-parse HEAD^ 2>/dev/null || true)"
             fi
 
-            echo "mypy target files (PR diff):"
-            printf ' - %s\n' "${CHANGED_SRC_PY_FILES[@]}"
-            mypy --ignore-missing-imports --disallow-untyped-defs "${CHANGED_SRC_PY_FILES[@]}"
-          else
-            mypy src/ --ignore-missing-imports --disallow-untyped-defs
+            if [[ -n "${BASE_SHA}" ]] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+              collect_changed_src_py_files "${BASE_SHA}"
+            else
+              echo "Push baseline not available; falling back to full src mypy run."
+              mapfile -t CHANGED_SRC_PY_FILES < <(git ls-files src | grep -E '\.py$' || true)
+            fi
           fi
+
+          if [[ ${#CHANGED_SRC_PY_FILES[@]} -eq 0 ]]; then
+            echo "No changed Python files under src/; skipping mypy."
+            exit 0
+          fi
+
+          echo "mypy target files (event diff):"
+          printf ' - %s\n' "${CHANGED_SRC_PY_FILES[@]}"
+          mypy --ignore-missing-imports --disallow-untyped-defs "${CHANGED_SRC_PY_FILES[@]}"
