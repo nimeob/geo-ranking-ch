@@ -1,5 +1,5 @@
 # Dockerfile für geo-ranking-ch (FastAPI + UI)
-FROM python:3.11-slim as builder
+FROM python:3.12-slim as builder
 
 # Abhängigkeiten installieren
 WORKDIR /app
@@ -10,11 +10,14 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 COPY . .
 
 # Runtime-Image
-FROM python:3.11-slim
+FROM python:3.12-slim
 WORKDIR /app
 
 # Benutzer erstellen
 RUN useradd --create-home --shell /bin/bash appuser
+
+# Curl für ECS-Healthchecks installieren
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Abhängigkeiten kopieren
 COPY --from=builder /root/.local /home/appuser/.local
