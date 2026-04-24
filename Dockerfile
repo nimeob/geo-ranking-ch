@@ -18,8 +18,10 @@ COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/__init__.py ./src/__init__.py
+COPY src/_legacy_module_proxy.py ./src/_legacy_module_proxy.py
 COPY src/gwr_codes.py ./src/gwr_codes.py
 COPY src/api ./src/api
+COPY src/compliance ./src/compliance
 COPY src/shared ./src/shared
 
 EXPOSE ${API_PORT}

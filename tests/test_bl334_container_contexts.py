@@ -15,7 +15,9 @@ def _read(path: Path) -> str:
 def test_api_container_only_copies_api_plus_shared_sources() -> None:
     content = _read(API_DOCKERFILE)
 
+    assert "COPY src/_legacy_module_proxy.py ./src/_legacy_module_proxy.py" in content
     assert "COPY src/api ./src/api" in content
+    assert "COPY src/compliance ./src/compliance" in content
     assert "COPY src/shared ./src/shared" in content
     assert "COPY src/gwr_codes.py ./src/gwr_codes.py" in content
     assert "COPY src/ui ./src/ui" not in content
@@ -36,7 +38,9 @@ def test_dockerfile_specific_ignore_files_enforce_service_local_contexts() -> No
     ui_ignore = _read(UI_IGNORE)
 
     assert api_ignore.splitlines()[0].strip() == "**"
+    assert "!src/_legacy_module_proxy.py" in api_ignore
     assert "!src/api/**" in api_ignore
+    assert "!src/compliance/**" in api_ignore
     assert "!src/shared/**" in api_ignore
     assert "!src/gwr_codes.py" in api_ignore
     assert "!src/ui/**" not in api_ignore
