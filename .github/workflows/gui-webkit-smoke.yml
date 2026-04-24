@@ -36,7 +36,7 @@ jobs:
 
       - name: Start local GUI service
         run: |
-          PORT=8877 python3 -m src.api.web_service >/tmp/gui-webkit-service.log 2>&1 &
+          HOST=127.0.0.1 PORT=8877 APP_VERSION=dev python3 -m src.web_service >/tmp/gui-webkit-service.log 2>&1 &
           echo $! >/tmp/gui-webkit-service.pid
 
           for i in $(seq 1 45); do
@@ -44,10 +44,21 @@ jobs:
               echo "GUI service is ready"
               break
             fi
+
+            if ! kill -0 "$(cat /tmp/gui-webkit-service.pid)" 2>/dev/null; then
+              echo "::error::GUI service exited before becoming ready"
+              tail -n 200 /tmp/gui-webkit-service.log || true
+              exit 1
+            fi
+
             sleep 2
           done
 
-          curl -fsS "http://127.0.0.1:8877/healthz" >/dev/null
+          if ! curl -fsS "http://127.0.0.1:8877/healthz" >/dev/null; then
+            echo "::error::GUI service failed to start on 127.0.0.1:8877"
+            tail -n 200 /tmp/gui-webkit-service.log || true
+            exit 1
+          fi
 
       - name: Run native WebKit smoke
         env:
@@ -99,5 +110,5 @@ jobs:
         if: always()
         run: |
           if [ -f /tmp/gui-webkit-service.pid ]; then
-            kill "$(cat /tmp/gui-webkit-service.pid)" || true
+            kill "$(cat /tmp/gui-webkit-service.pid)" 2>/dev/null || true
           fi
