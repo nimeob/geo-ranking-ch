@@ -43,8 +43,13 @@ Viewport: `390x844` (Playwright, Chromium)
 ```bash
 # Harness-Seiten (before/after) liegen in /tmp, anschließend via Playwright-Core messen/screenshotten
 node ./scripts/run_issue_1142_mobile_table_overflow_smoke.cjs
+
+# Optional: Deployed GUI-CSS direkt gegen dev prüfen (Fallback auf lokalen Render bei Fetch-Fehler)
+node ./scripts/run_issue_1142_mobile_table_overflow_smoke.cjs --base-url https://www.dev.georanking.ch/gui
 ```
 
 > Hinweis: Die Smoke nutzt `playwright-core` + lokales Chromium, schreibt Before/After-Screenshots + JSON-Evidence nach `reports/evidence/` und endet mit Exit-Code `1`, sobald die **After**-Assertions (kein Overflow + Actions sichtbar) verletzt sind.
 >
 > Optional: `ISSUE_1142_BASELINE_REF=<git-ref>` überschreibt den Vergleichsstand (`HEAD~1` per Default, Fallback auf `HEAD`).
+>
+> Optional: `--base-url` (oder `ISSUE_1142_BASE_URL`) lädt den aktuellen GUI-HTML-Stand remote; falls Fetch fehlschlägt, wird auf lokalen Render (`local_render_fallback`) zurückgefallen und der Fehler im JSON (`currentHtmlFetchError`) festgehalten.
