@@ -232,6 +232,7 @@ def location_info(lat: float, lon: float) -> dict:
     for r in results:
         attrs = r.get("attributes", {})
         layer = r.get("layerBodId", "")
+        is_current = attrs.get("is_current_jahr", True)  # Kanton-Layer hat kein is_current_jahr
         if "gemeinde" in layer:
             if attrs.get("is_current_jahr") and gemeinde is None:
                 gemeinde  = attrs.get("gemname")
