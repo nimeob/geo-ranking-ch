@@ -120,7 +120,7 @@ function printHelp() {
     "Usage: node scripts/run_dev_ui_live_full_regression.mjs [options]",
     "",
     "Required params (env var oder CLI):",
-    "  DEV_UI_BASE_URL",
+    "  DEV_UI_BASE_URL (legacy alias: BASE_URL)",
     "  DEV_UI_SMOKE_USERNAME",
     "  DEV_UI_SMOKE_PASSWORD",
     "",
@@ -147,6 +147,7 @@ function printHelp() {
     "  -h, --help                               Diese Hilfe anzeigen",
     "",
     "Optional env vars:",
+    "  BASE_URL                                              Legacy alias for DEV_UI_BASE_URL",
     "  DEV_UI_FULL_MAX_WAIT_MS",
     "  DEV_UI_FULL_LOGOUT_SETTLE_MS",
     "  DEV_UI_FULL_PRE_LOGIN_5XX_SAMPLE_COUNT",
@@ -264,7 +265,13 @@ function resolveExplicitRunMarker() {
   };
 }
 
-const RAW_UI_BASE_URL = String(cliOptions.baseUrl || process.env.DEV_UI_BASE_URL || "").trim();
+const UI_BASE_URL_SOURCE = (() => {
+  if (String(cliOptions.baseUrl || "").trim()) return "cli:--base-url";
+  if (String(process.env.DEV_UI_BASE_URL || "").trim()) return "DEV_UI_BASE_URL";
+  if (String(process.env.BASE_URL || "").trim()) return "BASE_URL";
+  return "";
+})();
+const RAW_UI_BASE_URL = String(cliOptions.baseUrl || process.env.DEV_UI_BASE_URL || process.env.BASE_URL || "").trim();
 const UI_BASE_URL_NORMALIZATION = normalizeUiBaseUrl(RAW_UI_BASE_URL);
 const UI_BASE_URL = UI_BASE_URL_NORMALIZATION.value;
 const USERNAME = String(cliOptions.username || process.env.DEV_UI_SMOKE_USERNAME || "").trim();
@@ -535,14 +542,14 @@ function emitFailureHints(finalError) {
   if (errorText === "Missing DEV_UI_BASE_URL" || errorText.startsWith("Invalid DEV_UI_BASE_URL:")) {
     console.error(
       "[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL (z. B. https://www.dev.georanking.ch) "
-      + "oder übergib --base-url und starte erneut."
+      + "oder BASE_URL, oder übergib --base-url und starte erneut."
     );
     return;
   }
 
   const fallbackCommand = buildLoginStartFallbackCommand(UI_BASE_URL);
   if (!fallbackCommand) {
-    console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL oder übergib --base-url und starte erneut.");
+    console.error("[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL oder BASE_URL, oder übergib --base-url und starte erneut.");
     return;
   }
 
@@ -883,8 +890,13 @@ async function main() {
 
   try {
     if (UI_BASE_URL_NORMALIZATION.changed && UI_BASE_URL_NORMALIZATION.reasons.length > 0) {
+      const uiBaseUrlLabel = UI_BASE_URL_SOURCE === "BASE_URL"
+        ? "BASE_URL"
+        : UI_BASE_URL_SOURCE === "cli:--base-url"
+          ? "--base-url"
+          : "DEV_UI_BASE_URL";
       console.error(
-        `[dev-ui-full-regression] INFO: Canonicalized DEV_UI_BASE_URL `
+        `[dev-ui-full-regression] INFO: Canonicalized ${uiBaseUrlLabel} `
         + `'${UI_BASE_URL_NORMALIZATION.requested}' -> '${UI_BASE_URL}' `
         + `(reasons=${UI_BASE_URL_NORMALIZATION.reasons.join(",")}).`
       );
@@ -1463,6 +1475,7 @@ async function main() {
       runMarker: RUN_MARKER,
       runMarkerSource: RUN_MARKER_SOURCE,
       runToken: RUN_TOKEN,
+      baseUrlSource: UI_BASE_URL_SOURCE || "missing",
     },
     guiUrl,
     firstAddress,

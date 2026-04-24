@@ -85,6 +85,7 @@ def test_help_flag_prints_usage_without_env_or_playwright(tmp_path: Path) -> Non
     assert result.returncode == 0
     assert "Usage: node scripts/run_dev_ui_live_full_regression.mjs" in result.stdout
     assert "DEV_UI_BASE_URL" in result.stdout
+    assert "BASE_URL" in result.stdout
     assert "DEV_UI_SMOKE_USERNAME" in result.stdout
     assert "DEV_UI_SMOKE_PASSWORD" in result.stdout
     assert "--run-id <token>" in result.stdout
@@ -221,6 +222,7 @@ def test_invalid_base_url_emits_actionable_hint_and_error(
     assert payload["error"].startswith("Invalid DEV_UI_BASE_URL:")
     assert expected_fragment in payload["error"]
     assert "[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL" in result.stderr
+    assert "BASE_URL" in result.stderr
     assert "--base-url" in result.stderr
 
 
@@ -246,7 +248,35 @@ def test_missing_base_url_emits_cli_override_hint(tmp_path: Path) -> None:
     assert payload["ok"] is False
     assert payload["error"] == "Missing DEV_UI_BASE_URL"
     assert "[dev-ui-full-regression] HINT: Setze DEV_UI_BASE_URL" in result.stderr
+    assert "BASE_URL" in result.stderr
     assert "--base-url" in result.stderr
+
+
+def test_base_url_env_alias_is_accepted_when_dev_ui_base_url_missing(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("DEV_UI_BASE_URL", None)
+    env["BASE_URL"] = "https://www.dev.georanking.ch"
+    env.pop("DEV_UI_SMOKE_USERNAME", None)
+    env.pop("DEV_UI_SMOKE_PASSWORD", None)
+    evidence_path = tmp_path / "artifacts" / "dev-ui-full" / "latest" / "dev-ui-full-regression-base-url-alias.json"
+    env["DEV_UI_FULL_EVIDENCE_JSON"] = str(evidence_path)
+
+    result = subprocess.run(
+        ["node", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["baseUrl"] == "https://www.dev.georanking.ch"
+    assert payload["requestedBaseUrl"] == "https://www.dev.georanking.ch"
+    assert payload["runtime"]["baseUrlSource"] == "BASE_URL"
+    assert payload["error"] == "Missing DEV_UI_SMOKE_USERNAME"
 
 
 def test_cli_overrides_base_url_and_evidence_path_without_credentials(
