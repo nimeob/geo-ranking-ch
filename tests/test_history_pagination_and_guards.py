@@ -14,8 +14,6 @@ Issue: #841 (ASYNC-DB-0.wp4)
 
 from __future__ import annotations
 
-import importlib
-import sys
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -142,7 +140,7 @@ class TestDbStoreHistoryPath(unittest.TestCase):
         mock_store.count_jobs_for_user.return_value = 0
 
         # Call directly (simulating the web_service DB path)
-        result = mock_store.list_jobs_for_user(
+        mock_store.list_jobs_for_user(
             "user-abc",
             org_id="org-xyz",
             limit=20,

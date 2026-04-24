@@ -22,12 +22,10 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import json
-import sys
 import tempfile
 import unittest
-from io import StringIO
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -254,7 +252,7 @@ class TestDryRunMode(unittest.TestCase):
                 "bad": None,
             },
         }
-        path = _make_store_file(data)
+        _make_store_file(data)
 
         # Simulate dry-run by calling the dry-run logic inline
         jobs = data.get("jobs") or {}

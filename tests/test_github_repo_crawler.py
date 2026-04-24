@@ -825,7 +825,7 @@ class TestFetchClosedIssuesBatch(unittest.TestCase):
         detail = crawler._gql_issue_to_detail(node)
 
         self.assertEqual(detail["number"], 99)
-        self.assertEqual({l["name"] for l in detail["labels"]}, {"backlog", "status:todo"})
+        self.assertEqual({label["name"] for label in detail["labels"]}, {"backlog", "status:todo"})
         self.assertEqual(len(detail["comments"]), 1)
         self.assertEqual(detail["comments"][0]["body"], "Closing comment with merged evidence")
         self.assertEqual(len(detail["closedByPullRequestsReferences"]), 1)

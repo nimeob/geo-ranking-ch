@@ -23,17 +23,17 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Union
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Type alias for the union of both store types (avoids importing both at module level)
-AnyJobStore = Union["AsyncJobStore", "DbAsyncJobStore"]  # type: ignore[name-defined]
+# Avoid importing concrete store classes at module import time.
+AnyJobStore = Any
 
 _VALID_BACKENDS = frozenset({"file", "db"})
 
 
-def build_async_job_store() -> AnyJobStore:  # type: ignore[return]
+def build_async_job_store() -> AnyJobStore:
     """Instantiate the configured job store backend.
 
     Returns either an ``AsyncJobStore`` (file) or ``DbAsyncJobStore`` (db)

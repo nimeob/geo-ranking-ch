@@ -31,7 +31,6 @@ import time
 import uuid
 from collections import OrderedDict
 from copy import deepcopy
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from http import HTTPStatus
@@ -42,7 +41,6 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import urlopen
 
 from src.api.address_intel import AddressIntelError, build_report
-from src.api.async_jobs import AsyncJobStore
 from src.api.async_worker_runtime import AsyncJobRuntime
 from src.api.async_store_factory import build_async_job_store
 from src.api.debug_trace import (
@@ -3730,7 +3728,7 @@ class Handler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _job_visible_for_auth_user(job_record: dict[str, Any], auth_user: _Phase1AuthUser) -> bool:
-        return GeoRankingHandler._job_visible_for_owner(
+        return Handler._job_visible_for_owner(
             job_record,
             owner_user_id=str(auth_user.user_id),
             owner_org_id=str(auth_user.org_id),

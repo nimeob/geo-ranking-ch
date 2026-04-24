@@ -13,11 +13,9 @@ Issue: #814 (DB-0.wp3)
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import unittest
 from contextlib import contextmanager
-from typing import Any
 from unittest.mock import MagicMock, patch
 import uuid
 
@@ -195,7 +193,7 @@ class TestGetOrCreateUserAutoOrgPolicy(unittest.TestCase):
         with _conn_ctx(cur) as conn:
             with patch("src.shared.db_access.get_or_create_default_org", return_value=fake_org) as mock_org:
                 with patch("src.shared.db_access.ensure_membership") as mock_mbr:
-                    result = get_or_create_user_by_external_subject(
+                    get_or_create_user_by_external_subject(
                         conn, "sub|auto", org_policy="auto_org"
                     )
                     mock_org.assert_called_once_with(conn)
@@ -415,7 +413,6 @@ class TestLogSafety(unittest.TestCase):
         import io
 
         secret_sub = "sub|AnotherSecretValue"
-        expected_fp = hashlib.sha256(secret_sub.encode()).hexdigest()[:8]
         now = datetime.datetime(2026, 3, 2, 20, 0, 0)
 
         log_stream = io.StringIO()

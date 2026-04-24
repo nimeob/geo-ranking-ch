@@ -299,7 +299,7 @@ class TestHoldDeletionSchedulerIntegration(unittest.TestCase):
         self.assertEqual(record.status, DeletionStatus.NOTIFIED)
 
         # Set hold before execution
-        hold_record = hold_store.set_hold(
+        hold_store.set_hold(
             "DOC-HOLD-INT",
             **_base_hold(
                 review_due_at=datetime.now(tz=timezone.utc) + timedelta(days=7),

@@ -55,7 +55,6 @@ class TestBuildAsyncJobStore(unittest.TestCase):
 
     def test_db_backend_without_url_raises_runtime_error(self):
         """ASYNC_STORE_BACKEND=db without DB URL → RuntimeError."""
-        env = {"ASYNC_STORE_BACKEND": "db"}
         # Ensure no DB URL leaks from real env
         env_clean = {k: v for k, v in os.environ.items()
                      if k not in ("ASYNC_DB_URL", "DATABASE_URL", "ASYNC_STORE_BACKEND")}
@@ -120,7 +119,6 @@ class TestWebServiceImportDoesNotBreak(unittest.TestCase):
 
     def test_build_async_job_store_importable_from_web_service_module(self):
         """The factory is imported in web_service; verify the symbol exists there."""
-        import importlib
         import src.api.web_service as ws_mod
         self.assertTrue(
             hasattr(ws_mod, "build_async_job_store"),

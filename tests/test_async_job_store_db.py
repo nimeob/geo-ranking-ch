@@ -18,9 +18,8 @@ Issue: #839 (ASYNC-DB-0.wp2)
 from __future__ import annotations
 
 import json
-import re
 import unittest
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 from src.shared.async_job_store_db import DbAsyncJobStore, _canonical_payload_hash
 
@@ -75,7 +74,6 @@ class TestOrgGuardInListJobs(unittest.TestCase):
         self.assertIn("org_id", sqls, "list_jobs_for_org must filter by org_id")
         # Ensure the org_id param was passed
         params_used = [c[0][1] for c in mock_cursor.execute.call_args_list if c[0]]
-        org_ids_in_params = [p for p in params_used if isinstance(p, (list, tuple)) and "my-org" in p]
         self.assertTrue(
             any("my-org" in str(p) for p in params_used),
             "org_id value must appear in execute params",
@@ -764,7 +762,7 @@ class TestFromEnv(unittest.TestCase):
         with patch.dict(os.environ, {"ASYNC_DB_URL": "postgresql://u:p@localhost/db"}):
             with patch("src.shared.async_job_store_db.DbAsyncJobStore.from_env") as mock_factory:
                 mock_factory.return_value = MagicMock()
-                store = DbAsyncJobStore.from_env()
+                DbAsyncJobStore.from_env()
                 # Just verify no crash (psycopg2 not actually called)
 
 

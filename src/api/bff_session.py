@@ -25,6 +25,7 @@ BFF_SESSION_SECURE_COOKIE
 
 from __future__ import annotations
 
+import os as _os
 import secrets
 import threading
 import time
@@ -182,9 +183,6 @@ class BffSessionStore:
 # ---------------------------------------------------------------------------
 # Cookie helpers
 # ---------------------------------------------------------------------------
-
-import os as _os
-
 
 def _bff_cookie_name() -> str:
     raw_name = str(_os.environ.get("BFF_SESSION_COOKIE_NAME", _DEFAULT_SECURE_COOKIE_NAME) or "").strip()
