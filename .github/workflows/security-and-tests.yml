@@ -80,6 +80,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -93,8 +95,38 @@ jobs:
 
       - name: Run Ruff (Linting)
         run: |
-          ruff check src/ tests/
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_REF="${{ github.base_ref }}"
+            git fetch --no-tags --depth=1 origin "${BASE_REF}" || true
+            mapfile -t CHANGED_PY_FILES < <(git diff --name-only --diff-filter=ACMR "origin/${BASE_REF}...HEAD" -- src tests | grep -E '\.py$' || true)
+
+            if [[ ${#CHANGED_PY_FILES[@]} -eq 0 ]]; then
+              echo "No changed Python files under src/ or tests/; skipping ruff."
+              exit 0
+            fi
+
+            echo "Ruff target files (PR diff):"
+            printf ' - %s\n' "${CHANGED_PY_FILES[@]}"
+            ruff check "${CHANGED_PY_FILES[@]}"
+          else
+            ruff check src/ tests/
+          fi
 
       - name: Run mypy (Type Checking)
         run: |
-          mypy src/ --ignore-missing-imports --disallow-untyped-defs
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_REF="${{ github.base_ref }}"
+            git fetch --no-tags --depth=1 origin "${BASE_REF}" || true
+            mapfile -t CHANGED_SRC_PY_FILES < <(git diff --name-only --diff-filter=ACMR "origin/${BASE_REF}...HEAD" -- src | grep -E '\.py$' || true)
+
+            if [[ ${#CHANGED_SRC_PY_FILES[@]} -eq 0 ]]; then
+              echo "No changed Python files under src/; skipping mypy."
+              exit 0
+            fi
+
+            echo "mypy target files (PR diff):"
+            printf ' - %s\n' "${CHANGED_SRC_PY_FILES[@]}"
+            mypy --ignore-missing-imports --disallow-untyped-defs "${CHANGED_SRC_PY_FILES[@]}"
+          else
+            mypy src/ --ignore-missing-imports --disallow-untyped-defs
+          fi
