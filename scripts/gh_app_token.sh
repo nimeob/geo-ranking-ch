@@ -41,4 +41,8 @@ if [[ -z "$token" ]]; then
   exit 1
 fi
 
+if command -v gh >/dev/null 2>&1; then
+  printf '%s\n' "$token" | gh auth login --with-token >/dev/null 2>&1 || true
+fi
+
 printf '%s\n' "$token"
