@@ -509,10 +509,18 @@ jobs:
             exit 0
           fi
 
+          ALIAS_ROUTE_PRESET="all"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            ALIAS_ROUTE_PRESET="core"
+          fi
+
+          echo "::notice::Running alias login-start route-matrix smoke with preset='${ALIAS_ROUTE_PRESET}' (event=${{ github.event_name }})."
+
           scripts/smoke/run_login_start_smoke_bundle.sh \
             --base-url "${ALIAS_BASE_URL}" \
             --env-name "dev-alias" \
             --preserve-requested-base-url \
+            --route-presets "${ALIAS_ROUTE_PRESET}" \
             --quiet \
             --output-dir "artifacts"
 

@@ -658,11 +658,29 @@ def test_deploy_workflow_runs_alias_login_route_matrix_smoke_in_quiet_mode():
 
     text = workflow.read_text(encoding="utf-8")
     required = (
-        "--preserve-requested-base-url \\\n            --quiet \\\n            --output-dir \"artifacts\""
+        "--preserve-requested-base-url \\\n            --route-presets \"${ALIAS_ROUTE_PRESET}\" \\\n            --quiet \\\n            --output-dir \"artifacts\""
     )
     assert (
         required in text
     ), "deploy.yml sollte alias route-matrix smoke mit --quiet ausführen, um Success-Log-Rauschen zu reduzieren"
+
+
+def test_deploy_workflow_scopes_alias_route_matrix_preset_by_event_type():
+    workflow = Path(".github/workflows/deploy.yml")
+    assert workflow.exists(), "Workflow fehlt: .github/workflows/deploy.yml"
+
+    text = workflow.read_text(encoding="utf-8")
+    required = [
+        'ALIAS_ROUTE_PRESET="all"',
+        'if [ "${{ github.event_name }}" = "push" ]; then',
+        'ALIAS_ROUTE_PRESET="core"',
+        '--route-presets "${ALIAS_ROUTE_PRESET}"',
+    ]
+
+    missing = [snippet for snippet in required if snippet not in text]
+    assert (
+        not missing
+    ), f"deploy.yml sollte alias route-matrix preset event-basiert steuern (push=core, sonst=all): {missing}"
 
 
 def test_deploy_staging_workflow_runs_auth_perimeter_smoke_in_quiet_mode():
