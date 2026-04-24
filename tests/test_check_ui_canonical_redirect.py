@@ -385,6 +385,91 @@ def test_check_canonical_redirect_fails_for_target_mismatch(monkeypatch):
     assert result.reason == "canonical_redirect_target_mismatch"
 
 
+def test_check_canonical_redirect_accepts_direct_authorize_redirect(monkeypatch):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        _ = kwargs
+        return module._HttpProbeResult(
+            status_code=302,
+            location=(
+                "https://auth.dev.georanking.ch/oauth2/authorize"
+                "?response_type=code"
+                "&redirect_uri=https%3A%2F%2Fwww.dev.georanking.ch%2Fauth%2Fcallback"
+                "&state=test-state"
+            ),
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_canonical_redirect(
+        base_url="https://www.dev.georanking.ch",
+        canonical_origin="https://www.dev.georanking.ch",
+        canonical_hosts="www.dev.geo-ranking.ch, www.dev.georanking.ch",
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
+def test_check_canonical_redirect_accepts_direct_authorize_redirect_for_geo_host_family_alias(
+    monkeypatch,
+):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        _ = kwargs
+        return module._HttpProbeResult(
+            status_code=302,
+            location=(
+                "https://auth.dev.georanking.ch/oauth2/authorize"
+                "?response_type=code"
+                "&redirect_uri=https%3A%2F%2Fwww.dev.georanking.ch%2Fauth%2Fcallback"
+                "&state=test-state"
+            ),
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_canonical_redirect(
+        base_url="https://www.dev.geo-ranking.ch",
+        canonical_origin="https://www.dev.geo-ranking.ch",
+        canonical_hosts="www.dev.georanking.ch, www.dev.geo-ranking.ch",
+    )
+
+    assert result.ok is True
+    assert result.reason == "ok"
+
+
+def test_check_canonical_redirect_rejects_direct_authorize_redirect_with_wrong_redirect_uri(
+    monkeypatch,
+):
+    module = _load_module()
+
+    def _fake_probe(**kwargs):
+        _ = kwargs
+        return module._HttpProbeResult(
+            status_code=302,
+            location=(
+                "https://auth.dev.georanking.ch/oauth2/authorize"
+                "?response_type=code"
+                "&redirect_uri=https%3A%2F%2Fevil.example%2Fauth%2Fcallback"
+                "&state=test-state"
+            ),
+        )
+
+    monkeypatch.setattr(module, "_send_request_probe", _fake_probe)
+
+    result = module.check_canonical_redirect(
+        base_url="https://www.dev.georanking.ch",
+        canonical_origin="https://www.dev.georanking.ch",
+        canonical_hosts="www.dev.geo-ranking.ch, www.dev.georanking.ch",
+    )
+
+    assert result.ok is False
+    assert result.reason == "canonical_redirect_target_mismatch"
+
+
 def test_main_writes_json_out_alias(tmp_path, capsys, monkeypatch):
     module = _load_module()
 

@@ -440,6 +440,64 @@ def _effective_port(parts) -> int | None:
     return None
 
 
+def _hosts_match_or_geo_alias(*, observed_host: str, expected_host: str) -> bool:
+    observed = str(observed_host or "").strip().lower().rstrip(".")
+    expected = str(expected_host or "").strip().lower().rstrip(".")
+    if not observed or not expected:
+        return False
+    if observed == expected:
+        return True
+    return observed in _expand_geo_host_aliases(expected)
+
+
+def _origin_matches_or_geo_alias(*, observed_url: str, expected_origin: str) -> bool:
+    observed_parts = urlparse(observed_url)
+    expected_parts = urlparse(expected_origin)
+
+    if observed_parts.scheme.lower() != expected_parts.scheme.lower():
+        return False
+
+    observed_host = (observed_parts.hostname or "").lower()
+    expected_host = (expected_parts.hostname or "").lower()
+    if not _hosts_match_or_geo_alias(
+        observed_host=observed_host,
+        expected_host=expected_host,
+    ):
+        return False
+
+    if _effective_port(observed_parts) != _effective_port(expected_parts):
+        return False
+
+    return True
+
+
+def _looks_like_direct_authorize_redirect_with_canonical_redirect_uri(
+    *, observed_url: str, expected_canonical_origin: str
+) -> bool:
+    observed_parts = urlparse(observed_url)
+    if not observed_parts.scheme or not observed_parts.netloc:
+        return False
+
+    normalized_path = observed_parts.path.lower()
+    if not normalized_path.endswith("/oauth2/authorize"):
+        return False
+
+    redirect_uri = ""
+    for key, value in parse_qsl(observed_parts.query, keep_blank_values=True):
+        if key == "redirect_uri":
+            redirect_uri = str(value or "").strip()
+            if redirect_uri:
+                break
+
+    if not redirect_uri:
+        return False
+
+    return _origin_matches_or_geo_alias(
+        observed_url=redirect_uri,
+        expected_origin=expected_canonical_origin,
+    )
+
+
 def _canonical_redirect_target_matches(*, observed: str, expected: str) -> bool:
     observed_parts = urlparse(observed)
     expected_parts = urlparse(expected)
@@ -581,6 +639,9 @@ def check_canonical_redirect(
     if not _canonical_redirect_target_matches(
         observed=resolved_location,
         expected=expected_location,
+    ) and not _looks_like_direct_authorize_redirect_with_canonical_redirect_uri(
+        observed_url=resolved_location,
+        expected_canonical_origin=normalized_canonical_origin,
     ):
         return CanonicalRedirectCheckResult(
             ok=False,
