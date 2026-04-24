@@ -16,6 +16,7 @@ ONE_SHOT="${NIGHT_WORKER_ONESHOT:-0}"
 CI_AUTORETRY_ENABLED="${NIGHT_WORKER_CI_AUTORETRY_ENABLED:-1}"
 CI_AUTORETRY_MAX_PER_CYCLE="${NIGHT_WORKER_CI_AUTORETRY_MAX_PER_CYCLE:-3}"
 CI_AUTORETRY_COOLDOWN_MINUTES="${NIGHT_WORKER_CI_AUTORETRY_COOLDOWN_MINUTES:-90}"
+CI_RERUN_TIMEOUT_SECONDS="${NIGHT_WORKER_CI_RERUN_TIMEOUT_SECONDS:-90}"
 CI_MONITORED_BRANCHES="${NIGHT_WORKER_CI_MONITORED_BRANCHES:-main}"
 CI_MONITORED_EVENTS="${NIGHT_WORKER_CI_MONITORED_EVENTS:-push,workflow_dispatch,schedule,repository_dispatch}"
 
@@ -47,6 +48,15 @@ log() {
   local ts
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf '[%s] %s\n' "${ts}" "${msg}" | tee -a "${MAIN_LOG}" >> "${RUNTIME_DIR}/night-worker.log"
+}
+
+run_gha_rerun() {
+  local run_id="$1"
+  if [[ "${CI_RERUN_TIMEOUT_SECONDS}" =~ ^[0-9]+$ ]] && (( CI_RERUN_TIMEOUT_SECONDS > 0 )) && command -v timeout >/dev/null 2>&1; then
+    timeout --signal=TERM --kill-after=10s "${CI_RERUN_TIMEOUT_SECONDS}s" "${GHA_BIN}" run rerun "${run_id}"
+  else
+    "${GHA_BIN}" run rerun "${run_id}"
+  fi
 }
 
 json_get_pid() {
@@ -107,7 +117,7 @@ if command -v gh >/dev/null 2>&1; then
 else
   log "BLOCKER: gh CLI nicht gefunden (PATH=$PATH)"
 fi
-log "PRECHECK: CI monitor filter branches=${CI_MONITORED_BRANCHES:-*}, events=${CI_MONITORED_EVENTS:-*}"
+log "PRECHECK: CI monitor filter branches=${CI_MONITORED_BRANCHES:-*}, events=${CI_MONITORED_EVENTS:-*}, rerun-timeout=${CI_RERUN_TIMEOUT_SECONDS}s"
 
 while true; do
   cycle_ts="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -352,12 +362,17 @@ PY
         if [[ -n "${rerun_candidates}" ]]; then
           while IFS='|' read -r run_id workflow_name; do
             [[ -n "${run_id}" ]] || continue
-            if "${GHA_BIN}" run rerun "${run_id}" >> "${RUNTIME_DIR}/night-worker.log" 2>&1; then
+            if run_gha_rerun "${run_id}" >> "${RUNTIME_DIR}/night-worker.log" 2>&1; then
               log "ACTION: CI-Rerun ausgelöst für Run ${run_id} (${workflow_name})"
               rerun_success_ids+="${run_id} "
             else
+              rerun_rc=$?
               cycle_blockers=$((cycle_blockers + 1))
-              log "BLOCKER: CI-Rerun fehlgeschlagen für Run ${run_id} (${workflow_name})"
+              if [[ ${rerun_rc} -eq 124 ]]; then
+                log "BLOCKER: CI-Rerun timeout nach ${CI_RERUN_TIMEOUT_SECONDS}s für Run ${run_id} (${workflow_name})"
+              else
+                log "BLOCKER: CI-Rerun fehlgeschlagen (rc=${rerun_rc}) für Run ${run_id} (${workflow_name})"
+              fi
             fi
           done <<< "${rerun_candidates}"
 
