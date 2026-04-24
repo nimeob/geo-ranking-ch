@@ -3,6 +3,8 @@
 !requirements.txt
 !requirements-dev.txt
 !src/__init__.py
+!src/_legacy_module_proxy.py
 !src/gwr_codes.py
 !src/api/**
+!src/compliance/**
 !src/shared/**
