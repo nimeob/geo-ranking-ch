@@ -35,13 +35,21 @@ Ein Probe-Start von `node scripts/run_issue_986_webkit_smoke.mjs` ohne System-Se
 Für einen stabilen nativen Lauf werden zwei Dependency-Blöcke benötigt:
 
 1. **Node Package:** `playwright` (liefert WebKit-Driver/APIs)
-2. **Browser + Systemlibs:** `playwright install --with-deps webkit`
+2. **Browser + Systemlibs:** `playwright install webkit` (auf apt-basierten Linux-Runnern bevorzugt: `playwright install --with-deps webkit`)
 
 ### Setup (Ubuntu/Dev-Runner)
 ```bash
 npm install --no-save playwright@1.52.0
 npx playwright install --with-deps webkit
 ```
+
+Fallback für Runner ohne apt (z. B. minimal Linux/macOS):
+```bash
+npm install --no-save playwright@1.52.0
+npx playwright install webkit
+```
+
+Wenn danach weiterhin `lib*.so`-Fehler auftreten: System-Dependencies gemäß Playwright-Doku nachziehen: <https://playwright.dev/docs/browsers#install-system-dependencies>
 
 ## Smoke-Kommando
 Voraussetzung: lokaler GUI-Service ist erreichbar (z. B. `PORT=8877 python3 -m src.api.web_service`).
@@ -74,7 +82,7 @@ Output:
 
 Bei Chromium-Fallback enthält der JSON-Nachweis zusätzlich strukturierte Dependency-Hinweise:
 - `runtime.webkitMissingLibraries`: deduplizierte Liste der fehlenden `lib*.so`-Abhängigkeiten (aus dem Playwright-Launchfehler extrahiert)
-- `runtime.webkitInstallHint`: empfohlener Install-Befehl (`npx playwright install --with-deps webkit`)
+- `runtime.webkitInstallHint`: runner-spezifischer Install-Hinweis (apt-Runtime: `--with-deps`, sonst `playwright install webkit` + Doku-Link)
 - `limitations[]`: kompakte Zusammenfassung (kein unlesbarer Voll-Stacktrace)
 
 ## CI-Integration / Artifact
