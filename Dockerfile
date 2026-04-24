@@ -1,5 +1,5 @@
 # Dockerfile für geo-ranking-ch (FastAPI + UI)
-FROM python:3.12-slim as builder
+FROM public.ecr.aws/docker/library/python:3.12-slim as builder
 
 # Abhängigkeiten installieren
 WORKDIR /app
@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 COPY . .
 
 # Runtime-Image
-FROM python:3.12-slim
+FROM public.ecr.aws/docker/library/python:3.12-slim
 WORKDIR /app
 
 # Benutzer erstellen
