@@ -38,6 +38,9 @@ jobs:
       - name: Preflight boundary guard (fail-fast)
         run: python3 scripts/check_bl31_service_boundaries.py --src-dir src
 
+      - name: Install Playwright
+        run: npm ci && npx playwright install --with-deps chromium
+
       - name: Run unit tests
         run: pytest tests/ -v --tb=short
 
