@@ -203,6 +203,7 @@ echo "[BL-334.5] API-only smoke (src.api.web_service)"
 API_PORT="$(find_free_port)"
 HOST="127.0.0.1" \
 PORT="${API_PORT}" \
+APP_VERSION="${SMOKE_UI_APP_VERSION}" \
 PYTHONPATH="${REPO_ROOT}" \
 ENABLE_E2E_FAULT_INJECTION="1" \
 "${PYTHON_BIN}" -m src.api.web_service >"${API_LOG}" 2>&1 &
