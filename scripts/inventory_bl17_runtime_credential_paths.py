@@ -21,6 +21,13 @@ SCAN_SUFFIXES = {".service", ".timer", ".conf", ".env", ".sh"}
 
 STATIC_OR_RISKY_ENV_MODES = {"long-lived-static", "partial", "session-unknown-prefix"}
 
+BLOCKING_RISK_IDS = {
+    "runtime-caller-legacy-user",
+    "runtime-env-static-keys",
+    "runtime-env-inheritance-process-chain",
+    "runtime-startpath-env-passthrough",
+}
+
 DEFAULT_RUNTIME_WRAPPER_HINT_PATHS = [
     Path("/entrypoint.sh"),
     Path("/hostinger/server.mjs"),
@@ -617,6 +624,8 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
     ]
 
     risky_detected = [d for d in detections if d.detected and d.risk_level in {"high", "medium"}]
+    blocking_risky_detected = [d for d in risky_detected if d.id in BLOCKING_RISK_IDS]
+    advisory_risky_detected = [d for d in risky_detected if d.id not in BLOCKING_RISK_IDS]
 
     report = {
         "version": 1,
@@ -626,13 +635,15 @@ def build_report(repo_root: Path) -> tuple[dict, int]:
         "detections": [d.as_dict() for d in detections],
         "summary": {
             "detected_total": sum(1 for d in detections if d.detected),
-            "risk_findings": len(risky_detected),
-            "risk_ids": [d.id for d in risky_detected],
-            "recommended_exit_code": 10 if risky_detected else 0,
+            "risk_findings": len(blocking_risky_detected),
+            "risk_ids": [d.id for d in blocking_risky_detected],
+            "advisory_risk_findings": len(advisory_risky_detected),
+            "advisory_risk_ids": [d.id for d in advisory_risky_detected],
+            "recommended_exit_code": 10 if blocking_risky_detected else 0,
         },
     }
 
-    exit_code = 10 if risky_detected else 0
+    exit_code = 10 if blocking_risky_detected else 0
     return report, exit_code
 
 

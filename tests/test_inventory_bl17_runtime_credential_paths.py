@@ -137,6 +137,44 @@ class TestInventoryBl17RuntimeCredentialPaths(unittest.TestCase):
             self.assertTrue(detections["runtime-env-session-credentials"]["detected"])
             self.assertNotIn("runtime-env-static-keys", report["summary"]["risk_ids"])
 
+    def test_aws_config_reference_is_advisory_when_runtime_is_clean(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            script_copy, bin_dir = self._prepare_temp_repo(
+                tmp_path,
+                caller_arn="arn:aws:sts::523234426229:assumed-role/openclaw-ops-role/runtime-session",
+            )
+
+            fake_home = tmp_path / "home"
+            aws_dir = fake_home / ".aws"
+            aws_dir.mkdir(parents=True, exist_ok=True)
+            (aws_dir / "credentials").write_text(
+                "[default]\naws_access_key_id = AKIAEXAMPLE12345678\naws_secret_access_key = test\n",
+                encoding="utf-8",
+            )
+
+            env = os.environ.copy()
+            env["HOME"] = str(fake_home)
+            env["PATH"] = f"{bin_dir}:{env['PATH']}"
+            env.pop("AWS_ACCESS_KEY_ID", None)
+            env.pop("AWS_SECRET_ACCESS_KEY", None)
+            env.pop("AWS_SESSION_TOKEN", None)
+
+            result = subprocess.run(
+                [str(script_copy)],
+                cwd=tmp_path,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["summary"]["recommended_exit_code"], 0)
+            self.assertIn("aws-config-credential-references", report["summary"]["advisory_risk_ids"])
+            self.assertNotIn("aws-config-credential-references", report["summary"]["risk_ids"])
+
     def test_process_chain_inheritance_detection_uses_mocked_chain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

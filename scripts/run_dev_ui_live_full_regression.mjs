@@ -562,13 +562,38 @@ let baseOrigin = "";
 let guiPath = "";
 let guiUrl = "";
 let loginStart = "";
+let loginStartBaseUrl = "";
+
+function deriveUiPathsFromBase(parsedBaseUrl) {
+  const rawPathname = String(parsedBaseUrl?.pathname || "/");
+  const normalizedPathname = rawPathname === "/"
+    ? ""
+    : rawPathname.replace(/\/+$/, "");
+
+  if (normalizedPathname === "/gui" || normalizedPathname.endsWith("/gui")) {
+    const loginBasePath = normalizedPathname.slice(0, -4);
+    return {
+      guiPath: normalizedPathname,
+      loginBasePath,
+    };
+  }
+
+  const basePath = normalizedPathname;
+  const guiPathFromBase = basePath ? `${basePath}/gui` : "/gui";
+  return {
+    guiPath: guiPathFromBase,
+    loginBasePath: basePath,
+  };
+}
 
 function initializeTargetUrls() {
   base = new URL(UI_BASE_URL);
   baseOrigin = base.origin;
-  guiPath = base.pathname.endsWith("/") ? `${base.pathname}gui` : `${base.pathname}/gui`;
+  const uiPaths = deriveUiPathsFromBase(base);
+  guiPath = uiPaths.guiPath;
+  loginStartBaseUrl = `${baseOrigin}${uiPaths.loginBasePath || ""}`;
   guiUrl = new URL(guiPath, baseOrigin).toString();
-  loginStart = new URL(`/login?next=${encodeURIComponent(guiPath)}&reason=dev_ui_full_regression&start=1`, baseOrigin).toString();
+  loginStart = `${loginStartBaseUrl}/login?next=${encodeURIComponent(guiPath)}&reason=dev_ui_full_regression&start=1`;
 }
 
 const checks = [];
@@ -908,7 +933,7 @@ async function main() {
     initializeTargetUrls();
 
     if (allowMissingCredentials) {
-      const fallbackResult = runLoginStartFallbackBundle(UI_BASE_URL);
+      const fallbackResult = runLoginStartFallbackBundle(loginStartBaseUrl || UI_BASE_URL);
       const fallbackSummaryLoad = loadJsonFileSafe(fallbackResult.summaryJson);
       const fallbackSummary = fallbackSummaryLoad.payload && typeof fallbackSummaryLoad.payload === "object"
         ? fallbackSummaryLoad.payload

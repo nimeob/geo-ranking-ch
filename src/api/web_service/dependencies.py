@@ -16,7 +16,7 @@ limiter = Limiter(key_func=get_remote_address)
 class GeoUtils:
     """Wrapper für Geo-Utilities mit Caching."""
     def __init__(self):
-        from ..geo_utils import (
+        from ...geo_utils import (
             geocode_ch,
             elevation_at,
             wgs84_to_lv95,

@@ -43,4 +43,4 @@ jobs:
             gh issue edit "$number" --add-label "$labels"
           done
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_APP_TOKEN }}
