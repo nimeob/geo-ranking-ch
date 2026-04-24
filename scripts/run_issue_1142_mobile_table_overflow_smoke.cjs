@@ -8,6 +8,7 @@ const { execFileSync, spawn } = require('node:child_process');
 const issueNumber = 1142;
 const scriptRelPath = 'scripts/run_issue_1142_mobile_table_overflow_smoke.cjs';
 const DEFAULT_BASELINE_REF = 'HEAD~1';
+const DEFAULT_REMOTE_TIMEOUT_MS = 10000;
 
 function buildUsage() {
   return [
@@ -21,11 +22,13 @@ function buildUsage() {
     `  --baseline-ref <ref>   Override baseline git ref (default: ${DEFAULT_BASELINE_REF})`,
     '  --evidence-json <path> Override JSON evidence output path.',
     '  --json-out <path>      Alias für --evidence-json (legacy compatibility).',
-    '  --base-url <url>       Accepted for compatibility (unused by this harness).',
+    '  --base-url <url>       Optional deployed GUI URL (e.g. https://www.dev.georanking.ch/gui).',
     '  --headless             Accepted for compatibility (runner is always headless).',
     '',
     'Environment:',
     `  ISSUE_1142_BASELINE_REF=${DEFAULT_BASELINE_REF}   Optional baseline git ref for CSS comparison.`,
+    '  ISSUE_1142_BASE_URL=<url>    Optional deployed GUI URL when --base-url is omitted.',
+    `  ISSUE_1142_REMOTE_TIMEOUT_MS=${DEFAULT_REMOTE_TIMEOUT_MS}    Timeout for remote HTML fetch in ms.`,
   ].join('\n');
 }
 
@@ -36,6 +39,7 @@ function parseCliArgs(argv) {
     help: false,
     baselineRef: '',
     evidenceJson: '',
+    baseUrl: '',
   };
 
   const consumeValue = (flag, inlineValue, currentArgs, index) => {
@@ -73,7 +77,7 @@ function parseCliArgs(argv) {
       case '--headless':
       case '--base-url':
         if (flag === '--base-url') {
-          consumeValue(flag, inlineValue, args, i);
+          options.baseUrl = consumeValue(flag, inlineValue, args, i);
           if (inlineValue === null) i += 1;
         }
         break;
@@ -225,14 +229,103 @@ function renderGuiHtmlAtGitRef(repoRoot, gitRef, { quiet = false } = {}) {
   });
 }
 
+function normalizeGuiBaseUrl(rawUrl) {
+  const trimmed = String(rawUrl || '').trim();
+  if (!trimmed) return '';
+
+  let parsed;
+  try {
+    parsed = new URL(trimmed);
+  } catch (error) {
+    throw new Error(`Ungültige --base-url: ${trimmed}`);
+  }
+
+  if (!/^https?:$/.test(parsed.protocol)) {
+    throw new Error(`--base-url muss http/https nutzen: ${trimmed}`);
+  }
+
+  const pathname = parsed.pathname || '/';
+  if (pathname === '/') {
+    parsed.pathname = '/gui';
+  } else if (!pathname.startsWith('/gui')) {
+    parsed.pathname = pathname.endsWith('/') ? `${pathname}gui` : `${pathname}/gui`;
+  }
+
+  return parsed.toString();
+}
+
+async function fetchGuiHtmlFromBaseUrl(rawUrl, timeoutMs) {
+  const targetUrl = normalizeGuiBaseUrl(rawUrl);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        accept: 'text/html,application/xhtml+xml',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Remote GUI HTML fetch fehlgeschlagen: status=${response.status}`);
+    }
+
+    const html = await response.text();
+    if (!html || !/<style>[\s\S]*?<\/style>/i.test(html)) {
+      throw new Error('Remote GUI HTML enthält keinen nutzbaren <style>-Block');
+    }
+
+    return {
+      html,
+      targetUrl,
+      finalUrl: response.url || targetUrl,
+    };
+  } catch (error) {
+    if (error && error.name === 'AbortError') {
+      throw new Error(`Remote GUI HTML fetch timeout nach ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function main() {
   await fs.mkdir(outDir, { recursive: true });
 
-  const currentHtml = execFileSync('python3', ['-c', 'from src.shared.gui_mvp import render_gui_mvp_html; print(render_gui_mvp_html(app_version="dev"))'], {
+  const currentHtmlLocal = execFileSync('python3', ['-c', 'from src.shared.gui_mvp import render_gui_mvp_html; print(render_gui_mvp_html(app_version="dev"))'], {
     cwd: repoRoot,
     encoding: 'utf8',
     maxBuffer: 20 * 1024 * 1024,
   });
+
+  const remoteTimeoutMsRaw = Number(process.env.ISSUE_1142_REMOTE_TIMEOUT_MS);
+  const remoteTimeoutMs = Number.isFinite(remoteTimeoutMsRaw) && remoteTimeoutMsRaw > 0
+    ? Math.floor(remoteTimeoutMsRaw)
+    : DEFAULT_REMOTE_TIMEOUT_MS;
+
+  const targetUrlRequested = String(cli.baseUrl || process.env.ISSUE_1142_BASE_URL || '').trim();
+  let targetUrlResolved = '';
+  let targetUrlFinal = '';
+  let currentHtmlSource = 'local_render';
+  let currentHtmlFetchError = null;
+
+  let currentHtml = currentHtmlLocal;
+  if (targetUrlRequested) {
+    try {
+      const remote = await fetchGuiHtmlFromBaseUrl(targetUrlRequested, remoteTimeoutMs);
+      currentHtml = remote.html;
+      targetUrlResolved = remote.targetUrl;
+      targetUrlFinal = remote.finalUrl;
+      currentHtmlSource = 'remote_fetch';
+    } catch (error) {
+      currentHtmlFetchError = error instanceof Error ? error.message : String(error);
+      currentHtmlSource = 'local_render_fallback';
+    }
+  }
 
   const baselineRefRequested = String(
     cli.baselineRef || process.env.ISSUE_1142_BASELINE_REF || DEFAULT_BASELINE_REF,
@@ -334,6 +427,12 @@ async function main() {
   };
 
   const payload = {
+    targetUrlRequested,
+    targetUrlResolved,
+    targetUrlFinal,
+    currentHtmlSource,
+    currentHtmlFetchError,
+    remoteTimeoutMs,
     baselineRefRequested,
     baselineRefResolved,
     baselineFallbackUsed,

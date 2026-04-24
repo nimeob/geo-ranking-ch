@@ -13,7 +13,14 @@ class TestIssue1142MobileOverflowScriptContract(unittest.TestCase):
         content = script_path.read_text(encoding="utf-8")
         required_markers = [
             "ISSUE_1142_BASELINE_REF",
+            "ISSUE_1142_BASE_URL",
+            "ISSUE_1142_REMOTE_TIMEOUT_MS",
             "const repoRoot = path.resolve(__dirname, '..');",
+            "normalizeGuiBaseUrl",
+            "fetchGuiHtmlFromBaseUrl",
+            "targetUrlRequested",
+            "currentHtmlSource",
+            "currentHtmlFetchError",
             "baselineRefRequested",
             "baselineRefResolved",
             "baselineFallbackUsed",
