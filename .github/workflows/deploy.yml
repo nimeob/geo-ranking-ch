@@ -45,6 +45,7 @@ jobs:
     name: Deploy full ECS environment (dev)
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: ${{ github.ref == 'refs/heads/main' }}
     timeout-minutes: 75
     steps:
       - name: Checkout
