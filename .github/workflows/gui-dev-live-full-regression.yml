@@ -2,6 +2,17 @@ name: gui-dev-live-full-regression
 
 on:
   workflow_dispatch:
+    inputs:
+      base_url:
+        description: "UI-Base-URL für den Full-Regression-Lauf"
+        required: false
+        default: "https://www.dev.georanking.ch"
+        type: string
+      fallback_login_start_on_missing_creds:
+        description: "Bei fehlenden Live-Secrets Login-Start-Fallback nutzen"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: gui-dev-live-full-regression-${{ github.ref }}
@@ -12,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      DEV_UI_BASE_URL: https://www.dev.georanking.ch
+      DEV_UI_BASE_URL: ${{ inputs.base_url }}
       DEV_UI_SMOKE_RUN_ID: ${{ github.run_number }}-${{ github.run_attempt }}
       DEV_UI_SMOKE_WORKFLOW_NAME: gui-dev-live-full-regression
       DEV_UI_SMOKE_BLOCKER_PREFIX: dev-ui-full-regression-blocked
@@ -27,6 +38,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Validate required secrets
+        if: ${{ inputs.fallback_login_start_on_missing_creds != true }}
         run: ./scripts/smoke/validate_gui_live_auth_analyze_secrets.sh
 
       - name: Setup Node.js
@@ -41,7 +53,19 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run DEV live full UI regression
-        run: node scripts/run_dev_ui_live_full_regression.mjs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmd=(node scripts/run_dev_ui_live_full_regression.mjs --base-url "${{ inputs.base_url }}")
+
+          if [[ "${{ inputs.fallback_login_start_on_missing_creds }}" == "true" ]]; then
+            cmd+=(--fallback-login-start)
+          fi
+
+          printf 'Running command:'
+          printf ' %q' "${cmd[@]}"
+          printf '\n'
+          "${cmd[@]}"
 
       - name: Upload full-regression artifacts
         id: upload_dev_full_regression_artifacts
