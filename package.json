@@ -6,7 +6,8 @@
   "scripts": {
     "dev:smoke": "./scripts/run_dev_smoke_bundle.sh",
     "smoke:gui:webkit": "node scripts/run_issue_986_webkit_smoke.mjs",
-    "smoke:gui:dev-live-auth-analyze": "node scripts/run_dev_ui_auth_analyze_smoke.mjs"
+    "smoke:gui:dev-live-auth-analyze": "node scripts/run_dev_ui_auth_analyze_smoke.mjs",
+    "smoke:gui:dev-mobile-bundle": "node scripts/run_dev_ui_mobile_regression_bundle.mjs"
   },
   "devDependencies": {
     "playwright": "1.58.2"
