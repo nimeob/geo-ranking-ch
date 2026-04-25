@@ -10,6 +10,14 @@ Neue, nicht BL-spezifische Test-Runbooks gehören direkt in die Subdirectory-Dat
 - Verbindliche Zuordnung der Gate-Tiers (`PR`, `Deploy`, `Nightly`) inkl. Blocking-Status, Entrypoints und Verantwortlichkeiten.
 - Referenz: [`DEPLOY_TEST_TIERS.md`](DEPLOY_TEST_TIERS.md)
 
+## DEV Live Mobile Regression Bundle
+
+*Quelle: `GUI_DEV_LIVE_MOBILE_REGRESSION.md`*
+
+- Kanonischer Bundle-Entrypoint für mobile-orientierte Live-Smokes gegen `https://www.dev.georanking.ch/gui`.
+- Führt #1016, #981, #1039 und #986 in Serie aus und schreibt ein konsolidiertes Evidence-JSON.
+- Referenz: [`GUI_DEV_LIVE_MOBILE_REGRESSION.md`](GUI_DEV_LIVE_MOBILE_REGRESSION.md)
+
 ## Staging-Environment Setup (Prerequisites)
 
 *Quelle: `../staging-environment-setup.md` (Issue #1325)*

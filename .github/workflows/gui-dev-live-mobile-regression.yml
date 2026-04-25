@@ -1,0 +1,88 @@
+name: gui-dev-live-mobile-regression
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: gui-dev-live-mobile-regression-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dev-live-mobile-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DEV_UI_MOBILE_BASE_URL: https://www.dev.georanking.ch/gui
+      DEV_UI_MOBILE_EVIDENCE_JSON: artifacts/dev-ui-mobile/latest/dev-ui-mobile-regression.json
+      DEV_UI_MOBILE_SCREENSHOT_DIR: artifacts/dev-ui-mobile/latest/screenshots
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium + system deps
+        run: npx playwright install --with-deps chromium
+
+      - name: Run DEV live mobile regression bundle
+        run: |
+          node scripts/run_dev_ui_mobile_regression_bundle.mjs \
+            --base-url "${DEV_UI_MOBILE_BASE_URL}" \
+            --evidence-json "${DEV_UI_MOBILE_EVIDENCE_JSON}" \
+            --screenshot-dir "${DEV_UI_MOBILE_SCREENSHOT_DIR}" \
+            --headless
+
+      - name: Append mobile regression summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          evidence = Path("artifacts/dev-ui-mobile/latest/dev-ui-mobile-regression.json")
+          if not evidence.exists():
+              print("## DEV Live Mobile Regression")
+              print("- summary artifact missing")
+              raise SystemExit(0)
+
+          payload = json.loads(evidence.read_text(encoding="utf-8"))
+          print("## DEV Live Mobile Regression")
+          print(f"- target: `{payload.get('target', {}).get('baseUrl', 'n/a')}`")
+          print(f"- overall: `{'PASS' if payload.get('ok') else 'FAIL'}`")
+          totals = payload.get('totals', {})
+          print(f"- steps: `{totals.get('okSteps', 0)}/{totals.get('totalSteps', 0)}`")
+          print(f"- copied screenshots: `{totals.get('copiedScreenshotCount', 0)}`")
+          print("")
+          for step in payload.get("suite", []):
+              status = "PASS" if step.get("ok") else "FAIL"
+              print(f"- {step.get('id')}: `{status}`")
+          PY
+
+      - name: Upload mobile regression artifacts
+        id: upload_mobile_regression_artifacts
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: gui-dev-live-mobile-regression-artifacts
+          path: |
+            artifacts/dev-ui-mobile/latest/**
+          if-no-files-found: warn
+          overwrite: true
+
+      - name: Retry upload mobile regression artifacts
+        if: always() && steps.upload_mobile_regression_artifacts.outcome == 'failure'
+        uses: actions/upload-artifact@v6
+        with:
+          name: gui-dev-live-mobile-regression-artifacts
+          path: |
+            artifacts/dev-ui-mobile/latest/**
+          if-no-files-found: warn
+          overwrite: true
