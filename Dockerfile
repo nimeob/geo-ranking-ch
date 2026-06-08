@@ -1,6 +1,6 @@
 FROM public.ecr.aws/docker/library/python:3.12.2-slim
 
-# Erstelle nicht-privilegierten Benutzer
+# Erstelle nicht-privilegierten Benutzer und Gruppe
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 ARG API_PORT=8080
@@ -18,12 +18,13 @@ RUN apt-get update && \\
     apt-get install -y --no-install-recommends curl && \\
     rm -rf /var/lib/apt/lists/*
 
-# Python-Abhaengigkeiten
+# Python-Abhaengigkeiten als root installieren
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Anwendungscode (mit korrekten Berechtigungen)
-COPY --chown=appuser:appuser src/ ./src/
+# Anwendungscode kopieren und Berechtigungen setzen
+COPY src/ ./src/
+RUN chown -R appuser:appuser /app/src /app/requirements.txt
 
 # Wechsel zu nicht-privilegiertem Benutzer
 USER appuser
