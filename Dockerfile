@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/python:3.12.2-slim
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
 # Erstelle nicht-privilegierten Benutzer und Gruppe
 RUN groupadd -r appuser && useradd -r -g appuser appuser
