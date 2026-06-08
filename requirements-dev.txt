@@ -1,30 +1,28 @@
 # Development-Abhängigkeiten
-# Runtime-Abhängigkeiten explizit inkludieren, damit CI-Testjobs
-# (z. B. Deploy-Workflows) auch FastAPI-/Cache-Imports auflösen können.
 -r requirements.txt
 
 # Testing
-pytest>=7.4,<8.0
-pytest-cov>=4.1.0
-pytest-mock>=3.12.0
-requests-mock>=1.11.0
-httpx>=0.26.0
+pytest==7.4.4
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+requests-mock==1.11.0
+httpx==0.26.0
 
 # Linting & Formatting
-ruff>=0.3.0
-mypy>=1.8.0
+ruff==0.3.7
+mypy==1.8.0
 
-# Security
-bandit>=1.7.7
-safety>=2.3.5
-pip-audit>=2.6.0
+# Security Scanning
+bandit==1.7.7
+safety==2.3.5
+pip-audit==2.6.0
 
 # Type Checking
-types-requests>=2.31.0
-types-cachetools>=5.3.0
-types-python-jose>=3.3.0
-types-passlib>=1.7.4
+types-requests==2.31.0
+types-cachetools==5.3.0
+types-python-jose==3.3.0
+types-passlib==1.7.4
 
-# Docs
-mkdocs>=1.5.3
-mkdocs-material>=9.5.0
+# Documentation
+mkdocs==1.5.3
+mkdocs-material==9.5.0
