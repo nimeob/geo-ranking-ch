@@ -16,8 +16,8 @@ passlib[bcrypt]==1.7.4
 # Datenbank (optional)
 psycopg2-binary==2.9.9
 
-# AWS SDK (wichtig: aktualisiert von 1.x auf 2.x)
-boto3>=2.0.0,<3.0.0
+# AWS SDK (KORREKTUR: 2.x existiert nicht, 1.x ist aktuell)
+boto3>=1.34.158,<2.0
 
 # Templates
 jinja2==3.1.3
