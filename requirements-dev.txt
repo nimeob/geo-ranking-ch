@@ -15,7 +15,7 @@ mypy==1.8.0
 # Security Scanning
 bandit==1.7.7
 safety==2.3.5
-pip-audit==2.6.0
+# pip-audit==2.6.0  # ENTFERNT - Conflict mit safety (packaging Version)
 
 # Type Checking
 types-requests==2.31.0
