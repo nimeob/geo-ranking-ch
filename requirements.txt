@@ -13,11 +13,7 @@ python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
-# Rate Limiting (Ersatz für veraltetes slowapi)
-limits==3.11.0
-redis==4.5.5
-
-# Datenbank
+# Datenbank (optional)
 psycopg2-binary==2.9.9
 
 # AWS SDK (wichtig: aktualisiert von 1.x auf 2.x)
