@@ -43,13 +43,15 @@ Reference: docs/VISION_GAP_ANALYSIS.md (G3), migration 004.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
 import threading
 from calendar import monthrange
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ def _month_window(now: datetime | None = None) -> tuple[datetime, datetime]:
     """Return (window_start, window_end) for the current calendar month (UTC)."""
     from datetime import timedelta
 
-    moment = now or datetime.now(timezone.utc)
+    moment = now or datetime.now(UTC)
     start = moment.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     last_day = monthrange(moment.year, moment.month)[1]
     end = start.replace(day=last_day) + timedelta(days=1)
@@ -69,7 +71,7 @@ def _month_window(now: datetime | None = None) -> tuple[datetime, datetime]:
 
 
 def _window_label(now: datetime | None = None) -> str:
-    moment = now or datetime.now(timezone.utc)
+    moment = now or datetime.now(UTC)
     return moment.strftime("%Y-%m")
 
 
@@ -122,7 +124,7 @@ class DbQuotaLedger:
         return f"postgresql://{db_user}:{encoded_pass}@{db_host}:{db_port}/{db_name}"
 
     @classmethod
-    def from_env(cls) -> "DbQuotaLedger":
+    def from_env(cls) -> DbQuotaLedger:
         db_url = cls._build_db_url()
         try:
             import psycopg2  # type: ignore[import]
@@ -254,10 +256,8 @@ class DbQuotaLedger:
         except Exception as exc:
             raise QuotaLedgerError(str(exc)) from exc
         finally:
-            try:
+            with contextlib.suppress(Exception):  # noqa: BLE001 - cleanup best effort
                 conn.close()
-            except Exception:  # noqa: BLE001 - cleanup best effort
-                pass
 
     def lookup_quota_remaining(
         self,
@@ -296,10 +296,8 @@ class DbQuotaLedger:
         except Exception as exc:
             raise QuotaLedgerError(str(exc)) from exc
         finally:
-            try:
+            with contextlib.suppress(Exception):  # noqa: BLE001 - cleanup best effort
                 conn.close()
-            except Exception:  # noqa: BLE001 - cleanup best effort
-                pass
 
 
 class NullQuotaLedger:

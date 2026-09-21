@@ -1,0 +1,68 @@
+# Ruff configuration — explicit rule set for version stability.
+#
+# Ruff's default rule set changes between releases (0.3.x -> 0.16.x added
+# TRY/BLE/S/DTZ/RUF-style rules). CI and pre-commit must behave identically
+# across ruff versions, so this file pins the enabled rule families instead
+# of relying on defaults.
+#
+# Deliberately NOT enabled (documented decisions):
+# - TRY004 (ValueError -> TypeError): the /analyze handler deliberately
+#   raises ValueError for all client-input validation and maps it to 400
+#   bad_request; changing exception types would alter the API contract.
+# - BLE001 (blind-except): fail-safe paths intentionally catch broad
+#   exceptions to guarantee the baseline analyze result is never blocked
+#   (deep-mode quota ledger, sync-history best-effort persistence).
+# - S110/S112 (try-except-pass/continue): best-effort cleanup paths where
+#   logging would add noise without actionable signal.
+# - DTZ (datetime tz-awareness): legacy call sites are being migrated;
+#   new code must use timezone-aware datetimes.
+# - EM101/EM102 (string exceptions in raise): legacy style, no functional
+#   benefit in migrating now.
+# - EXE001 (shebang not executable): scripts/ files are invoked via
+#   python3, not directly; executable bit is not preserved by all CI
+#   checkout configurations.
+# - PLW1510 (subprocess-run-without-check): smoke scripts intentionally
+#   handle non-zero exits explicitly.
+
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = [
+    "E4", "E7", "E9", "W",   # pycodestyle core
+    "F",                      # pyflakes
+    "B",                      # flake8-bugbear
+    "C4",                     # flake8-comprehensions
+    "I",                      # isort
+    "UP",                     # pyupgrade (modernize to py311 idioms)
+    "SIM",                     # flake8-simplify
+    "RET501",                 # bare return
+    "RUF",                     # ruff-specific
+    "N999",                   # invalid module name
+    "PIE",                    # flake8-pie
+    "FLY002",                 # static join to f-string
+    "PLR1730",                # if-stmt-min-max
+    "B023",                   # function-uses-loop-variable
+    "TC",                     # flake8-type-checking
+    "LOG",                    # flake8-logging
+    "G",                      # flake8-logging-format
+]
+ignore = [
+    "RUF100",  # unused-noqa: existing noqa comments reference rules from older configs
+    "RUF059",  # unused-unpacked-variable: test helpers unpack tuples intentionally
+    "RUF046",  # unnecessary-cast-to-int: defensive int() casts on external data
+    "SIM117",  # multiple-with-statements: nested with blocks are used for mock patching
+    "TC001",   # typing-only-first-party-import: pending migration
+    "TC002",   # typing-only-third-party-import: pending migration
+    "TC003",   # typing-only-standard-library-import: pending migration
+]
+
+[lint.per-file-ignores]
+"tests/*" = [
+    "S101",    # asserts are the point of tests
+    "RUF059",  # helper unpacking pattern
+    "SIM117",  # nested with for patch stacking
+]
+
+[lint.isort]
+known-first-party = ["src"]

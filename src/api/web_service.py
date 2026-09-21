@@ -19,6 +19,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import json
@@ -30,34 +31,20 @@ import threading
 import time
 import uuid
 from collections import OrderedDict
+from collections.abc import Callable
 from copy import deepcopy
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
+from html import escape
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from html import escape
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import urlopen
 
 from src.api.address_intel import AddressIntelError, build_report
-from src.api.async_worker_runtime import AsyncJobRuntime
 from src.api.async_store_factory import build_async_job_store
-from src.api.quota_store_factory import build_quota_ledger
-from src.shared.quota_ledger_db import NullQuotaLedger, QuotaLedgerError
-from src.api.debug_trace import (
-    build_trace_timeline,
-    normalize_lookback_seconds,
-    normalize_max_events,
-    normalize_request_id,
-)
-from src.api.oidc_jwt import JwtValidationError, OidcJwtValidator
-from src.shared.gui_mvp import render_gui_mvp_html
-from src.shared.ui_pages import build_result_tabs_page_html, normalize_result_id
-from src.shared.structured_logging import build_event, emit_event
-from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
-from src.api.personalized_scoring import compute_two_stage_scores
-from src.api.compliance_corrections import handle_correction_request
+from src.api.async_worker_runtime import AsyncJobRuntime
 from src.api.bff_oidc import (
     OidcCallbackError,
     build_login_redirect,
@@ -71,6 +58,31 @@ from src.api.bff_session import (
     parse_session_id_from_cookie,
 )
 from src.api.bff_token_delegation import handle_logout, handle_me
+from src.api.compliance_corrections import handle_correction_request
+from src.api.debug_trace import (
+    build_trace_timeline,
+    normalize_lookback_seconds,
+    normalize_max_events,
+    normalize_request_id,
+)
+from src.api.oidc_jwt import JwtValidationError, OidcJwtValidator
+from src.api.personalized_scoring import compute_two_stage_scores
+from src.api.quota_store_factory import build_quota_ledger
+from src.api.web_service_oidc_loader import (
+    load_oidc_jwt_validator_from_env as _load_oidc_jwt_validator_from_env_impl,
+)
+from src.api.web_service_phase1_auth import (
+    Phase1AuthUser as _Phase1AuthUser,
+)
+from src.api.web_service_phase1_auth import (
+    load_phase1_auth_users_from_config as _load_phase1_auth_users_from_config_impl,
+)
+from src.api.web_service_phase1_auth import (
+    normalize_phase1_auth_scalar as _normalize_phase1_auth_scalar_impl,
+)
+from src.api.web_service_phase1_auth import (
+    resolve_phase1_auth_user as _resolve_phase1_auth_user_impl,
+)
 from src.api.web_service_query_params import (
     _resolve_history_limit,
     _resolve_history_offset,
@@ -78,15 +90,11 @@ from src.api.web_service_query_params import (
     _resolve_notification_limit,
     _resolve_result_projection_mode,
 )
-from src.api.web_service_phase1_auth import (
-    Phase1AuthUser as _Phase1AuthUser,
-    load_phase1_auth_users_from_config as _load_phase1_auth_users_from_config_impl,
-    normalize_phase1_auth_scalar as _normalize_phase1_auth_scalar_impl,
-    resolve_phase1_auth_user as _resolve_phase1_auth_user_impl,
-)
-from src.api.web_service_oidc_loader import (
-    load_oidc_jwt_validator_from_env as _load_oidc_jwt_validator_from_env_impl,
-)
+from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
+from src.shared.gui_mvp import render_gui_mvp_html
+from src.shared.quota_ledger_db import NullQuotaLedger, QuotaLedgerError
+from src.shared.structured_logging import build_event, emit_event
+from src.shared.ui_pages import build_result_tabs_page_html, normalize_result_id
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -176,11 +184,11 @@ _HISTORY_API_DEPRECATION_WARNING = (
 )
 _EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING = '299 - "External direct login/auth routes on API are deprecated: use UI-owned /login session flow."'
 _TRACE_LEGACY_ALIAS_DEPRECATION_WARNING = '299 - "Legacy trace alias on API is deprecated and removed: use /debug/trace?request_id=<id>."'
-_API_DEPRECATION_SUNSET_UTC = datetime(2026, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
+_API_DEPRECATION_SUNSET_UTC = datetime(2026, 6, 30, 23, 59, 59, tzinfo=UTC)
 
 
 def _format_http_datetime(value: datetime) -> str:
-    return value.astimezone(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    return value.astimezone(UTC).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 
 def _deprecation_link_header(*, successor_link: str) -> str:
@@ -284,10 +292,8 @@ def _health_details_database_check() -> dict[str, str]:
         return {"status": "down", "reason": f"db_check_failed:{exc.__class__.__name__}"}
     finally:
         if conn is not None:
-            try:
+            with contextlib.suppress(Exception):
                 conn.close()
-            except Exception:
-                pass
 
 
 def _health_details_auth_check() -> dict[str, str]:
@@ -362,7 +368,7 @@ def _build_health_details_payload(
         "ok": True,
         "service": "geo-ranking-ch",
         "status": _health_details_overall_status(checks),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "checks": checks,
         "request_id": request_id,
     }
@@ -643,10 +649,7 @@ def _normalize_trusted_host(raw_value: str) -> str:
     if not value:
         return ""
 
-    if "://" in value:
-        parsed = urlsplit(value)
-    else:
-        parsed = urlsplit(f"//{value}")
+    parsed = urlsplit(value) if "://" in value else urlsplit(f"//{value}")
 
     candidate = parsed.netloc or parsed.path
     return _extract_host_without_port(candidate).strip().lower()
@@ -1114,11 +1117,11 @@ def _dictionary_status_payload() -> dict[str, Any]:
 
 def _is_status_like_key(key: str) -> bool:
     normalized = key.strip().lower()
-    if normalized in {"status", "source_health", "source_meta"}:
-        return True
-    if normalized.startswith("status_") or normalized.endswith("_status"):
-        return True
-    return False
+    return bool(
+        normalized in {"status", "source_health", "source_meta"}
+        or normalized.startswith("status_")
+        or normalized.endswith("_status")
+    )
 
 
 def _strip_status_fields(payload: Any) -> Any:
@@ -1320,7 +1323,7 @@ def _build_by_source_payload(
             entry = ensure_source(source_name)
             entry["data"][group_name] = deepcopy(group_value)
 
-    for source_name in source_health.keys():
+    for source_name in source_health:
         if isinstance(source_name, str) and source_name.strip():
             ensure_source(source_name)
 
@@ -1490,7 +1493,7 @@ _DEV_GEO_QUERY_CACHE_DISK_ENV = "DEV_GEO_QUERY_CACHE_DISK"
 _DEV_GEO_QUERY_CACHE_DIR_ENV = "DEV_GEO_QUERY_CACHE_DIR"
 _DEV_GEO_QUERY_CACHE_MAX_AGE_SECONDS = 7 * 24 * 3600.0
 
-_DEV_GEO_QUERY_CACHE: "OrderedDict[str, tuple[float, dict[str, Any]]]" = OrderedDict()
+_DEV_GEO_QUERY_CACHE: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
 _DEV_GEO_QUERY_CACHE_LOCK = threading.Lock()
 
 
@@ -3246,7 +3249,7 @@ def _apply_open_meteo_deep_enrichment(
                 payload.get("utc_offset_seconds") if isinstance(payload, dict) else None
             ),
         },
-        "fetched_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "fetched_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
 
     report["deep_enrichment"] = module_payload
@@ -3279,10 +3282,7 @@ def _attach_deep_source_metadata(
         source_attribution = {}
 
     existing = source_attribution.get(group_name)
-    if isinstance(existing, list):
-        group_sources = existing
-    else:
-        group_sources = []
+    group_sources = existing if isinstance(existing, list) else []
     if source_name not in group_sources:
         group_sources.append(source_name)
     source_attribution[group_name] = group_sources
@@ -3319,7 +3319,7 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
     4) explizite `weights`-Overrides aus dem Request
     """
     raw_preferences = data.get("preferences")
-    effective = deepcopy(_DEFAULT_PREFERENCES)
+    effective: dict[str, Any] = deepcopy(_DEFAULT_PREFERENCES)
 
     if raw_preferences is None:
         return effective
@@ -4108,7 +4108,7 @@ class Handler(BaseHTTPRequestHandler):
             error_code=str(getattr(self, "_response_error_code", "")),
         )
 
-        self._request_lifecycle_started_at = None
+        self._request_lifecycle_started_at = None  # type: ignore[assignment]
 
     def send_response(self, code: int, message: str | None = None) -> None:
         self._response_status_code = int(code)
@@ -4286,14 +4286,11 @@ class Handler(BaseHTTPRequestHandler):
             return False
 
         accept_header = str(self.headers.get("Accept", "") or "").lower()
-        if (
+        return not (
             accept_header
             and "text/html" not in accept_header
             and "*/*" not in accept_header
-        ):
-            return False
-
-        return True
+        )
 
     def _redirect_unproxied_auth_login_to_ui_entry(self, *, request_id: str) -> None:
         query = urlsplit(self.path).query
@@ -4860,7 +4857,7 @@ class Handler(BaseHTTPRequestHandler):
                         "ok": True,
                         "status": "ok",
                         "service": "geo-ranking-ch",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "version": app_version,
                         "commit": commit_sha,
                         "build": {
@@ -4914,7 +4911,7 @@ class Handler(BaseHTTPRequestHandler):
                     {
                         "ok": True,
                         "service": "geo-ranking-ch",
-                        "ts": datetime.now(timezone.utc).isoformat(),
+                        "ts": datetime.now(UTC).isoformat(),
                         "request_id": request_id,
                     },
                     request_id=request_id,
@@ -5050,23 +5047,23 @@ class Handler(BaseHTTPRequestHandler):
                         total = _ASYNC_JOB_STORE.count_jobs_for_org(request_org_id)
 
                     db_history_rows: list[dict[str, Any]] = []
-                    for job_record in db_jobs:
-                        job_id = str(job_record.get("job_id") or "")
+                    for db_job_record in db_jobs:
+                        job_id = str(db_job_record.get("job_id") or "")
                         db_history_rows.append(
                             {
-                                "result_id": job_record.get("result_id"),
+                                "result_id": db_job_record.get("result_id"),
                                 "job_id": job_id,
                                 "created_at": str(
-                                    job_record.get("finished_at")
-                                    or job_record.get("updated_at")
-                                    or job_record.get("queued_at")
+                                    db_job_record.get("finished_at")
+                                    or db_job_record.get("updated_at")
+                                    or db_job_record.get("queued_at")
                                     or ""
                                 ),
-                                "query": job_record.get("query", ""),
-                                "intelligence_mode": job_record.get(
+                                "query": db_job_record.get("query", ""),
+                                "intelligence_mode": db_job_record.get(
                                     "intelligence_mode", "basic"
                                 ),
-                                "status": job_record.get("status"),
+                                "status": db_job_record.get("status"),
                             }
                         )
 
@@ -5781,25 +5778,21 @@ class Handler(BaseHTTPRequestHandler):
                 or _PHASE1_AUTH_ENABLED
                 or _OIDC_AUTH_ENABLED
                 or is_bff_oidc_enabled()
+            ) and not (
+                legacy_token_ok or phase1_token_ok or oidc_token_ok or bff_session_ok
             ):
-                if not (
-                    legacy_token_ok
-                    or phase1_token_ok
-                    or oidc_token_ok
-                    or bff_session_ok
-                ):
-                    self._send_json(
-                        {
-                            "ok": False,
-                            "error": "unauthorized",
-                            "message": "missing or invalid bearer token",
-                            "request_id": request_id,
-                        },
-                        status=HTTPStatus.UNAUTHORIZED,
-                        request_id=request_id,
-                        extra_headers={"Cache-Control": "no-store"},
-                    )
-                    return
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "unauthorized",
+                        "message": "missing or invalid bearer token",
+                        "request_id": request_id,
+                    },
+                    status=HTTPStatus.UNAUTHORIZED,
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
 
             try:
                 # Ensure history-persistence hooks exist even when request parsing
@@ -6005,6 +5998,8 @@ class Handler(BaseHTTPRequestHandler):
                 req_timeout_raw = data.get("timeout_seconds", default_timeout)
                 timeout = _as_positive_finite_number(req_timeout_raw, "timeout_seconds")
                 timeout = min(timeout, max_timeout)
+                # build_report expects whole seconds
+                timeout = max(1, int(timeout))
 
                 if async_mode_requested:
                     _ensure_async_runtime_started()
@@ -6017,7 +6012,7 @@ class Handler(BaseHTTPRequestHandler):
                         owner_user_id=owner_user_id,
                         owner_org_id=request_org_id,
                     )
-                    created_job_id = str(created_job.get("job_id") or "")
+                    created_job_id: str | None = str(created_job.get("job_id") or "")
                     if created_job_id:
                         _ASYNC_JOB_RUNTIME.enqueue(created_job_id)
 
@@ -6538,8 +6533,9 @@ def _start_http_redirect_server(
     https_host_override: str = "",
 ) -> ThreadingHTTPServer:
     redirect_server = ThreadingHTTPServer((host, http_port), RedirectToHttpsHandler)
-    setattr(redirect_server, "redirect_https_port", https_port)
-    setattr(redirect_server, "redirect_https_host", https_host_override)
+    # Dynamic config attributes consumed by RedirectToHttpsHandler via getattr
+    redirect_server.redirect_https_port = https_port  # type: ignore[attr-defined]
+    redirect_server.redirect_https_host = https_host_override  # type: ignore[attr-defined]
 
     thread = threading.Thread(target=redirect_server.serve_forever, daemon=True)
     thread.start()
@@ -6569,7 +6565,7 @@ def main() -> None:
                 https_port=port,
                 https_host_override=str(tls_settings.get("redirect_host") or ""),
             )
-            setattr(httpd, "redirect_server", redirect_server)
+            httpd.redirect_server = redirect_server  # type: ignore[attr-defined]
             _emit_structured_log(
                 event="service.redirect_listener.enabled",
                 level="info",

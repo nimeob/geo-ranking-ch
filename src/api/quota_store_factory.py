@@ -23,13 +23,12 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Union
 
 from src.shared.quota_ledger_db import DbQuotaLedger, NullQuotaLedger
 
 logger = logging.getLogger(__name__)
 
-AnyQuotaLedger = Union[DbQuotaLedger, NullQuotaLedger]
+AnyQuotaLedger = DbQuotaLedger | NullQuotaLedger
 
 _VALID_BACKENDS = frozenset({"none", "db"})
 
