@@ -19,6 +19,7 @@ Für den kompakten Packaging-Überblick (Pflicht/Optional + Default/Beispiel pro
 | `APP_VERSION` | `dev` | nein | Ausgabe in `GET /version` (`version`) |
 | `GIT_SHA` | `unknown` | nein | Ausgabe in `GET /version` (`commit`) |
 | `ENABLE_E2E_FAULT_INJECTION` | `0` | nein | Nur für Tests: `__ok__`, `__timeout__`, `__internal__` in `/analyze` |
+| `QUOTA_STORE_BACKEND` | `none` | nein | `db` aktiviert serverseitiges Deep-Mode-Quota-Ledger (`usage_counters`/`entitlements`, Migration 004); Fallback: `ASYNC_DB_URL`/`DATABASE_URL` bzw. `QUOTA_DB_URL` |
 
 ### Validierungsregeln (Service)
 

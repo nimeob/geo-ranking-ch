@@ -1112,6 +1112,8 @@ Detail-Doku ist jeweils in den verlinkten Quellen zu finden.
 | `ASYNC_DB_URL` | — | PostgreSQL-DSN für Job-Store (explizite Variante). Fallback: `DATABASE_URL`. Aktiv wenn `ASYNC_STORE_BACKEND=db`. Detail: [`docs/ops/async_db_cutover.md`](ops/async_db_cutover.md) |
 | `ASYNC_STORE_BACKEND` | `file` | Job-Store-Backend: `file` (default, in-memory/file) oder `db` (PostgreSQL via `ASYNC_DB_URL`/`DATABASE_URL`) |
 | `ASYNC_WORKER_STAGE_DELAY_MS` | `150` | Künstliche Stage-Pause (ms) im Async-Worker; nur für Debugging/Testing (`src/api/async_worker_runtime.py`) |
+| `QUOTA_DB_URL` | — | PostgreSQL-DSN für das Quota-Ledger (explizite Variante). Fallback: `ASYNC_DB_URL`, dann `DATABASE_URL`. Aktiv wenn `QUOTA_STORE_BACKEND=db` (`src/shared/quota_ledger_db.py`) |
+| `QUOTA_STORE_BACKEND` | `none` | Quota-Ledger-Backend für Deep-Mode-Quota: `none` (default, legacy client-gelieferte Quota-Felder) oder `db` (serverseitige Zähler in `usage_counters`, Limits aus `entitlements`; Migration 004). Fail-safe: bei Ledger-Fehlern Fallback auf Client-Quota |
 | `BFF_OIDC_CLIENT_ID` | — | OIDC App-Client-ID für BFF Login/Refresh (`src/api/bff_oidc.py`, `src/api/bff_token_delegation.py`). Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |
 | `BFF_OIDC_CLIENT_SECRET` | `` | Optionales OIDC Client-Secret (leer für public PKCE-Clients). Sicher als Secret injizieren, nie im Klartext committen. Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |
 | `BFF_OIDC_ISSUER` | — | OIDC Issuer (Cognito User Pool URL), aktiviert den BFF-OIDC-Flow (`src/api/bff_oidc.py`). Detail: [`docs/BFF_FLOW.md`](BFF_FLOW.md) |

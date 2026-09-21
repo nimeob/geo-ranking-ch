@@ -19,6 +19,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import json
@@ -30,34 +31,20 @@ import threading
 import time
 import uuid
 from collections import OrderedDict
+from collections.abc import Callable
 from copy import deepcopy
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
+from html import escape
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from html import escape
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import urlopen
 
 from src.api.address_intel import AddressIntelError, build_report
-from src.api.async_jobs import AsyncJobStore
-from src.api.async_worker_runtime import AsyncJobRuntime
 from src.api.async_store_factory import build_async_job_store
-from src.api.debug_trace import (
-    build_trace_timeline,
-    normalize_lookback_seconds,
-    normalize_max_events,
-    normalize_request_id,
-)
-from src.api.oidc_jwt import JwtValidationError, OidcJwtValidator
-from src.shared.gui_mvp import render_gui_mvp_html
-from src.shared.ui_pages import build_result_tabs_page_html, normalize_result_id
-from src.shared.structured_logging import build_event, emit_event
-from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
-from src.api.personalized_scoring import compute_two_stage_scores
-from src.api.compliance_corrections import handle_correction_request
+from src.api.async_worker_runtime import AsyncJobRuntime
 from src.api.bff_oidc import (
     OidcCallbackError,
     build_login_redirect,
@@ -65,8 +52,37 @@ from src.api.bff_oidc import (
     handle_callback,
     is_bff_oidc_enabled,
 )
-from src.api.bff_session import build_clear_cookie_header, get_session_store, parse_session_id_from_cookie
+from src.api.bff_session import (
+    build_clear_cookie_header,
+    get_session_store,
+    parse_session_id_from_cookie,
+)
 from src.api.bff_token_delegation import handle_logout, handle_me
+from src.api.compliance_corrections import handle_correction_request
+from src.api.debug_trace import (
+    build_trace_timeline,
+    normalize_lookback_seconds,
+    normalize_max_events,
+    normalize_request_id,
+)
+from src.api.oidc_jwt import JwtValidationError, OidcJwtValidator
+from src.api.personalized_scoring import compute_two_stage_scores
+from src.api.quota_store_factory import build_quota_ledger
+from src.api.web_service_oidc_loader import (
+    load_oidc_jwt_validator_from_env as _load_oidc_jwt_validator_from_env_impl,
+)
+from src.api.web_service_phase1_auth import (
+    Phase1AuthUser as _Phase1AuthUser,
+)
+from src.api.web_service_phase1_auth import (
+    load_phase1_auth_users_from_config as _load_phase1_auth_users_from_config_impl,
+)
+from src.api.web_service_phase1_auth import (
+    normalize_phase1_auth_scalar as _normalize_phase1_auth_scalar_impl,
+)
+from src.api.web_service_phase1_auth import (
+    resolve_phase1_auth_user as _resolve_phase1_auth_user_impl,
+)
 from src.api.web_service_query_params import (
     _resolve_history_limit,
     _resolve_history_offset,
@@ -74,15 +90,11 @@ from src.api.web_service_query_params import (
     _resolve_notification_limit,
     _resolve_result_projection_mode,
 )
-from src.api.web_service_phase1_auth import (
-    Phase1AuthUser as _Phase1AuthUser,
-    load_phase1_auth_users_from_config as _load_phase1_auth_users_from_config_impl,
-    normalize_phase1_auth_scalar as _normalize_phase1_auth_scalar_impl,
-    resolve_phase1_auth_user as _resolve_phase1_auth_user_impl,
-)
-from src.api.web_service_oidc_loader import (
-    load_oidc_jwt_validator_from_env as _load_oidc_jwt_validator_from_env_impl,
-)
+from src.gwr_codes import DWST, GENH, GKAT, GKLAS, GSTAT, GWAERZH, GWAERZW
+from src.shared.gui_mvp import render_gui_mvp_html
+from src.shared.quota_ledger_db import NullQuotaLedger, QuotaLedgerError
+from src.shared.structured_logging import build_event, emit_event
+from src.shared.ui_pages import build_result_tabs_page_html, normalize_result_id
 
 SUPPORTED_INTELLIGENCE_MODES = {"basic", "extended", "risk"}
 _BEARER_AUTH_RE = re.compile(r"^\s*Bearer\s+([^\s]+)\s*$", re.IGNORECASE)
@@ -112,7 +124,9 @@ def _load_phase1_auth_users_from_env() -> list[_Phase1AuthUser]:
     """
     raw_file = str(os.getenv(_PHASE1_AUTH_USERS_FILE_ENV, "") or "").strip()
     raw_json = str(os.getenv(_PHASE1_AUTH_USERS_JSON_ENV, "") or "").strip()
-    return _load_phase1_auth_users_from_config_impl(raw_file=raw_file, raw_json=raw_json)
+    return _load_phase1_auth_users_from_config_impl(
+        raw_file=raw_file, raw_json=raw_json
+    )
 
 
 _PHASE1_AUTH_USERS: list[_Phase1AuthUser] = _load_phase1_auth_users_from_env()
@@ -168,17 +182,13 @@ _HISTORY_API_DEPRECATION_WARNING = (
     '299 - "History routes on API are deprecated: use UI /gui/history for front-facing flows; '
     'API /analyze/history remains data-source only during migration."'
 )
-_EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING = (
-    '299 - "External direct login/auth routes on API are deprecated: use UI-owned /login session flow."'
-)
-_TRACE_LEGACY_ALIAS_DEPRECATION_WARNING = (
-    '299 - "Legacy trace alias on API is deprecated and removed: use /debug/trace?request_id=<id>."'
-)
-_API_DEPRECATION_SUNSET_UTC = datetime(2026, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
+_EXTERNAL_DIRECT_LOGIN_DEPRECATION_WARNING = '299 - "External direct login/auth routes on API are deprecated: use UI-owned /login session flow."'
+_TRACE_LEGACY_ALIAS_DEPRECATION_WARNING = '299 - "Legacy trace alias on API is deprecated and removed: use /debug/trace?request_id=<id>."'
+_API_DEPRECATION_SUNSET_UTC = datetime(2026, 6, 30, 23, 59, 59, tzinfo=UTC)
 
 
 def _format_http_datetime(value: datetime) -> str:
-    return value.astimezone(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    return value.astimezone(UTC).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
 
 def _deprecation_link_header(*, successor_link: str) -> str:
@@ -257,7 +267,10 @@ def _health_details_app_check() -> dict[str, str]:
 
 
 def _health_details_database_check() -> dict[str, str]:
-    backend = str(os.getenv("ASYNC_STORE_BACKEND", "file") or "file").strip().lower() or "file"
+    backend = (
+        str(os.getenv("ASYNC_STORE_BACKEND", "file") or "file").strip().lower()
+        or "file"
+    )
     if backend != "db":
         return {"status": "degraded", "reason": f"async_store_backend={backend}"}
 
@@ -279,10 +292,8 @@ def _health_details_database_check() -> dict[str, str]:
         return {"status": "down", "reason": f"db_check_failed:{exc.__class__.__name__}"}
     finally:
         if conn is not None:
-            try:
+            with contextlib.suppress(Exception):
                 conn.close()
-            except Exception:
-                pass
 
 
 def _health_details_auth_check() -> dict[str, str]:
@@ -307,7 +318,9 @@ def _health_details_auth_check() -> dict[str, str]:
 
 
 def _health_details_overall_status(checks: dict[str, dict[str, str]]) -> str:
-    statuses = [str(check.get("status") or "").strip().lower() for check in checks.values()]
+    statuses = [
+        str(check.get("status") or "").strip().lower() for check in checks.values()
+    ]
     if any(status == "down" for status in statuses):
         return "down"
     if any(status == "degraded" for status in statuses):
@@ -323,7 +336,10 @@ def _apply_health_details_simulation(
     if not _fault_injection_enabled():
         return
 
-    for check_name, param_name in (("auth", "simulate_auth"), ("database", "simulate_database")):
+    for check_name, param_name in (
+        ("auth", "simulate_auth"),
+        ("database", "simulate_database"),
+    ):
         raw_status = str((query_params.get(param_name) or [""])[0]).strip().lower()
         if raw_status not in _HEALTH_DETAILS_ALLOWED_STATUS:
             continue
@@ -352,7 +368,7 @@ def _build_health_details_payload(
         "ok": True,
         "service": "geo-ranking-ch",
         "status": _health_details_overall_status(checks),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "checks": checks,
         "request_id": request_id,
     }
@@ -536,6 +552,7 @@ _UI_AUTH_PROXY_HEADER_VALUE = "1"
 _PROTECTED_GUI_ROUTES = frozenset({"/", "/gui", "/history", _HISTORY_UI_SUCCESSOR_PATH})
 
 _ASYNC_JOB_STORE = build_async_job_store()
+_QUOTA_LEDGER = build_quota_ledger()
 _ASYNC_JOB_RUNTIME = AsyncJobRuntime(store=_ASYNC_JOB_STORE)
 _ASYNC_RUNTIME_START_LOCK = threading.Lock()
 _ASYNC_RUNTIME_STARTED = False
@@ -632,10 +649,7 @@ def _normalize_trusted_host(raw_value: str) -> str:
     if not value:
         return ""
 
-    if "://" in value:
-        parsed = urlsplit(value)
-    else:
-        parsed = urlsplit(f"//{value}")
+    parsed = urlsplit(value) if "://" in value else urlsplit(f"//{value}")
 
     candidate = parsed.netloc or parsed.path
     return _extract_host_without_port(candidate).strip().lower()
@@ -654,7 +668,11 @@ def _resolve_ui_auth_proxy_trusted_hosts() -> set[str]:
     if redirect_host:
         hosts.add(redirect_host)
 
-    for env_name in ("SERVICE_APP_BASE_URL", "APP_BASE_URL", "BFF_OIDC_POST_LOGOUT_REDIRECT_URI"):
+    for env_name in (
+        "SERVICE_APP_BASE_URL",
+        "APP_BASE_URL",
+        "BFF_OIDC_POST_LOGOUT_REDIRECT_URI",
+    ):
         normalized = _normalize_trusted_host(os.getenv(env_name, ""))
         if normalized:
             hosts.add(normalized)
@@ -707,7 +725,9 @@ def _is_ui_auth_proxy_request(headers: Any) -> bool:
     if marker != _UI_AUTH_PROXY_HEADER_VALUE.lower():
         return False
 
-    forwarded_host = str(headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+    forwarded_host = (
+        str(headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+    )
     return bool(_normalize_trusted_host(forwarded_host))
 
 
@@ -818,8 +838,12 @@ def _normalize_ui_login_reason(raw_reason: str) -> str:
 
 def _build_ui_login_reentry_location_from_auth_login_query(raw_query: str) -> str:
     query_params = parse_qs(str(raw_query or ""), keep_blank_values=False)
-    next_path = _canonicalize_history_next_path((query_params.get("next") or ["/gui"])[0])
-    reason = _normalize_ui_login_reason((query_params.get("reason") or ["manual_login"])[0])
+    next_path = _canonicalize_history_next_path(
+        (query_params.get("next") or ["/gui"])[0]
+    )
+    reason = _normalize_ui_login_reason(
+        (query_params.get("reason") or ["manual_login"])[0]
+    )
     return f"/login?{urlencode({'next': next_path, 'reason': reason})}"
 
 
@@ -844,8 +868,8 @@ def _render_oidc_callback_error_html(
 
     return (
         "<!doctype html>"
-        "<html lang=\"de\"><head><meta charset=\"utf-8\">"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        '<html lang="de"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
         "<title>Anmeldung fehlgeschlagen</title>"
         "<style>"
         "body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:2rem;}"
@@ -858,18 +882,18 @@ def _render_oidc_callback_error_html(
         "pre{background:#0f172a;color:#e2e8f0;padding:.7rem;border-radius:10px;overflow:auto;font-size:.78rem;}"
         "code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}"
         "</style></head><body>"
-        "<main class=\"card\" role=\"main\">"
+        '<main class="card" role="main">'
         "<h1>Anmeldung konnte nicht abgeschlossen werden</h1>"
-        f"<p id=\"auth-callback-user-message\">{escape(user_message)}</p>"
+        f'<p id="auth-callback-user-message">{escape(user_message)}</p>'
         "<p>Bitte starte den Login einmal neu. Es wird keine automatische Weiterleitung ausgeführt, damit kein Redirect-Loop entsteht.</p>"
-        f"<a id=\"auth-callback-relogin\" class=\"cta\" href=\"{escape(relogin_location, quote=True)}\">Erneut einloggen</a>"
-        "<p class=\"meta\">"
-        f"Fehlercode: <code id=\"auth-callback-error-code\">{escape(error_code)}</code> · "
-        f"Request-ID: <code id=\"auth-callback-request-id\">{escape(request_id)}</code>"
+        f'<a id="auth-callback-relogin" class="cta" href="{escape(relogin_location, quote=True)}">Erneut einloggen</a>'
+        '<p class="meta">'
+        f'Fehlercode: <code id="auth-callback-error-code">{escape(error_code)}</code> · '
+        f'Request-ID: <code id="auth-callback-request-id">{escape(request_id)}</code>'
         "</p>"
         "<details><summary>Technische Details</summary>"
         f"<p><strong>Meldung:</strong> {escape(technical_message)}</p>"
-        f"<pre id=\"auth-callback-diagnostics\">{escape(diagnostics_json)}</pre>"
+        f'<pre id="auth-callback-diagnostics">{escape(diagnostics_json)}</pre>'
         "</details>"
         "</main></body></html>"
     )
@@ -990,7 +1014,9 @@ def _request_lifecycle_level(*, status_code: int) -> str:
     return "info"
 
 
-def _resolve_lifecycle_correlation_id(*, request_id: str, correlation_id: str = "") -> str:
+def _resolve_lifecycle_correlation_id(
+    *, request_id: str, correlation_id: str = ""
+) -> str:
     normalized_correlation = str(correlation_id or "").strip()
     if normalized_correlation:
         return normalized_correlation
@@ -1091,11 +1117,11 @@ def _dictionary_status_payload() -> dict[str, Any]:
 
 def _is_status_like_key(key: str) -> bool:
     normalized = key.strip().lower()
-    if normalized in {"status", "source_health", "source_meta"}:
-        return True
-    if normalized.startswith("status_") or normalized.endswith("_status"):
-        return True
-    return False
+    return bool(
+        normalized in {"status", "source_health", "source_meta"}
+        or normalized.startswith("status_")
+        or normalized.endswith("_status")
+    )
 
 
 def _strip_status_fields(payload: Any) -> Any:
@@ -1139,7 +1165,11 @@ def _derived_from_projection(field_provenance: Any) -> dict[str, Any]:
                 continue
             if value is None:
                 continue
-            if key in {"primary_source", "authority"} and isinstance(value, str) and not value.strip():
+            if (
+                key in {"primary_source", "authority"}
+                and isinstance(value, str)
+                and not value.strip()
+            ):
                 continue
             if key == "sources" and isinstance(value, list) and not value:
                 continue
@@ -1240,10 +1270,13 @@ def _compact_projection_for_group(
                     compact_entities = [
                         {"name": entry.get("name")}
                         for entry in entities
-                        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+                        if isinstance(entry, dict)
+                        and isinstance(entry.get("name"), str)
                     ]
                     if compact_entities:
-                        projection["tenants_businesses"] = {"entities": compact_entities}
+                        projection["tenants_businesses"] = {
+                            "entities": compact_entities
+                        }
 
     return projection
 
@@ -1261,7 +1294,11 @@ def _build_by_source_payload(
         return by_source.setdefault(name, {"source": name, "data": {}})
 
     for group_name, group_sources in source_attribution.items():
-        module_keys = [key for key in _SOURCE_GROUP_MODULE_MAP.get(group_name, (group_name,)) if key in modules]
+        module_keys = [
+            key
+            for key in _SOURCE_GROUP_MODULE_MAP.get(group_name, (group_name,))
+            if key in modules
+        ]
         if not module_keys:
             continue
 
@@ -1272,7 +1309,9 @@ def _build_by_source_payload(
             else:
                 group_value = grouped_data
         else:
-            group_value = _compact_projection_for_group(group_name, module_keys, modules)
+            group_value = _compact_projection_for_group(
+                group_name, module_keys, modules
+            )
             if not group_value:
                 continue
 
@@ -1284,7 +1323,7 @@ def _build_by_source_payload(
             entry = ensure_source(source_name)
             entry["data"][group_name] = deepcopy(group_value)
 
-    for source_name in source_health.keys():
+    for source_name in source_health:
         if isinstance(source_name, str) and source_name.strip():
             ensure_source(source_name)
 
@@ -1352,7 +1391,9 @@ def _grouped_api_result(
     *,
     response_mode: str = "compact",
 ) -> dict[str, Any]:
-    normalized_response_mode = response_mode if response_mode in _RESPONSE_MODES else "compact"
+    normalized_response_mode = (
+        response_mode if response_mode in _RESPONSE_MODES else "compact"
+    )
 
     status = _build_status_block(report)
 
@@ -1370,7 +1411,9 @@ def _grouped_api_result(
     modules = _to_code_first_modules(cleaned)
 
     source_meta = status.get("source_meta")
-    source_attribution = source_meta.get("source_attribution") if isinstance(source_meta, dict) else {}
+    source_attribution = (
+        source_meta.get("source_attribution") if isinstance(source_meta, dict) else {}
+    )
     if not isinstance(source_attribution, dict):
         source_attribution = {}
 
@@ -1450,7 +1493,7 @@ _DEV_GEO_QUERY_CACHE_DISK_ENV = "DEV_GEO_QUERY_CACHE_DISK"
 _DEV_GEO_QUERY_CACHE_DIR_ENV = "DEV_GEO_QUERY_CACHE_DIR"
 _DEV_GEO_QUERY_CACHE_MAX_AGE_SECONDS = 7 * 24 * 3600.0
 
-_DEV_GEO_QUERY_CACHE: "OrderedDict[str, tuple[float, dict[str, Any]]]" = OrderedDict()
+_DEV_GEO_QUERY_CACHE: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
 _DEV_GEO_QUERY_CACHE_LOCK = threading.Lock()
 
 
@@ -1468,7 +1511,9 @@ def _dev_geo_query_cache_ttl_seconds() -> float:
 
 
 def _dev_geo_query_cache_max_entries() -> int:
-    raw_value = str(os.getenv(_DEV_GEO_QUERY_CACHE_MAX_ENTRIES_ENV, "256")).strip() or "256"
+    raw_value = (
+        str(os.getenv(_DEV_GEO_QUERY_CACHE_MAX_ENTRIES_ENV, "256")).strip() or "256"
+    )
     try:
         value = int(raw_value)
     except ValueError:
@@ -1497,7 +1542,9 @@ def _dev_geo_query_cache_file(url: str, *, cache_dir: Path) -> Path:
     return cache_dir / f"{digest}.json"
 
 
-def _dev_geo_query_cache_read_disk(url: str, *, ttl_seconds: float) -> dict[str, Any] | None:
+def _dev_geo_query_cache_read_disk(
+    url: str, *, ttl_seconds: float
+) -> dict[str, Any] | None:
     if ttl_seconds <= 0 or not _dev_geo_query_cache_disk_enabled():
         return None
 
@@ -1542,7 +1589,9 @@ def _dev_geo_query_cache_write_disk(url: str, payload: dict[str, Any]) -> None:
         return
 
 
-def _dev_geo_query_cache_get(url: str, *, ttl_seconds: float) -> tuple[dict[str, Any], str] | None:
+def _dev_geo_query_cache_get(
+    url: str, *, ttl_seconds: float
+) -> tuple[dict[str, Any], str] | None:
     if ttl_seconds <= 0:
         return None
 
@@ -1604,7 +1653,9 @@ def _fetch_json_url(
         cached = _dev_geo_query_cache_get(url, ttl_seconds=ttl_seconds)
         if cached is not None:
             payload, cache_kind = cached
-            result_records = payload.get("results") if isinstance(payload, dict) else None
+            result_records = (
+                payload.get("results") if isinstance(payload, dict) else None
+            )
             records = len(result_records) if isinstance(result_records, list) else 1
             if upstream_log_emitter is not None:
                 upstream_log_emitter(
@@ -1689,7 +1740,9 @@ def _fetch_json_url(
                 error_class="decode_error",
                 error_message=str(exc),
             )
-        raise ValueError(f"coordinate resolution returned invalid JSON at {source}") from exc
+        raise ValueError(
+            f"coordinate resolution returned invalid JSON at {source}"
+        ) from exc
 
     if not isinstance(payload, dict):
         if upstream_log_emitter is not None:
@@ -1813,7 +1866,9 @@ def _identify_gwr_candidates(
         "returnGeometry": "false",
         "f": "json",
     }
-    url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify?" + urlencode(params)
+    url = "https://api3.geo.admin.ch/rest/services/api/MapServer/identify?" + urlencode(
+        params
+    )
     payload = _fetch_json_url(
         url,
         timeout_seconds=timeout_seconds,
@@ -1883,7 +1938,9 @@ def _resolve_query_from_coordinates(
     )
 
     search_plan: list[tuple[float, int]] = [(_COORDINATE_IDENTIFY_TOLERANCE_M, 10)]
-    search_plan.extend((float(radius_m), 14) for radius_m in _COORDINATE_FALLBACK_IDENTIFY_RADII_M)
+    search_plan.extend(
+        (float(radius_m), 14) for radius_m in _COORDINATE_FALLBACK_IDENTIFY_RADII_M
+    )
 
     ranked: list[tuple[float, dict[str, Any], float]] = []
     fallback_used = False
@@ -1906,7 +1963,9 @@ def _resolve_query_from_coordinates(
             c_e = candidate.get("lv95_e")
             c_n = candidate.get("lv95_n")
             if isinstance(c_e, (int, float)) and isinstance(c_n, (int, float)):
-                distance_m = math.hypot(float(c_e) - click_lv95_e, float(c_n) - click_lv95_n)
+                distance_m = math.hypot(
+                    float(c_e) - click_lv95_e, float(c_n) - click_lv95_n
+                )
             else:
                 distance_m = float("inf")
             ranked.append((distance_m, candidate, identify_radius_m))
@@ -1917,7 +1976,12 @@ def _resolve_query_from_coordinates(
         break
 
     if not ranked:
-        max_radius = int(max(_COORDINATE_FALLBACK_IDENTIFY_RADII_M, default=_COORDINATE_IDENTIFY_TOLERANCE_M))
+        max_radius = int(
+            max(
+                _COORDINATE_FALLBACK_IDENTIFY_RADII_M,
+                default=_COORDINATE_IDENTIFY_TOLERANCE_M,
+            )
+        )
         raise ValueError(
             "coordinates could not be resolved to a Swiss building candidate "
             f"(no identify match up to {max_radius}m search radius)"
@@ -1925,7 +1989,9 @@ def _resolve_query_from_coordinates(
 
     best_distance_m, best, identify_radius_used_m = ranked[0]
     max_allowed_distance = (
-        _COORDINATE_MAX_FALLBACK_DISTANCE_M if fallback_used else _COORDINATE_MAX_SNAP_DISTANCE_M
+        _COORDINATE_MAX_FALLBACK_DISTANCE_M
+        if fallback_used
+        else _COORDINATE_MAX_SNAP_DISTANCE_M
     )
     if math.isfinite(best_distance_m) and best_distance_m > max_allowed_distance:
         raise ValueError(
@@ -1939,7 +2005,9 @@ def _resolve_query_from_coordinates(
     resolved_context: dict[str, Any] = {
         "provider": "ch.bfs.gebaeude_wohnungs_register",
         "feature_id": best.get("feature_id"),
-        "distance_m": None if not math.isfinite(best_distance_m) else round(best_distance_m, 2),
+        "distance_m": (
+            None if not math.isfinite(best_distance_m) else round(best_distance_m, 2)
+        ),
         "resolved_query": resolved_query,
         "clickpoint_wgs84": {
             "lat": round(lat, 6),
@@ -1950,7 +2018,9 @@ def _resolve_query_from_coordinates(
     if fallback_used:
         resolved_context["fallback"] = {
             "strategy": "expanded_gwr_identify",
-            "identify_radius_m": round(float(fallback_radius_m or identify_radius_used_m), 1),
+            "identify_radius_m": round(
+                float(fallback_radius_m or identify_radius_used_m), 1
+            ),
             "max_snap_distance_m": int(_COORDINATE_MAX_FALLBACK_DISTANCE_M),
         }
 
@@ -1980,7 +2050,9 @@ def _extract_query_and_coordinate_context(
         raw_lon = raw_coordinates.get("longitude")
 
     if raw_lat is None or raw_lon is None:
-        raise ValueError("coordinates.lat and coordinates.lon are required when query is missing")
+        raise ValueError(
+            "coordinates.lat and coordinates.lon are required when query is missing"
+        )
 
     lat = _as_finite_number(raw_lat, "coordinates.lat")
     lon = _as_finite_number(raw_lon, "coordinates.lon")
@@ -2036,7 +2108,9 @@ def _extract_query_and_coordinate_context(
     return resolved_query, coordinate_context
 
 
-def _attach_coordinate_resolution_context(report: dict[str, Any], context: dict[str, Any]) -> None:
+def _attach_coordinate_resolution_context(
+    report: dict[str, Any], context: dict[str, Any]
+) -> None:
     if not context:
         return
 
@@ -2365,12 +2439,16 @@ def _select_async_result_snapshot(
     if not ordered:
         return deepcopy(requested_result)
 
-    final_results = [row for row in ordered if str(row.get("result_kind") or "") == "final"]
+    final_results = [
+        row for row in ordered if str(row.get("result_kind") or "") == "final"
+    ]
     selected = final_results[-1] if final_results else ordered[-1]
     return deepcopy(selected)
 
 
-def _project_async_job_status(job: dict[str, Any], *, include_events: bool = False) -> dict[str, Any]:
+def _project_async_job_status(
+    job: dict[str, Any], *, include_events: bool = False
+) -> dict[str, Any]:
     projected = {
         "job_id": job.get("job_id"),
         "correlation_id": job.get("correlation_id"),
@@ -2447,13 +2525,17 @@ def _as_non_negative_int(value: Any, field_name: str) -> int:
 
 def _resolve_deep_mode_profile(*, raw_profile: Any, intelligence_mode: str) -> str:
     if raw_profile is None:
-        return _DEEP_MODE_DEFAULT_PROFILE_BY_MODE.get(intelligence_mode, "analysis_plus")
+        return _DEEP_MODE_DEFAULT_PROFILE_BY_MODE.get(
+            intelligence_mode, "analysis_plus"
+        )
     if not isinstance(raw_profile, str):
         raise ValueError("options.capabilities.deep_mode.profile must be a string")
 
     normalized = raw_profile.strip().lower()
     if not normalized:
-        raise ValueError("options.capabilities.deep_mode.profile must be a non-empty string")
+        raise ValueError(
+            "options.capabilities.deep_mode.profile must be a non-empty string"
+        )
     return normalized
 
 
@@ -2578,17 +2660,31 @@ def _derive_deep_mode_budget(
     )
     baseline_reserved_ms = min(total_request_budget_ms, baseline_reserved_ms)
 
-    deep_budget_ms = max(0, total_request_budget_ms - baseline_reserved_ms - safety_margin_ms)
+    deep_budget_ms = max(
+        0, total_request_budget_ms - baseline_reserved_ms - safety_margin_ms
+    )
 
-    server_cap_tokens = _read_env_non_negative_int("DEEP_MAX_TOKENS_SERVER", default=12_000)
+    server_cap_tokens = _read_env_non_negative_int(
+        "DEEP_MAX_TOKENS_SERVER", default=12_000
+    )
     profile_caps = {
-        "analysis_plus": _read_env_non_negative_int("DEEP_PROFILE_CAP_ANALYSIS_PLUS", default=12_000),
-        "risk_plus": _read_env_non_negative_int("DEEP_PROFILE_CAP_RISK_PLUS", default=9_000),
+        "analysis_plus": _read_env_non_negative_int(
+            "DEEP_PROFILE_CAP_ANALYSIS_PLUS", default=12_000
+        ),
+        "risk_plus": _read_env_non_negative_int(
+            "DEEP_PROFILE_CAP_RISK_PLUS", default=9_000
+        ),
     }
     profile_cap_tokens = profile_caps.get(profile, 0)
 
-    client_cap_tokens = server_cap_tokens if requested_budget_tokens is None else requested_budget_tokens
-    deep_budget_tokens_effective = min(client_cap_tokens, profile_cap_tokens, server_cap_tokens)
+    client_cap_tokens = (
+        server_cap_tokens
+        if requested_budget_tokens is None
+        else requested_budget_tokens
+    )
+    deep_budget_tokens_effective = min(
+        client_cap_tokens, profile_cap_tokens, server_cap_tokens
+    )
 
     return {
         "total_request_budget_ms": total_request_budget_ms,
@@ -2622,6 +2718,76 @@ def _evaluate_deep_mode_gate(
     return True, None
 
 
+def _resolve_server_side_deep_quota(
+    *,
+    requested: bool,
+    allowed: bool,
+    client_quota_remaining: int | None,
+    owner_org_id: str | None,
+    request_id: str = "",
+) -> int | None:
+    """Resolve deep-mode quota server-side when the DB ledger is active.
+
+    G3 (docs/VISION_GAP_ANALYSIS.md): with ``QUOTA_STORE_BACKEND=db`` the
+    quota decision comes from the ``usage_counters`` ledger instead of the
+    client-supplied ``options.entitlements.deep_mode.quota_remaining``.
+
+    Fail-safe policy: on ledger errors the legacy client-supplied value is
+    used and a structured warning is emitted; the baseline analyze result
+    is never blocked by the ledger.
+    """
+    if not requested or not allowed:
+        return client_quota_remaining
+    if isinstance(_QUOTA_LEDGER, NullQuotaLedger):
+        return client_quota_remaining
+    if not owner_org_id:
+        return client_quota_remaining
+    try:
+        remaining = _QUOTA_LEDGER.lookup_quota_remaining(org_id=owner_org_id)
+    except QuotaLedgerError as exc:
+        _emit_structured_log(
+            event="api.entitlements.quota_ledger_error",
+            level="warn",
+            component="api.web_service",
+            direction="internal",
+            status="fallback_client_quota",
+            reason=str(exc)[:200],
+            request_id=request_id,
+        )
+        return client_quota_remaining
+    if remaining is None:
+        return client_quota_remaining
+    return remaining
+
+
+def _reserve_deep_quota_unit(
+    *,
+    owner_org_id: str | None,
+    request_id: str = "",
+) -> tuple[bool, int | None]:
+    """Consume one deep-mode quota unit via the DB ledger when active.
+
+    Fail-safe: ledger errors fall back to (True, None), so the client-
+    supplied quota path keeps governing and the baseline analyze result is
+    never blocked by the ledger.
+    """
+    if isinstance(_QUOTA_LEDGER, NullQuotaLedger) or not owner_org_id:
+        return True, None
+    try:
+        return _QUOTA_LEDGER.resolve_and_reserve(org_id=owner_org_id)
+    except QuotaLedgerError as exc:
+        _emit_structured_log(
+            event="api.entitlements.quota_ledger_error",
+            level="warn",
+            component="api.web_service",
+            direction="internal",
+            status="fallback_client_quota",
+            reason=str(exc)[:200],
+            request_id=request_id,
+        )
+        return True, None
+
+
 def _apply_deep_mode_runtime_status(
     report: dict[str, Any],
     *,
@@ -2631,15 +2797,24 @@ def _apply_deep_mode_runtime_status(
     request_id: str = "",
     session_id: str = "",
     execution_retry_count: int = 0,
+    owner_org_id: str | None = None,
 ) -> None:
     started_at = time.perf_counter()
-    deep_request = _extract_deep_mode_request(options, intelligence_mode=intelligence_mode)
+    deep_request = _extract_deep_mode_request(
+        options, intelligence_mode=intelligence_mode
+    )
     budget = _derive_deep_mode_budget(
         timeout_seconds=timeout_seconds,
         profile=str(deep_request["profile"]),
         requested_budget_tokens=deep_request.get("max_budget_tokens"),
     )
-
+    deep_request["quota_remaining"] = _resolve_server_side_deep_quota(
+        requested=bool(deep_request["requested"]),
+        allowed=bool(deep_request["allowed"]),
+        client_quota_remaining=deep_request.get("quota_remaining"),
+        owner_org_id=owner_org_id,
+        request_id=request_id,
+    )
     deep_effective, fallback_reason = _evaluate_deep_mode_gate(
         requested=bool(deep_request["requested"]),
         profile=str(deep_request["profile"]),
@@ -2648,9 +2823,30 @@ def _apply_deep_mode_runtime_status(
         deep_budget_ms=int(budget["deep_budget_ms"]),
         deep_min_budget_ms=int(budget["deep_min_budget_ms"]),
     )
+    if deep_effective:
+        reserved, remaining_after = _reserve_deep_quota_unit(
+            owner_org_id=owner_org_id,
+            request_id=request_id,
+        )
+        if remaining_after is not None:
+            deep_request["quota_remaining"] = remaining_after
+        if not reserved:
+            deep_effective = False
+            fallback_reason = "quota_exhausted"
+    elif fallback_reason == "quota_exhausted":
+        _emit_structured_log(
+            event="api.entitlements.quota_rejected",
+            level="warn",
+            component="api.web_service",
+            direction="internal",
+            status="quota_exhausted",
+            request_id=request_id,
+        )
 
     retry_count = 0
-    if isinstance(execution_retry_count, (int, float)) and not isinstance(execution_retry_count, bool):
+    if isinstance(execution_retry_count, (int, float)) and not isinstance(
+        execution_retry_count, bool
+    ):
         retry_count = max(0, int(execution_retry_count))
 
     deep_requested = bool(deep_request["requested"])
@@ -2805,7 +3001,9 @@ def _apply_open_meteo_deep_enrichment(
     """
 
     try:
-        deep_request = _extract_deep_mode_request(options, intelligence_mode=intelligence_mode)
+        deep_request = _extract_deep_mode_request(
+            options, intelligence_mode=intelligence_mode
+        )
         budget = _derive_deep_mode_budget(
             timeout_seconds=timeout_seconds,
             profile=str(deep_request.get("profile") or ""),
@@ -2833,8 +3031,16 @@ def _apply_open_meteo_deep_enrichment(
     lat_raw = coords.get("lat")
     lon_raw = coords.get("lon")
 
-    lat = float(lat_raw) if isinstance(lat_raw, (int, float)) and not isinstance(lat_raw, bool) else float("nan")
-    lon = float(lon_raw) if isinstance(lon_raw, (int, float)) and not isinstance(lon_raw, bool) else float("nan")
+    lat = (
+        float(lat_raw)
+        if isinstance(lat_raw, (int, float)) and not isinstance(lat_raw, bool)
+        else float("nan")
+    )
+    lon = (
+        float(lon_raw)
+        if isinstance(lon_raw, (int, float)) and not isinstance(lon_raw, bool)
+        else float("nan")
+    )
 
     module_payload: dict[str, Any] = {
         "provider": "open-meteo",
@@ -2846,13 +3052,23 @@ def _apply_open_meteo_deep_enrichment(
 
     if not (math.isfinite(lat) and math.isfinite(lon)):
         report["deep_enrichment"] = module_payload
-        _attach_deep_source_metadata(report, source_name=source_name, group_name="deep_enrichment")
+        _attach_deep_source_metadata(
+            report, source_name=source_name, group_name="deep_enrichment"
+        )
         return
 
-    cache_ttl_seconds = _read_env_non_negative_float("DEEP_OPEN_METEO_CACHE_TTL_SECONDS", default=600.0)
-    min_interval_seconds = _read_env_non_negative_float("DEEP_OPEN_METEO_MIN_INTERVAL_SECONDS", default=0.25)
-    max_attempts = int(_read_env_non_negative_int("DEEP_OPEN_METEO_MAX_ATTEMPTS", default=2))
-    backoff_seconds = _read_env_non_negative_float("DEEP_OPEN_METEO_BACKOFF_SECONDS", default=0.15)
+    cache_ttl_seconds = _read_env_non_negative_float(
+        "DEEP_OPEN_METEO_CACHE_TTL_SECONDS", default=600.0
+    )
+    min_interval_seconds = _read_env_non_negative_float(
+        "DEEP_OPEN_METEO_MIN_INTERVAL_SECONDS", default=0.25
+    )
+    max_attempts = int(
+        _read_env_non_negative_int("DEEP_OPEN_METEO_MAX_ATTEMPTS", default=2)
+    )
+    backoff_seconds = _read_env_non_negative_float(
+        "DEEP_OPEN_METEO_BACKOFF_SECONDS", default=0.15
+    )
 
     cache_key = (round(lat, 4), round(lon, 4))
     now_ts = time.time()
@@ -2885,7 +3101,10 @@ def _apply_open_meteo_deep_enrichment(
 
         timeout_budget_ms = int(budget.get("deep_budget_ms") or 0)
         timeout_cap_seconds = min(2.0, max(0.6, float(timeout_budget_ms) / 1000.0))
-        per_attempt_timeout = min(timeout_cap_seconds, max(0.6, float(timeout_cap_seconds) / max(1, max_attempts)))
+        per_attempt_timeout = min(
+            timeout_cap_seconds,
+            max(0.6, float(timeout_cap_seconds) / max(1, max_attempts)),
+        )
 
         started_at = time.perf_counter()
         for attempt in range(1, max_attempts + 1):
@@ -2908,7 +3127,9 @@ def _apply_open_meteo_deep_enrichment(
                 )
 
             try:
-                with urlopen(url, timeout=max(0.6, float(per_attempt_timeout))) as response:
+                with urlopen(
+                    url, timeout=max(0.6, float(per_attempt_timeout))
+                ) as response:
                     status_code = int(getattr(response, "status", 200) or 200)
                     body = response.read().decode("utf-8")
                 candidate = json.loads(body)
@@ -2918,7 +3139,10 @@ def _apply_open_meteo_deep_enrichment(
 
                 if cache_ttl_seconds > 0:
                     with _OPEN_METEO_LOCK:
-                        _OPEN_METEO_CACHE[cache_key] = (time.time() + float(cache_ttl_seconds), deepcopy(payload))
+                        _OPEN_METEO_CACHE[cache_key] = (
+                            time.time() + float(cache_ttl_seconds),
+                            deepcopy(payload),
+                        )
 
                 if upstream_log_emitter is not None:
                     target = urlsplit(url)
@@ -2934,7 +3158,9 @@ def _apply_open_meteo_deep_enrichment(
                         attempt=attempt,
                         max_attempts=max_attempts,
                         retry_count=max(0, attempt - 1),
-                        duration_ms=round((time.perf_counter() - started_at) * 1000.0, 3),
+                        duration_ms=round(
+                            (time.perf_counter() - started_at) * 1000.0, 3
+                        ),
                         status_code=status_code,
                     )
                 break
@@ -2955,7 +3181,9 @@ def _apply_open_meteo_deep_enrichment(
                         attempt=attempt,
                         max_attempts=max_attempts,
                         retry_count=max(0, attempt - 1),
-                        duration_ms=round((time.perf_counter() - started_at) * 1000.0, 3),
+                        duration_ms=round(
+                            (time.perf_counter() - started_at) * 1000.0, 3
+                        ),
                         status_code=status_code,
                         error_class="network_error",
                         error_message=error_message,
@@ -2989,7 +3217,13 @@ def _apply_open_meteo_deep_enrichment(
     current = payload.get("current") if isinstance(payload, dict) else None
     projected_current: dict[str, Any] = {}
     if isinstance(current, dict):
-        for key in ("time", "temperature_2m", "relative_humidity_2m", "precipitation", "wind_speed_10m"):
+        for key in (
+            "time",
+            "temperature_2m",
+            "relative_humidity_2m",
+            "precipitation",
+            "wind_speed_10m",
+        ):
             if key in current:
                 projected_current[key] = deepcopy(current.get(key))
 
@@ -3011,13 +3245,17 @@ def _apply_open_meteo_deep_enrichment(
         "forecast": {
             "current": projected_current,
             "timezone": payload.get("timezone") if isinstance(payload, dict) else None,
-            "utc_offset_seconds": payload.get("utc_offset_seconds") if isinstance(payload, dict) else None,
+            "utc_offset_seconds": (
+                payload.get("utc_offset_seconds") if isinstance(payload, dict) else None
+            ),
         },
-        "fetched_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "fetched_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     }
 
     report["deep_enrichment"] = module_payload
-    _attach_deep_source_metadata(report, source_name=source_name, group_name="deep_enrichment")
+    _attach_deep_source_metadata(
+        report, source_name=source_name, group_name="deep_enrichment"
+    )
 
 
 def _attach_deep_source_metadata(
@@ -3044,10 +3282,7 @@ def _attach_deep_source_metadata(
         source_attribution = {}
 
     existing = source_attribution.get(group_name)
-    if isinstance(existing, list):
-        group_sources = existing
-    else:
-        group_sources = []
+    group_sources = existing if isinstance(existing, list) else []
     if source_name not in group_sources:
         group_sources.append(source_name)
     source_attribution[group_name] = group_sources
@@ -3084,7 +3319,7 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
     4) explizite `weights`-Overrides aus dem Request
     """
     raw_preferences = data.get("preferences")
-    effective = deepcopy(_DEFAULT_PREFERENCES)
+    effective: dict[str, Any] = deepcopy(_DEFAULT_PREFERENCES)
 
     if raw_preferences is None:
         return effective
@@ -3105,18 +3340,18 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
         preset = _PREFERENCE_PRESETS.get(preset_name)
         if preset is None:
             raise ValueError(
-                "preferences.preset must be one of "
-                f"{sorted(_PREFERENCE_PRESETS)}"
+                "preferences.preset must be one of " f"{sorted(_PREFERENCE_PRESETS)}"
             )
 
-        raw_preset_version = raw_preferences.get("preset_version", _PREFERENCE_PRESET_VERSION)
+        raw_preset_version = raw_preferences.get(
+            "preset_version", _PREFERENCE_PRESET_VERSION
+        )
         if not isinstance(raw_preset_version, str) or not raw_preset_version.strip():
             raise ValueError("preferences.preset_version must be a non-empty string")
         preset_version = raw_preset_version.strip().lower()
         if preset_version != _PREFERENCE_PRESET_VERSION:
             raise ValueError(
-                "preferences.preset_version must be "
-                f"{_PREFERENCE_PRESET_VERSION}"
+                "preferences.preset_version must be " f"{_PREFERENCE_PRESET_VERSION}"
             )
 
         effective.update(deepcopy(preset))
@@ -3144,8 +3379,7 @@ def _extract_preferences(data: dict[str, Any]) -> dict[str, Any]:
     unknown_weights = set(raw_weights) - set(_PREFERENCE_ENUMS)
     if unknown_weights:
         raise ValueError(
-            "preferences.weights contains unknown keys: "
-            f"{sorted(unknown_weights)}"
+            "preferences.weights contains unknown keys: " f"{sorted(unknown_weights)}"
         )
 
     normalized_weights: dict[str, float] = {}
@@ -3329,7 +3563,12 @@ def _apply_personalized_suitability_scores(
             }
         )
 
-    top_factors.sort(key=lambda item: (-abs(float(item.get("contribution") or 0.0)), str(item.get("key") or "")))
+    top_factors.sort(
+        key=lambda item: (
+            -abs(float(item.get("contribution") or 0.0)),
+            str(item.get("key") or ""),
+        )
+    )
     suitability["top_factors"] = top_factors[:5]
 
     summary_compact = report.get("summary_compact")
@@ -3368,7 +3607,9 @@ def _default_error_message(*, status: HTTPStatus, error_code: str) -> str:
     return phrase or "request failed"
 
 
-def _validation_error_details(message: str, *, field: str = "request") -> list[dict[str, str]]:
+def _validation_error_details(
+    message: str, *, field: str = "request"
+) -> list[dict[str, str]]:
     issue = str(message or "").strip()
     if not issue:
         return []
@@ -3437,7 +3678,9 @@ def _normalize_error_payload(payload: dict[str, Any], *, status: int) -> dict[st
     code = _coerce_error_code(normalized)
 
     raw_error = normalized.get("error")
-    explicit_error = str(raw_error).strip().lower() if isinstance(raw_error, str) else ""
+    explicit_error = (
+        str(raw_error).strip().lower() if isinstance(raw_error, str) else ""
+    )
     if explicit_error:
         normalized["error"] = explicit_error
     else:
@@ -3658,9 +3901,9 @@ class Handler(BaseHTTPRequestHandler):
             bff_session_claims=bff_session_claims,
         )
 
-        claims_org_id = _resolve_org_id_from_claims(oidc_claims) or _resolve_org_id_from_claims(
-            bff_session_claims
-        )
+        claims_org_id = _resolve_org_id_from_claims(
+            oidc_claims
+        ) or _resolve_org_id_from_claims(bff_session_claims)
         fallback_org_id = claims_org_id or "default-org"
         if phase1_user is None and not claims_org_id:
             fallback_org_id = self._request_org_id()
@@ -3704,7 +3947,9 @@ class Handler(BaseHTTPRequestHandler):
         ).strip()
         if not job_owner_org_id:
             return False
-        return _normalize_async_org_id(job_owner_org_id) == _normalize_async_org_id(owner_org_id)
+        return _normalize_async_org_id(job_owner_org_id) == _normalize_async_org_id(
+            owner_org_id
+        )
 
     @staticmethod
     def _result_visible_for_owner(
@@ -3726,14 +3971,8 @@ class Handler(BaseHTTPRequestHandler):
         ).strip()
         if not result_owner_org_id:
             return False
-        return _normalize_async_org_id(result_owner_org_id) == _normalize_async_org_id(owner_org_id)
-
-    @staticmethod
-    def _job_visible_for_auth_user(job_record: dict[str, Any], auth_user: _Phase1AuthUser) -> bool:
-        return GeoRankingHandler._job_visible_for_owner(
-            job_record,
-            owner_user_id=str(auth_user.user_id),
-            owner_org_id=str(auth_user.org_id),
+        return _normalize_async_org_id(result_owner_org_id) == _normalize_async_org_id(
+            owner_org_id
         )
 
     def _send_error(
@@ -3808,12 +4047,16 @@ class Handler(BaseHTTPRequestHandler):
             return ""
         return ""
 
-    def _begin_request_lifecycle(self, *, method: str, request_path: str, request_id: str) -> None:
+    def _begin_request_lifecycle(
+        self, *, method: str, request_path: str, request_id: str
+    ) -> None:
         self._request_lifecycle_started_at = time.perf_counter()
         self._request_lifecycle_method = str(method or "").strip().upper() or "GET"
         self._request_lifecycle_route = str(request_path or "/")
         self._request_lifecycle_request_id = str(request_id or "").strip()
-        self._request_lifecycle_session_id = str(self.headers.get("X-Session-Id", "") or "").strip()
+        self._request_lifecycle_session_id = str(
+            self.headers.get("X-Session-Id", "") or ""
+        ).strip()
         self._response_status_code: int | None = None
         self._response_error_code = ""
         route_correlation_id = self._resolve_correlation_id_for_route(
@@ -3832,7 +4075,9 @@ class Handler(BaseHTTPRequestHandler):
             correlation_id=self._request_lifecycle_correlation_id,
         )
 
-    def _capture_response_error(self, *, payload: dict[str, Any] | None, status: int) -> None:
+    def _capture_response_error(
+        self, *, payload: dict[str, Any] | None, status: int
+    ) -> None:
         self._response_error_code = ""
         if isinstance(payload, dict) and payload.get("ok") is False:
             self._response_error_code = str(payload.get("error") or "").strip().lower()
@@ -3845,7 +4090,11 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         raw_status_code = getattr(self, "_response_status_code", None)
-        status_code = int(raw_status_code) if isinstance(raw_status_code, int) else int(HTTPStatus.INTERNAL_SERVER_ERROR)
+        status_code = (
+            int(raw_status_code)
+            if isinstance(raw_status_code, int)
+            else int(HTTPStatus.INTERNAL_SERVER_ERROR)
+        )
         duration_ms = round((time.perf_counter() - float(started_at)) * 1000.0, 3)
 
         _log_api_request_end(
@@ -3859,7 +4108,7 @@ class Handler(BaseHTTPRequestHandler):
             error_code=str(getattr(self, "_response_error_code", "")),
         )
 
-        self._request_lifecycle_started_at = None
+        self._request_lifecycle_started_at = None  # type: ignore[assignment]
 
     def send_response(self, code: int, message: str | None = None) -> None:
         self._response_status_code = int(code)
@@ -3960,7 +4209,9 @@ class Handler(BaseHTTPRequestHandler):
             extra_headers=extra_headers,
         )
 
-    def _cors_headers_for_analyze(self, *, include_preflight: bool) -> dict[str, str] | None:
+    def _cors_headers_for_analyze(
+        self, *, include_preflight: bool
+    ) -> dict[str, str] | None:
         return _build_cors_headers(
             self.headers.get("Origin", ""),
             allowed_origins=_resolve_cors_allow_origins(),
@@ -3968,7 +4219,9 @@ class Handler(BaseHTTPRequestHandler):
             allow_methods=_CORS_ALLOW_METHODS,
         )
 
-    def _cors_headers_for_debug_trace(self, *, include_preflight: bool) -> dict[str, str] | None:
+    def _cors_headers_for_debug_trace(
+        self, *, include_preflight: bool
+    ) -> dict[str, str] | None:
         return _build_cors_headers(
             self.headers.get("Origin", ""),
             allowed_origins=_resolve_cors_allow_origins(),
@@ -4012,11 +4265,15 @@ class Handler(BaseHTTPRequestHandler):
             },
         )
 
-    def _should_redirect_unproxied_auth_login_to_ui_entry(self, *, request_path: str) -> bool:
+    def _should_redirect_unproxied_auth_login_to_ui_entry(
+        self, *, request_path: str
+    ) -> bool:
         if request_path != "/auth/login":
             return False
 
-        forwarded_host_header = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        forwarded_host_header = (
+            str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        )
         if not forwarded_host_header:
             return False
 
@@ -4029,10 +4286,11 @@ class Handler(BaseHTTPRequestHandler):
             return False
 
         accept_header = str(self.headers.get("Accept", "") or "").lower()
-        if accept_header and "text/html" not in accept_header and "*/*" not in accept_header:
-            return False
-
-        return True
+        return not (
+            accept_header
+            and "text/html" not in accept_header
+            and "*/*" not in accept_header
+        )
 
     def _redirect_unproxied_auth_login_to_ui_entry(self, *, request_id: str) -> None:
         query = urlsplit(self.path).query
@@ -4057,7 +4315,9 @@ class Handler(BaseHTTPRequestHandler):
     # BFF OIDC helpers
     # ------------------------------------------------------------------
 
-    def _send_redirect(self, *, location: str, request_id: str, set_cookie: str | None = None) -> None:
+    def _send_redirect(
+        self, *, location: str, request_id: str, set_cookie: str | None = None
+    ) -> None:
         """Send a minimal 302 response with cache disabled."""
         self._capture_response_error(payload=None, status=302)
         self.send_response(302)
@@ -4070,7 +4330,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self._finish_request_lifecycle()
 
-    def _require_authenticated_gui_session(self, *, request_path: str, request_id: str) -> bool:
+    def _require_authenticated_gui_session(
+        self, *, request_path: str, request_id: str
+    ) -> bool:
         """Return True when a request was handled via login redirect."""
         if not is_bff_oidc_enabled() or not _is_protected_gui_route(request_path):
             return False
@@ -4112,27 +4374,48 @@ class Handler(BaseHTTPRequestHandler):
         """
         expected_parsed = urlsplit(str(expected_redirect_uri or "").strip())
         expected_scheme = str(expected_parsed.scheme or "").strip().lower()
-        expected_host = _extract_host_without_port(expected_parsed.netloc).strip().lower()
+        expected_host = (
+            _extract_host_without_port(expected_parsed.netloc).strip().lower()
+        )
         expected_path = str(expected_parsed.path or "/").strip() or "/"
 
-        forwarded_host = str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
-        received_host_header = forwarded_host or str(self.headers.get("Host", "") or "").strip()
+        forwarded_host = (
+            str(self.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        )
+        received_host_header = (
+            forwarded_host or str(self.headers.get("Host", "") or "").strip()
+        )
         received_host = _extract_host_without_port(received_host_header).strip().lower()
 
-        forwarded_proto = str(self.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip().lower()
+        forwarded_proto = (
+            str(self.headers.get("X-Forwarded-Proto", "") or "")
+            .split(",", 1)[0]
+            .strip()
+            .lower()
+        )
         if forwarded_proto in {"http", "https"}:
             received_scheme = forwarded_proto
         else:
-            received_scheme = "https" if isinstance(self.connection, ssl.SSLSocket) else "http"
+            received_scheme = (
+                "https" if isinstance(self.connection, ssl.SSLSocket) else "http"
+            )
 
         normalized_path = str(request_path or "/").strip() or "/"
         if not normalized_path.startswith("/"):
             normalized_path = f"/{normalized_path}"
 
         mismatch = {
-            "scheme": bool(expected_scheme and received_scheme and expected_scheme != received_scheme),
-            "host": bool(expected_host and received_host and expected_host != received_host),
-            "path": bool(expected_path and normalized_path and expected_path != normalized_path),
+            "scheme": bool(
+                expected_scheme
+                and received_scheme
+                and expected_scheme != received_scheme
+            ),
+            "host": bool(
+                expected_host and received_host and expected_host != received_host
+            ),
+            "path": bool(
+                expected_path and normalized_path and expected_path != normalized_path
+            ),
         }
 
         return {
@@ -4164,7 +4447,12 @@ class Handler(BaseHTTPRequestHandler):
                 error=str(exc),
             )
             self._send_json(
-                {"ok": False, "error": "bff_oidc_config_error", "message": str(exc), "request_id": request_id},
+                {
+                    "ok": False,
+                    "error": "bff_oidc_config_error",
+                    "message": str(exc),
+                    "request_id": request_id,
+                },
                 status=HTTPStatus.INTERNAL_SERVER_ERROR,
                 request_id=request_id,
                 extra_headers={"Cache-Control": "no-store"},
@@ -4194,10 +4482,14 @@ class Handler(BaseHTTPRequestHandler):
 
         if request_path == "/auth/login":
             try:
-                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                query_params = parse_qs(
+                    urlsplit(self.path).query, keep_blank_values=False
+                )
                 next_path = (query_params.get("next") or ["/"])[0]
                 canonical_next_path = _canonicalize_history_next_path(next_path)
-                login_result = build_login_redirect(oidc_cfg, store, next_path=canonical_next_path)
+                login_result = build_login_redirect(
+                    oidc_cfg, store, next_path=canonical_next_path
+                )
             except Exception as exc:  # noqa: BLE001
                 _emit_structured_log(
                     event="api.bff.oidc.login_error",
@@ -4258,8 +4550,12 @@ class Handler(BaseHTTPRequestHandler):
                 session_id = parse_session_id_from_cookie(cookie_header)
                 if session_id:
                     current_session = store.get(session_id)
-                    if current_session and isinstance(current_session.user_claims, dict):
-                        raw_next = str(current_session.user_claims.get("_next") or "").strip()
+                    if current_session and isinstance(
+                        current_session.user_claims, dict
+                    ):
+                        raw_next = str(
+                            current_session.user_claims.get("_next") or ""
+                        ).strip()
                         callback_next_path = _canonicalize_history_next_path(raw_next)
                     store.delete(session_id)
                     clear_cookie_header = build_clear_cookie_header()
@@ -4314,7 +4610,11 @@ class Handler(BaseHTTPRequestHandler):
                     error=str(exc),
                 )
                 self._send_json(
-                    {"ok": False, "error": "bff_callback_error", "request_id": request_id},
+                    {
+                        "ok": False,
+                        "error": "bff_callback_error",
+                        "request_id": request_id,
+                    },
                     status=HTTPStatus.INTERNAL_SERVER_ERROR,
                     request_id=request_id,
                     extra_headers={"Cache-Control": "no-store"},
@@ -4334,7 +4634,9 @@ class Handler(BaseHTTPRequestHandler):
             )
             self._capture_response_error(payload=None, status=302)
             self.send_response(302)
-            self.send_header("Location", _canonicalize_history_next_path(cb_result.redirect_path))
+            self.send_header(
+                "Location", _canonicalize_history_next_path(cb_result.redirect_path)
+            )
             self.send_header("Set-Cookie", cb_result.set_cookie_header)
             self.send_header("Cache-Control", "no-store")
             self._set_request_id_headers(request_id)
@@ -4346,19 +4648,29 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         request_id = self._request_id()
         request_path = self._normalized_path()
-        self._begin_request_lifecycle(method="GET", request_path=request_path, request_id=request_id)
+        self._begin_request_lifecycle(
+            method="GET", request_path=request_path, request_id=request_id
+        )
 
         try:
             self._cors_response_headers = None
 
             # --- BFF OIDC: /auth/login, /auth/callback, /auth/logout (when BFF is enabled) ---
-            if request_path in ("/auth/login", "/auth/callback", "/auth/logout") and is_bff_oidc_enabled():
+            if (
+                request_path in ("/auth/login", "/auth/callback", "/auth/logout")
+                and is_bff_oidc_enabled()
+            ):
                 if not _is_ui_auth_proxy_request(self.headers):
                     marker_present = (
-                        str(self.headers.get(_UI_AUTH_PROXY_HEADER_NAME, "") or "").strip().lower()
+                        str(self.headers.get(_UI_AUTH_PROXY_HEADER_NAME, "") or "")
+                        .strip()
+                        .lower()
                         == _UI_AUTH_PROXY_HEADER_VALUE.lower()
                     )
-                    if marker_present and request_path in {"/auth/login", "/auth/logout"}:
+                    if marker_present and request_path in {
+                        "/auth/login",
+                        "/auth/logout",
+                    }:
                         self._send_external_direct_login_disabled(
                             request_id=request_id,
                             request_path=request_path,
@@ -4366,8 +4678,12 @@ class Handler(BaseHTTPRequestHandler):
                         )
                         return
 
-                    if self._should_redirect_unproxied_auth_login_to_ui_entry(request_path=request_path):
-                        self._redirect_unproxied_auth_login_to_ui_entry(request_id=request_id)
+                    if self._should_redirect_unproxied_auth_login_to_ui_entry(
+                        request_path=request_path
+                    ):
+                        self._redirect_unproxied_auth_login_to_ui_entry(
+                            request_id=request_id
+                        )
                         return
 
                     self._send_external_direct_login_disabled(
@@ -4377,7 +4693,11 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
-                if request_path in {"/auth/login", "/auth/logout", "/auth/callback"} and not _is_ui_auth_proxy_forwarded_host_trusted(self.headers):
+                if request_path in {
+                    "/auth/login",
+                    "/auth/logout",
+                    "/auth/callback",
+                } and not _is_ui_auth_proxy_forwarded_host_trusted(self.headers):
                     self._send_external_direct_login_disabled(
                         request_id=request_id,
                         request_path=request_path,
@@ -4407,7 +4727,10 @@ class Handler(BaseHTTPRequestHandler):
                         extra_headers={"Cache-Control": "no-store"},
                     )
                 else:
-                    auth_reason = str(me_result.error or "unauthorized").strip().lower() or "unauthorized"
+                    auth_reason = (
+                        str(me_result.error or "unauthorized").strip().lower()
+                        or "unauthorized"
+                    )
                     self._send_json(
                         {
                             "ok": False,
@@ -4432,7 +4755,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            if self._require_authenticated_gui_session(request_path=request_path, request_id=request_id):
+            if self._require_authenticated_gui_session(
+                request_path=request_path, request_id=request_id
+            ):
                 return
 
             if request_path in ("/", "/gui"):
@@ -4490,7 +4815,9 @@ class Handler(BaseHTTPRequestHandler):
                 raw_result_id = request_path.removeprefix("/results/").strip("/")
                 normalized_result_id = normalize_result_id(raw_result_id)
                 if not normalized_result_id:
-                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown result_id"
+                    )
                     return
 
                 try:
@@ -4500,7 +4827,9 @@ class Handler(BaseHTTPRequestHandler):
                         result_id=normalized_result_id,
                     )
                 except ValueError:
-                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown result_id"
+                    )
                     return
 
                 self._send_html(
@@ -4528,7 +4857,7 @@ class Handler(BaseHTTPRequestHandler):
                         "ok": True,
                         "status": "ok",
                         "service": "geo-ranking-ch",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "version": app_version,
                         "commit": commit_sha,
                         "build": {
@@ -4542,7 +4871,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             if request_path == "/health/details":
-                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                query_params = parse_qs(
+                    urlsplit(self.path).query, keep_blank_values=False
+                )
                 payload = _build_health_details_payload(
                     request_id=request_id,
                     query_params=query_params,
@@ -4580,7 +4911,7 @@ class Handler(BaseHTTPRequestHandler):
                     {
                         "ok": True,
                         "service": "geo-ranking-ch",
-                        "ts": datetime.now(timezone.utc).isoformat(),
+                        "ts": datetime.now(UTC).isoformat(),
                         "request_id": request_id,
                     },
                     request_id=request_id,
@@ -4599,7 +4930,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if request_path == "/analyze/history":
                 cors_headers = self._cors_headers_for_analyze(include_preflight=False)
-                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                query_params = parse_qs(
+                    urlsplit(self.path).query, keep_blank_values=False
+                )
                 history_route_headers = _history_api_deprecation_headers()
                 history_route_headers["Cache-Control"] = "no-store"
                 history_deprecation_payload = _history_api_deprecation_payload()
@@ -4621,13 +4954,25 @@ class Handler(BaseHTTPRequestHandler):
 
                 provided_token = self._resolve_api_auth_token()
 
-                auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
-                oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+                auth_user = (
+                    _resolve_phase1_auth_user(provided_token)
+                    if _PHASE1_AUTH_ENABLED
+                    else None
+                )
+                oidc_claims = (
+                    _validate_oidc_bearer_token(provided_token)
+                    if _OIDC_AUTH_ENABLED
+                    else None
+                )
                 bff_session_claims = self._authenticated_bff_session_claims()
                 bff_session_ok = bff_session_claims is not None
 
                 if (
-                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled())
+                    (
+                        _PHASE1_AUTH_ENABLED
+                        or _OIDC_AUTH_ENABLED
+                        or is_bff_oidc_enabled()
+                    )
                     and auth_user is None
                     and oidc_claims is None
                     and not bff_session_ok
@@ -4653,7 +4998,9 @@ class Handler(BaseHTTPRequestHandler):
                         bff_session_claims=bff_session_claims,
                     )
                     limit = _resolve_history_limit(query_params.get("limit", [""])[0])
-                    offset = _resolve_history_offset(query_params.get("offset", [""])[0])
+                    offset = _resolve_history_offset(
+                        query_params.get("offset", [""])[0]
+                    )
                 except ValueError as exc:
                     self._send_json(
                         {
@@ -4673,7 +5020,10 @@ class Handler(BaseHTTPRequestHandler):
                 # ------------------------------------------------------------------
                 # DB-store path: efficient per-user paginated query with org guard
                 # ------------------------------------------------------------------
-                from src.shared.async_job_store_db import DbAsyncJobStore as _DbStore  # noqa: PLC0415
+                from src.shared.async_job_store_db import (
+                    DbAsyncJobStore as _DbStore,
+                )  # noqa: PLC0415
+
                 if isinstance(_ASYNC_JOB_STORE, _DbStore):
                     db_user_id = str(owner_user_id or "").strip() or None
 
@@ -4697,21 +5047,23 @@ class Handler(BaseHTTPRequestHandler):
                         total = _ASYNC_JOB_STORE.count_jobs_for_org(request_org_id)
 
                     db_history_rows: list[dict[str, Any]] = []
-                    for job_record in db_jobs:
-                        job_id = str(job_record.get("job_id") or "")
+                    for db_job_record in db_jobs:
+                        job_id = str(db_job_record.get("job_id") or "")
                         db_history_rows.append(
                             {
-                                "result_id": job_record.get("result_id"),
+                                "result_id": db_job_record.get("result_id"),
                                 "job_id": job_id,
                                 "created_at": str(
-                                    job_record.get("finished_at")
-                                    or job_record.get("updated_at")
-                                    or job_record.get("queued_at")
+                                    db_job_record.get("finished_at")
+                                    or db_job_record.get("updated_at")
+                                    or db_job_record.get("queued_at")
                                     or ""
                                 ),
-                                "query": job_record.get("query", ""),
-                                "intelligence_mode": job_record.get("intelligence_mode", "basic"),
-                                "status": job_record.get("status"),
+                                "query": db_job_record.get("query", ""),
+                                "intelligence_mode": db_job_record.get(
+                                    "intelligence_mode", "basic"
+                                ),
+                                "status": db_job_record.get("status"),
                             }
                         )
 
@@ -4766,7 +5118,9 @@ class Handler(BaseHTTPRequestHandler):
                             "job_id": job_id,
                             "created_at": created_at,
                             "query": job_record.get("query", ""),
-                            "intelligence_mode": job_record.get("intelligence_mode", "basic"),
+                            "intelligence_mode": job_record.get(
+                                "intelligence_mode", "basic"
+                            ),
                             "status": job_record.get("status"),
                         }
                     )
@@ -4794,7 +5148,9 @@ class Handler(BaseHTTPRequestHandler):
                     extra_headers=history_route_headers,
                 )
                 return
-            if request_path.startswith("/analyze/jobs/") and request_path.endswith("/notifications"):
+            if request_path.startswith("/analyze/jobs/") and request_path.endswith(
+                "/notifications"
+            ):
                 job_id = (
                     request_path.removeprefix("/analyze/jobs/")
                     .removesuffix("/notifications")
@@ -4804,15 +5160,29 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_not_found(request_id=request_id)
                     return
 
-                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                query_params = parse_qs(
+                    urlsplit(self.path).query, keep_blank_values=False
+                )
 
                 provided_token = self._resolve_api_auth_token()
-                auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
-                oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+                auth_user = (
+                    _resolve_phase1_auth_user(provided_token)
+                    if _PHASE1_AUTH_ENABLED
+                    else None
+                )
+                oidc_claims = (
+                    _validate_oidc_bearer_token(provided_token)
+                    if _OIDC_AUTH_ENABLED
+                    else None
+                )
                 bff_session_claims = self._authenticated_bff_session_claims()
                 bff_session_ok = bff_session_claims is not None
                 if (
-                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled())
+                    (
+                        _PHASE1_AUTH_ENABLED
+                        or _OIDC_AUTH_ENABLED
+                        or is_bff_oidc_enabled()
+                    )
                     and auth_user is None
                     and oidc_claims is None
                     and not bff_session_ok
@@ -4836,8 +5206,12 @@ class Handler(BaseHTTPRequestHandler):
                         oidc_claims=oidc_claims,
                         bff_session_claims=bff_session_claims,
                     )
-                    channel = _resolve_notification_channel(query_params.get("channel", [""])[0])
-                    limit = _resolve_notification_limit(query_params.get("limit", [""])[0])
+                    channel = _resolve_notification_channel(
+                        query_params.get("channel", [""])[0]
+                    )
+                    limit = _resolve_notification_limit(
+                        query_params.get("limit", [""])[0]
+                    )
                 except ValueError as exc:
                     self._send_error(
                         request_id=request_id,
@@ -4851,7 +5225,9 @@ class Handler(BaseHTTPRequestHandler):
 
                 job_record = _ASYNC_JOB_STORE.get_job(job_id)
                 if job_record is None:
-                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown job_id"
+                    )
                     return
                 if owner_user_id:
                     if not self._job_visible_for_owner(
@@ -4859,13 +5235,19 @@ class Handler(BaseHTTPRequestHandler):
                         owner_user_id=owner_user_id,
                         owner_org_id=request_org_id,
                     ):
-                        self._send_not_found(request_id=request_id, message="unknown job_id")
+                        self._send_not_found(
+                            request_id=request_id, message="unknown job_id"
+                        )
                         return
                 elif not self._job_visible_for_org(job_record, request_org_id):
-                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown job_id"
+                    )
                     return
 
-                notifications = _ASYNC_JOB_STORE.list_notifications(job_id, channel=channel)
+                notifications = _ASYNC_JOB_STORE.list_notifications(
+                    job_id, channel=channel
+                )
                 self._send_json(
                     {
                         "ok": True,
@@ -4887,12 +5269,24 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 provided_token = self._resolve_api_auth_token()
-                auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
-                oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+                auth_user = (
+                    _resolve_phase1_auth_user(provided_token)
+                    if _PHASE1_AUTH_ENABLED
+                    else None
+                )
+                oidc_claims = (
+                    _validate_oidc_bearer_token(provided_token)
+                    if _OIDC_AUTH_ENABLED
+                    else None
+                )
                 bff_session_claims = self._authenticated_bff_session_claims()
                 bff_session_ok = bff_session_claims is not None
                 if (
-                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled())
+                    (
+                        _PHASE1_AUTH_ENABLED
+                        or _OIDC_AUTH_ENABLED
+                        or is_bff_oidc_enabled()
+                    )
                     and auth_user is None
                     and oidc_claims is None
                     and not bff_session_ok
@@ -4929,7 +5323,9 @@ class Handler(BaseHTTPRequestHandler):
 
                 job_record = _ASYNC_JOB_STORE.get_job(job_id)
                 if job_record is None:
-                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown job_id"
+                    )
                     return
                 if owner_user_id:
                     if not self._job_visible_for_owner(
@@ -4937,17 +5333,23 @@ class Handler(BaseHTTPRequestHandler):
                         owner_user_id=owner_user_id,
                         owner_org_id=request_org_id,
                     ):
-                        self._send_not_found(request_id=request_id, message="unknown job_id")
+                        self._send_not_found(
+                            request_id=request_id, message="unknown job_id"
+                        )
                         return
                 elif not self._job_visible_for_org(job_record, request_org_id):
-                    self._send_not_found(request_id=request_id, message="unknown job_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown job_id"
+                    )
                     return
 
                 self._send_json(
                     {
                         "ok": True,
                         "correlation_id": job_record.get("correlation_id"),
-                        "job": _project_async_job_status(job_record, include_events=True),
+                        "job": _project_async_job_status(
+                            job_record, include_events=True
+                        ),
                         "request_id": request_id,
                     },
                     request_id=request_id,
@@ -4960,15 +5362,29 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_not_found(request_id=request_id)
                     return
 
-                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
+                query_params = parse_qs(
+                    urlsplit(self.path).query, keep_blank_values=False
+                )
 
                 provided_token = self._resolve_api_auth_token()
-                auth_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
-                oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+                auth_user = (
+                    _resolve_phase1_auth_user(provided_token)
+                    if _PHASE1_AUTH_ENABLED
+                    else None
+                )
+                oidc_claims = (
+                    _validate_oidc_bearer_token(provided_token)
+                    if _OIDC_AUTH_ENABLED
+                    else None
+                )
                 bff_session_claims = self._authenticated_bff_session_claims()
                 bff_session_ok = bff_session_claims is not None
                 if (
-                    (_PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled())
+                    (
+                        _PHASE1_AUTH_ENABLED
+                        or _OIDC_AUTH_ENABLED
+                        or is_bff_oidc_enabled()
+                    )
                     and auth_user is None
                     and oidc_claims is None
                     and not bff_session_ok
@@ -4992,7 +5408,9 @@ class Handler(BaseHTTPRequestHandler):
                         oidc_claims=oidc_claims,
                         bff_session_claims=bff_session_claims,
                     )
-                    projection_mode = _resolve_result_projection_mode(query_params.get("view", [""])[0])
+                    projection_mode = _resolve_result_projection_mode(
+                        query_params.get("view", [""])[0]
+                    )
                 except ValueError as exc:
                     self._send_error(
                         request_id=request_id,
@@ -5005,7 +5423,10 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
                 # DB-store path: enforce strict owner guard when owner identity is known.
-                from src.shared.async_job_store_db import DbAsyncJobStore as _DbStore2  # noqa: PLC0415
+                from src.shared.async_job_store_db import (
+                    DbAsyncJobStore as _DbStore2,
+                )  # noqa: PLC0415
+
                 if isinstance(_ASYNC_JOB_STORE, _DbStore2):
                     if owner_user_id:
                         requested_result = _ASYNC_JOB_STORE.get_result_for_owner(
@@ -5022,20 +5443,26 @@ class Handler(BaseHTTPRequestHandler):
                     requested_result = _ASYNC_JOB_STORE.get_result(result_id)
 
                 if requested_result is None:
-                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown result_id"
+                    )
                     return
 
                 job_id = str(requested_result.get("job_id") or "")
                 job_record = _ASYNC_JOB_STORE.get_job(job_id) if job_id else None
                 if job_record is None:
-                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown result_id"
+                    )
                     return
                 if owner_user_id and not self._job_visible_for_owner(
                     job_record,
                     owner_user_id=owner_user_id,
                     owner_org_id=request_org_id,
                 ):
-                    self._send_not_found(request_id=request_id, message="unknown result_id")
+                    self._send_not_found(
+                        request_id=request_id, message="unknown result_id"
+                    )
                     return
                 if not isinstance(_ASYNC_JOB_STORE, _DbStore2):
                     # File-store: enforce owner/org guard in application layer.
@@ -5045,17 +5472,23 @@ class Handler(BaseHTTPRequestHandler):
                             owner_user_id=owner_user_id,
                             owner_org_id=request_org_id,
                         ):
-                            self._send_not_found(request_id=request_id, message="unknown result_id")
+                            self._send_not_found(
+                                request_id=request_id, message="unknown result_id"
+                            )
                             return
                         if not self._job_visible_for_owner(
                             job_record,
                             owner_user_id=owner_user_id,
                             owner_org_id=request_org_id,
                         ):
-                            self._send_not_found(request_id=request_id, message="unknown result_id")
+                            self._send_not_found(
+                                request_id=request_id, message="unknown result_id"
+                            )
                             return
                     elif not self._job_visible_for_org(job_record, request_org_id):
-                        self._send_not_found(request_id=request_id, message="unknown result_id")
+                        self._send_not_found(
+                            request_id=request_id, message="unknown result_id"
+                        )
                         return
 
                 all_results_for_job = _ASYNC_JOB_STORE.list_results(job_id)
@@ -5109,7 +5542,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             if request_path == "/debug/trace":
-                cors_headers = self._cors_headers_for_debug_trace(include_preflight=False)
+                cors_headers = self._cors_headers_for_debug_trace(
+                    include_preflight=False
+                )
                 if cors_headers is None:
                     self._send_json(
                         {
@@ -5138,8 +5573,12 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
-                query_params = parse_qs(urlsplit(self.path).query, keep_blank_values=False)
-                trace_request_id = normalize_request_id(query_params.get("request_id", [""])[0])
+                query_params = parse_qs(
+                    urlsplit(self.path).query, keep_blank_values=False
+                )
+                trace_request_id = normalize_request_id(
+                    query_params.get("request_id", [""])[0]
+                )
                 if not trace_request_id:
                     self._send_json(
                         {
@@ -5157,7 +5596,9 @@ class Handler(BaseHTTPRequestHandler):
                 default_lookback_seconds = _trace_debug_default_lookback_seconds()
                 default_max_events = _trace_debug_default_max_events()
                 lookback_seconds = normalize_lookback_seconds(
-                    query_params.get("lookback_seconds", [str(default_lookback_seconds)])[0]
+                    query_params.get(
+                        "lookback_seconds", [str(default_lookback_seconds)]
+                    )[0]
                 )
                 max_events = normalize_max_events(
                     query_params.get("max_events", [str(default_max_events)])[0]
@@ -5167,7 +5608,9 @@ class Handler(BaseHTTPRequestHandler):
                     request_id=trace_request_id,
                     log_path=os.getenv(_TRACE_DEBUG_LOG_PATH_ENV, ""),
                     cloudwatch_log_group=os.getenv(_TRACE_DEBUG_CW_LOG_GROUP_ENV, ""),
-                    cloudwatch_log_stream_prefix=os.getenv(_TRACE_DEBUG_CW_LOG_STREAM_PREFIX_ENV, ""),
+                    cloudwatch_log_stream_prefix=os.getenv(
+                        _TRACE_DEBUG_CW_LOG_STREAM_PREFIX_ENV, ""
+                    ),
                     lookback_seconds=lookback_seconds,
                     max_events=max_events,
                 )
@@ -5176,8 +5619,12 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json(
                         {
                             "ok": False,
-                            "error": str(trace_payload.get("error") or "trace_unavailable"),
-                            "message": str(trace_payload.get("message") or "trace unavailable"),
+                            "error": str(
+                                trace_payload.get("error") or "trace_unavailable"
+                            ),
+                            "message": str(
+                                trace_payload.get("message") or "trace unavailable"
+                            ),
                             "request_id": request_id,
                             "trace_request_id": trace_request_id,
                         },
@@ -5228,7 +5675,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         request_id = self._request_id()
         request_path = self._normalized_path()
-        self._begin_request_lifecycle(method="POST", request_path=request_path, request_id=request_id)
+        self._begin_request_lifecycle(
+            method="POST", request_path=request_path, request_id=request_id
+        )
 
         try:
             self._cors_response_headers = None
@@ -5241,12 +5690,15 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            is_cancel_route = (
-                request_path.startswith("/analyze/jobs/")
-                and request_path.endswith("/cancel")
-            )
+            is_cancel_route = request_path.startswith(
+                "/analyze/jobs/"
+            ) and request_path.endswith("/cancel")
             is_correction_route = request_path.startswith("/compliance/corrections/")
-            if request_path != "/analyze" and not is_cancel_route and not is_correction_route:
+            if (
+                request_path != "/analyze"
+                and not is_cancel_route
+                and not is_correction_route
+            ):
                 self._send_json(
                     {"ok": False, "error": "not_found", "request_id": request_id},
                     status=HTTPStatus.NOT_FOUND,
@@ -5255,7 +5707,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             if is_correction_route:
-                document_id = request_path.removeprefix("/compliance/corrections/").strip("/")
+                document_id = request_path.removeprefix(
+                    "/compliance/corrections/"
+                ).strip("/")
                 if not document_id or "/" in document_id:
                     self._send_json(
                         {"ok": False, "error": "not_found", "request_id": request_id},
@@ -5295,12 +5749,22 @@ class Handler(BaseHTTPRequestHandler):
 
             required_token = os.getenv("API_AUTH_TOKEN", "").strip()
             provided_token = self._resolve_api_auth_token()
-            phase1_user = _resolve_phase1_auth_user(provided_token) if _PHASE1_AUTH_ENABLED else None
-            oidc_claims = _validate_oidc_bearer_token(provided_token) if _OIDC_AUTH_ENABLED else None
+            phase1_user = (
+                _resolve_phase1_auth_user(provided_token)
+                if _PHASE1_AUTH_ENABLED
+                else None
+            )
+            oidc_claims = (
+                _validate_oidc_bearer_token(provided_token)
+                if _OIDC_AUTH_ENABLED
+                else None
+            )
             bff_session_claims = self._authenticated_bff_session_claims()
             bff_session_ok = bff_session_claims is not None
 
-            legacy_token_ok = bool(required_token) and hmac.compare_digest(provided_token, required_token)
+            legacy_token_ok = bool(required_token) and hmac.compare_digest(
+                provided_token, required_token
+            )
             phase1_token_ok = phase1_user is not None
             oidc_token_ok = oidc_claims is not None
 
@@ -5309,20 +5773,26 @@ class Handler(BaseHTTPRequestHandler):
             # - phase1: PHASE1_AUTH_USERS_* enables per-user tokens
             # - oidc: OIDC_JWKS_URL enables RS256 JWT validation
             # - bff: authenticated OIDC GUI session cookie is accepted on analyze endpoints
-            if required_token or _PHASE1_AUTH_ENABLED or _OIDC_AUTH_ENABLED or is_bff_oidc_enabled():
-                if not (legacy_token_ok or phase1_token_ok or oidc_token_ok or bff_session_ok):
-                    self._send_json(
-                        {
-                            "ok": False,
-                            "error": "unauthorized",
-                            "message": "missing or invalid bearer token",
-                            "request_id": request_id,
-                        },
-                        status=HTTPStatus.UNAUTHORIZED,
-                        request_id=request_id,
-                        extra_headers={"Cache-Control": "no-store"},
-                    )
-                    return
+            if (
+                required_token
+                or _PHASE1_AUTH_ENABLED
+                or _OIDC_AUTH_ENABLED
+                or is_bff_oidc_enabled()
+            ) and not (
+                legacy_token_ok or phase1_token_ok or oidc_token_ok or bff_session_ok
+            ):
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "unauthorized",
+                        "message": "missing or invalid bearer token",
+                        "request_id": request_id,
+                    },
+                    status=HTTPStatus.UNAUTHORIZED,
+                    request_id=request_id,
+                    extra_headers={"Cache-Control": "no-store"},
+                )
+                return
 
             try:
                 # Ensure history-persistence hooks exist even when request parsing
@@ -5345,10 +5815,16 @@ class Handler(BaseHTTPRequestHandler):
                     allow_empty_body=is_cancel_route,
                 )
 
-                session_id = str(getattr(self, "_request_lifecycle_session_id", "") or "")
+                session_id = str(
+                    getattr(self, "_request_lifecycle_session_id", "") or ""
+                )
 
                 if is_cancel_route:
-                    job_id = request_path.removeprefix("/analyze/jobs/").removesuffix("/cancel").strip("/")
+                    job_id = (
+                        request_path.removeprefix("/analyze/jobs/")
+                        .removesuffix("/cancel")
+                        .strip("/")
+                    )
                     if not job_id or "/" in job_id:
                         self._send_json(
                             {
@@ -5361,8 +5837,13 @@ class Handler(BaseHTTPRequestHandler):
                         )
                         return
 
-                    cancel_reason = str(data.get("reason") or "cancel_requested").strip() or "cancel_requested"
-                    canceled_by = str(data.get("canceled_by") or "user").strip() or "user"
+                    cancel_reason = (
+                        str(data.get("reason") or "cancel_requested").strip()
+                        or "cancel_requested"
+                    )
+                    canceled_by = (
+                        str(data.get("canceled_by") or "user").strip() or "user"
+                    )
 
                     _ensure_async_runtime_started()
 
@@ -5429,20 +5910,35 @@ class Handler(BaseHTTPRequestHandler):
                         )
                         return
 
-                    current_job = _ASYNC_JOB_STORE.get_job(job_id) or cancel_outcome.get("job") or {}
+                    current_job = (
+                        _ASYNC_JOB_STORE.get_job(job_id)
+                        or cancel_outcome.get("job")
+                        or {}
+                    )
                     current_status = str(current_job.get("status") or "")
-                    accepted = current_status in {"running", "partial", "queued", "canceled"}
+                    accepted = current_status in {
+                        "running",
+                        "partial",
+                        "queued",
+                        "canceled",
+                    }
 
                     if current_status in {"running", "partial"}:
                         _ASYNC_JOB_RUNTIME.enqueue(job_id)
 
-                    status_code = HTTPStatus.ACCEPTED if current_status in {"running", "partial"} else HTTPStatus.OK
+                    status_code = (
+                        HTTPStatus.ACCEPTED
+                        if current_status in {"running", "partial"}
+                        else HTTPStatus.OK
+                    )
                     self._send_json(
                         {
                             "ok": True,
                             "accepted": accepted,
                             "correlation_id": current_job.get("correlation_id"),
-                            "job": _project_async_job_status(current_job, include_events=True),
+                            "job": _project_async_job_status(
+                                current_job, include_events=True
+                            ),
                             "request_id": request_id,
                         },
                         status=status_code,
@@ -5451,7 +5947,9 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     return
 
-                def _emit_upstream_for_request(*, event: str, level: str = "info", **fields: Any) -> None:
+                def _emit_upstream_for_request(
+                    *, event: str, level: str = "info", **fields: Any
+                ) -> None:
                     _emit_structured_log(
                         event=event,
                         level=level,
@@ -5484,7 +5982,9 @@ class Handler(BaseHTTPRequestHandler):
 
                 # Optionales Preference-Profil für BL-20.4-Personalisierung.
                 # Bei fehlendem Profil greifen explizite Defaults (Fallback-kompatibel).
-                preferences_supplied = "preferences" in data and data.get("preferences") is not None
+                preferences_supplied = (
+                    "preferences" in data and data.get("preferences") is not None
+                )
                 preferences_profile = _extract_preferences(data)
 
                 default_timeout = _as_positive_finite_number(
@@ -5498,6 +5998,8 @@ class Handler(BaseHTTPRequestHandler):
                 req_timeout_raw = data.get("timeout_seconds", default_timeout)
                 timeout = _as_positive_finite_number(req_timeout_raw, "timeout_seconds")
                 timeout = min(timeout, max_timeout)
+                # build_report expects whole seconds
+                timeout = max(1, int(timeout))
 
                 if async_mode_requested:
                     _ensure_async_runtime_started()
@@ -5510,17 +6012,21 @@ class Handler(BaseHTTPRequestHandler):
                         owner_user_id=owner_user_id,
                         owner_org_id=request_org_id,
                     )
-                    created_job_id = str(created_job.get("job_id") or "")
+                    created_job_id: str | None = str(created_job.get("job_id") or "")
                     if created_job_id:
                         _ASYNC_JOB_RUNTIME.enqueue(created_job_id)
 
-                    self._request_lifecycle_correlation_id = str(created_job.get("correlation_id") or "")
+                    self._request_lifecycle_correlation_id = str(
+                        created_job.get("correlation_id") or ""
+                    )
                     self._send_json(
                         {
                             "ok": True,
                             "accepted": True,
                             "correlation_id": created_job.get("correlation_id"),
-                            "job": _project_async_job_status(created_job, include_events=True),
+                            "job": _project_async_job_status(
+                                created_job, include_events=True
+                            ),
                             "request_id": request_id,
                         },
                         status=HTTPStatus.ACCEPTED,
@@ -5528,7 +6034,6 @@ class Handler(BaseHTTPRequestHandler):
                         extra_headers={"Cache-Control": "no-store"},
                     )
                     return
-
 
                 # Sync-Requests ebenfalls in den persistenten Job/Result-Store schreiben,
                 # damit "Historische Abfragen" ohne neue Infrastruktur funktioniert.
@@ -5597,17 +6102,35 @@ class Handler(BaseHTTPRequestHandler):
                                 "base_score": 80.1,
                                 "personalized_score": 80.1,
                                 "factors": [
-                                    {"key": "topography", "score": 82.0, "weight": 0.34},
+                                    {
+                                        "key": "topography",
+                                        "score": 82.0,
+                                        "weight": 0.34,
+                                    },
                                     {"key": "access", "score": 76.0, "weight": 0.29},
-                                    {"key": "building_state", "score": 74.0, "weight": 0.17},
-                                    {"key": "data_quality", "score": 88.0, "weight": 0.20},
+                                    {
+                                        "key": "building_state",
+                                        "score": 74.0,
+                                        "weight": 0.17,
+                                    },
+                                    {
+                                        "key": "data_quality",
+                                        "score": 88.0,
+                                        "weight": 0.20,
+                                    },
                                 ],
                             },
                             "intelligence": {
                                 "mode": mode,
                                 "executive_risk_summary": {
-                                    "risk_score": 36 if mode == "risk" else (15 if mode == "extended" else 5),
-                                    "traffic_light": "yellow" if mode == "risk" else "green",
+                                    "risk_score": (
+                                        36
+                                        if mode == "risk"
+                                        else (15 if mode == "extended" else 5)
+                                    ),
+                                    "traffic_light": (
+                                        "yellow" if mode == "risk" else "green"
+                                    ),
                                     "status": "ok",
                                 },
                             },
@@ -5623,8 +6146,14 @@ class Handler(BaseHTTPRequestHandler):
                                 },
                                 "intelligence": {
                                     "executive_risk": {
-                                        "risk_score": 36 if mode == "risk" else (15 if mode == "extended" else 5),
-                                        "traffic_light": "yellow" if mode == "risk" else "green",
+                                        "risk_score": (
+                                            36
+                                            if mode == "risk"
+                                            else (15 if mode == "extended" else 5)
+                                        ),
+                                        "traffic_light": (
+                                            "yellow" if mode == "risk" else "green"
+                                        ),
                                     }
                                 },
                             },
@@ -5651,6 +6180,7 @@ class Handler(BaseHTTPRequestHandler):
                             timeout_seconds=timeout,
                             request_id=request_id,
                             session_id=session_id,
+                            owner_org_id=request_org_id,
                         )
                         _apply_open_meteo_deep_enrichment(
                             stub_report,
@@ -5704,6 +6234,7 @@ class Handler(BaseHTTPRequestHandler):
                     timeout_seconds=timeout,
                     request_id=request_id,
                     session_id=session_id,
+                    owner_org_id=request_org_id,
                 )
                 _apply_open_meteo_deep_enrichment(
                     report,
@@ -5728,7 +6259,9 @@ class Handler(BaseHTTPRequestHandler):
                     request_id=request_id,
                 )
             except TimeoutError as e:
-                _persist_sync_history_failure(error_code="timeout", error_message=str(e))
+                _persist_sync_history_failure(
+                    error_code="timeout", error_message=str(e)
+                )
                 self._send_error(
                     request_id=request_id,
                     status=HTTPStatus.GATEWAY_TIMEOUT,
@@ -5736,7 +6269,9 @@ class Handler(BaseHTTPRequestHandler):
                     message=str(e),
                 )
             except AddressIntelError as e:
-                _persist_sync_history_failure(error_code="address_intel", error_message=str(e))
+                _persist_sync_history_failure(
+                    error_code="address_intel", error_message=str(e)
+                )
                 self._send_error(
                     request_id=request_id,
                     status=HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -5745,7 +6280,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
             except Exception as e:  # pragma: no cover
                 if _is_validation_exception(e):
-                    _persist_sync_history_failure(error_code="bad_request", error_message=str(e))
+                    _persist_sync_history_failure(
+                        error_code="bad_request", error_message=str(e)
+                    )
                     details = _validation_error_details(str(e))
                     self._send_error(
                         request_id=request_id,
@@ -5755,13 +6292,17 @@ class Handler(BaseHTTPRequestHandler):
                         details=details,
                     )
                 elif _is_not_found_exception(e):
-                    _persist_sync_history_failure(error_code="not_found", error_message=str(e))
+                    _persist_sync_history_failure(
+                        error_code="not_found", error_message=str(e)
+                    )
                     self._send_not_found(
                         request_id=request_id,
                         message=str(e),
                     )
                 else:
-                    _persist_sync_history_failure(error_code="internal", error_message=str(e))
+                    _persist_sync_history_failure(
+                        error_code="internal", error_message=str(e)
+                    )
                     self._send_error(
                         request_id=request_id,
                         status=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -5771,10 +6312,13 @@ class Handler(BaseHTTPRequestHandler):
 
         finally:
             self._finish_request_lifecycle()
+
     def do_OPTIONS(self) -> None:  # noqa: N802
         request_id = self._request_id()
         request_path = self._normalized_path()
-        self._begin_request_lifecycle(method="OPTIONS", request_path=request_path, request_id=request_id)
+        self._begin_request_lifecycle(
+            method="OPTIONS", request_path=request_path, request_id=request_id
+        )
 
         try:
             if _is_external_direct_login_path(request_path):
@@ -5785,11 +6329,13 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            is_cancel_route = (
-                request_path.startswith("/analyze/jobs/")
-                and request_path.endswith("/cancel")
-            )
-            if request_path not in {"/analyze", "/analyze/history", "/debug/trace"} and not is_cancel_route:
+            is_cancel_route = request_path.startswith(
+                "/analyze/jobs/"
+            ) and request_path.endswith("/cancel")
+            if (
+                request_path not in {"/analyze", "/analyze/history", "/debug/trace"}
+                and not is_cancel_route
+            ):
                 self._send_json(
                     {"ok": False, "error": "not_found", "request_id": request_id},
                     status=HTTPStatus.NOT_FOUND,
@@ -5798,7 +6344,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             if request_path == "/debug/trace":
-                cors_headers = self._cors_headers_for_debug_trace(include_preflight=True)
+                cors_headers = self._cors_headers_for_debug_trace(
+                    include_preflight=True
+                )
             else:
                 cors_headers = self._cors_headers_for_analyze(include_preflight=True)
             if cors_headers is None:
@@ -5813,7 +6361,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
 
-            self._capture_response_error(payload=None, status=int(HTTPStatus.NO_CONTENT))
+            self._capture_response_error(
+                payload=None, status=int(HTTPStatus.NO_CONTENT)
+            )
             self.send_response(HTTPStatus.NO_CONTENT)
             self._set_request_id_headers(request_id)
             self.send_header("Content-Length", "0")
@@ -5983,8 +6533,9 @@ def _start_http_redirect_server(
     https_host_override: str = "",
 ) -> ThreadingHTTPServer:
     redirect_server = ThreadingHTTPServer((host, http_port), RedirectToHttpsHandler)
-    setattr(redirect_server, "redirect_https_port", https_port)
-    setattr(redirect_server, "redirect_https_host", https_host_override)
+    # Dynamic config attributes consumed by RedirectToHttpsHandler via getattr
+    redirect_server.redirect_https_port = https_port  # type: ignore[attr-defined]
+    redirect_server.redirect_https_host = https_host_override  # type: ignore[attr-defined]
 
     thread = threading.Thread(target=redirect_server.serve_forever, daemon=True)
     thread.start()
@@ -6014,7 +6565,7 @@ def main() -> None:
                 https_port=port,
                 https_host_override=str(tls_settings.get("redirect_host") or ""),
             )
-            setattr(httpd, "redirect_server", redirect_server)
+            httpd.redirect_server = redirect_server  # type: ignore[attr-defined]
             _emit_structured_log(
                 event="service.redirect_listener.enabled",
                 level="info",
