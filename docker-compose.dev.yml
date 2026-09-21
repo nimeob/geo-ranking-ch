@@ -17,7 +17,7 @@ services:
       - .:/app
     command: >
       sh -c "pip install -r requirements-dev.txt &&
-             uvicorn src.api.web_service.main:app --host 0.0.0.0 --port 8000 --reload"
+             python -m src.api.web_service"
     depends_on:
       - redis
       - postgres

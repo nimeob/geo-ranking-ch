@@ -10,9 +10,9 @@ pflegen müssen.
 
 from __future__ import annotations
 
-from importlib import import_module
 import sys
 import types
+from importlib import import_module
 from typing import Any
 
 
@@ -30,7 +30,9 @@ def _is_forwardable_attribute(name: str) -> bool:
 class _ForwardingProxyModule(types.ModuleType):
     _forward_target: types.ModuleType
 
-    def __getattr__(self, name: str) -> Any:  # pragma: no cover - thin compatibility proxy
+    def __getattr__(
+        self, name: str
+    ) -> Any:  # pragma: no cover - thin compatibility proxy
         return getattr(self._forward_target, name)
 
     def __dir__(self) -> list[str]:  # pragma: no cover - thin compatibility proxy
@@ -47,7 +49,7 @@ class _ForwardingProxyModule(types.ModuleType):
             delattr(self._forward_target, name)
 
 
-def install_module_alias(current_name: str, target_name: str):
+def install_module_alias(current_name: str, target_name: str) -> types.ModuleType:
     """Replace the current module entry with the canonical target module."""
     target_module = import_module(target_name)
     sys.modules[current_name] = target_module
@@ -58,7 +60,7 @@ def install_forwarding_proxy(
     current_name: str,
     module_globals: dict[str, Any],
     target_name: str,
-):
+) -> types.ModuleType:
     """Install a mutation-forwarding proxy for legacy wrappers.
 
     This keeps existing references to the legacy module object working while
@@ -76,5 +78,5 @@ def install_forwarding_proxy(
     )
 
     current_module.__class__ = _ForwardingProxyModule
-    current_module._forward_target = target_module
+    current_module._forward_target = target_module  # type: ignore[attr-defined]
     return target_module
