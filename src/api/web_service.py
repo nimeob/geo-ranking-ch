@@ -45,6 +45,8 @@ from src.api.address_intel import AddressIntelError, build_report
 from src.api.async_jobs import AsyncJobStore
 from src.api.async_worker_runtime import AsyncJobRuntime
 from src.api.async_store_factory import build_async_job_store
+from src.api.quota_store_factory import build_quota_ledger
+from src.shared.quota_ledger_db import NullQuotaLedger, QuotaLedgerError
 from src.api.debug_trace import (
     build_trace_timeline,
     normalize_lookback_seconds,
@@ -536,6 +538,7 @@ _UI_AUTH_PROXY_HEADER_VALUE = "1"
 _PROTECTED_GUI_ROUTES = frozenset({"/", "/gui", "/history", _HISTORY_UI_SUCCESSOR_PATH})
 
 _ASYNC_JOB_STORE = build_async_job_store()
+_QUOTA_LEDGER = build_quota_ledger()
 _ASYNC_JOB_RUNTIME = AsyncJobRuntime(store=_ASYNC_JOB_STORE)
 _ASYNC_RUNTIME_START_LOCK = threading.Lock()
 _ASYNC_RUNTIME_STARTED = False
@@ -2622,6 +2625,76 @@ def _evaluate_deep_mode_gate(
     return True, None
 
 
+def _resolve_server_side_deep_quota(
+    *,
+    requested: bool,
+    allowed: bool,
+    client_quota_remaining: int | None,
+    owner_org_id: str | None,
+    request_id: str = "",
+) -> int | None:
+    """Resolve deep-mode quota server-side when the DB ledger is active.
+
+    G3 (docs/VISION_GAP_ANALYSIS.md): with ``QUOTA_STORE_BACKEND=db`` the
+    quota decision comes from the ``usage_counters`` ledger instead of the
+    client-supplied ``options.entitlements.deep_mode.quota_remaining``.
+
+    Fail-safe policy: on ledger errors the legacy client-supplied value is
+    used and a structured warning is emitted; the baseline analyze result
+    is never blocked by the ledger.
+    """
+    if not requested or not allowed:
+        return client_quota_remaining
+    if isinstance(_QUOTA_LEDGER, NullQuotaLedger):
+        return client_quota_remaining
+    if not owner_org_id:
+        return client_quota_remaining
+    try:
+        remaining = _QUOTA_LEDGER.lookup_quota_remaining(org_id=owner_org_id)
+    except QuotaLedgerError as exc:
+        _emit_structured_log(
+            event="api.entitlements.quota_ledger_error",
+            level="warn",
+            component="api.web_service",
+            direction="internal",
+            status="fallback_client_quota",
+            reason=str(exc)[:200],
+            request_id=request_id,
+        )
+        return client_quota_remaining
+    if remaining is None:
+        return client_quota_remaining
+    return remaining
+
+
+def _reserve_deep_quota_unit(
+    *,
+    owner_org_id: str | None,
+    request_id: str = "",
+) -> tuple[bool, int | None]:
+    """Consume one deep-mode quota unit via the DB ledger when active.
+
+    Fail-safe: ledger errors fall back to (True, None), so the client-
+    supplied quota path keeps governing and the baseline analyze result is
+    never blocked by the ledger.
+    """
+    if isinstance(_QUOTA_LEDGER, NullQuotaLedger) or not owner_org_id:
+        return True, None
+    try:
+        return _QUOTA_LEDGER.resolve_and_reserve(org_id=owner_org_id)
+    except QuotaLedgerError as exc:
+        _emit_structured_log(
+            event="api.entitlements.quota_ledger_error",
+            level="warn",
+            component="api.web_service",
+            direction="internal",
+            status="fallback_client_quota",
+            reason=str(exc)[:200],
+            request_id=request_id,
+        )
+        return True, None
+
+
 def _apply_deep_mode_runtime_status(
     report: dict[str, Any],
     *,
@@ -2631,6 +2704,7 @@ def _apply_deep_mode_runtime_status(
     request_id: str = "",
     session_id: str = "",
     execution_retry_count: int = 0,
+    owner_org_id: str | None = None,
 ) -> None:
     started_at = time.perf_counter()
     deep_request = _extract_deep_mode_request(options, intelligence_mode=intelligence_mode)
@@ -2639,7 +2713,13 @@ def _apply_deep_mode_runtime_status(
         profile=str(deep_request["profile"]),
         requested_budget_tokens=deep_request.get("max_budget_tokens"),
     )
-
+    deep_request["quota_remaining"] = _resolve_server_side_deep_quota(
+        requested=bool(deep_request["requested"]),
+        allowed=bool(deep_request["allowed"]),
+        client_quota_remaining=deep_request.get("quota_remaining"),
+        owner_org_id=owner_org_id,
+        request_id=request_id,
+    )
     deep_effective, fallback_reason = _evaluate_deep_mode_gate(
         requested=bool(deep_request["requested"]),
         profile=str(deep_request["profile"]),
@@ -2648,6 +2728,25 @@ def _apply_deep_mode_runtime_status(
         deep_budget_ms=int(budget["deep_budget_ms"]),
         deep_min_budget_ms=int(budget["deep_min_budget_ms"]),
     )
+    if deep_effective:
+        reserved, remaining_after = _reserve_deep_quota_unit(
+            owner_org_id=owner_org_id,
+            request_id=request_id,
+        )
+        if remaining_after is not None:
+            deep_request["quota_remaining"] = remaining_after
+        if not reserved:
+            deep_effective = False
+            fallback_reason = "quota_exhausted"
+    elif fallback_reason == "quota_exhausted":
+        _emit_structured_log(
+            event="api.entitlements.quota_rejected",
+            level="warn",
+            component="api.web_service",
+            direction="internal",
+            status="quota_exhausted",
+            request_id=request_id,
+        )
 
     retry_count = 0
     if isinstance(execution_retry_count, (int, float)) and not isinstance(execution_retry_count, bool):
@@ -5651,6 +5750,7 @@ class Handler(BaseHTTPRequestHandler):
                             timeout_seconds=timeout,
                             request_id=request_id,
                             session_id=session_id,
+                            owner_org_id=request_org_id,
                         )
                         _apply_open_meteo_deep_enrichment(
                             stub_report,
@@ -5704,6 +5804,7 @@ class Handler(BaseHTTPRequestHandler):
                     timeout_seconds=timeout,
                     request_id=request_id,
                     session_id=session_id,
+                    owner_org_id=request_org_id,
                 )
                 _apply_open_meteo_deep_enrichment(
                     report,

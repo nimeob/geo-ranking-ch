@@ -43,10 +43,10 @@ Technisch: Async-Runtime (Jobs, Worker, Result-Pages, Notifications), OIDC/BFF-A
 - **Ist:** `001_core_schema.sql` liefert nur `organizations/users/memberships/api_keys`. **`plans/subscriptions/entitlements/usage_counters/audit_events` fehlten komplett** — Migration `004_entitlements_schema.sql` (dieses PR) schließt die Schema-Lücke. Runtime-Gates (Deep-Mode-`allowed`/`quota_remaining`) sind vertragsgemäß implementiert, lesen aber Client-Inputs statt DB-Entitlements
 - **Maßnahme:** ✅ Schema-Migration ergänzt; offen: Runtime-Bindung an `entitlements`-Tabelle + `usage_counters`-Metering
 
-### G3 — Quota-Enforcement ohne persistente Zähler 🔴 (Phase 2)
-- **Intention:** „API-Request mit überschrittener Quota liefert deterministisch 429" (Roadmap Exit-Kriterium)
-- **Ist:** `_evaluate_deep_mode_gate` prüft nur client-übergebene `quota_remaining` (`src/api/web_service.py:2618`) und degradiert stillschweigend auf Basic (`fallback_reason=quota_exhausted`) — kein 429, kein serverseitiger Zähler, keine `usage_counters`-Anbindung
-- **Maßnahme:** Offen — Requires G2-Runtime-Bindung; Verhalten (Downgrade vs. 429) pro Endpoint im Contract fixieren
+### G3 — Quota-Enforcement ohne persistente Zähler 🟡 (Phase 2 — Runtime gebunden)
+- **Intention:** „API-Request mit überschrittener Quota liefert deterministisch 429“ (Roadmap Exit-Kriterium)
+- **Ist:** Runtime-Bindung ergänzt: `src/shared/quota_ledger_db.py` (`DbQuotaLedger`) reserviert Deep-Mode-Einheiten atomar in `usage_counters` (Migration 004) und liest Limits aus `entitlements`; `QUOTA_STORE_BACKEND=db` aktiviert den serverseitigen Pfad (Default `none` = legacy Client-Quota, fail-safe). `_apply_deep_mode_runtime_status` ersetzt die clientgelieferte `quota_remaining` serverseitig und degradiert bei Ledger-Erschöpfung deterministisch auf `fallback_reason=quota_exhausted` (kein 429 — der Deep-Mode-Contract verbietet die Blockade des Basisergebnisses; 429 bleibt hartem Rate-Limiting vorbehalten, `docs/api/contract-v1.md`). Bei Ledger-Fehlern wird fail-safe auf die Client-Quota zurückgefallen (strukturierte Warnung `api.entitlements.quota_ledger_error`).
+- **Maßnahme:** ✅ Runtime gebunden; offen: Org-Bootstrap (UUID-Org-Rows statt `default-org`-Strings) und Verankerung der Downgrade- vs. 429-Semantik pro Endpoint im Contract
 
 ### G4 — Billing/Stripe nicht integriert 🔴 (Phase 2)
 - **Intention:** Stripe-Webhook → Subscription-Lifecycle, idempotent
@@ -95,6 +95,7 @@ Technisch: Async-Runtime (Jobs, Worker, Result-Pages, Notifications), OIDC/BFF-A
 | Gap | Aktion | Status |
 |---|---|---|
 | G2 (Schema) | `db/migrations/004_entitlements_schema.sql`: `plans`, `subscriptions` (inkl. 1-aktiv-pro-Org-Partial-Index), `entitlements` (normalisiert, historisierbar), `usage_counters` (Scope-Modell org/user/api_key + Fenster), `audit_events` (append-only) | ✅ neu |
+| G3 | Server-seitiges Quota-Ledger (`DbQuotaLedger` über `usage_counters`/`entitlements`, `QUOTA_STORE_BACKEND=db`), fail-safe Fallback auf Client-Quota | ✅ neu |
 | G6 (Protokoll) | Differenz-Protokoll als lebendes Dokument etabliert | ✅ neu |
 | G5 | GTM-Gate als erfüllt dokumentiert (GTM-DEC-002); Roadmap-/Gate-Doku korrigiert | ✅ neu |
 | G1 | Staging/Prod gestrichen — Dev ist Produktbasis (Entscheid 2026-09-21) | ✅ neu |
@@ -102,7 +103,7 @@ Technisch: Async-Runtime (Jobs, Worker, Result-Pages, Notifications), OIDC/BFF-A
 
 **Nächste Schritte (empfohlene Reihenfolge):**
 1. Initiales Produkt auf dev vervollständigen und abnehmen (Async UX, M1–M5-Abnahme) — ehem. G1
-2. Entitlement-Runtime-Bindung Entitlements/Usage-Counters (G3) — GTM-Gate ist erfüllt (GTM-DEC-002), kein Blocker mehr
+2. Entitlement-Runtime-Bindung Entitlements/Usage-Counters (G3) — ✅ erledigt; offen: Org-Bootstrap (UUID-Org-Rows)
 3. POI-Referenzpunkte 5→20 erweitern + Monitoring etablieren (G6)
 4. Billing-Integration Stripe (G4) — nach G3
 
