@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Module entrypoint for ``python -m src.api.web_service``."""
-
-from src.api.web_service import main
-
+from src.api import web_service as _legacy_impl
 
 if __name__ == "__main__":
-    main()
+    _legacy_impl.main()
