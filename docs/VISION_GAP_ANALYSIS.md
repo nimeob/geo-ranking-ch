@@ -32,10 +32,11 @@ Technisch: Async-Runtime (Jobs, Worker, Result-Pages, Notifications), OIDC/BFF-A
 
 ## 3) Differenzen (Gap-Liste)
 
-### G1 — Prod/Staging-Environment fehlt ⛔ (Phase 1, kritischer Pfad)
-- **Intention:** Promotion-Pfad `dev → staging → prod`, produktives TLS, Custom Domain, Monitoring+Alerting auf Prod
-- **Ist:** Terraform für `staging` existiert (`staging_network/db/ecs_compute.tf` + `terraform.staging.tfvars.example`), `deploy-staging.yml` Workflow existiert — **aber: kein einziger Staging-Deploy-Run nachweisbar**; keine `prod`-Terraform-Dateien; alles läuft auf `dev`
-- **Maßnahme:** Staging-Deploy tatsächlich ausführen (AWS-seitig, manueller Schritt des Owners), danach Prod-IaC
+### G1 — Staging/Prod-Umgebungen ✅ gestrichen (Entscheid 2026-09-21)
+- **Ursprüngliche Intention:** Promotion-Pfad `dev → staging → prod`, produktives TLS, Custom Domain, Monitoring+Alerting auf Prod
+- **Neue Entscheidung:** Staging/Prod werden **nicht** aufgebaut — solange das initiale Produkt in dev nicht existiert, braucht es keine andere Umgebung. Dev ist die Produktbasis.
+- **Ist-Befund (historisch):** Staging-Terraform (`staging_*.tf`) und `deploy-staging.yml` existierten, wurden aber nie ausgeführt; keine `prod`-Terraform-Dateien. Die bestehenden Staging-Artefakte werden nicht weiterverfolgt; Wiedereinführung ist ein bewusster Folgeentscheid.
+- **Maßnahme:** Keine — Gap durch Entscheidung aufgelöst. Phase 1 der Roadmap heißt jetzt „Initiales Produkt auf dev".
 
 ### G2 — Entitlement-Datenschicht unvollständig 🔴 (Phase 2, kritischer Pfad)
 - **Intention:** Tabellen `organizations, users, memberships, plans, subscriptions, entitlements, usage_counters, api_keys, audit_events` (GTM_TO_DB_ARCHITECTURE_V1.md)
@@ -50,12 +51,12 @@ Technisch: Async-Runtime (Jobs, Worker, Result-Pages, Notifications), OIDC/BFF-A
 ### G4 — Billing/Stripe nicht integriert 🔴 (Phase 2)
 - **Intention:** Stripe-Webhook → Subscription-Lifecycle, idempotent
 - **Ist:** Nur Contracts/Design (`entitlement-billing-lifecycle-v1.md`, `bl30-entitlement-contract-v1.md`); kein Stripe-SDK, kein Webhook-Endpoint
-- **Maßnahme:** Offen — Sequenziell nach GTM-Sprint #457 (Roadmap-Regel: „kein Code ohne validiertes Pricing")
+- **Maßnahme:** Offen — Sequenziell nach G3 (GTM-Gate erfüllt via GTM-DEC-002)
 
-### G5 — GTM-Validierungssprint #457 ausstehend 🔴 (Phase 2)
+### G5 — GTM-Validierung ✅ (gestrichen als Gap)
 - **Intention:** 10 Discovery-Gespräche, Go/Adjust/Stop-Entscheidung vor Entitlement-Implementierung
-- **Ist:** `docs/testing/GTM_VALIDATION_DECISION_LOG.md` existiert nicht bzw. keine dokumentierte Entscheidung; keine offenen Issues im Repo-Tracker
-- **Maßnahme:** Nur vom Owner leistbar (Kundengespräche) — Code-seitig nicht schließbar
+- **Ist:** Sprint `gtm-validation-001` durchgeführt; Entscheidung GTM-DEC-002 dokumentiert und akzeptiert (Option 2: BL-30.2 nach BL-30.1 priorisiert); `reports/testing/gtm-validation/gtm-validation-001/summary.md` als Evidenz abgelegt. Entitlement-Implementierung ist damit entblockt — die Roadmap (Stand 2026-03-01) hatte den Sprint fälschlich noch als ausstehend geführt; entsprechend korrigiert.
+- **Maßnahme:** Keine weiteren Kundengespräche vorgesehen
 
 ### G6 — POI-Abdeckungs-Baseline unter Ziel 🟡 (Phase 3)
 - **Intention:** „POI-Abdeckung für Top-20-Adressen ohne `low_confidence`-Fallback"; Abdeckungsmonitoring; Roadmap: „Baseline-Messung auf 20 Referenz-Adressen"
@@ -83,7 +84,7 @@ Technisch: Async-Runtime (Jobs, Worker, Result-Pages, Notifications), OIDC/BFF-A
 - Governance-Infrastruktur (Boundary-Checks, Doc-Drift-Tests, Deploy-Gates) ist außergewöhnlich diszipliniert
 
 **Schwächen (Abweichungen von der Intention):**
-- **Doku-Code-Drift bei Infrastruktur:** Staging-Terraform + Workflow existieren, wurden aber nie ausgeführt — „provisioniert" in Docs vs. Realität divergiert (G1)
+- **Doku-Code-Drift bei Infrastruktur (aufgelöst):** Staging-Terraform + Workflow existierten, wurden aber nie ausgeführt — Docs versprachen einen Promotion-Pfad, den es real nicht gab; mit Entscheid 2026-09-21 (Staging/Prod gestrichen) ist dieser Drift aufgelöst (G1)
 - **Entitlement-Gates sind Schattenlogik:** Die Gate-Auswertung ist technisch sauber, operiert aber auf vom Client gelieferten `options.entitlements.*`-Feldern statt auf serverseitigem Tenant-Zustand — für B2B-Vermarktung nicht belastbar (G2/G3)
 - **Vision-Doku verspricht `plans/subscriptions/...`-Tabellen**, das DB-Schema stoppte bei `api_keys` (G2 — in diesem PR geschlossen)
 
@@ -95,13 +96,15 @@ Technisch: Async-Runtime (Jobs, Worker, Result-Pages, Notifications), OIDC/BFF-A
 |---|---|---|
 | G2 (Schema) | `db/migrations/004_entitlements_schema.sql`: `plans`, `subscriptions` (inkl. 1-aktiv-pro-Org-Partial-Index), `entitlements` (normalisiert, historisierbar), `usage_counters` (Scope-Modell org/user/api_key + Fenster), `audit_events` (append-only) | ✅ neu |
 | G6 (Protokoll) | Differenz-Protokoll als lebendes Dokument etabliert | ✅ neu |
-| G1, G3–G5, G7, G8 | Bleiben offen, Ownership + Reihenfolge dokumentiert | 📋 diesem Dokument |
+| G5 | GTM-Gate als erfüllt dokumentiert (GTM-DEC-002); Roadmap-/Gate-Doku korrigiert | ✅ neu |
+| G1 | Staging/Prod gestrichen — Dev ist Produktbasis (Entscheid 2026-09-21) | ✅ neu |
+| G3, G4, G7, G8 | Bleiben offen, Ownership + Reihenfolge dokumentiert | 📋 diesem Dokument |
 
 **Nächste Schritte (empfohlene Reihenfolge):**
-1. Staging-Deploy wirklich ausführen (G1) — Deploy-Pfad ist vorhanden
-2. GTM-Sprint #457 abschließen (G5) — Owner-Aktion
-3. Runtime-Bindung Entitlements/Usage-Counters (G3) — nach 1+2
-4. POI-Referenzpunkte 5→20 erweitern + Monitoring etablieren (G6)
+1. Initiales Produkt auf dev vervollständigen und abnehmen (Async UX, M1–M5-Abnahme) — ehem. G1
+2. Entitlement-Runtime-Bindung Entitlements/Usage-Counters (G3) — GTM-Gate ist erfüllt (GTM-DEC-002), kein Blocker mehr
+3. POI-Referenzpunkte 5→20 erweitern + Monitoring etablieren (G6)
+4. Billing-Integration Stripe (G4) — nach G3
 
 ---
 

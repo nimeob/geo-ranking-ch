@@ -1,6 +1,6 @@
 # Roadmap to Vision — Geo Intelligence Portal Schweiz
 
-Stand: 2026-03-01  
+Stand: 2026-03-01
 Kontext: Ehrliche Standortbestimmung und Pfad vom heutigen Stand zum vollständigen Produktzielbild.
 
 ---
@@ -22,9 +22,9 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 
 | Dimension | Reifegrad | Kurzbeschreibung |
 |---|---|---|
-| **Technisch** | ~80 % | API mit M1–M5, Async Runtime, 2-Container-Deployment auf dev, CI/CD, OIDC, Logging/Tracing — stabil und deploybar. Hauptlücke: kein Prod-Environment. BL-15 abgeschlossen (Architekturentscheid 2026-03-01). |
+| **Technisch** | ~80 % | API mit M1–M5, Async Runtime, 2-Container-Deployment auf dev, CI/CD, OIDC, Logging/Tracing — stabil und deploybar. Dev ist bis auf Weiteres die einzige Umgebung (Entscheid 2026-09-21). BL-15 abgeschlossen (Architekturentscheid 2026-03-01). |
 | **Produktreife** | ~50 % | Sync-Analyze produktiv nutzbar, Async UX spezifiziert aber nicht deployed, kein Entitlement-Layer, Intelligence-Qualität in Teilen noch schwach (POI-Dichte, Deep Mode ohne echte Tiefenquellen). |
-| **Kommerziell** | ~25 % | GTM-Architektur und Pricing-Hypothesen vollständig dokumentiert (BL-30, `docs/GTM_TO_DB_ARCHITECTURE_V1.md`, `docs/api/entitlement-billing-lifecycle-v1.md`). Kein Billing, keine Subscriptions, keine zahlenden Kunden. GTM-Validierungssprint (#457) noch ausstehend. |
+| **Kommerziell** | ~25 % | GTM-Architektur und Pricing-Hypothesen vollständig dokumentiert (BL-30, `docs/GTM_TO_DB_ARCHITECTURE_V1.md`, `docs/api/entitlement-billing-lifecycle-v1.md`). Kein Billing, keine Subscriptions, keine zahlenden Kunden. GTM-Validierung abgeschlossen (GTM-DEC-002: Option 2 priorisiert). |
 
 ### Was bereits fertig ist
 
@@ -37,9 +37,9 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 
 ### Was noch fehlt (strukturiert)
 
-1. **Prod-Environment** → Alles läuft auf `dev`; Staging/Prod noch nicht provisioniert
-3. **Async UX live** → Jobs, Progress, Notifications, Result-Pages sind implementiert, aber nicht in Prod deployed
-4. **Entitlement-Layer (G3)** → Org/User/Plan/Subscription/Quota noch nicht implementiert; beginnt nach #457-Close
+1. **Initiales Produkt auf dev vervollständigen** → Dev ist die Produktbasis; Staging/Prod sind bis auf Weiteres gestrichen (Entscheid 2026-09-21: solange das initiale Produkt in dev nicht existiert, braucht es keine andere Umgebung)
+3. **Async UX live** → Jobs, Progress, Notifications, Result-Pages sind implementiert, aber noch nicht als abgenommener Produktstand auf dev bestätigt
+4. **Entitlement-Layer (G3)** → Org/User/Plan/Subscription/Quota noch nicht implementiert; GTM-Gate erfüllt (GTM-DEC-002), Implementierung kann starten
 5. **Billing/Checkout** → kein Stripe oder Äquivalent; kein Self-Service-Zugang
 6. **Intelligence-Qualität** → POI-Dichte partiell schwach; Deep Mode ohne echte Tiefenquellen (Bebauungspläne, Kataster etc.)
 
@@ -61,13 +61,13 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 | Kriterium | Nachweis |
 |---|---|
 | BL-15: ✅ Abgeschlossen (Architekturentscheid 2026-03-01, kein Blocking) | Externer Consumer bleibt dauerhaft aktiv — accepted. Referenz: `docs/LEGACY_IAM_USER_READINESS.md` |
-| Prod-Deployment läuft stabil (`services-stable`) | GitHub Actions Run + Post-Deploy-Verify via `check_deploy_version_trace.py` |
-| `POST /analyze` auf Prod: HTTP 200, korrekte Response-Struktur | Internet-Smoke `run_remote_api_smoketest.sh` gegen Prod-URL |
-| Async-Job Lifecycle `queued → completed` auf Prod nachweisbar | E2E-Test gegen Prod-Job-Endpoints |
+| Dev-Deployment läuft stabil (`services-stable`) | GitHub Actions Run + Post-Deploy-Verify via `check_deploy_version_trace.py` |
+| `POST /analyze` auf dev: HTTP 200, korrekte Response-Struktur | Internet-Smoke `run_remote_api_smoketest.sh` gegen dev-URL |
+| Async-Job Lifecycle `queued → completed` auf dev nachweisbar | E2E-Test gegen dev-Job-Endpoints |
 | Monitoring + Alerting aktiv (Telegram-Alert bei Ausfall) | CloudWatch-Alarm verifiziert |
 
-**Abhängigkeiten:** Prod-AWS-Account-Konfiguration  
-**Komplexität:** Mittel (BL-15 abgeschlossen; dominanter Faktor: Prod-IaC-Provisionierung)
+**Abhängigkeiten:** — (dev-Umgebung existiert und läuft)
+**Komplexität:** Niedrig–Mittel (keine IaC-Neuprovisionierung; Fokus auf Produkt-Vervollständigung auf dev)
 
 ---
 
@@ -77,7 +77,7 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 
 ### Deliverables
 
-- **GTM-Validierungssprint (#457):** 10 strukturierte Kunden-Discovery-Gespräche (Segmente A/B/C), Entscheidung Go/Adjust/Stop nach `docs/PACKAGING_PRICING_HYPOTHESES.md`. Ohne diesen Sprint kein Entitlement-Implementierungs-Go.
+- **GTM-Validierung (abgeschlossen):** Entscheidung GTM-DEC-002 (Option 2: BL-30.2 nach BL-30.1) ist im Decision-Log dokumentiert (`docs/testing/GTM_VALIDATION_DECISION_LOG.md`); ein weiterer Kunden-Discovery-Sprint ist nicht mehr vorgesehen.
 - **Entitlement-Layer implementieren:** Tabellen `organizations`, `users`, `memberships`, `plans`, `subscriptions`, `entitlements`, `usage_counters`, `api_keys`, `audit_events`. Architektur: `docs/GTM_TO_DB_ARCHITECTURE_V1.md`, Contract: `docs/api/entitlement-billing-lifecycle-v1.md`, `docs/api/bl30-entitlement-contract-v1.md`.
 - **API-Key-Provisioning:** Org-basierte API-Keys, Rotation, Revocation.
 - **Rate-Limiting / Quota-Enforcement:** Gateway oder Middleware-seitiges Entitlement-Gate (monatliches Limit + Burst-Rate).
@@ -94,7 +94,7 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 | Erster zahlender Kunde aktiv | Stripe-Subscription aktiv, API-Key ausgestellt, mindestens 1 bezahlte Analyse |
 | Subscription-Lifecycle (Upgrade/Downgrade/Cancel) ohne manuelle DB-Eingriffe | Webhook-Idempotenz-Test mit wiederholtem Event |
 
-**Abhängigkeiten:** Phase 1 abgeschlossen (Prod live), #457-Close (GTM-Entscheidung), Datenbankwahl final (PostgreSQL/DynamoDB per `docs/GTM_TO_DB_ARCHITECTURE_V1.md`)  
+**Abhängigkeiten:** Phase 1 abgeschlossen (initiales Produkt auf dev), GTM-Entscheidung erfüllt (GTM-DEC-002), Datenbankwahl final (PostgreSQL/DynamoDB per `docs/GTM_TO_DB_ARCHITECTURE_V1.md`)
 **Komplexität:** Hoch (Implementierung + GTM-Koordination)
 
 ---
@@ -119,14 +119,14 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 | Deep Mode liefert mind. 1 echte externe Quelle mit `confidence >= 0.7` | Contract-konformes Response mit befülltem `derived_from` |
 | Scoring-Golden-Tests: kein Drift gegenüber dokumentierter Methodologie | `pytest tests/test_scoring_methodology_golden.py` → grün |
 
-**Abhängigkeiten:** Phase 1 (Prod-Env für echte Daten), ggf. externe Datenlizenz-Verhandlungen  
+**Abhängigkeiten:** Phase 1 (initiales Produkt auf dev für echte Daten), ggf. externe Datenlizenz-Verhandlungen
 **Komplexität:** Mittel (iterativ; keine harte Sequenzabhängigkeit)
 
 ---
 
 ## Phase 4 — Self-Service & Scale
 
-**Ziel:** Vollständig selbst-bedienbares Produkt; HTML5-UI produktiv; skalierungsfähiger Multi-Tenant-Betrieb.
+**Ziel:** Vollständig selbst-bedienbares Produkt; HTML5-UI produktiv; skalierungsfähiger Multi-Tenant-Betrieb. (Umgebungs-Multiplikation dev→staging→prod erst dann, wenn das initiale Produkt auf dev vollständig existiert — bewusster Folgeentscheid.)
 
 ### Deliverables
 
@@ -143,11 +143,11 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 |---|---|
 | Self-Service-Signup ohne manuellen Eingriff End-to-End lauffähig | Smoke: Signup → Payment → API-Key in < 5 Minuten |
 | Mind. 10 zahlende Kunden, > 0 Churn in 30 Tagen | CRM/Stripe-Auswertung |
-| HTML5 GUI: LCP < 2.5s, kein Layout-Shift auf Core-Flows | Lighthouse-Messung auf Prod |
+| HTML5 GUI: LCP < 2.5s, kein Layout-Shift auf Core-Flows | Lighthouse-Messung auf dev |
 | Mobile Geolocation: Permission → Analyse in < 30s | Manuelle E2E auf iOS/Android |
-| Service-Verfügbarkeit Prod: > 99.5 % in 30 Tagen | CloudWatch-Alarm-Auswertung |
+| Service-Verfügbarkeit dev: > 99.5 % in 30 Tagen | CloudWatch-Alarm-Auswertung |
 
-**Abhängigkeiten:** Phasen 1+2 abgeschlossen, OSM-Tile-Hosting-Entscheid umgesetzt, Legal-Review Datenschutz (Mobile)  
+**Abhängigkeiten:** Phasen 1+2 abgeschlossen, OSM-Tile-Hosting-Entscheid umgesetzt, Legal-Review Datenschutz (Mobile)
 **Komplexität:** Hoch (breit; mehrere unabhängige Streams parallelisierbar)
 
 ---
@@ -157,13 +157,12 @@ Kernmodule (M1–M5): Gebäudeprofil, Umfeldprofil, Bau-Eignung, Explainability,
 ```
 BL-15 ✅ Abgeschlossen (Architekturentscheid 2026-03-01)
 
-Prod-Deployment (Phase 1) ──────────────────────────────────────────┐
+Initiales Produkt auf dev (Phase 1) ──────────────────────────────────────────┐
     │                                                                 │
     ▼                                                                 │
-GTM-Sprint #457 abschließen                                          │ Phase 3
+Entitlement-Layer implementieren (Phase 2)                           │ Phase 3
     │                                                                 │ (parallel)
     ▼                                                                 │
-Entitlement-Layer implementieren (Phase 2)                           │
     │                                                                 │
     ▼                                                                 │
 Erster zahlender Kunde ◄─────────────────────────────────────────────┘
@@ -174,13 +173,13 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 
 **Zwingend sequenziell:**
 1. ~~BL-15 muss vor Prod-Deploy geschlossen sein~~ → ✅ abgeschlossen (Architekturentscheid 2026-03-01, kein Blocker mehr)
-2. GTM-Sprint (#457) muss vor Entitlement-Implementierung abgeschlossen sein (kein Code ohne validiertes Pricing)
+2. ~~GTM-Sprint (#457) muss vor Entitlement-Implementierung abgeschlossen sein~~ → ✅ erfüllt (GTM-DEC-002: Option 2 priorisiert; `docs/testing/GTM_VALIDATION_DECISION_LOG.md`)
 3. Entitlement-Layer muss vor Self-Service-Checkout existieren
 
 **Parallelisierbar:**
 - Intelligence-Qualität (POI, Deep Mode) läuft parallel zu Phase 2
 - Async UX Verbesserungen können nach Phase 1 unabhängig vom Entitlement-Track deployed werden
-- HTML5 UI-Architektur kann vorbereitet werden, sobald Prod stabil läuft
+- HTML5 UI-Architektur kann vorbereitet werden, sobald dev als Produktbasis stabil läuft
 
 ---
 
@@ -193,14 +192,14 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 | **Datenlizenz**: Tiefenquellen (kantonale Daten) nicht lizenzierbar oder prohibitiv teuer | Mittel | Mittel — Deep Mode bleibt schwach | Frühzeitig Lizenzanfragen stellen; Fallback auf ausschließlich offene Daten dokumentieren |
 | **Entitlement-Komplexität**: Multi-Tenant-Datenschicht dauert länger als geplant | Mittel | Mittel — Verzögerung Phase 2 | Scope-Minimalversion (nur Free/Pro, kein Business-Tier initial) als Fallback |
 | **OSM-Tile-Hosting**: Eigener Tile-Server ist Infra-Aufwand; Drittanbieter hat Lizenzbedingungen | Mittel | Mittel — Karten-Feature verzögert | Entscheid gemäß `docs/gui/OSM_TILE_ODBL_COMPLIANCE_DECISION_V1.md`; Drittanbieter-Fallback evaluieren |
-| **Scaling**: Unerwartet hoher Traffic führt zu DB-Engpässen (usage_counters, jobs) | Niedrig | Hoch | Connection-Pooling und horizontales Scaling von Anfang an einplanen; Load-Test in Staging vor Prod |
+| **Scaling**: Unerwartet hoher Traffic führt zu DB-Engpässen (usage_counters, jobs) | Niedrig | Hoch | Connection-Pooling und horizontales Scaling von Anfang an einplanen; Load-Test auf dev |
 
 ---
 
 ## 7 Erfolgsmessung
 
 ### Phase 1 — abgeschlossen, wenn:
-- Prod-URL öffentlich erreichbar, HTTPS mit gültigem Zertifikat
+- Initiales Produkt auf dev vollständig (M1–M5 + Async UX abgenommen)
 - `/health` liefert 200, `/analyze` liefert korrekte Intelligence-Response
 - BL-15 ✅ Abgeschlossen (Architekturentscheid 2026-03-01)
 
@@ -218,7 +217,7 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 - Self-Service-Conversion-Rate: > 30 % der Signups zahlen innerhalb 14 Tagen
 - Churn nach 30 Tagen: < 20 %
 - NPS der aktiven Kunden: > +20
-- Verfügbarkeit Prod: > 99.5 % über 90 Tage
+- Verfügbarkeit (dev, bis weitere Umgebungen bewusst entschieden): > 99.5 % über 90 Tage
 - MRR (Monthly Recurring Revenue): Ziel-Hypothese aus `docs/UNIT_ECONOMICS_HYPOTHESES_V1.md` messbar erreicht oder explizit adjustiert
 
 ---
@@ -226,9 +225,9 @@ Self-Service-Checkout + HTML5 UI + Mobile (Phase 4)
 ## 8 Nächste Schritte heute
 
 1. ~~**BL-15 konkret angehen**~~ → ✅ Abgeschlossen (Architekturentscheid 2026-03-01).
-2. **GTM-Sprint #457 terminieren:** Erste 3–4 Discovery-Gespräche (Segment A: Immobilienbewertung) konkret buchen. Ohne Gespräche kein Go für den Entitlement-Implementierungsstart.
-3. **Prod-IaC vorbereiten:** Staging-Umgebung in Terraform vorbereiten; Deploy-Workflow auf Staging erproben.
-4. **Async UX Smoke auf Staging:** Sobald Staging live, Async-Job-Lifecycle-Test als Abnahme-Gate dokumentieren.
+2. ~~**GTM-Sprint #457 terminieren**~~ → ✅ Abgeschlossen; Entscheidung GTM-DEC-002 dokumentiert. Entitlement-Implementierung kann starten.
+3. ~~**Prod-IaC vorbereiten**~~ → Gestrichen (Entscheid 2026-09-21): Dev ist Produktbasis; Staging/Prod-Wiedereinführung ist bewusster Folgeentscheid.
+4. **Async UX Smoke auf dev:** Async-Job-Lifecycle-Test als Abnahme-Gate auf dev dokumentieren.
 5. **Intelligence-Qualität-Ticket anlegen:** POI-Abdeckungs-Smoke als eigenes Issue aufsetzen (Baseline-Messung auf 20 Referenz-Adressen).
 
 ---

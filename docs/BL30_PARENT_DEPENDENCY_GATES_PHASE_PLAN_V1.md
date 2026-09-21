@@ -13,7 +13,7 @@ Diese v1-Doku definiert die verbindlichen Eintrittsbedingungen und die oldest-fi
 | --- | --- | --- | --- | --- |
 | Forward-Compatibility-Guardrails | #6 | API-first Contract bleibt additiv (kein Breaking Rewrite), bestehende Antwortstruktur stabil | Breaking Contract-Änderungen oder Rebuild-Pfad erforderlich | **GO** |
 | Capability-/Packaging-Bridge | #127 | Entitlement-/Capability-Kopplung für UI/API ist als Brücke definiert und referenzierbar | Brücken-Semantik unklar oder nicht nachweisbar | **GO** |
-| GTM-Entscheid Sprint | #457 | GTM-Validierung freigegeben; monetarisierungsseitige Priorisierung ist entschieden | #457 offen/blocked oder ohne klare Entscheidung für BL-30.2 | **BLOCKED** |
+| GTM-Entscheid Sprint | #457 | GTM-Validierung freigegeben; monetarisierungsseitige Priorisierung ist entschieden | #457 offen/blocked oder ohne klare Entscheidung für BL-30.2 | **GO** (GTM-DEC-002, `docs/testing/GTM_VALIDATION_DECISION_LOG.md`: Option 2 priorisiert) |
 
 ## Entscheidungslogik
 1. **Wenn ein Gate auf BLOCKED steht:** keine Implementierung auf BL-30.2-Leaves starten.
@@ -23,7 +23,7 @@ Diese v1-Doku definiert die verbindlichen Eintrittsbedingungen und die oldest-fi
 ## Reihenfolge-/Phasenplan (BL-30.2)
 
 ### Phase 0 — Gate-Check (pro Slot)
-- Prüfen, ob #457 auf GO steht.
+- #457 steht auf GO (GTM-DEC-002, `docs/testing/GTM_VALIDATION_DECISION_LOG.md`).
 - Prüfen, ob #6/#127 weiterhin additiv erfüllt sind.
 
 ### Phase 1 — Leaf #465 (oldest-first)
@@ -35,8 +35,8 @@ Diese v1-Doku definiert die verbindlichen Eintrittsbedingungen und die oldest-fi
 - Nur nach abgeschlossenem #465 starten.
 
 ## Operative Regel
-- Für BL-30.2 gilt bis zur Entblockung durch #457: **Status BLOCKED**.
-- Nach Entblockung gilt zwingend: **#465 -> #466** (kein Überspringen, keine Parallelisierung).
+- #457 ist entblockt (GTM-DEC-002): **Status GO**.
+- Es gilt zwingend: **#465 -> #466** (kein Überspringen, keine Parallelisierung).
 
 ## Nachweis / Referenzen
 - Parent: #128
